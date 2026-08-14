@@ -1,11 +1,16 @@
 # Personal OS — Phase -1: Product & UX Discovery Blueprint
 
-> Codename: **zivo** · Owner: Ziad · Phase: **-1 (Product & UX Discovery)** · Status: For review
+> Brand: **ZIVO** (Ziad + _vivo_, "I live") · Owner: Ziad · Phase: **-1 (Product & UX Discovery)**
+> · Status: For review
 >
-> This document defines **how Personal OS should feel and behave** before any technical
-> architecture is derived. It intentionally precedes [PLAN.md](PLAN.md). Nothing here is code,
-> Firestore, or backend. When approved, the technical plan will be **re-derived from this UX**,
-> not the other way around.
+> This document defines **how ZIVO should feel and behave** before any technical architecture is
+> derived. It intentionally precedes [PLAN.md](PLAN.md). Nothing here is code, Firestore, or
+> backend. When approved, the technical plan will be **re-derived from this UX**, not the reverse.
+>
+> **Visual contract:** [`ZIVO-brand-system.md`](ZIVO-brand-system.md) (Brand System v1.0) is the
+> authoritative source for colour, type, spacing, components, motion, and voice. It supersedes
+> §16 here and resolves decision D-8. All wireframes in this blueprint are structural (layout &
+> behaviour); render them to the brand system.
 >
 > Reading order: §0 (philosophy) → §1 (the open-app moment) → §2 (IA, where I challenge you) →
 > §4 (Today, the heart) → §5 (AI) → features → §12 (scope) → §16 (first screen).
@@ -792,47 +797,68 @@ For each screen we specify all of: **Loading · Empty · First-use · Populated 
 
 ## 16. Design system direction (visual language)
 
-**Identity:** Minimal · Premium · Monochrome · Apple-like · highly intentional. Every element
-justifies its ink. The feeling target: **calm, precise, fast** — like a well-made instrument.
+> **This section is now superseded by [`ZIVO-brand-system.md`](ZIVO-brand-system.md) (Brand
+> System v1.0), which is the authoritative visual contract.** The brand system is more specific
+> and more sophisticated than the placeholder direction I originally sketched here, and it
+> **resolves open decision D-8**. Below I only (a) record what changed vs. my earlier draft, and
+> (b) flag the one real tension the brand system introduces with the Today design. Design all
+> screens to the brand system; use this section only to understand the reconciliation.
 
-- **Color:** true monochrome foundation — a near-black and a near-white with a **carefully graded
-  neutral scale** for surfaces/text. **At most one functional accent** (used only for active/
-  interactive emphasis and key CTAs), and semantic tones (success/warn) used _sparingly_ and
-  desaturated. Dark and light both first-class. No gradients-as-decoration, no color-coded
-  dashboards. _(Consider: monochrome + a single restrained accent, or pure grayscale with
-  emphasis via weight/contrast only — decide during first-screen design.)_
-- **Typography:** one strong family (system SF-like for native feel, or a premium geometric
-  sans), used across a **tight, deliberate scale** (e.g., Display / Title / Body / Caption).
-  Hierarchy comes from **weight, size, and spacing**, not color. Numerals matter (tabular for
-  amounts/reps). Generous line-height; text is the primary UI.
-- **Spacing:** strict **8pt grid**, generous whitespace, breathing room over density where it
-  counts. Information-dense _where needed_ (workout session, expense history) but never cramped.
-- **Surface hierarchy:** depth via **subtle elevation and hairline separation**, not heavy
-  shadows or borders. Cards are quiet containers; Today's cards read as calm blocks, not
-  competing tiles. Sheets are the primary modal surface.
-- **Corner radius:** consistent, moderately rounded (a small set of radii — e.g., controls,
-  cards, sheets), never fully pill-everything, never sharp/harsh. Cohesive across the app.
-- **Icons:** a single line-icon set (SF Symbols-like), consistent weight, used sparingly and
-  meaningfully — never decorative.
-- **Buttons:** a clear hierarchy — one **primary** style (filled, high-contrast) used once per
-  screen, **secondary** (subtle/tinted), **tertiary/text**. Big, confident primary actions
-  (Start workout, Save, Log set).
-- **Sheets:** the workhorse for capture, Ask, confirmations — bottom sheets with a grabber, spring
-  presentation, content-height where possible. Capture and Ask both live here.
-- **Cards & lists:** lists are the backbone (agenda, tasks, expenses, notes); rows are quiet,
-  swipeable, tappable, with clear touch targets. Cards used only for genuine "objects" (workout,
-  now/next).
-- **Navigation:** minimal bottom bar (4 items), clear active state (weight/contrast, not loud
-  color); large titles that collapse on scroll (native iOS feel); back is predictable.
-- **Motion:** **spring-based, quick, purposeful** — sheets spring up, completes settle, Today
-  sections stagger-in subtly on load. Nothing bouncy-for-fun; motion communicates state and
-  hierarchy. Respect reduce-motion.
-- **Haptics:** deliberate and meaningful — a crisp tick on task complete and set logged, a
-  success cue on workout finish and capture saved, a subtle warning on conflicts. Haptics are
-  part of the premium feel, not noise.
+### What the brand system settles (and where it overrode my earlier draft)
+- **Not monochrome.** My original "at most one functional accent / consider pure grayscale" is
+  **wrong and retired.** ZIVO uses a disciplined **5-hue meaning system** — Ember (now/next/
+  primary action), Iris (university), Pulse (training), Solar (money), Flare (overdue/alert) —
+  on a dark-default neutral surface stack (Void → Base → Raised). Colour is _meaning_, lives on
+  text/dots/fills (never containers), stays under ~8% of screen pixels. **This is better than
+  monochrome for a personal OS: each life-area is legible by hue at a glance.** ✅ resolves D-8.
+- **Type is fixed:** Sora (display/titles/hero numbers) · Geist (interface) · Geist Mono (data:
+  times/amounts/reps) · Instrument Serif italic (one quiet aside per screen). My "system SF or a
+  geometric sans" is replaced by these four (all OFL / Google Fonts). Concrete scale D1–Q1 given.
+- **Spacing is a 4pt base** (not the 8pt I wrote): 4/8/12/16/24/40.
+- **Radius is fixed:** 6 (chips/inputs) · 12 (cards/sheets) · 999 (buttons/dots) · 22% (logo tile
+  only). "Buttons are pills," which supersedes my "don't pill everything."
+- **Elevation: no shadows at all** — depth is surface steps + 1px `rgba(255,255,255,0.08)`
+  hairlines. (Aligned with, and stricter than, my draft.)
+- **Motion has an identity:** everything enters **along the 8° lean, up-and-right**; tap 90ms /
+  sheet 240ms / splash 420ms; `cubic-bezier(0.2,0.8,0.2,1)`; nothing bounces or slow-fades.
+  (My "spring-based" is replaced by this specific brisk-then-still easing.)
+- **Voice is specified:** short, present tense, second person, state-the-fact-then-stop; no
+  encouragement, emoji, or exclamation. This directly shapes all UX copy in this blueprint
+  (empty states, nudges, AI answers) — rewrite any copy here that violates it.
+- **Components are specified** (primary/secondary/tertiary/quiet buttons, chips, inputs, card
+  header anatomy with hue dot + Mono caps label + Mono time, list rows, tab bar, splash). These
+  are the source of truth for the wireframes in §4–§13.
+- **Naming:** the brand is **ZIVO** (Ziad + _vivo_, "I live"); AI is invisible — no sparkles, no
+  chat bubble as hero. This strongly reinforces the four-mode AI model in §5 (Ask/in-context/
+  ambient over a chat tab).
 
-**Overall:** the app should feel like **iOS-native but quieter and more personal** — closer to
-Apple's own first-party apps (Reminders/Fitness/Health) than to any SaaS dashboard.
+### The one real tension: hue-per-screen vs. Today the aggregator  ⚠️ new decision **D-9**
+The brand rule is **"one hue owns one screen; never mix hues in one screen _region_"** (Training
+is Pulse throughout, Expenses is Solar throughout). That's clean for **module screens**. But
+**Today deliberately aggregates every area on one surface** (§4) — Now/Next (Ember), workout
+card (Pulse), spending glance (Solar), university deadlines (Iris), overdue (Flare). Today is the
+one screen that _must_ carry multiple hues.
+
+**Proposed resolution (needs your confirmation):** Today is the explicit exception, and it obeys
+the rule at the **region** level, not the screen level:
+- Each Today section is its own region and carries **exactly one hue, on its dot/label only**
+  (Pulse dot on the workout card, Solar on spending, Iris on a university item, Flare on
+  overdue).
+- **Ember stays scarce and special** — it appears **once**, on Now/Next ("what happens next"),
+  exactly per the brand's "Ember overrides everything, once per screen" rule.
+- Everything else on Today stays neutral (Paper/Second/Muted text on Base/Raised). Total coloured
+  pixels stay under 8% because hue lives only on small dots/labels.
+
+This honours the brand's spirit ("colour is meaning," dots carry hue, hues never bleed into
+containers) while acknowledging Today is the aggregation surface. **If you'd rather Today itself
+be all-Ember and let hues appear only when you drill into a module, that's the alternative** —
+flagged as **D-9**.
+
+### Small copy consequence (apply throughout)
+Several empty-state/nudge strings I wrote (e.g., "recover well", celebratory tones) must be
+re-toned to the brand voice. Examples: "Rest day." not "Rest day — recover well"; "The rest of
+the day is yours." for an evening-empty Today; "Two things matter." for a light focus list. I'll
+apply this pass when we design real screens.
 
 ---
 
@@ -895,8 +921,13 @@ Apple's own first-party apps (Reminders/Fitness/Health) than to any SaaS dashboa
   cut._
 - **D-7 — AI prominence:** confirm AI is Ask+in-context first, chat-tab second (not centered). _Rec:
   yes._
-- **D-8 — Design accent:** single restrained accent vs. pure grayscale (emphasis by weight/
-  contrast only). _Decide during first-screen design._
+- **D-8 — Design accent:** ~~single restrained accent vs. pure grayscale~~ **RESOLVED by
+  [`ZIVO-brand-system.md`](ZIVO-brand-system.md):** dark-default neutral surfaces + a 5-hue
+  meaning system (Ember/Iris/Pulse/Solar/Flare), colour on text/dots/fills only, <8% of pixels.
+- **D-9 — Today's multi-hue handling (NEW, from the brand system):** the brand says "one hue owns
+  one screen," but Today aggregates all areas. _Rec:_ Today is the explicit exception — one hue
+  per _section/region_ (on dots/labels only), Ember reserved for Now/Next once. Alternative:
+  Today is all-Ember, hues appear only inside modules. See §16. **Blocks first-screen design.**
 
 ### Recommended first UI screen to design
 **Today (morning, populated state) — as a static, high-fidelity design.**
@@ -906,7 +937,7 @@ Apple's own first-party apps (Reminders/Fitness/Health) than to any SaaS dashboa
 - It **forces** us to resolve the design system (type scale, spacing, cards, monochrome accent)
   on the most important surface, so every other screen inherits proven tokens.
 - It exercises the hardest composition problem (multiple features on one calm surface) up front.
-- It surfaces the open decisions (D-1, D-2, D-8) concretely instead of abstractly.
+- It surfaces the open decisions (D-1, D-2, **D-9**) concretely instead of abstractly.
 
 **Sequence after Today:** Today (morning) → Today states (empty/first-use/evening) → Quick Capture
 sheet → Expense capture (proves the <5s claim) → Workout Active Session (proves the hardest real-
@@ -934,12 +965,12 @@ remaining screens are then largely composition of settled patterns.
 | 13 | V1 UX scope | §17 |
 | 14 | Features to postpone | §17 |
 | 15 | UX risks | §17 |
-| 16 | Open product decisions | §17 (D-1…D-8) |
+| 16 | Open product decisions | §17 (D-1…D-9) |
 | 17 | Recommended first UI screen | §17 |
 
 ---
 
 _End of Phase -1 blueprint. This is the product contract. On approval, we re-derive the technical
 plan (domain → use cases → data → Firebase → AI) to **serve** this experience — never the reverse.
-Do not proceed to technical architecture until this is reviewed and the open decisions (D-1…D-8)
+Do not proceed to technical architecture until this is reviewed and the open decisions (D-1…D-9)
 are settled._
