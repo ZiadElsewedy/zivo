@@ -7,10 +7,13 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
+import '../../../schedule/domain/schedule_event.dart';
+import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../data/today_demo_data.dart';
 import '../../domain/today_snapshot.dart';
 import '../focus_builder.dart';
+import '../now_next_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
@@ -50,9 +53,9 @@ class TodayPage extends StatelessWidget {
               ),
               children: [
                 RiseIn(delay: Duration.zero, child: _Header(s)),
-                RiseIn(
-                  delay: const Duration(milliseconds: 90),
-                  child: _NowNextSection(s.nowNext),
+                const RiseIn(
+                  delay: Duration(milliseconds: 90),
+                  child: _NowNextSection(),
                 ),
                 RiseIn(
                   delay: const Duration(milliseconds: 170),
@@ -133,19 +136,42 @@ class _Header extends StatelessWidget {
 }
 
 class _NowNextSection extends StatelessWidget {
-  const _NowNextSection(this.data);
-
-  final NowNext? data;
+  const _NowNextSection();
 
   @override
   Widget build(BuildContext context) {
-    if (data == null) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Now · Next', top: AppSpacing.section - 4),
-        NowNextCard(data!),
-      ],
+    final schedule = AppScope.of(context).schedule;
+    return StreamBuilder<List<ScheduleEvent>>(
+      stream: schedule.watchAll(),
+      initialData: schedule.current,
+      builder: (context, snapshot) {
+        final now = DateTime.now();
+        final event = nextRelevant(snapshot.data ?? const <ScheduleEvent>[], now);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader('Now · Next', top: AppSpacing.section - 4),
+            if (event == null)
+              const _EmptyLine('No events today.')
+            else
+              NowNextCard(nowNextFromEvent(event, now)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmptyLine extends StatelessWidget {
+  const _EmptyLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+      child: Text(text, style: AppText.body.copyWith(color: AppColors.ink3, fontSize: 15)),
     );
   }
 }

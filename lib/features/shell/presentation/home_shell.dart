@@ -7,8 +7,12 @@ import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
 import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
-import '../../tasks/domain/task.dart';
+import '../../hub/presentation/hub_page.dart';
+import '../../moments/presentation/pages/moment_capture_page.dart';
+import '../../notes/presentation/pages/note_capture_page.dart';
+import '../../schedule/presentation/pages/event_capture_page.dart';
 import '../../tasks/presentation/pages/task_capture_page.dart';
+import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/coming_soon.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -28,7 +32,7 @@ class _HomeShellState extends State<HomeShell> {
 
   static const _tabs = [
     TodayPage(),
-    ComingSoon('Hub'),
+    HubPage(),
     ComingSoon('Ask'),
     ComingSoon('You'),
   ];
@@ -39,31 +43,36 @@ class _HomeShellState extends State<HomeShell> {
 
     switch (choice) {
       case CaptureChoice.expense:
-        final saved = await Navigator.of(context).push<Expense>(
-          MaterialPageRoute(
-            builder: (_) => const ExpenseCapturePage(),
-            fullscreenDialog: true,
-          ),
-        );
-        if (saved != null && mounted) {
+        final saved = await _push<Expense>(const ExpenseCapturePage());
+        if (saved != null) {
           _toast('Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}');
         }
       case CaptureChoice.task:
-        final saved = await Navigator.of(context).push<Task>(
-          MaterialPageRoute(
-            builder: (_) => const TaskCapturePage(),
-            fullscreenDialog: true,
-          ),
-        );
-        if (saved != null && mounted) _toast('Task added');
+        final saved = await _push<Object>(const TaskCapturePage());
+        if (saved != null) _toast('Task added');
       case CaptureChoice.event:
+        final saved = await _push<Object>(const EventCapturePage());
+        if (saved != null) _toast('Event added');
       case CaptureChoice.note:
+        final saved = await _push<Object>(const NoteCapturePage());
+        if (saved != null) _toast('Note saved');
       case CaptureChoice.moment:
-        _toast('Coming next.');
+        final saved = await _push<Object>(const MomentCapturePage());
+        if (saved != null) _toast('Moment saved');
+      case CaptureChoice.workout:
+        final saved = await _push<Object>(const WorkoutCapturePage());
+        if (saved != null) _toast('Workout logged');
     }
   }
 
+  Future<T?> _push<T>(Widget page) {
+    return Navigator.of(context).push<T>(
+      MaterialPageRoute(builder: (_) => page, fullscreenDialog: true),
+    );
+  }
+
   void _toast(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(

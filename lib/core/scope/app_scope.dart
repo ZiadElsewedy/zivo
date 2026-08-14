@@ -1,7 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import '../../features/expenses/domain/expense_repository.dart';
+import '../../features/moments/domain/moment_repository.dart';
+import '../../features/notes/domain/note_repository.dart';
+import '../../features/schedule/domain/schedule_repository.dart';
 import '../../features/tasks/domain/task_repository.dart';
+import '../../features/workout/domain/workout_repository.dart';
 
 /// Provides shared repositories to the widget tree. A deliberately tiny
 /// seam for now; it will be replaced by a proper DI container (get_it) when
@@ -11,12 +15,20 @@ class AppScope extends InheritedWidget {
   const AppScope({
     required this.expenses,
     required this.tasks,
+    required this.schedule,
+    required this.notes,
+    required this.moments,
+    required this.workouts,
     required super.child,
     super.key,
   });
 
   final ExpenseRepository expenses;
   final TaskRepository tasks;
+  final ScheduleRepository schedule;
+  final NoteRepository notes;
+  final MomentRepository moments;
+  final WorkoutRepository workouts;
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -26,5 +38,10 @@ class AppScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
-      expenses != oldWidget.expenses || tasks != oldWidget.tasks;
+      expenses != oldWidget.expenses ||
+      tasks != oldWidget.tasks ||
+      schedule != oldWidget.schedule ||
+      notes != oldWidget.notes ||
+      moments != oldWidget.moments ||
+      workouts != oldWidget.workouts;
 }

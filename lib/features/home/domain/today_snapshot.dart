@@ -10,7 +10,6 @@ class TodaySnapshot {
     required this.dateLabel,
     required this.greeting,
     required this.aside,
-    required this.nowNext,
     required this.focus,
     required this.training,
   });
@@ -19,10 +18,9 @@ class TodaySnapshot {
   final String greeting; // e.g. "Morning, Ziad"
   final String aside; // one warm line
 
-  final NowNext? nowNext;
-  final List<FocusItem> focus;
+  final List<FocusItem> focus; // demo university deadlines (tasks come live)
   final TrainingToday? training;
-  // Spending is read live from the expense repository, not the demo snapshot.
+  // Now/Next comes live from the schedule repository; spending from expenses.
 }
 
 class NowNext {

@@ -8,12 +8,6 @@ const todayDemoSnapshot = TodaySnapshot(
   dateLabel: 'Saturday · 15 August',
   greeting: 'Morning, Ziad',
   aside: 'One deadline today, and a push session waiting.',
-  nowNext: NowNext(
-    kind: 'Lecture',
-    time: '09:30 · in 2h',
-    title: 'Data Structures',
-    detail: 'Hall B · Dr. Naguib · bring assignment 2',
-  ),
   // Tasks are read live from the task repository; the university deadline
   // stays demo until the University feature exists.
   focus: [

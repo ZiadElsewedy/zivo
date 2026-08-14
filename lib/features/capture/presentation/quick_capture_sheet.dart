@@ -5,7 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 
 /// What the user chose to capture.
-enum CaptureChoice { expense, task, event, note, moment }
+enum CaptureChoice { expense, task, event, note, moment, workout }
 
 /// Opens the Quick Capture bottom sheet and resolves to the chosen kind.
 /// Capture is a verb, not five destinations: one sheet, one pick.
@@ -94,6 +94,14 @@ class _QuickCaptureSheet extends StatelessWidget {
             iconColor: AppColors.ink,
             label: 'Moment',
             hint: 'Photo + a line',
+          ),
+          _Option(
+            choice: CaptureChoice.workout,
+            icon: Icons.fitness_center_rounded,
+            iconBg: AppColors.pulseWash,
+            iconColor: AppColors.pulseText,
+            label: 'Workout',
+            hint: 'Log a training session',
             last: true,
           ),
         ],

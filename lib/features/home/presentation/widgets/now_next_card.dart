@@ -32,8 +32,10 @@ class NowNextCard extends StatelessWidget {
           CardHeaderRow(hue: ZHue.ember, label: data.kind, trailing: data.time),
           const SizedBox(height: AppSpacing.m + 1),
           Text(data.title, style: AppText.cardTitle),
-          const SizedBox(height: 6),
-          _detail(data.detail),
+          if (data.detail.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _detail(data.detail),
+          ],
         ],
       ),
     );
