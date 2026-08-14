@@ -45,12 +45,14 @@ class FocusItem {
     required this.hue,
     this.meta,
     this.done = false,
+    this.taskId, // set for rows backed by a task (tap to complete)
   });
 
   final String title;
   final ZHue hue;
   final String? meta; // "overdue", "due today"
   final bool done;
+  final String? taskId;
 }
 
 class TrainingToday {

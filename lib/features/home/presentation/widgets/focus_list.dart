@@ -8,27 +8,30 @@ import 'hue.dart';
 
 /// Today's merged focus list — tasks + university deadlines, by relevance.
 /// The list container is neutral; each row's dot encodes its source/status.
+/// Task-backed rows can be completed by tapping their checkbox.
 class FocusList extends StatelessWidget {
-  const FocusList(this.items, {super.key});
+  const FocusList(this.items, {this.onToggle, super.key});
 
   final List<FocusItem> items;
+  final void Function(String taskId, bool done)? onToggle;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         for (var i = 0; i < items.length; i++)
-          _FocusRow(items[i], first: i == 0),
+          _FocusRow(items[i], first: i == 0, onToggle: onToggle),
       ],
     );
   }
 }
 
 class _FocusRow extends StatelessWidget {
-  const _FocusRow(this.item, {required this.first});
+  const _FocusRow(this.item, {required this.first, this.onToggle});
 
   final FocusItem item;
   final bool first;
+  final void Function(String taskId, bool done)? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +49,17 @@ class _FocusRow extends StatelessWidget {
         children: [
           _leading(),
           const SizedBox(width: 13),
-          Expanded(child: Text(item.title, style: AppText.rowTitle)),
+          Expanded(
+            child: Text(
+              item.title,
+              style: AppText.rowTitle.copyWith(
+                color: item.done ? AppColors.ink3 : AppColors.ink,
+                decoration:
+                    item.done ? TextDecoration.lineThrough : TextDecoration.none,
+                decorationColor: AppColors.ink3,
+              ),
+            ),
+          ),
           if (item.meta != null) ...[
             const SizedBox(width: AppSpacing.s),
             Text(
@@ -64,9 +77,17 @@ class _FocusRow extends StatelessWidget {
   }
 
   Widget _leading() {
-    // Tasks show a checkbox; deadlines/overdue show their meaning dot.
+    // Tasks/deadlines show a checkbox; overdue shows its Flare meaning dot.
     if (item.hue == ZHue.iris || item.hue == ZHue.neutral) {
-      return _CheckBox(checked: item.done);
+      final box = _CheckBox(checked: item.done);
+      if (item.taskId != null && onToggle != null) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onToggle!(item.taskId!, !item.done),
+          child: box,
+        );
+      }
+      return box;
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),

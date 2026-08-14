@@ -7,6 +7,8 @@ import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
 import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
+import '../../tasks/domain/task.dart';
+import '../../tasks/presentation/pages/task_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/coming_soon.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -35,18 +37,29 @@ class _HomeShellState extends State<HomeShell> {
     final choice = await showQuickCaptureSheet(context);
     if (choice == null || !mounted) return;
 
-    if (choice == CaptureChoice.expense) {
-      final saved = await Navigator.of(context).push<Expense>(
-        MaterialPageRoute(
-          builder: (_) => const ExpenseCapturePage(),
-          fullscreenDialog: true,
-        ),
-      );
-      if (saved != null && mounted) {
-        _toast('Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}');
-      }
-    } else {
-      _toast('Coming next.');
+    switch (choice) {
+      case CaptureChoice.expense:
+        final saved = await Navigator.of(context).push<Expense>(
+          MaterialPageRoute(
+            builder: (_) => const ExpenseCapturePage(),
+            fullscreenDialog: true,
+          ),
+        );
+        if (saved != null && mounted) {
+          _toast('Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}');
+        }
+      case CaptureChoice.task:
+        final saved = await Navigator.of(context).push<Task>(
+          MaterialPageRoute(
+            builder: (_) => const TaskCapturePage(),
+            fullscreenDialog: true,
+          ),
+        );
+        if (saved != null && mounted) _toast('Task added');
+      case CaptureChoice.event:
+      case CaptureChoice.note:
+      case CaptureChoice.moment:
+        _toast('Coming next.');
     }
   }
 

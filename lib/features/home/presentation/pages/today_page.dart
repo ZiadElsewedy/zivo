@@ -7,8 +7,10 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
+import '../../../tasks/domain/task.dart';
 import '../../data/today_demo_data.dart';
 import '../../domain/today_snapshot.dart';
+import '../focus_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
@@ -55,7 +57,7 @@ class TodayPage extends StatelessWidget {
                 RiseIn(
                   delay: const Duration(milliseconds: 170),
                   child: _FocusSection(s.focus),
-                ),
+                ), // deadlines (demo) merged with live tasks inside
                 RiseIn(
                   delay: const Duration(milliseconds: 250),
                   child: _TrainingSection(s.training),
@@ -149,19 +151,34 @@ class _NowNextSection extends StatelessWidget {
 }
 
 class _FocusSection extends StatelessWidget {
-  const _FocusSection(this.items);
+  const _FocusSection(this.deadlines);
 
-  final List<FocusItem> items;
+  final List<FocusItem> deadlines; // demo university items
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Today'),
-        FocusList(items),
-      ],
+    final tasks = AppScope.of(context).tasks;
+    return StreamBuilder<List<Task>>(
+      stream: tasks.watchAll(),
+      initialData: tasks.current,
+      builder: (context, snapshot) {
+        final items = buildFocus(
+          tasks: snapshot.data ?? const <Task>[],
+          deadlines: deadlines,
+          now: DateTime.now(),
+        );
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader('Today'),
+            FocusList(
+              items,
+              onToggle: (id, done) => tasks.setDone(id, done),
+            ),
+          ],
+        );
+      },
     );
   }
 }

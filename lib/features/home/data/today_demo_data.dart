@@ -14,15 +14,15 @@ const todayDemoSnapshot = TodaySnapshot(
     title: 'Data Structures',
     detail: 'Hall B · Dr. Naguib · bring assignment 2',
   ),
+  // Tasks are read live from the task repository; the university deadline
+  // stays demo until the University feature exists.
   focus: [
-    FocusItem(title: 'Return library books', hue: ZHue.flare, meta: 'overdue'),
     FocusItem(
       title: 'Assignment 2 — Algorithms',
       hue: ZHue.iris,
       meta: 'due today',
       done: true,
     ),
-    FocusItem(title: 'Renew gym membership', hue: ZHue.neutral),
   ],
   training: TrainingToday(
     label: 'Push',
