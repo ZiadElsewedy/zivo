@@ -3,14 +3,22 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../domain/today_snapshot.dart';
+import '../../../../core/util/money.dart';
 import 'hue.dart';
 
 /// One glance line, never a chart — awareness on Today, analysis in the module.
+/// Values are live from the expense repository.
 class SpendingGlanceRow extends StatelessWidget {
-  const SpendingGlanceRow(this.data, {super.key});
+  const SpendingGlanceRow({
+    required this.todayMinor,
+    required this.weekMinor,
+    required this.currency,
+    super.key,
+  });
 
-  final SpendingGlance data;
+  final int todayMinor;
+  final int weekMinor;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
@@ -20,11 +28,11 @@ class SpendingGlanceRow extends StatelessWidget {
         children: [
           const HueDot(ZHue.solar),
           const SizedBox(width: AppSpacing.m - 1),
-          _amount('${data.today} ', '${data.currency} today', AppColors.ink),
+          _amount(formatAmount(todayMinor), '$currency today', AppColors.ink),
           Text('  ·  ', style: AppText.amount.copyWith(color: AppColors.ink3)),
           _amount(
-            '${data.week} ',
-            '${data.currency} this week',
+            formatAmount(weekMinor),
+            '$currency this week',
             AppColors.solarText,
             unitColor: AppColors.solarText.withValues(alpha: 0.75),
           ),
@@ -40,7 +48,7 @@ class SpendingGlanceRow extends StatelessWidget {
       TextSpan(
         style: AppText.amount.copyWith(color: color),
         children: [
-          TextSpan(text: value),
+          TextSpan(text: '$value '),
           TextSpan(
             text: unit,
             style: AppText.body.copyWith(

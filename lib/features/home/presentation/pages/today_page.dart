@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../expenses/domain/expense.dart';
+import '../../../expenses/domain/expense_repository.dart';
 import '../../data/today_demo_data.dart';
 import '../../domain/today_snapshot.dart';
 import '../widgets/common.dart';
@@ -57,9 +60,9 @@ class TodayPage extends StatelessWidget {
                   delay: const Duration(milliseconds: 250),
                   child: _TrainingSection(s.training),
                 ),
-                RiseIn(
-                  delay: const Duration(milliseconds: 330),
-                  child: _SpendingSection(s.spending),
+                const RiseIn(
+                  delay: Duration(milliseconds: 330),
+                  child: _SpendingSection(),
                 ),
               ],
             ),
@@ -182,18 +185,28 @@ class _TrainingSection extends StatelessWidget {
 }
 
 class _SpendingSection extends StatelessWidget {
-  const _SpendingSection(this.data);
-
-  final SpendingGlance? data;
+  const _SpendingSection();
 
   @override
   Widget build(BuildContext context) {
-    if (data == null) return const SizedBox.shrink();
+    final expenses = AppScope.of(context).expenses;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SectionHeader('Spending'),
-        SpendingGlanceRow(data!),
+        StreamBuilder<List<Expense>>(
+          stream: expenses.watchAll(),
+          initialData: expenses.current,
+          builder: (context, snapshot) {
+            final items = snapshot.data ?? const <Expense>[];
+            final now = DateTime.now();
+            return SpendingGlanceRow(
+              todayMinor: todayTotalMinor(items, now),
+              weekMinor: weekTotalMinor(items, now),
+              currency: 'EGP',
+            );
+          },
+        ),
       ],
     );
   }

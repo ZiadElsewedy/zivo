@@ -31,5 +31,4 @@ const todayDemoSnapshot = TodaySnapshot(
     meta: '5 exercises · last: +2.5kg bench',
     duration: '~50 min',
   ),
-  spending: SpendingGlance(today: 45, week: 685, currency: 'EGP'),
 );

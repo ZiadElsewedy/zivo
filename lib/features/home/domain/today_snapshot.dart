@@ -13,7 +13,6 @@ class TodaySnapshot {
     required this.nowNext,
     required this.focus,
     required this.training,
-    required this.spending,
   });
 
   final String dateLabel; // e.g. "Saturday · 15 August"
@@ -23,7 +22,7 @@ class TodaySnapshot {
   final NowNext? nowNext;
   final List<FocusItem> focus;
   final TrainingToday? training;
-  final SpendingGlance? spending;
+  // Spending is read live from the expense repository, not the demo snapshot.
 }
 
 class NowNext {
@@ -68,16 +67,4 @@ class TrainingToday {
   final String detail; // exercise list
   final String meta; // "5 exercises · last: +2.5kg bench"
   final String duration; // "~50 min"
-}
-
-class SpendingGlance {
-  const SpendingGlance({
-    required this.today,
-    required this.week,
-    required this.currency,
-  });
-
-  final int today;
-  final int week;
-  final String currency; // "EGP"
 }
