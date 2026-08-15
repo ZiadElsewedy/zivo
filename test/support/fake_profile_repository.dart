@@ -24,6 +24,14 @@ class FakeProfileRepository implements ProfileRepository {
       StreamController<UserProfile?>.broadcast();
   UserProfile? _current;
 
+  /// When set, [saveProfile] throws this instead of persisting — for
+  /// exercising error handling in tests.
+  Object? saveProfileError;
+
+  /// The arguments of the most recent [saveProfile] call, or null if it was
+  /// never called.
+  UserProfile? lastSaved;
+
   /// Push a new profile (or null) to listeners.
   void setProfile(UserProfile? profile) {
     _current = profile;
@@ -45,7 +53,10 @@ class FakeProfileRepository implements ProfileRepository {
     required String name,
     required DateTime dateOfBirth,
   }) async {
-    setProfile(UserProfile(uid: uid, name: name, dateOfBirth: dateOfBirth));
+    final saved = UserProfile(uid: uid, name: name, dateOfBirth: dateOfBirth);
+    lastSaved = saved;
+    if (saveProfileError != null) throw saveProfileError!;
+    setProfile(saved);
   }
 
   Future<void> dispose() => _controller.close();

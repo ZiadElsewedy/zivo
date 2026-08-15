@@ -68,7 +68,8 @@ void main() {
 
     auth.emit(const Authenticated(AuthUser(uid: 'u1', displayName: 'Ziad')));
     await tester.pump();
-    await tester.pump();
+    await tester.pump(); // profile stream resolves (null → incomplete)
+    await tester.pumpAndSettle(); // completion page RiseIn entrance timers
 
     expect(find.text('Complete your profile'), findsOneWidget);
     expect(find.text('Morning, Ziad'), findsNothing);
