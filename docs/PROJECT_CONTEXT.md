@@ -6,9 +6,9 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after the **App-identity
-> milestone** — launcher icons — on branch `feature/app-identity`; the **Authentication
-> milestone** is complete on branch `feature/authentication`).
+> **Last verified against the codebase:** 2026-08-15 (after merging the **Authentication**
+> and **App-identity** milestones into `main`; active work continues on
+> `feature/authentication`).
 
 ---
 
@@ -16,44 +16,45 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Two milestones are complete on two separate feature
-> branches; **neither is merged** (merging is a manual, per-milestone decision).
+> without redoing completed work. Both milestones (Authentication, App-identity) are now
+> **merged into `main`**; active development continues on `feature/authentication`.
 
-- **Status:** Two milestones complete & verified, both awaiting the user's separate
-  review/merge. No work in progress.
-- **Branch:** `feature/app-identity` is currently checked out. Other open branch:
-  `feature/authentication`. Base branch: `planning-setup` (untouched at `4c26690`).
+- **Status:** App-identity + Authentication merged into `main`. Continuing on
+  `feature/authentication` (the ongoing working branch). No work in progress.
+- **Branch:** `feature/authentication` is currently checked out and is the active working
+  branch. `main` now contains everything. `feature/app-identity` is merged in (safe to
+  delete). All branches are **local only — nothing has been pushed to origin.**
 - **Latest commit:**
-  - `feature/app-identity` → `ce13f17` (launcher icons).
-  - `feature/authentication` → `c399146` (auth foundation + Firebase platform wiring).
+  - `main` → `3009877` (merge: integrate Authentication milestone + app identity).
+  - `feature/authentication` → `4cbddfb` (merge: app-identity/launcher icon into auth).
+    `main` is one `--no-ff` merge commit ahead of this.
 - **Completed:**
-  - **App identity** (this branch): ZIVO "Dark" launcher icon (paper Z on `#101317`)
-    generated for iOS + Android (adaptive) via `flutter_launcher_icons` from
-    `assets/app-icon/zivo-icon-dark-1024.png`. Brand asset set added under `assets/`.
-  - **Authentication** (other branch): real Firebase Auth — Apple, Google, Email/Password
-    — behind `AuthGate`; bundle `com.ziadelsewedy.zivo`; iOS + Android Firebase apps
-    registered in `zivo-63f15`. See §7, §12.
-- **In progress:** nothing.
-- **Last completed action:** verified the Dark icon renders on the iOS simulator home
-  screen and the Android debug APK builds; `flutter analyze` clean; base tests pass.
-- **Exact next action:** the **user** reviews and merges the two feature branches
-  **separately** (do not auto-merge). Before merging `feature/authentication`, complete the
-  manual provider setup in §13 (enable Email/Password + Google + Apple in the Firebase
-  Console, configure Apple Developer, test each provider on a device). After auth merges,
-  the next build milestone is **Firestore persistence keyed by the auth `uid`** (§13).
-- **Files currently being modified:** none (both branches have clean working trees).
-- **Verification status:** app-identity — analyze clean, iOS home-screen icon confirmed,
-  Android APK builds, 12 base tests pass. authentication — analyze clean, 24 tests pass,
-  iOS + Android builds succeed, runtime sign-in screen renders (real provider sign-in NOT
-  yet verified end-to-end — needs Console/Apple-Developer enablement).
+  - **Authentication:** real Firebase Auth — Apple, Google, Email/Password — behind
+    `AuthGate`; bundle `com.ziadelsewedy.zivo`; iOS + Android Firebase apps registered in
+    `zivo-63f15`. See §7, §12.
+  - **App identity:** ZIVO "Dark" launcher icon (paper Z on `#101317`) for iOS + Android
+    (adaptive) via `flutter_launcher_icons` from `assets/app-icon/zivo-icon-dark-1024.png`.
+  - **Integration:** app-identity → `feature/authentication` → `main` (both merges verified).
+- **In progress:** nothing — awaiting the next direction on `feature/authentication`.
+- **Last completed action:** merged `feature/authentication` into `main` (`--no-ff`,
+  `3009877`) and returned to `feature/authentication`. Both merges built clean.
+- **Exact next action:** continue the Authentication milestone on `feature/authentication`:
+  complete the manual provider setup in §13 (enable Email/Password + Google + Apple in the
+  Firebase Console, configure Apple Developer, test each provider on a device/simulator).
+  After auth is fully finished, the next build milestone is **Firestore persistence keyed by
+  the auth `uid`** (§13). Push branches to origin only when the user asks.
+- **Files currently being modified:** none (clean working tree on `feature/authentication`).
+- **Verification status:** merged tree — `flutter analyze` clean, `flutter test` 24 pass,
+  iOS + Android debug builds succeed, iOS home-screen shows the Dark icon. Real provider
+  sign-in NOT yet verified end-to-end (needs Console/Apple-Developer enablement).
 - **Blockers:** none active. Note the documented `flutterfire configure` project-discovery
   quirk for `zivo-63f15` (worked around via `firebase apps:create`; see §7).
 - **Manual user action:** (1) enable the three Auth providers in the Firebase Console +
-  Apple Developer config; (2) review/merge `feature/authentication` and
-  `feature/app-identity` separately.
+  Apple Developer config, then test real sign-in; (2) push branches to origin if/when
+  desired (nothing pushed yet).
 - **Do not redo:** don't regenerate the icons, re-register the Firebase apps, rebuild the
-  auth layer, change the bundle id back, or auto-merge/rebase the feature branches. Don't
-  start Firestore/University on either feature branch.
+  auth layer, change the bundle id back, or re-run the merges. Don't start
+  Firestore/University yet — finish auth first.
 
 ---
 
@@ -339,16 +340,14 @@ backend.** Remaining, roughly in order:
 
 ## 11. Current milestone
 
-**Two milestones are open on separate feature branches, neither merged** (each is reviewed
-and merged separately, by decision — never auto-merged):
-- `feature/app-identity` — the ZIVO **launcher icon** ("Dark" finish) for iOS + Android,
-  generated by `flutter_launcher_icons` from `assets/app-icon/zivo-icon-dark-1024.png`.
-  Brand asset set lives under `assets/` (see `assets/README.txt`). This branch is cut from
-  `planning-setup`, so it does **not** contain the auth work.
-- `feature/authentication` — the authentication + user-identity foundation described below.
+**Authentication + clean user-identity foundation** — merged into `main`; still the active
+milestone on `feature/authentication` until real-provider sign-in is verified. The
+**App-identity** milestone (ZIVO "Dark" launcher icon for iOS + Android via
+`flutter_launcher_icons`; brand assets under `assets/`) is complete and merged in alongside
+it. Integration path: `feature/app-identity` → `feature/authentication` → `main` (both
+merges verified: analyze clean, 24 tests, iOS + Android builds).
 
-**Authentication + clean user-identity foundation** (branch `feature/authentication`,
-not yet merged). Real Firebase Auth with Apple, Google, and Email/Password behind an
+Authentication details: Real Firebase Auth with Apple, Google, and Email/Password behind an
 `AuthRepository` seam, gated by `AuthGate`; the signed-in `uid` is the app's canonical
 identity. Deliberately scoped: **no** Firestore/persistence migration, Storage, Functions,
 AI, or University in this milestone — the six feature repositories stay in-memory. The
