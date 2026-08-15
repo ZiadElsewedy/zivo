@@ -16,12 +16,18 @@ class Task {
   final bool priority;
   final bool done;
 
-  Task copyWith({bool? done}) => Task(
+  Task copyWith({
+    String? title,
+    DateTime? due,
+    bool clearDue = false,
+    bool? priority,
+    bool? done,
+  }) => Task(
         id: id,
-        title: title,
+        title: title ?? this.title,
         createdAt: createdAt,
-        due: due,
-        priority: priority,
+        due: clearDue ? null : (due ?? this.due),
+        priority: priority ?? this.priority,
         done: done ?? this.done,
       );
 }

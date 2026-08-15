@@ -48,6 +48,14 @@ class InMemoryTaskRepository implements TaskRepository {
   }
 
   @override
+  Future<void> update(Task task) async {
+    final index = _items.indexWhere((t) => t.id == task.id);
+    if (index == -1) return;
+    _items[index] = task;
+    _controller.add(current);
+  }
+
+  @override
   Future<void> setDone(String id, bool done) async {
     final index = _items.indexWhere((t) => t.id == id);
     if (index == -1) return;

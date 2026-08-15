@@ -6,6 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
+import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_history_page.dart';
 
@@ -24,7 +25,12 @@ class HubPage extends StatelessWidget {
         AppColors.emberText,
         null,
       ),
-      _Module('Tasks', Icons.check_circle_outline_rounded, AppColors.ink, null),
+      _Module(
+        'Tasks',
+        Icons.check_circle_outline_rounded,
+        AppColors.ink,
+        (c) => const TaskListPage(),
+      ),
       _Module(
         'Workout',
         Icons.fitness_center_rounded,

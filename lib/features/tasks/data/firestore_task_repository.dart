@@ -89,6 +89,17 @@ class FirestoreTaskRepository implements TaskRepository {
   }
 
   @override
+  Future<void> update(Task task) {
+    final uid = _requireUid();
+    return _tasksCollection(uid).doc(task.id).update({
+      'title': task.title,
+      'due': task.due == null ? null : Timestamp.fromDate(task.due!),
+      'priority': task.priority,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> setDone(String id, bool done) {
     final uid = _requireUid();
     return _tasksCollection(

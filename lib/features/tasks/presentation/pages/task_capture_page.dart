@@ -5,31 +5,59 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/task.dart';
 
-enum _Due { today, tomorrow, custom }
+enum _Due { none, today, tomorrow, custom }
 
-/// Task quick-create — title is enough; due and priority are one-tap and
-/// optional. Lightweight by design (a personal OS, not Jira).
+/// Task create-or-edit — title is enough; due and priority are one-tap and
+/// optional. Lightweight by design (a personal OS, not Jira). Pass [initial]
+/// to edit an existing task in place instead of creating a new one.
 class TaskCapturePage extends StatefulWidget {
-  const TaskCapturePage({super.key});
+  const TaskCapturePage({super.key, this.initial});
+
+  final Task? initial;
 
   @override
   State<TaskCapturePage> createState() => _TaskCapturePageState();
 }
 
 class _TaskCapturePageState extends State<TaskCapturePage> {
-  final TextEditingController _title = TextEditingController();
-  _Due _due = _Due.today;
+  late final TextEditingController _title;
+  late _Due _due;
   DateTime? _customDate;
-  bool _priority = false;
+  late bool _priority;
   bool _canAdd = false;
+
+  bool get _editing => widget.initial != null;
 
   @override
   void initState() {
     super.initState();
+    final initial = widget.initial;
+    _title = TextEditingController(text: initial?.title ?? '');
+    _priority = initial?.priority ?? false;
+    final today = _today();
+    final due = initial?.due;
+    if (initial == null) {
+      _due = _Due.today;
+    } else if (due == null) {
+      _due = _Due.none;
+    } else if (due == today) {
+      _due = _Due.today;
+    } else if (due == today.add(const Duration(days: 1))) {
+      _due = _Due.tomorrow;
+    } else {
+      _due = _Due.custom;
+      _customDate = due;
+    }
+    _canAdd = _title.text.trim().isNotEmpty;
     _title.addListener(() {
       final canAdd = _title.text.trim().isNotEmpty;
       if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
     });
+  }
+
+  DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   @override
@@ -39,9 +67,9 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
   }
 
   DateTime? _resolveDue() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = _today();
     return switch (_due) {
+      _Due.none => null,
       _Due.today => today,
       _Due.tomorrow => today.add(const Duration(days: 1)),
       _Due.custom => _customDate,
@@ -64,16 +92,30 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
     }
   }
 
-  Future<void> _add() async {
+  Future<void> _save() async {
     if (!_canAdd) return;
-    final task = Task(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _title.text.trim(),
-      createdAt: DateTime.now(),
-      due: _resolveDue(),
-      priority: _priority,
-    );
-    await AppScope.of(context).tasks.add(task);
+    final tasks = AppScope.of(context).tasks;
+    final initial = widget.initial;
+    final due = _resolveDue();
+    final task = initial == null
+        ? Task(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            title: _title.text.trim(),
+            createdAt: DateTime.now(),
+            due: due,
+            priority: _priority,
+          )
+        : initial.copyWith(
+            title: _title.text.trim(),
+            due: due,
+            clearDue: due == null,
+            priority: _priority,
+          );
+    if (initial == null) {
+      await tasks.add(task);
+    } else {
+      await tasks.update(task);
+    }
     if (mounted) Navigator.of(context).pop(task);
   }
 
@@ -86,14 +128,17 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _TopBar(onClose: () => Navigator.of(context).maybePop()),
+            _TopBar(
+              editing: _editing,
+              onClose: () => Navigator.of(context).maybePop(),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),
               child: TextField(
                 controller: _title,
                 autofocus: true,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _add(),
+                onSubmitted: (_) => _save(),
                 cursorColor: AppColors.ember,
                 style: AppText.cardTitle.copyWith(fontSize: 27),
                 decoration: InputDecoration(
@@ -111,6 +156,11 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
                 spacing: 9,
                 runSpacing: 9,
                 children: [
+                  _Chip(
+                    label: 'No date',
+                    selected: _due == _Due.none,
+                    onTap: () => setState(() => _due = _Due.none),
+                  ),
                   _Chip(
                     label: 'Today',
                     selected: _due == _Due.today,
@@ -147,7 +197,11 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
                 18,
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
-              child: _AddButton(enabled: _canAdd, onTap: _add),
+              child: _AddButton(
+                enabled: _canAdd,
+                editing: _editing,
+                onTap: _save,
+              ),
             ),
           ],
         ),
@@ -165,9 +219,10 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose});
+  const _TopBar({required this.onClose, required this.editing});
 
   final VoidCallback onClose;
+  final bool editing;
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +245,7 @@ class _TopBar extends StatelessWidget {
           ),
           Expanded(
             child: Center(
-              child: Text('New task',
+              child: Text(editing ? 'Edit task' : 'New task',
                   style: AppText.button.copyWith(color: AppColors.ink2)),
             ),
           ),
@@ -267,10 +322,15 @@ class _Chip extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.enabled, required this.onTap});
+  const _AddButton({
+    required this.enabled,
+    required this.onTap,
+    this.editing = false,
+  });
 
   final bool enabled;
   final VoidCallback onTap;
+  final bool editing;
 
   @override
   Widget build(BuildContext context) {
@@ -289,10 +349,14 @@ class _AddButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                Icon(
+                  editing ? Icons.check_rounded : Icons.add_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  'Add task',
+                  editing ? 'Save task' : 'Add task',
                   style: AppText.button.copyWith(fontSize: 16, color: Colors.white),
                 ),
               ],
