@@ -539,6 +539,16 @@ As of 2026-08-15 (after the Firestore persistence milestone — all six feature 
   features so it stays Firebase-free.
 - **Firestore security rules deployed** to `zivo-63f15` (`firebase deploy --only
   firestore:rules`): owner-only rules with field validation for all six subcollections.
+- **Since then (later branches, not yet merged into `main`):**
+  - `feature/university` — the **University** feature shipped (7th collection
+    `universityItems`); `flutter test` is now **110** and `flutter analyze` stays clean.
+  - `feature/security-rules-tests` — **emulator-based Firestore security-rules tests** added
+    under `firestore-tests/` (Node + `@firebase/rules-unit-testing`, **37 tests, all pass**):
+    deny-by-default, per-user ownership isolation, per-collection field validation for all
+    seven collections, and the `emailOtps` client lockout. Run from the repo root with
+    `firebase emulators:exec --only firestore --project demo-zivo "npm --prefix firestore-tests
+    test"`. This is the plan's "rules are tested code" privacy guarantee (§20/§28); it is NOT
+    part of the Flutter `flutter test` run.
 - **Not covered by automated tests / not verified:** live on-device Firestore read/write
   (needs a signed-in `uid` → the same manual Auth-provider enablement, §7/§13). Platform builds
   (Android APK / iOS simulator) were last verified during the auth milestone and are unaffected

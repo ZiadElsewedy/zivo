@@ -6,6 +6,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
 import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
+import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/domain/exercise.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
@@ -15,8 +16,9 @@ import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
 
 void main() {
-  testWidgets('Workout history renders logged sessions from the repository',
-      (tester) async {
+  testWidgets('Workout history renders logged sessions from the repository', (
+    tester,
+  ) async {
     final workouts = InMemoryWorkoutRepository();
     addTearDown(workouts.dispose);
 
@@ -30,6 +32,7 @@ void main() {
         notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
         workouts: workouts,
+        university: InMemoryUniversityRepository(),
         child: const MaterialApp(home: WorkoutHistoryPage()),
       ),
     );

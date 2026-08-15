@@ -13,6 +13,7 @@ import '../../moments/presentation/pages/moment_capture_page.dart';
 import '../../notes/presentation/pages/note_capture_page.dart';
 import '../../schedule/presentation/pages/event_capture_page.dart';
 import '../../tasks/presentation/pages/task_capture_page.dart';
+import '../../university/presentation/pages/university_capture_page.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/coming_soon.dart';
@@ -46,7 +47,9 @@ class _HomeShellState extends State<HomeShell> {
       case CaptureChoice.expense:
         final saved = await _push<Expense>(const ExpenseCapturePage());
         if (saved != null) {
-          _toast('Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}');
+          _toast(
+            'Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}',
+          );
         }
       case CaptureChoice.task:
         final saved = await _push<Object>(const TaskCapturePage());
@@ -54,6 +57,9 @@ class _HomeShellState extends State<HomeShell> {
       case CaptureChoice.event:
         final saved = await _push<Object>(const EventCapturePage());
         if (saved != null) _toast('Event added');
+      case CaptureChoice.university:
+        final saved = await _push<Object>(const UniversityCapturePage());
+        if (saved != null) _toast('Added to University');
       case CaptureChoice.note:
         final saved = await _push<Object>(const NoteCapturePage());
         if (saved != null) _toast('Note saved');
@@ -67,9 +73,9 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<T?> _push<T>(Widget page) {
-    return Navigator.of(context).push<T>(
-      MaterialPageRoute(builder: (_) => page, fullscreenDialog: true),
-    );
+    return Navigator.of(
+      context,
+    ).push<T>(MaterialPageRoute(builder: (_) => page, fullscreenDialog: true));
   }
 
   void _toast(String message) {
@@ -94,8 +100,9 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       extendBody: true,
       body: IndexedStack(index: _index, children: _tabs),
-      floatingActionButton:
-          _index == 0 ? CaptureFab(onPressed: _openCapture) : null,
+      floatingActionButton: _index == 0
+          ? CaptureFab(onPressed: _openCapture)
+          : null,
       bottomNavigationBar: ZivoBottomBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
