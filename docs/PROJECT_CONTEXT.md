@@ -6,9 +6,9 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after building the **Ask (AI assistant)
-> client seam** — part 1 of Phase 9 — on `feature/ai-assistant`; see Current Handoff below.
-> Firestore persistence, Authentication, and University are merged into `main`).
+> **Last verified against the codebase:** 2026-08-15 (after building the **`aiChat` gateway +
+> `FirebaseAiRepository`** — part 2 of Phase 9 — on `feature/ai-assistant`; see Current Handoff
+> below. Firestore persistence, Authentication, and University are merged into `main`).
 
 ---
 
@@ -18,93 +18,96 @@
 > git state / diff, recover the exact state, and continue from **Exact next action** —
 > without redoing completed work. Active development is on `feature/ai-assistant`.
 
-- **Status (as of 2026-08-15):** Phase 9 part 1 — the **"Ask" AI assistant client seam** — is
-  built on `feature/ai-assistant`, following `docs/DECISIONS/ADR-001-ai-assistant.md`'s
-  "client seam (buildable now, no key/deploy)" section exactly: `features/ai/` domain +
-  a pure in-memory `FakeAiRepository` + an `AskPage` chat UI, replacing the `ComingSoon('Ask')`
-  placeholder tab. **No Cloud Function, no Anthropic SDK, no API key, no deploy, no network** —
-  this part is offline-only; the server half (the `aiChat` gateway + `FirebaseAiRepository`) is
-  explicitly deferred to part 2. **Not yet committed** — all changes are unstaged in the working
-  tree, pending review. (The Diet Plan feature, built earlier on this same branch, remains
-  unchanged and already merged into this history — see §5/§12 below.)
+- **Status (as of 2026-08-15):** Phase 9 part 2 — the **`aiChat` gateway, read-only tools, limits,
+  and the real `FirebaseAiRepository`** — is built on `feature/ai-assistant`, per
+  `docs/DECISIONS/ADR-001-ai-assistant.md` action items 3–5. Part 1 (the client seam: domain +
+  `FakeAiRepository` + `AskPage`) is unchanged. **Strictly read-only** — no mutating tool, no
+  confirmation UI. **No deploy, no `firebase functions:secrets:set`, no App Check config, no
+  commit** — all changes are unstaged in the working tree, pending review. The Anthropic API key is
+  read only via `defineSecret("ANTHROPIC_API_KEY").value()` inside the `aiChat` handler; it is
+  never hardcoded, logged, or present in the client.
 - **Branch:** `feature/ai-assistant`, checked out and active.
-- **What the Ask client seam adds:**
-  - **Domain** (`lib/features/ai/domain/`): `AiRole` (`user`/`assistant`/`tool`, safe
-    `aiRoleFromName` fallback to `assistant`), `AiMessage` (id/role/content/createdAt),
-    `AiConversation` (id/title/createdAt/updatedAt), and `AiRepository` — storage-agnostic
-    (`ensureConversation()`, `watchMessages(conversationId)`, `send({conversationId, text})`) so
-    the future `FirebaseAiRepository` (Firestore reads + the `aiChat` callable) can implement the
-    exact same interface.
-  - **Data** (`lib/features/ai/data/fake_ai_repository.dart`): `FakeAiRepository` — pure
-    in-memory, broadcast-stream, no Firestore/network. `send()` appends the user's message then
-    an **honest** canned assistant reply (`kFakeAiReply`: "The assistant isn't connected yet —
-    this is a placeholder reply…"), never masquerading as real AI. Empty/whitespace `send()` is
-    a no-op; a monotonic sequence counter guarantees strictly increasing ids/timestamps even for
-    the two messages appended in the same call.
-  - **Presentation** (`lib/features/ai/presentation/pages/ask_page.dart`): `AskPage` — a
-    `StatefulWidget` with a const constructor (so `home_shell`'s `const _tabs` list still
-    compiles), its own header (no `AppBar`, matching Today/Hub), an iris-themed message list
-    (user bubbles right-aligned/iris-filled, assistant bubbles left-aligned/card-surfaced), an
-    empty state ("Ask about your day."), and a pinned composer respecting
-    `MediaQuery.viewInsets.bottom`. Calls `ensureConversation()` once (held as a `late final
-    Future<String>`, resolved via `AppScope.of(context)` — same lazy-field pattern as
-    `app.dart`'s `_ai`), then drives the body off `StreamBuilder<List<AiMessage>>`.
-  - **Wiring**: `ai` added to `AppScope` (required field) and `ZivoApp` (optional named param,
-    `main.dart`'s `const ZivoApp()` unaffected); `app.dart`'s `_defaultAi()` returns
-    `FakeAiRepository()` unconditionally (with a `// TODO(phase9)` marking the future
-    `USE_FIRESTORE`-gated swap to `FirebaseAiRepository`); `home_shell.dart`'s `_tabs` now holds
-    `AskPage()` instead of `ComingSoon('Ask')` (the now-unused `coming_soon.dart` import was
-    dropped from `home_shell.dart`, but the widget file itself is kept in place per the task
-    scope); every `AppScope(...)`/`ZivoApp(...)` construction site across `test/` was updated to
-    pass `ai: FakeAiRepository()` (verified via `grep -rn "AppScope("/"ZivoApp(" lib test`).
-  - **Storage contract (rules only — the fake ignores all of this)**: per ADR-001,
-    `users/{uid}/aiConversations/{conversationId}` is **client-writable** (owner
-    create/rename, `title`/`schemaVersion` validated); `.../messages/{messageId}` and
-    `users/{uid}/aiUsage/{usageId}` are **server-written only** (the future `aiChat` Cloud
-    Function via the Admin SDK bypasses rules) — a client may never forge an assistant/tool
-    message or its own usage log. Added to `firestore.rules` (three new `match` blocks, deny-by
-    -default catch-all comment updated) and to `firestore-tests/rules.test.mjs`: `aiConversations`
-    joined the generic ownership+validation loop (valid/invalid maps), and two new dedicated
-    `describe` blocks (modelled on the existing `emailOtps` lockout test) assert the owner can
-    read a seeded `messages`/`aiUsage` doc but cannot write one, and a different signed-in user
-    can't read it either. README updated to describe all ten persisted collections plus the two
-    server-only AI collections.
-  - **Deliberately deferred** (scope boundary, not an oversight — see ADR-001's action items 3–6):
-    the `aiChat` Cloud Function itself (no `functions/` changes), the Anthropic SDK/API key, any
-    deploy, `FirebaseAiRepository`, any read-tool implementation (`get_today`, `get_tasks`, …),
-    cost/rate limiting, `aiUsage` writes, and App Check. The assistant does **not** work
-    end-to-end yet — every reply is the honest canned placeholder.
+- **What part 2 adds:**
+  - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
+    message, now, config})` — a pure-ish orchestration function kept free of
+    `@anthropic-ai/sdk`/`firebase-admin` so it runs offline. Persists the user message, checks the
+    per-day cap (`store.getTodayUsageTotals`), loops up to `maxIterations` (5) model↔tool
+    round-trips with `stop_reason` handling for `tool_use` / `end_turn` / `refusal`, aborts cleanly
+    on the per-turn token ceiling (50000) or the iteration cap, persists the assistant's final
+    reply, and logs usage (`tokensIn`/`tokensOut`/`costUsd`/`tools`/`iterations`/`latencyMs`,
+    Sonnet 5 pricing $3/$15 per 1M in/out tokens). The `SYSTEM_PROMPT` constant states ZIVO +
+    read-only scope and explicitly fences tool output as **untrusted data, not instructions**
+    (prompt-injection defense). Each tool call's `tool_use.id` is threaded through as `toolCallId`
+    in the usage log (idempotency groundwork for a future V2 mutation phase).
+  - **Tools** (`functions/ai/tools.js`): 9 uid-scoped read-only tools — `get_today`, `get_tasks`,
+    `get_schedule`, `get_expenses`, `get_university`, `get_workouts`, `get_diet`, `search_notes`,
+    `summarize_week` — each `{name, description, inputSchema, execute(store, uid, input, now)}`.
+    Money stays integer minor units; totals-by-category are computed server-side, not left to the
+    model. `search_notes` is a naive case-insensitive substring match (not full-text), matching
+    ADR-001's stated scope.
+  - **Store seam** (`functions/ai/store.js`): `FirestoreStore` — the only file besides `index.js`
+    that touches Firestore (Admin SDK, always explicitly `uid`-scoped). Implements 8 uid-scoped
+    reads (`listTasks`, `listSchedule`, `listExpenses`, `listUniversity`, `listWorkouts`,
+    `searchNotes`, `getActiveDietPlan`, `listDietEntries`) plus persistence
+    (`appendMessage`/`touchConversation`/`logUsage`) and `getRecentMessages`/
+    `getTodayUsageTotals`. Field names mirror the client `FirestoreXRepository` classes exactly.
+    `functions/ai/dates.js` holds pure date-range helpers (today/week/month bounds, `dayKeyFor`,
+    the diet day-resolution mirror of the client's `dayForDate`) shared by both.
+  - **`functions/index.js`**: added `exports.aiChat = onCall({secrets: [ANTHROPIC_API_KEY],
+    region: "us-central1"}, ...)` — a thin wrapper (auth guard, input coercion, constructs the real
+    `Anthropic` client + `FirestoreStore`, calls `runAiTurn`, maps `GatewayError` → `HttpsError`).
+    All real logic stays in `gateway.js`/`tools.js` for testability. `functions/package.json`
+    gained the `@anthropic-ai/sdk` dependency and a `"test": "node --test"` script.
+  - **Tests** (`functions/ai/gateway.test.js`, `functions/ai/tools.test.js`, offline `node --test`,
+    no SDK/emulator): input validation, uid-scoped tool execution, the iteration cap (asserts exact
+    model-call count), the per-turn token ceiling, the per-day cap (asserts zero model calls),
+    refusal handling, a tool-executor error recovering via an `is_error` tool_result, the
+    prompt-injection fence, and usage logging — plus direct `tools.js` tests (`get_expenses`
+    category totals, `search_notes` matching). **17/17 pass.**
+  - **`lib/features/ai/data/firebase_ai_repository.dart`**: the real `AiRepository`.
+    `ensureConversation()` reuses the most-recently-updated `aiConversations` doc or creates one;
+    `watchMessages()` streams `.../messages` ordered by `createdAt`, re-scoping on uid change
+    (mirrors `FirestoreUniversityRepository`'s `UidSource` pattern); `send()` never writes
+    Firestore directly (rules forbid it) — it calls an injectable `invokeChat` seam defaulting to
+    `FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable('aiChat')`. `app.dart`'s
+    `_defaultAi()` now returns `FirebaseAiRepository` when `USE_FIRESTORE=true` (the default),
+    `FakeAiRepository` otherwise — same pattern as the other 8 repositories.
+  - **`test/ai/firebase_ai_repository_test.dart`** (`fake_cloud_firestore`, mirrors the University
+    repo test): conversation create-then-reuse (including reuse of a doc already in Firestore, not
+    just the in-memory cache), message ordering/role-mapping, `send()` invoking the injected fake
+    `invokeChat` with the trimmed text, and no-op on empty/whitespace input. The real callable
+    invocation is on-device-only and explicitly not exercised here.
 - **In progress:** nothing.
-- **Last completed action:** wrote the Ask client-seam vertical slice (domain/data/presentation +
-  `test/ai/*` + the eight DI wiring edits + `firestore.rules` + rules-tests + README) and ran
-  `flutter analyze` (clean).
-- **Exact next action:** decide on merging `feature/ai-assistant` into `main`. After that, Phase 9
-  part 2 — the `aiChat` Cloud Function (JS, v2 `onCall`, `defineSecret`), the read tools, cost/
-  iteration ceilings, and `FirebaseAiRepository` — needs the owner's sign-off on ADR-001's four
-  open decisions (provider/model, API key, deploy authorization, App Check timing) before it can
-  start.
+- **Last completed action:** wrote the gateway/tools/store/index.js server half + its offline test
+  suite (17 tests) + the real `FirebaseAiRepository` + its Firestore-fake test suite, and updated
+  this file + ADR-001.
+- **Exact next action:** owner review of this diff, then (owner-only, needs Console/CLI access this
+  agent doesn't have): `firebase deploy --only functions,firestore:rules --project zivo-63f15`
+  (the AI Firestore rules were already added in part 1 and are still undeployed), decide on App
+  Check timing, and verify a real turn end-to-end on-device. After that: decide on merging
+  `feature/ai-assistant` into `main`.
 - **Files currently being modified:** none (this slice is complete, pending review/commit).
-- **Verification status:** all three gates GREEN (run by the orchestrator on the final diff):
-  `flutter analyze` → clean (**No issues found!**); `flutter test` → **141 pass** (was 133 — +8 new
-  AI cases across `ai_domain_test.dart`, `fake_ai_repository_test.dart`, `ask_page_test.dart`);
-  Firestore emulator rules-tests → **53 pass, 0 fail** (was 45 — +8: the `aiConversations`
-  ownership/validation cases from the generic loop plus the dedicated `messages`/`aiUsage` lockout
-  cases). The Ask surface is a real, tested chat UI, but every reply is the honest canned placeholder
-  — the assistant does not answer over real data until part 2's gateway is built and deployed.
-- **Blockers:** none code-side. (Unchanged from before: the OTP sender is still
-  `onboarding@resend.dev` in `functions/index.js`.) The *server* half of Phase 9 is blocked on the
-  owner per ADR-001 (API key + deploy authorization).
-- **Manual user action:** (1) decide on merging `feature/ai-assistant` into `main`; (2) deploy the
-  `dietPlans`/`dietEntries` rules from the prior Diet slice and the three new AI rules blocks together
-  when ready (`firebase deploy --only firestore:rules --project zivo-63f15`) — none of this branch's
-  rules are deployed yet; (3) authorize deploying the (forthcoming) `aiChat` function. The owner has
-  already answered ADR-001's provider/model (**Claude Sonnet 5**), set `ANTHROPIC_API_KEY` in Secret
-  Manager, and rotated the previously-exposed key — so part 2 (gateway + tools + `FirebaseAiRepository`)
-  is unblocked to build; only the deploy authorization + App Check timing remain the owner's call.
-- **Do not redo:** don't re-derive the `features/ai/` domain/data/presentation layers or the
-  Diet/University patterns they mirror; don't build the `aiChat` Cloud Function,
-  `FirebaseAiRepository`, any read tool, or App Check in this slice — all explicitly deferred to
-  Phase 9 part 2, which needs the owner's ADR-001 sign-off first.
+- **Verification status:** ALL FIVE gates GREEN (run by the orchestrator on the final diff):
+  `flutter analyze` → clean; `flutter test` → **147 pass** (was 141 — +6 `firebase_ai_repository_test.dart`
+  cases); `npm --prefix functions run lint` → clean; `npm --prefix functions test` → **17/17 pass**
+  (`node --test`, offline — `gateway.js`/`tools.js` never import `@anthropic-ai/sdk`); Firestore
+  emulator rules-tests → **53 pass** (unchanged; no rules edits this part). One construct-time bug was
+  found and fixed during review: `FirebaseAiRepository` resolved `FirebaseFunctions.instanceFor(...)`
+  eagerly in its constructor (crashing any `fake_cloud_firestore` test with `[core/no-app]`); the
+  default `invokeChat` seam now resolves `FirebaseFunctions` lazily inside its closure, so the repo
+  constructs without a live Firebase app. The gateway/tools/store logic is unit-tested but has **not**
+  yet run against the real Anthropic API or a deployed function — that is the on-device step below.
+- **Blockers:** none code-side (all five gates green). The deploy + on-device verification need the
+  owner's Firebase Console/CLI access. `ANTHROPIC_API_KEY` is already set in Secret Manager (and the
+  previously-exposed key rotated), so nothing is waiting on the key.
+- **Manual user action:** (1) `firebase deploy --only functions,firestore:rules --project zivo-63f15`
+  (deploys `aiChat` and the still-undeployed AI + Diet rules together); (2) decide on App Check timing
+  (ADR-001 open decision 4); (3) verify a real Ask turn on a device/simulator once deployed; (4)
+  decide on merging `feature/ai-assistant` into `main`. **The assistant does not answer over real data
+  until deployed — nothing in this session claims otherwise.**
+- **Do not redo:** don't re-derive `functions/ai/{gateway,tools,store,dates}.js`, their test suites,
+  `FirebaseAiRepository`, or its test — this slice is complete. Don't add a mutating tool or
+  confirmation UI (V2, later). Don't deploy, set secrets, or configure App Check — owner-only.
 
 ---
 
@@ -243,7 +246,7 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout, Diet, University. "Soon" tiles: Schedule, Tasks, Expenses. |
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
 | **University** | ✅ | Assignments/exams grouped by course; via Hub; merged live into Today's focus. **Firestore** (`users/{uid}/universityItems`). |
-| **Ask (AI assistant)** | 🟡 | Live chat surface (`AskPage`, iris-themed) replacing the `ComingSoon('Ask')` placeholder, backed by an honest in-memory `FakeAiRepository` (canned "not connected yet" replies) — see `docs/DECISIONS/ADR-001-ai-assistant.md`. No Firestore I/O, no gateway; the real `aiChat` Cloud Function + `FirebaseAiRepository` are the next milestone (Phase 9 part 2). |
+| **Ask (AI assistant)** | 🟡 | `AskPage` chat UI (iris-themed) wired to the real, read-only `aiChat` Cloud Function gateway (Claude Sonnet 5, 9 uid-scoped Firestore read tools, enforced iteration/token/day ceilings, `aiUsage` logging, prompt-injection fencing — `functions/ai/{gateway,tools,store}.js`) via `FirebaseAiRepository` (Firestore message stream + the callable) — see `docs/DECISIONS/ADR-001-ai-assistant.md`. Fully unit-tested offline (gateway/tools via `node --test`; the repo via `fake_cloud_firestore`) but **not yet deployed** — `USE_FIRESTORE=false` still serves the honest in-memory `FakeAiRepository`. Owner-only remaining: `firebase deploy` (functions + rules), App Check, on-device end-to-end verification. |
 | **You (Profile)** | 🟡 | `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Settings not built. Separate from the post-auth **profile completion** step (name + DOB) below. |
 | **Authentication** | ✅ | Real Firebase Auth — Apple (iOS only), Google, Email/Password (strong-password sign-up + 6-digit email OTP) — behind `AuthGate`. Clean state machine: unauth → email-verification → **profile-completion (name + DOB, Firestore `users/{uid}`)** → ready. Session persists; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |
 

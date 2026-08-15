@@ -33,11 +33,7 @@ class FirebaseAiRepository implements AiRepository {
     Future<void> Function(String conversationId, String message)?
     invokeChat,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _invokeChat =
-           invokeChat ??
-           _defaultInvokeChat(
-             functions ?? FirebaseFunctions.instanceFor(region: 'us-central1'),
-           );
+       _invokeChat = invokeChat ?? _defaultInvokeChat(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
@@ -46,10 +42,15 @@ class FirebaseAiRepository implements AiRepository {
 
   String? _cachedConversationId;
 
+  /// The default `send` invoker. Resolves [FirebaseFunctions] **lazily inside
+  /// the returned closure** (never at construction), so the repo can be built
+  /// — and unit-tested with a fake Firestore — without a live Firebase app.
   static Future<void> Function(String conversationId, String message)
-  _defaultInvokeChat(FirebaseFunctions functions) {
+  _defaultInvokeChat(FirebaseFunctions? functions) {
     return (conversationId, message) async {
-      await functions.httpsCallable('aiChat').call({
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
       });

@@ -1,6 +1,8 @@
 # ADR-001: AI assistant ("Ask") — read-only, gateway-mediated
 
-**Status:** Proposed — awaiting owner approval before any code
+**Status:** Accepted — client seam (part 1) and the `aiChat` gateway + `FirebaseAiRepository`
+(part 2) are both built on `feature/ai-assistant`. Only deploy, App Check, and on-device
+verification remain — all owner-only.
 **Date:** 2026-08-15
 **Deciders:** Ziad (owner) · implementer
 **Supersedes / relates to:** `docs/PLAN.md` §10 (security), §11 (AI architecture), §12 (tools)
@@ -208,25 +210,39 @@ moment it's deployed — the proven "vertical slice against a fake first" patter
 
 ## Open decisions requiring the owner's sign-off (blocking the *server* half only)
 
-1. **Provider/model:** confirm Claude, and pick the model tier.
-2. **API key:** provide it (goes to Secret Manager via `firebase functions:secrets:set`); the
-   implementer never sees the value.
-3. **Deploy authorization:** approve deploying `aiChat` (and its rules) to `zivo-63f15`.
-4. **App Check:** land it with V1, or as a fast follow-up?
+1. ~~**Provider/model:** confirm Claude, and pick the model tier.~~ **Decided:** Claude, model id
+   `claude-sonnet-5` (Sonnet 5).
+2. ~~**API key:** provide it (goes to Secret Manager via `firebase functions:secrets:set`).~~
+   **Done:** the owner set `ANTHROPIC_API_KEY` in Secret Manager and rotated the
+   previously-exposed key. The implementer never saw the value.
+3. **Deploy authorization:** still open — approve deploying `aiChat` (and the still-undeployed
+   part-1 AI rules) to `zivo-63f15`.
+4. **App Check:** still open — land it with V1, or as a fast follow-up?
 
-The **client seam** (chat UI + fake) needs none of the above and can start immediately on approval
-of this ADR's direction.
+The **client seam** (chat UI + fake, part 1) and the **`aiChat` gateway + `FirebaseAiRepository`**
+(part 2) are both built and unit-tested against fakes; neither needed decisions 3–4, which only
+gate the actual deploy.
 
 ---
 
 ## Action items
 
-1. [ ] Owner reviews/approves this ADR (status → Accepted), and answers the four open decisions.
-2. [ ] (No key/deploy) Build the client seam: `features/ai/` domain + `FakeAiRepository` +
-       `AskPage` chat UI replacing `ComingSoon('Ask')`; wire via `AppScope`; tests. Commit.
-3. [ ] (Needs key + deploy) Add `aiChat` to `functions/` (JS, v2 `onCall`, `defineSecret` for the
-       AI key), with the read tools, history windowing, and cost/iteration ceilings.
-4. [ ] Add `aiConversations`/`messages` (+ `aiUsage`) owner-only rules + emulator rules tests.
-5. [ ] `FirebaseAiRepository` → callable; swap it in behind `AppScope`; end-to-end verify on device.
-6. [ ] (Decision) App Check enablement.
-7. [ ] Update `docs/PROJECT_CONTEXT.md` (§5/§7/§10/§11) when the milestone lands.
+1. [x] Owner reviews/approves this ADR (status → Accepted), and answers open decisions 1–2
+       (provider/model, API key). Decisions 3–4 (deploy authorization, App Check timing) remain
+       open, gating deploy only.
+2. [x] (No key/deploy) Build the client seam: `features/ai/` domain + `FakeAiRepository` +
+       `AskPage` chat UI replacing `ComingSoon('Ask')`; wire via `AppScope`; tests.
+3. [x] Add `aiChat` to `functions/` (JS, v2 `onCall`, `defineSecret` for the AI key), with the 9
+       read tools (`functions/ai/tools.js`), history windowing, and cost/iteration ceilings
+       (`functions/ai/gateway.js`), all offline-unit-tested (`functions/ai/*.test.js`, 17 pass).
+4. [x] `aiConversations`/`messages` (+ `aiUsage`) owner-only rules + emulator rules tests — added
+       in part 1; still **not deployed**.
+5. [x] `FirebaseAiRepository` → callable (`lib/features/ai/data/firebase_ai_repository.dart`);
+       swapped in behind `AppScope`/`USE_FIRESTORE` in `app.dart`. **Not yet** end-to-end verified
+       on device — that needs a real deploy first.
+6. [ ] (Decision, owner) App Check enablement — still open.
+7. [x] Update `docs/PROJECT_CONTEXT.md` (Ask feature row + Current Handoff) — done this pass.
+
+**Remaining before this ADR is fully closed out (all owner-only):** `firebase deploy --only
+functions,firestore:rules --project zivo-63f15`; decide App Check timing; verify a real Ask turn
+on-device.
