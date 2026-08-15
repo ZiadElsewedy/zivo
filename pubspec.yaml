@@ -61,6 +61,10 @@ dev_dependencies:
   # Generates iOS/Android launcher icons from the ZIVO brand mark.
   flutter_launcher_icons: ^0.14.4
 
+  # In-memory Firestore fake for testing FirestoreTaskRepository without a
+  # real backend (or a FirebaseAuth mock — the repo takes a plain uid source).
+  fake_cloud_firestore: ^4.0.0
+
 # App identity — the ZIVO "Dark" mark (paper Z on near-black #101317).
 # Regenerate after changing the source image with:
 #   dart run flutter_launcher_icons

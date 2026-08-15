@@ -17,9 +17,21 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Nothing else is exposed to clients yet. Feature data is still in-memory;
-    // add per-collection owner rules (request.auth.uid == uid) when Firestore
-    // persistence lands.
+    // Tasks: each user reads/writes only their own tasks. Owner is the {userId}
+    // path segment. Basic field validation on create/update. Rules do not
+    // cascade from the parent /users/{userId} match, so this must be explicit.
+    match /users/{userId}/tasks/{taskId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.title is string
+        && request.resource.data.done is bool
+        && request.resource.data.priority is bool
+        && request.resource.data.schemaVersion is int;
+    }
+
+    // Nothing else is exposed to clients yet. Remaining feature data is still
+    // in-memory; add per-collection owner rules (request.auth.uid == uid) as
+    // each one migrates to Firestore.
     match /{document=**} {
       allow read, write: if false;
     }
