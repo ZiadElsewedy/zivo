@@ -29,6 +29,9 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const {Resend} = require("resend");
+const Anthropic = require("@anthropic-ai/sdk");
+const {runAiTurn, GatewayError} = require("./ai/gateway");
+const {FirestoreStore} = require("./ai/store");
 
 initializeApp();
 const db = getFirestore();
@@ -40,6 +43,9 @@ const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 // A strong random string that keys the OTP HMAC. Not stored with the code, so
 // it defeats offline brute force of the small 6-digit space if the DB leaks.
 const OTP_PEPPER = defineSecret("OTP_PEPPER");
+// The Anthropic API key backing the `aiChat` gateway (ADR-001). Read only
+// via `.value()` inside the handler below — never hardcoded or logged.
+const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 
 // --- Tunables ---------------------------------------------------------------
 const OTP_TTL_MINUTES = 10;
@@ -316,5 +322,58 @@ exports.verifyEmailOtp = onCall(
       await getAuth().updateUser(uid, {emailVerified: true});
 
       return {status: "verified"};
+    },
+);
+
+// --- aiChat ------------------------------------------------------------
+
+/**
+ * `GatewayError` codes are already gRPC-style (`"invalid-argument"`, etc),
+ * matching `HttpsError`'s accepted `code` values directly.
+ * @param {!Error} err
+ * @return {!HttpsError}
+ */
+const toHttpsError = (err) => {
+  if (err instanceof GatewayError) return new HttpsError(err.code, err.message);
+  console.error("aiChat: unhandled error", err);
+  return new HttpsError(
+      "internal", "Ask couldn't answer that. Please try again.");
+};
+
+/**
+ * The "Ask" AI assistant gateway (ADR-001): a read-only, tool-mediated
+ * Claude conversation over the user's own ZIVO data. All orchestration
+ * (history windowing, the tool loop, cost/iteration ceilings, usage
+ * logging) lives in `./ai/gateway.js`/`./ai/tools.js` so it is unit-testable
+ * without the network or the emulator; this handler only wires the real
+ * Anthropic client and Firestore store and maps errors.
+ */
+exports.aiChat = onCall(
+    {secrets: [ANTHROPIC_API_KEY], region: "us-central1"},
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+      }
+
+      const data = request.data || {};
+      const conversationId = (data.conversationId || "").toString();
+      const message = (data.message || "").toString();
+
+      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const store = new FirestoreStore(db);
+
+      try {
+        return await runAiTurn({
+          store,
+          callModel: (req) => anthropic.messages.create(req),
+          uid: auth.uid,
+          conversationId,
+          message,
+          now: () => new Date(),
+        });
+      } catch (err) {
+        throw toHttpsError(err);
+      }
     },
 );

@@ -4,6 +4,7 @@ import '../core/firebase/uid_source.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../features/ai/data/fake_ai_repository.dart';
+import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_profile_repository.dart';
@@ -45,7 +46,8 @@ const bool _useFirestore = bool.fromEnvironment(
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
 /// and all eight feature repositories (expenses, tasks, schedule, notes,
-/// moments, workouts, university, diet) are Firebase-backed.
+/// moments, workouts, university, diet) are Firebase-backed. [ai] is
+/// Firebase-backed too (Firestore reads + the `aiChat` callable).
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -132,9 +134,9 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreDietRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryDietRepository();
 
-  // TODO(phase9): swap to FirebaseAiRepository behind USE_FIRESTORE once
-  // the aiChat gateway is deployed.
-  AiRepository _defaultAi() => FakeAiRepository();
+  AiRepository _defaultAi() => _useFirestore
+      ? FirebaseAiRepository(uidSource: UidSource.firebaseAuth())
+      : FakeAiRepository();
 
   @override
   Widget build(BuildContext context) {
