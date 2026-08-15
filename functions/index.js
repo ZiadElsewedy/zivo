@@ -49,10 +49,10 @@ const MAX_SENDS_PER_HOUR = 5;
 const CODE_LENGTH = 6;
 const HOUR_MS = 60 * 60 * 1000;
 
-// The verified "From" identity on your Resend account. Update the domain once
-// you've verified it in Resend; until then Resend's onboarding sender works for
-// testing to the account owner's address.
-const EMAIL_FROM = "ZIVO <onboarding@resend.dev>";
+// The verified "From" identity on your Resend account. `zzivo.com` is verified
+// in Resend (DNS via Cloudflare), so we can send to any recipient — not just
+// the account owner, which was the limit of the shared onboarding sender.
+const EMAIL_FROM = "ZIVO <no-reply@zzivo.com>";
 
 const COLLECTION = "emailOtps";
 
