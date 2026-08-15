@@ -1,4 +1,5 @@
 import 'auth_user.dart';
+import 'user_profile.dart';
 
 /// The app's authentication state, driven by the auth backend's stream.
 ///
@@ -43,6 +44,19 @@ class AwaitingEmailVerification extends AuthState {
   final String email;
 }
 
+/// A user is authenticated (email verified / social) but has no complete
+/// [UserProfile] yet. Show the profile-completion screen instead of the home
+/// shell until [saveProfile] gives them one.
+class ProfileCompletionRequired extends AuthState {
+  const ProfileCompletionRequired(this.user, {this.suggestedName});
+
+  final AuthUser user;
+
+  /// Prefill hint for the name field, e.g. a provider's display name or a
+  /// partially-saved profile's name. Null when nothing is known yet.
+  final String? suggestedName;
+}
+
 /// Maps a signed-in [user] (or null) onto the gate's [AuthState].
 ///
 /// This is the *single* place the "does this account still need email-OTP
@@ -60,4 +74,26 @@ AuthState resolveAuthState(AuthUser? user) {
     return AwaitingEmailVerification(user.email!);
   }
   return Authenticated(user);
+}
+
+/// Layers profile-completeness onto an already-resolved [authState].
+///
+/// Only [Authenticated] is affected — every other state (splash, signed out,
+/// awaiting OTP) passes through unchanged, since a profile is meaningless
+/// without a signed-in identity. While [profileLoaded] is false the profile
+/// stream hasn't emitted yet, so this returns [AuthUnknown] (splash) rather
+/// than risk a flash of the completion screen for a user who actually has a
+/// complete profile.
+AuthState resolveSessionState({
+  required AuthState authState,
+  required UserProfile? profile,
+  required bool profileLoaded,
+}) {
+  if (authState is! Authenticated) return authState;
+  if (!profileLoaded) return const AuthUnknown();
+  if (isProfileComplete(profile)) return authState;
+  return ProfileCompletionRequired(
+    authState.user,
+    suggestedName: profile?.name ?? authState.user.displayName,
+  );
 }

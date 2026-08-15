@@ -5,6 +5,7 @@ import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/auth/presentation/auth_gate.dart';
 
 import '../support/fake_auth_repository.dart';
+import '../support/fake_profile_repository.dart';
 import '../support/test_app.dart';
 
 void main() {
@@ -42,11 +43,55 @@ void main() {
       // Authenticated → app shell (Today).
       auth.emit(const Authenticated(AuthUser(uid: 'u1')));
       await tester.pump(); // rebuild on the new state
-      await tester.pump(const Duration(seconds: 1)); // fire + finish entrance timers
+      await tester.pump(); // profile stream resolves (complete by default)
+      await tester.pumpAndSettle(); // fire + finish entrance timers
       expect(find.text('Morning, Ziad'), findsOneWidget);
       expect(find.text('Sign in with Apple'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
+  });
+
+  testWidgets(
+      'Authenticated with no complete profile routes to the completion page',
+      (tester) async {
+    final auth = FakeAuthRepository();
+    final profiles = FakeProfileRepository();
+    profiles.setProfile(null);
+    addTearDown(auth.dispose);
+    addTearDown(profiles.dispose);
+
+    await tester.pumpWidget(
+      wrapWithScope(const AuthGate(), auth: auth, profiles: profiles),
+    );
+    await tester.pump();
+
+    auth.emit(const Authenticated(AuthUser(uid: 'u1', displayName: 'Ziad')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Complete your profile'), findsOneWidget);
+    expect(find.text('Morning, Ziad'), findsNothing);
+  });
+
+  testWidgets('Authenticated with a complete profile routes to the home shell',
+      (tester) async {
+    final auth = FakeAuthRepository();
+    final profiles = FakeProfileRepository();
+    addTearDown(auth.dispose);
+    addTearDown(profiles.dispose);
+
+    await tester.pumpWidget(
+      wrapWithScope(const AuthGate(), auth: auth, profiles: profiles),
+    );
+    await tester.pump();
+
+    auth.emit(const Authenticated(AuthUser(uid: 'fake-uid', displayName: 'Ziad')));
+    await tester.pump();
+    await tester.pump(); // profile stream resolves (complete by default)
+    await tester.pumpAndSettle();
+
+    expect(find.text('Morning, Ziad'), findsOneWidget);
+    expect(find.text('Complete your profile'), findsNothing);
   });
 }

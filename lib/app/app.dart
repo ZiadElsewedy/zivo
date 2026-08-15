@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
+import '../features/auth/data/firestore_profile_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
+import '../features/auth/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/expenses/data/in_memory_expense_repository.dart';
 import '../features/expenses/domain/expense_repository.dart';
@@ -28,6 +30,7 @@ import '../features/workout/domain/workout_repository.dart';
 class ZivoApp extends StatefulWidget {
   const ZivoApp({
     this.auth,
+    this.profiles,
     this.expenses,
     this.tasks,
     this.schedule,
@@ -38,6 +41,7 @@ class ZivoApp extends StatefulWidget {
   });
 
   final AuthRepository? auth;
+  final ProfileRepository? profiles;
   final ExpenseRepository? expenses;
   final TaskRepository? tasks;
   final ScheduleRepository? schedule;
@@ -51,6 +55,8 @@ class ZivoApp extends StatefulWidget {
 
 class _ZivoAppState extends State<ZivoApp> {
   late final AuthRepository _auth = widget.auth ?? FirebaseAuthRepository();
+  late final ProfileRepository _profiles =
+      widget.profiles ?? FirestoreProfileRepository();
   late final ExpenseRepository _expenses =
       widget.expenses ?? InMemoryExpenseRepository();
   late final TaskRepository _tasks = widget.tasks ?? InMemoryTaskRepository();
@@ -66,6 +72,7 @@ class _ZivoAppState extends State<ZivoApp> {
   Widget build(BuildContext context) {
     return AppScope(
       auth: _auth,
+      profiles: _profiles,
       expenses: _expenses,
       tasks: _tasks,
       schedule: _schedule,
