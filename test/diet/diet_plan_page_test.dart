@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
+import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
@@ -9,19 +10,14 @@ import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
-import 'package:zivo/features/workout/domain/exercise.dart';
-import 'package:zivo/features/workout/domain/workout.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_history_page.dart';
 
-import 'support/fake_auth_repository.dart';
-import 'support/fake_profile_repository.dart';
+import '../support/fake_auth_repository.dart';
+import '../support/fake_profile_repository.dart';
 
 void main() {
-  testWidgets('Workout history renders logged sessions from the repository', (
-    tester,
-  ) async {
-    final workouts = InMemoryWorkoutRepository();
-    addTearDown(workouts.dispose);
+  testWidgets('Diet plan page renders the seeded plan and marks a meal eaten', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
 
     await tester.pumpWidget(
       AppScope(
@@ -32,29 +28,26 @@ void main() {
         schedule: InMemoryScheduleRepository(),
         notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
-        workouts: workouts,
+        workouts: InMemoryWorkoutRepository(),
         university: InMemoryUniversityRepository(),
-        diet: InMemoryDietRepository(),
-        child: const MaterialApp(home: WorkoutHistoryPage()),
+        diet: diet,
+        child: const MaterialApp(home: DietPlanPage()),
       ),
     );
     await tester.pump();
 
-    // Seeded session and its computed meta line render.
-    expect(find.text('Push'), findsOneWidget);
-    expect(find.text('4 exercises · ~50 min'), findsOneWidget);
+    // Seeded meals and items render.
+    expect(find.text('Breakfast'), findsOneWidget);
+    expect(find.text('Lunch'), findsOneWidget);
+    expect(find.text('Dinner'), findsOneWidget);
+    expect(find.text('Rice'), findsOneWidget);
+    expect(find.text('Chicken breast'), findsOneWidget);
 
-    // A newly logged workout appears at the top reactively.
-    await workouts.add(
-      Workout(
-        id: 'new',
-        title: 'Legs',
-        performedAt: DateTime.now(),
-        exercises: const [Exercise(name: 'Squat', sets: 5, reps: 5)],
-      ),
-    );
+    // Tapping the Lunch card marks it eaten reactively.
+    await tester.tap(find.text('Lunch'));
     await tester.pump();
 
-    expect(find.text('Legs'), findsOneWidget);
+    final consumed = await diet.watchConsumed(DateTime.now()).first;
+    expect(consumed, contains('seed-meal-lunch'));
   });
 }

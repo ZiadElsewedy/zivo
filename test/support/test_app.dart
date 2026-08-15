@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/profile_repository.dart';
+import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
@@ -30,6 +31,7 @@ Widget wrapWithScope(
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     university: InMemoryUniversityRepository(),
+    diet: InMemoryDietRepository(),
     child: MaterialApp(home: child),
   );
 }

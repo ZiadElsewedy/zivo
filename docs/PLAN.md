@@ -36,7 +36,7 @@ These override any individual decision below. When in doubt, re-read these.
 
 ## 1. Product architecture overview
 
-Personal OS centralizes ten life areas into one cohesive surface:
+Personal OS centralizes eleven life areas into one cohesive surface:
 
 | # | Area | Core job | AI-relevant? |
 |---|------|----------|--------------|
@@ -50,6 +50,7 @@ Personal OS centralizes ten life areas into one cohesive surface:
 | 8 | Moments | Photo/memory capture with time + optional location. | Read (V2 action) |
 | 9 | Notes | Fast capture, searchable, markdown-ish. | Read + create + search |
 | 10 | Profile / Settings | Identity, preferences, theme, AI config, data controls. | Config source |
+| 11 | Diet / Nutrition | Structured plan (days → meals → items), today's meals + eaten tracking, PDF import (ADR-002). | Read + action (log eaten) |
 
 **The connective tissue** is what makes this a "personal OS" and not a folder of apps:
 
@@ -360,6 +361,11 @@ users/{uid}                                  (profile doc: displayName, createdA
     days/{dayId}                             STATE: label("Chest"), order, exercises[]  (embedded)
   workoutSessions/{sessionId}                LOG:   planId?, dayLabel, startedAt, endedAt, status
     sets/{setId}                             LOG:   exerciseName, order, reps, weight, done, at
+
+  dietPlans/{planId}                         STATE: name, source(pdf|manual), status(draft|active),
+                                                    days[] → meals[] → items[] (embedded; see ADR-002
+                                                    for the PDF import path into this same shape)
+  dietEntries/{entryId}                      LOG:   dayKey, date, mealId, eaten (one per day+meal)
 
   documents/{docId}                          META:  storagePath, kind, status(uploaded|processing
                                                     |extracted|confirmed|failed), extractedRef?

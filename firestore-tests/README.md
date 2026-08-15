@@ -16,8 +16,9 @@ small Node project run against the **Firestore emulator**, not Dart.
   missing `schemaVersion`, negative `amountMinor`, non-list `exercises`, …).
 - **`emailOtps` lockout** — denied to every client, even the owner (Functions-only).
 
-All seven persisted collections are covered: `tasks`, `expenses`, `schedule`, `notes`,
-`workouts`, `moments`, `universityItems` — plus the `users/{uid}` profile doc.
+All nine persisted collections (across eight feature repositories) are covered: `tasks`,
+`expenses`, `schedule`, `notes`, `workouts`, `moments`, `universityItems`, `dietPlans`,
+`dietEntries` — plus the `users/{uid}` profile doc.
 
 ## Prerequisites
 

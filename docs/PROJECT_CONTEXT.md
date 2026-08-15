@@ -6,10 +6,9 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after completing the **Firestore
-> persistence** milestone on `feature/firestore-persistence` — all six feature repositories
-> migrated from in-memory to Firestore behind their existing interfaces, scoped by the auth
-> `uid`. The Authentication milestone that preceded it is merged into `main`).
+> **Last verified against the codebase:** 2026-08-15 (after building the **Diet Plan** feature
+> on `feature/ai-assistant` — see Current Handoff below. Firestore persistence, Authentication,
+> and University are merged into `main`).
 
 ---
 
@@ -17,82 +16,75 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/firestore-persistence`.
+> without redoing completed work. Active development is on `feature/ai-assistant`.
 
-- **Status:** **Firestore persistence** milestone **COMPLETE** on
-  `feature/firestore-persistence` (6 new commits beyond `main`). All six feature repositories
-  (Tasks, Expenses, Schedule, Notes, Workout, Moments) are migrated from in-memory to
-  Firestore behind their existing interfaces, scoped by the auth `uid`. Not yet merged into
-  `main`. No work in progress.
-- **Branch:** `feature/firestore-persistence` is checked out and active (branched off `main`
-  after the Authentication milestone was merged there). All branches are **local only —
-  nothing has been pushed to origin.**
-- **Commits on `feature/firestore-persistence`** (newest first; run `git log --oneline -7`
-  for exact HEAD):
-  - `0202c1f` feat(persistence): Firestore-back the Moments repository
-  - `240d1f7` feat(persistence): Firestore-back the Workout repository
-  - `b665109` feat(persistence): Firestore-back the Notes repository
-  - `8b36b57` feat(persistence): Firestore-back the Schedule repository
-  - `83ccc3b` feat(persistence): Firestore-back the Expenses repository
-  - `0a8381f` feat(persistence): Firestore-back the Tasks repository (proof-of-slice)
-- **Completed this milestone (the Firestore persistence requirements):**
-  - **Six Firestore repositories** — `Firestore{Task,Expense,Schedule,Note,Workout,Moment}
-    Repository`, each behind its UNCHANGED `abstract interface class` (interfaces + domain
-    entities untouched). The Firestore SDK is confined to the `data/` layer — zero
-    `cloud_firestore` imports in any `domain/` or `presentation/` file. Data lives under
-    `users/{uid}/<collection>/{docId}`; every doc carries `schemaVersion: 1` and
-    `createdAt`/`updatedAt`, timestamps stored UTC, money as integer minor units, doc-id
-    writes idempotent.
-  - **The `UidSource` seam** (`lib/core/firebase/uid_source.dart`) — repos are built once at
-    app root before sign-in, so they resolve the signed-in `uid` from an injected source
-    (`UidSource.firebaseAuth()` in `app.dart`); `watchAll()` re-scopes on auth change
-    (sign-out → empty list) and is testable with a plain `() => uid` + stream, NO
-    FirebaseAuth mock.
-  - **Wiring & fallback** — `app.dart` defaults every feature repo to its Firestore impl
-    behind a single `--dart-define USE_FIRESTORE` flag (default true; false → in-memory for
-    offline/dev). The `InMemory*` repos are KEPT as the test/fallback impls.
-  - **Security rules** — explicit owner-only per-collection rules with field validation for
-    all six subcollections (rules do NOT cascade from `/users/{uid}`, so each is explicit),
-    plus the deny-by-default catch-all. **Deployed** to `zivo-63f15`.
-  - **Tests** — one `firestore_*_repository_test.dart` per feature via `fake_cloud_firestore`
-    (a test-only dev dependency added this milestone), covering field mapping, ordering,
-    per-feature wrinkles (enum round-trip, embedded exercises, domain-`updatedAt`/`takenAt`,
-    nullable fields), and signed-out empty/guard. The boot widget test injects in-memory
-    repos for all six so it stays Firebase-free. `analysis_options.yaml` now excludes
-    `build/**` so vendored Firebase SPM sources don't pollute `flutter analyze`.
-- **Per-feature notes (deliberate, documented):** Expenses' `category` enum ↔ `.name` string
-  with a safe fallback to `other`; Notes' `updatedAt` and Moments' `takenAt` are DOMAIN
-  fields (written via `Timestamp.fromDate`, mapped back — not server-stamped); Workout
-  EMBEDS its `List<Exercise>` as an array (a documented deviation from PLAN §7's aspirational
-  `workoutSessions`/`sets` subcollection — the domain has no set-level logging); Moments'
-  `imagePath` is persisted as a device-local path STRING only — **no Firebase Storage, no
-  photo bytes** (real cross-device photos are the deferred V1.5 Storage milestone).
+- **Status (as of 2026-08-15):** the **Diet Plan** feature is built as a full vertical slice
+  (domain/data/presentation/tests) on `feature/ai-assistant`, alongside the ADR-001 (AI
+  assistant, read-only + gateway) and ADR-002 (document/PDF ingestion pipeline) design docs
+  already authored on this branch. Diet is the eighth feature repository, following the
+  University/Workout template exactly. **Not yet committed** — all changes are unstaged in
+  the working tree, pending review.
+- **Branch:** `feature/ai-assistant`, checked out and active.
+- **What Diet adds:**
+  - **Domain** (`lib/features/diet/domain/`): `FoodItem`, `Meal`, `DietDay`, `DietPlan` (with
+    `copyWith`), `DietPlanStatus` (`draft`/`active`/`archived`, safe `fromName` fallback to
+    `active`), `DietSource` (`manual`/`pdf`, fallback to `manual`), `DietEntry` (the
+    consumption-log entity), pure `diet_format.dart` helpers (`foodQtyLabel`, `macroLabel`,
+    `mealCalories`, `dayCalories`), and `DietRepository`. The `dayForDate` resolver lives in
+    `lib/features/diet/presentation/today_diet.dart`, mirroring where University put
+    `relative_due.dart`.
+  - **Data model — structured, not a text note**, shaped so a future PDF extractor (ADR-002)
+    can populate it: `users/{uid}/dietPlans/{planId}` embeds the whole bounded
+    `days → meals → items` tree (like Workout embeds exercises); `users/{uid}/dietEntries/
+    {dayKey}__{mealId}` is the separate, unbounded "did I eat this meal today" log, queried by
+    the equality-only `dayKey` field (no composite index).
+  - **`FirestoreDietRepository`** + **`InMemoryDietRepository`** behind the unchanged
+    `DietRepository` interface, mirroring `FirestoreUniversityRepository` (uid re-scoping via
+    the shared `UidSource` seam, `schemaVersion: 1`, `createdAt`/`updatedAt`, idempotent
+    doc-id writes). No deletes — toggling "eaten" flips the `eaten` field via
+    `set(..., merge: true)`, it never removes the `dietEntries` doc.
+  - **Presentation**: `DietPlanPage` (today's resolved day's meals with an eaten checkbox, a
+    "X of Y meals eaten · N kcal left" summary, and a read-only full-week browse section below)
+    and `DietPlanEditPage` (plan name, add/remove days via a weekday-chip bottom sheet,
+    add/remove meals, add/remove food items via a bottom sheet mirroring Workout's exercise
+    sheet). **Pulse-themed** — Diet shares Workout's hue (`AppColors.pulse*`, "training /
+    health").
+  - **Wiring**: `diet` added to `AppScope`, `app.dart`'s Firestore/in-memory default selection
+    (behind the existing `USE_FIRESTORE` flag), a "Diet" Hub tile (right after Workout), and
+    every test `AppScope`/`ZivoApp` construction site.
+  - **Rules**: owner-only `dietPlans`/`dietEntries` blocks added to `firestore.rules` (field
+    validation, no cascade from `/users/{uid}`) — **not yet deployed**, deploy is a separate
+    decision. Matching entries added to `firestore-tests/rules.test.mjs` + its README.
+  - **Deliberately deferred** (scope boundary, not an oversight): Today (home) page
+    integration (`today_page.dart`/`today_demo_data.dart`/`focus_builder.dart` untouched), and
+    the PDF/AI import path itself — `DietPlan.source` already carries a `pdf` value for it, but
+    the extraction pipeline is only *designed* in ADR-002, not built. This slice is
+    manual-entry only.
 - **In progress:** nothing.
-- **Last completed action:** deployed `firestore.rules` (all six subcollection rules + the
-  existing profile/emailOtps/deny-all rules) via `firebase deploy --only firestore:rules
-  --project zivo-63f15`, and updated this handoff.
-- **Exact next action:** review and **merge `feature/firestore-persistence` into `main` by
-  decision** (not automatic). After that, the next candidate milestones are the AI assistant
-  ("Ask"), the University feature (the last unbuilt life-area module), or the Firebase
-  Storage surface (V1.5 — which also unlocks real Moments photos). Push branches to origin
-  only when the user asks.
-- **Files currently being modified:** none (working tree clean).
-- **Verification status:** `flutter analyze` clean; `flutter test` → **93 pass** (was 63 at
-  milestone start). Firestore rules deployed. The repos build and are wired, but real
-  read/write against the live backend on a device is **not yet exercised** — it still
-  depends on the same manual Auth-provider enablement the auth milestone flagged (see §7/§13),
-  since data access requires a signed-in `uid`.
+- **Last completed action:** wrote the Diet Plan vertical slice (domain/data/presentation +
+  `test/diet/*` + the six DI wiring edits + `firestore.rules` + rules-tests) and ran
+  `flutter analyze` (clean).
+- **Exact next action:** decide on merging `feature/ai-assistant` into `main` (Diet slice is
+  committed on this branch; not automatic). After that, continue the AI assistant ("Ask") work
+  per ADR-001, or wire Diet into Today (both deferred by design in this slice).
+- **Files currently being modified:** none (Diet is complete and committed).
+- **Verification status:** all three gates GREEN (run by the orchestrator on the final diff):
+  `flutter analyze` → clean (**No issues found!**); `flutter test` → **133 pass** (was 110
+  before Diet — +23 new Diet domain/repository/page tests); Firestore emulator rules-tests →
+  **45 pass, 0 fail** (was 37 — +8 for the `dietPlans`/`dietEntries` ownership + field-validation
+  cases). Real read/write against the live backend on a device is not yet exercised (as with the
+  other Firestore features — it depends on signed-in Auth + the manual provider enablement noted
+  in §7/§13). The two new `firestore.rules` blocks are **tested but not yet deployed**.
 - **Blockers:** none active. (Unchanged from before: the OTP sender is still
-  `onboarding@resend.dev` in `functions/index.js`; real email-code delivery needs a verified
-  Resend domain.)
-- **Manual user action:** (1) enable the three Auth providers in the Firebase Console + Apple
-  Developer config, then test real sign-in AND live Firestore read/write on a device; (2)
-  verify a Resend sender domain so OTP emails actually send; (3) review/merge
-  `feature/firestore-persistence` into `main`; (4) push branches to origin if/when desired.
-- **Do not redo:** don't re-migrate any of the six repositories, don't change the repository
-  interfaces or domain entities, don't re-derive the `UidSource` seam, and don't re-deploy
-  the same Firestore rules. Don't build Firebase Storage / Moments photo upload — that's a
-  deliberately deferred milestone.
+  `onboarding@resend.dev` in `functions/index.js`.)
+- **Manual user action:** (1) decide on merging `feature/ai-assistant` into `main`; (2) deploy the
+  two new `firestore.rules` blocks (`dietPlans`, `dietEntries`) when ready
+  (`firebase deploy --only firestore:rules --project zivo-63f15`) — they are validated by the
+  emulator rules-tests but not yet live; (3) rotate the Anthropic API key that was shared in
+  plaintext before the AI phase.
+- **Do not redo:** don't re-derive the Diet domain/data layers or the University/Workout
+  patterns they mirror; don't add Today integration or PDF/AI import in this slice — both are
+  explicitly deferred to later, separate milestones.
 
 ---
 
@@ -227,9 +219,10 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | **Notes** | ✅ | Capture + list; reachable via Hub. **Firestore** (`users/{uid}/notes`). |
 | **Moments** | ✅ | Capture (optional photo via `image_picker`) + timeline; via Hub. **Firestore** (`users/{uid}/moments`) — caption/time/location only; photo path is device-local (Storage deferred). |
 | **Workout** | ✅ | Capture (name + add-exercise sheet) + history; via Hub. **Firestore** (`users/{uid}/workouts`, exercises embedded). |
-| **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout. "Soon" tiles: Schedule, Tasks, Expenses, University. |
+| **Diet** | ✅ | Structured plan (days → meals → items, Pulse-themed, shares Workout's hue); today's meals with an eaten checkbox + "meals eaten · kcal left" summary, a read-only full-week browse section, and a bottom-sheet plan editor; via Hub. **Firestore** (`users/{uid}/dietPlans` embedded days/meals/items + `users/{uid}/dietEntries` consumption log). Manual-entry only — PDF import is designed in `docs/DECISIONS/ADR-002-document-pdf-pipeline.md` but not built; Today integration is deferred. |
+| **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout, Diet, University. "Soon" tiles: Schedule, Tasks, Expenses. |
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
-| **University** | ⛔ | Not built. "Soon" tile only; one demo deadline hardcoded into Today's focus. |
+| **University** | ✅ | Assignments/exams grouped by course; via Hub; merged live into Today's focus. **Firestore** (`users/{uid}/universityItems`). |
 | **Ask (AI assistant)** | ⛔ | `ComingSoon('Ask')` tab placeholder. |
 | **You (Profile)** | 🟡 | `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Settings not built. Separate from the post-auth **profile completion** step (name + DOB) below. |
 | **Authentication** | ✅ | Real Firebase Auth — Apple (iOS only), Google, Email/Password (strong-password sign-up + 6-digit email OTP) — behind `AuthGate`. Clean state machine: unauth → email-verification → **profile-completion (name + DOB, Firestore `users/{uid}`)** → ready. Session persists; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
@@ -29,6 +30,12 @@ class HubPage extends StatelessWidget {
         Icons.fitness_center_rounded,
         AppColors.pulseText,
         (c) => const WorkoutHistoryPage(),
+      ),
+      _Module(
+        'Diet',
+        Icons.restaurant_rounded,
+        AppColors.pulseText,
+        (c) => const DietPlanPage(),
       ),
       _Module('Expenses', Icons.payments_rounded, AppColors.solarText, null),
       _Module(

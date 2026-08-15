@@ -6,7 +6,8 @@
 //
 // Covers PLAN §10/§20/§28: deny-by-default, per-user ownership isolation,
 // per-collection field validation, and the Functions-only emailOtps lockout —
-// for all seven persisted collections plus the user profile doc.
+// for all nine persisted collections (across eight feature repositories) plus the
+// user profile doc.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +36,8 @@ const valid = {
   workouts: { title: 'W', performedAt: ts(), exercises: [], schemaVersion: 1 },
   moments: { caption: 'M', takenAt: ts(), schemaVersion: 1 },
   universityItems: { title: 'U', type: 'assignment', done: false, schemaVersion: 1 },
+  dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
+  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -46,6 +49,8 @@ const invalid = {
   workouts: { title: 'W', performedAt: ts(), exercises: 'nope', schemaVersion: 1 }, // exercises not a list
   moments: { caption: 'M', takenAt: ts() }, // missing schemaVersion
   universityItems: { title: 'U', type: 'assignment', done: 'yes', schemaVersion: 1 }, // done not a bool
+  dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
+  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
 };
 
 const collections = Object.keys(valid);
