@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "317167114617-kc08kha06vn0nmif68ol7rdfbhmagjc6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ziadelsewedy.zivo",
+            "certificate_hash": "5a058416e0d2201223a980cb4724ef5de6cfa04f"
+          }
+        },
+        {
           "client_id": "317167114617-k2u8fg7u6a3ppa5gagmcbu2jr7u4ljnb.apps.googleusercontent.com",
           "client_type": 3
         }

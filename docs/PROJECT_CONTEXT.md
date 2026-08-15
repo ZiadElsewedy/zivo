@@ -6,9 +6,10 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after building the **`aiChat` gateway +
-> `FirebaseAiRepository`** — part 2 of Phase 9 — on `feature/ai-assistant`; see Current Handoff
-> below. Firestore persistence, Authentication, and University are merged into `main`).
+> **Last verified against the codebase:** 2026-08-16 (V1 read-only Ask **deployed + verified
+> on-device**; composer fix landed; App Check client wired (not enforced); Android sign-in SHA in
+> progress; **V2 planned** in `docs/DECISIONS/ADR-003-ai-mutations-v2.md`. On `feature/ai-assistant`;
+> Firestore persistence, Authentication, and University are merged into `main`).
 
 ---
 
@@ -18,14 +19,30 @@
 > git state / diff, recover the exact state, and continue from **Exact next action** —
 > without redoing completed work. Active development is on `feature/ai-assistant`.
 
-- **Status (as of 2026-08-15):** Phase 9 part 2 — the **`aiChat` gateway, read-only tools, limits,
-  and the real `FirebaseAiRepository`** — is built on `feature/ai-assistant`, per
-  `docs/DECISIONS/ADR-001-ai-assistant.md` action items 3–5. Part 1 (the client seam: domain +
-  `FakeAiRepository` + `AskPage`) is unchanged. **Strictly read-only** — no mutating tool, no
-  confirmation UI. **No deploy, no `firebase functions:secrets:set`, no App Check config, no
-  commit** — all changes are unstaged in the working tree, pending review. The Anthropic API key is
-  read only via `defineSecret("ANTHROPIC_API_KEY").value()` inside the `aiChat` handler; it is
-  never hardcoded, logged, or present in the client.
+- **Status (as of 2026-08-16):** Phase 9 V1 (read-only Ask) is **deployed and verified on-device.**
+  `aiChat` is live in `zivo-63f15` (Claude `claude-sonnet-5`, 9 uid-scoped read tools, ceilings,
+  `aiUsage` logging, injection fence); the app uses the real `FirebaseAiRepository` (`USE_FIRESTORE`
+  defaults to `true`). The read-only gateway/tools/store/`FirebaseAiRepository` described under
+  "What part 2 adds" are unchanged. **V2 (mutations with confirmation) is now planned** — see
+  `docs/DECISIONS/ADR-003-ai-mutations-v2.md`; no V2 code yet, pending owner UX approval (Phase -1).
+  The Anthropic API key is read only via `defineSecret("ANTHROPIC_API_KEY").value()` inside the
+  `aiChat` handler; never hardcoded, logged, or in the client.
+- **Since deploy (this session's work, in the working tree — review/commit pending):**
+  - **Composer layout fix** (committed, `2f24562`): `ask_page.dart` composer clears the bottom nav
+    bar / keyboard via `max(viewInsets.bottom, padding.bottom)`; regression test added. Full suite
+    **148 pass**.
+  - **Functions deps repaired:** `@anthropic-ai/sdk` was declared but never installed (deploy failed
+    with `MODULE_NOT_FOUND`); `npm install` in `functions/` fixed it. `functions/package-lock.json`
+    is modified and should be committed.
+  - **App Check — IN PROGRESS, not enforced.** Client wired: `firebase_app_check` added;
+    `lib/main.dart` calls `FirebaseAppCheck.instance.activate(...)` (debug providers in debug builds,
+    Play Integrity / App Attest in release). Server `aiChat` has **no** `enforceAppCheck: true` yet.
+    Remaining (owner): register providers + debug token in Console, confirm verified requests, then
+    flip enforcement and redeploy. **Enforce before V2 mutations ship.**
+  - **Android Google sign-in — IN PROGRESS.** Debug SHA-1
+    `5A:05:84:16:E0:D2:20:12:23:A9:80:CB:47:24:EF:5D:E6:CF:A0:4F` added in Console; re-pull
+    `google-services.json` (`firebase apps:sdkconfig ANDROID <appId>`) and confirm a `client_type: 1`
+    Android OAuth client is present. iOS sign-in unaffected.
 - **Branch:** `feature/ai-assistant`, checked out and active.
 - **What part 2 adds:**
   - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
@@ -77,15 +94,16 @@
     just the in-memory cache), message ordering/role-mapping, `send()` invoking the injected fake
     `invokeChat` with the trimmed text, and no-op on empty/whitespace input. The real callable
     invocation is on-device-only and explicitly not exercised here.
-- **In progress:** nothing.
-- **Last completed action:** wrote the gateway/tools/store/index.js server half + its offline test
-  suite (17 tests) + the real `FirebaseAiRepository` + its Firestore-fake test suite, and updated
-  this file + ADR-001.
-- **Exact next action:** owner review of this diff, then (owner-only, needs Console/CLI access this
-  agent doesn't have): `firebase deploy --only functions,firestore:rules --project zivo-63f15`
-  (the AI Firestore rules were already added in part 1 and are still undeployed), decide on App
-  Check timing, and verify a real turn end-to-end on-device. After that: decide on merging
-  `feature/ai-assistant` into `main`.
+- **In progress:** App Check (enforce on server + Console setup) and Android Google sign-in (SHA-1
+  propagation) — see the "Since deploy" bullets above.
+- **Last completed action:** deployed V1 (read-only Ask) and verified on-device; landed the composer
+  layout fix; repaired functions deps; wired the App Check client; wrote the **V2 plan**
+  (`docs/DECISIONS/ADR-003-ai-mutations-v2.md`) and refreshed this handoff.
+- **Exact next action:** (1) finish App Check — owner registers providers + debug token, confirm
+  verified requests, then flip `enforceAppCheck: true` on `aiChat` and redeploy; (2) finish Android
+  sign-in (re-pull `google-services.json`); (3) commit the working-tree changes (App Check wiring,
+  `functions/package-lock.json`, doc updates); (4) get owner UX approval for ADR-003 Phase -1, then
+  start V2 slice 1 (server-side, offline-testable).
 - **Files currently being modified:** none (this slice is complete, pending review/commit).
 - **Verification status:** ALL FIVE gates GREEN (run by the orchestrator on the final diff):
   `flutter analyze` → clean; `flutter test` → **147 pass** (was 141 — +6 `firebase_ai_repository_test.dart`
@@ -106,8 +124,9 @@
   decide on merging `feature/ai-assistant` into `main`. **The assistant does not answer over real data
   until deployed — nothing in this session claims otherwise.**
 - **Do not redo:** don't re-derive `functions/ai/{gateway,tools,store,dates}.js`, their test suites,
-  `FirebaseAiRepository`, or its test — this slice is complete. Don't add a mutating tool or
-  confirmation UI (V2, later). Don't deploy, set secrets, or configure App Check — owner-only.
+  `FirebaseAiRepository`, or its test — the read-only V1 slice is complete and deployed. Don't start
+  V2 mutating tools / confirmation UI until the owner approves ADR-003 Phase -1 (UX). Don't set
+  secrets or flip App Check enforcement — owner-only.
 
 ---
 
