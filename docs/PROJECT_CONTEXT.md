@@ -6,10 +6,9 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after completing the **Firestore
-> persistence** milestone on `feature/firestore-persistence` — all six feature repositories
-> migrated from in-memory to Firestore behind their existing interfaces, scoped by the auth
-> `uid`. The Authentication milestone that preceded it is merged into `main`).
+> **Last verified against the codebase:** 2026-08-15 (after building the **`aiChat` gateway +
+> `FirebaseAiRepository`** — part 2 of Phase 9 — on `feature/ai-assistant`; see Current Handoff
+> below. Firestore persistence, Authentication, and University are merged into `main`).
 
 ---
 
@@ -17,82 +16,98 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/firestore-persistence`.
+> without redoing completed work. Active development is on `feature/ai-assistant`.
 
-- **Status:** **Firestore persistence** milestone **COMPLETE** on
-  `feature/firestore-persistence` (6 new commits beyond `main`). All six feature repositories
-  (Tasks, Expenses, Schedule, Notes, Workout, Moments) are migrated from in-memory to
-  Firestore behind their existing interfaces, scoped by the auth `uid`. Not yet merged into
-  `main`. No work in progress.
-- **Branch:** `feature/firestore-persistence` is checked out and active (branched off `main`
-  after the Authentication milestone was merged there). All branches are **local only —
-  nothing has been pushed to origin.**
-- **Commits on `feature/firestore-persistence`** (newest first; run `git log --oneline -7`
-  for exact HEAD):
-  - `0202c1f` feat(persistence): Firestore-back the Moments repository
-  - `240d1f7` feat(persistence): Firestore-back the Workout repository
-  - `b665109` feat(persistence): Firestore-back the Notes repository
-  - `8b36b57` feat(persistence): Firestore-back the Schedule repository
-  - `83ccc3b` feat(persistence): Firestore-back the Expenses repository
-  - `0a8381f` feat(persistence): Firestore-back the Tasks repository (proof-of-slice)
-- **Completed this milestone (the Firestore persistence requirements):**
-  - **Six Firestore repositories** — `Firestore{Task,Expense,Schedule,Note,Workout,Moment}
-    Repository`, each behind its UNCHANGED `abstract interface class` (interfaces + domain
-    entities untouched). The Firestore SDK is confined to the `data/` layer — zero
-    `cloud_firestore` imports in any `domain/` or `presentation/` file. Data lives under
-    `users/{uid}/<collection>/{docId}`; every doc carries `schemaVersion: 1` and
-    `createdAt`/`updatedAt`, timestamps stored UTC, money as integer minor units, doc-id
-    writes idempotent.
-  - **The `UidSource` seam** (`lib/core/firebase/uid_source.dart`) — repos are built once at
-    app root before sign-in, so they resolve the signed-in `uid` from an injected source
-    (`UidSource.firebaseAuth()` in `app.dart`); `watchAll()` re-scopes on auth change
-    (sign-out → empty list) and is testable with a plain `() => uid` + stream, NO
-    FirebaseAuth mock.
-  - **Wiring & fallback** — `app.dart` defaults every feature repo to its Firestore impl
-    behind a single `--dart-define USE_FIRESTORE` flag (default true; false → in-memory for
-    offline/dev). The `InMemory*` repos are KEPT as the test/fallback impls.
-  - **Security rules** — explicit owner-only per-collection rules with field validation for
-    all six subcollections (rules do NOT cascade from `/users/{uid}`, so each is explicit),
-    plus the deny-by-default catch-all. **Deployed** to `zivo-63f15`.
-  - **Tests** — one `firestore_*_repository_test.dart` per feature via `fake_cloud_firestore`
-    (a test-only dev dependency added this milestone), covering field mapping, ordering,
-    per-feature wrinkles (enum round-trip, embedded exercises, domain-`updatedAt`/`takenAt`,
-    nullable fields), and signed-out empty/guard. The boot widget test injects in-memory
-    repos for all six so it stays Firebase-free. `analysis_options.yaml` now excludes
-    `build/**` so vendored Firebase SPM sources don't pollute `flutter analyze`.
-- **Per-feature notes (deliberate, documented):** Expenses' `category` enum ↔ `.name` string
-  with a safe fallback to `other`; Notes' `updatedAt` and Moments' `takenAt` are DOMAIN
-  fields (written via `Timestamp.fromDate`, mapped back — not server-stamped); Workout
-  EMBEDS its `List<Exercise>` as an array (a documented deviation from PLAN §7's aspirational
-  `workoutSessions`/`sets` subcollection — the domain has no set-level logging); Moments'
-  `imagePath` is persisted as a device-local path STRING only — **no Firebase Storage, no
-  photo bytes** (real cross-device photos are the deferred V1.5 Storage milestone).
+- **Status (as of 2026-08-15):** Phase 9 part 2 — the **`aiChat` gateway, read-only tools, limits,
+  and the real `FirebaseAiRepository`** — is built on `feature/ai-assistant`, per
+  `docs/DECISIONS/ADR-001-ai-assistant.md` action items 3–5. Part 1 (the client seam: domain +
+  `FakeAiRepository` + `AskPage`) is unchanged. **Strictly read-only** — no mutating tool, no
+  confirmation UI. **No deploy, no `firebase functions:secrets:set`, no App Check config, no
+  commit** — all changes are unstaged in the working tree, pending review. The Anthropic API key is
+  read only via `defineSecret("ANTHROPIC_API_KEY").value()` inside the `aiChat` handler; it is
+  never hardcoded, logged, or present in the client.
+- **Branch:** `feature/ai-assistant`, checked out and active.
+- **What part 2 adds:**
+  - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
+    message, now, config})` — a pure-ish orchestration function kept free of
+    `@anthropic-ai/sdk`/`firebase-admin` so it runs offline. Persists the user message, checks the
+    per-day cap (`store.getTodayUsageTotals`), loops up to `maxIterations` (5) model↔tool
+    round-trips with `stop_reason` handling for `tool_use` / `end_turn` / `refusal`, aborts cleanly
+    on the per-turn token ceiling (50000) or the iteration cap, persists the assistant's final
+    reply, and logs usage (`tokensIn`/`tokensOut`/`costUsd`/`tools`/`iterations`/`latencyMs`,
+    Sonnet 5 pricing $3/$15 per 1M in/out tokens). The `SYSTEM_PROMPT` constant states ZIVO +
+    read-only scope and explicitly fences tool output as **untrusted data, not instructions**
+    (prompt-injection defense). Each tool call's `tool_use.id` is threaded through as `toolCallId`
+    in the usage log (idempotency groundwork for a future V2 mutation phase).
+  - **Tools** (`functions/ai/tools.js`): 9 uid-scoped read-only tools — `get_today`, `get_tasks`,
+    `get_schedule`, `get_expenses`, `get_university`, `get_workouts`, `get_diet`, `search_notes`,
+    `summarize_week` — each `{name, description, inputSchema, execute(store, uid, input, now)}`.
+    Money stays integer minor units; totals-by-category are computed server-side, not left to the
+    model. `search_notes` is a naive case-insensitive substring match (not full-text), matching
+    ADR-001's stated scope.
+  - **Store seam** (`functions/ai/store.js`): `FirestoreStore` — the only file besides `index.js`
+    that touches Firestore (Admin SDK, always explicitly `uid`-scoped). Implements 8 uid-scoped
+    reads (`listTasks`, `listSchedule`, `listExpenses`, `listUniversity`, `listWorkouts`,
+    `searchNotes`, `getActiveDietPlan`, `listDietEntries`) plus persistence
+    (`appendMessage`/`touchConversation`/`logUsage`) and `getRecentMessages`/
+    `getTodayUsageTotals`. Field names mirror the client `FirestoreXRepository` classes exactly.
+    `functions/ai/dates.js` holds pure date-range helpers (today/week/month bounds, `dayKeyFor`,
+    the diet day-resolution mirror of the client's `dayForDate`) shared by both.
+  - **`functions/index.js`**: added `exports.aiChat = onCall({secrets: [ANTHROPIC_API_KEY],
+    region: "us-central1"}, ...)` — a thin wrapper (auth guard, input coercion, constructs the real
+    `Anthropic` client + `FirestoreStore`, calls `runAiTurn`, maps `GatewayError` → `HttpsError`).
+    All real logic stays in `gateway.js`/`tools.js` for testability. `functions/package.json`
+    gained the `@anthropic-ai/sdk` dependency and a `"test": "node --test"` script.
+  - **Tests** (`functions/ai/gateway.test.js`, `functions/ai/tools.test.js`, offline `node --test`,
+    no SDK/emulator): input validation, uid-scoped tool execution, the iteration cap (asserts exact
+    model-call count), the per-turn token ceiling, the per-day cap (asserts zero model calls),
+    refusal handling, a tool-executor error recovering via an `is_error` tool_result, the
+    prompt-injection fence, and usage logging — plus direct `tools.js` tests (`get_expenses`
+    category totals, `search_notes` matching). **17/17 pass.**
+  - **`lib/features/ai/data/firebase_ai_repository.dart`**: the real `AiRepository`.
+    `ensureConversation()` reuses the most-recently-updated `aiConversations` doc or creates one;
+    `watchMessages()` streams `.../messages` ordered by `createdAt`, re-scoping on uid change
+    (mirrors `FirestoreUniversityRepository`'s `UidSource` pattern); `send()` never writes
+    Firestore directly (rules forbid it) — it calls an injectable `invokeChat` seam defaulting to
+    `FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable('aiChat')`. `app.dart`'s
+    `_defaultAi()` now returns `FirebaseAiRepository` when `USE_FIRESTORE=true` (the default),
+    `FakeAiRepository` otherwise — same pattern as the other 8 repositories.
+  - **`test/ai/firebase_ai_repository_test.dart`** (`fake_cloud_firestore`, mirrors the University
+    repo test): conversation create-then-reuse (including reuse of a doc already in Firestore, not
+    just the in-memory cache), message ordering/role-mapping, `send()` invoking the injected fake
+    `invokeChat` with the trimmed text, and no-op on empty/whitespace input. The real callable
+    invocation is on-device-only and explicitly not exercised here.
 - **In progress:** nothing.
-- **Last completed action:** deployed `firestore.rules` (all six subcollection rules + the
-  existing profile/emailOtps/deny-all rules) via `firebase deploy --only firestore:rules
-  --project zivo-63f15`, and updated this handoff.
-- **Exact next action:** review and **merge `feature/firestore-persistence` into `main` by
-  decision** (not automatic). After that, the next candidate milestones are the AI assistant
-  ("Ask"), the University feature (the last unbuilt life-area module), or the Firebase
-  Storage surface (V1.5 — which also unlocks real Moments photos). Push branches to origin
-  only when the user asks.
-- **Files currently being modified:** none (working tree clean).
-- **Verification status:** `flutter analyze` clean; `flutter test` → **93 pass** (was 63 at
-  milestone start). Firestore rules deployed. The repos build and are wired, but real
-  read/write against the live backend on a device is **not yet exercised** — it still
-  depends on the same manual Auth-provider enablement the auth milestone flagged (see §7/§13),
-  since data access requires a signed-in `uid`.
-- **Blockers:** none active. (Unchanged from before: the OTP sender is still
-  `onboarding@resend.dev` in `functions/index.js`; real email-code delivery needs a verified
-  Resend domain.)
-- **Manual user action:** (1) enable the three Auth providers in the Firebase Console + Apple
-  Developer config, then test real sign-in AND live Firestore read/write on a device; (2)
-  verify a Resend sender domain so OTP emails actually send; (3) review/merge
-  `feature/firestore-persistence` into `main`; (4) push branches to origin if/when desired.
-- **Do not redo:** don't re-migrate any of the six repositories, don't change the repository
-  interfaces or domain entities, don't re-derive the `UidSource` seam, and don't re-deploy
-  the same Firestore rules. Don't build Firebase Storage / Moments photo upload — that's a
-  deliberately deferred milestone.
+- **Last completed action:** wrote the gateway/tools/store/index.js server half + its offline test
+  suite (17 tests) + the real `FirebaseAiRepository` + its Firestore-fake test suite, and updated
+  this file + ADR-001.
+- **Exact next action:** owner review of this diff, then (owner-only, needs Console/CLI access this
+  agent doesn't have): `firebase deploy --only functions,firestore:rules --project zivo-63f15`
+  (the AI Firestore rules were already added in part 1 and are still undeployed), decide on App
+  Check timing, and verify a real turn end-to-end on-device. After that: decide on merging
+  `feature/ai-assistant` into `main`.
+- **Files currently being modified:** none (this slice is complete, pending review/commit).
+- **Verification status:** ALL FIVE gates GREEN (run by the orchestrator on the final diff):
+  `flutter analyze` → clean; `flutter test` → **147 pass** (was 141 — +6 `firebase_ai_repository_test.dart`
+  cases); `npm --prefix functions run lint` → clean; `npm --prefix functions test` → **17/17 pass**
+  (`node --test`, offline — `gateway.js`/`tools.js` never import `@anthropic-ai/sdk`); Firestore
+  emulator rules-tests → **53 pass** (unchanged; no rules edits this part). One construct-time bug was
+  found and fixed during review: `FirebaseAiRepository` resolved `FirebaseFunctions.instanceFor(...)`
+  eagerly in its constructor (crashing any `fake_cloud_firestore` test with `[core/no-app]`); the
+  default `invokeChat` seam now resolves `FirebaseFunctions` lazily inside its closure, so the repo
+  constructs without a live Firebase app. The gateway/tools/store logic is unit-tested but has **not**
+  yet run against the real Anthropic API or a deployed function — that is the on-device step below.
+- **Blockers:** none code-side (all five gates green). The deploy + on-device verification need the
+  owner's Firebase Console/CLI access. `ANTHROPIC_API_KEY` is already set in Secret Manager (and the
+  previously-exposed key rotated), so nothing is waiting on the key.
+- **Manual user action:** (1) `firebase deploy --only functions,firestore:rules --project zivo-63f15`
+  (deploys `aiChat` and the still-undeployed AI + Diet rules together); (2) decide on App Check timing
+  (ADR-001 open decision 4); (3) verify a real Ask turn on a device/simulator once deployed; (4)
+  decide on merging `feature/ai-assistant` into `main`. **The assistant does not answer over real data
+  until deployed — nothing in this session claims otherwise.**
+- **Do not redo:** don't re-derive `functions/ai/{gateway,tools,store,dates}.js`, their test suites,
+  `FirebaseAiRepository`, or its test — this slice is complete. Don't add a mutating tool or
+  confirmation UI (V2, later). Don't deploy, set secrets, or configure App Check — owner-only.
 
 ---
 
@@ -227,10 +242,11 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | **Notes** | ✅ | Capture + list; reachable via Hub. **Firestore** (`users/{uid}/notes`). |
 | **Moments** | ✅ | Capture (optional photo via `image_picker`) + timeline; via Hub. **Firestore** (`users/{uid}/moments`) — caption/time/location only; photo path is device-local (Storage deferred). |
 | **Workout** | ✅ | Capture (name + add-exercise sheet) + history; via Hub. **Firestore** (`users/{uid}/workouts`, exercises embedded). |
-| **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout. "Soon" tiles: Schedule, Tasks, Expenses, University. |
+| **Diet** | ✅ | Structured plan (days → meals → items, Pulse-themed, shares Workout's hue); today's meals with an eaten checkbox + "meals eaten · kcal left" summary, a read-only full-week browse section, and a bottom-sheet plan editor; via Hub. **Firestore** (`users/{uid}/dietPlans` embedded days/meals/items + `users/{uid}/dietEntries` consumption log). Manual-entry only — PDF import is designed in `docs/DECISIONS/ADR-002-document-pdf-pipeline.md` but not built; Today integration is deferred. |
+| **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout, Diet, University. "Soon" tiles: Schedule, Tasks, Expenses. |
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
-| **University** | ⛔ | Not built. "Soon" tile only; one demo deadline hardcoded into Today's focus. |
-| **Ask (AI assistant)** | ⛔ | `ComingSoon('Ask')` tab placeholder. |
+| **University** | ✅ | Assignments/exams grouped by course; via Hub; merged live into Today's focus. **Firestore** (`users/{uid}/universityItems`). |
+| **Ask (AI assistant)** | 🟡 | `AskPage` chat UI (iris-themed) wired to the real, read-only `aiChat` Cloud Function gateway (Claude Sonnet 5, 9 uid-scoped Firestore read tools, enforced iteration/token/day ceilings, `aiUsage` logging, prompt-injection fencing — `functions/ai/{gateway,tools,store}.js`) via `FirebaseAiRepository` (Firestore message stream + the callable) — see `docs/DECISIONS/ADR-001-ai-assistant.md`. Fully unit-tested offline (gateway/tools via `node --test`; the repo via `fake_cloud_firestore`) but **not yet deployed** — `USE_FIRESTORE=false` still serves the honest in-memory `FakeAiRepository`. Owner-only remaining: `firebase deploy` (functions + rules), App Check, on-device end-to-end verification. |
 | **You (Profile)** | 🟡 | `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Settings not built. Separate from the post-auth **profile completion** step (name + DOB) below. |
 | **Authentication** | ✅ | Real Firebase Auth — Apple (iOS only), Google, Email/Password (strong-password sign-up + 6-digit email OTP) — behind `AuthGate`. Clean state machine: unauth → email-verification → **profile-completion (name + DOB, Firestore `users/{uid}`)** → ready. Session persists; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |
 

@@ -15,9 +15,15 @@ small Node project run against the **Firestore emulator**, not Dart.
 - **Field validation** — each feature collection rejects a malformed write (wrong type,
   missing `schemaVersion`, negative `amountMinor`, non-list `exercises`, …).
 - **`emailOtps` lockout** — denied to every client, even the owner (Functions-only).
+- **AI conversation store (ADR-001)** — `aiConversations` is client-writable (owner
+  ownership + validation, covered by the generic loop below); `messages` (nested under a
+  conversation) and `aiUsage` are Functions-only: the owner may read a seeded doc, but no
+  client — not even the owner — may write one.
 
-All seven persisted collections are covered: `tasks`, `expenses`, `schedule`, `notes`,
-`workouts`, `moments`, `universityItems` — plus the `users/{uid}` profile doc.
+All ten persisted collections (across eight feature repositories) are covered: `tasks`,
+`expenses`, `schedule`, `notes`, `workouts`, `moments`, `universityItems`, `dietPlans`,
+`dietEntries`, `aiConversations` — plus the `users/{uid}` profile doc, and the server-only
+`aiConversations/*/messages` + `aiUsage` collections.
 
 ## Prerequisites
 

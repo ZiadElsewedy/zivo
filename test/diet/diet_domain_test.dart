@@ -1,0 +1,194 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/features/diet/domain/diet_day.dart';
+import 'package:zivo/features/diet/domain/diet_format.dart';
+import 'package:zivo/features/diet/domain/diet_plan.dart';
+import 'package:zivo/features/diet/domain/diet_plan_status.dart';
+import 'package:zivo/features/diet/domain/diet_source.dart';
+import 'package:zivo/features/diet/domain/food_item.dart';
+import 'package:zivo/features/diet/domain/meal.dart';
+import 'package:zivo/features/diet/presentation/today_diet.dart';
+
+FoodItem _item({
+  String name = 'Rice',
+  double quantity = 150,
+  String unit = 'g',
+  int? calories,
+  double? proteinG,
+  double? carbsG,
+  double? fatG,
+}) => FoodItem(
+  name: name,
+  quantity: quantity,
+  unit: unit,
+  calories: calories,
+  proteinG: proteinG,
+  carbsG: carbsG,
+  fatG: fatG,
+);
+
+void main() {
+  group('foodQtyLabel', () {
+    test('trims a whole quantity and omits calories when absent', () {
+      expect(foodQtyLabel(_item(quantity: 150, unit: 'g')), '150 g');
+    });
+
+    test('keeps a fractional quantity and appends calories when present', () {
+      expect(foodQtyLabel(_item(quantity: 22.5, unit: 'g', calories: 210)), '22.5 g · 210 kcal');
+    });
+  });
+
+  group('macroLabel', () {
+    test('null when the item carries no macro', () {
+      expect(macroLabel(_item()), isNull);
+    });
+
+    test('joins present macros, trimming whole-number grams', () {
+      expect(
+        macroLabel(_item(proteinG: 40, carbsG: 45.5, fatG: 8)),
+        'P 40 · C 45.5 · F 8',
+      );
+    });
+
+    test('omits absent macros from the join', () {
+      expect(macroLabel(_item(proteinG: 62)), 'P 62');
+    });
+  });
+
+  group('mealCalories', () {
+    test('sums item calories, ignoring items without one', () {
+      final meal = Meal(
+        id: 'm1',
+        label: 'Lunch',
+        order: 0,
+        items: [
+          _item(name: 'Rice', calories: 210),
+          _item(name: 'Chicken breast', calories: 330),
+          _item(name: 'Sauce'),
+        ],
+      );
+      expect(mealCalories(meal), 540);
+    });
+
+    test('null when no item has calories', () {
+      final meal = Meal(id: 'm1', label: 'Lunch', order: 0, items: [_item()]);
+      expect(mealCalories(meal), isNull);
+    });
+  });
+
+  group('dayCalories', () {
+    test('sums meal calories, ignoring meals without any', () {
+      final day = DietDay(
+        weekday: 1,
+        label: 'Monday',
+        meals: [
+          Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item(calories: 220)]),
+          Meal(id: 'm2', label: 'Lunch', order: 1, items: [_item()]),
+          Meal(id: 'm3', label: 'Dinner', order: 2, items: [_item(calories: 400)]),
+        ],
+      );
+      expect(dayCalories(day), 620);
+    });
+
+    test('null when no meal has calories', () {
+      final day = DietDay(
+        weekday: 1,
+        label: 'Monday',
+        meals: [
+          Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item()]),
+        ],
+      );
+      expect(dayCalories(day), isNull);
+    });
+  });
+
+  group('DietPlanStatus / DietSource fromName', () {
+    test('round-trips known names', () {
+      expect(dietPlanStatusFromName('draft'), DietPlanStatus.draft);
+      expect(dietPlanStatusFromName('archived'), DietPlanStatus.archived);
+      expect(dietSourceFromName('pdf'), DietSource.pdf);
+    });
+
+    test('falls back safely for unknown/null values', () {
+      expect(dietPlanStatusFromName('mystery'), DietPlanStatus.active);
+      expect(dietPlanStatusFromName(null), DietPlanStatus.active);
+      expect(dietSourceFromName('mystery'), DietSource.manual);
+      expect(dietSourceFromName(null), DietSource.manual);
+    });
+  });
+
+  group('DietPlan.copyWith', () {
+    test('overrides only the given fields', () {
+      final plan = DietPlan(
+        id: 'p1',
+        name: 'Cut — 2200 kcal',
+        status: DietPlanStatus.draft,
+        source: DietSource.manual,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        days: const [],
+      );
+
+      final activated = plan.copyWith(status: DietPlanStatus.active, updatedAt: DateTime(2026, 1, 2));
+
+      expect(activated.id, plan.id);
+      expect(activated.name, plan.name);
+      expect(activated.status, DietPlanStatus.active);
+      expect(activated.source, plan.source);
+      expect(activated.createdAt, plan.createdAt);
+      expect(activated.updatedAt, DateTime(2026, 1, 2));
+      expect(activated.days, plan.days);
+    });
+  });
+
+  group('dayForDate', () {
+    final monday = DateTime(2026, 1, 5); // a Monday
+    final tuesday = DateTime(2026, 1, 6);
+
+    DietPlan planWith(List<DietDay> days) => DietPlan(
+      id: 'p1',
+      name: 'Plan',
+      status: DietPlanStatus.active,
+      source: DietSource.manual,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      days: days,
+    );
+
+    test('null when there is no plan', () {
+      expect(dayForDate(null, monday), isNull);
+    });
+
+    test('prefers the day whose weekday matches', () {
+      final mondayDay = const DietDay(weekday: 1, label: 'Monday', meals: []);
+      final everyDay = const DietDay(weekday: null, label: 'Every day', meals: []);
+      final plan = planWith([everyDay, mondayDay]);
+      expect(dayForDate(plan, monday), mondayDay);
+    });
+
+    test('falls back to the every-day template when no weekday matches', () {
+      final tuesdayDay = const DietDay(weekday: 2, label: 'Tuesday', meals: []);
+      final everyDay = const DietDay(weekday: null, label: 'Every day', meals: []);
+      final plan = planWith([tuesdayDay, everyDay]);
+      expect(dayForDate(plan, monday), everyDay);
+    });
+
+    test('falls back to the single day when the plan has exactly one', () {
+      final onlyDay = const DietDay(weekday: 2, label: 'Tuesday', meals: []);
+      final plan = planWith([onlyDay]);
+      expect(dayForDate(plan, monday), onlyDay);
+    });
+
+    test('null when multiple days exist and none resolve', () {
+      final tuesdayDay = const DietDay(weekday: 2, label: 'Tuesday', meals: []);
+      final wednesdayDay = const DietDay(weekday: 3, label: 'Wednesday', meals: []);
+      final plan = planWith([tuesdayDay, wednesdayDay]);
+      expect(dayForDate(plan, monday), isNull);
+    });
+
+    test('matches the given date, not "today"', () {
+      final tuesdayDay = const DietDay(weekday: 2, label: 'Tuesday', meals: []);
+      final plan = planWith([tuesdayDay]);
+      expect(dayForDate(plan, tuesday), tuesdayDay);
+    });
+  });
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -10,19 +11,14 @@ import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
-import 'package:zivo/features/workout/domain/exercise.dart';
-import 'package:zivo/features/workout/domain/workout.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_history_page.dart';
 
-import 'support/fake_auth_repository.dart';
-import 'support/fake_profile_repository.dart';
+import '../support/fake_auth_repository.dart';
+import '../support/fake_profile_repository.dart';
 
 void main() {
-  testWidgets('Workout history renders logged sessions from the repository', (
-    tester,
-  ) async {
-    final workouts = InMemoryWorkoutRepository();
-    addTearDown(workouts.dispose);
+  testWidgets('Ask page sends a message and renders the honest canned reply', (tester) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
 
     await tester.pumpWidget(
       AppScope(
@@ -33,30 +29,23 @@ void main() {
         schedule: InMemoryScheduleRepository(),
         notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
-        workouts: workouts,
+        workouts: InMemoryWorkoutRepository(),
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
-        ai: FakeAiRepository(),
-        child: const MaterialApp(home: WorkoutHistoryPage()),
+        ai: ai,
+        child: const MaterialApp(home: AskPage()),
       ),
     );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ask about your day.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'What is due this week?');
     await tester.pump();
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
 
-    // Seeded session and its computed meta line render.
-    expect(find.text('Push'), findsOneWidget);
-    expect(find.text('4 exercises · ~50 min'), findsOneWidget);
-
-    // A newly logged workout appears at the top reactively.
-    await workouts.add(
-      Workout(
-        id: 'new',
-        title: 'Legs',
-        performedAt: DateTime.now(),
-        exercises: const [Exercise(name: 'Squat', sets: 5, reps: 5)],
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('Legs'), findsOneWidget);
+    expect(find.text('What is due this week?'), findsOneWidget);
+    expect(find.text(kFakeAiReply), findsOneWidget);
   });
 }

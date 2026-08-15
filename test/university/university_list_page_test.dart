@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
@@ -33,6 +35,8 @@ void main() {
           moments: InMemoryMomentRepository(),
           workouts: InMemoryWorkoutRepository(),
           university: university,
+          diet: InMemoryDietRepository(),
+          ai: FakeAiRepository(),
           child: const MaterialApp(home: UniversityListPage()),
         ),
       );

@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
 
+import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
+import '../../features/diet/domain/diet_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
 import '../../features/notes/domain/note_repository.dart';
@@ -25,6 +27,8 @@ class AppScope extends InheritedWidget {
     required this.moments,
     required this.workouts,
     required this.university,
+    required this.diet,
+    required this.ai,
     required super.child,
     super.key,
   });
@@ -42,6 +46,12 @@ class AppScope extends InheritedWidget {
   final MomentRepository moments;
   final WorkoutRepository workouts;
   final UniversityRepository university;
+  final DietRepository diet;
+
+  /// The AI assistant ("Ask") seam. Today's default is a pure in-memory
+  /// `FakeAiRepository`; the real Firestore + `aiChat` gateway impl arrives
+  /// once the server half is built and deployed.
+  final AiRepository ai;
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
@@ -59,5 +69,7 @@ class AppScope extends InheritedWidget {
       notes != oldWidget.notes ||
       moments != oldWidget.moments ||
       workouts != oldWidget.workouts ||
-      university != oldWidget.university;
+      university != oldWidget.university ||
+      diet != oldWidget.diet ||
+      ai != oldWidget.ai;
 }

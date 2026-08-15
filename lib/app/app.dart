@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../features/ai/data/fake_ai_repository.dart';
+import '../features/ai/data/firebase_ai_repository.dart';
+import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_profile_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/auth/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
+import '../features/diet/data/firestore_diet_repository.dart';
+import '../features/diet/data/in_memory_diet_repository.dart';
+import '../features/diet/domain/diet_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/in_memory_expense_repository.dart';
 import '../features/expenses/domain/expense_repository.dart';
@@ -39,8 +45,9 @@ const bool _useFirestore = bool.fromEnvironment(
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
-/// and all seven feature repositories (expenses, tasks, schedule, notes,
-/// moments, workouts, university) are Firebase-backed.
+/// and all eight feature repositories (expenses, tasks, schedule, notes,
+/// moments, workouts, university, diet) are Firebase-backed. [ai] is
+/// Firebase-backed too (Firestore reads + the `aiChat` callable).
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -56,6 +63,8 @@ class ZivoApp extends StatefulWidget {
     this.moments,
     this.workouts,
     this.university,
+    this.diet,
+    this.ai,
     super.key,
   });
 
@@ -68,6 +77,8 @@ class ZivoApp extends StatefulWidget {
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
   final UniversityRepository? university;
+  final DietRepository? diet;
+  final AiRepository? ai;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -88,6 +99,8 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.workouts ?? _defaultWorkouts();
   late final UniversityRepository _university =
       widget.university ?? _defaultUniversity();
+  late final DietRepository _diet = widget.diet ?? _defaultDiet();
+  late final AiRepository _ai = widget.ai ?? _defaultAi();
 
   TaskRepository _defaultTasks() => _useFirestore
       ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
@@ -117,6 +130,14 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryUniversityRepository();
 
+  DietRepository _defaultDiet() => _useFirestore
+      ? FirestoreDietRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryDietRepository();
+
+  AiRepository _defaultAi() => _useFirestore
+      ? FirebaseAiRepository(uidSource: UidSource.firebaseAuth())
+      : FakeAiRepository();
+
   @override
   Widget build(BuildContext context) {
     return AppScope(
@@ -129,6 +150,8 @@ class _ZivoAppState extends State<ZivoApp> {
       moments: _moments,
       workouts: _workouts,
       university: _university,
+      diet: _diet,
+      ai: _ai,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
