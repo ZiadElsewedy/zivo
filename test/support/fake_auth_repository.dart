@@ -4,6 +4,7 @@ import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/auth_result.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
+import 'package:zivo/features/auth/domain/otp_result.dart';
 
 /// In-memory [AuthRepository] for widget/unit tests. Keeps Firebase out of the
 /// test process entirely: it drives [AuthState] through a controller and
@@ -70,6 +71,29 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<AuthResult> signInWithApple() => _resolve(appleResult);
+
+  /// Scripted OTP outcomes for verify-screen tests. Default to a happy path.
+  OtpSendResult sendOtpResult =
+      const OtpSendSuccess(cooldownSeconds: 60, expiresInSeconds: 600);
+  OtpVerifyResult verifyOtpResult = const OtpVerifySuccess();
+
+  int sendOtpCount = 0;
+  final List<String> verifiedCodes = <String>[];
+
+  @override
+  Future<OtpSendResult> sendEmailOtp() async {
+    sendOtpCount++;
+    return sendOtpResult;
+  }
+
+  @override
+  Future<OtpVerifyResult> verifyEmailOtp(String code) async {
+    verifiedCodes.add(code);
+    // On success, mimic the real repo: the email becomes verified and the gate
+    // advances to the signed-in user.
+    if (verifyOtpResult is OtpVerifySuccess) emit(Authenticated(successUser));
+    return verifyOtpResult;
+  }
 
   @override
   Future<void> signOut() async {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -11,18 +12,24 @@ import '../domain/auth_repository.dart';
 import '../domain/auth_result.dart';
 import '../domain/auth_state.dart';
 import '../domain/auth_user.dart';
+import '../domain/otp_result.dart';
 import 'auth_config.dart';
 
 /// The real [AuthRepository], backed by Firebase Auth plus the Google and Apple
 /// native sign-in flows. This is the *only* place FirebaseAuth / provider SDK
 /// types are allowed — everything above consumes the domain models.
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({fb.FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
-    : _auth = firebaseAuth ?? fb.FirebaseAuth.instance,
-      _google = googleSignIn ?? GoogleSignIn.instance;
+  FirebaseAuthRepository({
+    fb.FirebaseAuth? firebaseAuth,
+    GoogleSignIn? googleSignIn,
+    FirebaseFunctions? functions,
+  }) : _auth = firebaseAuth ?? fb.FirebaseAuth.instance,
+       _google = googleSignIn ?? GoogleSignIn.instance,
+       _functions = functions ?? FirebaseFunctions.instance;
 
   final fb.FirebaseAuth _auth;
   final GoogleSignIn _google;
+  final FirebaseFunctions _functions;
 
   /// google_sign_in must be initialised exactly once before use; cache the call.
   Future<void>? _googleInit;
@@ -31,8 +38,11 @@ class FirebaseAuthRepository implements AuthRepository {
   Stream<AuthState> watchAuthState() async* {
     // Splash while the SDK restores any persisted session, then real state.
     yield const AuthUnknown();
-    yield* _auth.authStateChanges().map<AuthState>(
-      (user) => user == null ? const Unauthenticated() : Authenticated(_map(user)),
+    // `userChanges` (not `authStateChanges`) so a server-side `emailVerified`
+    // flip — observed after we force-refresh the token in [verifyEmailOtp] —
+    // re-emits and advances the gate past AwaitingEmailVerification.
+    yield* _auth.userChanges().map<AuthState>(
+      (user) => resolveAuthState(user == null ? null : _map(user)),
     );
   }
 
@@ -160,6 +170,123 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<OtpSendResult> sendEmailOtp() async {
+    try {
+      final callable = _functions.httpsCallable('sendEmailOtp');
+      final res = await callable.call<Map<dynamic, dynamic>>();
+      final data = res.data;
+      final status = data['status'] as String?;
+      if (status == 'cooldown') {
+        return OtpSendCooldown(
+          retryAfterSeconds: _asInt(data['retryAfterSeconds']) ?? 60,
+        );
+      }
+      return OtpSendSuccess(
+        cooldownSeconds: _asInt(data['cooldownSeconds']) ?? 60,
+        expiresInSeconds: _asInt(data['expiresInSeconds']) ?? 600,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'resource-exhausted') {
+        return OtpSendFailed(
+          const AuthFailure(
+            AuthFailureKind.tooManyRequests,
+            'Too many code requests. Please try again later.',
+          ),
+          retryAfterSeconds: _detailInt(e.details, 'retryAfterSeconds'),
+        );
+      }
+      if (e.code == 'unauthenticated') {
+        return const OtpSendFailed(
+          AuthFailure(
+            AuthFailureKind.providerConfig,
+            'Your session expired. Please sign in again.',
+          ),
+        );
+      }
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        return const OtpSendFailed(
+          AuthFailure(
+            AuthFailureKind.networkError,
+            "Couldn't send the code. Check your connection and try again.",
+          ),
+        );
+      }
+      return const OtpSendFailed(
+        AuthFailure(
+          AuthFailureKind.emailDeliveryFailed,
+          "We couldn't send your code right now. Please try again in a moment.",
+        ),
+      );
+    } catch (_) {
+      return const OtpSendFailed(
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Something went wrong. Please try again.',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<OtpVerifyResult> verifyEmailOtp(String code) async {
+    try {
+      final callable = _functions.httpsCallable('verifyEmailOtp');
+      await callable.call<Map<dynamic, dynamic>>({'code': code});
+      // Verified server-side. Reload + force a token refresh so `userChanges`
+      // re-emits with emailVerified == true and the gate advances.
+      final user = _auth.currentUser;
+      if (user != null) {
+        await user.reload();
+        await user.getIdToken(true);
+      }
+      return const OtpVerifySuccess();
+    } on FirebaseFunctionsException catch (e) {
+      switch (e.code) {
+        case 'invalid-argument':
+          return OtpVerifyInvalid(
+            attemptsRemaining: _detailInt(e.details, 'attemptsRemaining'),
+          );
+        case 'deadline-exceeded':
+        case 'not-found':
+        case 'failed-precondition':
+          return const OtpVerifyExpired();
+        case 'resource-exhausted':
+          return OtpVerifyTooManyAttempts(
+            retryAfterSeconds: _detailInt(e.details, 'retryAfterSeconds'),
+          );
+        case 'unauthenticated':
+          return const OtpVerifyFailed(
+            AuthFailure(
+              AuthFailureKind.providerConfig,
+              'Your session expired. Please sign in again.',
+            ),
+          );
+        case 'unavailable':
+          return const OtpVerifyFailed(
+            AuthFailure(
+              AuthFailureKind.networkError,
+              "Couldn't verify the code. Check your connection and try again.",
+            ),
+          );
+        default:
+          return const OtpVerifyFailed(
+            AuthFailure(
+              AuthFailureKind.emailDeliveryFailed,
+              "Couldn't verify your code right now. Please try again in a moment.",
+            ),
+          );
+      }
+    } catch (_) {
+      return const OtpVerifyFailed(
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Something went wrong. Please try again.',
+        ),
+      );
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     // Sign out of Google as well so the account picker reappears next time.
     // Harmless (and ignored) if the user never signed in with Google.
@@ -214,4 +341,16 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   String _sha256(String input) => sha256.convert(utf8.encode(input)).toString();
+
+  /// Callable results are JSON-ish `Object?`; coerce a numeric field to int.
+  static int? _asInt(Object? v) => switch (v) {
+    final int i => i,
+    final num n => n.toInt(),
+    final String s => int.tryParse(s),
+    _ => null,
+  };
+
+  /// Pulls a numeric field out of an [FirebaseFunctionsException.details] map.
+  static int? _detailInt(Object? details, String key) =>
+      details is Map ? _asInt(details[key]) : null;
 }

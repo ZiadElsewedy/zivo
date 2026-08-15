@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -91,6 +92,7 @@ class _AuthPageState extends State<AuthPage> {
                     inFlight: _inFlight,
                     onApple: () => _run(AuthAction.apple, (a) => a.signInWithApple()),
                     onGoogle: () => _run(AuthAction.google, (a) => a.signInWithGoogle()),
+                    showApple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
                   ),
                 ),
                 const SizedBox(height: 22),

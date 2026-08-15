@@ -6,9 +6,9 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after the **App-identity
-> milestone** — launcher icons — on branch `feature/app-identity`; the **Authentication
-> milestone** is complete on branch `feature/authentication`).
+> **Last verified against the codebase:** 2026-08-15 (after extending the **Authentication**
+> milestone on `feature/authentication` with strong-password validation, iOS-only Apple
+> Sign-In, OTP error-classification fixes, and a Firestore-backed profile-completion step).
 
 ---
 
@@ -16,44 +16,67 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Two milestones are complete on two separate feature
-> branches; **neither is merged** (merging is a manual, per-milestone decision).
+> without redoing completed work. Active development is on `feature/authentication`.
 
-- **Status:** Two milestones complete & verified, both awaiting the user's separate
-  review/merge. No work in progress.
-- **Branch:** `feature/app-identity` is currently checked out. Other open branch:
-  `feature/authentication`. Base branch: `planning-setup` (untouched at `4c26690`).
-- **Latest commit:**
-  - `feature/app-identity` → `ce13f17` (launcher icons).
-  - `feature/authentication` → `c399146` (auth foundation + Firebase platform wiring).
-- **Completed:**
-  - **App identity** (this branch): ZIVO "Dark" launcher icon (paper Z on `#101317`)
-    generated for iOS + Android (adaptive) via `flutter_launcher_icons` from
-    `assets/app-icon/zivo-icon-dark-1024.png`. Brand asset set added under `assets/`.
-  - **Authentication** (other branch): real Firebase Auth — Apple, Google, Email/Password
-    — behind `AuthGate`; bundle `com.ziadelsewedy.zivo`; iOS + Android Firebase apps
-    registered in `zivo-63f15`. See §7, §12.
+- **Status:** Authentication milestone **feature-complete** on `feature/authentication`
+  (5 new commits beyond the earlier merge). Not yet re-merged into `main`. No work in
+  progress.
+- **Branch:** `feature/authentication` is checked out and active. All branches are **local
+  only — nothing has been pushed to origin.**
+- **Latest commits on `feature/authentication`** (newest first; run `git log --oneline -8`
+  for exact HEAD):
+  - `766790d` feat(auth): real profile-completion form (name + date of birth)
+  - `2681c0e` feat(auth): add profile persistence and a profile-completion state
+  - `edf0ea4` feat(auth): show Sign in with Apple on iOS only
+  - `03efa5b` feat(auth): enforce a strong password policy on sign-up
+  - `af35060` fix(auth): stop blaming the network for backend OTP failures
+  - (prior) `875d726` feat(functions): Firebase functions config + deps.
+- **Completed this pass (the auth milestone requirements):**
+  - **OTP error classification** — backend/email-delivery failures (Cloud Function
+    `internal`, e.g. Resend) no longer masquerade as "check your connection"; only genuine
+    transport failures (`unavailable`/`deadline-exceeded`) mention the network. New
+    `AuthFailureKind.emailDeliveryFailed`. Verify button gated on exactly 6 digits.
+  - **Strong password policy** — sign-up requires ≥8 chars + upper + lower + number, plus a
+    confirm-password field, live per-rule checklist, and a match hint (pure
+    `PasswordPolicy` in domain). Sign-in intentionally unchanged.
+  - **Apple Sign-In iOS-only** — gated on `!kIsWeb && defaultTargetPlatform == iOS`; Android
+    and other platforms never render it.
+  - **Profile completion** — new `ProfileCompletionRequired` state + pure
+    `resolveSessionState`; `UserProfile` (name + **date of birth**, stored as a `DateTime`,
+    NOT a computed age) persisted at Firestore `users/{uid}` via `ProfileRepository` /
+    `FirestoreProfileRepository`. The gate's stateful `_ProfileGate` pins the profile stream
+    per uid and routes verified-but-incomplete users to the ZIVO-styled completion form
+    (name prefilled from the provider/display name — users only fill what's missing —
+    plus a min-age-13 DOB picker). Owner-only Firestore rule for `users/{uid}` **deployed**
+    to `zivo-63f15`.
+  - **State machine (clean, ordered):** unauthenticated → email-verification-required →
+    profile-completion-required → authenticated/ready. Firebase Auth remains the sole
+    session source of truth; no custom session/token system added.
 - **In progress:** nothing.
-- **Last completed action:** verified the Dark icon renders on the iOS simulator home
-  screen and the Android debug APK builds; `flutter analyze` clean; base tests pass.
-- **Exact next action:** the **user** reviews and merges the two feature branches
-  **separately** (do not auto-merge). Before merging `feature/authentication`, complete the
-  manual provider setup in §13 (enable Email/Password + Google + Apple in the Firebase
-  Console, configure Apple Developer, test each provider on a device). After auth merges,
-  the next build milestone is **Firestore persistence keyed by the auth `uid`** (§13).
-- **Files currently being modified:** none (both branches have clean working trees).
-- **Verification status:** app-identity — analyze clean, iOS home-screen icon confirmed,
-  Android APK builds, 12 base tests pass. authentication — analyze clean, 24 tests pass,
-  iOS + Android builds succeed, runtime sign-in screen renders (real provider sign-in NOT
-  yet verified end-to-end — needs Console/Apple-Developer enablement).
-- **Blockers:** none active. Note the documented `flutterfire configure` project-discovery
-  quirk for `zivo-63f15` (worked around via `firebase apps:create`; see §7).
+- **Last completed action:** deployed `firestore.rules` (owner-only `users/{uid}`) via
+  `firebase deploy --only firestore:rules --project zivo-63f15` (compiled + released), and
+  updated this handoff.
+- **Exact next action:** verify the three providers end-to-end (still requires the manual
+  Firebase-Console / Apple-Developer enablement in §13, unchanged), then review/merge
+  `feature/authentication` into `main` by decision. After auth is merged, the next
+  milestone is **Firestore persistence for the six feature repositories, keyed by the auth
+  `uid`** (§10.2) — the `users/{uid}` profile store is the first Firestore usage and the
+  template for it. Push branches to origin only when the user asks.
+- **Files currently being modified:** none (working tree has only pre-existing unrelated
+  `functions/` + `ios/Podfile.lock` edits, untouched by this pass).
+- **Verification status:** `flutter analyze` clean; `flutter test` → **63 pass** (was 24).
+  Real provider sign-in still NOT verified end-to-end (needs Console/Apple-Developer
+  enablement). Firestore rules deployed; profile read/write not yet exercised against the
+  live backend on a device.
+- **Blockers:** none active. The OTP sender is still `onboarding@resend.dev`
+  (`functions/index.js`); real code delivery needs a verified Resend domain — until then
+  users correctly see "We couldn't send your code right now. Please try again in a moment."
 - **Manual user action:** (1) enable the three Auth providers in the Firebase Console +
-  Apple Developer config; (2) review/merge `feature/authentication` and
-  `feature/app-identity` separately.
-- **Do not redo:** don't regenerate the icons, re-register the Firebase apps, rebuild the
-  auth layer, change the bundle id back, or auto-merge/rebase the feature branches. Don't
-  start Firestore/University on either feature branch.
+  Apple Developer config, then test real sign-in; (2) verify a Resend sender domain so OTP
+  emails actually send; (3) push branches to origin if/when desired.
+- **Do not redo:** don't rebuild the auth layer, re-derive the state machine, re-deploy the
+  same Firestore rules, or re-run the completed tasks above. Don't migrate the six feature
+  repositories to Firestore yet — that's the next milestone, after auth is merged.
 
 ---
 
@@ -90,10 +113,10 @@ not five destinations.
 | Dependency injection | **`AppScope` `InheritedWidget`** holding repositories. No `get_it`. |
 | Navigation | **`IndexedStack`** in `HomeShell` + `Navigator.push` `MaterialPageRoute` for captures/detail. No `go_router`. |
 | Auth | **Real Firebase Authentication** (Apple, Google, Email/Password) behind an `AuthRepository` seam. `AuthGate` gates the app on `watchAuthState()`. Signed-in `uid` is the app's canonical user identity. See §7. |
-| Persistence | **None — all *feature* data is in-memory and resets on restart.** No local DB, no Firestore. Auth **session** is persisted by Firebase (survives restart), but no feature/domain data is. The six feature repositories are still fully in-memory. |
-| Firebase | **`firebase_core` + `firebase_auth`.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`, now full FlutterFire output: web/android/ios/macos/windows). iOS + Android apps registered in `zivo-63f15` for bundle **`com.ziadelsewedy.zivo`**. **No Firestore/Storage/Functions yet.** |
+| Persistence | **Feature data is still in-memory and resets on restart** (the six feature repositories). The auth **session** persists via Firebase, and the **user profile** (name + date of birth) now persists in **Firestore `users/{uid}`** — the first real data persistence in the app. No local DB; no feature-data Firestore yet. |
+| Firebase | **`firebase_core` + `firebase_auth` + `cloud_functions` + `cloud_firestore`.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`, full FlutterFire output). iOS + Android apps registered in `zivo-63f15` for bundle **`com.ziadelsewedy.zivo`**. Cloud Functions back the email-OTP flow; Firestore backs the OTP records (Functions-only) and user profiles (`users/{uid}`, owner-only rule deployed). No Storage; no feature-data Firestore yet. |
 | Fonts | `google_fonts`: **Bricolage Grotesque** (display) + **Hanken Grotesk** (text). |
-| Other deps | `image_picker ^1.2.3` (Moments photos), `firebase_core ^4.1.1`, `firebase_auth ^6.5.7`, `google_sign_in ^7.2.0`, `sign_in_with_apple ^8.1.0`, `crypto ^3.0.7`, `cupertino_icons`. |
+| Other deps | `image_picker ^1.2.3` (Moments photos), `firebase_core ^4.1.1`, `firebase_auth ^6.5.7`, `cloud_functions ^6.0.3`, `cloud_firestore ^6.0.0`, `google_sign_in ^7.2.0`, `sign_in_with_apple ^8.1.0`, `crypto ^3.0.7`, `cupertino_icons`. |
 | Lints | `flutter_lints ^6.0.0` via `analysis_options.yaml` (default rule set). |
 
 > Firebase **Core + Auth** are now wired (see §7). Anything involving **Firestore,
@@ -192,8 +215,8 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
 | **University** | ⛔ | Not built. "Soon" tile only; one demo deadline hardcoded into Today's focus. |
 | **Ask (AI assistant)** | ⛔ | `ComingSoon('Ask')` tab placeholder. |
-| **You (Profile)** | 🟡 | Now `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Replaced the old `ComingSoon('You')`. Settings not built. |
-| **Authentication** | ✅ | Real Firebase Auth — Apple, Google, Email/Password — behind `AuthGate`. Session persists across restart; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |
+| **You (Profile)** | 🟡 | `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Settings not built. Separate from the post-auth **profile completion** step (name + DOB) below. |
+| **Authentication** | ✅ | Real Firebase Auth — Apple (iOS only), Google, Email/Password (strong-password sign-up + 6-digit email OTP) — behind `AuthGate`. Clean state machine: unauth → email-verification → **profile-completion (name + DOB, Firestore `users/{uid}`)** → ready. Session persists; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |
 
 **Today breakdown (`features/home/`):**
 - **Now · Next** — ✅ live from `ScheduleRepository`.
@@ -339,16 +362,14 @@ backend.** Remaining, roughly in order:
 
 ## 11. Current milestone
 
-**Two milestones are open on separate feature branches, neither merged** (each is reviewed
-and merged separately, by decision — never auto-merged):
-- `feature/app-identity` — the ZIVO **launcher icon** ("Dark" finish) for iOS + Android,
-  generated by `flutter_launcher_icons` from `assets/app-icon/zivo-icon-dark-1024.png`.
-  Brand asset set lives under `assets/` (see `assets/README.txt`). This branch is cut from
-  `planning-setup`, so it does **not** contain the auth work.
-- `feature/authentication` — the authentication + user-identity foundation described below.
+**Authentication + clean user-identity foundation** — merged into `main`; still the active
+milestone on `feature/authentication` until real-provider sign-in is verified. The
+**App-identity** milestone (ZIVO "Dark" launcher icon for iOS + Android via
+`flutter_launcher_icons`; brand assets under `assets/`) is complete and merged in alongside
+it. Integration path: `feature/app-identity` → `feature/authentication` → `main` (both
+merges verified: analyze clean, 24 tests, iOS + Android builds).
 
-**Authentication + clean user-identity foundation** (branch `feature/authentication`,
-not yet merged). Real Firebase Auth with Apple, Google, and Email/Password behind an
+Authentication details: Real Firebase Auth with Apple, Google, and Email/Password behind an
 `AuthRepository` seam, gated by `AuthGate`; the signed-in `uid` is the app's canonical
 identity. Deliberately scoped: **no** Firestore/persistence migration, Storage, Functions,
 AI, or University in this milestone — the six feature repositories stay in-memory. The
@@ -449,10 +470,14 @@ the whole reason the auth/identity foundation came first.
 
 ## 14. Test / analyze status
 
-As of 2026-08-15 (after the Authentication milestone):
+As of 2026-08-15 (after the Authentication milestone was extended: password policy,
+Apple-iOS-only, OTP error fixes, profile completion):
 
 - `flutter analyze` → **No issues found.**
-- `flutter test` → **all tests pass (24).**
+- `flutter test` → **all tests pass (63).** New auth coverage: `password_policy_test`,
+  `email_auth_form_test`, `social_auth_buttons_test`, `user_profile_test`,
+  `session_state_test`, `profile_completion_page_test`, plus expanded `auth_gate_test`
+  (profile-completion routing) and `verify_email_page_test` (OTP error classification).
 - **Android** build (`flutter build apk --debug`) → **succeeds** (google-services.json now
   present, so the plugin resolves).
 - **iOS** simulator build (`flutter build ios --debug --simulator`) → **succeeds**;

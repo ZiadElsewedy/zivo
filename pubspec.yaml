@@ -37,10 +37,12 @@ dependencies:
   google_fonts: ^8.2.1
   image_picker: ^1.2.3
 
-  # Firebase Core only — connects the app to the ZIVO Firebase project.
-  # No Firestore/Auth/Storage yet; the repository layer is still in-memory.
+  # Firebase Core, Auth, Functions, and now Firestore (user profiles). The
+  # rest of the repository layer is still in-memory.
   firebase_core: ^4.1.1
   firebase_auth: ^6.5.7
+  cloud_functions: ^6.0.3
+  cloud_firestore: ^6.0.0
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
