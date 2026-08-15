@@ -1,4 +1,4 @@
-package com.example.zivo
+package com.ziadelsewedy.zivo
 
 import io.flutter.embedding.android.FlutterActivity
 
