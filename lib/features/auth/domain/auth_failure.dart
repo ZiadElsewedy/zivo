@@ -14,6 +14,11 @@ enum AuthFailureKind {
   networkError,
   tooManyRequests,
 
+  /// The request reached the backend but the backend itself failed (e.g. the
+  /// email-delivery provider errored). Distinct from [networkError] so we
+  /// never blame the user's connection for a server-side failure.
+  emailDeliveryFailed,
+
   /// The provider isn't enabled in the backend, or is misconfigured. Surfaced
   /// distinctly because during setup this is the most likely failure.
   providerConfig,

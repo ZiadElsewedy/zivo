@@ -203,10 +203,18 @@ class FirebaseAuthRepository implements AuthRepository {
           ),
         );
       }
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        return const OtpSendFailed(
+          AuthFailure(
+            AuthFailureKind.networkError,
+            "Couldn't send the code. Check your connection and try again.",
+          ),
+        );
+      }
       return const OtpSendFailed(
         AuthFailure(
-          AuthFailureKind.networkError,
-          "Couldn't send the code. Check your connection and try again.",
+          AuthFailureKind.emailDeliveryFailed,
+          "We couldn't send your code right now. Please try again in a moment.",
         ),
       );
     } catch (_) {
@@ -253,11 +261,18 @@ class FirebaseAuthRepository implements AuthRepository {
               'Your session expired. Please sign in again.',
             ),
           );
-        default:
+        case 'unavailable':
           return const OtpVerifyFailed(
             AuthFailure(
               AuthFailureKind.networkError,
               "Couldn't verify the code. Check your connection and try again.",
+            ),
+          );
+        default:
+          return const OtpVerifyFailed(
+            AuthFailure(
+              AuthFailureKind.emailDeliveryFailed,
+              "Couldn't verify your code right now. Please try again in a moment.",
             ),
           );
       }

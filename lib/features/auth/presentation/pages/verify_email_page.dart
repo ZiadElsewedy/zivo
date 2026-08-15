@@ -129,13 +129,14 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   }
 
   void _onCodeChanged(String value) {
-    // Clear a stale error the moment the user starts correcting the code.
-    if (_cellError || _errorText != null) {
-      setState(() {
+    // Clear a stale error the moment the user starts correcting the code, and
+    // rebuild so the Verify button's enabled state tracks the code length.
+    setState(() {
+      if (_cellError || _errorText != null) {
         _cellError = false;
         _errorText = null;
-      });
-    }
+      }
+    });
   }
 
   Future<void> _useAnotherAccount() async {
@@ -264,14 +265,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                     label: 'Verify',
                     icon: const SizedBox.shrink(),
                     loading: _verifying,
-                    enabled: !_verifying,
-                    onTap: () {
-                      if (_code.text.length == _codeLength) {
-                        _verify(_code.text);
-                      } else {
-                        _focus.requestFocus();
-                      }
-                    },
+                    enabled: !_verifying && _code.text.length == _codeLength,
+                    onTap: () => _verify(_code.text),
                   ),
                 ),
                 const SizedBox(height: 22),
