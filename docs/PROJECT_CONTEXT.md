@@ -6,7 +6,8 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after connecting Firebase Core).
+> **Last verified against the codebase:** 2026-08-15 (after the **Authentication
+> milestone** — real Apple/Google/Email sign-in — on branch `feature/authentication`).
 
 ---
 
@@ -42,13 +43,14 @@ not five destinations.
 | State management | **Plain `StatefulWidget` + `StreamBuilder`** over repository streams. No bloc/cubit/riverpod/provider. |
 | Dependency injection | **`AppScope` `InheritedWidget`** holding repositories. No `get_it`. |
 | Navigation | **`IndexedStack`** in `HomeShell` + `Navigator.push` `MaterialPageRoute` for captures/detail. No `go_router`. |
-| Persistence | **None — all data is in-memory and resets on restart.** No local DB. **Firebase Core is now initialized** (app connects to the `zivo-63f15` project), but **no Firestore/Auth/Storage and no data is persisted** — the repository layer is still fully in-memory. |
-| Firebase | **`firebase_core` only.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`). iOS app registered (`GoogleService-Info.plist` bundled in the Runner target). **No Firestore/Auth/Storage/Functions yet.** |
+| Auth | **Real Firebase Authentication** (Apple, Google, Email/Password) behind an `AuthRepository` seam. `AuthGate` gates the app on `watchAuthState()`. Signed-in `uid` is the app's canonical user identity. See §7. |
+| Persistence | **None — all *feature* data is in-memory and resets on restart.** No local DB, no Firestore. Auth **session** is persisted by Firebase (survives restart), but no feature/domain data is. The six feature repositories are still fully in-memory. |
+| Firebase | **`firebase_core` + `firebase_auth`.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`, now full FlutterFire output: web/android/ios/macos/windows). iOS + Android apps registered in `zivo-63f15` for bundle **`com.ziadelsewedy.zivo`**. **No Firestore/Storage/Functions yet.** |
 | Fonts | `google_fonts`: **Bricolage Grotesque** (display) + **Hanken Grotesk** (text). |
-| Other deps | `image_picker ^1.2.3` (Moments photos), `firebase_core ^4.1.1` (Firebase Core only, resolves to 4.13.0), `cupertino_icons`. |
+| Other deps | `image_picker ^1.2.3` (Moments photos), `firebase_core ^4.1.1`, `firebase_auth ^6.5.7`, `google_sign_in ^7.2.0`, `sign_in_with_apple ^8.1.0`, `crypto ^3.0.7`, `cupertino_icons`. |
 | Lints | `flutter_lints ^6.0.0` via `analysis_options.yaml` (default rule set). |
 
-> Firebase **Core** is now connected (see §7). Anything involving **Firestore, Auth,
+> Firebase **Core + Auth** are now wired (see §7). Anything involving **Firestore,
 > Storage, Cloud Functions**, `get_it`, `go_router`, Cubits, AI, PDF import, backend
 > repository migration, or CI in `docs/PLAN.md` is still **planned, not implemented.**
 
@@ -144,7 +146,8 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
 | **University** | ⛔ | Not built. "Soon" tile only; one demo deadline hardcoded into Today's focus. |
 | **Ask (AI assistant)** | ⛔ | `ComingSoon('Ask')` tab placeholder. |
-| **You (Profile/Settings)** | ⛔ | `ComingSoon('You')` tab placeholder. |
+| **You (Profile)** | 🟡 | Now `ProfilePage` (shows the signed-in `AuthUser`, sign-out). Replaced the old `ComingSoon('You')`. Settings not built. |
+| **Authentication** | ✅ | Real Firebase Auth — Apple, Google, Email/Password — behind `AuthGate`. Session persists across restart; sign-out works. Provider end-to-end sign-in pending Console/Apple-Developer enablement (see §7). |
 
 **Today breakdown (`features/home/`):**
 - **Now · Next** — ✅ live from `ScheduleRepository`.
@@ -178,28 +181,50 @@ via `nextRelevant`). All share the `current` / `watchAll()` / `add()` shape.
 
 ## 7. Backend / persistence status
 
-**Firebase Core is connected; there is still no persistence.** As of 2026-08-15 the app
-initializes **`firebase_core` only** — on launch it calls `Firebase.initializeApp()`
-(with `DefaultFirebaseOptions.currentPlatform`) and connects to the **`zivo-63f15`**
-Firebase project. That is the *entire* Firebase footprint so far.
+**Firebase Core + Auth are wired; there is still no *data* persistence.** On launch the
+app calls `Firebase.initializeApp()` (with `DefaultFirebaseOptions.currentPlatform`) and
+connects to the **`zivo-63f15`** project, then `AuthGate` gates the UI on
+`AuthRepository.watchAuthState()`. **Firebase Auth is the entire cloud *usage* so far** —
+it persists the auth **session** (a signed-in user survives an app restart) but stores no
+feature/domain data.
 
-**Still NOT implemented:** Firestore, Authentication, Storage, Cloud Functions, any
-network/data layer, and any migration of the repositories to a real backend. **All data
-still lives in memory and is lost on app restart** — seed data reappears on each launch.
-No repository has been changed; the in-memory implementations remain the only ones.
+**Authentication (implemented):** three providers behind the `AuthRepository` seam —
+**Sign in with Apple** (native, SHA-256 nonce), **Sign in with Google**
+(`google_sign_in` 7.x), and **Email/Password** (normal Firebase email/password; Gmail
+addresses are ordinary email/password accounts, *not* a separate provider). The signed-in
+`uid` is the app's canonical user identity — the key the future Firestore layer will scope
+data by. See `lib/features/auth/`.
 
-The repository interfaces remain the seam through which a real backend (per
-`docs/PLAN.md`: Firebase/Firestore) will later be introduced **without changing
-presentation code**. Connecting Firebase Core is the first, deliberately isolated step of
-that foundation work — it adds no product behavior and touches no feature/UI code.
+**Still NOT implemented:** Firestore, Storage, Cloud Functions, and any migration of the
+six feature repositories to a real backend. **All feature data still lives in memory and
+is lost on app restart** — seed data reappears each launch. No feature repository has
+changed; the in-memory implementations remain the only ones.
 
-**iOS integration:** `ios/Runner/GoogleService-Info.plist` (for the registered iOS app,
-bundle `com.example.zivo`) is bundled into the Runner target's Resources. `firebase_core`
-required raising the iOS deployment target to **15.0** (Podfile + Xcode project).
-`lib/firebase_options.dart` was authored by hand from the verified plist because the
-FlutterFire CLI currently cannot discover the project on this machine (the underlying
-Firebase CLI can); regenerate it with `flutterfire configure` once the CLI can see the
-project.
+**Provider setup that is code-complete but not yet verified end-to-end (manual,
+non-headless steps):** enabling **Email/Password**, **Google**, and **Apple** providers in
+the Firebase Console (Authentication → Sign-in method); configuring Apple (Service ID +
+Sign in with Apple key) in the Apple Developer portal; and, for Android Google id-tokens,
+passing the web `serverClientId` via `--dart-define=GOOGLE_SERVER_CLIENT_ID`. Until those
+are done and tested on a device/simulator, **no provider is claimed to sign in end-to-end**
+— only the build/launch/render path is verified (see §14).
+
+**Native integration (bundle `com.ziadelsewedy.zivo`):**
+- iOS + Android Firebase apps registered in `zivo-63f15` (iOS
+  `…ios:fb766e1151cf147755f7a8`, Android `…android:e4fd2ec7f3ae385855f7a8`).
+  `lib/firebase_options.dart`, `firebase.json`, and the macOS config are the FlutterFire
+  CLI output; `ios/Runner/GoogleService-Info.plist` and `android/app/google-services.json`
+  are the downloaded per-app configs.
+- iOS: `Runner.entitlements` (Apple Sign-In) + `CODE_SIGN_ENTITLEMENTS` in all Runner
+  configs, `DEVELOPMENT_TEAM = 7Q3PY75VGH`, deployment target 15.0, and the Google
+  `REVERSED_CLIENT_ID` URL scheme in `Info.plist`.
+- Android: `namespace`/`applicationId = com.ziadelsewedy.zivo`, `minSdk ≥ 23`,
+  `com.google.gms.google-services` plugin, `MainActivity` in the new package.
+
+> **CLI note:** `flutterfire configure` initially failed with "Firebase project id
+> `zivo-63f15` could not be found on this Firebase account" (the project doesn't surface in
+> `firebase projects:list` for this account) even though `firebase apps:*  --project
+> zivo-63f15` works directly. The apps were therefore created with `firebase apps:create`;
+> `flutterfire configure` later succeeded and regenerated `firebase_options.dart`.
 
 ---
 
@@ -268,30 +293,44 @@ backend.** Remaining, roughly in order:
 
 ## 11. Current milestone
 
-**Feature-completeness of the core life-area modules, in-memory.** With Workout done,
-the built set is: Expenses, Tasks, Schedule, Notes, Moments, Workout (+ the Today
-aggregation surface, Hub, and Quick Capture). University is the remaining core module
-before the persistence milestone.
+**Authentication + clean user-identity foundation** (branch `feature/authentication`,
+not yet merged). Real Firebase Auth with Apple, Google, and Email/Password behind an
+`AuthRepository` seam, gated by `AuthGate`; the signed-in `uid` is the app's canonical
+identity. Deliberately scoped: **no** Firestore/persistence migration, Storage, Functions,
+AI, or University in this milestone — the six feature repositories stay in-memory. The
+Dart layer, both platform builds, and the launch→sign-in-screen render path are verified;
+real provider sign-in awaits Console/Apple-Developer enablement (§7, §14).
+
+The prior milestone — **feature-completeness of the core life-area modules, in-memory**
+(Expenses, Tasks, Schedule, Notes, Moments, Workout + Today, Hub, Quick Capture) — remains
+done; **University** is still the one unbuilt core life-area module.
 
 ---
 
 ## 12. Last completed work
 
-**Firebase Core connected (2026-08-15).**
-- Added `firebase_core` (only) to `pubspec.yaml`.
-- Authored `lib/firebase_options.dart` by hand from the verified
-  `GoogleService-Info.plist` (FlutterFire CLI cannot currently discover the project).
-- `main.dart` now `WidgetsFlutterBinding.ensureInitialized()` +
-  `await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)` before
-  `runApp`.
-- Registered `GoogleService-Info.plist` in the iOS Runner target (Resources build phase);
-  raised the iOS deployment target to 15.0 (Podfile + Xcode project) as `firebase_core`
-  requires.
-- **No** Firestore/Auth/Storage/Functions, **no** persistence, **no** repository changes,
-  **no** UI/feature changes.
-- **Verification:** `flutter analyze` → no issues; `flutter test` → 12 tests pass; iOS
-  simulator build succeeds, the plist is bundled into `Runner.app`, and the app launches
-  and renders Today (proving `Firebase.initializeApp()` completes before `runApp`).
+**Authentication milestone (2026-08-15, branch `feature/authentication`).**
+- Added `firebase_auth`, `google_sign_in`, `sign_in_with_apple`, `crypto`.
+- `lib/features/auth/`: domain (`AuthUser`, `AuthState`, `AuthResult`, `AuthFailure`,
+  `AuthRepository`, pure `mapAuthErrorCode`); data (`FirebaseAuthRepository` —
+  email/Google/Apple with nonce + cancellation handling; `FakeAuthRepository`;
+  `AuthConfig`); presentation (`AuthGate`, `SplashScreen`, `AuthPage`, `ProfilePage`,
+  auth buttons/form). `ProfilePage` (sign-out) replaced the "You" placeholder.
+- Wiring: `auth` in `AppScope`; `ZivoApp` uses the real `FirebaseAuthRepository` +
+  `home: AuthGate`. In-memory feature repos untouched.
+- Platform: bundle `com.example.zivo` → **`com.ziadelsewedy.zivo`** (iOS + Android);
+  registered iOS + Android Firebase apps in `zivo-63f15`; iOS entitlements/Apple-Sign-In +
+  Google URL scheme; Android namespace/applicationId/minSdk/google-services plugin +
+  MainActivity package move. (`flutterfire configure` regenerated `firebase_options.dart`
+  et al. after the apps were created via `firebase apps:create` — see §7 CLI note.)
+- **Verification:** `flutter analyze` clean; `flutter test` → **24 pass**; **Android**
+  `build apk --debug` and **iOS** `build ios --debug --simulator` both succeed; runtime
+  smoke test (iPhone 17 Pro) launches on the new bundle, initializes Firebase, and renders
+  the real sign-in screen. Real provider sign-in not yet verified end-to-end (§7, §14).
+
+**Prior: Firebase Core connected (2026-08-15).** Added `firebase_core`; `main.dart`
+`ensureInitialized()` + `await Firebase.initializeApp(...)`; iOS deployment target 15.0.
+No Auth/Firestore/persistence at that point.
 
 **Prior: Workout feature, end-to-end (2026-08-15).**
 - Domain: `Exercise`, `Workout` (with `exerciseCount`/`summary`), pure
@@ -312,47 +351,59 @@ widgets + iOS photo-library permission.)
 
 ## 13. Exact recommended next step
 
-**Build the University feature as an in-memory vertical slice**, mirroring the existing
-pattern exactly:
+**Finish verifying the Authentication milestone, then review/merge
+`feature/authentication`** (the branch must be merged separately, by decision — not
+automatically):
 
-- `features/university/domain/` — a `Course` and/or `Assignment`/`Deadline` entity + an
-  `abstract interface class UniversityRepository` (`current` / `watchAll()` / `add()`),
-  plus pure helpers if any date logic is needed (take `now` as a parameter).
-- `features/university/data/in_memory_university_repository.dart` — seeded, newest/soonest
-  first, broadcast controller.
-- Presentation: a capture page (Iris-themed — `AppColors.iris`) and a list page.
-- Wiring: add `university` to `AppScope` + `app.dart` (+ `updateShouldNotify`); make the
-  Hub "University" tile live; optionally add a Quick Capture choice.
-- **Integration:** replace the hardcoded university deadline in `today_demo_data.dart` /
-  `buildFocus` with live data from the new repository (this removes a piece of Today's
-  demo data — a real win for the "one connected system" principle).
-- Tests: domain/format + repository + a page render test, matching the Workout test set.
+1. In the **Firebase Console** (project `zivo-63f15`, Authentication → Sign-in method)
+   enable **Email/Password**, **Google**, and **Apple**.
+2. In the **Apple Developer** portal configure Sign in with Apple (Service ID + key) and
+   add it to the Firebase Apple provider.
+3. For Android Google id-tokens, supply the web `serverClientId` via
+   `--dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>`.
+4. Test each provider end-to-end on a real device/simulator: sign in → app shell,
+   restart → session persists, `ProfilePage` → sign-out → back to `AuthPage`.
+5. Only then merge `feature/authentication`.
 
-> Alternative strategic pivot (a **decision for the user**, not a default): if the goal is
-> to make the app durable rather than more feature-complete, the next milestone could
-> instead be **persistence/foundation** (§10.2). Do not start that without an explicit
-> decision — it changes DI, navigation, and state-management foundations.
+**After auth is merged — Firestore persistence keyed by the auth `uid`** (§10.2): migrate
+the six feature repositories from in-memory to Firestore *behind their existing
+interfaces*, scoping all data by the signed-in user. This is the natural next milestone and
+the whole reason the auth/identity foundation came first.
 
-**Do not begin any new feature or the foundation work until the user confirms direction.**
+> University (the last unbuilt life-area module, in-memory) remains a valid alternative if
+> the goal is more feature-completeness before persistence — a **decision for the user**.
+
+**Do not begin Firestore, University, or any new feature on this branch** — keep
+`feature/authentication` scoped to auth only.
 
 ---
 
 ## 14. Test / analyze status
 
-As of 2026-08-15 (after connecting Firebase Core):
+As of 2026-08-15 (after the Authentication milestone):
 
 - `flutter analyze` → **No issues found.**
-- `flutter test` → **all tests pass (12).**
-- iOS simulator build (`flutter build ios --debug --simulator`) → **succeeds**; the app
-  launches and initializes Firebase Core without error. (Tests do not call `main()`, so
-  they do not initialize Firebase.)
+- `flutter test` → **all tests pass (24).**
+- **Android** build (`flutter build apk --debug`) → **succeeds** (google-services.json now
+  present, so the plugin resolves).
+- **iOS** simulator build (`flutter build ios --debug --simulator`) → **succeeds**;
+  `pod install` pulls the firebase_auth/google_sign_in/sign_in_with_apple pods.
+- **Runtime smoke test** (iPhone 17 Pro simulator): app launches on
+  `com.ziadelsewedy.zivo`, Firebase initializes, `AuthGate` → `Unauthenticated` → real
+  `AuthPage` renders all three sign-in options. (Tests do not call `main()`, so they do not
+  initialize Firebase; the auth tests use `FakeAuthRepository`.)
+- **Not covered by automated tests / not verified:** actually completing Apple/Google/email
+  sign-in against the live backend (needs Console + Apple-Developer enablement — §7, §13).
 
 Test files (`test/`):
-- `widget_test.dart` — Today renders greeting + key sections (boots the full `ZivoApp`).
-- `workout_domain_test.dart` — `setRepLabel`, `workoutMeta`, `Workout` getters.
-- `workout_repository_test.dart` — seed, newest-first insert, unmodifiable `current`,
-  stream emission order.
-- `workout_history_page_test.dart` — history renders seed + reacts to a new workout.
+- `widget_test.dart` — app boot (via `test/support/test_app.dart`, authenticated fake).
+- `auth/auth_gate_test.dart` — Splash → Auth → Home as `AuthState` changes.
+- `auth/auth_page_test.dart` — create-account toggle, email-failure error, provider
+  cancellation shows no error, `AuthActionButton` spinner blocks taps while loading.
+- `auth/auth_failure_test.dart` — pure `mapAuthErrorCode` mapping.
+- `support/fake_auth_repository.dart`, `support/test_app.dart` — test scaffolding.
+- `workout_domain_test.dart`, `workout_repository_test.dart`,
+  `workout_history_page_test.dart` — Workout coverage (unchanged).
 
 > Coverage is strongest on Workout and the Today boot path. Expenses/Tasks/Schedule/
 > Notes/Moments rely on the app-boot widget test and their in-memory repos; dedicated

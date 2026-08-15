@@ -95,3 +95,67 @@ state.
 - **Verification:** `flutter analyze` → no issues; `flutter test` → 12 tests pass; iOS
   simulator build succeeds with the plist bundled into `Runner.app`; the app launches and
   renders Today, confirming Firebase Core initializes before `runApp`.
+
+## Authentication milestone — real sign-in foundation (2026-08-15)
+
+> Isolated on branch **`feature/authentication`** (not merged). Scope: **real
+> authentication + a clean user-identity foundation only.** No Firestore,
+> persistence migration, Storage, Functions, AI, or University work — the six
+> in-memory repositories are deliberately untouched.
+
+**Providers:** Sign in with Apple, Sign in with Google, and Email/Password
+(normal Firebase email/password; Gmail addresses are ordinary email/password
+accounts, *not* a separate provider).
+
+**Dependencies added:** `firebase_auth`, `google_sign_in`, `sign_in_with_apple`,
+`crypto`.
+
+**Dart layer (`lib/features/auth/`):**
+- Domain: `AuthUser`, `AuthState` (`AuthUnknown`/`Unauthenticated`/`Authenticated`),
+  `AuthResult` (`AuthSuccess`/`AuthCancelled`/`AuthFailed`), `AuthFailure` +
+  `AuthRepository` interface + pure `mapAuthErrorCode` error mapping.
+- Data: `FirebaseAuthRepository` (email sign-in/up, Google via `google_sign_in`
+  7.x, Apple with SHA-256 nonce, Firebase-user→`AuthUser` mapping, provider
+  cancellation handling) and `FakeAuthRepository` for tests. `AuthConfig` reads an
+  optional Google **web** `serverClientId` from `--dart-define=GOOGLE_SERVER_CLIENT_ID`.
+- Presentation: `AuthGate` (Splash → AuthPage → app shell driven by `watchAuthState`),
+  `SplashScreen`, `AuthPage` (Apple/Google buttons + email/password + create-account
+  toggle, loading/error states), `ProfilePage` with sign-out (replaces the old "You"
+  placeholder).
+- Wiring: `auth` added to `AppScope`; `ZivoApp` uses the real `FirebaseAuthRepository`
+  and `home: AuthGate`.
+
+**Platform / native configuration:**
+- Bundle id changed `com.example.zivo` → **`com.ziadelsewedy.zivo`** (iOS + Android).
+- Registered **new** Firebase apps in project `zivo-63f15` for the new bundle:
+  iOS `1:317167114617:ios:fb766e1151cf147755f7a8`, Android
+  `1:317167114617:android:e4fd2ec7f3ae385855f7a8` (via `firebase apps:create`;
+  `flutterfire configure` then regenerated `lib/firebase_options.dart`, `firebase.json`,
+  and the macOS config). Downloaded fresh `ios/Runner/GoogleService-Info.plist` and
+  `android/app/google-services.json` for the new bundle.
+- iOS: `Runner.entitlements` (Apple Sign-In capability) + `CODE_SIGN_ENTITLEMENTS`
+  wired into all Runner build configs; `DEVELOPMENT_TEAM = 7Q3PY75VGH`; added the
+  Google `REVERSED_CLIENT_ID` URL scheme to `Info.plist` (for the Google redirect).
+- Android: `namespace`/`applicationId = com.ziadelsewedy.zivo`, `minSdk ≥ 23`,
+  `com.google.gms.google-services` plugin applied, Kotlin `MainActivity` moved to the
+  new package.
+
+**Verification (this session):**
+- `flutter analyze` → **no issues**.
+- `flutter test` → **24 tests pass** (auth gate/page/failure + support fakes added to
+  the prior suite).
+- **Android** `flutter build apk --debug` → **succeeds** (previously impossible: the
+  google-services plugin had no `google-services.json`).
+- **iOS** `flutter build ios --debug --simulator` → **succeeds** (`pod install` pulls
+  firebase_auth/google_sign_in/sign_in_with_apple pods).
+- **Runtime smoke test** (iPhone 17 Pro simulator): app launches on
+  `com.ziadelsewedy.zivo`, Firebase Core initializes, `AuthGate` resolves to
+  `Unauthenticated`, and the real `AuthPage` renders all three sign-in options.
+
+**NOT verified end-to-end (requires manual, non-headless steps):** actually completing
+Apple / Google / email sign-in. Remaining manual setup: enable **Email/Password**,
+**Google**, and **Apple** providers in the Firebase Console (Authentication → Sign-in
+method); configure Apple (Service ID + Sign in with Apple key) in the Apple Developer
+portal; for Android Google id-tokens, pass the web `serverClientId` via
+`--dart-define=GOOGLE_SERVER_CLIENT_ID`. No provider is claimed to work end-to-end until
+tested on a real device/simulator with those enabled.
