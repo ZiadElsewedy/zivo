@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../features/auth/domain/auth_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
 import '../../features/notes/domain/note_repository.dart';
@@ -13,6 +14,7 @@ import '../../features/workout/domain/workout_repository.dart';
 /// routes can resolve it.
 class AppScope extends InheritedWidget {
   const AppScope({
+    required this.auth,
     required this.expenses,
     required this.tasks,
     required this.schedule,
@@ -23,6 +25,9 @@ class AppScope extends InheritedWidget {
     super.key,
   });
 
+  /// The authentication backend. Its signed-in `uid` is the app's canonical
+  /// identity (and the future Firestore ownership key).
+  final AuthRepository auth;
   final ExpenseRepository expenses;
   final TaskRepository tasks;
   final ScheduleRepository schedule;
@@ -38,6 +43,7 @@ class AppScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
+      auth != oldWidget.auth ||
       expenses != oldWidget.expenses ||
       tasks != oldWidget.tasks ||
       schedule != oldWidget.schedule ||

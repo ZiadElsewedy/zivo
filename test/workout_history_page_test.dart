@@ -11,6 +11,8 @@ import 'package:zivo/features/workout/domain/exercise.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_history_page.dart';
 
+import 'support/fake_auth_repository.dart';
+
 void main() {
   testWidgets('Workout history renders logged sessions from the repository',
       (tester) async {
@@ -19,6 +21,7 @@ void main() {
 
     await tester.pumpWidget(
       AppScope(
+        auth: FakeAuthRepository(),
         expenses: InMemoryExpenseRepository(),
         tasks: InMemoryTaskRepository(),
         schedule: InMemoryScheduleRepository(),

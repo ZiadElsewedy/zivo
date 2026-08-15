@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
+import '../../auth/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
 import '../../expenses/presentation/pages/expense_capture_page.dart';
@@ -34,7 +35,7 @@ class _HomeShellState extends State<HomeShell> {
     TodayPage(),
     HubPage(),
     ComingSoon('Ask'),
-    ComingSoon('You'),
+    ProfilePage(),
   ];
 
   Future<void> _openCapture() async {
