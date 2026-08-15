@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/auth/domain/auth_failure.dart';
@@ -17,12 +18,30 @@ void main() {
     return auth;
   }
 
-  testWidgets('renders all three sign-in methods', (tester) async {
-    await pumpAuthPage(tester);
-    expect(find.text('Sign in with Apple'), findsOneWidget);
-    expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget); // email submit
-    expect(find.byType(TextField), findsNWidgets(2)); // email + password
+  testWidgets('renders all three sign-in methods on iOS', (tester) async {
+    // Reset synchronously in a finally: the framework's debug-var invariant is
+    // checked at the end of the test body, before any addTearDown runs.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await pumpAuthPage(tester);
+      expect(find.text('Sign in with Apple'), findsOneWidget);
+      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(find.text('Sign in'), findsOneWidget); // email submit
+      expect(find.byType(TextField), findsNWidgets(2)); // email + password
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('hides Apple Sign-In on Android, keeps Google', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await pumpAuthPage(tester);
+      expect(find.text('Sign in with Apple'), findsNothing);
+      expect(find.text('Continue with Google'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('toggling to create-account reveals the name field', (tester) async {

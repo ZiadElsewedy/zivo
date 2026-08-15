@@ -14,27 +14,31 @@ class SocialAuthButtons extends StatelessWidget {
     required this.inFlight,
     required this.onApple,
     required this.onGoogle,
+    this.showApple = true,
     super.key,
   });
 
   final AuthAction inFlight;
   final VoidCallback onApple;
   final VoidCallback onGoogle;
+  final bool showApple;
 
   @override
   Widget build(BuildContext context) {
     final busy = inFlight != AuthAction.none;
     return Column(
       children: [
-        AuthActionButton(
-          label: 'Sign in with Apple',
-          icon: const Icon(Icons.apple, size: 22, color: Colors.white),
-          background: Colors.black,
-          loading: inFlight == AuthAction.apple,
-          enabled: !busy || inFlight == AuthAction.apple,
-          onTap: onApple,
-        ),
-        const SizedBox(height: 12),
+        if (showApple) ...[
+          AuthActionButton(
+            label: 'Sign in with Apple',
+            icon: const Icon(Icons.apple, size: 22, color: Colors.white),
+            background: Colors.black,
+            loading: inFlight == AuthAction.apple,
+            enabled: !busy || inFlight == AuthAction.apple,
+            onTap: onApple,
+          ),
+          const SizedBox(height: 12),
+        ],
         AuthActionButton(
           label: 'Continue with Google',
           icon: const _GoogleMark(),
