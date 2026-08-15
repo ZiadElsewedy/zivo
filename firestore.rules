@@ -29,6 +29,19 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
+    // Expenses: each user reads/writes only their own expenses (append-only log).
+    // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
+    match /users/{userId}/expenses/{expenseId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.amountMinor is int
+        && request.resource.data.amountMinor >= 0
+        && request.resource.data.currency is string
+        && request.resource.data.category is string
+        && request.resource.data.spentAt is timestamp
+        && request.resource.data.schemaVersion is int;
+    }
+
     // Nothing else is exposed to clients yet. Remaining feature data is still
     // in-memory; add per-collection owner rules (request.auth.uid == uid) as
     // each one migrates to Firestore.
