@@ -73,9 +73,18 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
-    // Nothing else is exposed to clients yet. Remaining feature data is still
-    // in-memory; add per-collection owner rules (request.auth.uid == uid) as
-    // each one migrates to Firestore.
+    // Moments: each user reads/writes only their own moments. imagePath is a
+    // local device path (Storage/photos are a later milestone), so no file rules here.
+    match /users/{userId}/moments/{momentId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.caption is string
+        && request.resource.data.takenAt is timestamp
+        && request.resource.data.schemaVersion is int;
+    }
+
+    // Nothing else is exposed to clients. All six feature repositories
+    // (tasks, expenses, schedule, notes, workouts, moments) are migrated.
     match /{document=**} {
       allow read, write: if false;
     }

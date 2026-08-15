@@ -11,6 +11,7 @@ import '../features/auth/presentation/auth_gate.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/in_memory_expense_repository.dart';
 import '../features/expenses/domain/expense_repository.dart';
+import '../features/moments/data/firestore_moment_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
 import '../features/notes/data/firestore_note_repository.dart';
@@ -34,9 +35,9 @@ const bool _useFirestore = bool.fromEnvironment(
 );
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
-/// [AppScope]. [auth], [profiles], [tasks], [expenses], [schedule], [notes],
-/// and [workouts] are backed by Firebase; the remaining feature repositories
-/// are still in-memory.
+/// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
+/// and all six feature repositories (expenses, tasks, schedule, notes,
+/// moments, workouts) are Firebase-backed.
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -77,8 +78,7 @@ class _ZivoAppState extends State<ZivoApp> {
   late final ScheduleRepository _schedule =
       widget.schedule ?? _defaultSchedule();
   late final NoteRepository _notes = widget.notes ?? _defaultNotes();
-  late final MomentRepository _moments =
-      widget.moments ?? InMemoryMomentRepository();
+  late final MomentRepository _moments = widget.moments ?? _defaultMoments();
   late final WorkoutRepository _workouts =
       widget.workouts ?? _defaultWorkouts();
 
@@ -97,6 +97,10 @@ class _ZivoAppState extends State<ZivoApp> {
   NoteRepository _defaultNotes() => _useFirestore
       ? FirestoreNoteRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryNoteRepository();
+
+  MomentRepository _defaultMoments() => _useFirestore
+      ? FirestoreMomentRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryMomentRepository();
 
   WorkoutRepository _defaultWorkouts() => _useFirestore
       ? FirestoreWorkoutRepository(uidSource: UidSource.firebaseAuth())
