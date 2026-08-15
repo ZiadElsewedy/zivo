@@ -24,7 +24,7 @@
 - **Branch:** `feature/app-identity` is currently checked out. Other open branch:
   `feature/authentication`. Base branch: `planning-setup` (untouched at `4c26690`).
 - **Latest commit:**
-  - `feature/app-identity` → `1af27bd` (launcher icons).
+  - `feature/app-identity` → `ce13f17` (launcher icons).
   - `feature/authentication` → `c399146` (auth foundation + Firebase platform wiring).
 - **Completed:**
   - **App identity** (this branch): ZIVO "Dark" launcher icon (paper Z on `#101317`)
