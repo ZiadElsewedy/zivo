@@ -71,5 +71,19 @@ class InMemoryExpenseRepository implements ExpenseRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> update(Expense expense) async {
+    final index = _items.indexWhere((e) => e.id == expense.id);
+    if (index == -1) return;
+    _items[index] = expense;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((e) => e.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }

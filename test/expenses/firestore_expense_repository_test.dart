@@ -149,7 +149,76 @@ void main() {
         expect(expenses, isEmpty);
 
         expect(() => repo.add(_make('e1')), throwsStateError);
+        expect(() => repo.update(_make('e1')), throwsStateError);
+        expect(() => repo.remove('e1'), throwsStateError);
       },
     );
+
+    test(
+      'update replaces amount/category/note, preserves id, and is observed '
+      'on the stream',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreExpenseRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.add(
+          _make(
+            'e1',
+            amountMinor: 1000,
+            category: ExpenseCategory.food,
+            note: 'Lunch',
+          ),
+        );
+
+        final seen = <List<Expense>>[];
+        final sub = repo.watchAll().listen(seen.add);
+        await Future<void>.delayed(Duration.zero);
+
+        await repo.update(
+          _make(
+            'e1',
+            amountMinor: 2500,
+            category: ExpenseCategory.coffee,
+            note: 'Latte',
+            spentAt: DateTime(2026, 2, 2),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final updated = seen.last.single;
+        expect(updated.id, 'e1');
+        expect(updated.amountMinor, 2500);
+        expect(updated.category, ExpenseCategory.coffee);
+        expect(updated.note, 'Latte');
+        expect(updated.spentAt, DateTime(2026, 2, 2));
+
+        await sub.cancel();
+      },
+    );
+
+    test('remove deletes the doc and is observed on the stream', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreExpenseRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('e1'));
+      await repo.add(_make('e2', spentAt: DateTime(2026, 1, 2)));
+
+      final seen = <List<Expense>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.remove('e1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen.last.map((e) => e.id).toList(), ['e2']);
+
+      await sub.cancel();
+    });
   });
 }

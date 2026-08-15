@@ -90,6 +90,25 @@ class FirestoreExpenseRepository implements ExpenseRepository {
     });
   }
 
+  @override
+  Future<void> update(Expense expense) {
+    final uid = _requireUid();
+    return _expensesCollection(uid).doc(expense.id).update({
+      'amountMinor': expense.amountMinor,
+      'currency': expense.currency,
+      'category': expense.category.name,
+      'spentAt': Timestamp.fromDate(expense.spentAt),
+      'note': expense.note,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _expensesCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

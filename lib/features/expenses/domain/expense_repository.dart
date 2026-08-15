@@ -12,6 +12,12 @@ abstract interface class ExpenseRepository {
 
   /// Appends a new expense.
   Future<void> add(Expense expense);
+
+  /// Replaces an existing expense (matched by id) in place.
+  Future<void> update(Expense expense);
+
+  /// Removes an expense by id.
+  Future<void> remove(String id);
 }
 
 /// Sum of expenses on the same calendar day as [now].
