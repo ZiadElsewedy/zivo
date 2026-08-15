@@ -48,4 +48,36 @@ void main() {
     expect(find.text('What is due this week?'), findsOneWidget);
     expect(find.text(kFakeAiReply), findsOneWidget);
   });
+
+  testWidgets('Ask composer clears the bottom nav bar / safe-area inset', (tester) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
+
+    const bottomInset = 80.0;
+    await tester.pumpWidget(
+      AppScope(
+        auth: FakeAuthRepository(),
+        profiles: FakeProfileRepository(),
+        expenses: InMemoryExpenseRepository(),
+        tasks: InMemoryTaskRepository(),
+        schedule: InMemoryScheduleRepository(),
+        notes: InMemoryNoteRepository(),
+        moments: InMemoryMomentRepository(),
+        workouts: InMemoryWorkoutRepository(),
+        university: InMemoryUniversityRepository(),
+        diet: InMemoryDietRepository(),
+        ai: ai,
+        child: MediaQuery(
+          data: const MediaQueryData(padding: EdgeInsets.only(bottom: bottomInset)),
+          child: const MaterialApp(home: AskPage()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final screenHeight = tester.getSize(find.byType(MaterialApp)).height;
+    final fieldBottom = tester.getBottomLeft(find.byType(TextField)).dy;
+
+    expect(screenHeight - fieldBottom, greaterThanOrEqualTo(bottomInset));
+  });
 }
