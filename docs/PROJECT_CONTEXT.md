@@ -26,8 +26,9 @@
   delete). All branches are **local only — nothing has been pushed to origin.**
 - **Latest commit:**
   - `main` → `3009877` (merge: integrate Authentication milestone + app identity).
-  - `feature/authentication` → `4cbddfb` (merge: app-identity/launcher icon into auth).
-    `main` is one `--no-ff` merge commit ahead of this.
+  - `feature/authentication` → HEAD is the app-identity merge `4cbddfb` plus trailing
+    docs commit(s); it has since diverged one or more docs commits ahead of `main`, which
+    `main` will pick up on the next auth→main merge. Run `git log --oneline -1` for exact HEAD.
 - **Completed:**
   - **Authentication:** real Firebase Auth — Apple, Google, Email/Password — behind
     `AuthGate`; bundle `com.ziadelsewedy.zivo`; iOS + Android Firebase apps registered in
