@@ -1,5 +1,5 @@
 name: zivo
-description: "A new Flutter project."
+description: "ZIVO — a private single-user Personal OS."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -55,6 +55,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # Generates iOS/Android launcher icons from the ZIVO brand mark.
+  flutter_launcher_icons: ^0.14.4
+
+# App identity — the ZIVO "Dark" mark (paper Z on near-black #101317).
+# Regenerate after changing the source image with:
+#   dart run flutter_launcher_icons
+# Source art lives in assets/app-icon/ (see assets/README.txt). iOS uses the
+# full-bleed square (the OS masks the corners); Android uses an adaptive icon
+# (solid #101317 background + the same dark square as the foreground layer — the
+# Z sits within the adaptive safe zone).
+flutter_launcher_icons:
+  ios: true
+  android: true
+  remove_alpha_ios: true
+  image_path: "assets/app-icon/zivo-icon-dark-1024.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#101317"
+  adaptive_icon_foreground: "assets/app-icon/zivo-icon-dark-1024.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -159,3 +159,23 @@ method); configure Apple (Service ID + Sign in with Apple key) in the Apple Deve
 portal; for Android Google id-tokens, pass the web `serverClientId` via
 `--dart-define=GOOGLE_SERVER_CLIENT_ID`. No provider is claimed to work end-to-end until
 tested on a real device/simulator with those enabled.
+
+## App-identity milestone — launcher icon (2026-08-15)
+
+> Isolated on branch **`feature/app-identity`** (cut from `planning-setup`, **not merged**).
+> Independent of the auth branch; contains no auth code and keeps the base `com.example.zivo`
+> bundle. Scope: **app launcher icon / brand identity only.**
+
+- Added the ZIVO brand asset set under `assets/` (`app-icon/`, `rounded/`, `transparent/`,
+  `svg/`, `README.txt`) — colours: Paper `#F4F2ED` · Ink `#0B0C0D` · Dark `#101317` ·
+  Ember `#FF5A1F`.
+- Chose the **Dark** finish (paper Z on `#101317`) as the app identity. Added
+  `flutter_launcher_icons` (dev dep) + config in `pubspec.yaml`; `dart run
+  flutter_launcher_icons` regenerated the iOS `AppIcon.appiconset` and Android mipmaps +
+  an **adaptive icon** (`#101317` background + dark square inset foreground; `colors.xml`
+  added). Set the real app `description` in `pubspec.yaml`.
+- **Verification:** `flutter analyze` clean; base `flutter test` (12) pass; iOS simulator
+  build + install → the Dark icon renders on the home screen; Android debug APK builds.
+- **Handoff:** see the **Current Handoff** section at the top of `docs/PROJECT_CONTEXT.md`
+  — two milestones (`feature/authentication`, `feature/app-identity`) are complete and
+  await the user's separate review/merge.
