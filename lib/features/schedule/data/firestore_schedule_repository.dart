@@ -89,6 +89,25 @@ class FirestoreScheduleRepository implements ScheduleRepository {
     });
   }
 
+  @override
+  Future<void> update(ScheduleEvent event) {
+    final uid = _requireUid();
+    return _scheduleCollection(uid).doc(event.id).update({
+      'title': event.title,
+      'start': Timestamp.fromDate(event.start),
+      'end': event.end == null ? null : Timestamp.fromDate(event.end!),
+      'location': event.location,
+      'label': event.label,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _scheduleCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

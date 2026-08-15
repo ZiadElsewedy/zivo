@@ -5,10 +5,18 @@ import '../../../../core/theme/app_typography.dart';
 
 /// A close button + centred title, shared by the capture screens.
 class CaptureTopBar extends StatelessWidget {
-  const CaptureTopBar({required this.title, required this.onClose, super.key});
+  const CaptureTopBar({
+    required this.title,
+    required this.onClose,
+    this.trailing,
+    super.key,
+  });
 
   final String title;
   final VoidCallback onClose;
+
+  /// Optional trailing action (e.g. delete) replacing the balancing spacer.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +42,7 @@ class CaptureTopBar extends StatelessWidget {
               child: Text(title, style: AppText.button.copyWith(color: AppColors.ink2)),
             ),
           ),
-          const SizedBox(width: 34),
+          SizedBox(width: 34, height: 34, child: trailing),
         ],
       ),
     );

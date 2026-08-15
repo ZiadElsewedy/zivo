@@ -19,7 +19,7 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(join(here, '..', 'firestore.rules'), 'utf8');
@@ -189,5 +189,13 @@ describe('tasks update path (mirrors setDone)', () => {
     await seed(collPath(OWNER, 'tasks'), valid.tasks);
     await assertSucceeds(updateDoc(doc(ownerDb(), collPath(OWNER, 'tasks')), { done: true }));
     await assertFails(updateDoc(doc(otherDb(), collPath(OWNER, 'tasks')), { done: true }));
+  });
+});
+
+describe('schedule delete path', () => {
+  it('owner can delete their own event; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'schedule'), valid.schedule);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'schedule'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'schedule'))));
   });
 });

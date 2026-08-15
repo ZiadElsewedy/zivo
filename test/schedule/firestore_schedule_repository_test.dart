@@ -119,7 +119,95 @@ void main() {
         expect(events, isEmpty);
 
         expect(() => repo.add(_make('e1')), throwsStateError);
+        expect(() => repo.update(_make('e1')), throwsStateError);
+        expect(() => repo.remove('e1'), throwsStateError);
       },
     );
+
+    test(
+      'update replaces title/start/end/location, preserves id, and is '
+      'observed on the stream',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreScheduleRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.add(
+          _make(
+            'e1',
+            title: 'Data Structures',
+            start: DateTime(2026, 1, 1, 9),
+            end: DateTime(2026, 1, 1, 10),
+            location: 'Hall B',
+          ),
+        );
+
+        final seen = <List<ScheduleEvent>>[];
+        final sub = repo.watchAll().listen(seen.add);
+        await Future<void>.delayed(Duration.zero);
+
+        await repo.update(
+          _make(
+            'e1',
+            title: 'Renamed lecture',
+            start: DateTime(2026, 1, 2, 14),
+            end: DateTime(2026, 1, 2, 15, 30),
+            location: 'Hall C',
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final updated = seen.last.single;
+        expect(updated.id, 'e1');
+        expect(updated.title, 'Renamed lecture');
+        expect(updated.start, DateTime(2026, 1, 2, 14));
+        expect(updated.end, DateTime(2026, 1, 2, 15, 30));
+        expect(updated.location, 'Hall C');
+
+        await sub.cancel();
+      },
+    );
+
+    test('update can clear the end/location to null', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreScheduleRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(
+        _make('e1', end: DateTime(2026, 1, 1, 10), location: 'Hall B'),
+      );
+      await repo.update(_make('e1', end: null, location: null));
+
+      final events = await repo.watchAll().first;
+      final updated = events.single;
+      expect(updated.end, isNull);
+      expect(updated.location, isNull);
+    });
+
+    test('remove deletes the doc and is observed on the stream', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreScheduleRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('e1'));
+      await repo.add(_make('e2', start: DateTime(2026, 1, 2)));
+
+      final seen = <List<ScheduleEvent>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.remove('e1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen.last.map((e) => e.id).toList(), ['e2']);
+
+      await sub.cancel();
+    });
   });
 }

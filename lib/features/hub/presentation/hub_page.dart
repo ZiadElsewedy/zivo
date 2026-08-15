@@ -6,6 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
+import '../../schedule/presentation/pages/schedule_list_page.dart';
 import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_history_page.dart';
@@ -23,7 +24,7 @@ class HubPage extends StatelessWidget {
         'Schedule',
         Icons.calendar_today_rounded,
         AppColors.emberText,
-        null,
+        (c) => const ScheduleListPage(),
       ),
       _Module(
         'Tasks',
