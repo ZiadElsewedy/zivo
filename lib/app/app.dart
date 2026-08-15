@@ -15,6 +15,7 @@ import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
 import '../features/notes/data/in_memory_note_repository.dart';
 import '../features/notes/domain/note_repository.dart';
+import '../features/schedule/data/firestore_schedule_repository.dart';
 import '../features/schedule/data/in_memory_schedule_repository.dart';
 import '../features/schedule/domain/schedule_repository.dart';
 import '../features/tasks/data/firestore_task_repository.dart';
@@ -31,8 +32,9 @@ const bool _useFirestore = bool.fromEnvironment(
 );
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
-/// [AppScope]. [auth], [profiles], [tasks], and [expenses] are backed by
-/// Firebase; the remaining feature repositories are still in-memory.
+/// [AppScope]. [auth], [profiles], [tasks], [expenses], and [schedule] are
+/// backed by Firebase; the remaining feature repositories are still
+/// in-memory.
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -71,7 +73,7 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.expenses ?? _defaultExpenses();
   late final TaskRepository _tasks = widget.tasks ?? _defaultTasks();
   late final ScheduleRepository _schedule =
-      widget.schedule ?? InMemoryScheduleRepository();
+      widget.schedule ?? _defaultSchedule();
   late final NoteRepository _notes = widget.notes ?? InMemoryNoteRepository();
   late final MomentRepository _moments =
       widget.moments ?? InMemoryMomentRepository();
@@ -85,6 +87,10 @@ class _ZivoAppState extends State<ZivoApp> {
   ExpenseRepository _defaultExpenses() => _useFirestore
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryExpenseRepository();
+
+  ScheduleRepository _defaultSchedule() => _useFirestore
+      ? FirestoreScheduleRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryScheduleRepository();
 
   @override
   Widget build(BuildContext context) {
