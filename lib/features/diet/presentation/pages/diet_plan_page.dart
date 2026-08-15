@@ -7,6 +7,7 @@ import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
+import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
 import '../today_diet.dart';
 import 'diet_plan_edit_page.dart';
@@ -264,15 +265,9 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = day.meals.length;
-    final eatenCount = day.meals.where((m) => consumed.contains(m.id)).length;
-    final kcalLeft = day.meals
-        .where((m) => !consumed.contains(m.id))
-        .map(mealCalories)
-        .whereType<int>()
-        .fold<int>(0, (sum, c) => sum + c);
+    final summary = dietDaySummary(day, consumed);
     return Text(
-      '$eatenCount of $total meals eaten · $kcalLeft kcal left',
+      '${summary.eaten} of ${summary.total} meals eaten · ${summary.kcalLeft} kcal left',
       style: AppText.meta.copyWith(color: AppColors.ink2),
     );
   }

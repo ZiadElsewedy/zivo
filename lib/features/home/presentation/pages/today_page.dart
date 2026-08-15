@@ -5,30 +5,35 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../auth/domain/user_profile.dart';
+import '../../../diet/domain/diet_plan.dart';
+import '../../../diet/domain/diet_summary.dart';
+import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
 import '../../../schedule/domain/schedule_event.dart';
 import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../university/domain/university_item.dart';
-import '../../data/today_demo_data.dart';
-import '../../domain/today_snapshot.dart';
+import '../../../workout/domain/workout.dart';
 import '../focus_builder.dart';
+import '../header_builder.dart';
 import '../now_next_builder.dart';
+import '../training_builder.dart';
 import '../widgets/common.dart';
+import '../widgets/diet_glance.dart';
 import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
 import '../widgets/training_card.dart';
 
-/// The Today command centre — the adaptive surface that reads like a sentence
-/// about the day. Currently rendered from demo data.
+/// The Today command centre — the adaptive surface that reads like a
+/// sentence about the day, built live from the day's real signals.
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const s = todayDemoSnapshot;
     final media = MediaQuery.of(context);
 
     return DecoratedBox(
@@ -53,7 +58,7 @@ class TodayPage extends StatelessWidget {
                 media.padding.bottom + 150,
               ),
               children: [
-                RiseIn(delay: Duration.zero, child: _Header(s)),
+                const RiseIn(delay: Duration.zero, child: _Header()),
                 const RiseIn(
                   delay: Duration(milliseconds: 90),
                   child: _NowNextSection(),
@@ -62,13 +67,17 @@ class TodayPage extends StatelessWidget {
                   delay: Duration(milliseconds: 170),
                   child: _FocusSection(),
                 ), // live tasks merged with live university items
-                RiseIn(
-                  delay: const Duration(milliseconds: 250),
-                  child: _TrainingSection(s.training),
+                const RiseIn(
+                  delay: Duration(milliseconds: 250),
+                  child: _TrainingSection(),
                 ),
                 const RiseIn(
                   delay: Duration(milliseconds: 330),
                   child: _SpendingSection(),
+                ),
+                const RiseIn(
+                  delay: Duration(milliseconds: 400),
+                  child: _DietSection(),
                 ),
               ],
             ),
@@ -109,22 +118,46 @@ class _AskHint extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header(this.s);
-
-  final TodaySnapshot s;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        Text(s.dateLabel.toUpperCase(), style: AppText.dateLabel),
+        Text(formatTodayDate(now).toUpperCase(), style: AppText.dateLabel),
         const SizedBox(height: 10),
-        Row(
+        _GreetingRow(now: now),
+        const SizedBox(height: 11),
+        _AsideLine(now: now),
+      ],
+    );
+  }
+}
+
+class _GreetingRow extends StatelessWidget {
+  const _GreetingRow({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final uid = scope.auth.currentUser?.uid;
+    return StreamBuilder<UserProfile?>(
+      stream: uid == null ? null : scope.profiles.watchProfile(uid),
+      builder: (context, snapshot) {
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Flexible(child: Text(s.greeting, style: AppText.greeting)),
+            Flexible(
+              child: Text(
+                greetingFor(now, snapshot.data?.name),
+                style: AppText.greeting,
+              ),
+            ),
             const SizedBox(width: 8),
             const Icon(
               Icons.wb_sunny_rounded,
@@ -132,10 +165,55 @@ class _Header extends StatelessWidget {
               size: 25,
             ),
           ],
-        ),
-        const SizedBox(height: 11),
-        Text(s.aside, style: AppText.aside),
-      ],
+        );
+      },
+    );
+  }
+}
+
+/// Composes the aside line live from the day's focus list + next event.
+class _AsideLine extends StatelessWidget {
+  const _AsideLine({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<List<Task>>(
+      stream: scope.tasks.watchAll(),
+      initialData: scope.tasks.current,
+      builder: (context, taskSnapshot) {
+        return StreamBuilder<List<UniversityItem>>(
+          stream: scope.university.watchAll(),
+          initialData: scope.university.current,
+          builder: (context, universitySnapshot) {
+            return StreamBuilder<List<ScheduleEvent>>(
+              stream: scope.schedule.watchAll(),
+              initialData: scope.schedule.current,
+              builder: (context, scheduleSnapshot) {
+                final focus = buildFocus(
+                  tasks: taskSnapshot.data ?? const <Task>[],
+                  universityItems:
+                      universitySnapshot.data ?? const <UniversityItem>[],
+                  now: now,
+                );
+                final event = nextRelevant(
+                  scheduleSnapshot.data ?? const <ScheduleEvent>[],
+                  now,
+                );
+                final next = event == null
+                    ? null
+                    : nowNextFromEvent(event, now);
+                return Text(
+                  buildAside(focus: focus, next: next),
+                  style: AppText.aside,
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -227,16 +305,30 @@ class _FocusSection extends StatelessWidget {
 }
 
 class _TrainingSection extends StatelessWidget {
-  const _TrainingSection(this.data);
-
-  final TrainingToday? data;
+  const _TrainingSection();
 
   @override
   Widget build(BuildContext context) {
-    if (data == null) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [const SectionHeader('Training'), TrainingCard(data!)],
+    final workouts = AppScope.of(context).workouts;
+    return StreamBuilder<List<Workout>>(
+      stream: workouts.watchAll(),
+      initialData: workouts.current,
+      builder: (context, snapshot) {
+        final workout = todaysWorkout(
+          snapshot.data ?? const <Workout>[],
+          DateTime.now(),
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader('Training'),
+            if (workout == null)
+              const _EmptyLine('No training logged yet today.')
+            else
+              TrainingCard(workout),
+          ],
+        );
+      },
     );
   }
 }
@@ -265,6 +357,46 @@ class _SpendingSection extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _DietSection extends StatelessWidget {
+  const _DietSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final diet = AppScope.of(context).diet;
+    return StreamBuilder<DietPlan?>(
+      stream: diet.watchActivePlan(),
+      initialData: diet.activePlan,
+      builder: (context, planSnapshot) {
+        final plan = planSnapshot.data;
+        final now = DateTime.now();
+        final day = dayForDate(plan, now);
+        if (day == null) return const SizedBox.shrink();
+        return StreamBuilder<Set<String>>(
+          stream: diet.watchConsumed(now),
+          initialData: const <String>{},
+          builder: (context, consumedSnapshot) {
+            final summary = dietDaySummary(
+              day,
+              consumedSnapshot.data ?? const <String>{},
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader('Diet'),
+                DietGlanceRow(
+                  eaten: summary.eaten,
+                  total: summary.total,
+                  kcalLeft: summary.kcalLeft,
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
