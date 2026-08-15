@@ -13,6 +13,7 @@ import '../features/expenses/data/in_memory_expense_repository.dart';
 import '../features/expenses/domain/expense_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
+import '../features/notes/data/firestore_note_repository.dart';
 import '../features/notes/data/in_memory_note_repository.dart';
 import '../features/notes/domain/note_repository.dart';
 import '../features/schedule/data/firestore_schedule_repository.dart';
@@ -32,9 +33,9 @@ const bool _useFirestore = bool.fromEnvironment(
 );
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
-/// [AppScope]. [auth], [profiles], [tasks], [expenses], and [schedule] are
-/// backed by Firebase; the remaining feature repositories are still
-/// in-memory.
+/// [AppScope]. [auth], [profiles], [tasks], [expenses], [schedule], and
+/// [notes] are backed by Firebase; the remaining feature repositories are
+/// still in-memory.
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -74,7 +75,7 @@ class _ZivoAppState extends State<ZivoApp> {
   late final TaskRepository _tasks = widget.tasks ?? _defaultTasks();
   late final ScheduleRepository _schedule =
       widget.schedule ?? _defaultSchedule();
-  late final NoteRepository _notes = widget.notes ?? InMemoryNoteRepository();
+  late final NoteRepository _notes = widget.notes ?? _defaultNotes();
   late final MomentRepository _moments =
       widget.moments ?? InMemoryMomentRepository();
   late final WorkoutRepository _workouts =
@@ -91,6 +92,10 @@ class _ZivoAppState extends State<ZivoApp> {
   ScheduleRepository _defaultSchedule() => _useFirestore
       ? FirestoreScheduleRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryScheduleRepository();
+
+  NoteRepository _defaultNotes() => _useFirestore
+      ? FirestoreNoteRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryNoteRepository();
 
   @override
   Widget build(BuildContext context) {

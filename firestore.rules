@@ -52,6 +52,16 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
+    // Notes: each user reads/writes only their own notes.
+    // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
+    match /users/{userId}/notes/{noteId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.body is string
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.schemaVersion is int;
+    }
+
     // Nothing else is exposed to clients yet. Remaining feature data is still
     // in-memory; add per-collection owner rules (request.auth.uid == uid) as
     // each one migrates to Firestore.
