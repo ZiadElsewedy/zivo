@@ -23,6 +23,9 @@ import '../features/schedule/domain/schedule_repository.dart';
 import '../features/tasks/data/firestore_task_repository.dart';
 import '../features/tasks/data/in_memory_task_repository.dart';
 import '../features/tasks/domain/task_repository.dart';
+import '../features/university/data/firestore_university_repository.dart';
+import '../features/university/data/in_memory_university_repository.dart';
+import '../features/university/domain/university_repository.dart';
 import '../features/workout/data/firestore_workout_repository.dart';
 import '../features/workout/data/in_memory_workout_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
@@ -36,8 +39,8 @@ const bool _useFirestore = bool.fromEnvironment(
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
-/// and all six feature repositories (expenses, tasks, schedule, notes,
-/// moments, workouts) are Firebase-backed.
+/// and all seven feature repositories (expenses, tasks, schedule, notes,
+/// moments, workouts, university) are Firebase-backed.
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -52,6 +55,7 @@ class ZivoApp extends StatefulWidget {
     this.notes,
     this.moments,
     this.workouts,
+    this.university,
     super.key,
   });
 
@@ -63,6 +67,7 @@ class ZivoApp extends StatefulWidget {
   final NoteRepository? notes;
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
+  final UniversityRepository? university;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -81,6 +86,8 @@ class _ZivoAppState extends State<ZivoApp> {
   late final MomentRepository _moments = widget.moments ?? _defaultMoments();
   late final WorkoutRepository _workouts =
       widget.workouts ?? _defaultWorkouts();
+  late final UniversityRepository _university =
+      widget.university ?? _defaultUniversity();
 
   TaskRepository _defaultTasks() => _useFirestore
       ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
@@ -106,6 +113,10 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreWorkoutRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutRepository();
 
+  UniversityRepository _defaultUniversity() => _useFirestore
+      ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryUniversityRepository();
+
   @override
   Widget build(BuildContext context) {
     return AppScope(
@@ -117,6 +128,7 @@ class _ZivoAppState extends State<ZivoApp> {
       notes: _notes,
       moments: _moments,
       workouts: _workouts,
+      university: _university,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,

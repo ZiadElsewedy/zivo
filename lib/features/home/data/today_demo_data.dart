@@ -1,5 +1,4 @@
 import '../domain/today_snapshot.dart';
-import '../presentation/widgets/hue.dart';
 
 /// Demo content for the Today screen. Placeholder until a real `GetToday`
 /// use case wires schedule / tasks / workout / expenses. Swap for Ziad's
@@ -8,16 +7,8 @@ const todayDemoSnapshot = TodaySnapshot(
   dateLabel: 'Saturday · 15 August',
   greeting: 'Morning, Ziad',
   aside: 'One deadline today, and a push session waiting.',
-  // Tasks are read live from the task repository; the university deadline
-  // stays demo until the University feature exists.
-  focus: [
-    FocusItem(
-      title: 'Assignment 2 — Algorithms',
-      hue: ZHue.iris,
-      meta: 'due today',
-      done: true,
-    ),
-  ],
+  // Focus (tasks + university items) is built live from their repositories.
+  focus: [],
   training: TrainingToday(
     label: 'Push',
     title: 'Chest · Shoulders · Triceps',

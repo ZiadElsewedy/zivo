@@ -83,8 +83,19 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
-    // Nothing else is exposed to clients. All six feature repositories
-    // (tasks, expenses, schedule, notes, workouts, moments) are migrated.
+    // University: each user reads/writes only their own assignments/exams.
+    // Rules do not cascade from the parent /users/{userId} match, so explicit.
+    match /users/{userId}/universityItems/{itemId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.title is string
+        && request.resource.data.type is string
+        && request.resource.data.done is bool
+        && request.resource.data.schemaVersion is int;
+    }
+
+    // Nothing else is exposed to clients. All seven feature repositories
+    // (tasks, expenses, schedule, notes, workouts, moments, university) are migrated.
     match /{document=**} {
       allow read, write: if false;
     }

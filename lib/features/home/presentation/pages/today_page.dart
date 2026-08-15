@@ -10,6 +10,7 @@ import '../../../expenses/domain/expense_repository.dart';
 import '../../../schedule/domain/schedule_event.dart';
 import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
+import '../../../university/domain/university_item.dart';
 import '../../data/today_demo_data.dart';
 import '../../domain/today_snapshot.dart';
 import '../focus_builder.dart';
@@ -57,10 +58,10 @@ class TodayPage extends StatelessWidget {
                   delay: Duration(milliseconds: 90),
                   child: _NowNextSection(),
                 ),
-                RiseIn(
-                  delay: const Duration(milliseconds: 170),
-                  child: _FocusSection(s.focus),
-                ), // deadlines (demo) merged with live tasks inside
+                const RiseIn(
+                  delay: Duration(milliseconds: 170),
+                  child: _FocusSection(),
+                ), // live tasks merged with live university items
                 RiseIn(
                   delay: const Duration(milliseconds: 250),
                   child: _TrainingSection(s.training),
@@ -125,7 +126,11 @@ class _Header extends StatelessWidget {
           children: [
             Flexible(child: Text(s.greeting, style: AppText.greeting)),
             const SizedBox(width: 8),
-            const Icon(Icons.wb_sunny_rounded, color: AppColors.ember, size: 25),
+            const Icon(
+              Icons.wb_sunny_rounded,
+              color: AppColors.ember,
+              size: 25,
+            ),
           ],
         ),
         const SizedBox(height: 11),
@@ -146,7 +151,10 @@ class _NowNextSection extends StatelessWidget {
       initialData: schedule.current,
       builder: (context, snapshot) {
         final now = DateTime.now();
-        final event = nextRelevant(snapshot.data ?? const <ScheduleEvent>[], now);
+        final event = nextRelevant(
+          snapshot.data ?? const <ScheduleEvent>[],
+          now,
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -171,38 +179,47 @@ class _EmptyLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
-      child: Text(text, style: AppText.body.copyWith(color: AppColors.ink3, fontSize: 15)),
+      child: Text(
+        text,
+        style: AppText.body.copyWith(color: AppColors.ink3, fontSize: 15),
+      ),
     );
   }
 }
 
 class _FocusSection extends StatelessWidget {
-  const _FocusSection(this.deadlines);
-
-  final List<FocusItem> deadlines; // demo university items
+  const _FocusSection();
 
   @override
   Widget build(BuildContext context) {
     final tasks = AppScope.of(context).tasks;
+    final university = AppScope.of(context).university;
     return StreamBuilder<List<Task>>(
       stream: tasks.watchAll(),
       initialData: tasks.current,
-      builder: (context, snapshot) {
-        final items = buildFocus(
-          tasks: snapshot.data ?? const <Task>[],
-          deadlines: deadlines,
-          now: DateTime.now(),
-        );
-        if (items.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader('Today'),
-            FocusList(
-              items,
-              onToggle: (id, done) => tasks.setDone(id, done),
-            ),
-          ],
+      builder: (context, taskSnapshot) {
+        return StreamBuilder<List<UniversityItem>>(
+          stream: university.watchAll(),
+          initialData: university.current,
+          builder: (context, universitySnapshot) {
+            final items = buildFocus(
+              tasks: taskSnapshot.data ?? const <Task>[],
+              universityItems:
+                  universitySnapshot.data ?? const <UniversityItem>[],
+              now: DateTime.now(),
+            );
+            if (items.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader('Today'),
+                FocusList(
+                  items,
+                  onToggle: (id, done) => tasks.setDone(id, done),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -219,10 +236,7 @@ class _TrainingSection extends StatelessWidget {
     if (data == null) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Training'),
-        TrainingCard(data!),
-      ],
+      children: [const SectionHeader('Training'), TrainingCard(data!)],
     );
   }
 }

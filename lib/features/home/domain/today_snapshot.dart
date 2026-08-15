@@ -18,7 +18,8 @@ class TodaySnapshot {
   final String greeting; // e.g. "Morning, Ziad"
   final String aside; // one warm line
 
-  final List<FocusItem> focus; // demo university deadlines (tasks come live)
+  final List<FocusItem>
+  focus; // unused — focus is built live, see _FocusSection
   final TrainingToday? training;
   // Now/Next comes live from the schedule repository; spending from expenses.
 }

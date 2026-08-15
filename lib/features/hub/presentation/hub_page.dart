@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
+import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_history_page.dart';
 
 /// The Hub — the OS-style launcher into each module's depth. Notes and Moments
@@ -16,16 +17,38 @@ class HubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final modules = <_Module>[
-      _Module('Schedule', Icons.calendar_today_rounded, AppColors.emberText, null),
+      _Module(
+        'Schedule',
+        Icons.calendar_today_rounded,
+        AppColors.emberText,
+        null,
+      ),
       _Module('Tasks', Icons.check_circle_outline_rounded, AppColors.ink, null),
-      _Module('Workout', Icons.fitness_center_rounded, AppColors.pulseText,
-          (c) => const WorkoutHistoryPage()),
+      _Module(
+        'Workout',
+        Icons.fitness_center_rounded,
+        AppColors.pulseText,
+        (c) => const WorkoutHistoryPage(),
+      ),
       _Module('Expenses', Icons.payments_rounded, AppColors.solarText, null),
-      _Module('University', Icons.school_outlined, AppColors.irisText, null),
-      _Module('Notes', Icons.sticky_note_2_rounded, AppColors.ink,
-          (c) => const NotesListPage()),
-      _Module('Moments', Icons.photo_camera_rounded, AppColors.ink,
-          (c) => const MomentsTimelinePage()),
+      _Module(
+        'University',
+        Icons.school_outlined,
+        AppColors.irisText,
+        (c) => const UniversityListPage(),
+      ),
+      _Module(
+        'Notes',
+        Icons.sticky_note_2_rounded,
+        AppColors.ink,
+        (c) => const NotesListPage(),
+      ),
+      _Module(
+        'Moments',
+        Icons.photo_camera_rounded,
+        AppColors.ink,
+        (c) => const MomentsTimelinePage(),
+      ),
     ];
 
     return Container(
@@ -80,7 +103,9 @@ class _ModuleTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         onTap: () {
           if (live) {
-            Navigator.of(context).push(MaterialPageRoute(builder: module.builder!));
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: module.builder!));
           } else {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
@@ -88,8 +113,13 @@ class _ModuleTile extends StatelessWidget {
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.ink,
-                  content: Text('${module.label} — coming next.',
-                      style: AppText.button.copyWith(color: Colors.white, fontSize: 14)),
+                  content: Text(
+                    '${module.label} — coming next.',
+                    style: AppText.button.copyWith(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               );
           }
@@ -107,12 +137,21 @@ class _ModuleTile extends StatelessWidget {
               Icon(module.icon, size: 24, color: module.color),
               Row(
                 children: [
-                  Text(module.label,
-                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    module.label,
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (!live) ...[
                     const SizedBox(width: 6),
-                    Text('soon',
-                        style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11)),
+                    Text(
+                      'soon',
+                      style: AppText.meta.copyWith(
+                        color: AppColors.ink3,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ],
               ),
