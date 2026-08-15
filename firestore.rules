@@ -62,6 +62,17 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
+    // Workouts: each user reads/writes only their own logged sessions
+    // (exercises embedded). Rules do not cascade from /users/{userId}, so explicit.
+    match /users/{userId}/workouts/{workoutId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.title is string
+        && request.resource.data.performedAt is timestamp
+        && request.resource.data.exercises is list
+        && request.resource.data.schemaVersion is int;
+    }
+
     // Nothing else is exposed to clients yet. Remaining feature data is still
     // in-memory; add per-collection owner rules (request.auth.uid == uid) as
     // each one migrates to Firestore.

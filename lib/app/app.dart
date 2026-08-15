@@ -22,6 +22,7 @@ import '../features/schedule/domain/schedule_repository.dart';
 import '../features/tasks/data/firestore_task_repository.dart';
 import '../features/tasks/data/in_memory_task_repository.dart';
 import '../features/tasks/domain/task_repository.dart';
+import '../features/workout/data/firestore_workout_repository.dart';
 import '../features/workout/data/in_memory_workout_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
 
@@ -33,9 +34,9 @@ const bool _useFirestore = bool.fromEnvironment(
 );
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
-/// [AppScope]. [auth], [profiles], [tasks], [expenses], [schedule], and
-/// [notes] are backed by Firebase; the remaining feature repositories are
-/// still in-memory.
+/// [AppScope]. [auth], [profiles], [tasks], [expenses], [schedule], [notes],
+/// and [workouts] are backed by Firebase; the remaining feature repositories
+/// are still in-memory.
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -79,7 +80,7 @@ class _ZivoAppState extends State<ZivoApp> {
   late final MomentRepository _moments =
       widget.moments ?? InMemoryMomentRepository();
   late final WorkoutRepository _workouts =
-      widget.workouts ?? InMemoryWorkoutRepository();
+      widget.workouts ?? _defaultWorkouts();
 
   TaskRepository _defaultTasks() => _useFirestore
       ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
@@ -96,6 +97,10 @@ class _ZivoAppState extends State<ZivoApp> {
   NoteRepository _defaultNotes() => _useFirestore
       ? FirestoreNoteRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryNoteRepository();
+
+  WorkoutRepository _defaultWorkouts() => _useFirestore
+      ? FirestoreWorkoutRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutRepository();
 
   @override
   Widget build(BuildContext context) {
