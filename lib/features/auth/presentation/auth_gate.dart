@@ -6,10 +6,12 @@ import '../domain/auth_repository.dart';
 import '../domain/auth_state.dart';
 import 'pages/auth_page.dart';
 import 'pages/splash_screen.dart';
+import 'pages/verify_email_page.dart';
 
 /// Decides the top-level surface from the auth state:
 /// `AuthUnknown`/waiting → [SplashScreen], `Authenticated` → [HomeShell],
-/// `Unauthenticated` → [AuthPage].
+/// `AwaitingEmailVerification` → [VerifyEmailPage], `Unauthenticated` →
+/// [AuthPage].
 ///
 /// The auth stream is resolved once (in [initState]) and cached, so this is the
 /// single subscriber to it — one listener, no duplicate subscriptions, and no
@@ -41,14 +43,20 @@ class _AuthGateState extends State<AuthGate> {
     // Seed with a synchronously-known user so an already-signed-in session goes
     // straight to the shell without a splash flash. A null user stays "unknown"
     // (splash) until the stream resolves it to Unauthenticated.
+    // Seed from the synchronously-known user via the shared policy so an
+    // already-signed-in (or pending-verification) session skips the splash
+    // flash. A null user stays "unknown" (splash) until the stream resolves it.
     final seeded = _auth!.currentUser;
     return StreamBuilder<AuthState>(
       stream: _states,
-      initialData: seeded == null ? const AuthUnknown() : Authenticated(seeded),
+      initialData:
+          seeded == null ? const AuthUnknown() : resolveAuthState(seeded),
       builder: (context, snapshot) {
         final state = snapshot.data;
         return switch (state) {
           Authenticated() => const HomeShell(),
+          AwaitingEmailVerification(:final email) =>
+            VerifyEmailPage(email: email),
           Unauthenticated() => const AuthPage(),
           AuthUnknown() || null => const SplashScreen(),
         };

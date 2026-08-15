@@ -1,6 +1,7 @@
 import 'auth_result.dart';
 import 'auth_state.dart';
 import 'auth_user.dart';
+import 'otp_result.dart';
 
 /// The seam between the app and whatever authentication backend it uses.
 ///
@@ -33,6 +34,18 @@ abstract interface class AuthRepository {
   Future<AuthResult> signInWithGoogle();
 
   Future<AuthResult> signInWithApple();
+
+  /// Requests a fresh 6-digit verification code be emailed to the currently
+  /// signed-in (but unverified) email/password user. Safe to call on entering
+  /// the verify screen: if a valid code was just sent, the backend reports a
+  /// cooldown instead of sending again. All generation, hashing, expiry and
+  /// rate-limiting happen server-side.
+  Future<OtpSendResult> sendEmailOtp();
+
+  /// Submits [code] for server-side verification. On success the backend marks
+  /// the email verified and this refreshes the session so the auth stream
+  /// advances past [AwaitingEmailVerification].
+  Future<OtpVerifyResult> verifyEmailOtp(String code);
 
   /// Signs the user out of this app (and any linked provider session so the
   /// account picker reappears next time).

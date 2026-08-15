@@ -26,6 +26,13 @@ void main() {
     expect(find.text('Sign in with Apple'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
 
+    // AwaitingEmailVerification → the OTP verify screen (not the shell).
+    auth.emit(const AwaitingEmailVerification('ziad@example.com'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Verify your email'), findsOneWidget);
+    expect(find.text('Morning, Ziad'), findsNothing);
+
     // Authenticated → app shell (Today).
     auth.emit(const Authenticated(AuthUser(uid: 'u1')));
     await tester.pump(); // rebuild on the new state

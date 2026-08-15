@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Email OTP records are written and read ONLY by the Cloud Functions
+    // Admin SDK (which bypasses these rules). No client may ever read the
+    // hashes, salts, or attempt counters — deny everything here.
+    match /emailOtps/{uid} {
+      allow read, write: if false;
+    }
+
+    // Nothing else is exposed to clients yet. Feature data is still in-memory;
+    // add per-collection owner rules (request.auth.uid == uid) when Firestore
+    // persistence lands.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

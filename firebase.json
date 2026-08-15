@@ -1,1 +1,54 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"zivo-63f15","appId":"1:317167114617:android:e4fd2ec7f3ae385855f7a8","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"zivo-63f15","appId":"1:317167114617:ios:fb766e1151cf147755f7a8","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"zivo-63f15","appId":"1:317167114617:ios:48a44af3d8eaa12455f7a8","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"zivo-63f15","configurations":{"android":"1:317167114617:android:e4fd2ec7f3ae385855f7a8","ios":"1:317167114617:ios:fb766e1151cf147755f7a8","macos":"1:317167114617:ios:48a44af3d8eaa12455f7a8","web":"1:317167114617:web:24b44974e4e2e76a55f7a8","windows":"1:317167114617:web:3efdca8d61eaaccb55f7a8"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "zivo-63f15",
+          "appId": "1:317167114617:android:e4fd2ec7f3ae385855f7a8",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "zivo-63f15",
+          "appId": "1:317167114617:ios:fb766e1151cf147755f7a8",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "zivo-63f15",
+          "appId": "1:317167114617:ios:48a44af3d8eaa12455f7a8",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "zivo-63f15",
+          "configurations": {
+            "android": "1:317167114617:android:e4fd2ec7f3ae385855f7a8",
+            "ios": "1:317167114617:ios:fb766e1151cf147755f7a8",
+            "macos": "1:317167114617:ios:48a44af3d8eaa12455f7a8",
+            "web": "1:317167114617:web:24b44974e4e2e76a55f7a8",
+            "windows": "1:317167114617:web:3efdca8d61eaaccb55f7a8"
+          }
+        }
+      }
+    }
+  }
+}

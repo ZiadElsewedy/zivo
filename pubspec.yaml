@@ -41,6 +41,7 @@ dependencies:
   # No Firestore/Auth/Storage yet; the repository layer is still in-memory.
   firebase_core: ^4.1.1
   firebase_auth: ^6.5.7
+  cloud_functions: ^6.0.3
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
