@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zivo/app/app.dart';
+import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -49,6 +50,7 @@ void main() {
         workouts: InMemoryWorkoutRepository(),
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
+        ai: FakeAiRepository(),
       ),
     );
     await tester.pumpAndSettle(); // profile stream resolves, then RiseIn timers

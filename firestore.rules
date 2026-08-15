@@ -118,8 +118,33 @@ service cloud.firestore {
         && request.resource.data.schemaVersion is int;
     }
 
+    // AI conversations: the user owns their chat threads. Client-writable
+    // (create/rename); messages under them are server-written only (below).
+    match /users/{userId}/aiConversations/{conversationId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.title is string
+        && request.resource.data.schemaVersion is int;
+    }
+
+    // AI messages: written ONLY by the aiChat Cloud Function (Admin SDK bypasses
+    // rules), so clients may READ their own thread but never write — a client
+    // must not be able to forge an assistant/tool message.
+    match /users/{userId}/aiConversations/{conversationId}/messages/{messageId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // AI usage/audit log: Functions-only, like emailOtps. Owner may read.
+    match /users/{userId}/aiUsage/{usageId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // Nothing else is exposed to clients. All eight feature repositories
-    // (tasks, expenses, schedule, notes, workouts, moments, university, diet) are migrated.
+    // (tasks, expenses, schedule, notes, workouts, moments, university, diet) are migrated,
+    // plus the AI conversation store (aiConversations client-writable; messages/aiUsage
+    // server-only).
     match /{document=**} {
       allow read, write: if false;
     }

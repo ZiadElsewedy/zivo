@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../features/ai/data/fake_ai_repository.dart';
+import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_profile_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
@@ -60,6 +62,7 @@ class ZivoApp extends StatefulWidget {
     this.workouts,
     this.university,
     this.diet,
+    this.ai,
     super.key,
   });
 
@@ -73,6 +76,7 @@ class ZivoApp extends StatefulWidget {
   final WorkoutRepository? workouts;
   final UniversityRepository? university;
   final DietRepository? diet;
+  final AiRepository? ai;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -94,6 +98,7 @@ class _ZivoAppState extends State<ZivoApp> {
   late final UniversityRepository _university =
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
+  late final AiRepository _ai = widget.ai ?? _defaultAi();
 
   TaskRepository _defaultTasks() => _useFirestore
       ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
@@ -127,6 +132,10 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreDietRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryDietRepository();
 
+  // TODO(phase9): swap to FirebaseAiRepository behind USE_FIRESTORE once
+  // the aiChat gateway is deployed.
+  AiRepository _defaultAi() => FakeAiRepository();
+
   @override
   Widget build(BuildContext context) {
     return AppScope(
@@ -140,6 +149,7 @@ class _ZivoAppState extends State<ZivoApp> {
       workouts: _workouts,
       university: _university,
       diet: _diet,
+      ai: _ai,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,

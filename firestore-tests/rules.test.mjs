@@ -6,8 +6,9 @@
 //
 // Covers PLAN §10/§20/§28: deny-by-default, per-user ownership isolation,
 // per-collection field validation, and the Functions-only emailOtps lockout —
-// for all nine persisted collections (across eight feature repositories) plus the
-// user profile doc.
+// for all ten persisted collections (across eight feature repositories) plus the
+// user profile doc, plus the AI conversation store (ADR-001): client-writable
+// `aiConversations`, and server-only `messages`/`aiUsage`.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +39,7 @@ const valid = {
   universityItems: { title: 'U', type: 'assignment', done: false, schemaVersion: 1 },
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
+  aiConversations: { title: 'Chat', schemaVersion: 1 },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -51,6 +53,7 @@ const invalid = {
   universityItems: { title: 'U', type: 'assignment', done: 'yes', schemaVersion: 1 }, // done not a bool
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
+  aiConversations: { title: 123, schemaVersion: 1 }, // title not a string
 };
 
 const collections = Object.keys(valid);
@@ -148,6 +151,38 @@ for (const coll of collections) {
     });
   });
 }
+
+describe('AI messages are Functions-only (owner may read, no client may write)', () => {
+  const messagesPath = `users/${OWNER}/aiConversations/c1/messages/m1`;
+  const message = { role: 'assistant', content: 'hi', createdAt: ts(), schemaVersion: 1 };
+
+  it('owner can read a seeded message but cannot write one', async () => {
+    await seed(messagesPath, message);
+    await assertSucceeds(getDoc(doc(ownerDb(), messagesPath)));
+    await assertFails(setDoc(doc(ownerDb(), messagesPath), message));
+  });
+
+  it('a different signed-in user cannot read it', async () => {
+    await seed(messagesPath, message);
+    await assertFails(getDoc(doc(otherDb(), messagesPath)));
+  });
+});
+
+describe('aiUsage is Functions-only (owner may read, no client may write)', () => {
+  const usagePath = `users/${OWNER}/aiUsage/u1`;
+  const usage = { tokensIn: 10, tokensOut: 20, schemaVersion: 1 };
+
+  it('owner can read a seeded usage doc but cannot write one', async () => {
+    await seed(usagePath, usage);
+    await assertSucceeds(getDoc(doc(ownerDb(), usagePath)));
+    await assertFails(setDoc(doc(ownerDb(), usagePath), usage));
+  });
+
+  it('a different signed-in user cannot read it', async () => {
+    await seed(usagePath, usage);
+    await assertFails(getDoc(doc(otherDb(), usagePath)));
+  });
+});
 
 describe('tasks update path (mirrors setDone)', () => {
   it('owner can flip done on an existing valid doc; non-owner cannot', async () => {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
+import '../../ai/presentation/pages/ask_page.dart';
 import '../../auth/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
@@ -16,7 +17,6 @@ import '../../tasks/presentation/pages/task_capture_page.dart';
 import '../../university/presentation/pages/university_capture_page.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
-import 'widgets/coming_soon.dart';
 import 'widgets/zivo_bottom_bar.dart';
 
 /// The root command surface: four tabs, a global Quick Capture action, and
@@ -35,7 +35,7 @@ class _HomeShellState extends State<HomeShell> {
   static const _tabs = [
     TodayPage(),
     HubPage(),
-    ComingSoon('Ask'),
+    AskPage(),
     ProfilePage(),
   ];
 

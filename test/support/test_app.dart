@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/profile_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -32,6 +33,7 @@ Widget wrapWithScope(
     workouts: InMemoryWorkoutRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
+    ai: FakeAiRepository(),
     child: MaterialApp(home: child),
   );
 }

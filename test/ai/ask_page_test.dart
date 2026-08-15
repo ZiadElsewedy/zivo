@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
-import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
@@ -16,9 +16,9 @@ import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
 void main() {
-  testWidgets('Diet plan page renders the seeded plan and marks a meal eaten', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
+  testWidgets('Ask page sends a message and renders the honest canned reply', (tester) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
 
     await tester.pumpWidget(
       AppScope(
@@ -31,25 +31,21 @@ void main() {
         moments: InMemoryMomentRepository(),
         workouts: InMemoryWorkoutRepository(),
         university: InMemoryUniversityRepository(),
-        diet: diet,
-        ai: FakeAiRepository(),
-        child: const MaterialApp(home: DietPlanPage()),
+        diet: InMemoryDietRepository(),
+        ai: ai,
+        child: const MaterialApp(home: AskPage()),
       ),
     );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ask about your day.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'What is due this week?');
     await tester.pump();
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
 
-    // Seeded meals and items render.
-    expect(find.text('Breakfast'), findsOneWidget);
-    expect(find.text('Lunch'), findsOneWidget);
-    expect(find.text('Dinner'), findsOneWidget);
-    expect(find.text('Rice'), findsOneWidget);
-    expect(find.text('Chicken breast'), findsOneWidget);
-
-    // Tapping the Lunch card marks it eaten reactively.
-    await tester.tap(find.text('Lunch'));
-    await tester.pump();
-
-    final consumed = await diet.watchConsumed(DateTime.now()).first;
-    expect(consumed, contains('seed-meal-lunch'));
+    expect(find.text('What is due this week?'), findsOneWidget);
+    expect(find.text(kFakeAiReply), findsOneWidget);
   });
 }
