@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../domain/password_policy.dart';
 import 'auth_action_button.dart';
 
 /// Email + password inputs with a submit button. Owns its text controllers and
 /// light client-side validation (non-empty email with an `@`, password ≥ 6);
 /// the trust-boundary validation stays server-side. In sign-up mode it also
-/// offers an optional name.
+/// offers an optional name, enforces [PasswordPolicy] with a live checklist,
+/// and requires a matching confirm-password field.
 class EmailAuthForm extends StatefulWidget {
   const EmailAuthForm({
     required this.isSignUp,
@@ -39,6 +41,7 @@ class EmailAuthForm extends StatefulWidget {
 class _EmailAuthFormState extends State<EmailAuthForm> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
   final _name = TextEditingController();
   bool _canSubmit = false;
 
@@ -47,13 +50,22 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
     super.initState();
     _email.addListener(_recompute);
     _password.addListener(_recompute);
+    _confirmPassword.addListener(_recompute);
   }
 
   void _recompute() {
     final email = _email.text.trim();
-    final valid = email.contains('@') &&
-        email.contains('.') &&
-        _password.text.length >= 6;
+    final validEmail = email.contains('@') && email.contains('.');
+    if (widget.isSignUp) {
+      // Rebuild unconditionally: the live requirement checklist needs to
+      // update on every keystroke, not just when submittability flips.
+      final valid = validEmail &&
+          PasswordPolicy.isSatisfiedBy(_password.text) &&
+          _confirmPassword.text == _password.text;
+      setState(() => _canSubmit = valid);
+      return;
+    }
+    final valid = validEmail && _password.text.length >= 6;
     if (valid != _canSubmit) setState(() => _canSubmit = valid);
   }
 
@@ -71,6 +83,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _confirmPassword.dispose();
     _name.dispose();
     super.dispose();
   }
@@ -104,9 +117,28 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           icon: Icons.lock_outline_rounded,
           enabled: widget.enabled,
           obscureText: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _submit(),
+          textInputAction:
+              widget.isSignUp ? TextInputAction.next : TextInputAction.done,
+          onSubmitted: widget.isSignUp ? null : (_) => _submit(),
         ),
+        if (widget.isSignUp) ...[
+          const SizedBox(height: 10),
+          _PasswordChecklist(password: _password.text),
+          const SizedBox(height: 10),
+          _Field(
+            controller: _confirmPassword,
+            hint: 'Confirm password',
+            icon: Icons.lock_outline_rounded,
+            enabled: widget.enabled,
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+          ),
+          if (_confirmPassword.text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _MatchHint(matches: _confirmPassword.text == _password.text),
+          ],
+        ],
         const SizedBox(height: 16),
         AuthActionButton(
           label: widget.isSignUp ? 'Create account' : 'Sign in',
@@ -116,6 +148,80 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           loading: widget.submitting,
           enabled: widget.enabled && _canSubmit,
           onTap: _submit,
+        ),
+      ],
+    );
+  }
+}
+
+/// Live per-rule feedback for [PasswordPolicy], rendered under the password
+/// field during sign-up so the user knows exactly what's missing.
+class _PasswordChecklist extends StatelessWidget {
+  const _PasswordChecklist({required this.password});
+
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final rule in PasswordPolicy.rules)
+          _ChecklistRow(
+            label: rule.label,
+            met: rule.isSatisfiedBy(password),
+          ),
+      ],
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow({required this.label, required this.met});
+
+  final String label;
+  final bool met;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = met ? AppColors.pulseText : AppColors.ink3;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle_rounded : Icons.circle_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Text(label, style: AppText.meta.copyWith(color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline feedback on whether the confirm-password field matches [_password].
+class _MatchHint extends StatelessWidget {
+  const _MatchHint({required this.matches});
+
+  final bool matches;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = matches ? AppColors.pulseText : AppColors.flareText;
+    return Row(
+      children: [
+        Icon(
+          matches ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          matches ? 'Passwords match' : "Passwords don't match",
+          style: AppText.meta.copyWith(color: color),
         ),
       ],
     );

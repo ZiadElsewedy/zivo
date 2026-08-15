@@ -30,7 +30,8 @@ void main() {
     await tester.tap(find.byType(TextButton)); // "New to ZIVO? Create account"
     await tester.pumpAndSettle();
     expect(find.text('Create account'), findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(3)); // + optional name
+    // name + email + password + confirm password
+    expect(find.byType(TextField), findsNWidgets(4));
   });
 
   testWidgets('email sign-in failure surfaces the error message',
