@@ -6,9 +6,10 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-15 (after extending the **Authentication**
-> milestone on `feature/authentication` with strong-password validation, iOS-only Apple
-> Sign-In, OTP error-classification fixes, and a Firestore-backed profile-completion step).
+> **Last verified against the codebase:** 2026-08-15 (after completing the **Firestore
+> persistence** milestone on `feature/firestore-persistence` — all six feature repositories
+> migrated from in-memory to Firestore behind their existing interfaces, scoped by the auth
+> `uid`. The Authentication milestone that preceded it is merged into `main`).
 
 ---
 
@@ -16,67 +17,82 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/authentication`.
+> without redoing completed work. Active development is on `feature/firestore-persistence`.
 
-- **Status:** Authentication milestone **feature-complete** on `feature/authentication`
-  (5 new commits beyond the earlier merge). Not yet re-merged into `main`. No work in
-  progress.
-- **Branch:** `feature/authentication` is checked out and active. All branches are **local
-  only — nothing has been pushed to origin.**
-- **Latest commits on `feature/authentication`** (newest first; run `git log --oneline -8`
+- **Status:** **Firestore persistence** milestone **COMPLETE** on
+  `feature/firestore-persistence` (6 new commits beyond `main`). All six feature repositories
+  (Tasks, Expenses, Schedule, Notes, Workout, Moments) are migrated from in-memory to
+  Firestore behind their existing interfaces, scoped by the auth `uid`. Not yet merged into
+  `main`. No work in progress.
+- **Branch:** `feature/firestore-persistence` is checked out and active (branched off `main`
+  after the Authentication milestone was merged there). All branches are **local only —
+  nothing has been pushed to origin.**
+- **Commits on `feature/firestore-persistence`** (newest first; run `git log --oneline -7`
   for exact HEAD):
-  - `766790d` feat(auth): real profile-completion form (name + date of birth)
-  - `2681c0e` feat(auth): add profile persistence and a profile-completion state
-  - `edf0ea4` feat(auth): show Sign in with Apple on iOS only
-  - `03efa5b` feat(auth): enforce a strong password policy on sign-up
-  - `af35060` fix(auth): stop blaming the network for backend OTP failures
-  - (prior) `875d726` feat(functions): Firebase functions config + deps.
-- **Completed this pass (the auth milestone requirements):**
-  - **OTP error classification** — backend/email-delivery failures (Cloud Function
-    `internal`, e.g. Resend) no longer masquerade as "check your connection"; only genuine
-    transport failures (`unavailable`/`deadline-exceeded`) mention the network. New
-    `AuthFailureKind.emailDeliveryFailed`. Verify button gated on exactly 6 digits.
-  - **Strong password policy** — sign-up requires ≥8 chars + upper + lower + number, plus a
-    confirm-password field, live per-rule checklist, and a match hint (pure
-    `PasswordPolicy` in domain). Sign-in intentionally unchanged.
-  - **Apple Sign-In iOS-only** — gated on `!kIsWeb && defaultTargetPlatform == iOS`; Android
-    and other platforms never render it.
-  - **Profile completion** — new `ProfileCompletionRequired` state + pure
-    `resolveSessionState`; `UserProfile` (name + **date of birth**, stored as a `DateTime`,
-    NOT a computed age) persisted at Firestore `users/{uid}` via `ProfileRepository` /
-    `FirestoreProfileRepository`. The gate's stateful `_ProfileGate` pins the profile stream
-    per uid and routes verified-but-incomplete users to the ZIVO-styled completion form
-    (name prefilled from the provider/display name — users only fill what's missing —
-    plus a min-age-13 DOB picker). Owner-only Firestore rule for `users/{uid}` **deployed**
-    to `zivo-63f15`.
-  - **State machine (clean, ordered):** unauthenticated → email-verification-required →
-    profile-completion-required → authenticated/ready. Firebase Auth remains the sole
-    session source of truth; no custom session/token system added.
+  - `0202c1f` feat(persistence): Firestore-back the Moments repository
+  - `240d1f7` feat(persistence): Firestore-back the Workout repository
+  - `b665109` feat(persistence): Firestore-back the Notes repository
+  - `8b36b57` feat(persistence): Firestore-back the Schedule repository
+  - `83ccc3b` feat(persistence): Firestore-back the Expenses repository
+  - `0a8381f` feat(persistence): Firestore-back the Tasks repository (proof-of-slice)
+- **Completed this milestone (the Firestore persistence requirements):**
+  - **Six Firestore repositories** — `Firestore{Task,Expense,Schedule,Note,Workout,Moment}
+    Repository`, each behind its UNCHANGED `abstract interface class` (interfaces + domain
+    entities untouched). The Firestore SDK is confined to the `data/` layer — zero
+    `cloud_firestore` imports in any `domain/` or `presentation/` file. Data lives under
+    `users/{uid}/<collection>/{docId}`; every doc carries `schemaVersion: 1` and
+    `createdAt`/`updatedAt`, timestamps stored UTC, money as integer minor units, doc-id
+    writes idempotent.
+  - **The `UidSource` seam** (`lib/core/firebase/uid_source.dart`) — repos are built once at
+    app root before sign-in, so they resolve the signed-in `uid` from an injected source
+    (`UidSource.firebaseAuth()` in `app.dart`); `watchAll()` re-scopes on auth change
+    (sign-out → empty list) and is testable with a plain `() => uid` + stream, NO
+    FirebaseAuth mock.
+  - **Wiring & fallback** — `app.dart` defaults every feature repo to its Firestore impl
+    behind a single `--dart-define USE_FIRESTORE` flag (default true; false → in-memory for
+    offline/dev). The `InMemory*` repos are KEPT as the test/fallback impls.
+  - **Security rules** — explicit owner-only per-collection rules with field validation for
+    all six subcollections (rules do NOT cascade from `/users/{uid}`, so each is explicit),
+    plus the deny-by-default catch-all. **Deployed** to `zivo-63f15`.
+  - **Tests** — one `firestore_*_repository_test.dart` per feature via `fake_cloud_firestore`
+    (a test-only dev dependency added this milestone), covering field mapping, ordering,
+    per-feature wrinkles (enum round-trip, embedded exercises, domain-`updatedAt`/`takenAt`,
+    nullable fields), and signed-out empty/guard. The boot widget test injects in-memory
+    repos for all six so it stays Firebase-free. `analysis_options.yaml` now excludes
+    `build/**` so vendored Firebase SPM sources don't pollute `flutter analyze`.
+- **Per-feature notes (deliberate, documented):** Expenses' `category` enum ↔ `.name` string
+  with a safe fallback to `other`; Notes' `updatedAt` and Moments' `takenAt` are DOMAIN
+  fields (written via `Timestamp.fromDate`, mapped back — not server-stamped); Workout
+  EMBEDS its `List<Exercise>` as an array (a documented deviation from PLAN §7's aspirational
+  `workoutSessions`/`sets` subcollection — the domain has no set-level logging); Moments'
+  `imagePath` is persisted as a device-local path STRING only — **no Firebase Storage, no
+  photo bytes** (real cross-device photos are the deferred V1.5 Storage milestone).
 - **In progress:** nothing.
-- **Last completed action:** deployed `firestore.rules` (owner-only `users/{uid}`) via
-  `firebase deploy --only firestore:rules --project zivo-63f15` (compiled + released), and
-  updated this handoff.
-- **Exact next action:** verify the three providers end-to-end (still requires the manual
-  Firebase-Console / Apple-Developer enablement in §13, unchanged), then review/merge
-  `feature/authentication` into `main` by decision. After auth is merged, the next
-  milestone is **Firestore persistence for the six feature repositories, keyed by the auth
-  `uid`** (§10.2) — the `users/{uid}` profile store is the first Firestore usage and the
-  template for it. Push branches to origin only when the user asks.
-- **Files currently being modified:** none (working tree has only pre-existing unrelated
-  `functions/` + `ios/Podfile.lock` edits, untouched by this pass).
-- **Verification status:** `flutter analyze` clean; `flutter test` → **63 pass** (was 24).
-  Real provider sign-in still NOT verified end-to-end (needs Console/Apple-Developer
-  enablement). Firestore rules deployed; profile read/write not yet exercised against the
-  live backend on a device.
-- **Blockers:** none active. The OTP sender is still `onboarding@resend.dev`
-  (`functions/index.js`); real code delivery needs a verified Resend domain — until then
-  users correctly see "We couldn't send your code right now. Please try again in a moment."
-- **Manual user action:** (1) enable the three Auth providers in the Firebase Console +
-  Apple Developer config, then test real sign-in; (2) verify a Resend sender domain so OTP
-  emails actually send; (3) push branches to origin if/when desired.
-- **Do not redo:** don't rebuild the auth layer, re-derive the state machine, re-deploy the
-  same Firestore rules, or re-run the completed tasks above. Don't migrate the six feature
-  repositories to Firestore yet — that's the next milestone, after auth is merged.
+- **Last completed action:** deployed `firestore.rules` (all six subcollection rules + the
+  existing profile/emailOtps/deny-all rules) via `firebase deploy --only firestore:rules
+  --project zivo-63f15`, and updated this handoff.
+- **Exact next action:** review and **merge `feature/firestore-persistence` into `main` by
+  decision** (not automatic). After that, the next candidate milestones are the AI assistant
+  ("Ask"), the University feature (the last unbuilt life-area module), or the Firebase
+  Storage surface (V1.5 — which also unlocks real Moments photos). Push branches to origin
+  only when the user asks.
+- **Files currently being modified:** none (working tree clean).
+- **Verification status:** `flutter analyze` clean; `flutter test` → **93 pass** (was 63 at
+  milestone start). Firestore rules deployed. The repos build and are wired, but real
+  read/write against the live backend on a device is **not yet exercised** — it still
+  depends on the same manual Auth-provider enablement the auth milestone flagged (see §7/§13),
+  since data access requires a signed-in `uid`.
+- **Blockers:** none active. (Unchanged from before: the OTP sender is still
+  `onboarding@resend.dev` in `functions/index.js`; real email-code delivery needs a verified
+  Resend domain.)
+- **Manual user action:** (1) enable the three Auth providers in the Firebase Console + Apple
+  Developer config, then test real sign-in AND live Firestore read/write on a device; (2)
+  verify a Resend sender domain so OTP emails actually send; (3) review/merge
+  `feature/firestore-persistence` into `main`; (4) push branches to origin if/when desired.
+- **Do not redo:** don't re-migrate any of the six repositories, don't change the repository
+  interfaces or domain entities, don't re-derive the `UidSource` seam, and don't re-deploy
+  the same Firestore rules. Don't build Firebase Storage / Moments photo upload — that's a
+  deliberately deferred milestone.
 
 ---
 
@@ -113,8 +129,8 @@ not five destinations.
 | Dependency injection | **`AppScope` `InheritedWidget`** holding repositories. No `get_it`. |
 | Navigation | **`IndexedStack`** in `HomeShell` + `Navigator.push` `MaterialPageRoute` for captures/detail. No `go_router`. |
 | Auth | **Real Firebase Authentication** (Apple, Google, Email/Password) behind an `AuthRepository` seam. `AuthGate` gates the app on `watchAuthState()`. Signed-in `uid` is the app's canonical user identity. See §7. |
-| Persistence | **Feature data is still in-memory and resets on restart** (the six feature repositories). The auth **session** persists via Firebase, and the **user profile** (name + date of birth) now persists in **Firestore `users/{uid}`** — the first real data persistence in the app. No local DB; no feature-data Firestore yet. |
-| Firebase | **`firebase_core` + `firebase_auth` + `cloud_functions` + `cloud_firestore`.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`, full FlutterFire output). iOS + Android apps registered in `zivo-63f15` for bundle **`com.ziadelsewedy.zivo`**. Cloud Functions back the email-OTP flow; Firestore backs the OTP records (Functions-only) and user profiles (`users/{uid}`, owner-only rule deployed). No Storage; no feature-data Firestore yet. |
+| Persistence | **All six feature repositories now persist to Firestore** under `users/{uid}/<collection>` (Tasks, Expenses, Schedule, Notes, Workout, Moments), scoped by the signed-in `uid`, behind their unchanged interfaces. The auth **session** persists via Firebase Auth and the **user profile** via Firestore `users/{uid}`. The `InMemory*` repos are retained as a `--dart-define USE_FIRESTORE=false` fallback and for tests. No local DB. Moments photos are **not** persisted yet (Storage is deferred — see §7). |
+| Firebase | **`firebase_core` + `firebase_auth` + `cloud_functions` + `cloud_firestore`.** Initialized in `main.dart` via `DefaultFirebaseOptions` (`lib/firebase_options.dart`, full FlutterFire output). iOS + Android apps registered in `zivo-63f15` for bundle **`com.ziadelsewedy.zivo`**. Cloud Functions back the email-OTP flow; **Firestore now backs the OTP records (Functions-only), user profiles (`users/{uid}`), and all six feature collections (`users/{uid}/{tasks,expenses,schedule,notes,workouts,moments}`)** — owner-only rules for all deployed. No Storage yet. |
 | Fonts | `google_fonts`: **Bricolage Grotesque** (display) + **Hanken Grotesk** (text). |
 | Other deps | `image_picker ^1.2.3` (Moments photos), `firebase_core ^4.1.1`, `firebase_auth ^6.5.7`, `cloud_functions ^6.0.3`, `cloud_firestore ^6.0.0`, `google_sign_in ^7.2.0`, `sign_in_with_apple ^8.1.0`, `crypto ^3.0.7`, `cupertino_icons`. |
 | Lints | `flutter_lints ^6.0.0` via `analysis_options.yaml` (default rule set). |
@@ -205,12 +221,12 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 | Feature | Status | Notes |
 |---|---|---|
 | **Home / Today** | 🟡 | Live sections + some demo. See breakdown below. |
-| **Expenses** | ✅ | Capture (custom keypad + category chips); feeds Today "Spending". In-memory. |
-| **Tasks** | ✅ | Quick-create; toggle done; feeds Today "Today/Focus" list. In-memory. |
-| **Schedule / Event** | ✅ | Event capture; feeds Today "Now · Next" reactively. In-memory. |
-| **Notes** | ✅ | Capture + list; reachable via Hub. In-memory. |
-| **Moments** | ✅ | Capture (optional photo via `image_picker`) + timeline; via Hub. In-memory. |
-| **Workout** | ✅ | Capture (name + add-exercise sheet) + history; via Hub. In-memory. **Most recent feature.** |
+| **Expenses** | ✅ | Capture (custom keypad + category chips); feeds Today "Spending". **Firestore** (`users/{uid}/expenses`). |
+| **Tasks** | ✅ | Quick-create; toggle done; feeds Today "Today/Focus" list. **Firestore** (`users/{uid}/tasks`). |
+| **Schedule / Event** | ✅ | Event capture; feeds Today "Now · Next" reactively. **Firestore** (`users/{uid}/schedule`). |
+| **Notes** | ✅ | Capture + list; reachable via Hub. **Firestore** (`users/{uid}/notes`). |
+| **Moments** | ✅ | Capture (optional photo via `image_picker`) + timeline; via Hub. **Firestore** (`users/{uid}/moments`) — caption/time/location only; photo path is device-local (Storage deferred). |
+| **Workout** | ✅ | Capture (name + add-exercise sheet) + history; via Hub. **Firestore** (`users/{uid}/workouts`, exercises embedded). |
 | **Hub (launcher)** | ✅ | Grid of modules. Live tiles: Notes, Moments, Workout. "Soon" tiles: Schedule, Tasks, Expenses, University. |
 | **Quick Capture** | ✅ | Bottom sheet → 6 choices: Expense, Task, Event, Note, Moment, Workout. |
 | **University** | ⛔ | Not built. "Soon" tile only; one demo deadline hardcoded into Today's focus. |
@@ -232,42 +248,61 @@ Legend: ✅ built & wired · 🟡 partial/demo · ⛔ placeholder only.
 
 ## 6. Current repository / data architecture
 
-Six repositories, **all in-memory**, provided through `AppScope`:
+Six repositories, provided through `AppScope`. Each has **two** implementations behind one
+`abstract interface class`: a `Firestore*` impl (the runtime default) and an `InMemory*` impl
+(the `--dart-define USE_FIRESTORE=false` fallback and the test double). `app.dart` selects
+between them; nothing above the `data/` layer knows which is live.
 
-| Repository | Interface | In-memory impl | Extra mutators |
-|---|---|---|---|
-| `ExpenseRepository` | expenses/domain | `InMemoryExpenseRepository` | — |
-| `TaskRepository` | tasks/domain | `InMemoryTaskRepository` | `setDone(id, done)` |
-| `ScheduleRepository` | schedule/domain | `InMemoryScheduleRepository` | + free fn `nextRelevant()` |
-| `NoteRepository` | notes/domain | `InMemoryNoteRepository` | — |
-| `MomentRepository` | moments/domain | `InMemoryMomentRepository` | — |
-| `WorkoutRepository` | workout/domain | `InMemoryWorkoutRepository` | — |
+| Repository | Interface | Firestore impl (default) | In-memory impl (fallback/tests) | Extra mutators |
+|---|---|---|---|---|
+| `ExpenseRepository` | expenses/domain | `FirestoreExpenseRepository` | `InMemoryExpenseRepository` | — |
+| `TaskRepository` | tasks/domain | `FirestoreTaskRepository` | `InMemoryTaskRepository` | `setDone(id, done)` |
+| `ScheduleRepository` | schedule/domain | `FirestoreScheduleRepository` | `InMemoryScheduleRepository` | + free fn `nextRelevant()` |
+| `NoteRepository` | notes/domain | `FirestoreNoteRepository` | `InMemoryNoteRepository` | — |
+| `MomentRepository` | moments/domain | `FirestoreMomentRepository` | `InMemoryMomentRepository` | — |
+| `WorkoutRepository` | workout/domain | `FirestoreWorkoutRepository` | `InMemoryWorkoutRepository` | — |
 
-Each is seeded with demo content and stores newest-first (schedule sorts by start time
-via `nextRelevant`). All share the `current` / `watchAll()` / `add()` shape.
+The Firestore impls store under `users/{uid}/<collection>` (ordered newest-first, except
+schedule which orders by `start` ascending), resolve the `uid` via the shared `UidSource`
+seam (`lib/core/firebase/uid_source.dart`), and re-scope `watchAll()` on auth change. The
+`InMemory*` impls seed demo content. Both share the `current` / `watchAll()` / `add()` shape.
 
 ---
 
 ## 7. Backend / persistence status
 
-**Firebase Core + Auth are wired; there is still no *data* persistence.** On launch the
-app calls `Firebase.initializeApp()` (with `DefaultFirebaseOptions.currentPlatform`) and
-connects to the **`zivo-63f15`** project, then `AuthGate` gates the UI on
-`AuthRepository.watchAuthState()`. **Firebase Auth is the entire cloud *usage* so far** —
-it persists the auth **session** (a signed-in user survives an app restart) but stores no
-feature/domain data.
+**Firebase Core + Auth + Firestore are wired, and all six feature repositories now
+persist to Firestore.** On launch the app calls `Firebase.initializeApp()` (with
+`DefaultFirebaseOptions.currentPlatform`) and connects to the **`zivo-63f15`** project, then
+`AuthGate` gates the UI on `AuthRepository.watchAuthState()`. Firebase Auth persists the
+**session**, and Firestore persists the **user profile** (`users/{uid}`) and **all feature
+data** (`users/{uid}/{tasks,expenses,schedule,notes,workouts,moments}`), scoped by the
+signed-in `uid`.
 
 **Authentication (implemented):** three providers behind the `AuthRepository` seam —
 **Sign in with Apple** (native, SHA-256 nonce), **Sign in with Google**
 (`google_sign_in` 7.x), and **Email/Password** (normal Firebase email/password; Gmail
 addresses are ordinary email/password accounts, *not* a separate provider). The signed-in
-`uid` is the app's canonical user identity — the key the future Firestore layer will scope
-data by. See `lib/features/auth/`.
+`uid` is the app's canonical user identity — the key the Firestore layer scopes data by. See
+`lib/features/auth/`.
 
-**Still NOT implemented:** Firestore, Storage, Cloud Functions, and any migration of the
-six feature repositories to a real backend. **All feature data still lives in memory and
-is lost on app restart** — seed data reappears each launch. No feature repository has
-changed; the in-memory implementations remain the only ones.
+**Firestore persistence (implemented — the completed milestone):** each feature repository
+has a `Firestore*` implementation behind its unchanged interface, storing under
+`users/{uid}/<collection>`. Every doc carries `schemaVersion: 1` + `createdAt`/`updatedAt`;
+timestamps are UTC, money is integer minor units, writes are idempotent (doc id = entity id).
+The Firestore SDK is confined to `data/` — no `cloud_firestore` import appears in any
+`domain/` or `presentation/` file. Repos resolve the `uid` from the shared `UidSource` seam
+(`lib/core/firebase/uid_source.dart`) and re-scope on auth change. **Owner-only security
+rules with field validation for all six subcollections are deployed to `zivo-63f15`**
+(`firestore.rules`; rules do not cascade from `/users/{uid}`, so each is explicit, plus a
+deny-by-default catch-all). The `InMemory*` impls are retained as a `--dart-define
+USE_FIRESTORE=false` fallback and the test doubles. See `lib/features/*/data/firestore_*_repository.dart`.
+
+**Still NOT implemented:** Firebase **Storage** and any photo/file upload — Moments'
+`imagePath` is persisted only as a device-local path string, so photos do not survive across
+devices/reinstalls yet (deliberately deferred to the V1.5 Storage milestone per PLAN §26).
+No rollup/aggregation Cloud Functions, no AI, no University feature. The DI/nav/state
+foundation is unchanged (still `AppScope` + `StreamBuilder`; no `get_it`/`go_router`/Cubit).
 
 **Provider setup that is code-complete but not yet verified end-to-end (manual,
 non-headless steps):** enabling **Email/Password**, **Google**, and **Apple** providers in
@@ -320,8 +355,10 @@ are done and tested on a device/simulator, **no provider is claimed to sign in e
 
 ## 9. Known issues and technical debt
 
-1. **No persistence** (see §7) — the single biggest gap; everything resets on restart.
-2. **`dispose()` on in-memory repos is never called.** `ZivoApp` (a `StatefulWidget`)
+1. **~~No persistence~~ — RESOLVED.** All six feature repositories now persist to Firestore
+   (see §7). Remaining persistence gap: **Moments photos** (only the device-local path is
+   stored; real photo storage awaits the deferred V1.5 Firebase Storage milestone).
+2. **`dispose()` on the repos is never called.** `ZivoApp` (a `StatefulWidget`)
    holds the repos for the whole app lifetime but never disposes their
    `StreamController`s. Benign today (app-lifetime singletons) but real debt once repos
    gain resources.
@@ -343,46 +380,67 @@ are done and tested on a device/simulator, **no provider is claimed to sign in e
 
 ## 10. Current roadmap
 
-The proven pattern is: **finish the feature verticals in-memory, then introduce the real
-backend.** Remaining, roughly in order:
+The proven pattern was: **finish the feature verticals in-memory, then introduce the real
+backend** — both now done (auth + Firestore persistence). Remaining, roughly in order:
 
-1. **University** — the last unbuilt life-area module (currently a "soon" Hub tile and one
-   hardcoded Today deadline). Build it as a vertical slice like the others.
-2. **Foundation / persistence** — replace in-memory repos with a real backend behind the
-   existing interfaces (Firebase/Firestore per `docs/PLAN.md`), add auth, and (per plan)
-   migrate DI → `get_it`, navigation → `go_router`, state → Cubits **as a deliberate
-   decision**, not incidentally.
+1. ✅ **~~Foundation / persistence (data)~~ — DONE.** All six feature repos migrated to
+   Firestore behind their existing interfaces, scoped by `uid`, rules deployed. (The *rest*
+   of the "foundation" — migrating DI → `get_it`, nav → `go_router`, state → Cubits — remains
+   a separate, deliberate, not-yet-started decision, NOT triggered by this milestone.)
+2. **University** — the last unbuilt life-area module (currently a "soon" Hub tile and one
+   hardcoded Today deadline). Build it as a vertical slice like the others (now directly
+   against Firestore, following the migrated repos as the template).
 3. **AI assistant ("Ask")** and **Profile ("You")** — currently placeholder tabs.
-4. Later (V1.5+ in `docs/PLAN.md`): PDF → workout import, richer AI actions, polish.
-
-> `docs/PLAN.md` is the detailed long-term plan; note it *defers* Moments to V1.5, but
-> Moments is already built — another reason the codebase, not the plan, is authoritative.
+4. **Firebase Storage (V1.5)** — real Moments photos (upload + `storageRef`), which the
+   current metadata-only Moments persistence deliberately deferred.
+5. Later (V1.5+ in `docs/PLAN.md`): PDF → workout import, richer AI actions, polish.
 
 ---
 
 ## 11. Current milestone
 
-**Authentication + clean user-identity foundation** — merged into `main`; still the active
-milestone on `feature/authentication` until real-provider sign-in is verified. The
-**App-identity** milestone (ZIVO "Dark" launcher icon for iOS + Android via
-`flutter_launcher_icons`; brand assets under `assets/`) is complete and merged in alongside
-it. Integration path: `feature/app-identity` → `feature/authentication` → `main` (both
-merges verified: analyze clean, 24 tests, iOS + Android builds).
+**Firestore persistence** — COMPLETE on `feature/firestore-persistence` (6 commits, not yet
+merged into `main`). All six feature repositories (Tasks, Expenses, Schedule, Notes, Workout,
+Moments) migrated from in-memory to Firestore behind their unchanged interfaces, scoped by the
+auth `uid`; owner-only per-collection rules deployed to `zivo-63f15`. Deliberately scoped:
+**no** Firebase Storage/photo upload, no rollup Functions, no AI, no University, and **no**
+change to the DI/nav/state foundation (still `AppScope` + `StreamBuilder`). Each feature was
+landed as its own reviewed commit; verification each step: `flutter analyze` clean +
+`flutter test` green (63 → 93). See §12.
 
-Authentication details: Real Firebase Auth with Apple, Google, and Email/Password behind an
-`AuthRepository` seam, gated by `AuthGate`; the signed-in `uid` is the app's canonical
-identity. Deliberately scoped: **no** Firestore/persistence migration, Storage, Functions,
-AI, or University in this milestone — the six feature repositories stay in-memory. The
-Dart layer, both platform builds, and the launch→sign-in-screen render path are verified;
-real provider sign-in awaits Console/Apple-Developer enablement (§7, §14).
-
-The prior milestone — **feature-completeness of the core life-area modules, in-memory**
-(Expenses, Tasks, Schedule, Notes, Moments, Workout + Today, Hub, Quick Capture) — remains
-done; **University** is still the one unbuilt core life-area module.
+The prior milestone — **Authentication + clean user-identity foundation** (real Firebase Auth:
+Apple iOS-only, Google, Email/Password + email OTP + profile completion behind `AuthGate`; the
+signed-in `uid` is the canonical identity) — is done and **merged into `main`**, alongside the
+**App-identity** milestone (ZIVO "Dark" launcher icon). Real provider sign-in still awaits the
+manual Console/Apple-Developer enablement (§7, §13). **University** remains the one unbuilt
+core life-area module.
 
 ---
 
 ## 12. Last completed work
+
+**Firestore persistence milestone (2026-08-15, branch `feature/firestore-persistence`, off
+`main`).** Six commits, one per feature, each reviewed and verified before the next:
+- `0a8381f` Tasks (proof-of-slice) · `83ccc3b` Expenses · `8b36b57` Schedule · `b665109`
+  Notes · `240d1f7` Workout · `0202c1f` Moments.
+- Each adds a `Firestore<Feature>Repository` at `users/{uid}/<collection>` behind the
+  unchanged interface (Firestore SDK confined to `data/`), wires it as the `app.dart` default
+  behind the `--dart-define USE_FIRESTORE` flag (keeping the `InMemory*` fallback), adds an
+  explicit owner-only security rule with field validation, and a
+  `firestore_*_repository_test.dart` using `fake_cloud_firestore`.
+- Introduced the `UidSource` seam (`lib/core/firebase/uid_source.dart`) so repos built at app
+  root resolve the `uid` from an injected source and re-scope `watchAll()` on auth change,
+  testable without a FirebaseAuth mock. Added `fake_cloud_firestore` (dev dep) and a
+  `build/**` exclude in `analysis_options.yaml`.
+- Per-feature specifics: Expenses enum `category` ↔ `.name` (+ `other` fallback); Notes
+  `updatedAt` / Moments `takenAt` are domain fields (mapped, not server-stamped); Workout
+  embeds its `List<Exercise>` as an array (documented deviation from PLAN §7's sets
+  subcollection); Moments `imagePath` is a device-local string only (no Storage).
+- **Verification:** `flutter analyze` clean; `flutter test` → **93 pass** (was 63); the six
+  security rules **deployed** to `zivo-63f15` via `firebase deploy --only firestore:rules`.
+  Live on-device Firestore read/write not yet exercised (needs a signed-in `uid` → the same
+  manual Auth-provider enablement, §7/§13). Interfaces + domain entities unchanged; no
+  Storage/Functions/AI/foundation changes.
 
 **App-identity milestone (2026-08-15, branch `feature/app-identity`, off `planning-setup`).**
 - Added the ZIVO brand asset set under `assets/` (`app-icon/` full-bleed 1024 squares in
@@ -441,53 +499,50 @@ widgets + iOS photo-library permission.)
 
 ## 13. Exact recommended next step
 
-**Finish verifying the Authentication milestone, then review/merge
-`feature/authentication`** (the branch must be merged separately, by decision — not
-automatically):
+**Review and merge `feature/firestore-persistence` into `main`** (the branch must be merged
+separately, by decision — not automatically). The Firestore persistence milestone is complete
+and verified (analyze clean, 93 tests, rules deployed); the branch is 6 commits ahead of
+`main` and has not been pushed.
 
-1. In the **Firebase Console** (project `zivo-63f15`, Authentication → Sign-in method)
-   enable **Email/Password**, **Google**, and **Apple**.
-2. In the **Apple Developer** portal configure Sign in with Apple (Service ID + key) and
-   add it to the Firebase Apple provider.
-3. For Android Google id-tokens, supply the web `serverClientId` via
-   `--dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>`.
-4. Test each provider end-to-end on a real device/simulator: sign in → app shell,
-   restart → session persists, `ProfilePage` → sign-out → back to `AuthPage`.
-5. Only then merge `feature/authentication`.
+**Then verify live, on a device** (this is the one thing automated tests can't cover, and it
+shares the auth milestone's still-open manual setup):
+1. In the **Firebase Console** (project `zivo-63f15`, Authentication → Sign-in method) enable
+   **Email/Password**, **Google**, and **Apple**; configure Apple in the Apple Developer
+   portal; for Android Google id-tokens pass `--dart-define=GOOGLE_SERVER_CLIENT_ID=<web>`.
+2. Sign in on a device/simulator, then exercise each feature (add a task/expense/event/note/
+   workout/moment), restart the app, and confirm the data **survives** (reads back from
+   Firestore) — and that it is correctly isolated per `uid`.
 
-**After auth is merged — Firestore persistence keyed by the auth `uid`** (§10.2): migrate
-the six feature repositories from in-memory to Firestore *behind their existing
-interfaces*, scoping all data by the signed-in user. This is the natural next milestone and
-the whole reason the auth/identity foundation came first.
+**After the merge, pick the next milestone** (a decision for the user): **University** (the
+last unbuilt life-area module — build it directly against Firestore, using the migrated repos
+as the template), the **AI assistant ("Ask")**, or the **Firebase Storage** surface (V1.5),
+which also unlocks real Moments photos.
 
-> University (the last unbuilt life-area module, in-memory) remains a valid alternative if
-> the goal is more feature-completeness before persistence — a **decision for the user**.
-
-**Do not begin Firestore, University, or any new feature on this branch** — keep
-`feature/authentication` scoped to auth only.
+**Do not** re-migrate any repository, change the repository interfaces/entities, re-deploy the
+same rules, or build Firebase Storage/photo upload on this branch — the persistence milestone
+is done and deliberately scoped.
 
 ---
 
 ## 14. Test / analyze status
 
-As of 2026-08-15 (after the Authentication milestone was extended: password policy,
-Apple-iOS-only, OTP error fixes, profile completion):
+As of 2026-08-15 (after the Firestore persistence milestone — all six feature repos migrated):
 
-- `flutter analyze` → **No issues found.**
-- `flutter test` → **all tests pass (63).** New auth coverage: `password_policy_test`,
-  `email_auth_form_test`, `social_auth_buttons_test`, `user_profile_test`,
-  `session_state_test`, `profile_completion_page_test`, plus expanded `auth_gate_test`
-  (profile-completion routing) and `verify_email_page_test` (OTP error classification).
-- **Android** build (`flutter build apk --debug`) → **succeeds** (google-services.json now
-  present, so the plugin resolves).
-- **iOS** simulator build (`flutter build ios --debug --simulator`) → **succeeds**;
-  `pod install` pulls the firebase_auth/google_sign_in/sign_in_with_apple pods.
-- **Runtime smoke test** (iPhone 17 Pro simulator): app launches on
-  `com.ziadelsewedy.zivo`, Firebase initializes, `AuthGate` → `Unauthenticated` → real
-  `AuthPage` renders all three sign-in options. (Tests do not call `main()`, so they do not
-  initialize Firebase; the auth tests use `FakeAuthRepository`.)
-- **Not covered by automated tests / not verified:** actually completing Apple/Google/email
-  sign-in against the live backend (needs Console + Apple-Developer enablement — §7, §13).
+- `flutter analyze` → **No issues found.** (`analysis_options.yaml` now excludes `build/**` so
+  vendored Firebase iOS/macOS SPM sources don't pollute analysis.)
+- `flutter test` → **all tests pass (93)** (was 63 before this milestone). New coverage: one
+  `firestore_*_repository_test.dart` per feature — `tasks/`, `expenses/`, `schedule/`, `notes/`,
+  `workout/`, `moments/` — each exercising add/field-mapping, ordering, the per-feature wrinkle
+  (enum round-trip, embedded exercises, domain-timestamp round-trip, nullable fields), and the
+  signed-out empty/guard path, all via `fake_cloud_firestore` + a plain injected `UidSource`
+  (no FirebaseAuth mock). The boot `widget_test.dart` now injects in-memory repos for all six
+  features so it stays Firebase-free.
+- **Firestore security rules deployed** to `zivo-63f15` (`firebase deploy --only
+  firestore:rules`): owner-only rules with field validation for all six subcollections.
+- **Not covered by automated tests / not verified:** live on-device Firestore read/write
+  (needs a signed-in `uid` → the same manual Auth-provider enablement, §7/§13). Platform builds
+  (Android APK / iOS simulator) were last verified during the auth milestone and are unaffected
+  by this data-layer-only change.
 
 Test files (`test/`):
 - `widget_test.dart` — app boot (via `test/support/test_app.dart`, authenticated fake).
