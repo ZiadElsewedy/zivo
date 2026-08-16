@@ -355,7 +355,7 @@ const toHttpsError = (err) => {
  */
 exports.aiChat = onCall(
     {secrets: [ANTHROPIC_API_KEY], region: "us-central1"},
-    async (request) => {
+    async (request, response) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to use Ask.");
@@ -368,10 +368,21 @@ exports.aiChat = onCall(
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const store = new FirestoreStore(db);
 
+      // When the client opts into streaming (`httpsCallable.stream()`), forward
+      // the gateway's phase/delta events as chunks and stream the model. A
+      // plain `.call()` sets `acceptsStreaming` false, so the turn runs exactly
+      // as before — buffered, no events, no per-token work. The final return
+      // value is delivered to both call styles either way.
+      const streaming = request.acceptsStreaming === true && !!response;
+
       try {
         return await runAiTurn({
           store,
           callModel: (req) => anthropic.messages.create(req),
+          streamModel: streaming ?
+            (req, onText) => streamModelCall(anthropic, req, onText) :
+            undefined,
+          onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,
           message,
@@ -382,6 +393,21 @@ exports.aiChat = onCall(
       }
     },
 );
+
+/**
+ * The `streamModel` seam for `runAiTurn`: streams one Anthropic call,
+ * forwarding each text delta to `onText`, and resolves to the final message
+ * (the same shape `messages.create` returns) so the loop is unchanged.
+ * @param {!Anthropic} anthropic
+ * @param {!Object} req
+ * @param {function(string): void} onText
+ * @return {!Promise<!Object>}
+ */
+async function streamModelCall(anthropic, req, onText) {
+  const stream = anthropic.messages.stream(req);
+  stream.on("text", (delta) => onText(delta));
+  return stream.finalMessage();
+}
 
 // --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
 
