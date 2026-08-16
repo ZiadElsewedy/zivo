@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
@@ -35,18 +36,21 @@ class DietPlanPage extends StatelessWidget {
             elevation: 0,
             title: Text('Diet', style: AppText.cardTitle),
           ),
-          floatingActionButton: loading
+          floatingActionButton: loading || planSnapshot.hasError
               ? null
               : FloatingActionButton(
                   backgroundColor: AppColors.pulseText,
                   elevation: 2,
+                  tooltip: plan == null ? 'Create plan' : 'Edit plan',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: plan)),
                   ),
                   child: const Icon(Icons.edit_rounded, color: Colors.white),
                 ),
-          body: loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.ink3))
+          body: planSnapshot.hasError
+              ? const ErrorStateView()
+              : loading
+              ? const LoadingStateView()
               : plan == null
               ? _EmptyState(
                   onCreate: () => Navigator.of(

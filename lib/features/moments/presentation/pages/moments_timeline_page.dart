@@ -6,6 +6,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/moment.dart';
 import 'moment_capture_page.dart';
 
@@ -27,6 +28,7 @@ class MomentsTimelinePage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.ember,
         elevation: 2,
+        tooltip: 'New moment',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const MomentCapturePage()),
         ),
@@ -36,15 +38,16 @@ class MomentsTimelinePage extends StatelessWidget {
         stream: moments.watchAll(),
         initialData: moments.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <Moment>[];
           if (items.isEmpty &&
               snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink3),
-            );
+            return const LoadingStateView();
           }
           if (items.isEmpty) {
-            return Center(child: Text('No moments yet.', style: AppText.aside));
+            return const EmptyStateView('No moments yet.');
           }
           final now = DateTime.now();
           return ListView.builder(

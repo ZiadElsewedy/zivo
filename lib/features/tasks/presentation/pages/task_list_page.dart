@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/task.dart';
 import '../../domain/task_repository.dart';
 import 'task_capture_page.dart';
@@ -27,6 +28,7 @@ class TaskListPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.ink,
         elevation: 2,
+        tooltip: 'New task',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const TaskCapturePage()),
         ),
@@ -36,20 +38,16 @@ class TaskListPage extends StatelessWidget {
         stream: tasks.watchAll(),
         initialData: tasks.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <Task>[];
           if (items.isEmpty &&
               snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink3),
-            );
+            return const LoadingStateView();
           }
           if (items.isEmpty) {
-            return Center(
-              child: Text(
-                'Nothing to do — enjoy the quiet.',
-                style: AppText.aside,
-              ),
-            );
+            return const EmptyStateView('Nothing to do — enjoy the quiet.');
           }
           final now = DateTime.now();
           final open = _sortedOpen(items, now);

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -42,6 +43,8 @@ class _PendingMomentRepository implements MomentRepository {
   Future<void> remove(String id) async {}
 
   void emit(List<Moment> moments) => _controller.add(moments);
+
+  void emitError(Object error) => _controller.addError(error);
 
   void dispose() => _controller.close();
 }
@@ -221,5 +224,21 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('No moments yet.'), findsOneWidget);
+  });
+
+  testWidgets('shows the error view when the stream errors', (tester) async {
+    final moments = _PendingMomentRepository();
+    addTearDown(moments.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const MomentsTimelinePage(), momentsOverride: moments),
+    );
+
+    moments.emitError(Exception('read denied'));
+    await tester.pump();
+
+    expect(find.byType(ErrorStateView), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('No moments yet.'), findsNothing);
   });
 }

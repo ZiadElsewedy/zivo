@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/university_item.dart';
 import '../../domain/university_item_type.dart';
 import '../relative_due.dart';
@@ -29,6 +30,7 @@ class UniversityListPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.iris,
         elevation: 2,
+        tooltip: 'New assignment or exam',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const UniversityCapturePage()),
         ),
@@ -38,20 +40,16 @@ class UniversityListPage extends StatelessWidget {
         stream: university.watchAll(),
         initialData: university.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <UniversityItem>[];
           if (items.isEmpty &&
               snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink3),
-            );
+            return const LoadingStateView();
           }
           if (items.isEmpty) {
-            return Center(
-              child: Text(
-                'Nothing due — enjoy the quiet.',
-                style: AppText.aside,
-              ),
-            );
+            return const EmptyStateView('Nothing due — enjoy the quiet.');
           }
           final now = DateTime.now();
           final groups = _groupByCourse(items);

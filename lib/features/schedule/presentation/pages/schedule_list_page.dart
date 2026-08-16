@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/event_time.dart';
 import '../../domain/schedule_event.dart';
 import 'event_capture_page.dart';
@@ -27,6 +28,7 @@ class ScheduleListPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.ink,
         elevation: 2,
+        tooltip: 'New event',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const EventCapturePage()),
         ),
@@ -36,19 +38,17 @@ class ScheduleListPage extends StatelessWidget {
         stream: schedule.watchAll(),
         initialData: schedule.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <ScheduleEvent>[];
           if (items.isEmpty &&
               snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink3),
-            );
+            return const LoadingStateView();
           }
           if (items.isEmpty) {
-            return Center(
-              child: Text(
-                'Nothing on the calendar — enjoy the quiet.',
-                style: AppText.aside,
-              ),
+            return const EmptyStateView(
+              'Nothing on the calendar — enjoy the quiet.',
             );
           }
           final now = DateTime.now();

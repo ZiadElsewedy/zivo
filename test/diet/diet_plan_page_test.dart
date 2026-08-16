@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
@@ -50,6 +51,8 @@ class _PendingDietRepository implements DietRepository {
   }) async {}
 
   void emit(DietPlan? plan) => _controller.add(plan);
+
+  void emitError(Object error) => _controller.addError(error);
 
   void dispose() => _controller.close();
 }
@@ -134,6 +137,22 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('No diet plan yet.'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
+  testWidgets('shows the error view and hides the FAB when the plan stream errors', (tester) async {
+    final diet = _PendingDietRepository();
+    addTearDown(diet.dispose);
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+
+    diet.emitError(Exception('read denied'));
+    await tester.pump();
+
+    expect(find.byType(ErrorStateView), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('No diet plan yet.'), findsNothing);
+    // Can't edit a plan that failed to load, so no FAB.
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
 
   testWidgets('deleting the plan from the editor returns to the empty state', (tester) async {

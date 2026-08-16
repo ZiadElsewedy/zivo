@@ -24,17 +24,20 @@ class CaptureTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
       child: Row(
         children: [
-          InkWell(
-            onTap: onClose,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
-                shape: BoxShape.circle,
+          Tooltip(
+            message: 'Close',
+            child: InkWell(
+              onTap: onClose,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFEBE3),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
               ),
-              child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
             ),
           ),
           Expanded(

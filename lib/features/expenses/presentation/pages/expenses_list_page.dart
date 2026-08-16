@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/money.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
 import '../../domain/expense_repository.dart';
@@ -31,6 +32,7 @@ class ExpensesListPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.solar,
         elevation: 2,
+        tooltip: 'New expense',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const ExpenseCapturePage()),
         ),
@@ -40,21 +42,16 @@ class ExpensesListPage extends StatelessWidget {
         stream: expenses.watchAll(),
         initialData: expenses.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <Expense>[];
           if (items.isEmpty &&
               snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink3),
-            );
+            return const LoadingStateView();
           }
           if (items.isEmpty) {
-            return Center(
-              child: Text(
-                'Nothing spent yet — a calm start.',
-                style: AppText.aside,
-                textAlign: TextAlign.center,
-              ),
-            );
+            return const EmptyStateView('Nothing spent yet — a calm start.');
           }
           final now = DateTime.now();
           final groups = _groupByDay(items);
