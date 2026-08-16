@@ -30,7 +30,12 @@ const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
-const {runAiTurn, GatewayError} = require("./ai/gateway");
+const {
+  runAiTurn,
+  confirmAction,
+  cancelAction,
+  GatewayError,
+} = require("./ai/gateway");
 const {FirestoreStore} = require("./ai/store");
 
 initializeApp();
@@ -350,7 +355,7 @@ const toHttpsError = (err) => {
  */
 exports.aiChat = onCall(
     {secrets: [ANTHROPIC_API_KEY], region: "us-central1"},
-    async (request) => {
+    async (request, response) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to use Ask.");
@@ -363,10 +368,21 @@ exports.aiChat = onCall(
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const store = new FirestoreStore(db);
 
+      // When the client opts into streaming (`httpsCallable.stream()`), forward
+      // the gateway's phase/delta events as chunks and stream the model. A
+      // plain `.call()` sets `acceptsStreaming` false, so the turn runs exactly
+      // as before — buffered, no events, no per-token work. The final return
+      // value is delivered to both call styles either way.
+      const streaming = request.acceptsStreaming === true && !!response;
+
       try {
         return await runAiTurn({
           store,
           callModel: (req) => anthropic.messages.create(req),
+          streamModel: streaming ?
+            (req, onText) => streamModelCall(anthropic, req, onText) :
+            undefined,
+          onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,
           message,
@@ -377,3 +393,78 @@ exports.aiChat = onCall(
       }
     },
 );
+
+/**
+ * The `streamModel` seam for `runAiTurn`: streams one Anthropic call,
+ * forwarding each text delta to `onText`, and resolves to the final message
+ * (the same shape `messages.create` returns) so the loop is unchanged.
+ * @param {!Anthropic} anthropic
+ * @param {!Object} req
+ * @param {function(string): void} onText
+ * @return {!Promise<!Object>}
+ */
+async function streamModelCall(anthropic, req, onText) {
+  const stream = anthropic.messages.stream(req);
+  stream.on("text", (delta) => onText(delta));
+  return stream.finalMessage();
+}
+
+// --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
+
+// NOTE: these WRITE user data, so — like `aiChat` — App Check must be enforced
+// before they go live (add `enforceAppCheck: true` to all three callables and
+// redeploy once the client's App Check providers are verified in the Console).
+// Enforcement is deliberately deferred to the live-deploy step, not the
+// offline-tested logic below.
+
+/**
+ * Executes a user-confirmed pending action (ADR-003): performs the proposed
+ * Firestore write server-side, keyed by `actionId` (idempotent). The write
+ * logic lives in `./ai/gateway.js` (offline-testable); this handler only wires
+ * the store and maps errors.
+ */
+exports.aiConfirmAction = onCall({region: "us-central1"}, async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+  const data = request.data || {};
+  const conversationId = (data.conversationId || "").toString();
+  const actionId = (data.actionId || "").toString();
+
+  try {
+    return await confirmAction({
+      store: new FirestoreStore(db),
+      uid: auth.uid,
+      conversationId,
+      actionId,
+      now: () => new Date(),
+    });
+  } catch (err) {
+    throw toHttpsError(err);
+  }
+});
+
+/**
+ * Cancels a pending action (ADR-003): marks it cancelled and appends a note.
+ * Never writes an entity.
+ */
+exports.aiCancelAction = onCall({region: "us-central1"}, async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+  const data = request.data || {};
+  const conversationId = (data.conversationId || "").toString();
+  const actionId = (data.actionId || "").toString();
+
+  try {
+    return await cancelAction({
+      store: new FirestoreStore(db),
+      uid: auth.uid,
+      conversationId,
+      actionId,
+      now: () => new Date(),
+    });
+  } catch (err) {
+    throw toHttpsError(err);
+  }
+});

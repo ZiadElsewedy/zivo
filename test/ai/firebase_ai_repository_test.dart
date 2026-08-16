@@ -161,6 +161,64 @@ void main() {
 
       expect(callCount, 0);
     });
+
+    test(
+      'confirmAction / cancelAction call the matching callable with the ids',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final calls = <(String, String, String)>[];
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+          invokeAction: (name, conversationId, actionId) async {
+            calls.add((name, conversationId, actionId));
+          },
+        );
+
+        await repo.confirmAction(conversationId: 'conv-1', actionId: 'a1');
+        await repo.cancelAction(conversationId: 'conv-1', actionId: 'a2');
+
+        expect(calls, [
+          ('aiConfirmAction', 'conv-1', 'a1'),
+          ('aiCancelAction', 'conv-1', 'a2'),
+        ]);
+      },
+    );
+
+    test('watchMessages maps an action_proposal doc to a pendingAction', () async {
+      final firestore = FakeFirebaseFirestore();
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('aiConversations')
+          .doc('conv-1')
+          .collection('messages')
+          .doc('m1')
+          .set({
+            'role': 'assistant',
+            'content': 'Add task "Submit report"',
+            'kind': 'action_proposal',
+            'actionId': 'act-1',
+            'actionKind': 'create_task',
+            'fields': {'title': 'Submit report', 'priority': 'High'},
+            'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1, 10, 0)),
+            'schemaVersion': 1,
+          });
+
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      final result = await repo.watchMessages('conv-1').first;
+      expect(result, hasLength(1));
+      final action = result.single.pendingAction;
+      expect(action, isNotNull);
+      expect(action!.actionId, 'act-1');
+      expect(action.kind, 'create_task');
+      expect(action.fields['title'], 'Submit report');
+      expect(action.isPending, isTrue);
+    });
   });
 
   // The real `aiChat` callable invocation (the default `invokeChat`, calling

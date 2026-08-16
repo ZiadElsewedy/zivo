@@ -5,8 +5,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
 import '../domain/ai_message.dart';
+import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
+import '../domain/ai_turn_event.dart';
 
 /// The real [AiRepository], backed by Firestore's
 /// `users/{uid}/aiConversations` (+ nested `messages`) and the `aiChat`
@@ -32,13 +34,25 @@ class FirebaseAiRepository implements AiRepository {
     required this.uidSource,
     Future<void> Function(String conversationId, String message)?
     invokeChat,
+    Future<void> Function(String conversationId, String message,
+        void Function(AiTurnEvent event) onEvent)?
+    invokeChatStream,
+    Future<void> Function(String name, String conversationId, String actionId)?
+    invokeAction,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _invokeChat = invokeChat ?? _defaultInvokeChat(functions);
+       _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
+       _invokeChatStream =
+           invokeChatStream ?? _defaultInvokeChatStream(functions),
+       _invokeAction = invokeAction ?? _defaultInvokeAction(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
   final Future<void> Function(String conversationId, String message)
   _invokeChat;
+  final Future<void> Function(String conversationId, String message,
+      void Function(AiTurnEvent event) onEvent) _invokeChatStream;
+  final Future<void> Function(String name, String conversationId,
+      String actionId) _invokeAction;
 
   String? _cachedConversationId;
 
@@ -53,6 +67,46 @@ class FirebaseAiRepository implements AiRepository {
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
+      });
+    };
+  }
+
+  /// The default streaming `send` invoker: consumes `aiChat` over callable
+  /// streaming (`httpsCallable.stream()`), forwarding each phase/delta chunk to
+  /// [onEvent]. The terminating `Result` is ignored — the durable user and
+  /// assistant messages arrive via [watchMessages], same as the buffered path.
+  /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily.
+  static Future<void> Function(String conversationId, String message,
+      void Function(AiTurnEvent event) onEvent) _defaultInvokeChatStream(
+    FirebaseFunctions? functions,
+  ) {
+    return (conversationId, message, onEvent) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final stream = f.httpsCallable('aiChat').stream({
+        'conversationId': conversationId,
+        'message': message,
+      });
+      await for (final response in stream) {
+        if (response is Chunk) {
+          final event = aiTurnEventFromChunk(response.partialData);
+          if (event != null) onEvent(event);
+        }
+      }
+    };
+  }
+
+  /// The default confirm/cancel invoker — calls `aiConfirmAction` or
+  /// `aiCancelAction`. Like [_defaultInvokeChat], resolves [FirebaseFunctions]
+  /// lazily so the repo builds without a live Firebase app.
+  static Future<void> Function(String name, String conversationId,
+      String actionId) _defaultInvokeAction(FirebaseFunctions? functions) {
+    return (name, conversationId, actionId) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      await f.httpsCallable(name).call({
+        'conversationId': conversationId,
+        'actionId': actionId,
       });
     };
   }
@@ -114,11 +168,31 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   @override
-  Future<void> send({required String conversationId, required String text}) {
+  Future<void> send({
+    required String conversationId,
+    required String text,
+    void Function(AiTurnEvent event)? onEvent,
+  }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
-    return _invokeChat(conversationId, trimmed);
+    // Stream only when the caller wants live events; otherwise the plain
+    // `.call()` path keeps the buffered behavior (and its cheaper transport).
+    return onEvent == null
+        ? _invokeChat(conversationId, trimmed)
+        : _invokeChatStream(conversationId, trimmed, onEvent);
   }
+
+  @override
+  Future<void> confirmAction({
+    required String conversationId,
+    required String actionId,
+  }) => _invokeAction('aiConfirmAction', conversationId, actionId);
+
+  @override
+  Future<void> cancelAction({
+    required String conversationId,
+    required String actionId,
+  }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
   Stream<String?> _uidWithInitial() async* {
     yield uidSource.currentUid();
@@ -150,6 +224,27 @@ class FirebaseAiRepository implements AiRepository {
       role: aiRoleFromName(data['role'] as String?),
       content: data['content'] as String? ?? '',
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+      pendingAction: _pendingActionFrom(data),
+    );
+  }
+
+  /// Maps an `action_proposal` message (ADR-003) into an [AiPendingAction]; the
+  /// message doc carries `actionId`, `actionKind`, and `fields`. The card's
+  /// resolved state is tracked optimistically client-side after a tap.
+  AiPendingAction? _pendingActionFrom(Map<String, dynamic> data) {
+    if (data['kind'] != 'action_proposal') return null;
+    final actionId = data['actionId'] as String?;
+    final actionKind = data['actionKind'] as String?;
+    if (actionId == null || actionKind == null) return null;
+    final rawFields = data['fields'];
+    return AiPendingAction(
+      actionId: actionId,
+      kind: actionKind,
+      summary: data['content'] as String? ?? '',
+      fields: rawFields is Map
+          ? Map<String, dynamic>.from(rawFields)
+          : const <String, dynamic>{},
+      status: AiActionStatus.pending,
     );
   }
 }

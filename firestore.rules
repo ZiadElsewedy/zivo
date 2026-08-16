@@ -142,6 +142,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // AI pending actions (ADR-003 V2): proposed-but-unconfirmed writes, created
+    // and mutated ONLY by the aiChat/aiConfirmAction/aiCancelAction Functions
+    // (Admin SDK). A client may READ its own pending actions (to render the
+    // confirmation card) but never write one — a forged pending action must not
+    // be confirmable into a real write.
+    match /users/{userId}/aiConversations/{conversationId}/pendingActions/{actionId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // AI usage/audit log: Functions-only, like emailOtps. Owner may read.
     match /users/{userId}/aiUsage/{usageId} {
       allow read: if request.auth != null && request.auth.uid == userId;
