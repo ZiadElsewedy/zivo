@@ -68,11 +68,12 @@ service cloud.firestore {
     // (exercises embedded). Rules do not cascade from /users/{userId}, so explicit.
     match /users/{userId}/workouts/{workoutId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.title is string
         && request.resource.data.performedAt is timestamp
         && request.resource.data.exercises is list
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Moments: each user reads/writes only their own moments. imagePath is a
