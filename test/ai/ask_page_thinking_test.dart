@@ -6,6 +6,7 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -38,9 +39,14 @@ class _GatedAi implements AiRepository {
   Future<void> send({
     required String conversationId,
     required String text,
+    void Function(AiTurnEvent event)? onEvent,
   }) async {
     await gate.future;
-    await _inner.send(conversationId: conversationId, text: text);
+    await _inner.send(
+      conversationId: conversationId,
+      text: text,
+      onEvent: onEvent,
+    );
   }
 
   @override

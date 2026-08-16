@@ -4,6 +4,7 @@ import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
+import '../domain/ai_turn_event.dart';
 
 /// The assistant isn't connected yet — an honest, canned reply. Never
 /// masquerades as real AI (ADR-001's client-seam-first requirement).
@@ -45,9 +46,12 @@ class FakeAiRepository implements AiRepository {
   Future<void> send({
     required String conversationId,
     required String text,
+    void Function(AiTurnEvent event)? onEvent,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+
+    onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
 
     final (userId, userCreatedAt) = _next();
     _messages.add(
@@ -65,12 +69,25 @@ class FakeAiRepository implements AiRepository {
         trimmed.length > prefix.length) {
       final title = trimmed.substring(prefix.length).trim();
       if (title.isNotEmpty) {
+        onEvent?.call(const AiPhaseEvent(AiPhase.preparingChange));
         proposeAction(
           kind: 'create_task',
           summary: 'Add task "$title"',
           fields: {'title': title, 'due': null, 'priority': 'Normal'},
         );
+        onEvent?.call(const AiPhaseEvent(AiPhase.done));
         return;
+      }
+    }
+
+    // Stream the canned reply in a few chunks so the live-text path is exercised
+    // offline, then persist it and close the turn.
+    if (onEvent != null) {
+      const chunks = 3;
+      final step = (kFakeAiReply.length / chunks).ceil();
+      for (var i = 0; i < kFakeAiReply.length; i += step) {
+        final end = (i + step).clamp(0, kFakeAiReply.length);
+        onEvent(AiDeltaEvent(kFakeAiReply.substring(i, end)));
       }
     }
 
@@ -84,6 +101,7 @@ class FakeAiRepository implements AiRepository {
       ),
     );
     _controller.add(List.unmodifiable(_messages));
+    onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }
 
   /// Appends an assistant proposal (confirmation card). Test/offline-demo hook.

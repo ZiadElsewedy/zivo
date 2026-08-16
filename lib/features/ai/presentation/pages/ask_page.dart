@@ -11,6 +11,7 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_role.dart';
+import '../../domain/ai_turn_event.dart';
 
 /// The "Ask" chat surface: an iris-themed message list over a pinned
 /// composer. Talks only to `AppScope.of(context).ai` — Firebase-free.
@@ -27,14 +28,26 @@ class _AskPageState extends State<AskPage> {
   final ScrollController _scroll = ScrollController();
   bool _canSend = false;
 
-  /// True while a `send` turn is in flight — drives the thinking rail. Client
-  /// -derived: today we only know a turn is *running*, not which tool it's in
-  /// (the phase-labelled rail arrives with real streaming in Slice C).
+  /// True while a `send` turn is in flight — drives the activity rail.
   bool _sending = false;
 
+  /// The turn's current phase, from the gateway's authoritative stream. Null
+  /// until the first phase event (or for a non-streaming turn) — the rail then
+  /// reads as a calm "Thinking…".
+  AiPhase? _phase;
+
+  /// Assistant reply text accumulated from live stream deltas — shown in a
+  /// provisional bubble while the turn runs, replaced by the durable message
+  /// once it lands.
+  String _liveText = '';
+
+  /// True once any text delta has streamed in, so the durable reply renders
+  /// statically instead of re-typing (it already streamed live).
+  bool _streamed = false;
+
   /// Set when a `send` turn starts; consumed by the first render that shows the
-  /// assistant's reply, so exactly that one reply types in. Cold-loaded history
-  /// and confirm/cancel result lines render statically.
+  /// assistant's reply, so exactly that one reply types in when the turn did
+  /// *not* stream. Cold-loaded history and confirm/cancel lines stay static.
   bool _expectReveal = false;
 
   /// Optimistic client-side resolution of proposal cards, keyed by actionId,
@@ -65,22 +78,53 @@ class _AskPageState extends State<AskPage> {
     setState(() {
       _sending = true;
       _expectReveal = true;
+      _phase = null;
+      _liveText = '';
+      _streamed = false;
     });
     try {
-      await ai.send(conversationId: conversationId, text: text);
+      await ai.send(
+        conversationId: conversationId,
+        text: text,
+        onEvent: _onTurnEvent,
+      );
     } catch (_) {
       if (mounted) {
         setState(() {
           _sending = false;
           _expectReveal = false;
+          _phase = null;
+          _liveText = '';
         });
       }
       _showError("Couldn't reach Ask. Check your connection and try again.");
       return;
     }
     if (!mounted) return;
-    setState(() => _sending = false);
+    setState(() {
+      _sending = false;
+      // A streamed reply already appeared token-by-token, so don't re-type the
+      // durable message; only a buffered (non-streaming) turn falls back to it.
+      if (_streamed) _expectReveal = false;
+      _phase = null;
+      _liveText = '';
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  /// Applies one live turn event from the gateway: phases drive the rail,
+  /// deltas accumulate the provisional reply.
+  void _onTurnEvent(AiTurnEvent event) {
+    if (!mounted) return;
+    switch (event) {
+      case AiPhaseEvent(:final phase):
+        setState(() => _phase = phase);
+      case AiDeltaEvent(:final text):
+        setState(() {
+          _streamed = true;
+          _liveText += text;
+        });
+    }
   }
 
   Future<void> _confirm(String conversationId, String actionId) async {
@@ -113,6 +157,15 @@ class _AskPageState extends State<AskPage> {
       SnackBar(content: Text(message)),
     );
   }
+
+  /// The rail label for the current authoritative phase; a calm "Thinking…"
+  /// before any phase arrives or for a non-streaming turn.
+  String _railLabel() => switch (_phase) {
+    AiPhase.understanding => 'Understanding…',
+    AiPhase.working => 'Working…',
+    AiPhase.preparingChange => 'Preparing change…',
+    _ => 'Thinking…',
+  };
 
   void _scrollToBottom() {
     if (!_scroll.hasClients) return;
@@ -154,12 +207,25 @@ class _AskPageState extends State<AskPage> {
                           AppSpacing.screen,
                           AppSpacing.base,
                         ),
-                        // A trailing slot holds the thinking rail while a turn
-                        // is in flight.
+                        // A trailing slot holds the in-flight state: the live
+                        // reply once text starts streaming, otherwise the phase
+                        // rail.
                         itemCount: messages.length + (_sending ? 1 : 0),
                         itemBuilder: (context, i) {
                           if (i >= messages.length) {
-                            return const RiseIn(child: _ThinkingRail());
+                            if (_liveText.isNotEmpty) {
+                              return RiseIn(
+                                child: _MessageBubble(
+                                  AiMessage(
+                                    id: '_live',
+                                    role: AiRole.assistant,
+                                    content: _liveText,
+                                    createdAt: DateTime.now(),
+                                  ),
+                                ),
+                              );
+                            }
+                            return RiseIn(child: _ThinkingRail(label: _railLabel()));
                           }
                           final message = messages[i];
                           final isLast = i == messages.length - 1;
@@ -358,7 +424,11 @@ class _TypewriterTextState extends State<_TypewriterText>
 /// a quiet label. Shown only while a turn is in flight, so its looping pulse is
 /// never left mounted (which would stall `pumpAndSettle`). No spinner.
 class _ThinkingRail extends StatefulWidget {
-  const _ThinkingRail();
+  const _ThinkingRail({this.label = 'Thinking…'});
+
+  /// The current phase label (authoritative when streaming; "Thinking…" until
+  /// the first phase event or for a buffered turn).
+  final String label;
 
   @override
   State<_ThinkingRail> createState() => _ThinkingRailState();
@@ -400,7 +470,7 @@ class _ThinkingRailState extends State<_ThinkingRail>
           ),
           const SizedBox(width: 9),
           Text(
-            'Thinking…',
+            widget.label,
             style: AppText.meta.copyWith(
               color: AppColors.irisText,
               fontWeight: FontWeight.w600,

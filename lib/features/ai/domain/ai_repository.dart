@@ -1,4 +1,5 @@
 import 'ai_message.dart';
+import 'ai_turn_event.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
 /// so both today's in-memory [FakeAiRepository] and the future
@@ -15,7 +16,17 @@ abstract interface class AiRepository {
   /// the `aiChat` gateway, which persists the user message and the assistant
   /// reply; the new messages surface via [watchMessages]. In the fake it
   /// appends the user message and a canned assistant reply in memory.
-  Future<void> send({required String conversationId, required String text});
+  ///
+  /// When [onEvent] is supplied, the turn is streamed: [AiPhaseEvent] and
+  /// [AiDeltaEvent] values arrive live as the gateway progresses. Implementations
+  /// that can't stream simply never call it — the reply still surfaces via
+  /// [watchMessages], and the caller falls back to a buffered reveal. The
+  /// returned future completes when the turn's durable record is written.
+  Future<void> send({
+    required String conversationId,
+    required String text,
+    void Function(AiTurnEvent event)? onEvent,
+  });
 
   /// Confirms a proposed action (ADR-003), executing its write server-side via
   /// the `aiConfirmAction` callable. Idempotent — a double-confirm is a no-op.
