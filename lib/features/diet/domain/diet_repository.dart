@@ -8,6 +8,11 @@ abstract interface class DietRepository {
   Stream<DietPlan?> watchActivePlan();
   Future<void> savePlan(DietPlan plan);
 
+  /// Removes the plan, returning the page to its empty "create" state.
+  /// `dietEntries` referencing the deleted plan's meal ids are left in place
+  /// (a benign orphan — no bulk-delete of the consumption log).
+  Future<void> deletePlan(String id);
+
   /// The set of meal ids marked eaten on [day].
   Stream<Set<String>> watchConsumed(DateTime day);
   Future<void> setMealEaten({

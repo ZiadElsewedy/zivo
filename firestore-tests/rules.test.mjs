@@ -215,3 +215,11 @@ describe('workouts delete path', () => {
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workouts'))));
   });
 });
+
+describe('dietPlans delete path', () => {
+  it('owner can delete their own plan; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'dietPlans'), valid.dietPlans);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'dietPlans'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'dietPlans'))));
+  });
+});

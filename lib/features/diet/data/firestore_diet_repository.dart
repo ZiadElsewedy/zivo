@@ -106,6 +106,12 @@ class FirestoreDietRepository implements DietRepository {
     }, SetOptions(merge: true));
   }
 
+  @override
+  Future<void> deletePlan(String id) {
+    final uid = _requireUid();
+    return _dietPlansCollection(uid).doc(id).delete();
+  }
+
   /// Independent per-call stream: [watchConsumed] is parameterized by [day],
   /// so (unlike [watchActivePlan]'s single cached controller) each call opens
   /// its own uid-scoped subscription rather than sharing one controller.

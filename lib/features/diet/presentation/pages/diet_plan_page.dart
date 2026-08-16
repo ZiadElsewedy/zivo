@@ -26,6 +26,7 @@ class DietPlanPage extends StatelessWidget {
       initialData: diet.activePlan,
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
+        final loading = plan == null && planSnapshot.connectionState == ConnectionState.waiting;
         return Scaffold(
           backgroundColor: AppColors.ground,
           appBar: AppBar(
@@ -34,15 +35,19 @@ class DietPlanPage extends StatelessWidget {
             elevation: 0,
             title: Text('Diet', style: AppText.cardTitle),
           ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.pulseText,
-            elevation: 2,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: plan)),
-            ),
-            child: const Icon(Icons.edit_rounded, color: Colors.white),
-          ),
-          body: plan == null
+          floatingActionButton: loading
+              ? null
+              : FloatingActionButton(
+                  backgroundColor: AppColors.pulseText,
+                  elevation: 2,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: plan)),
+                  ),
+                  child: const Icon(Icons.edit_rounded, color: Colors.white),
+                ),
+          body: loading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.ink3))
+              : plan == null
               ? _EmptyState(
                   onCreate: () => Navigator.of(
                     context,
@@ -101,6 +106,7 @@ class _PlanBody extends StatelessWidget {
       initialData: const <String>{},
       builder: (context, consumedSnapshot) {
         final consumed = consumedSnapshot.data ?? const <String>{};
+        final consumedLoading = consumedSnapshot.connectionState == ConnectionState.waiting;
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
           children: [
@@ -125,7 +131,7 @@ class _PlanBody extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 6),
-              _SummaryLine(day: today, consumed: consumed),
+              _SummaryLine(day: today, consumed: consumed, loading: consumedLoading),
             ],
             const SizedBox(height: 30),
             Text(
@@ -258,13 +264,19 @@ class _CheckBox extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.day, required this.consumed});
+  const _SummaryLine({required this.day, required this.consumed, required this.loading});
 
   final DietDay day;
   final Set<String> consumed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
+    // While the consumption log is still resolving, avoid stating a possibly
+    // stale "0 eaten" count as fact.
+    if (loading) {
+      return Text('…', style: AppText.meta.copyWith(color: AppColors.ink3));
+    }
     final summary = dietDaySummary(day, consumed);
     return Text(
       '${summary.eaten} of ${summary.total} meals eaten · ${summary.kcalLeft} kcal left',

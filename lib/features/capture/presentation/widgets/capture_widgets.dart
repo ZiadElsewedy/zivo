@@ -87,7 +87,14 @@ class PillButton extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: textColor),
                 const SizedBox(width: 8),
-                Text(label, style: AppText.button.copyWith(fontSize: 16, color: textColor)),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.button.copyWith(fontSize: 16, color: textColor),
+                  ),
+                ),
               ],
             ),
           ),
