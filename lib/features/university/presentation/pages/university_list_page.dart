@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/university_item.dart';
 import '../../domain/university_item_type.dart';
 import '../relative_due.dart';
@@ -29,6 +30,7 @@ class UniversityListPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.iris,
         elevation: 2,
+        tooltip: 'New assignment or exam',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const UniversityCapturePage()),
         ),
@@ -38,14 +40,16 @@ class UniversityListPage extends StatelessWidget {
         stream: university.watchAll(),
         initialData: university.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <UniversityItem>[];
+          if (items.isEmpty &&
+              snapshot.connectionState == ConnectionState.waiting) {
+            return const LoadingStateView();
+          }
           if (items.isEmpty) {
-            return Center(
-              child: Text(
-                'Nothing due — enjoy the quiet.',
-                style: AppText.aside,
-              ),
-            );
+            return const EmptyStateView('Nothing due — enjoy the quiet.');
           }
           final now = DateTime.now();
           final groups = _groupByCourse(items);
@@ -68,12 +72,20 @@ class UniversityListPage extends StatelessWidget {
                     item,
                     now: now,
                     onToggle: () => university.setDone(item.id, !item.done),
+                    onEdit: () => _openEdit(context, item),
+                    onDelete: () => university.remove(item.id),
                   ),
               ],
             ],
           );
         },
       ),
+    );
+  }
+
+  Future<void> _openEdit(BuildContext context, UniversityItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UniversityCapturePage(initial: item)),
     );
   }
 
@@ -105,55 +117,88 @@ class UniversityListPage extends StatelessWidget {
 }
 
 class _UniversityRow extends StatelessWidget {
-  const _UniversityRow(this.item, {required this.now, required this.onToggle});
+  const _UniversityRow(
+    this.item, {
+    required this.now,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final UniversityItem item;
   final DateTime now;
   final VoidCallback onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final meta = relativeDue(item.due, now);
     final metaText = [item.type.label, ?meta].join(' · ');
-    return InkWell(
-      onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _CheckBox(checked: item.done),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.rowTitle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: item.done ? AppColors.ink3 : AppColors.ink,
-                      decoration: item.done
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                      decorationColor: AppColors.ink3,
-                    ),
+    return Dismissible(
+      key: Key('university-row-${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 14),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.flareText,
+        ),
+      ),
+      onDismissed: (_) => onDelete(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  key: Key('university-toggle-${item.id}'),
+                  onTap: onToggle,
+                  customBorder: const CircleBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: _CheckBox(checked: item.done),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    metaText,
-                    style: AppText.meta.copyWith(
-                      color: meta == 'Overdue'
-                          ? AppColors.flareText
-                          : AppColors.ink3,
-                    ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.rowTitle.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: item.done ? AppColors.ink3 : AppColors.ink,
+                          decoration: item.done
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          decorationColor: AppColors.ink3,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        metaText,
+                        style: AppText.meta.copyWith(
+                          color: meta == 'Overdue'
+                              ? AppColors.flareText
+                              : AppColors.ink3,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

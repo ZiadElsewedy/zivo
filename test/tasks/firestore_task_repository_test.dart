@@ -120,7 +120,61 @@ void main() {
 
         expect(() => repo.add(_make('t1')), throwsStateError);
         expect(() => repo.setDone('t1', true), throwsStateError);
+        expect(() => repo.update(_make('t1')), throwsStateError);
       },
     );
+
+    test(
+      'update replaces title/due/priority, preserves id/createdAt, and is '
+      'observed on the stream',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreTaskRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final created = DateTime(2026, 1, 1);
+        await repo.add(_make('t1', createdAt: created, due: DateTime(2026, 1, 5)));
+
+        final seen = <List<Task>>[];
+        final sub = repo.watchAll().listen(seen.add);
+        await Future<void>.delayed(Duration.zero);
+
+        await repo.update(
+          Task(
+            id: 't1',
+            title: 'Renamed task',
+            createdAt: created,
+            due: DateTime(2026, 2, 1),
+            priority: true,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final updated = seen.last.single;
+        expect(updated.id, 't1');
+        expect(updated.title, 'Renamed task');
+        expect(updated.createdAt, created);
+        expect(updated.due, DateTime(2026, 2, 1));
+        expect(updated.priority, isTrue);
+
+        await sub.cancel();
+      },
+    );
+
+    test('update can clear the due date to null', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreTaskRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('t1', due: DateTime(2026, 1, 5)));
+      await repo.update(_make('t1', due: null));
+
+      final tasks = await repo.watchAll().first;
+      expect(tasks.single.due, isNull);
+    });
   });
 }

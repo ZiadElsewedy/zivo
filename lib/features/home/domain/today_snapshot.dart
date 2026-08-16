@@ -1,28 +1,7 @@
 import '../presentation/widgets/hue.dart';
 
-/// A read-only aggregation of everything that matters on Today.
-///
-/// This is a plain immutable view model. In a later phase it will be produced
-/// by a `GetToday` use case composing schedule / tasks / workout / expenses;
-/// for now it is populated with demo data so the design can run.
-class TodaySnapshot {
-  const TodaySnapshot({
-    required this.dateLabel,
-    required this.greeting,
-    required this.aside,
-    required this.focus,
-    required this.training,
-  });
-
-  final String dateLabel; // e.g. "Saturday · 15 August"
-  final String greeting; // e.g. "Morning, Ziad"
-  final String aside; // one warm line
-
-  final List<FocusItem>
-  focus; // unused — focus is built live, see _FocusSection
-  final TrainingToday? training;
-  // Now/Next comes live from the schedule repository; spending from expenses.
-}
+/// Now/Next and Focus view models, built live from their repositories (see
+/// `now_next_builder.dart` / `focus_builder.dart`) — never demo data.
 
 class NowNext {
   const NowNext({
@@ -52,20 +31,4 @@ class FocusItem {
   final String? meta; // "overdue", "due today"
   final bool done;
   final String? taskId;
-}
-
-class TrainingToday {
-  const TrainingToday({
-    required this.label,
-    required this.title,
-    required this.detail,
-    required this.meta,
-    required this.duration,
-  });
-
-  final String label; // "Push"
-  final String title; // "Chest · Shoulders · Triceps"
-  final String detail; // exercise list
-  final String meta; // "5 exercises · last: +2.5kg bench"
-  final String duration; // "~50 min"
 }

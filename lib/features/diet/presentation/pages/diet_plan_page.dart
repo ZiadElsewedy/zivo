@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
+import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
 import '../today_diet.dart';
 import 'diet_plan_edit_page.dart';
@@ -25,6 +27,7 @@ class DietPlanPage extends StatelessWidget {
       initialData: diet.activePlan,
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
+        final loading = plan == null && planSnapshot.connectionState == ConnectionState.waiting;
         return Scaffold(
           backgroundColor: AppColors.ground,
           appBar: AppBar(
@@ -33,15 +36,22 @@ class DietPlanPage extends StatelessWidget {
             elevation: 0,
             title: Text('Diet', style: AppText.cardTitle),
           ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.pulseText,
-            elevation: 2,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: plan)),
-            ),
-            child: const Icon(Icons.edit_rounded, color: Colors.white),
-          ),
-          body: plan == null
+          floatingActionButton: loading || planSnapshot.hasError
+              ? null
+              : FloatingActionButton(
+                  backgroundColor: AppColors.pulseText,
+                  elevation: 2,
+                  tooltip: plan == null ? 'Create plan' : 'Edit plan',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => DietPlanEditPage(initialPlan: plan)),
+                  ),
+                  child: const Icon(Icons.edit_rounded, color: Colors.white),
+                ),
+          body: planSnapshot.hasError
+              ? const ErrorStateView()
+              : loading
+              ? const LoadingStateView()
+              : plan == null
               ? _EmptyState(
                   onCreate: () => Navigator.of(
                     context,
@@ -100,6 +110,7 @@ class _PlanBody extends StatelessWidget {
       initialData: const <String>{},
       builder: (context, consumedSnapshot) {
         final consumed = consumedSnapshot.data ?? const <String>{};
+        final consumedLoading = consumedSnapshot.connectionState == ConnectionState.waiting;
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
           children: [
@@ -124,7 +135,7 @@ class _PlanBody extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 6),
-              _SummaryLine(day: today, consumed: consumed),
+              _SummaryLine(day: today, consumed: consumed, loading: consumedLoading),
             ],
             const SizedBox(height: 30),
             Text(
@@ -257,22 +268,22 @@ class _CheckBox extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.day, required this.consumed});
+  const _SummaryLine({required this.day, required this.consumed, required this.loading});
 
   final DietDay day;
   final Set<String> consumed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    final total = day.meals.length;
-    final eatenCount = day.meals.where((m) => consumed.contains(m.id)).length;
-    final kcalLeft = day.meals
-        .where((m) => !consumed.contains(m.id))
-        .map(mealCalories)
-        .whereType<int>()
-        .fold<int>(0, (sum, c) => sum + c);
+    // While the consumption log is still resolving, avoid stating a possibly
+    // stale "0 eaten" count as fact.
+    if (loading) {
+      return Text('…', style: AppText.meta.copyWith(color: AppColors.ink3));
+    }
+    final summary = dietDaySummary(day, consumed);
     return Text(
-      '$eatenCount of $total meals eaten · $kcalLeft kcal left',
+      '${summary.eaten} of ${summary.total} meals eaten · ${summary.kcalLeft} kcal left',
       style: AppText.meta.copyWith(color: AppColors.ink2),
     );
   }

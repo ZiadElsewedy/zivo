@@ -4,6 +4,7 @@ import 'package:zivo/features/diet/domain/diet_format.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
+import 'package:zivo/features/diet/domain/diet_summary.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
 import 'package:zivo/features/diet/domain/meal.dart';
 import 'package:zivo/features/diet/presentation/today_diet.dart';
@@ -98,6 +99,53 @@ void main() {
         ],
       );
       expect(dayCalories(day), isNull);
+    });
+  });
+
+  group('dietDaySummary', () {
+    DietDay dayWith(List<Meal> meals) =>
+        DietDay(weekday: 1, label: 'Monday', meals: meals);
+
+    test('nothing eaten: full kcal left, zero eaten', () {
+      final day = dayWith([
+        Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item(calories: 220)]),
+        Meal(id: 'm2', label: 'Lunch', order: 1, items: [_item(calories: 330)]),
+      ]);
+      final summary = dietDaySummary(day, const <String>{});
+      expect(summary.eaten, 0);
+      expect(summary.total, 2);
+      expect(summary.kcalLeft, 550);
+    });
+
+    test('some meals eaten: kcal left excludes eaten meals', () {
+      final day = dayWith([
+        Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item(calories: 220)]),
+        Meal(id: 'm2', label: 'Lunch', order: 1, items: [_item(calories: 330)]),
+        Meal(id: 'm3', label: 'Dinner', order: 2, items: [_item(calories: 400)]),
+      ]);
+      final summary = dietDaySummary(day, {'m1', 'm3'});
+      expect(summary.eaten, 2);
+      expect(summary.total, 3);
+      expect(summary.kcalLeft, 330);
+    });
+
+    test('all meals eaten: zero kcal left', () {
+      final day = dayWith([
+        Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item(calories: 220)]),
+      ]);
+      final summary = dietDaySummary(day, {'m1'});
+      expect(summary.eaten, 1);
+      expect(summary.total, 1);
+      expect(summary.kcalLeft, 0);
+    });
+
+    test('meals without calories contribute nothing to kcal left', () {
+      final day = dayWith([
+        Meal(id: 'm1', label: 'Breakfast', order: 0, items: [_item()]),
+      ]);
+      final summary = dietDaySummary(day, const <String>{});
+      expect(summary.total, 1);
+      expect(summary.kcalLeft, 0);
     });
   });
 

@@ -25,7 +25,7 @@ class InMemoryDietRepository implements DietRepository {
     _plan = _seedPlan();
   }
 
-  late DietPlan _plan;
+  DietPlan? _plan;
   final Map<String, Set<String>> _consumed = {};
 
   final StreamController<DietPlan?> _planController =
@@ -124,6 +124,13 @@ class InMemoryDietRepository implements DietRepository {
   @override
   Future<void> savePlan(DietPlan plan) async {
     _plan = plan;
+    _planController.add(_plan);
+  }
+
+  @override
+  Future<void> deletePlan(String id) async {
+    if (_plan?.id != id) return;
+    _plan = null;
     _planController.add(_plan);
   }
 

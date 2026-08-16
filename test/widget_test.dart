@@ -13,6 +13,8 @@ import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/domain/exercise.dart';
+import 'package:zivo/features/workout/domain/workout.dart';
 
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
@@ -35,7 +37,21 @@ void main() {
     // fake profile repo (complete by default) keeps Firestore out of the test,
     // and in-memory tasks/expenses/schedule/notes/moments/workouts/university
     // repos override the Firestore-backed defaults so Today's sections render
-    // without a live backend.
+    // without a live backend. The workout repo is seeded with today's session
+    // so the reflective Training card has something real to show.
+    final workouts = InMemoryWorkoutRepository();
+    await workouts.add(
+      Workout(
+        id: 'today-w1',
+        title: 'Push',
+        performedAt: DateTime.now(),
+        durationMinutes: 50,
+        exercises: const [
+          Exercise(name: 'Bench Press', sets: 4, reps: 8, weightKg: 60),
+        ],
+      ),
+    );
+
     await tester.pumpWidget(
       ZivoApp(
         auth: FakeAuthRepository(
@@ -47,7 +63,7 @@ void main() {
         schedule: InMemoryScheduleRepository(),
         notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
-        workouts: InMemoryWorkoutRepository(),
+        workouts: workouts,
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),
@@ -55,10 +71,10 @@ void main() {
     );
     await tester.pumpAndSettle(); // profile stream resolves, then RiseIn timers
 
-    expect(find.text('Morning, Ziad'), findsOneWidget);
+    expect(find.textContaining('Ziad'), findsOneWidget); // greeting
     expect(find.text('Data Structures'), findsOneWidget);
-    expect(find.text('Chest · Shoulders · Triceps'), findsOneWidget);
-    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('Push'), findsOneWidget); // reflective Training card
+    expect(find.text('Bench Press'), findsOneWidget);
     expect(find.text('TODAY'), findsWidgets); // section label + tab
   });
 }

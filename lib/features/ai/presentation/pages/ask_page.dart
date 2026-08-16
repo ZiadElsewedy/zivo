@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -99,7 +101,7 @@ class _AskPageState extends State<AskPage> {
             _Composer(
               controller: _input,
               enabled: _canSend,
-              bottomInset: media.viewInsets.bottom,
+              bottomInset: math.max(media.viewInsets.bottom, media.padding.bottom),
               onSend: () async {
                 final conversationId = await _conversationId;
                 await _send(conversationId);

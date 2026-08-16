@@ -5,4 +5,6 @@ abstract interface class MomentRepository {
   List<Moment> get current;
   Stream<List<Moment>> watchAll();
   Future<void> add(Moment moment);
+  Future<void> update(Moment moment);
+  Future<void> remove(String id);
 }

@@ -9,10 +9,14 @@ import '../../domain/exercise.dart';
 import '../../domain/workout.dart';
 import '../../domain/workout_format.dart';
 
-/// Workout capture — name the session, add a few exercises, save. A Pulse
-/// screen; lightweight logging over rigid tracking.
+/// Workout create-or-edit — name the session, add a few exercises, save. A
+/// Pulse screen; lightweight logging over rigid tracking. Pass [initial] to
+/// edit an existing logged workout in place instead of creating a new one;
+/// editing preserves the workout's original `performedAt`/`durationMinutes`.
 class WorkoutCapturePage extends StatefulWidget {
-  const WorkoutCapturePage({super.key});
+  const WorkoutCapturePage({super.key, this.initial});
+
+  final Workout? initial;
 
   @override
   State<WorkoutCapturePage> createState() => _WorkoutCapturePageState();
@@ -23,9 +27,17 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
   final List<Exercise> _exercises = [];
   bool _canSave = false;
 
+  bool get _editing => widget.initial != null;
+
   @override
   void initState() {
     super.initState();
+    final initial = widget.initial;
+    if (initial != null) {
+      _title.text = initial.title;
+      _exercises.addAll(initial.exercises);
+    }
+    _canSave = _title.text.trim().isNotEmpty && _exercises.isNotEmpty;
     _title.addListener(_recompute);
   }
 
@@ -59,14 +71,29 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
 
   Future<void> _save() async {
     if (!_canSave) return;
+    final initial = widget.initial;
     final workout = Workout(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       title: _title.text.trim(),
-      performedAt: DateTime.now(),
+      performedAt: initial?.performedAt ?? DateTime.now(),
+      durationMinutes: initial?.durationMinutes,
       exercises: List.unmodifiable(_exercises),
     );
-    await AppScope.of(context).workouts.add(workout);
+    final workouts = AppScope.of(context).workouts;
+    if (initial == null) {
+      await workouts.add(workout);
+    } else {
+      await workouts.update(workout);
+    }
     if (mounted) Navigator.of(context).pop(workout);
+  }
+
+  Future<void> _delete() async {
+    final initial = widget.initial;
+    if (initial == null) return;
+    final workouts = AppScope.of(context).workouts;
+    await workouts.remove(initial.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -78,8 +105,17 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: 'New workout',
+              title: _editing ? 'Edit workout' : 'New workout',
               onClose: () => Navigator.of(context).maybePop(),
+              trailing: _editing
+                  ? CaptureIconButton(
+                      key: const Key('workout-delete'),
+                      icon: Icons.delete_outline_rounded,
+                      onTap: _delete,
+                      semanticLabel: 'Delete workout',
+                      iconColor: AppColors.flareText,
+                    )
+                  : null,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),

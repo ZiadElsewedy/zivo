@@ -5,6 +5,8 @@ abstract interface class ScheduleRepository {
   List<ScheduleEvent> get current;
   Stream<List<ScheduleEvent>> watchAll();
   Future<void> add(ScheduleEvent event);
+  Future<void> update(ScheduleEvent event);
+  Future<void> remove(String id);
 }
 
 /// The current or next event to surface as Now/Next: the earliest event that

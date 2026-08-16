@@ -33,65 +33,71 @@ service cloud.firestore {
     // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
     match /users/{userId}/expenses/{expenseId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.amountMinor is int
         && request.resource.data.amountMinor >= 0
         && request.resource.data.currency is string
         && request.resource.data.category is string
         && request.resource.data.spentAt is timestamp
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Schedule: each user reads/writes only their own events.
     // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
     match /users/{userId}/schedule/{eventId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.title is string
         && request.resource.data.start is timestamp
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Notes: each user reads/writes only their own notes.
     // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
     match /users/{userId}/notes/{noteId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.body is string
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Workouts: each user reads/writes only their own logged sessions
     // (exercises embedded). Rules do not cascade from /users/{userId}, so explicit.
     match /users/{userId}/workouts/{workoutId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.title is string
         && request.resource.data.performedAt is timestamp
         && request.resource.data.exercises is list
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Moments: each user reads/writes only their own moments. imagePath is a
     // local device path (Storage/photos are a later milestone), so no file rules here.
     match /users/{userId}/moments/{momentId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.caption is string
         && request.resource.data.takenAt is timestamp
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // University: each user reads/writes only their own assignments/exams.
     // Rules do not cascade from the parent /users/{userId} match, so explicit.
     match /users/{userId}/universityItems/{itemId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.title is string
         && request.resource.data.type is string
         && request.resource.data.done is bool
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Diet plans: each user reads/writes only their own plan(s) (days/meals/items
@@ -99,11 +105,12 @@ service cloud.firestore {
     // /users/{userId} match, so this is explicit.
     match /users/{userId}/dietPlans/{planId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.name is string
         && request.resource.data.status is string
         && request.resource.data.days is list
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Diet entries: the "did I eat this meal today" consumption log, one doc per

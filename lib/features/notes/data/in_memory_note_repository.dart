@@ -45,5 +45,19 @@ class InMemoryNoteRepository implements NoteRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> update(Note note) async {
+    final index = _items.indexWhere((n) => n.id == note.id);
+    if (index == -1) return;
+    _items[index] = note;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((n) => n.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }

@@ -4,6 +4,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/workout.dart';
 import '../../domain/workout_format.dart';
 import 'workout_capture_page.dart';
@@ -26,6 +27,7 @@ class WorkoutHistoryPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.pulseText,
         elevation: 2,
+        tooltip: 'Log workout',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const WorkoutCapturePage()),
         ),
@@ -35,80 +37,125 @@ class WorkoutHistoryPage extends StatelessWidget {
         stream: workouts.watchAll(),
         initialData: workouts.current,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const ErrorStateView();
+          }
           final items = snapshot.data ?? const <Workout>[];
+          if (items.isEmpty &&
+              snapshot.connectionState == ConnectionState.waiting) {
+            return const LoadingStateView();
+          }
           if (items.isEmpty) {
-            return Center(child: Text('No workouts yet.', style: AppText.aside));
+            return const EmptyStateView('No workouts yet.');
           }
           final now = DateTime.now();
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _WorkoutCard(items[i], now: now),
+            itemBuilder: (context, i) => _WorkoutCard(
+              items[i],
+              now: now,
+              onTap: () => _openEdit(context, items[i]),
+              onDelete: () => workouts.remove(items[i].id),
+            ),
           );
         },
       ),
     );
   }
+
+  Future<void> _openEdit(BuildContext context, Workout workout) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WorkoutCapturePage(initial: workout)),
+    );
+  }
 }
 
 class _WorkoutCard extends StatelessWidget {
-  const _WorkoutCard(this.workout, {required this.now});
+  const _WorkoutCard(
+    this.workout, {
+    required this.now,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   final Workout workout;
   final DateTime now;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+    return Dismissible(
+      key: Key('workout-card-${workout.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 14),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.flareText,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.pulse,
-                  shape: BoxShape.circle,
+      onDismissed: (_) => onDelete(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.hairline),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.pulse,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        workout.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      timeAgo(workout.performedAt, now),
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  workout.title,
-                  maxLines: 1,
+                const SizedBox(height: 10),
+                Text(
+                  workout.summary,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                  style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                timeAgo(workout.performedAt, now),
-                style: AppText.meta.copyWith(color: AppColors.ink3),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  workoutMeta(workout),
+                  style: AppText.meta.copyWith(color: AppColors.pulseText),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            workout.summary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            workoutMeta(workout),
-            style: AppText.meta.copyWith(color: AppColors.pulseText),
-          ),
-        ],
+        ),
       ),
     );
   }

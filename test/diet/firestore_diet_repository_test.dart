@@ -169,6 +169,35 @@ void main() {
       },
     );
 
+    test('deletePlan removes the doc, watchActivePlan emits null', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreDietRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.savePlan(_makePlan('p1'));
+
+      final seen = <DietPlan?>[];
+      final sub = repo.watchActivePlan().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+      expect(seen.last?.id, 'p1');
+
+      await repo.deletePlan('p1');
+      await Future<void>.delayed(Duration.zero);
+      expect(seen.last, isNull);
+
+      final doc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('dietPlans')
+          .doc('p1')
+          .get();
+      expect(doc.exists, isFalse);
+
+      await sub.cancel();
+    });
+
     test('signed-out uid source emits null/empty and guards writes', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreDietRepository(
@@ -183,6 +212,7 @@ void main() {
       expect(consumed, isEmpty);
 
       expect(() => repo.savePlan(_makePlan('p1')), throwsStateError);
+      expect(() => repo.deletePlan('p1'), throwsStateError);
       expect(
         () => repo.setMealEaten(mealId: 'meal-1', day: DateTime(2026, 1, 5), eaten: true),
         throwsStateError,

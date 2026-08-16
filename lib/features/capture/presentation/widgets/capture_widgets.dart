@@ -5,10 +5,18 @@ import '../../../../core/theme/app_typography.dart';
 
 /// A close button + centred title, shared by the capture screens.
 class CaptureTopBar extends StatelessWidget {
-  const CaptureTopBar({required this.title, required this.onClose, super.key});
+  const CaptureTopBar({
+    required this.title,
+    required this.onClose,
+    this.trailing,
+    super.key,
+  });
 
   final String title;
   final VoidCallback onClose;
+
+  /// Optional trailing action (e.g. delete) replacing the balancing spacer.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -16,26 +24,74 @@ class CaptureTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
       child: Row(
         children: [
-          InkWell(
+          CaptureIconButton(
+            icon: Icons.close_rounded,
             onTap: onClose,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
-            ),
+            semanticLabel: 'Close',
           ),
           Expanded(
             child: Center(
               child: Text(title, style: AppText.button.copyWith(color: AppColors.ink2)),
             ),
           ),
-          const SizedBox(width: 34),
+          SizedBox(
+            width: CaptureIconButton.targetSize,
+            height: CaptureIconButton.targetSize,
+            child: trailing,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// A circular icon control for capture top bars — the close button and the
+/// per-screen delete action. The visible chip stays 34px to preserve the
+/// existing look, but the tap target is padded out to 44px (WCAG 2.5.5 / Apple
+/// HIG), and [semanticLabel] gives the otherwise icon-only button a name for
+/// screen readers (also surfaced as a long-press tooltip).
+class CaptureIconButton extends StatelessWidget {
+  const CaptureIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+    this.iconColor = AppColors.ink2,
+    super.key,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String semanticLabel;
+  final Color iconColor;
+
+  /// The visible chip diameter.
+  static const double chipSize = 34;
+
+  /// The tap target the chip is centred within — the accessible minimum.
+  static const double targetSize = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: semanticLabel,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: targetSize,
+          height: targetSize,
+          child: Center(
+            child: Container(
+              width: chipSize,
+              height: chipSize,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEFEBE3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 18, color: iconColor),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -79,7 +135,14 @@ class PillButton extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: textColor),
                 const SizedBox(width: 8),
-                Text(label, style: AppText.button.copyWith(fontSize: 16, color: textColor)),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.button.copyWith(fontSize: 16, color: textColor),
+                  ),
+                ),
               ],
             ),
           ),

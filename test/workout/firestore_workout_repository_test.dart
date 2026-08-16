@@ -140,7 +140,88 @@ void main() {
         expect(workouts, isEmpty);
 
         expect(() => repo.add(_make('w1')), throwsStateError);
+        expect(() => repo.update(_make('w1')), throwsStateError);
+        expect(() => repo.remove('w1'), throwsStateError);
       },
     );
+
+    test(
+      'update replaces title/exercises/performedAt in place, observed on the stream',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreWorkoutRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.add(
+          _make(
+            'w1',
+            title: 'Push',
+            performedAt: DateTime(2026, 1, 2, 10),
+            durationMinutes: 50,
+          ),
+        );
+
+        final seen = <List<Workout>>[];
+        final sub = repo.watchAll().listen(seen.add);
+        await Future<void>.delayed(Duration.zero);
+
+        await repo.update(
+          _make(
+            'w1',
+            title: 'Pull',
+            performedAt: DateTime(2026, 1, 2, 10),
+            durationMinutes: 50,
+            exercises: const [
+              Exercise(name: 'Lat Pulldown', sets: 4, reps: 10, weightKg: 45),
+            ],
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // watchAll() is a broadcast stream, so a fresh `.first` here would wait
+        // for the *next* emission (which never comes) — read the accumulated
+        // emissions instead.
+        final workouts = seen.last;
+        expect(workouts, hasLength(1));
+        final updated = workouts.single;
+        expect(updated.id, 'w1');
+        expect(updated.title, 'Pull');
+        expect(updated.performedAt, DateTime(2026, 1, 2, 10));
+        expect(updated.exercises.single.name, 'Lat Pulldown');
+
+        final doc = await firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('workouts')
+            .doc('w1')
+            .get();
+        expect(doc.data()!['createdAt'], isA<Timestamp>());
+
+        await sub.cancel();
+      },
+    );
+
+    test('remove deletes the doc, no longer observed on the stream', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreWorkoutRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('w1'));
+
+      final seen = <List<Workout>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+      expect(seen.last, hasLength(1));
+
+      await repo.remove('w1');
+      await Future<void>.delayed(Duration.zero);
+      expect(seen.last, isEmpty);
+
+      await sub.cancel();
+    });
   });
 }

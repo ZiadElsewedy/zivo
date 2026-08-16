@@ -102,6 +102,33 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
     });
   }
 
+  @override
+  Future<void> update(Workout workout) {
+    final uid = _requireUid();
+    return _workoutsCollection(uid).doc(workout.id).update({
+      'title': workout.title,
+      'performedAt': Timestamp.fromDate(workout.performedAt),
+      'durationMinutes': workout.durationMinutes,
+      'exercises': workout.exercises
+          .map(
+            (e) => {
+              'name': e.name,
+              'sets': e.sets,
+              'reps': e.reps,
+              'weightKg': e.weightKg,
+            },
+          )
+          .toList(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _workoutsCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

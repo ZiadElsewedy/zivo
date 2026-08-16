@@ -55,6 +55,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   final List<_DayDraft> _days = [];
   bool _canSave = false;
 
+  bool get _editing => widget.initialPlan != null;
+
   @override
   void initState() {
     super.initState();
@@ -182,6 +184,36 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     if (mounted) Navigator.of(context).pop(plan);
   }
 
+  Future<void> _delete() async {
+    final plan = widget.initialPlan;
+    if (plan == null) return;
+    final diet = AppScope.of(context).diet;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Delete this plan?', style: AppText.cardTitle),
+        content: Text(
+          'This removes "${plan.name}" and all its days and meals. This can\'t be undone.',
+          style: AppText.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flareText)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await diet.deletePlan(plan.id);
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,6 +225,15 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
             CaptureTopBar(
               title: 'Edit diet plan',
               onClose: () => Navigator.of(context).maybePop(),
+              trailing: _editing
+                  ? CaptureIconButton(
+                      key: const Key('diet-plan-delete'),
+                      icon: Icons.delete_outline_rounded,
+                      onTap: _delete,
+                      semanticLabel: 'Delete plan',
+                      iconColor: AppColors.flareText,
+                    )
+                  : null,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 6),

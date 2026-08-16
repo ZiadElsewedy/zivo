@@ -38,14 +38,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Verify your email'), findsOneWidget);
-      expect(find.text('Morning, Ziad'), findsNothing);
+      expect(find.text('PULL TO ASK'), findsNothing); // home shell not shown yet
 
       // Authenticated → app shell (Today).
       auth.emit(const Authenticated(AuthUser(uid: 'u1')));
       await tester.pump(); // rebuild on the new state
       await tester.pump(); // profile stream resolves (complete by default)
       await tester.pumpAndSettle(); // fire + finish entrance timers
-      expect(find.text('Morning, Ziad'), findsOneWidget);
+      expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
       expect(find.text('Sign in with Apple'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle(); // completion page RiseIn entrance timers
 
     expect(find.text('Complete your profile'), findsOneWidget);
-    expect(find.text('Morning, Ziad'), findsNothing);
+    expect(find.text('PULL TO ASK'), findsNothing); // home shell not shown
   });
 
   testWidgets('Authenticated with a complete profile routes to the home shell',
@@ -92,7 +92,7 @@ void main() {
     await tester.pump(); // profile stream resolves (complete by default)
     await tester.pumpAndSettle();
 
-    expect(find.text('Morning, Ziad'), findsOneWidget);
+    expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
     expect(find.text('Complete your profile'), findsNothing);
   });
 }

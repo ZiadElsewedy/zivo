@@ -4,29 +4,66 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/money.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
 import '../widgets/amount_keypad.dart';
 import '../widgets/category_chips.dart';
 
 /// Expense capture — the sub-5-second flow. Amount first, keypad up, one tap
-/// to categorise, Save. A Solar screen throughout.
+/// to categorise, Save. A Solar screen throughout. Pass [initial] to edit an
+/// existing expense in place instead of creating a new one; editing preserves
+/// the expense's original `spentAt`.
 class ExpenseCapturePage extends StatefulWidget {
-  const ExpenseCapturePage({super.key});
+  const ExpenseCapturePage({super.key, this.initial});
+
+  final Expense? initial;
 
   @override
   State<ExpenseCapturePage> createState() => _ExpenseCapturePageState();
 }
 
 class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
-  static const _currency = 'EGP';
-
   String _digits = '';
+  String _currency = 'EGP';
   ExpenseCategory _category = ExpenseCategory.food;
   String? _note;
 
+  bool get _editing => widget.initial != null;
+
   int get _amountMinor => parseMinor(_digits);
   bool get _canSave => _amountMinor > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    if (initial != null) {
+      _digits = formatAmount(initial.amountMinor);
+      _currency = initial.currency;
+      _category = initial.category;
+      _note = initial.note;
+    }
+  }
+
+  String get _dateLabel {
+    final initial = widget.initial;
+    if (initial == null) return 'Today';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(
+      initial.spentAt.year,
+      initial.spentAt.month,
+      initial.spentAt.day,
+    );
+    if (day == today) return 'Today';
+    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${day.day} ${months[day.month - 1]}';
+  }
 
   void _onKey(KeypadKey key) {
     setState(() {
@@ -90,16 +127,30 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
 
   Future<void> _save() async {
     if (!_canSave) return;
+    final expenses = AppScope.of(context).expenses;
+    final initial = widget.initial;
     final expense = Expense(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       amountMinor: _amountMinor,
       currency: _currency,
       category: _category,
-      spentAt: DateTime.now(),
+      spentAt: initial?.spentAt ?? DateTime.now(),
       note: _note,
     );
-    await AppScope.of(context).expenses.add(expense);
+    if (initial == null) {
+      await expenses.add(expense);
+    } else {
+      await expenses.update(expense);
+    }
     if (mounted) Navigator.of(context).pop(expense);
+  }
+
+  Future<void> _delete() async {
+    final initial = widget.initial;
+    if (initial == null) return;
+    final expenses = AppScope.of(context).expenses;
+    await expenses.remove(initial.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -109,7 +160,19 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
       body: SafeArea(
         child: Column(
           children: [
-            _TopBar(onClose: () => Navigator.of(context).maybePop()),
+            CaptureTopBar(
+              title: _editing ? 'Edit expense' : 'New expense',
+              onClose: () => Navigator.of(context).maybePop(),
+              trailing: _editing
+                  ? CaptureIconButton(
+                      key: const Key('expense-delete'),
+                      icon: Icons.delete_outline_rounded,
+                      onTap: _delete,
+                      semanticLabel: 'Delete expense',
+                      iconColor: AppColors.flareText,
+                    )
+                  : null,
+            ),
             const SizedBox(height: 20),
             _AmountDisplay(digits: _digits, currency: _currency),
             const SizedBox(height: 18),
@@ -118,7 +181,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
               onSelected: (c) => setState(() => _category = c),
             ),
             const SizedBox(height: 14),
-            _MetaRow(note: _note, onEditNote: _editNote),
+            _MetaRow(note: _note, onEditNote: _editNote, dateLabel: _dateLabel),
             const Spacer(),
             AmountKeypad(onDigit: _onDigit, onKey: _onKey),
             const SizedBox(height: 12),
@@ -135,43 +198,6 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
             const SizedBox(height: 6),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: onClose,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Text('New expense',
-                  style: AppText.button.copyWith(color: AppColors.ink2)),
-            ),
-          ),
-          const SizedBox(width: 34),
-        ],
       ),
     );
   }
@@ -219,10 +245,15 @@ class _AmountDisplay extends StatelessWidget {
 }
 
 class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.note, required this.onEditNote});
+  const _MetaRow({
+    required this.note,
+    required this.onEditNote,
+    required this.dateLabel,
+  });
 
   final String? note;
   final VoidCallback onEditNote;
+  final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +269,7 @@ class _MetaRow extends StatelessWidget {
         const SizedBox(width: 10),
         _MetaChip(
           icon: Icons.calendar_today_rounded,
-          label: 'Today',
+          label: dateLabel,
           active: true,
           onTap: null,
         ),

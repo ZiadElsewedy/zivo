@@ -4,13 +4,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
+import '../../expenses/presentation/pages/expenses_list_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
+import '../../schedule/presentation/pages/schedule_list_page.dart';
+import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_history_page.dart';
 
-/// The Hub — the OS-style launcher into each module's depth. Notes and Moments
-/// are live; the rest open as they are built.
+/// The Hub — the OS-style launcher into each module's depth. Modules open as
+/// they are built; the rest show a "soon" placeholder.
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
@@ -22,9 +25,14 @@ class HubPage extends StatelessWidget {
         'Schedule',
         Icons.calendar_today_rounded,
         AppColors.emberText,
-        null,
+        (c) => const ScheduleListPage(),
       ),
-      _Module('Tasks', Icons.check_circle_outline_rounded, AppColors.ink, null),
+      _Module(
+        'Tasks',
+        Icons.check_circle_outline_rounded,
+        AppColors.ink,
+        (c) => const TaskListPage(),
+      ),
       _Module(
         'Workout',
         Icons.fitness_center_rounded,
@@ -37,7 +45,12 @@ class HubPage extends StatelessWidget {
         AppColors.pulseText,
         (c) => const DietPlanPage(),
       ),
-      _Module('Expenses', Icons.payments_rounded, AppColors.solarText, null),
+      _Module(
+        'Expenses',
+        Icons.payments_rounded,
+        AppColors.solarText,
+        (c) => const ExpensesListPage(),
+      ),
       _Module(
         'University',
         Icons.school_outlined,

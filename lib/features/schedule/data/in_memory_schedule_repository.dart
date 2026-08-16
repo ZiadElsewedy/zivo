@@ -43,5 +43,19 @@ class InMemoryScheduleRepository implements ScheduleRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> update(ScheduleEvent event) async {
+    final index = _items.indexWhere((e) => e.id == event.id);
+    if (index == -1) return;
+    _items[index] = event;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((e) => e.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }

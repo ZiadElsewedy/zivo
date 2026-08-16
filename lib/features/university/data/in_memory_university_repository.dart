@@ -60,10 +60,24 @@ class InMemoryUniversityRepository implements UniversityRepository {
   }
 
   @override
+  Future<void> update(UniversityItem item) async {
+    final index = _items.indexWhere((i) => i.id == item.id);
+    if (index == -1) return;
+    _items[index] = item;
+    _controller.add(current);
+  }
+
+  @override
   Future<void> setDone(String id, bool done) async {
     final index = _items.indexWhere((i) => i.id == id);
     if (index == -1) return;
     _items[index] = _items[index].copyWith(done: done);
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((i) => i.id == id);
     _controller.add(current);
   }
 

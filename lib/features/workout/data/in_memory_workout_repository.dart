@@ -48,5 +48,19 @@ class InMemoryWorkoutRepository implements WorkoutRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> update(Workout workout) async {
+    final index = _items.indexWhere((w) => w.id == workout.id);
+    if (index == -1) return;
+    _items[index] = workout;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((w) => w.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }

@@ -19,7 +19,7 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(join(here, '..', 'firestore.rules'), 'utf8');
@@ -189,5 +189,53 @@ describe('tasks update path (mirrors setDone)', () => {
     await seed(collPath(OWNER, 'tasks'), valid.tasks);
     await assertSucceeds(updateDoc(doc(ownerDb(), collPath(OWNER, 'tasks')), { done: true }));
     await assertFails(updateDoc(doc(otherDb(), collPath(OWNER, 'tasks')), { done: true }));
+  });
+});
+
+describe('schedule delete path', () => {
+  it('owner can delete their own event; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'schedule'), valid.schedule);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'schedule'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'schedule'))));
+  });
+});
+
+describe('notes delete path', () => {
+  it('owner can delete their own note; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'notes'), valid.notes);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'notes'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'notes'))));
+  });
+});
+
+describe('expenses delete path', () => {
+  it('owner can delete their own expense; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'expenses'), valid.expenses);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'expenses'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'expenses'))));
+  });
+});
+
+describe('workouts delete path', () => {
+  it('owner can delete their own workout; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'workouts'), valid.workouts);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'workouts'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workouts'))));
+  });
+});
+
+describe('dietPlans delete path', () => {
+  it('owner can delete their own plan; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'dietPlans'), valid.dietPlans);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'dietPlans'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'dietPlans'))));
+  });
+});
+
+describe('universityItems delete path', () => {
+  it('owner can delete their own item; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'universityItems'), valid.universityItems);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'universityItems'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'universityItems'))));
   });
 });

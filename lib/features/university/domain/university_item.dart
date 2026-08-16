@@ -21,13 +21,21 @@ class UniversityItem {
   final String? courseName;
   final bool done;
 
-  UniversityItem copyWith({bool? done}) => UniversityItem(
+  UniversityItem copyWith({
+    String? title,
+    UniversityItemType? type,
+    DateTime? due,
+    bool clearDue = false,
+    String? courseName,
+    bool clearCourseName = false,
+    bool? done,
+  }) => UniversityItem(
     id: id,
-    title: title,
-    type: type,
+    title: title ?? this.title,
+    type: type ?? this.type,
     createdAt: createdAt,
-    due: due,
-    courseName: courseName,
+    due: clearDue ? null : (due ?? this.due),
+    courseName: clearCourseName ? null : (courseName ?? this.courseName),
     done: done ?? this.done,
   );
 }
