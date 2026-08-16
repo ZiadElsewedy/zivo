@@ -8,30 +8,57 @@ import '../../domain/university_item_type.dart';
 
 enum _Due { none, today, tomorrow, custom }
 
-/// University quick-create — title, assignment/exam, an optional due date,
-/// and an optional free-text course label. Iris themed.
+/// University create-or-edit — title, assignment/exam, an optional due date,
+/// and an optional free-text course label. Iris themed. Pass [initial] to
+/// edit an existing item in place instead of creating a new one.
 class UniversityCapturePage extends StatefulWidget {
-  const UniversityCapturePage({super.key});
+  const UniversityCapturePage({super.key, this.initial});
+
+  final UniversityItem? initial;
 
   @override
   State<UniversityCapturePage> createState() => _UniversityCapturePageState();
 }
 
 class _UniversityCapturePageState extends State<UniversityCapturePage> {
-  final TextEditingController _title = TextEditingController();
-  final TextEditingController _course = TextEditingController();
-  UniversityItemType _type = UniversityItemType.assignment;
-  _Due _due = _Due.none;
+  late final TextEditingController _title;
+  late final TextEditingController _course;
+  late UniversityItemType _type;
+  late _Due _due;
   DateTime? _customDate;
   bool _canAdd = false;
+
+  bool get _editing => widget.initial != null;
 
   @override
   void initState() {
     super.initState();
+    final initial = widget.initial;
+    _title = TextEditingController(text: initial?.title ?? '');
+    _course = TextEditingController(text: initial?.courseName ?? '');
+    _type = initial?.type ?? UniversityItemType.assignment;
+    final today = _today();
+    final due = initial?.due;
+    if (due == null) {
+      _due = _Due.none;
+    } else if (due == today) {
+      _due = _Due.today;
+    } else if (due == today.add(const Duration(days: 1))) {
+      _due = _Due.tomorrow;
+    } else {
+      _due = _Due.custom;
+      _customDate = due;
+    }
+    _canAdd = _title.text.trim().isNotEmpty;
     _title.addListener(() {
       final canAdd = _title.text.trim().isNotEmpty;
       if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
     });
+  }
+
+  DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   @override
@@ -42,8 +69,7 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
   }
 
   DateTime? _resolveDue() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = _today();
     return switch (_due) {
       _Due.none => null,
       _Due.today => today,
@@ -68,20 +94,43 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
     }
   }
 
-  Future<void> _add() async {
+  Future<void> _save() async {
     if (!_canAdd) return;
-    final courseName = _course.text.trim();
-    final item = UniversityItem(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _title.text.trim(),
-      type: _type,
-      createdAt: DateTime.now(),
-      due: _resolveDue(),
-      courseName: courseName.isEmpty ? null : courseName,
-    );
     final university = AppScope.of(context).university;
-    await university.add(item);
+    final initial = widget.initial;
+    final courseName = _course.text.trim();
+    final due = _resolveDue();
+    final item = initial == null
+        ? UniversityItem(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            title: _title.text.trim(),
+            type: _type,
+            createdAt: DateTime.now(),
+            due: due,
+            courseName: courseName.isEmpty ? null : courseName,
+          )
+        : initial.copyWith(
+            title: _title.text.trim(),
+            type: _type,
+            due: due,
+            clearDue: due == null,
+            courseName: courseName.isEmpty ? null : courseName,
+            clearCourseName: courseName.isEmpty,
+          );
+    if (initial == null) {
+      await university.add(item);
+    } else {
+      await university.update(item);
+    }
     if (mounted) Navigator.of(context).pop(item);
+  }
+
+  Future<void> _delete() async {
+    final initial = widget.initial;
+    if (initial == null) return;
+    final university = AppScope.of(context).university;
+    await university.remove(initial.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -93,7 +142,11 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _TopBar(onClose: () => Navigator.of(context).maybePop()),
+            _TopBar(
+              editing: _editing,
+              onClose: () => Navigator.of(context).maybePop(),
+              onDelete: _editing ? _delete : null,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),
               child: TextField(
@@ -171,7 +224,7 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
               child: TextField(
                 controller: _course,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _add(),
+                onSubmitted: (_) => _save(),
                 cursorColor: AppColors.iris,
                 style: AppText.rowTitle,
                 decoration: InputDecoration(
@@ -190,7 +243,7 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
                 18,
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
-              child: _AddButton(enabled: _canAdd, onTap: _add),
+              child: _AddButton(enabled: _canAdd, editing: _editing, onTap: _save),
             ),
           ],
         ),
@@ -218,9 +271,15 @@ class _UniversityCapturePageState extends State<UniversityCapturePage> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose});
+  const _TopBar({
+    required this.onClose,
+    required this.editing,
+    this.onDelete,
+  });
 
   final VoidCallback onClose;
+  final bool editing;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -248,12 +307,32 @@ class _TopBar extends StatelessWidget {
           Expanded(
             child: Center(
               child: Text(
-                'New university item',
+                editing ? 'Edit university item' : 'New university item',
                 style: AppText.button.copyWith(color: AppColors.ink2),
               ),
             ),
           ),
-          const SizedBox(width: 34),
+          if (onDelete != null)
+            InkWell(
+              key: const Key('university-delete'),
+              onTap: onDelete,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFEBE3),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: AppColors.flareText,
+                ),
+              ),
+            )
+          else
+            const SizedBox(width: 34),
         ],
       ),
     );
@@ -316,10 +395,15 @@ class _Chip extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.enabled, required this.onTap});
+  const _AddButton({
+    required this.enabled,
+    required this.onTap,
+    this.editing = false,
+  });
 
   final bool enabled;
   final VoidCallback onTap;
+  final bool editing;
 
   @override
   Widget build(BuildContext context) {
@@ -338,10 +422,14 @@ class _AddButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                Icon(
+                  editing ? Icons.check_rounded : Icons.add_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  'Add',
+                  editing ? 'Save' : 'Add',
                   style: AppText.button.copyWith(
                     fontSize: 16,
                     color: Colors.white,

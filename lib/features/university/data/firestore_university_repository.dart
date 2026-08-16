@@ -112,11 +112,31 @@ class FirestoreUniversityRepository implements UniversityRepository {
   }
 
   @override
+  Future<void> update(UniversityItem item) {
+    final uid = _requireUid();
+    return _universityCollection(uid).doc(item.id).update({
+      'title': item.title,
+      'type': item.type.name,
+      'due': item.due == null ? null : Timestamp.fromDate(item.due!),
+      'courseName': item.courseName,
+      'done': item.done,
+      'schemaVersion': 1,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> setDone(String id, bool done) {
     final uid = _requireUid();
     return _universityCollection(
       uid,
     ).doc(id).update({'done': done, 'updatedAt': FieldValue.serverTimestamp()});
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _universityCollection(uid).doc(id).delete();
   }
 
   String _requireUid() {

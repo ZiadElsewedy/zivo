@@ -33,6 +33,56 @@ void main() {
       expect(done.courseName, item.courseName);
     });
 
+    test('copyWith updates title/type/due/courseName, preserving id/createdAt', () {
+      final item = UniversityItem(
+        id: 'u1',
+        title: 'Assignment 2 — Algorithms',
+        type: UniversityItemType.assignment,
+        createdAt: DateTime(2026, 1, 1),
+        due: DateTime(2026, 1, 5),
+        courseName: 'Algorithms',
+      );
+
+      final edited = item.copyWith(
+        title: 'Assignment 2 (revised)',
+        type: UniversityItemType.exam,
+        due: DateTime(2026, 2, 1),
+        courseName: 'Data Structures',
+      );
+
+      expect(edited.id, item.id);
+      expect(edited.createdAt, item.createdAt);
+      expect(edited.title, 'Assignment 2 (revised)');
+      expect(edited.type, UniversityItemType.exam);
+      expect(edited.due, DateTime(2026, 2, 1));
+      expect(edited.courseName, 'Data Structures');
+      expect(edited.done, item.done);
+    });
+
+    test('copyWith clearDue removes the due date', () {
+      final item = UniversityItem(
+        id: 'u1',
+        title: 'Assignment',
+        type: UniversityItemType.assignment,
+        createdAt: DateTime(2026, 1, 1),
+        due: DateTime(2026, 1, 5),
+      );
+
+      expect(item.copyWith(clearDue: true).due, isNull);
+    });
+
+    test('copyWith clearCourseName removes the course name', () {
+      final item = UniversityItem(
+        id: 'u1',
+        title: 'Assignment',
+        type: UniversityItemType.assignment,
+        createdAt: DateTime(2026, 1, 1),
+        courseName: 'Algorithms',
+      );
+
+      expect(item.copyWith(clearCourseName: true).courseName, isNull);
+    });
+
     test('defaults done to false', () {
       final item = UniversityItem(
         id: 'u1',

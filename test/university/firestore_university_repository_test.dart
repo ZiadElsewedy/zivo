@@ -148,6 +148,74 @@ void main() {
     );
 
     test(
+      'update replaces the editable fields, preserving id/createdAt, '
+      'and is observed on the stream',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreUniversityRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.add(
+          _make(
+            'u1',
+            createdAt: DateTime(2026, 1, 1),
+            due: DateTime(2026, 1, 5),
+            courseName: 'Algorithms',
+          ),
+        );
+
+        final seen = <List<UniversityItem>>[];
+        final sub = repo.watchAll().listen(seen.add);
+        await Future<void>.delayed(Duration.zero);
+
+        final original = seen.last.single;
+        await repo.update(
+          original.copyWith(
+            title: 'Revised title',
+            type: UniversityItemType.exam,
+            due: DateTime(2026, 2, 1),
+            courseName: 'Data Structures',
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final updated = seen.last.single;
+        expect(updated.id, 'u1');
+        expect(updated.createdAt, DateTime(2026, 1, 1));
+        expect(updated.title, 'Revised title');
+        expect(updated.type, UniversityItemType.exam);
+        expect(updated.due, DateTime(2026, 2, 1));
+        expect(updated.courseName, 'Data Structures');
+
+        await sub.cancel();
+      },
+    );
+
+    test('remove deletes the doc and is observed on the stream', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreUniversityRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('u1'));
+      await repo.add(_make('u2'));
+
+      final seen = <List<UniversityItem>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.remove('u1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen.last.map((i) => i.id), ['u2']);
+
+      await sub.cancel();
+    });
+
+    test(
       'signed-out uid source emits an empty list and guards writes',
       () async {
         final firestore = FakeFirebaseFirestore();
@@ -163,7 +231,9 @@ void main() {
         expect(items, isEmpty);
 
         expect(() => repo.add(_make('u1')), throwsStateError);
+        expect(() => repo.update(_make('u1')), throwsStateError);
         expect(() => repo.setDone('u1', true), throwsStateError);
+        expect(() => repo.remove('u1'), throwsStateError);
       },
     );
   });
