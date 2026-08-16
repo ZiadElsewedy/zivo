@@ -452,6 +452,112 @@ test("cache read/write tokens are logged and priced at their discounts",
       assert.ok(Math.abs(usageDoc.costUsd - expected) < 1e-12);
     });
 
+test("a read-tool turn emits understanding → working → done phases plus " +
+    "streamed text deltas", async () => {
+  const store = makeStore({
+    listTasks: async () => [{title: "Buy milk", done: false, priority: false,
+      due: null}],
+  });
+  const responses = [
+    {
+      stop_reason: "tool_use",
+      content: [{type: "tool_use", id: "call-1", name: "get_tasks", input: {}}],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "You have 1 open task."}],
+      usage: {input_tokens: 5, output_tokens: 5},
+    },
+  ];
+  // A streamModel that replays scripted responses, emitting each final text
+  // block as two deltas so the delta path is exercised.
+  let i = 0;
+  const streamModel = async (request, onText) => {
+    const resp = responses[Math.min(i, responses.length - 1)];
+    i++;
+    const text = (resp.content.find((b) => b.type === "text") || {}).text;
+    if (text) {
+      onText(text.slice(0, 4));
+      onText(text.slice(4));
+    }
+    return resp;
+  };
+
+  const events = [];
+  const result = await runAiTurn({
+    store,
+    streamModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "what are my tasks?",
+    now: makeClock(0),
+  });
+
+  assert.equal(result.status, "ok");
+  const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
+  assert.deepEqual(phases, ["understanding", "working", "done"]);
+  assert.equal(events[events.length - 1].status, "ok");
+
+  const deltas = events.filter((e) => e.type === "delta").map((e) => e.text);
+  assert.equal(deltas.join(""), "You have 1 open task.");
+});
+
+test("a turn with no tools emits no working phase", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "Hi."}],
+      usage: {input_tokens: 3, output_tokens: 1},
+    },
+  ]);
+  const events = [];
+  await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "hi",
+    now: makeClock(0),
+  });
+  const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
+  assert.deepEqual(phases, ["understanding", "done"]);
+});
+
+test("a mutation turn emits a preparing_change phase before done", async () => {
+  const store = makeStore({
+    createPendingAction: async () => {},
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{
+        type: "tool_use",
+        id: "call-1",
+        name: "create_task",
+        input: {title: "Submit report"},
+      }],
+      usage: {input_tokens: 8, output_tokens: 4},
+    },
+  ]);
+  const events = [];
+  const result = await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "add task Submit report",
+    now: makeClock(0),
+  });
+  assert.equal(result.status, "proposed");
+  const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
+  assert.deepEqual(phases, ["understanding", "preparing_change", "done"]);
+});
+
 test("an oversized tool result is truncated before it re-enters the loop",
     async () => {
       const big = "y".repeat(20000);

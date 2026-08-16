@@ -171,6 +171,15 @@ function capToolResult(content, maxChars) {
  * @param {!Object} args.store The `FirestoreStore`-shaped read/write seam.
  * @param {function(!Object): !Promise<!Object>} args.callModel One
  *   Anthropic `messages.create` call.
+ * @param {(function(!Object, function(string): void): !Promise<!Object>)=}
+ *   args.streamModel Optional streaming seam: given the same request plus an
+ *   `onText(delta)` callback, streams the model and resolves to the final
+ *   message (same shape `callModel` returns). When absent, `callModel` is used
+ *   and no text deltas are emitted — behavior is identical to a buffered turn.
+ * @param {(function(!Object): void)=} args.onEvent Optional sink for live turn
+ *   events — `{type:'phase', phase}` and `{type:'delta', text}`. Phases are
+ *   derived from the loop's real state (never the model's reasoning). When
+ *   absent, nothing is emitted and the turn is byte-identical to before.
  * @param {string} args.uid
  * @param {string} args.conversationId
  * @param {string} args.message
@@ -181,12 +190,17 @@ function capToolResult(content, maxChars) {
 async function runAiTurn({
   store,
   callModel,
+  streamModel,
+  onEvent,
   uid,
   conversationId,
   message,
   now,
   config,
 }) {
+  // A no-op sink keeps the streaming path off the hot path when unused.
+  const emit = typeof onEvent === "function" ? onEvent : () => {};
+  const emitPhase = (phase) => emit({type: "phase", phase});
   const cfg = Object.assign({}, DEFAULT_CONFIG, config || {});
   const clock = now || (() => new Date());
 
@@ -264,16 +278,24 @@ async function runAiTurn({
   let refusal = false;
   let tokenCeilingHit = false;
   let proposedAction = null;
+  // Phases are emitted once as the loop crosses each real boundary.
+  let workingEmitted = false;
+
+  // The turn is committed to running (past validation and the daily cap).
+  emitPhase("understanding");
 
   for (let i = 0; i < cfg.maxIterations; i++) {
     iterations = i + 1;
-    const resp = await callModel({
+    const req = {
       model: MODEL,
       max_tokens: cfg.maxTokens,
       system: cachedSystem,
       tools: toolSchemas,
       messages,
-    });
+    };
+    const resp = streamModel ?
+      await streamModel(req, (text) => emit({type: "delta", text})) :
+      await callModel(req);
 
     const usage = resp.usage || {};
     uncachedTokensIn += usage.input_tokens || 0;
@@ -318,6 +340,12 @@ async function runAiTurn({
         continue;
       }
 
+      // A read tool is about to run — the turn is actively gathering data.
+      if (!workingEmitted) {
+        emitPhase("working");
+        workingEmitted = true;
+      }
+
       let resultPayload;
       let isError = false;
       if (!tool) {
@@ -346,6 +374,7 @@ async function runAiTurn({
     // action_proposal message, and stop (no tool_result is fed back, so the
     // loop halts cleanly awaiting the user).
     if (proposal) {
+      emitPhase("preparing_change");
       proposedAction = await persistProposal({
         store,
         uid,
@@ -424,6 +453,10 @@ async function runAiTurn({
     schemaVersion: 2,
   };
   await store.logUsage(uid, usageDoc);
+
+  // The durable record is written; the turn is done. Carries the terminal
+  // status so a streaming client can reconcile without waiting on Firestore.
+  emit({type: "phase", phase: "done", status});
 
   return {
     status,
