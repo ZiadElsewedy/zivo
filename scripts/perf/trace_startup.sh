@@ -28,11 +28,15 @@ OUT_DIR="$REPO_ROOT/docs/performance/traces"
 mkdir -p "$OUT_DIR"
 
 echo "▶ Profile build with --trace-startup on device: $DEVICE"
+echo "  Config: Profile (config/profile.json) — the M7 configuration."
 echo "  Let the app reach the home screen, then press 'q' to quit."
 echo
 
 # --trace-startup writes build/start_up_info.json once startup completes.
-flutter run --profile --trace-startup -d "$DEVICE"
+# The profile config keeps App Check on real attestation (production-like).
+flutter run --profile --trace-startup \
+  --dart-define-from-file=config/profile.json \
+  -d "$DEVICE"
 
 SRC="$REPO_ROOT/build/start_up_info.json"
 if [[ -f "$SRC" ]]; then

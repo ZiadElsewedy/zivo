@@ -10,8 +10,13 @@ lists what we already suspect so we confirm/deny rather than guess.
 - **App:** ZIVO (`com.ziadelsewedy.zivo`), Flutter 3.44.2
 - **Device:** any physical device (iPhone/iPad or Android). **Not** the
   simulator/emulator. Unlock it and plug in via cable.
-- **Everything runs in `--profile`**, never `--debug` and never `--release`
-  (release strips the tracing hooks).
+- **Configuration: Profile.** Everything below runs the **Profile** build config
+  (`--profile` + `config/profile.json`), never Development or Release. See
+  [../build_configurations.md](../build_configurations.md) for why Profile is
+  the correct M7 config. In Profile, App Check runs **real attestation** (App
+  Attest / Play Integrity) — production-like on purpose, so startup isn't
+  misleading. The easiest launch is `make profile` or the **ZIVO · Profile (M7)**
+  entry in `.vscode/launch.json`.
 
 Find your device id once:
 
@@ -32,7 +37,7 @@ init calls blocking the first frame. We expect this to dominate cold start.
 Run (or use the helper `scripts/perf/trace_startup.sh <device-id>`):
 
 ```bash
-flutter run --profile --trace-startup -d <device-id>
+flutter run --profile --trace-startup --dart-define-from-file=config/profile.json -d <device-id>
 ```
 
 Let the app reach the home screen, then press `q` to quit. Flutter writes
@@ -55,7 +60,7 @@ scrolling and while data updates.
 
 1. Launch in profile with the DevTools URL printed:
    ```bash
-   flutter run --profile -d <device-id>
+   flutter run --profile --dart-define-from-file=config/profile.json -d <device-id>
    ```
    Copy the **"A Dart VM Service is available at: …"** URL and open DevTools:
    ```bash
