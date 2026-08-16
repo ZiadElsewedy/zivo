@@ -100,6 +100,25 @@ class FirestoreMomentRepository implements MomentRepository {
     });
   }
 
+  @override
+  Future<void> update(Moment moment) {
+    final uid = _requireUid();
+    return _momentsCollection(uid).doc(moment.id).update({
+      'caption': moment.caption,
+      'takenAt': Timestamp.fromDate(moment.takenAt),
+      'imagePath': moment.imagePath,
+      'location': moment.location,
+      'schemaVersion': 1,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _momentsCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

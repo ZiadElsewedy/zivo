@@ -39,5 +39,19 @@ class InMemoryMomentRepository implements MomentRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> update(Moment moment) async {
+    final index = _items.indexWhere((m) => m.id == moment.id);
+    if (index == -1) return;
+    _items[index] = moment;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((m) => m.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }
