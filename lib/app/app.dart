@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/env/app_environment.dart';
+import '../core/env/env_banner.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
@@ -38,10 +40,9 @@ import '../features/workout/domain/workout_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
-const bool _useFirestore = bool.fromEnvironment(
-  'USE_FIRESTORE',
-  defaultValue: true,
-);
+/// The flag itself lives in [AppEnvironment]; aliased here for the repository
+/// wiring below.
+const bool _useFirestore = AppEnvironment.useFirestore;
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
@@ -156,6 +157,10 @@ class _ZivoAppState extends State<ZivoApp> {
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        // Names the active build configuration in Development/Profile; compiled
+        // out of Release so production UX is untouched.
+        builder: (context, child) =>
+            EnvBanner(child: child ?? const SizedBox.shrink()),
         home: const AuthGate(),
       ),
     );
