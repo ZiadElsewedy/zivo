@@ -8,7 +8,7 @@
  * `lib/features/`).
  */
 
-const {Timestamp} = require("firebase-admin/firestore");
+const {Timestamp, FieldValue} = require("firebase-admin/firestore");
 
 /**
  * `Timestamp` field `value` converted to a `Date`, or null.
@@ -221,12 +221,21 @@ class FirestoreStore {
         .doc(conversationId)
         .collection("messages")
         .doc();
-    await ref.set({
+    const data = {
       role: message.role,
       content: message.content,
       createdAt: Timestamp.fromDate(message.createdAt),
       schemaVersion: 1,
-    });
+    };
+    // An action_proposal message (ADR-003) carries the pending action the
+    // client renders as a confirmation card.
+    if (message.kind) {
+      data.kind = message.kind;
+      data.actionId = message.actionId || null;
+      data.actionKind = message.actionKind || null;
+      data.fields = message.fields || null;
+    }
+    await ref.set(data);
     return ref.id;
   }
 
@@ -313,6 +322,141 @@ class FirestoreStore {
       tokens += (d.tokensIn || 0) + (d.tokensOut || 0);
     });
     return {turns, tokens};
+  }
+
+  // --- V2 mutations (ADR-003): pending actions + confirmed entity writes -----
+
+  /**
+   * @param {string} uid
+   * @param {string} conversationId
+   * @return {!Object} The `pendingActions` subcollection reference.
+   */
+  _pendingActions(uid, conversationId) {
+    return this._user(uid)
+        .collection("aiConversations")
+        .doc(conversationId)
+        .collection("pendingActions");
+  }
+
+  /**
+   * Persists a proposed-but-unconfirmed action, keyed by `actionId`.
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {!Object} action
+   * @return {!Promise<void>}
+   */
+  async createPendingAction(uid, conversationId, action) {
+    await this._pendingActions(uid, conversationId).doc(action.actionId).set({
+      kind: action.kind,
+      tool: action.tool,
+      input: action.input,
+      summary: action.summary,
+      fields: action.fields,
+      status: action.status,
+      createdAt: Timestamp.fromDate(action.createdAt),
+      expiresAt: Timestamp.fromDate(action.expiresAt),
+      schemaVersion: 1,
+    });
+  }
+
+  /**
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} actionId
+   * @return {!Promise<?Object>} The action (timestamps as `Date`s), or null.
+   */
+  async getPendingAction(uid, conversationId, actionId) {
+    const snap = await this._pendingActions(uid, conversationId)
+        .doc(actionId).get();
+    if (!snap.exists) return null;
+    const d = snap.data();
+    return {
+      actionId,
+      kind: d.kind,
+      tool: d.tool,
+      input: d.input || {},
+      summary: d.summary || "",
+      fields: d.fields || {},
+      status: d.status || "pending",
+      createdAt: toDate(d.createdAt),
+      expiresAt: toDate(d.expiresAt),
+    };
+  }
+
+  /**
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} actionId
+   * @param {string} status 'applied' | 'cancelled' | 'expired'
+   * @return {!Promise<void>}
+   */
+  async markPendingAction(uid, conversationId, actionId, status) {
+    await this._pendingActions(uid, conversationId).doc(actionId).update({
+      status,
+      resolvedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /**
+   * Writes a confirmed task. Doc id = `task.id` (the action id), so a
+   * re-confirm overwrites identically (idempotent). Field shape mirrors
+   * `FirestoreTaskRepository.add`.
+   * @param {string} uid
+   * @param {{id: string, title: string, dueIso: ?string, priority: boolean}} t
+   * @return {!Promise<void>}
+   */
+  async createTask(uid, t) {
+    await this._user(uid).collection("tasks").doc(t.id).set({
+      title: t.title,
+      due: t.dueIso ? Timestamp.fromDate(new Date(t.dueIso)) : null,
+      priority: !!t.priority,
+      done: false,
+      schemaVersion: 1,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /**
+   * Writes a confirmed expense (idempotent by `e.id`). Mirrors
+   * `FirestoreExpenseRepository.add`.
+   * @param {string} uid
+   * @param {!Object} e
+   * @return {!Promise<void>}
+   */
+  async createExpense(uid, e) {
+    await this._user(uid).collection("expenses").doc(e.id).set({
+      amountMinor: e.amountMinor,
+      currency: e.currency,
+      category: e.category,
+      spentAt: e.spentAtIso ?
+        Timestamp.fromDate(new Date(e.spentAtIso)) :
+        FieldValue.serverTimestamp(),
+      note: e.note || null,
+      schemaVersion: 1,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /**
+   * Writes a confirmed schedule event (idempotent by `ev.id`). Mirrors
+   * `FirestoreScheduleRepository.add`.
+   * @param {string} uid
+   * @param {!Object} ev
+   * @return {!Promise<void>}
+   */
+  async createEvent(uid, ev) {
+    await this._user(uid).collection("schedule").doc(ev.id).set({
+      title: ev.title,
+      start: Timestamp.fromDate(new Date(ev.startIso)),
+      end: ev.endIso ? Timestamp.fromDate(new Date(ev.endIso)) : null,
+      location: ev.location || null,
+      label: null,
+      schemaVersion: 1,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
   }
 }
 

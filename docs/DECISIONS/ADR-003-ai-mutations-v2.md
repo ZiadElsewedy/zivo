@@ -1,8 +1,8 @@
 # ADR-003: Ask V2 — mutations with confirmation (propose → confirm → execute)
 
-**Status:** Proposed — planning only. **No code until the owner approves the UX (Phase -1)
-and the open decisions below.** Supersedes the "read-only" clause of ADR-001 for a bounded,
-confirmation-gated set of writes.
+**Status:** Accepted (2026-08-16) — Phase -1 UX approved and open decisions resolved (see below).
+Implementation may proceed on `feature/performance`'s successor work. Supersedes the "read-only"
+clause of ADR-001 for a bounded, confirmation-gated set of writes.
 **Date:** 2026-08-16
 **Deciders:** Ziad (owner) · implementer
 **Supersedes / relates to:** `docs/DECISIONS/ADR-001-ai-assistant.md` (V1, read-only — this is
@@ -204,14 +204,17 @@ actions).
 
 ---
 
-## Open decisions requiring owner sign-off
+## Open decisions — RESOLVED (owner sign-off 2026-08-16)
 
-1. **UX approval (Phase -1):** confirmation-card design in all states.
-2. **First-slice scope:** tasks + expenses only, or include schedule events?
-3. **Closing line:** deterministic result message in slice 1 (cheaper), or a follow-up model turn
-   for a natural closing (nicer, +1 model call per confirm)? Recommended: deterministic first.
-4. **Pending-action expiry window** (proposed 1h).
-5. **App Check must be enforced before this ships** — confirm that ordering.
+1. **UX approval (Phase -1):** ✅ Approved as-is (confirmation card, iris theme, pending →
+   added/cancelled/expired states). Mock reviewed and accepted.
+2. **First-slice scope:** ✅ **tasks + expenses + schedule** — all three create-only tools are in
+   the first slice (schedule promoted from stretch to in-scope).
+3. **Closing line:** ✅ Deterministic result message (no follow-up model call on confirm).
+4. **Pending-action expiry window:** ✅ 1 hour.
+5. **App Check enforcement:** ✅ Hard gate before the live writes ship. Build/test phases run
+   offline against the fake, so enforcement blocks only the final live deploy (sequenced last;
+   needs the owner's Firebase-console step).
 
 ---
 

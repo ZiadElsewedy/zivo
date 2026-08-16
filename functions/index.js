@@ -30,7 +30,12 @@ const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
-const {runAiTurn, GatewayError} = require("./ai/gateway");
+const {
+  runAiTurn,
+  confirmAction,
+  cancelAction,
+  GatewayError,
+} = require("./ai/gateway");
 const {FirestoreStore} = require("./ai/store");
 
 initializeApp();
@@ -377,3 +382,63 @@ exports.aiChat = onCall(
       }
     },
 );
+
+// --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
+
+// NOTE: these WRITE user data, so — like `aiChat` — App Check must be enforced
+// before they go live (add `enforceAppCheck: true` to all three callables and
+// redeploy once the client's App Check providers are verified in the Console).
+// Enforcement is deliberately deferred to the live-deploy step, not the
+// offline-tested logic below.
+
+/**
+ * Executes a user-confirmed pending action (ADR-003): performs the proposed
+ * Firestore write server-side, keyed by `actionId` (idempotent). The write
+ * logic lives in `./ai/gateway.js` (offline-testable); this handler only wires
+ * the store and maps errors.
+ */
+exports.aiConfirmAction = onCall({region: "us-central1"}, async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+  const data = request.data || {};
+  const conversationId = (data.conversationId || "").toString();
+  const actionId = (data.actionId || "").toString();
+
+  try {
+    return await confirmAction({
+      store: new FirestoreStore(db),
+      uid: auth.uid,
+      conversationId,
+      actionId,
+      now: () => new Date(),
+    });
+  } catch (err) {
+    throw toHttpsError(err);
+  }
+});
+
+/**
+ * Cancels a pending action (ADR-003): marks it cancelled and appends a note.
+ * Never writes an entity.
+ */
+exports.aiCancelAction = onCall({region: "us-central1"}, async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+  const data = request.data || {};
+  const conversationId = (data.conversationId || "").toString();
+  const actionId = (data.actionId || "").toString();
+
+  try {
+    return await cancelAction({
+      store: new FirestoreStore(db),
+      uid: auth.uid,
+      conversationId,
+      actionId,
+      now: () => new Date(),
+    });
+  } catch (err) {
+    throw toHttpsError(err);
+  }
+});

@@ -168,6 +168,25 @@ describe('AI messages are Functions-only (owner may read, no client may write)',
   });
 });
 
+describe('AI pending actions are Functions-only (owner may read, no client may write)', () => {
+  const pendingPath = `users/${OWNER}/aiConversations/c1/pendingActions/a1`;
+  const action = {
+    kind: 'create_task', tool: 'create_task', status: 'pending',
+    summary: 'Add task', createdAt: ts(), expiresAt: ts(), schemaVersion: 1,
+  };
+
+  it('owner can read a seeded pending action but cannot write one', async () => {
+    await seed(pendingPath, action);
+    await assertSucceeds(getDoc(doc(ownerDb(), pendingPath)));
+    await assertFails(setDoc(doc(ownerDb(), pendingPath), action));
+  });
+
+  it('a different signed-in user cannot read it', async () => {
+    await seed(pendingPath, action);
+    await assertFails(getDoc(doc(otherDb(), pendingPath)));
+  });
+});
+
 describe('aiUsage is Functions-only (owner may read, no client may write)', () => {
   const usagePath = `users/${OWNER}/aiUsage/u1`;
   const usage = { tokensIn: 10, tokensOut: 20, schemaVersion: 1 };
