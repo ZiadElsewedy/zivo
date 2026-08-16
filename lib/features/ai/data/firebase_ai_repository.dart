@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
 import '../domain/ai_message.dart';
+import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 
@@ -32,13 +33,18 @@ class FirebaseAiRepository implements AiRepository {
     required this.uidSource,
     Future<void> Function(String conversationId, String message)?
     invokeChat,
+    Future<void> Function(String name, String conversationId, String actionId)?
+    invokeAction,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _invokeChat = invokeChat ?? _defaultInvokeChat(functions);
+       _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
+       _invokeAction = invokeAction ?? _defaultInvokeAction(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
   final Future<void> Function(String conversationId, String message)
   _invokeChat;
+  final Future<void> Function(String name, String conversationId,
+      String actionId) _invokeAction;
 
   String? _cachedConversationId;
 
@@ -53,6 +59,21 @@ class FirebaseAiRepository implements AiRepository {
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
+      });
+    };
+  }
+
+  /// The default confirm/cancel invoker — calls `aiConfirmAction` or
+  /// `aiCancelAction`. Like [_defaultInvokeChat], resolves [FirebaseFunctions]
+  /// lazily so the repo builds without a live Firebase app.
+  static Future<void> Function(String name, String conversationId,
+      String actionId) _defaultInvokeAction(FirebaseFunctions? functions) {
+    return (name, conversationId, actionId) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      await f.httpsCallable(name).call({
+        'conversationId': conversationId,
+        'actionId': actionId,
       });
     };
   }
@@ -120,6 +141,18 @@ class FirebaseAiRepository implements AiRepository {
     return _invokeChat(conversationId, trimmed);
   }
 
+  @override
+  Future<void> confirmAction({
+    required String conversationId,
+    required String actionId,
+  }) => _invokeAction('aiConfirmAction', conversationId, actionId);
+
+  @override
+  Future<void> cancelAction({
+    required String conversationId,
+    required String actionId,
+  }) => _invokeAction('aiCancelAction', conversationId, actionId);
+
   Stream<String?> _uidWithInitial() async* {
     yield uidSource.currentUid();
     yield* uidSource.uidChanges;
@@ -150,6 +183,27 @@ class FirebaseAiRepository implements AiRepository {
       role: aiRoleFromName(data['role'] as String?),
       content: data['content'] as String? ?? '',
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+      pendingAction: _pendingActionFrom(data),
+    );
+  }
+
+  /// Maps an `action_proposal` message (ADR-003) into an [AiPendingAction]; the
+  /// message doc carries `actionId`, `actionKind`, and `fields`. The card's
+  /// resolved state is tracked optimistically client-side after a tap.
+  AiPendingAction? _pendingActionFrom(Map<String, dynamic> data) {
+    if (data['kind'] != 'action_proposal') return null;
+    final actionId = data['actionId'] as String?;
+    final actionKind = data['actionKind'] as String?;
+    if (actionId == null || actionKind == null) return null;
+    final rawFields = data['fields'];
+    return AiPendingAction(
+      actionId: actionId,
+      kind: actionKind,
+      summary: data['content'] as String? ?? '',
+      fields: rawFields is Map
+          ? Map<String, dynamic>.from(rawFields)
+          : const <String, dynamic>{},
+      status: AiActionStatus.pending,
     );
   }
 }

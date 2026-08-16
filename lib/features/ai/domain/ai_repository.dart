@@ -16,4 +16,17 @@ abstract interface class AiRepository {
   /// reply; the new messages surface via [watchMessages]. In the fake it
   /// appends the user message and a canned assistant reply in memory.
   Future<void> send({required String conversationId, required String text});
+
+  /// Confirms a proposed action (ADR-003), executing its write server-side via
+  /// the `aiConfirmAction` callable. Idempotent — a double-confirm is a no-op.
+  Future<void> confirmAction({
+    required String conversationId,
+    required String actionId,
+  });
+
+  /// Cancels a proposed action (`aiCancelAction`); nothing is written.
+  Future<void> cancelAction({
+    required String conversationId,
+    required String actionId,
+  });
 }
