@@ -24,29 +24,74 @@ class CaptureTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
       child: Row(
         children: [
-          Tooltip(
-            message: 'Close',
-            child: InkWell(
-              onTap: onClose,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFEBE3),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
-              ),
-            ),
+          CaptureIconButton(
+            icon: Icons.close_rounded,
+            onTap: onClose,
+            semanticLabel: 'Close',
           ),
           Expanded(
             child: Center(
               child: Text(title, style: AppText.button.copyWith(color: AppColors.ink2)),
             ),
           ),
-          SizedBox(width: 34, height: 34, child: trailing),
+          SizedBox(
+            width: CaptureIconButton.targetSize,
+            height: CaptureIconButton.targetSize,
+            child: trailing,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// A circular icon control for capture top bars — the close button and the
+/// per-screen delete action. The visible chip stays 34px to preserve the
+/// existing look, but the tap target is padded out to 44px (WCAG 2.5.5 / Apple
+/// HIG), and [semanticLabel] gives the otherwise icon-only button a name for
+/// screen readers (also surfaced as a long-press tooltip).
+class CaptureIconButton extends StatelessWidget {
+  const CaptureIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+    this.iconColor = AppColors.ink2,
+    super.key,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String semanticLabel;
+  final Color iconColor;
+
+  /// The visible chip diameter.
+  static const double chipSize = 34;
+
+  /// The tap target the chip is centred within — the accessible minimum.
+  static const double targetSize = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: semanticLabel,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: targetSize,
+          height: targetSize,
+          child: Center(
+            child: Container(
+              width: chipSize,
+              height: chipSize,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEFEBE3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 18, color: iconColor),
+            ),
+          ),
+        ),
       ),
     );
   }

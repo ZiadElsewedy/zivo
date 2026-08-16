@@ -179,23 +179,12 @@ class _EventCapturePageState extends State<EventCapturePage> {
               title: _editing ? 'Edit event' : 'New event',
               onClose: () => Navigator.of(context).maybePop(),
               trailing: _editing
-                  ? InkWell(
+                  ? CaptureIconButton(
                       key: const Key('event-delete'),
+                      icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEFEBE3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 18,
-                          color: AppColors.flareText,
-                        ),
-                      ),
+                      semanticLabel: 'Delete event',
+                      iconColor: AppColors.flareText,
                     )
                   : null,
             ),

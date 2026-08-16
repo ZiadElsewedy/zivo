@@ -116,6 +116,9 @@ void main() {
     expect(find.byType(NoteCapturePage), findsOneWidget);
     expect(find.text('Edit note'), findsOneWidget);
     expect(find.text('Project ideas'), findsOneWidget);
+    // The icon-only delete control is labelled for screen readers.
+    expect(find.byTooltip('Delete note'), findsOneWidget);
+    expect(find.byTooltip('Close'), findsOneWidget);
   });
 
   testWidgets('swiping a row deletes it via the repository', (tester) async {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/university_item.dart';
 import '../../domain/university_item_type.dart';
 
@@ -287,22 +288,10 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
       child: Row(
         children: [
-          InkWell(
+          CaptureIconButton(
+            icon: Icons.close_rounded,
             onTap: onClose,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.close_rounded,
-                size: 18,
-                color: AppColors.ink2,
-              ),
-            ),
+            semanticLabel: 'Close',
           ),
           Expanded(
             child: Center(
@@ -313,26 +302,15 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           if (onDelete != null)
-            InkWell(
+            CaptureIconButton(
               key: const Key('university-delete'),
-              onTap: onDelete,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFEBE3),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 18,
-                  color: AppColors.flareText,
-                ),
-              ),
+              icon: Icons.delete_outline_rounded,
+              onTap: onDelete!,
+              semanticLabel: 'Delete item',
+              iconColor: AppColors.flareText,
             )
           else
-            const SizedBox(width: 34),
+            const SizedBox(width: CaptureIconButton.targetSize),
         ],
       ),
     );
