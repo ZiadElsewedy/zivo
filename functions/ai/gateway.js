@@ -138,6 +138,27 @@ function extractText(content) {
 }
 
 /**
+ * Sanitizes an assistant `content` array before it is echoed back in the
+ * message history for the next model call. Drops `thinking` blocks that carry
+ * no usable reasoning — a signed, non-empty thinking block must round-trip
+ * verbatim, but `claude-sonnet-5` emits an empty placeholder thinking block
+ * even with extended thinking off, and the streaming SDK
+ * (`@anthropic-ai/sdk` finalMessage) reconstructs it with an empty signature.
+ * Re-sending that block fails the API's "each thinking block must contain
+ * thinking" check, breaking every multi-call (tool_use) streamed turn. The
+ * buffered path keeps a valid signature, so this only bit streaming — but
+ * dropping empty thinking blocks is correct for both transports while thinking
+ * is not enabled. Revisit if extended thinking is turned on.
+ * @param {?Array<Object>} content
+ * @return {?Array<Object>}
+ */
+function stripEmptyThinking(content) {
+  if (!Array.isArray(content)) return content;
+  return content.filter((b) =>
+    !(b && b.type === "thinking" && !(b.thinking && b.thinking.length)));
+}
+
+/**
  * A persisted `{role, content, createdAt}` message mapped to the Anthropic
  * Messages API shape.
  * @param {{role: string, content: string}} message
@@ -313,7 +334,7 @@ async function runAiTurn({
       break;
     }
 
-    messages.push({role: "assistant", content: resp.content});
+    messages.push({role: "assistant", content: stripEmptyThinking(resp.content)});
 
     const toolResults = [];
     let proposal = null;

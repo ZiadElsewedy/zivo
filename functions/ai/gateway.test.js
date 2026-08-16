@@ -192,6 +192,58 @@ test("tool execution is uid-scoped and the result flows to the final answer",
       );
     });
 
+test("empty thinking blocks are stripped from re-sent history; " +
+    "signed non-empty ones are preserved", async () => {
+  const store = makeStore({
+    listTasks: async () => [],
+  });
+  // First response mixes an empty placeholder thinking block (as
+  // claude-sonnet-5 emits, and the streaming SDK returns with an empty
+  // signature) with a real signed one, before the tool_use.
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "thinking", thinking: "", signature: ""},
+        {type: "thinking", thinking: "real reasoning", signature: "sig-abc"},
+        {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+      ],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "No open tasks."}],
+      usage: {input_tokens: 5, output_tokens: 5},
+    },
+  ]);
+
+  const result = await runAiTurn({
+    store,
+    callModel,
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "what are my tasks?",
+    now: makeClock(1000),
+  });
+
+  assert.equal(result.status, "ok");
+  // The assistant message echoed back on the second call must NOT carry the
+  // empty thinking block (the API rejects it), but MUST keep the signed one.
+  const secondReq = callModel.requests[1];
+  const assistantMsg = secondReq.messages.find((m) => m.role === "assistant");
+  const thinkingBlocks = assistantMsg.content.filter(
+      (b) => b.type === "thinking");
+  assert.equal(thinkingBlocks.length, 1);
+  assert.equal(thinkingBlocks[0].signature, "sig-abc");
+  // Every thinking block re-sent has real content (none would fail the API).
+  for (const m of secondReq.messages) {
+    if (!Array.isArray(m.content)) continue;
+    for (const b of m.content) {
+      if (b.type === "thinking") assert.ok(b.thinking && b.thinking.length);
+    }
+  }
+});
+
 test("stops after maxIterations and calls the model exactly that many times",
     async () => {
       const store = makeStore();
