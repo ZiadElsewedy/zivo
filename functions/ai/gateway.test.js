@@ -382,5 +382,112 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.tokensOut, 7);
   assert.equal(usageDoc.iterations, 2);
   assert.deepEqual(usageDoc.tools, [{name: "get_tasks", toolCallId: "call-1"}]);
-  assert.equal(usageDoc.schemaVersion, 1);
+  assert.equal(usageDoc.schemaVersion, 2);
 });
+
+test("the tool schemas + system prompt are sent as a cached prefix", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "hi"}],
+      usage: {input_tokens: 5, output_tokens: 2},
+    },
+  ]);
+
+  await runAiTurn({
+    store,
+    callModel,
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "hello",
+    now: makeClock(0),
+  });
+
+  const req = callModel.requests[0];
+  // System is a structured block array carrying the cache breakpoint (not a
+  // bare string), so tools + system read back from cache after the first call.
+  assert.ok(Array.isArray(req.system));
+  assert.equal(req.system[0].text, SYSTEM_PROMPT);
+  assert.deepEqual(req.system[0].cache_control, {type: "ephemeral"});
+});
+
+test("cache read/write tokens are logged and priced at their discounts",
+    async () => {
+      const store = makeStore();
+      const callModel = scriptedModel([
+        {
+          stop_reason: "end_turn",
+          content: [{type: "text", text: "done"}],
+          usage: {
+            input_tokens: 100,
+            output_tokens: 10,
+            cache_creation_input_tokens: 2000,
+            cache_read_input_tokens: 4000,
+          },
+        },
+      ]);
+
+      await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "hello",
+        now: makeClock(0),
+      });
+
+      const usageDoc = store.calls.logUsage[0].usageDoc;
+      // tokensIn is total input volume: 100 uncached + 2000 write + 4000 read.
+      assert.equal(usageDoc.tokensIn, 6100);
+      assert.equal(usageDoc.cacheWriteTokens, 2000);
+      assert.equal(usageDoc.cacheReadTokens, 4000);
+      // Cost applies the caching multipliers: uncached full, write 1.25x,
+      // read 0.1x, output at the output rate.
+      const inRate = 3 / 1000000;
+      const outRate = 15 / 1000000;
+      const expected =
+        100 * inRate + 2000 * inRate * 1.25 + 4000 * inRate * 0.1 +
+        10 * outRate;
+      assert.ok(Math.abs(usageDoc.costUsd - expected) < 1e-12);
+    });
+
+test("an oversized tool result is truncated before it re-enters the loop",
+    async () => {
+      const big = "y".repeat(20000);
+      const store = makeStore({
+        listTasks: async () => [{title: big, done: false, priority: false,
+          due: null}],
+      });
+      const callModel = scriptedModel([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+          ],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+        {
+          stop_reason: "end_turn",
+          content: [{type: "text", text: "ok"}],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+
+      await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "tasks?",
+        now: makeClock(0),
+        config: {maxToolResultChars: 6000},
+      });
+
+      const secondRequest = callModel.requests[1];
+      const toolResultMessage = secondRequest.messages[
+          secondRequest.messages.length - 1];
+      const content = toolResultMessage.content[0].content;
+      assert.ok(content.length < 6100);
+      assert.match(content, /truncated \d+ characters/);
+    });

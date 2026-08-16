@@ -34,8 +34,15 @@ const DEFAULT_CONFIG = {
   perDayMaxTurns: 100,
   // Max input+output tokens across the same calendar day.
   perDayTokenCeiling: 500000,
-  // How many recent persisted messages are sent as history each turn.
-  historyWindow: 20,
+  // How many recent persisted messages are sent as history each turn. Kept
+  // deliberately small: history is re-sent on every model call in the turn, so
+  // a tighter window directly bounds the quadratic input-token growth.
+  historyWindow: 10,
+  // Longest a single tool result may be (in characters of its JSON) before it
+  // is truncated. Large tool payloads (e.g. get_today, summarize_week) are
+  // re-sent on every subsequent model call in the turn, so bounding them caps
+  // the accumulated cost without starving the model of data.
+  maxToolResultChars: 6000,
   // Longest user message accepted, in characters.
   maxMessageChars: 2000,
   // `max_tokens` passed to the model on every call.
@@ -49,6 +56,10 @@ const DEFAULT_CONFIG = {
 // to the model.
 const INPUT_COST_PER_TOKEN_USD = 3 / 1000000;
 const OUTPUT_COST_PER_TOKEN_USD = 15 / 1000000;
+// Prompt-caching multipliers on the base input price (Anthropic pricing):
+// writing a cache entry costs 1.25x, reading one back costs 0.1x.
+const CACHE_WRITE_MULTIPLIER = 1.25;
+const CACHE_READ_MULTIPLIER = 0.1;
 
 const DAILY_LIMIT_MESSAGE =
   "You've hit today's usage limit for Ask. It resets tomorrow — thanks " +
@@ -137,6 +148,20 @@ function toAnthropicMessage(message) {
 }
 
 /**
+ * Caps a stringified tool result at `maxChars`, appending a short truncation
+ * marker when it overflows. The marker keeps the model honest about the elision
+ * rather than silently handing it a partial payload.
+ * @param {string} content The JSON-stringified tool result.
+ * @param {number} maxChars
+ * @return {string}
+ */
+function capToolResult(content, maxChars) {
+  if (content.length <= maxChars) return content;
+  const dropped = content.length - maxChars;
+  return `${content.slice(0, maxChars)}…[truncated ${dropped} characters]`;
+}
+
+/**
  * Runs one user turn of the Ask conversation: persists the user message,
  * enforces the per-day cap, loops the model↔tool round-trip (bounded by
  * `config.maxIterations` and `config.perTurnTokenCeiling`), persists the
@@ -218,7 +243,20 @@ async function runAiTurn({
     input_schema: t.inputSchema,
   }));
 
-  let tokensIn = 0;
+  // The tool schemas + system prompt are a fixed, deterministically-ordered
+  // prefix re-sent on every model call in the turn. Render order is
+  // tools → system → messages, so a single cache breakpoint on the system
+  // block caches the tool schemas too — the whole static prefix reads back at
+  // ~0.1x after the first call instead of full price. (ADR-003 Phase 3.5.)
+  const cachedSystem = [{
+    type: "text",
+    text: SYSTEM_PROMPT,
+    cache_control: {type: "ephemeral"},
+  }];
+
+  let uncachedTokensIn = 0;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
   let tokensOut = 0;
   let iterations = 0;
   const toolCalls = [];
@@ -232,13 +270,15 @@ async function runAiTurn({
     const resp = await callModel({
       model: MODEL,
       max_tokens: cfg.maxTokens,
-      system: SYSTEM_PROMPT,
+      system: cachedSystem,
       tools: toolSchemas,
       messages,
     });
 
     const usage = resp.usage || {};
-    tokensIn += usage.input_tokens || 0;
+    uncachedTokensIn += usage.input_tokens || 0;
+    cacheReadTokens += usage.cache_read_input_tokens || 0;
+    cacheWriteTokens += usage.cache_creation_input_tokens || 0;
     tokensOut += usage.output_tokens || 0;
 
     if (resp.stop_reason === "refusal") {
@@ -295,7 +335,8 @@ async function runAiTurn({
       const toolResult = {
         type: "tool_result",
         tool_use_id: block.id,
-        content: JSON.stringify(resultPayload),
+        content: capToolResult(
+            JSON.stringify(resultPayload), cfg.maxToolResultChars),
       };
       if (isError) toolResult.is_error = true;
       toolResults.push(toolResult);
@@ -319,7 +360,9 @@ async function runAiTurn({
 
     messages.push({role: "user", content: toolResults});
 
-    if (tokensIn + tokensOut > cfg.perTurnTokenCeiling) {
+    const tokensSoFar =
+      uncachedTokensIn + cacheReadTokens + cacheWriteTokens + tokensOut;
+    if (tokensSoFar > cfg.perTurnTokenCeiling) {
       tokenCeilingHit = true;
       break;
     }
@@ -356,21 +399,29 @@ async function runAiTurn({
     });
   }
 
+  // tokensIn is the total input volume (uncached + cache read + cache write),
+  // so the per-turn ceiling and per-day totals reflect real work done; cost
+  // applies the caching discounts to each slice.
+  const tokensIn = uncachedTokensIn + cacheReadTokens + cacheWriteTokens;
   const costUsd =
-    tokensIn * INPUT_COST_PER_TOKEN_USD +
+    uncachedTokensIn * INPUT_COST_PER_TOKEN_USD +
+    cacheWriteTokens * INPUT_COST_PER_TOKEN_USD * CACHE_WRITE_MULTIPLIER +
+    cacheReadTokens * INPUT_COST_PER_TOKEN_USD * CACHE_READ_MULTIPLIER +
     tokensOut * OUTPUT_COST_PER_TOKEN_USD;
 
   const usageDoc = {
     dayKey,
     tokensIn,
     tokensOut,
+    cacheReadTokens,
+    cacheWriteTokens,
     costUsd,
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
     model: MODEL,
     createdAt: finishedAt,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
   await store.logUsage(uid, usageDoc);
 
