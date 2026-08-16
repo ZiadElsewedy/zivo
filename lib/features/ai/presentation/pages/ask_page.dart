@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_role.dart';
@@ -24,6 +26,16 @@ class _AskPageState extends State<AskPage> {
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
   bool _canSend = false;
+
+  /// True while a `send` turn is in flight — drives the thinking rail. Client
+  /// -derived: today we only know a turn is *running*, not which tool it's in
+  /// (the phase-labelled rail arrives with real streaming in Slice C).
+  bool _sending = false;
+
+  /// Set when a `send` turn starts; consumed by the first render that shows the
+  /// assistant's reply, so exactly that one reply types in. Cold-loaded history
+  /// and confirm/cancel result lines render statically.
+  bool _expectReveal = false;
 
   /// Optimistic client-side resolution of proposal cards, keyed by actionId,
   /// so a card collapses the instant the user taps (before the stream echoes).
@@ -50,13 +62,24 @@ class _AskPageState extends State<AskPage> {
     final ai = AppScope.of(context).ai;
     final text = _input.text;
     _input.clear();
+    setState(() {
+      _sending = true;
+      _expectReveal = true;
+    });
     try {
       await ai.send(conversationId: conversationId, text: text);
     } catch (_) {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _expectReveal = false;
+        });
+      }
       _showError("Couldn't reach Ask. Check your connection and try again.");
       return;
     }
     if (!mounted) return;
+    setState(() => _sending = false);
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
@@ -121,7 +144,7 @@ class _AskPageState extends State<AskPage> {
                     stream: ai.watchMessages(conversationId),
                     builder: (context, snapshot) {
                       final messages = snapshot.data ?? const <AiMessage>[];
-                      if (messages.isEmpty) return const _EmptyAsk();
+                      if (messages.isEmpty && !_sending) return const _EmptyAsk();
                       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
                       return ListView.builder(
                         controller: _scroll,
@@ -131,23 +154,50 @@ class _AskPageState extends State<AskPage> {
                           AppSpacing.screen,
                           AppSpacing.base,
                         ),
-                        itemCount: messages.length,
+                        // A trailing slot holds the thinking rail while a turn
+                        // is in flight.
+                        itemCount: messages.length + (_sending ? 1 : 0),
                         itemBuilder: (context, i) {
+                          if (i >= messages.length) {
+                            return const RiseIn(child: _ThinkingRail());
+                          }
                           final message = messages[i];
+                          final isLast = i == messages.length - 1;
+                          // Consume the reveal token on the first render of the
+                          // turn's last message; only a fresh text reply types.
+                          var animateReply = false;
+                          if (isLast && _expectReveal) {
+                            if (message.role == AiRole.assistant &&
+                                message.pendingAction == null) {
+                              animateReply = true;
+                            }
+                            _expectReveal = false;
+                          }
                           final action = message.pendingAction;
-                          if (action == null) return _MessageBubble(message);
+                          if (action == null) {
+                            return RiseIn(
+                              key: ValueKey(message.id),
+                              child: _MessageBubble(
+                                message,
+                                animate: animateReply,
+                              ),
+                            );
+                          }
                           final effective =
                               action.status != AiActionStatus.pending
                               ? action.status
                               : (_resolved[action.actionId] ??
                                     AiActionStatus.pending);
-                          return _ProposalCard(
-                            action: action,
-                            status: effective,
-                            onConfirm: () =>
-                                _confirm(conversationId, action.actionId),
-                            onCancel: () =>
-                                _cancel(conversationId, action.actionId),
+                          return RiseIn(
+                            key: ValueKey(message.id),
+                            child: _ProposalCard(
+                              action: action,
+                              status: effective,
+                              onConfirm: () =>
+                                  _confirm(conversationId, action.actionId),
+                              onCancel: () =>
+                                  _cancel(conversationId, action.actionId),
+                            ),
                           );
                         },
                       );
@@ -217,13 +267,19 @@ class _EmptyAsk extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble(this.message);
+  const _MessageBubble(this.message, {this.animate = false});
 
   final AiMessage message;
+
+  /// When true, the (assistant) text types in rather than appearing at once.
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AiRole.user;
+    final style = AppText.body.copyWith(
+      color: isUser ? Colors.white : AppColors.ink,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -237,16 +293,137 @@ class _MessageBubble extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 border: isUser ? null : Border.all(color: AppColors.hairline),
               ),
-              child: Text(
-                message.content,
-                style: AppText.body.copyWith(color: isUser ? Colors.white : AppColors.ink),
-              ),
+              child: animate
+                  ? _TypewriterText(message.content, style: style)
+                  : Text(message.content, style: style),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Reveals [text] left-to-right on mount, like the assistant is composing it.
+/// One-shot (never repeats), so `pumpAndSettle` completes it; honors the
+/// platform "reduce motion" setting by showing the full text immediately.
+class _TypewriterText extends StatefulWidget {
+  const _TypewriterText(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<_TypewriterText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    // ~22ms/char, capped so long replies never crawl. Calm, not frantic.
+    final ms = math.min(widget.text.characters.length * 22, 2000);
+    _c = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: math.max(ms, 1)),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.of(context).disableAnimations) {
+      return Text(widget.text, style: widget.style);
+    }
+    final chars = widget.text.characters;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final shown = (chars.length * _c.value).round();
+        return Text(chars.take(shown).toString(), style: widget.style);
+      },
+    );
+  }
+}
+
+/// The calm "the assistant is working" state: an iris dot that breathes beside
+/// a quiet label. Shown only while a turn is in flight, so its looping pulse is
+/// never left mounted (which would stall `pumpAndSettle`). No spinner.
+class _ThinkingRail extends StatefulWidget {
+  const _ThinkingRail();
+
+  @override
+  State<_ThinkingRail> createState() => _ThinkingRailState();
+}
+
+class _ThinkingRailState extends State<_ThinkingRail>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.of(context).disableAnimations;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 10,
+            height: 10,
+            child: still
+                ? const _IrisDot(0.9)
+                : FadeTransition(
+                    opacity: Tween<double>(begin: 0.35, end: 1)
+                        .animate(CurvedAnimation(
+                          parent: _c,
+                          curve: Curves.easeInOut,
+                        )),
+                    child: const _IrisDot(1),
+                  ),
+          ),
+          const SizedBox(width: 9),
+          Text(
+            'Thinking…',
+            style: AppText.meta.copyWith(
+              color: AppColors.irisText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IrisDot extends StatelessWidget {
+  const _IrisDot(this.opacity);
+
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: AppColors.iris.withValues(alpha: opacity),
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 /// The ADR-003 confirmation card: an assistant proposal the user confirms or
@@ -275,7 +452,22 @@ class _ProposalCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.hairline2),
         ),
-        child: status == AiActionStatus.pending ? _pending() : _resolved(),
+        // The card collapses smoothly from the full proposal down to the
+        // one-line result when the user confirms or cancels.
+        child: AnimatedSize(
+          duration: AppMotion.enter,
+          curve: AppMotion.ease,
+          alignment: Alignment.topCenter,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: KeyedSubtree(
+              key: ValueKey(status == AiActionStatus.pending),
+              child: status == AiActionStatus.pending
+                  ? _pending()
+                  : _resolved(),
+            ),
+          ),
+        ),
       ),
     );
   }
