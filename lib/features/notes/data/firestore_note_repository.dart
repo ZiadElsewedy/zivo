@@ -91,6 +91,23 @@ class FirestoreNoteRepository implements NoteRepository {
     });
   }
 
+  @override
+  Future<void> update(Note note) {
+    final uid = _requireUid();
+    return _notesCollection(uid).doc(note.id).update({
+      'body': note.body,
+      'title': note.title,
+      'updatedAt': Timestamp.fromDate(note.updatedAt),
+      'schemaVersion': 1,
+    });
+  }
+
+  @override
+  Future<void> remove(String id) {
+    final uid = _requireUid();
+    return _notesCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

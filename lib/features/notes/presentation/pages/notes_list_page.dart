@@ -35,6 +35,12 @@ class NotesListPage extends StatelessWidget {
         initialData: notes.current,
         builder: (context, snapshot) {
           final items = snapshot.data ?? const <Note>[];
+          if (items.isEmpty &&
+              snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.ink3),
+            );
+          }
           if (items.isEmpty) {
             return Center(
               child: Text('No notes yet.', style: AppText.aside),
@@ -46,50 +52,88 @@ class NotesListPage extends StatelessWidget {
             itemCount: items.length,
             separatorBuilder: (_, _) =>
                 const Divider(height: 1, color: AppColors.hairline),
-            itemBuilder: (context, i) => _NoteRow(items[i], now: now),
+            itemBuilder: (context, i) => _NoteRow(
+              items[i],
+              now: now,
+              onTap: () => _openEdit(context, items[i]),
+              onDelete: () => notes.remove(items[i].id),
+            ),
           );
         },
       ),
     );
   }
+
+  Future<void> _openEdit(BuildContext context, Note note) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => NoteCapturePage(initial: note)),
+    );
+  }
 }
 
 class _NoteRow extends StatelessWidget {
-  const _NoteRow(this.note, {required this.now});
+  const _NoteRow(
+    this.note, {
+    required this.now,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   final Note note;
   final DateTime now;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 15),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
+    return Dismissible(
+      key: Key('note-row-${note.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 14),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.flareText,
+        ),
+      ),
+      onDismissed: (_) => onDelete(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  note.displayTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        note.displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        note.body,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink3),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  note.body,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink3),
-                ),
+                const SizedBox(width: 12),
+                Text(timeAgo(note.updatedAt, now), style: AppText.meta.copyWith(color: AppColors.ink3)),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Text(timeAgo(note.updatedAt, now), style: AppText.meta.copyWith(color: AppColors.ink3)),
-        ],
+        ),
       ),
     );
   }

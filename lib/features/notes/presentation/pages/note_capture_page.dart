@@ -6,22 +6,31 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/note.dart';
 
-/// Note capture — body-first; title optional. Speed over structure.
+/// Note capture — body-first; title optional. Speed over structure. Pass
+/// [initial] to edit an existing note in place instead of creating a new one.
 class NoteCapturePage extends StatefulWidget {
-  const NoteCapturePage({super.key});
+  const NoteCapturePage({super.key, this.initial});
+
+  final Note? initial;
 
   @override
   State<NoteCapturePage> createState() => _NoteCapturePageState();
 }
 
 class _NoteCapturePageState extends State<NoteCapturePage> {
-  final TextEditingController _title = TextEditingController();
-  final TextEditingController _body = TextEditingController();
+  late final TextEditingController _title;
+  late final TextEditingController _body;
   bool _canSave = false;
+
+  bool get _editing => widget.initial != null;
 
   @override
   void initState() {
     super.initState();
+    final initial = widget.initial;
+    _title = TextEditingController(text: initial?.title ?? '');
+    _body = TextEditingController(text: initial?.body ?? '');
+    _canSave = _body.text.trim().isNotEmpty;
     _body.addListener(() {
       final canSave = _body.text.trim().isNotEmpty;
       if (canSave != _canSave) setState(() => _canSave = canSave);
@@ -37,14 +46,28 @@ class _NoteCapturePageState extends State<NoteCapturePage> {
 
   Future<void> _save() async {
     if (!_canSave) return;
+    final notes = AppScope.of(context).notes;
+    final initial = widget.initial;
     final note = Note(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       title: _title.text.trim().isEmpty ? null : _title.text.trim(),
       body: _body.text.trim(),
       updatedAt: DateTime.now(),
     );
-    await AppScope.of(context).notes.add(note);
+    if (initial == null) {
+      await notes.add(note);
+    } else {
+      await notes.update(note);
+    }
     if (mounted) Navigator.of(context).pop(note);
+  }
+
+  Future<void> _delete() async {
+    final initial = widget.initial;
+    if (initial == null) return;
+    final notes = AppScope.of(context).notes;
+    await notes.remove(initial.id);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -55,7 +78,30 @@ class _NoteCapturePageState extends State<NoteCapturePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CaptureTopBar(title: 'New note', onClose: () => Navigator.of(context).maybePop()),
+            CaptureTopBar(
+              title: _editing ? 'Edit note' : 'New note',
+              onClose: () => Navigator.of(context).maybePop(),
+              trailing: _editing
+                  ? InkWell(
+                      key: const Key('note-delete'),
+                      onTap: _delete,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFEBE3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: AppColors.flareText,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
               child: TextField(
@@ -101,8 +147,8 @@ class _NoteCapturePageState extends State<NoteCapturePage> {
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
               child: PillButton(
-                label: 'Save note',
-                icon: Icons.check_rounded,
+                label: _editing ? 'Save note' : 'Add note',
+                icon: _editing ? Icons.check_rounded : Icons.add_rounded,
                 enabled: _canSave,
                 onTap: _save,
               ),

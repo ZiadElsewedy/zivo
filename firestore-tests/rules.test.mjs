@@ -200,6 +200,14 @@ describe('schedule delete path', () => {
   });
 });
 
+describe('notes delete path', () => {
+  it('owner can delete their own note; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'notes'), valid.notes);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'notes'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'notes'))));
+  });
+});
+
 describe('expenses delete path', () => {
   it('owner can delete their own expense; non-owner cannot', async () => {
     await seed(collPath(OWNER, 'expenses'), valid.expenses);

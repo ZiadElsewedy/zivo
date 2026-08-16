@@ -121,7 +121,87 @@ void main() {
         expect(notes, isEmpty);
 
         expect(() => repo.add(_make('n1')), throwsStateError);
+        expect(() => repo.update(_make('n1')), throwsStateError);
+        expect(() => repo.remove('n1'), throwsStateError);
       },
     );
+
+    test('update replaces body/title/updatedAt without touching createdAt', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreNoteRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      final seen = <List<Note>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.add(_make('n1', body: 'Original', title: 'Old title'));
+      await Future<void>.delayed(Duration.zero);
+
+      final beforeDoc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('notes')
+          .doc('n1')
+          .get();
+      final createdAt = beforeDoc.data()!['createdAt'];
+
+      final updated = _make(
+        'n1',
+        body: 'Edited body',
+        title: 'New title',
+        updatedAt: DateTime(2026, 5, 1, 12),
+      );
+      await repo.update(updated);
+      await Future<void>.delayed(Duration.zero);
+
+      final afterDoc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('notes')
+          .doc('n1')
+          .get();
+      final data = afterDoc.data()!;
+      expect(data['body'], 'Edited body');
+      expect(data['title'], 'New title');
+      expect(data['updatedAt'], Timestamp.fromDate(updated.updatedAt));
+      expect(data['createdAt'], createdAt);
+
+      expect(seen.last.single.body, 'Edited body');
+
+      await sub.cancel();
+    });
+
+    test('remove deletes the doc and it drops out of watchAll', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreNoteRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      final seen = <List<Note>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.add(_make('n1'));
+      await Future<void>.delayed(Duration.zero);
+      expect(seen.last, hasLength(1));
+
+      await repo.remove('n1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen.last, isEmpty);
+      final doc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('notes')
+          .doc('n1')
+          .get();
+      expect(doc.exists, isFalse);
+
+      await sub.cancel();
+    });
   });
 }
