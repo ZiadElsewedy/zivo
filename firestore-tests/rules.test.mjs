@@ -6,8 +6,9 @@
 //
 // Covers PLAN §10/§20/§28: deny-by-default, per-user ownership isolation,
 // per-collection field validation, and the Functions-only emailOtps lockout —
-// for all ten persisted collections (across eight feature repositories) plus the
-// user profile doc, plus the AI conversation store (ADR-001): client-writable
+// for all eleven persisted collections (across eight feature repositories, plus the
+// workout-plan template store) plus the user profile doc, plus the AI conversation
+// store (ADR-001): client-writable
 // `aiConversations`, and server-only `messages`/`aiUsage`.
 
 import { readFileSync } from 'node:fs';
@@ -39,6 +40,7 @@ const valid = {
   universityItems: { title: 'U', type: 'assignment', done: false, schemaVersion: 1 },
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
+  workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
 };
 
@@ -53,6 +55,7 @@ const invalid = {
   universityItems: { title: 'U', type: 'assignment', done: 'yes', schemaVersion: 1 }, // done not a bool
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
+  workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
   aiConversations: { title: 123, schemaVersion: 1 }, // title not a string
 };
 
@@ -248,6 +251,14 @@ describe('dietPlans delete path', () => {
     await seed(collPath(OWNER, 'dietPlans'), valid.dietPlans);
     await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'dietPlans'))));
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'dietPlans'))));
+  });
+});
+
+describe('workoutPlans delete path', () => {
+  it('owner can delete their own plan; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'workoutPlans'), valid.workoutPlans);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'workoutPlans'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workoutPlans'))));
   });
 });
 
