@@ -4,11 +4,13 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import 'workout_history_page.dart';
+import 'workout_session_page.dart';
 
 /// The Workout Plan page — the rotating-cycle template ("what I SHOULD do").
 /// Shows the day that's up next (the cycle cursor) prominently, then the whole
@@ -75,7 +77,7 @@ class _PlanBody extends StatelessWidget {
         if (today == null)
           Text('No day up next.', style: AppText.aside)
         else
-          _TodaySection(day: today),
+          _TodaySection(day: today, plan: plan),
         const SizedBox(height: 30),
         Text(
           'Full cycle',
@@ -95,9 +97,10 @@ class _PlanBody extends StatelessWidget {
 /// The prominent "up next" block: an eyebrow, the day title, its meta, and each
 /// planned exercise with its sets.
 class _TodaySection extends StatelessWidget {
-  const _TodaySection({required this.day});
+  const _TodaySection({required this.day, required this.plan});
 
   final WorkoutDay day;
+  final WorkoutPlan plan;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +126,16 @@ class _TodaySection extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 10),
             child: _ExerciseCard(exercise: exercise),
           ),
+        const SizedBox(height: 4),
+        PillButton(
+          label: 'Start workout',
+          icon: Icons.play_arrow_rounded,
+          color: AppColors.pulseText,
+          enabled: true,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => WorkoutSessionPage(day: day, plan: plan)),
+          ),
+        ),
       ],
     );
   }
