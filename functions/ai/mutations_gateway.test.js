@@ -59,9 +59,24 @@ function makeStore(overrides) {
       const a = pendingActions.get(actionId);
       return a ? Object.assign({}, a) : null;
     },
+    getActivePendingAction: async (uid, cid, nowDate) => {
+      const nowMs = nowDate.getTime();
+      for (const a of pendingActions.values()) {
+        if (a.status === "pending" &&
+            (!a.expiresAt || a.expiresAt.getTime() > nowMs)) {
+          return Object.assign({}, a);
+        }
+      }
+      return null;
+    },
     markPendingAction: async (uid, cid, actionId, status) => {
       const a = pendingActions.get(actionId);
       if (a) a.status = status;
+    },
+    markProposalMessage: async (uid, cid, actionId, status) => {
+      const m = messages.find(
+          (x) => x.kind === "action_proposal" && x.actionId === actionId);
+      if (m) m.status = status;
     },
     createTask: async (uid, t) => writes.tasks.push(t),
     createExpense: async (uid, e) => writes.expenses.push(e),
@@ -134,11 +149,87 @@ test("a valid mutating call proposes (no write) and ends the turn", async () => 
   assert.equal(store.pendingActions.size, 1);
   assert.equal(store.pendingActions.get(result.actionId).status, "pending");
   assert.equal(store.writes.tasks.length, 0);
-  // An action_proposal message was appended (plus the user message).
+  // An action_proposal message was appended (plus the user message), carrying
+  // the pending status the client renders the card from.
   const proposal = store.messages.find((m) => m.kind === "action_proposal");
   assert.ok(proposal);
   assert.equal(proposal.actionKind, "create_task");
   assert.equal(proposal.actionId, result.actionId);
+  assert.equal(proposal.status, "pending");
+  // Carries the TTL so the client can render the card expired once it lapses.
+  assert.ok(proposal.expiresAt instanceof Date);
+});
+
+test("a second proposal is blocked while one is already pending (no duplicate)", async () => {
+  const store = makeStore();
+
+  // Turn 1: propose a task — one pending action, one card.
+  const first = await runAiTurn({
+    store,
+    callModel: scriptedModel([toolUse("create_task", {title: "Random task"})]),
+    uid: UID, conversationId: CONVERSATION_ID,
+    message: "add a task called Random task", now: makeClock(1000),
+  });
+  assert.equal(first.status, "proposed");
+  assert.equal(store.pendingActions.size, 1);
+
+  // Turn 2: the user types "confirm"; the model re-proposes the same task. The
+  // gateway must suppress it — no second pending action, no second card.
+  const second = await runAiTurn({
+    store,
+    callModel: scriptedModel([toolUse("create_task", {title: "Random task"})]),
+    uid: UID, conversationId: CONVERSATION_ID,
+    message: "confirm", now: makeClock(2000),
+  });
+  assert.equal(second.status, "proposal-blocked");
+  assert.equal(second.actionId, null);
+  assert.equal(store.pendingActions.size, 1, "still exactly one pending action");
+  // Only one action_proposal card exists across both turns.
+  const cards = store.messages.filter((m) => m.kind === "action_proposal");
+  assert.equal(cards.length, 1);
+  // The blocked turn steered the user back to the existing card.
+  const lastAssistant = store.messages.filter((m) => m.role === "assistant").pop();
+  assert.match(lastAssistant.content, /already got a suggestion waiting/);
+
+  // Confirming the one action writes exactly one task — no duplicate.
+  await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID,
+    actionId: first.actionId, now: makeClock(3000),
+  });
+  assert.equal(store.writes.tasks.length, 1);
+});
+
+test("confirm/cancel flip the action_proposal message status (survives reopen)", async () => {
+  // Confirm path → the card message becomes 'applied'.
+  const applied = makeStore();
+  const confirmTurn = await runAiTurn({
+    store: applied,
+    callModel: scriptedModel([toolUse("create_task", {title: "Ship it"})]),
+    uid: UID, conversationId: CONVERSATION_ID,
+    message: "add task", now: makeClock(1000),
+  });
+  await confirmAction({
+    store: applied, uid: UID, conversationId: CONVERSATION_ID,
+    actionId: confirmTurn.actionId, now: makeClock(2000),
+  });
+  const appliedCard = applied.messages.find((m) => m.kind === "action_proposal");
+  assert.equal(appliedCard.status, "applied");
+
+  // Cancel path → the card message becomes 'cancelled'.
+  const cancelled = makeStore();
+  const cancelTurn = await runAiTurn({
+    store: cancelled,
+    callModel: scriptedModel([toolUse("create_task", {title: "Never mind"})]),
+    uid: UID, conversationId: CONVERSATION_ID,
+    message: "add task", now: makeClock(1000),
+  });
+  await cancelAction({
+    store: cancelled, uid: UID, conversationId: CONVERSATION_ID,
+    actionId: cancelTurn.actionId, now: makeClock(2000),
+  });
+  const cancelledCard =
+      cancelled.messages.find((m) => m.kind === "action_proposal");
+  assert.equal(cancelledCard.status, "cancelled");
 });
 
 test("invalid mutating input is fed back so the model can self-correct", async () => {

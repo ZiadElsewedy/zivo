@@ -3,6 +3,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/firebase/uid_source.dart';
 import 'package:zivo/features/ai/data/firebase_ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 
 UidSource _signedInAs(String uid) =>
@@ -219,6 +220,91 @@ void main() {
       expect(action.fields['title'], 'Submit report');
       expect(action.isPending, isTrue);
     });
+
+    test(
+      'an action_proposal maps its stored status, so a resolved card stays '
+      'resolved on reopen (regression: card reverted to pending)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final messages = firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations')
+            .doc('conv-1')
+            .collection('messages');
+        // A proposal the server has since marked applied (e.g. confirmed by a
+        // typed reply rather than a card tap). On reopen the client must render
+        // it as resolved, not pending — the bug hardcoded pending here.
+        await messages.doc('m1').set({
+          'role': 'assistant',
+          'content': 'Add task "Submit report"',
+          'kind': 'action_proposal',
+          'actionId': 'act-1',
+          'actionKind': 'create_task',
+          'fields': {'title': 'Submit report'},
+          'status': 'applied',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1, 10, 0)),
+          'schemaVersion': 1,
+        });
+
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final action = (await repo.watchMessages('conv-1').first)
+            .single
+            .pendingAction;
+        expect(action, isNotNull);
+        expect(action!.status, AiActionStatus.applied);
+        expect(action.isPending, isFalse);
+      },
+    );
+
+    test(
+      'a still-pending proposal past its expiresAt renders as expired '
+      '(regression: stale card offered Confirm until tapped)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        await firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations')
+            .doc('conv-1')
+            .collection('messages')
+            .doc('m1')
+            .set({
+              'role': 'assistant',
+              'content': 'Add task "Submit report"',
+              'kind': 'action_proposal',
+              'actionId': 'act-1',
+              'actionKind': 'create_task',
+              'fields': {'title': 'Submit report'},
+              'status': 'pending',
+              // TTL already passed; never confirmed/cancelled, so status is
+              // still 'pending' on the doc.
+              'expiresAt': Timestamp.fromDate(
+                DateTime.now().subtract(const Duration(hours: 2)),
+              ),
+              'createdAt': Timestamp.fromDate(
+                DateTime.now().subtract(const Duration(hours: 3)),
+              ),
+              'schemaVersion': 1,
+            });
+
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final action = (await repo.watchMessages('conv-1').first)
+            .single
+            .pendingAction;
+        expect(action, isNotNull);
+        expect(action!.status, AiActionStatus.expired);
+        expect(action.isPending, isFalse);
+      },
+    );
   });
 
   // The real `aiChat` callable invocation (the default `invokeChat`, calling

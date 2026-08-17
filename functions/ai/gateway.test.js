@@ -582,6 +582,7 @@ test("a turn with no tools emits no working phase", async () => {
 test("a mutation turn emits a preparing_change phase before done", async () => {
   const store = makeStore({
     createPendingAction: async () => {},
+    getActivePendingAction: async () => null,
   });
   const callModel = scriptedModel([
     {
