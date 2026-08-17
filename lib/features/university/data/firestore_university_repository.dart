@@ -32,6 +32,7 @@ class FirestoreUniversityRepository implements UniversityRepository {
   final UidSource uidSource;
 
   List<UniversityItem> _current = const [];
+  bool _hasSnapshot = false;
   StreamController<List<UniversityItem>>? _controller;
   StreamSubscription<String?>? _uidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
@@ -40,11 +41,20 @@ class FirestoreUniversityRepository implements UniversityRepository {
   List<UniversityItem> get current => List.unmodifiable(_current);
 
   @override
-  Stream<List<UniversityItem>> watchAll() {
-    return (_controller ??= StreamController<List<UniversityItem>>.broadcast(
+  Stream<List<UniversityItem>> watchAll() async* {
+    _controller ??= StreamController<List<UniversityItem>>.broadcast(
       onListen: _start,
       onCancel: _stop,
-    )).stream;
+    );
+    // A broadcast stream never replays its latest value to a *late* subscriber.
+    // The Today dashboard subscribes first (it stays alive in the shell's
+    // IndexedStack) and consumes the initial snapshot, so a Hub detail page
+    // opened afterwards would otherwise sit on ConnectionState.waiting forever
+    // whenever the collection is empty. Replay the cached snapshot on subscribe
+    // so every listener sees the current value immediately — matching the
+    // in-memory repo contract the pages and tests rely on.
+    if (_hasSnapshot) yield current;
+    yield* _controller!.stream;
   }
 
   void _start() {
@@ -93,6 +103,7 @@ class FirestoreUniversityRepository implements UniversityRepository {
 
   void _emit(List<UniversityItem> items) {
     _current = items;
+    _hasSnapshot = true;
     _controller?.add(current);
   }
 
