@@ -6,10 +6,11 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-16 (V1 read-only Ask **deployed + verified
-> on-device**; composer fix landed; App Check client wired (not enforced); Android sign-in SHA in
-> progress; **V2 planned** in `docs/DECISIONS/ADR-003-ai-mutations-v2.md`. On `feature/ai-assistant`;
-> Firestore persistence, Authentication, and University are merged into `main`).
+> **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
+> `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
+> spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
+> milestone; App Check **still not enforced** (M9 Phase 4). On `feature/ai-streaming-ux`; Firestore
+> persistence, Authentication, and University are merged into `main`).
 
 ---
 
@@ -47,18 +48,73 @@
   `schemaVersion: 2` on every doc and `cacheReadTokens > 0` every turn (~4712 on 2-call read turns,
   2356 on the single-call proposal) — the static prefix reads back cached, saving ≈ $0.013/read turn
   vs. full price. The runbook's failure condition (reads stuck at 0) is not hit.
-- **NOT yet done — needs the owner's device:** Phase 3.5 runbook **Step 2 on-device client checks**
-  (iris rail phases rendering, the provisional streamed bubble settling into the durable message
-  with **no double-bubble**, durable message persisting across an Ask kill/reopen). The server/wire
-  side is validated and deployed; only the signed-in Flutter UI rendering remains to eyeball.
+- **On-device client check — DONE (2026-08-17, owner verified):** ran the Ask mutation flow on a
+  signed-in simulator. `can you add a random task today` → model **proposed** (title/due/priority)
+  → owner **confirmed** → **`Confirmed`** card → **`Added to Tasks · Random task`**. The streamed
+  response settled cleanly into one durable message — **no double-bubble** (the specific runbook
+  Step 2 concern). This closes the last device-only validation for Phase 3.5's `add task` path.
+  Two behavior notes to review (not bugs): (1) the model **asked clarifying questions first**
+  ("set a due time? high or normal?") instead of proposing one action immediately per ADR-003's
+  "propose-one" intent — candidate system-prompt tightening; (2) the proposal arrived as **prose**
+  ("just confirm and I'll add it") rather than the structured iris confirmation *card*, yet the
+  Confirmed/Added cards still rendered after — confirm whether that's the intended path.
+- **Separate infinite-spinner bug — root-caused & FIXED (committed, `3635a60`; earlier partial
+  `eaebc17`):** opening any **empty** Hub detail page (Schedule, Diet, …) spun forever — no data,
+  no error. The handoff's backend theory (App Check / indexes / Firestore connection) was a **red
+  herring**: reproduced live, the Today screen renders real Firestore data, so the backend works.
+  Real cause: Firestore repos returned a **raw broadcast stream** from `watchAll()`, and a Dart
+  broadcast stream **never replays its latest value to a late subscriber**. The Today dashboard
+  (kept alive in the `IndexedStack`) is the *first* subscriber to every `watchAll()`; a Hub detail
+  page's `StreamBuilder` is a *second, late* subscriber → gets no replay → sits at `waiting` with
+  empty `initialData` → infinite spinner, but **only for empty collections** (non-empty ones render
+  from non-empty `current`). The in-memory repos never had this because they `yield current` first;
+  the Firestore repos silently broke that contract — which is why 255 tests and the console stayed
+  clean. **Fix:** all 8 Firestore repos (`schedule`/`tasks`/`expenses`/`notes`/`moments`/`workout`/
+  `university` list repos + `diet`'s `watchActivePlan()`) now track a `_hasSnapshot` flag and
+  `yield current` on subscribe before the broadcast stream — restoring the in-memory contract.
+  A schedule **regression test** was *proven* to catch it (times out on old code, passes on new).
+  `flutter analyze` clean; `flutter test` **256 pass**.
+- **Spinner fix — live re-verify CONFIRMED (2026-08-17):** fresh full rebuild on the iPhone 17
+  sim; both empty Hub pages Today pre-subscribes to now render their empty state instead of
+  spinning (Workout → "No workouts yet.", Diet → "No diet plan yet." + Create plan). Console clean
+  (zero `cloud_firestore` errors), 256 tests green. (Note: `3635a60` was auto-committed by a
+  concurrent session — byte-for-byte identical to the fix author's working tree, nothing added.)
+- **Confirmation-card state bug — FIXED & committed (`1a85c77`, 2026-08-17):** *"fix(ai): make
+  confirmation cards reflect true server state and stop duplicate writes."* Fixed five things:
+  (1) **duplicate-write guard** — gateway refuses a second proposal while an unexpired pending
+  action exists (`store.getActivePendingAction`), so re-proposing (e.g. typing "confirm") can't mint
+  a second card/task; (2) **card reflects true server state + survives reopen** — action_proposal
+  messages now persist `status` (+ `expiresAt`); confirm/cancel/expire flip it (`store.markProposalMessage`);
+  the client reads the stored status instead of hardcoding `pending`; (3) **typed "confirm" = nudge**
+  (owner decision) — hits the guard, replies "tap Confirm or Cancel on the card above"; tap-to-confirm
+  stays the only write path (ADR-003), no free-text auto-execute; (4) **expiry edge** — a still-pending
+  card renders as **Expired** on read once its TTL passes; (5) **prompt tightening** — don't re-propose
+  while one is pending, don't treat typed "confirm"/"yes" as permission, propose via the tool not prose.
+  Root cause had been: the applied-state override `_resolved[actionId]` was only set on button tap
+  (`ask_page.dart`), and the proposal message's server status was never flipped for a text-turn confirm.
+  Gates: functions node --test **42/42**, `flutter test` **258/258**, analyze + eslint clean.
+  6 files (`functions/ai/{gateway,store}.js` + 2 gateway tests, `firebase_ai_repository.dart` + its
+  test). **NOT pushed, NOT deployed.** ⚠️ **Deploy client + server together** — the client reads the
+  `status`/`expiresAt` fields the new gateway writes, so `firebase deploy --only functions` and a
+  fresh app build must ship in the same go, or deployed cards won't reflect server state.
 - **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
   `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation on the owner's
   account; add + verify providers in the Console before any public launch.
-- **Branch:** `feature/ai-streaming-ux`, checked out and active. Fix committed (`9c6d153`); this
-  handoff update is the only remaining working-tree change.
-- **Exact next action:** run Phase 3.5 runbook Step 2 on a signed-in device (`what's due this week?`
-  and `add task Submit the report`) to confirm the client rendering; then decide on merging
-  `feature/ai-streaming-ux`. Enforce App Check before public launch.
+- **M7 Performance — DONE (2026-08-17):** owner ran the on-device profiling passes and signed off
+  — performance is good, **no measured fixes needed**. The profiling harness stays in the repo
+  (`docs/performance/`, `scripts/perf/`). This leaves **M9 (AI V2) as the only remaining milestone.**
+- **Branch:** `feature/ai-streaming-ux`, checked out and active. Latest commits: `3635a60`
+  (broadcast-replay fix) on top of `9c6d153` (empty-thinking-block fix). Working tree: this handoff
+  doc update only.
+- **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
+  `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation; this is **M9 Phase
+  4** — enforce it (server flag + Console providers) before any public launch.
+- **Exact next action:** (1) confirm the live-simulator re-verify of the spinner fix completed
+  (open an empty Hub detail page → empty state, not a spinner); (2) **decide on merging
+  `feature/ai-streaming-ux` into `main`** — Phase 3.5 is deployed & on-device-verified, the spinner
+  fix is landed & 256 tests green; (3) then finish **M9 Phase 4** (enforce App Check + final deploy),
+  the last step to launch-readiness. Optionally review the two AI-behavior notes above (propose-one;
+  card vs. prose) as a system-prompt polish.
 - **What the read-only V1 slice (still current architecture) adds:**
   - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
     message, now, config})` — a pure-ish orchestration function kept free of
