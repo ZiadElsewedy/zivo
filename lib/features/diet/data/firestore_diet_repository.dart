@@ -77,7 +77,7 @@ class FirestoreDietRepository implements DietRepository {
         .listen((snapshot) {
           final plans = snapshot.docs.map(_planFromDoc).toList(growable: false);
           _emitPlan(_firstActive(plans));
-        });
+        }, onError: (e, s) => _planController?.addError(e, s));
   }
 
   DietPlan? _firstActive(List<DietPlan> plans) {
@@ -141,7 +141,7 @@ class FirestoreDietRepository implements DietRepository {
               }
             }
             controller.add(eaten);
-          });
+          }, onError: (e, s) => controller.addError(e, s));
     }
 
     controller = StreamController<Set<String>>.broadcast(

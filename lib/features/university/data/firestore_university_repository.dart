@@ -74,7 +74,7 @@ class FirestoreUniversityRepository implements UniversityRepository {
         .snapshots()
         .listen((snapshot) {
           _emit(_sorted(snapshot.docs.map(_fromDoc).toList(growable: false)));
-        });
+        }, onError: (e, s) => _controller?.addError(e, s));
   }
 
   /// Soonest due date first; undated items last.

@@ -67,7 +67,7 @@ class FirestoreExpenseRepository implements ExpenseRepository {
         .snapshots()
         .listen((snapshot) {
           _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-        });
+        }, onError: (e, s) => _controller?.addError(e, s));
   }
 
   void _emit(List<Expense> expenses) {

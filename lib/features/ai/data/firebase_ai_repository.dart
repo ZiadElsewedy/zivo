@@ -152,7 +152,7 @@ class FirebaseAiRepository implements AiRepository {
           .snapshots()
           .listen((snapshot) {
             controller.add(snapshot.docs.map(_fromDoc).toList(growable: false));
-          });
+          }, onError: (e, s) => controller.addError(e, s));
     }
 
     controller = StreamController<List<AiMessage>>.broadcast(
