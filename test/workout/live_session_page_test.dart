@@ -153,6 +153,7 @@ Widget _wrap({
   required WorkoutDay day,
   required WorkoutPlan plan,
   LiveSession? resume,
+  DateTime Function()? now,
 }) {
   return AppScope(
     auth: FakeAuthRepository(),
@@ -175,7 +176,8 @@ Widget _wrap({
             child: TextButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resume),
+                  builder: (_) =>
+                      LiveSessionPage(day: day, plan: plan, resume: resume, now: now),
                 ),
               ),
               child: const Text('go'),
@@ -411,6 +413,7 @@ void main() {
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
     final plan = _plan();
+    var fakeNow = DateTime(2026, 1, 1, 8);
 
     await tester.pumpWidget(
       _wrap(
@@ -419,6 +422,7 @@ void main() {
         workoutSessions: sessions,
         day: plan.days.first,
         plan: plan,
+        now: () => fakeNow,
       ),
     );
     await tester.tap(find.text('go'));
@@ -428,10 +432,56 @@ void main() {
     await tester.pump();
     expect(find.text('1:30'), findsOneWidget);
 
-    // Let the countdown run out.
+    // Let the countdown run out (driven by wall-clock elapsed time, not tick
+    // count — advance the clock alongside the pumped duration).
+    fakeNow = fakeNow.add(const Duration(seconds: 91));
     await tester.pump(const Duration(seconds: 91));
     expect(find.text('SET 2 OF 2'), findsOneWidget);
   });
+
+  testWidgets(
+    'the rest countdown resyncs from wall-clock time on app resume, surviving '
+    "a backgrounded/suspended timer",
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      expect(find.text('1:30'), findsOneWidget); // 90s rest window
+
+      // Simulate the OS suspending the app's Timer for 40s while backgrounded
+      // — no ticks fire, only wall-clock time passes — then resuming.
+      fakeNow = fakeNow.add(const Duration(seconds: 40));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+
+      // Resyncs to the real elapsed time on resume instead of staying frozen
+      // at 1:30 (what a plain tick-counter would show).
+      expect(find.text('0:50'), findsOneWidget);
+
+      // And ending naturally still works post-resume.
+      fakeNow = fakeNow.add(const Duration(seconds: 50));
+      await tester.pump(const Duration(seconds: 50));
+      expect(find.text('SET 2 OF 2'), findsOneWidget);
+    },
+  );
 
   testWidgets('an empty day settles straight into the completed view', (tester) async {
     final workouts = _RecordingWorkoutRepository();

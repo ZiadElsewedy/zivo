@@ -34,7 +34,13 @@ import '../widgets/staggered_reveal.dart';
 /// pointer — rest is purely a UI-side pause laid over the next set, not a
 /// separate engine phase.
 class LiveSessionPage extends StatefulWidget {
-  const LiveSessionPage({required this.day, required this.plan, this.resume, super.key});
+  const LiveSessionPage({
+    required this.day,
+    required this.plan,
+    this.resume,
+    DateTime Function()? now,
+    super.key,
+  }) : now = now ?? DateTime.now;
 
   /// The day to run (a snapshot embedded in the session).
   final WorkoutDay day;
@@ -47,11 +53,15 @@ class LiveSessionPage extends StatefulWidget {
   /// session for this plan/day (`WorkoutSessionRepository.activeSession`).
   final LiveSession? resume;
 
+  /// The clock this session runs on — real wall time in production, injected
+  /// in tests so the rest timer's elapsed-time math is deterministic.
+  final DateTime Function() now;
+
   @override
   State<LiveSessionPage> createState() => _LiveSessionPageState();
 }
 
-class _LiveSessionPageState extends State<LiveSessionPage> {
+class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingObserver {
   late LiveSession _session;
 
   final TextEditingController _reps = TextEditingController();
@@ -60,6 +70,11 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   Timer? _restTimer;
   int? _restRemaining;
   int? _restTotalSeconds;
+
+  /// The absolute wall-clock moment rest ends — the source of truth for
+  /// [_restRemaining], recomputed on every tick and on app resume so a
+  /// backgrounded/suspended timer can't leave the countdown stale.
+  DateTime? _restEndsAt;
 
   bool _reposInitialized = false;
   late WorkoutSessionRepository _sessionsRepo;
@@ -74,17 +89,18 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _session =
         widget.resume ??
         LiveSession.start(
           widget.day,
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          id: widget.now().microsecondsSinceEpoch.toString(),
           planId: widget.plan.id,
-          now: DateTime.now(),
+          now: widget.now(),
         );
     if (_session.currentSet == null) {
       // Nothing to do (an empty day) — settle straight into the completed view.
-      _session = _session.complete(now: DateTime.now());
+      _session = _session.complete(now: widget.now());
     }
     _prefillInputs();
   }
@@ -105,7 +121,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The OS suspends `Timer`s while backgrounded, so a plain tick-counter
+    // would resume from wherever it froze — resync from the absolute
+    // `_restEndsAt` instead, which reflects real elapsed time either way.
+    if (state == AppLifecycleState.resumed) _tickRest();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _restTimer?.cancel();
     _pastSessionsSub?.cancel();
     _reps.dispose();
@@ -152,7 +177,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
         actualWeightKg: weight,
       );
       if (_session.currentSet == null) {
-        _session = _session.complete(now: DateTime.now());
+        _session = _session.complete(now: widget.now());
       }
     });
     unawaited(_sessionsRepo.saveSession(_session));
@@ -160,6 +185,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     if (_session.isComplete) {
       _restTimer?.cancel();
       _restTotalSeconds = null;
+      _restEndsAt = null;
       setState(() => _restRemaining = null);
       return;
     }
@@ -172,35 +198,56 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
       setState(() {
         _restRemaining = null;
         _restTotalSeconds = null;
+        _restEndsAt = null;
       });
       return;
     }
     _restTotalSeconds = seconds;
+    _restEndsAt = widget.now().add(Duration(seconds: seconds));
     setState(() => _restRemaining = seconds);
-    _restTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final remaining = _restRemaining ?? 0;
-      if (remaining <= 1) {
-        _endRest();
-      } else {
-        setState(() => _restRemaining = remaining - 1);
-      }
-    });
+    _restTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
+  }
+
+  /// Recomputes [_restRemaining] from [_restEndsAt] against the current wall
+  /// clock — called on every timer tick and on app resume, so a `Timer` the
+  /// OS suspended while backgrounded snaps back to the real remaining time
+  /// instead of resuming from wherever it froze.
+  void _tickRest() {
+    final endsAt = _restEndsAt;
+    if (endsAt == null) return;
+    final remainingMs = endsAt.difference(widget.now()).inMilliseconds;
+    final remaining = (remainingMs / 1000).ceil();
+    if (remaining <= 0) {
+      _endRest();
+    } else if (mounted) {
+      setState(() => _restRemaining = remaining);
+    }
   }
 
   void _endRest() {
     _restTimer?.cancel();
     _restTimer = null;
     _restTotalSeconds = null;
+    _restEndsAt = null;
     if (mounted) setState(() => _restRemaining = null);
   }
 
   void _adjustRest(int delta) {
-    final next = (_restRemaining ?? 0) + delta;
-    if (next <= 0) {
+    final endsAt = _restEndsAt;
+    if (endsAt == null) return;
+    final nextEndsAt = endsAt.add(Duration(seconds: delta));
+    if (!nextEndsAt.isAfter(widget.now())) {
       _endRest();
-    } else {
-      setState(() => _restRemaining = next);
+      return;
     }
+    final remaining = (nextEndsAt.difference(widget.now()).inMilliseconds / 1000).ceil();
+    _restEndsAt = nextEndsAt;
+    // Keep the ring sensible: grow the total if the adjustment pushed the
+    // remaining time past what it was counting down from.
+    if (_restTotalSeconds != null && remaining > _restTotalSeconds!) {
+      _restTotalSeconds = remaining;
+    }
+    setState(() => _restRemaining = remaining);
   }
 
   Future<void> _onFinish() async {
