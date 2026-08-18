@@ -5,11 +5,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../data/ziad_workout_plan.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import 'workout_history_page.dart';
+import 'workout_plan_edit_page.dart';
 import 'workout_session_page.dart';
 
 /// The Workout Plan page — the rotating-cycle template ("what I SHOULD do").
@@ -47,15 +49,61 @@ class WorkoutPlanPage extends StatelessWidget {
               ),
             ],
           ),
+          floatingActionButton: loading || snapshot.hasError
+              ? null
+              : FloatingActionButton(
+                  backgroundColor: AppColors.pulseText,
+                  elevation: 2,
+                  tooltip: plan == null ? 'Create plan' : 'Edit plan',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => WorkoutPlanEditPage(initialPlan: plan)),
+                  ),
+                  child: Icon(
+                    plan == null ? Icons.add_rounded : Icons.edit_rounded,
+                    color: Colors.white,
+                  ),
+                ),
           body: snapshot.hasError
               ? const ErrorStateView()
               : loading
               ? const LoadingStateView()
               : plan == null
-              ? const EmptyStateView('No workout plan yet.')
+              ? const _WorkoutPlanEmptyState()
               : _PlanBody(plan: plan),
         );
       },
+    );
+  }
+}
+
+/// The empty state — no active plan yet. Offers a one-tap import of the owner's
+/// ingested split straight into storage (the FAB still opens the blank editor
+/// for building one from scratch).
+class _WorkoutPlanEmptyState extends StatelessWidget {
+  const _WorkoutPlanEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const SizedBox(height: 12),
+          Text('No workout plan yet.', style: AppText.aside),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: 220,
+            child: PillButton(
+              label: 'Import my split',
+              icon: Icons.download_rounded,
+              color: AppColors.pulseText,
+              enabled: true,
+              onTap: () => AppScope.of(context).workoutPlans.savePlan(ziadWorkoutPlan()),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -32,6 +32,7 @@ import '../support/fake_profile_repository.dart';
 /// is called, so tests can assert on the "waiting"/error states deterministically.
 class _PendingWorkoutPlanRepository implements WorkoutPlanRepository {
   final StreamController<WorkoutPlan?> _controller = StreamController<WorkoutPlan?>.broadcast();
+  final List<WorkoutPlan> saved = [];
 
   @override
   WorkoutPlan? get activePlan => null;
@@ -40,7 +41,10 @@ class _PendingWorkoutPlanRepository implements WorkoutPlanRepository {
   Stream<WorkoutPlan?> watchActivePlan() => _controller.stream;
 
   @override
-  Future<void> savePlan(WorkoutPlan plan) async {}
+  Future<void> savePlan(WorkoutPlan plan) async {
+    saved.add(plan);
+    _controller.add(plan);
+  }
 
   @override
   Future<void> deletePlan(String id) async {}
@@ -204,6 +208,25 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('No workout plan yet.'), findsOneWidget);
+  });
+
+  testWidgets('empty state offers a one-tap import of the ingested split', (tester) async {
+    final plans = _PendingWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+
+    await tester.pumpWidget(_wrap(child: const WorkoutPlanPage(), plansOverride: plans));
+    plans.emit(null);
+    await tester.pump();
+
+    expect(find.text('Import my split'), findsOneWidget);
+    await tester.tap(find.text('Import my split'));
+    await tester.pump();
+
+    // The ingested plan was written to storage, and the page reflects it.
+    expect(plans.saved, hasLength(1));
+    expect(plans.saved.single.id, 'ziad-arnold-split');
+    expect(plans.saved.single.source, WorkoutPlanSource.pdf);
+    expect(find.text('Import my split'), findsNothing); // now showing the plan
   });
 
   testWidgets('shows the error view when the plan stream errors', (tester) async {

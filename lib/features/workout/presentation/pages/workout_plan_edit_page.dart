@@ -1,0 +1,872 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../core/scope/app_scope.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/planned_exercise.dart';
+import '../../domain/rep_target.dart';
+import '../../domain/set_type.dart';
+import '../../domain/workout_day.dart';
+import '../../domain/workout_plan.dart';
+import '../../domain/workout_plan_format.dart';
+import '../../domain/workout_plan_source.dart';
+import '../../domain/workout_plan_status.dart';
+import '../../domain/workout_set.dart';
+
+/// The next cycle slot letter for a plan that already has [count] days: A, B,
+/// C… (falls back to a number past Z).
+String _slotForIndex(int count) => count < 26 ? String.fromCharCode(0x41 + count) : '${count + 1}';
+
+/// "60" / "22.5" — a weight without a trailing ".0".
+String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+
+/// A mutable day while editing — its exercises are fully-formed
+/// [PlannedExercise]s (built by the exercise sheet), so drafts round-trip
+/// losslessly through save.
+class _DayDraft {
+  _DayDraft({
+    required this.id,
+    required this.slot,
+    required this.label,
+    this.notes,
+    List<PlannedExercise>? exercises,
+  }) : exercises = exercises ?? <PlannedExercise>[];
+
+  final String id;
+  final String slot;
+  final String label;
+  final String? notes;
+  final List<PlannedExercise> exercises;
+}
+
+/// Create or edit the workout plan — name, days (slot + label), and exercises
+/// within a day (added via a sheet that captures a compact set spec and
+/// generates the working sets). Saving persists the whole plan, reusing its id
+/// when editing so it overwrites idempotently, and preserving the rotation
+/// cursor. A Pulse screen, sibling to Diet's editor.
+class WorkoutPlanEditPage extends StatefulWidget {
+  const WorkoutPlanEditPage({super.key, this.initialPlan});
+
+  final WorkoutPlan? initialPlan;
+
+  @override
+  State<WorkoutPlanEditPage> createState() => _WorkoutPlanEditPageState();
+}
+
+class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
+  late final TextEditingController _name;
+  late final String _planId;
+  late final DateTime _createdAt;
+  late final int _cycleCursor;
+  final List<_DayDraft> _days = [];
+  bool _canSave = false;
+
+  bool get _editing => widget.initialPlan != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final plan = widget.initialPlan;
+    _name = TextEditingController(text: plan?.name ?? '');
+    _planId = plan?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
+    _createdAt = plan?.createdAt ?? DateTime.now();
+    _cycleCursor = plan?.cycleCursor ?? 0;
+    if (plan != null) {
+      _days.addAll(
+        plan.days.map(
+          (d) => _DayDraft(
+            id: d.id,
+            slot: d.slot,
+            label: d.label,
+            notes: d.notes,
+            exercises: List.of(d.exercises),
+          ),
+        ),
+      );
+    }
+    _name.addListener(_recompute);
+    _recompute();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _recompute() {
+    final canSave = _name.text.trim().isNotEmpty && _days.isNotEmpty;
+    if (canSave != _canSave) setState(() => _canSave = canSave);
+  }
+
+  Future<void> _addDay() async {
+    final result = await showModalBottomSheet<_DayDraft>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _DaySheet(suggestedSlot: _slotForIndex(_days.length)),
+    );
+    if (result == null) return;
+    setState(() => _days.add(result));
+    _recompute();
+  }
+
+  void _removeDay(int index) {
+    setState(() => _days.removeAt(index));
+    _recompute();
+  }
+
+  Future<void> _addExercise(int dayIndex) async {
+    final exercise = await showModalBottomSheet<PlannedExercise>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _ExerciseSheet(),
+    );
+    if (exercise == null) return;
+    setState(() => _days[dayIndex].exercises.add(exercise));
+  }
+
+  void _removeExercise(int dayIndex, int exerciseIndex) {
+    setState(() => _days[dayIndex].exercises.removeAt(exerciseIndex));
+  }
+
+  Future<void> _save() async {
+    if (!_canSave) return;
+    final now = DateTime.now();
+    final days = <WorkoutDay>[];
+    for (var i = 0; i < _days.length; i++) {
+      final draft = _days[i];
+      days.add(
+        WorkoutDay(
+          id: draft.id,
+          slot: draft.slot,
+          label: draft.label,
+          notes: draft.notes,
+          order: i,
+          exercises: [
+            for (var j = 0; j < draft.exercises.length; j++) draft.exercises[j].copyWith(order: j),
+          ],
+        ),
+      );
+    }
+    final plan = WorkoutPlan(
+      id: _planId,
+      name: _name.text.trim(),
+      status: WorkoutPlanStatus.active,
+      source: WorkoutPlanSource.manual,
+      createdAt: _createdAt,
+      updatedAt: now,
+      // Keep the rotation where it was; clamp in case days were removed.
+      cycleCursor: days.isEmpty ? 0 : _cycleCursor % days.length,
+      days: days,
+    );
+    await AppScope.of(context).workoutPlans.savePlan(plan);
+    if (mounted) Navigator.of(context).pop(plan);
+  }
+
+  Future<void> _delete() async {
+    final plan = widget.initialPlan;
+    if (plan == null) return;
+    final plans = AppScope.of(context).workoutPlans;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Delete this plan?', style: AppText.cardTitle),
+        content: Text(
+          'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
+          style: AppText.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flareText)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await plans.deletePlan(plan.id);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.ground,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CaptureTopBar(
+              title: _editing ? 'Edit workout plan' : 'New workout plan',
+              onClose: () => Navigator.of(context).maybePop(),
+              trailing: _editing
+                  ? CaptureIconButton(
+                      key: const Key('workout-plan-delete'),
+                      icon: Icons.delete_outline_rounded,
+                      onTap: _delete,
+                      semanticLabel: 'Delete plan',
+                      iconColor: AppColors.flareText,
+                    )
+                  : null,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 6),
+              child: TextField(
+                key: const Key('plan-name-field'),
+                controller: _name,
+                textInputAction: TextInputAction.done,
+                cursorColor: AppColors.pulse,
+                style: AppText.cardTitle.copyWith(fontSize: 24),
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: 'Plan name',
+                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink3),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _days.isEmpty
+                  ? _EmptyDays(onAdd: _addDay)
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
+                      itemCount: _days.length + 1,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) {
+                        if (i == _days.length) {
+                          return _AddButton(label: 'Add day', onTap: _addDay);
+                        }
+                        return _DayCard(
+                          day: _days[i],
+                          onRemoveDay: () => _removeDay(i),
+                          onAddExercise: () => _addExercise(i),
+                          onRemoveExercise: (ei) => _removeExercise(i, ei),
+                        );
+                      },
+                    ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                8,
+                18,
+                MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
+              ),
+              child: PillButton(
+                label: 'Save plan',
+                icon: Icons.check_rounded,
+                color: AppColors.pulseText,
+                enabled: _canSave,
+                onTap: _save,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyDays extends StatelessWidget {
+  const _EmptyDays({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const SizedBox(height: 12),
+          Text('No days yet.', style: AppText.aside),
+          const SizedBox(height: 14),
+          _AddButton(label: 'Add day', onTap: onAdd),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.label, required this.onTap, this.compact = false});
+
+  final String label;
+  final VoidCallback onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.hairline2, width: 1.4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_rounded, size: compact ? 14 : 17, color: AppColors.pulseText),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppText.button.copyWith(
+                fontSize: compact ? 12.5 : 14,
+                color: AppColors.pulseText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DayCard extends StatelessWidget {
+  const _DayCard({
+    required this.day,
+    required this.onRemoveDay,
+    required this.onAddExercise,
+    required this.onRemoveExercise,
+  });
+
+  final _DayDraft day;
+  final VoidCallback onRemoveDay;
+  final VoidCallback onAddExercise;
+  final void Function(int exerciseIndex) onRemoveExercise;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Day ${day.slot} · ${day.label}',
+                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                onPressed: onRemoveDay,
+                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
+                splashRadius: 20,
+                tooltip: 'Remove day',
+              ),
+            ],
+          ),
+          if (day.notes != null && day.notes!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+            ),
+          for (var ei = 0; ei < day.exercises.length; ei++)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _ExerciseRow(
+                exercise: day.exercises[ei],
+                onRemove: () => onRemoveExercise(ei),
+              ),
+            ),
+          const SizedBox(height: 10),
+          _AddButton(label: 'Add exercise', onTap: onAddExercise, compact: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExerciseRow extends StatelessWidget {
+  const _ExerciseRow({required this.exercise, required this.onRemove});
+
+  final PlannedExercise exercise;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      decoration: BoxDecoration(color: AppColors.ground, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  exercise.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _setSpecLabel(exercise),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(color: AppColors.pulseText),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.ink3),
+            splashRadius: 18,
+            tooltip: 'Remove exercise',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "3 × 6–8 · 60kg · rest 1:30" — the compact set spec read back off the
+  /// generated sets (all identical for a manually-added exercise).
+  String _setSpecLabel(PlannedExercise e) {
+    if (e.sets.isEmpty) return 'No sets';
+    final first = e.sets.first;
+    final parts = <String>[
+      '${e.sets.length} × ${repTargetLabel(first.repTarget)}',
+      if (first.targetWeightKg != null) '${_trimWeight(first.targetWeightKg!)}kg',
+      'rest ${restLabel(first.restSeconds)}',
+    ];
+    return parts.join(' · ');
+  }
+}
+
+/// A sheet to add one day: a slot letter, a label, and optional notes.
+class _DaySheet extends StatefulWidget {
+  const _DaySheet({required this.suggestedSlot});
+
+  final String suggestedSlot;
+
+  @override
+  State<_DaySheet> createState() => _DaySheetState();
+}
+
+class _DaySheetState extends State<_DaySheet> {
+  late final TextEditingController _slot = TextEditingController(text: widget.suggestedSlot);
+  final TextEditingController _label = TextEditingController();
+  final TextEditingController _notes = TextEditingController();
+  bool _canAdd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _label.addListener(() {
+      final canAdd = _label.text.trim().isNotEmpty;
+      if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
+    });
+  }
+
+  @override
+  void dispose() {
+    _slot.dispose();
+    _label.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_canAdd) return;
+    final slot = _slot.text.trim().isEmpty ? widget.suggestedSlot : _slot.text.trim();
+    final notes = _notes.text.trim();
+    Navigator.of(context).pop(
+      _DayDraft(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        slot: slot,
+        label: _label.text.trim(),
+        notes: notes.isEmpty ? null : notes,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      title: 'Add day',
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 76,
+              child: _LabeledField(label: 'Slot', controller: _slot, hint: 'A'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _LabeledField(
+                fieldKey: const Key('day-label-field'),
+                label: 'Label',
+                controller: _label,
+                hint: 'Push / Pull / Legs',
+                autofocus: true,
+                onSubmitted: (_) => _submit(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _LabeledField(label: 'Notes (optional)', controller: _notes, hint: '—'),
+        const SizedBox(height: 22),
+        PillButton(
+          label: 'Add day',
+          icon: Icons.add_rounded,
+          color: AppColors.pulseText,
+          enabled: _canAdd,
+          onTap: _submit,
+        ),
+      ],
+    );
+  }
+}
+
+enum _RepMode { fixed, range, toFailure }
+
+/// A sheet to add one exercise via a compact set spec: name, muscle group, a
+/// set count, a rep target (fixed / range / to-failure), rest, and an optional
+/// weight — which it expands into that many identical working sets.
+class _ExerciseSheet extends StatefulWidget {
+  const _ExerciseSheet();
+
+  @override
+  State<_ExerciseSheet> createState() => _ExerciseSheetState();
+}
+
+class _ExerciseSheetState extends State<_ExerciseSheet> {
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _muscle = TextEditingController();
+  final TextEditingController _sets = TextEditingController(text: '3');
+  final TextEditingController _reps = TextEditingController(text: '8');
+  final TextEditingController _repsMax = TextEditingController(text: '12');
+  final TextEditingController _rest = TextEditingController(text: '90');
+  final TextEditingController _weight = TextEditingController();
+  _RepMode _mode = _RepMode.range;
+  bool _canAdd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name.addListener(() {
+      final canAdd = _name.text.trim().isNotEmpty;
+      if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
+    });
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _muscle.dispose();
+    _sets.dispose();
+    _reps.dispose();
+    _repsMax.dispose();
+    _rest.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  RepTarget _buildTarget() {
+    switch (_mode) {
+      case _RepMode.fixed:
+        final reps = int.tryParse(_reps.text.trim()) ?? 1;
+        return RepTarget.fixed(reps < 1 ? 1 : reps);
+      case _RepMode.range:
+        var lo = int.tryParse(_reps.text.trim()) ?? 1;
+        var hi = int.tryParse(_repsMax.text.trim()) ?? lo;
+        if (lo < 1) lo = 1;
+        if (hi < lo) hi = lo;
+        return RepTarget.range(lo, hi);
+      case _RepMode.toFailure:
+        return const RepTarget.toFailure();
+    }
+  }
+
+  void _submit() {
+    if (!_canAdd) return;
+    final count = (int.tryParse(_sets.text.trim()) ?? 1).clamp(1, 20);
+    final rest = int.tryParse(_rest.text.trim()) ?? 0;
+    final restSeconds = rest < 0 ? 0 : rest;
+    final weightRaw = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    final weight = (weightRaw == null || weightRaw <= 0) ? null : weightRaw;
+    final target = _buildTarget();
+    final muscle = _muscle.text.trim();
+    Navigator.of(context).pop(
+      PlannedExercise(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: _name.text.trim(),
+        order: 0,
+        muscleGroup: muscle.isEmpty ? null : muscle,
+        defaultRestSeconds: restSeconds,
+        sets: [
+          for (var i = 0; i < count; i++)
+            PlannedSet(
+              order: i,
+              repTarget: target,
+              restSeconds: restSeconds,
+              targetWeightKg: weight,
+              type: SetType.working,
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      title: 'Add exercise',
+      children: [
+        _LabeledField(
+          fieldKey: const Key('exercise-name-field'),
+          label: 'Name',
+          controller: _name,
+          hint: 'Bench Press',
+          autofocus: true,
+        ),
+        const SizedBox(height: 14),
+        _LabeledField(label: 'Muscle group (optional)', controller: _muscle, hint: 'Chest'),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 76, child: _NumberField(label: 'Sets', controller: _sets)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'REP TARGET',
+                    style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      SelectChip(
+                        label: 'Fixed',
+                        selected: _mode == _RepMode.fixed,
+                        onTap: () => setState(() => _mode = _RepMode.fixed),
+                      ),
+                      SelectChip(
+                        label: 'Range',
+                        selected: _mode == _RepMode.range,
+                        onTap: () => setState(() => _mode = _RepMode.range),
+                      ),
+                      SelectChip(
+                        label: 'To failure',
+                        selected: _mode == _RepMode.toFailure,
+                        onTap: () => setState(() => _mode = _RepMode.toFailure),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (_mode != _RepMode.toFailure) ...[
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _NumberField(
+                  label: _mode == _RepMode.range ? 'Min reps' : 'Reps',
+                  controller: _reps,
+                ),
+              ),
+              if (_mode == _RepMode.range) ...[
+                const SizedBox(width: 12),
+                Expanded(child: _NumberField(label: 'Max reps', controller: _repsMax)),
+              ],
+            ],
+          ),
+        ],
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(child: _NumberField(label: 'Rest (sec)', controller: _rest)),
+            const SizedBox(width: 12),
+            Expanded(child: _NumberField(label: 'Weight (kg)', controller: _weight, hint: '—')),
+          ],
+        ),
+        const SizedBox(height: 22),
+        PillButton(
+          label: 'Add exercise',
+          icon: Icons.add_rounded,
+          color: AppColors.pulseText,
+          enabled: _canAdd,
+          onTap: _submit,
+        ),
+      ],
+    );
+  }
+}
+
+/// The shared bottom-sheet chrome (grabber + title + content), matching the
+/// capture sheets.
+class _SheetShell extends StatelessWidget {
+  const _SheetShell({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 22,
+        right: 22,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            child: Text(title, style: AppText.cardTitle),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// A labelled single-line text field for the sheets.
+class _LabeledField extends StatelessWidget {
+  const _LabeledField({
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.autofocus = false,
+    this.onSubmitted,
+    this.fieldKey,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final bool autofocus;
+  final ValueChanged<String>? onSubmitted;
+  final Key? fieldKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          key: fieldKey,
+          controller: controller,
+          autofocus: autofocus,
+          textInputAction: TextInputAction.next,
+          onSubmitted: onSubmitted,
+          cursorColor: AppColors.pulse,
+          style: AppText.rowTitle,
+          decoration: InputDecoration(
+            isCollapsed: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.hairline),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+            ),
+            hintText: hint,
+            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NumberField extends StatelessWidget {
+  const _NumberField({required this.label, required this.controller, this.hint});
+
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+          cursorColor: AppColors.pulse,
+          style: AppText.rowTitle,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: hint,
+            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            filled: true,
+            fillColor: AppColors.ground,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.pulse, width: 1.4),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
