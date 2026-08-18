@@ -1,30 +1,7 @@
 import 'logged_set.dart';
+import 'muscle_group.dart';
 import 'session_exercise.dart';
 import 'set_type.dart';
-
-/// Muscle groups treated as small/isolation work — clamped to a shorter base
-/// rest even at low rep counts, since they don't tax recovery the way a heavy
-/// compound lift does. Matched as a case-insensitive substring against the
-/// exercise's free-text `muscleGroup`, so "Biceps", "biceps (isolation)", and
-/// "Rear delts" all match.
-const Set<String> _smallMuscleGroups = {
-  'biceps',
-  'triceps',
-  'calves',
-  'calf',
-  'abs',
-  'core',
-  'forearms',
-  'forearm',
-  'delts',
-  'shoulders',
-};
-
-bool _isSmallMuscleGroup(String? muscleGroup) {
-  if (muscleGroup == null) return false;
-  final normalized = muscleGroup.toLowerCase();
-  return _smallMuscleGroups.any(normalized.contains);
-}
 
 /// The automatic, no-config rest window for a just-finished set — shorter for
 /// isolation/accessory work and for later sets within the same exercise,
@@ -50,7 +27,7 @@ int smartRestSeconds({
     <= 12 => 90,
     _ => 60,
   };
-  if (_isSmallMuscleGroup(muscleGroup) && base > 75) {
+  if (isSmallMuscleGroup(muscleGroup) && base > 75) {
     base = 75;
   }
   final decayed = base - (10 * workingSetIndex);
