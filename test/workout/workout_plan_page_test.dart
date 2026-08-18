@@ -15,15 +15,21 @@ import 'package:zivo/features/university/data/in_memory_university_repository.da
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/live_session.dart';
+import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
+import 'package:zivo/features/workout/domain/session_exercise.dart';
+import 'package:zivo/features/workout/domain/session_status.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
 import 'package:zivo/features/workout/domain/workout_plan_repository.dart';
 import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 import 'package:zivo/features/workout/domain/workout_plan_status.dart';
+import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
+import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_plan_page.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -57,7 +63,11 @@ class _PendingWorkoutPlanRepository implements WorkoutPlanRepository {
   void dispose() => _controller.close();
 }
 
-Widget _wrap({required Widget child, required WorkoutPlanRepository plansOverride}) {
+Widget _wrap({
+  required Widget child,
+  required WorkoutPlanRepository plansOverride,
+  WorkoutSessionRepository? sessionsOverride,
+}) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
@@ -68,7 +78,7 @@ Widget _wrap({required Widget child, required WorkoutPlanRepository plansOverrid
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: plansOverride,
-    workoutSessions: InMemoryWorkoutSessionRepository(),
+    workoutSessions: sessionsOverride ?? InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -259,5 +269,85 @@ void main() {
     // The history page ("what I did") opens — its "Log workout" FAB is unique to
     // it and absent from the read-only plan view.
     expect(find.byTooltip('Log workout'), findsOneWidget);
+  });
+
+  testWidgets(
+    'shows Resume workout (not Start) when an active session exists for the up-next day, '
+    'and opens LiveSessionPage seeded from it',
+    (tester) async {
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      final plan = _compactPlan();
+      await plans.savePlan(plan);
+
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(
+        LiveSession(
+          id: 'active1',
+          planId: plan.id,
+          dayId: 'a', // matches the up-next day (cursor 0 → Day A)
+          dayLabel: 'Push',
+          startedAt: DateTime(2026, 1, 1),
+          status: SessionStatus.active,
+          exercises: const [
+            SessionExercise(
+              id: 'e1',
+              exerciseId: 'e1',
+              name: 'Bench Press',
+              restSeconds: 120,
+              sets: [LoggedSet(id: 'e1-s0', target: RepTarget.range(6, 8), done: true)],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(child: const WorkoutPlanPage(), plansOverride: plans, sessionsOverride: sessions),
+      );
+      await tester.pump();
+
+      expect(find.text('Resume workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsNothing);
+
+      await tester.tap(find.text('Resume workout'));
+      await tester.pumpAndSettle();
+
+      // Seeded from the saved session (its one set already done), not a
+      // fresh one — and no second session was created alongside it.
+      final page = tester.widget<LiveSessionPage>(find.byType(LiveSessionPage));
+      expect(page.resume?.id, 'active1');
+      expect(sessions.current, hasLength(1));
+    },
+  );
+
+  testWidgets('shows Start workout when no active session exists for this plan/day', (
+    tester,
+  ) async {
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    final plan = _compactPlan();
+    await plans.savePlan(plan);
+
+    final sessions = InMemoryWorkoutSessionRepository();
+    // An active session for a *different* plan must not trigger Resume here.
+    await sessions.saveSession(
+      LiveSession(
+        id: 'other-plan-session',
+        planId: 'some-other-plan',
+        dayId: 'a',
+        dayLabel: 'Push',
+        startedAt: DateTime(2026, 1, 1),
+        status: SessionStatus.active,
+        exercises: const [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(child: const WorkoutPlanPage(), plansOverride: plans, sessionsOverride: sessions),
+    );
+    await tester.pump();
+
+    expect(find.text('Start workout'), findsOneWidget);
+    expect(find.text('Resume workout'), findsNothing);
   });
 }

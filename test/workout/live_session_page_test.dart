@@ -152,6 +152,7 @@ Widget _wrap({
   required WorkoutSessionRepository workoutSessions,
   required WorkoutDay day,
   required WorkoutPlan plan,
+  LiveSession? resume,
 }) {
   return AppScope(
     auth: FakeAuthRepository(),
@@ -173,7 +174,9 @@ Widget _wrap({
           builder: (context) => Center(
             child: TextButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
+                MaterialPageRoute(
+                  builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resume),
+                ),
               ),
               child: const Text('go'),
             ),
@@ -278,7 +281,9 @@ void main() {
     },
   );
 
-  testWidgets('discard via the close button erases autosaved progress and pops', (tester) async {
+  testWidgets('discard via the trailing trash button erases autosaved progress and pops', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -301,7 +306,9 @@ void main() {
     await _settle(tester);
     expect(sessions.current, hasLength(1));
 
-    await tester.tap(find.byTooltip('Close'));
+    // Discard is the explicit destructive action, reached via the top bar's
+    // trailing trash control — not the close (X) button, which now leaves.
+    await tester.tap(find.byTooltip('Discard workout'));
     await _settle(tester);
     expect(find.text('Discard this workout?'), findsOneWidget);
 
@@ -312,6 +319,89 @@ void main() {
     expect(workouts.added, isEmpty);
     expect(plans.saved, isEmpty);
     expect(sessions.current, isEmpty); // erased, not just left active
+  });
+
+  testWidgets('closing (X) with logged progress leaves the session active for Resume', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    expect(sessions.current, hasLength(1));
+
+    // Close (X) is now non-destructive: no confirmation dialog, and the
+    // autosaved progress (including the plan's un-advanced cursor) stays put.
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('go'), findsOneWidget); // popped
+    expect(find.text('Discard this workout?'), findsNothing);
+    expect(workouts.added, isEmpty); // never finished
+    expect(plans.saved, isEmpty); // cursor not advanced
+    final left = sessions.current.single;
+    expect(left.status, SessionStatus.active);
+    expect(left.exercises.single.sets[0].done, isTrue); // the logged set survived
+
+    // Resuming re-opens the exact same in-progress session rather than a
+    // fresh one — set 1 already done, straight onto set 2.
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        resume: left,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+    expect(find.text('SET 2 OF 2'), findsOneWidget);
+    expect(sessions.current, hasLength(1)); // no duplicate session created
+  });
+
+  testWidgets('closing (X) with zero logged sets is a silent discard', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+    expect(sessions.current, hasLength(1)); // autosaved as soon as it starts
+
+    // Nothing logged yet — closing must not leave a resumable, empty session.
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('go'), findsOneWidget); // popped
+    expect(find.text('Discard this workout?'), findsNothing); // no confirmation either
+    expect(sessions.current, isEmpty);
   });
 
   testWidgets('the rest countdown auto-advances to the next set when it reaches zero', (
@@ -366,43 +456,6 @@ void main() {
     expect(find.text('Finish'), findsOneWidget);
   });
 
-  testWidgets('starting a session deletes a stale active session left behind by a prior exit', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-    // Simulates a prior session that never reached Finish/Discard (app killed,
-    // or a system back-gesture from before the PopScope fix) — still "active".
-    await sessions.saveSession(
-      LiveSession(
-        id: 'stale-active',
-        planId: 'p1',
-        dayId: 'a',
-        dayLabel: 'Push',
-        startedAt: DateTime(2026, 1, 1),
-        status: SessionStatus.active,
-        exercises: const [],
-      ),
-    );
-
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
-
-    expect(sessions.current.any((s) => s.id == 'stale-active'), isFalse);
-    expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(1));
-  });
-
   testWidgets('rapid double-tap on Finish only writes history and advances the cursor once', (
     tester,
   ) async {
@@ -444,7 +497,9 @@ void main() {
     expect(plans.saved.single.cycleCursor, 1);
   });
 
-  testWidgets('the system back gesture is intercepted like the close button', (tester) async {
+  testWidgets('the system back gesture leaves like the close button (non-destructive)', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -461,26 +516,23 @@ void main() {
     );
     await tester.tap(find.text('go'));
     await _settle(tester);
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
 
     // Simulate the OS back gesture/button rather than tapping the close icon.
     await tester.binding.handlePopRoute();
-    await _settle(tester);
-
-    // Intercepted: still on the session screen with the discard dialog up,
-    // instead of silently popping and orphaning the autosaved session.
-    expect(find.text('Discard this workout?'), findsOneWidget);
-    expect(find.text('go'), findsNothing);
-
-    await tester.tap(find.text('Discard'));
     await tester.pumpAndSettle();
 
+    // Intercepted like the close button: pops straight through, no discard
+    // dialog, and the logged progress survives (Resume-able).
+    expect(find.text('Discard this workout?'), findsNothing);
     expect(find.text('go'), findsOneWidget);
-    expect(sessions.current, isEmpty);
+    expect(sessions.current.single.status, SessionStatus.active);
   });
 
   testWidgets(
     'force-kill recovery: a session left active by a killed app never contaminates '
-    'previous-performance and is cleaned up on the next start',
+    'previous-performance',
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
@@ -536,10 +588,11 @@ void main() {
       expect(find.textContaining('999'), findsNothing);
       expect(find.textContaining('Previous'), findsNothing);
 
-      // And storage self-heals: the orphan is deleted, not left to accumulate,
-      // while the fresh session this screen just started stays.
-      expect(sessions.current.any((s) => s.id == 'killed-session'), isFalse);
-      expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(1));
+      // No blind orphan cleanup any more (that would delete the very session
+      // Resume is meant to bring back) — the killed session is left as-is
+      // alongside the fresh one this screen started.
+      expect(sessions.current.any((s) => s.id == 'killed-session'), isTrue);
+      expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(2));
     },
   );
 }

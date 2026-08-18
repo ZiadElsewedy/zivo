@@ -6,6 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../data/ziad_workout_plan.dart';
+import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -157,6 +158,7 @@ class _TodaySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exercises = [...day.exercises]..sort((a, b) => a.order.compareTo(b.order));
+    final sessions = AppScope.of(context).workoutSessions;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 420),
@@ -197,14 +199,30 @@ class _TodaySection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
             const SizedBox(height: 16),
-            PillButton(
-              label: 'Start workout',
-              icon: Icons.play_arrow_rounded,
-              color: AppColors.pulseText,
-              enabled: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
-              ),
+            StreamBuilder<LiveSession?>(
+              stream: sessions.watchActiveSession(),
+              initialData: sessions.activeSession,
+              builder: (context, snapshot) {
+                final active = snapshot.data;
+                // Only resume the session this card is actually showing — an
+                // active session for a different plan/day (however that could
+                // happen) is left alone rather than seeding the wrong exercises.
+                final resumable =
+                    active != null && active.planId == plan.id && active.dayId == day.id
+                    ? active
+                    : null;
+                return PillButton(
+                  label: resumable == null ? 'Start workout' : 'Resume workout',
+                  icon: Icons.play_arrow_rounded,
+                  color: AppColors.pulseText,
+                  enabled: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resumable),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             for (final (i, exercise) in exercises.indexed)

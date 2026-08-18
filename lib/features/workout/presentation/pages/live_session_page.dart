@@ -14,7 +14,6 @@ import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/session_exercise.dart';
-import '../../domain/session_status.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
@@ -35,13 +34,18 @@ import '../widgets/staggered_reveal.dart';
 /// pointer — rest is purely a UI-side pause laid over the next set, not a
 /// separate engine phase.
 class LiveSessionPage extends StatefulWidget {
-  const LiveSessionPage({required this.day, required this.plan, super.key});
+  const LiveSessionPage({required this.day, required this.plan, this.resume, super.key});
 
   /// The day to run (a snapshot embedded in the session).
   final WorkoutDay day;
 
   /// The active plan — needed to advance its cursor when the session finishes.
   final WorkoutPlan plan;
+
+  /// A previously-saved active session to resume into, in place of starting a
+  /// fresh one from [day]. Passed by the plan page once it has an active
+  /// session for this plan/day (`WorkoutSessionRepository.activeSession`).
+  final LiveSession? resume;
 
   @override
   State<LiveSessionPage> createState() => _LiveSessionPageState();
@@ -61,22 +65,23 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   late WorkoutSessionRepository _sessionsRepo;
   StreamSubscription<List<LiveSession>>? _pastSessionsSub;
   List<LiveSession> _pastSessions = const [];
-  bool _cleanedOrphans = false;
 
-  /// Guards [_onFinish]/[_onClose] against re-entrancy — both are async and
-  /// otherwise callable again (double-tap, or Finish racing the close button)
-  /// before the first call's writes/pop land.
+  /// Guards [_onFinish]/[_onLeave]/[_onDiscard] against re-entrancy — all are
+  /// async and otherwise callable again (double-tap, or Finish racing the
+  /// close button) before the first call's writes/pop land.
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _session = LiveSession.start(
-      widget.day,
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      planId: widget.plan.id,
-      now: DateTime.now(),
-    );
+    _session =
+        widget.resume ??
+        LiveSession.start(
+          widget.day,
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          planId: widget.plan.id,
+          now: DateTime.now(),
+        );
     if (_session.currentSet == null) {
       // Nothing to do (an empty day) — settle straight into the completed view.
       _session = _session.complete(now: DateTime.now());
@@ -95,17 +100,6 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
       setState(() {
         _pastSessions = sessions.where((s) => s.id != _session.id).toList(growable: false);
       });
-      // Self-heals orphaned "active" sessions left by a prior kill/back-swipe
-      // out of this screen (nothing currently offers a resume UI for them) —
-      // once, on the first real snapshot, so they don't accumulate forever.
-      if (!_cleanedOrphans) {
-        _cleanedOrphans = true;
-        for (final stale in sessions.where(
-          (s) => s.id != _session.id && s.status == SessionStatus.active,
-        )) {
-          unawaited(_sessionsRepo.deleteSession(stale.id));
-        }
-      }
     });
     unawaited(_sessionsRepo.saveSession(_session));
   }
@@ -222,7 +216,26 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _onClose() async {
+  /// LEAVE: the close (X) button and the system/edge-swipe back gesture. The
+  /// session already autosaves as it's played, so leaving just pops — no
+  /// confirmation, nothing deleted, the plan's cursor untouched. The one
+  /// exception: a session with zero logged sets is indistinguishable from
+  /// never having started one, so it's discarded silently rather than left
+  /// behind as a "Resume" with nothing in it.
+  Future<void> _onLeave() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    _restTimer?.cancel();
+    if (_session.completedSetCount == 0) {
+      await _sessionsRepo.deleteSession(_session.id);
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// DISCARD: the explicit destructive action, reached via the top bar's
+  /// trailing trash control — erases the autosaved session entirely and
+  /// leaves the plan's cursor untouched.
+  Future<void> _onDiscard() async {
     if (_busy) return;
     final sessions = _sessionsRepo;
     final confirmed = await showDialog<bool>(
@@ -248,8 +261,6 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
-    // DISCARD: nothing is kept — cancel the timer and erase any autosaved
-    // progress, then leave without touching the plan's cursor.
     _restTimer?.cancel();
     await sessions.deleteSession(_session.id);
     if (mounted) Navigator.of(context).pop();
@@ -260,13 +271,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // The system/edge-swipe back gesture must go through the same discard
-      // confirmation as the close button — otherwise it silently leaves the
-      // autosaved session active in storage with no way back to it.
+      // The system/edge-swipe back gesture leaves like the close (X) button —
+      // non-destructive, since the session already autosaves as it's played.
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _onClose();
+        _onLeave();
       },
       child: Scaffold(
         backgroundColor: AppColors.ground,
@@ -274,7 +284,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CaptureTopBar(title: _dayTitle(widget.day), onClose: _onClose),
+              CaptureTopBar(
+                title: _dayTitle(widget.day),
+                onClose: _onLeave,
+                trailing: CaptureIconButton(
+                  icon: Icons.delete_outline_rounded,
+                  onTap: _onDiscard,
+                  semanticLabel: 'Discard workout',
+                  iconColor: AppColors.flareText,
+                ),
+              ),
               _ProgressBar(value: _session.progress),
               Expanded(
                 child: AnimatedSwitcher(
