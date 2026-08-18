@@ -16,9 +16,19 @@ class NowNextCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ZCard(
-      wash: AppColors.emberWash,
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [AppColors.emberWash, AppColors.card],
+        stops: [0.0, 0.85],
+      ),
+      borderColor: AppColors.ember.withValues(alpha: 0.14),
       washShadow: const [
-        BoxShadow(color: Color(0x0FDC490E), blurRadius: 4, offset: Offset(0, 2)),
+        BoxShadow(
+          color: Color(0x0FDC490E),
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
         BoxShadow(
           color: Color(0x4DDC490E),
           blurRadius: 34,
