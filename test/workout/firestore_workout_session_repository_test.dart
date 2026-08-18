@@ -132,6 +132,51 @@ void main() {
     );
 
     test(
+      'a typed-but-not-done draft (actuals set, done false) round-trips intact — '
+      'the "never lose data" path surviving an app-kill/reload',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final withDraft = _makeSession(
+          's1',
+          exercises: const [
+            SessionExercise(
+              id: 'ex-squat',
+              exerciseId: 'ex-squat',
+              name: 'Squat',
+              muscleGroup: 'Legs',
+              restSeconds: 120,
+              sets: [
+                // Debounced draft-autosave: reps/weight typed, Done never
+                // tapped — must survive exactly as-is, not as if completed.
+                LoggedSet(
+                  id: 'ex-squat-s0',
+                  target: RepTarget.fixed(5),
+                  targetWeightKg: 80,
+                  actualReps: 5,
+                  actualWeightKg: 82.5,
+                ),
+              ],
+            ),
+          ],
+        );
+        await repo.saveSession(withDraft);
+
+        final rehydrated = (await repo.watchAll().first).single;
+        final draftSet = rehydrated.exercises.single.sets.single;
+        expect(draftSet.actualReps, 5);
+        expect(draftSet.actualWeightKg, 82.5);
+        expect(draftSet.done, isFalse); // typed, not submitted
+        expect(rehydrated.hasDraftActuals, isTrue);
+        expect(rehydrated.completedSetCount, 0);
+      },
+    );
+
+    test(
       'pausedAt/pausedAccumMs round-trip — leave-while-paused then resume '
       'keeps the paused offset',
       () async {

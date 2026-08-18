@@ -133,6 +133,53 @@ WorkoutPlan _plan() => WorkoutPlan(
   ],
 );
 
+/// A heavy-compound plan (80kg Squat, "Legs") that qualifies for an
+/// auto-generated warm-up ramp — see warmup_policy_test.dart for the exact
+/// scheme (80kg → 3 steps: 32.5/47.5/65kg at 8/5/3 reps).
+WorkoutPlan _heavyPlan() => WorkoutPlan(
+  id: 'p2',
+  name: 'Heavy Split',
+  status: WorkoutPlanStatus.active,
+  source: WorkoutPlanSource.manual,
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+  cycleCursor: 0,
+  days: const [
+    WorkoutDay(
+      id: 'a',
+      slot: 'A',
+      label: 'Legs',
+      order: 0,
+      exercises: [
+        PlannedExercise(
+          id: 'squat',
+          name: 'Squat',
+          order: 0,
+          muscleGroup: 'Legs',
+          defaultRestSeconds: 120,
+          sets: [
+            PlannedSet(
+              order: 0,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 120,
+              targetWeightKg: 80,
+              type: SetType.working,
+            ),
+            PlannedSet(
+              order: 1,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 120,
+              targetWeightKg: 80,
+              type: SetType.working,
+            ),
+          ],
+        ),
+      ],
+    ),
+    WorkoutDay(id: 'b', slot: 'B', label: 'Rest', order: 1, exercises: []),
+  ],
+);
+
 /// A completed session from "last time", trained on the same canonical
 /// exercise id ('ex1') so `lastPerformanceFor` picks it up.
 LiveSession _previousSession() => LiveSession(
@@ -163,6 +210,44 @@ LiveSession _previousSession() => LiveSession(
           done: true,
           actualReps: 5,
           actualWeightKg: 57.5,
+        ),
+      ],
+    ),
+  ],
+);
+
+/// Same shape as [_previousSession], but at a weight that stays under the
+/// 40kg warm-up qualifying threshold (see warmup_policy_test.dart) — for
+/// tests exercising progression/rest/finish that aren't about warm-ups and
+/// shouldn't have a ramp materialize in front of their first working set.
+LiveSession _previousSessionLight() => LiveSession(
+  id: 'prev1',
+  planId: 'p1',
+  dayId: 'a',
+  dayLabel: 'Push',
+  startedAt: DateTime(2026, 1, 1, 9),
+  completedAt: DateTime(2026, 1, 1, 10),
+  status: SessionStatus.completed,
+  exercises: const [
+    SessionExercise(
+      id: 'ex1',
+      exerciseId: 'ex1',
+      name: 'Bench',
+      restSeconds: 90,
+      sets: [
+        LoggedSet(
+          id: 's0',
+          target: RepTarget.fixed(5),
+          done: true,
+          actualReps: 5,
+          actualWeightKg: 30,
+        ),
+        LoggedSet(
+          id: 's1',
+          target: RepTarget.fixed(5),
+          done: true,
+          actualReps: 5,
+          actualWeightKg: 32.5,
         ),
       ],
     ),
@@ -229,7 +314,10 @@ void main() {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
       final sessions = InMemoryWorkoutSessionRepository();
-      await sessions.saveSession(_previousSession());
+      // A weight under the 40kg warm-up threshold — this test is about
+      // progression/rest/finish, not warm-up materialization (see the
+      // dedicated warm-up tests below), so it uses the light fixture.
+      await sessions.saveSession(_previousSessionLight());
       final plan = _plan();
 
       await tester.pumpWidget(
@@ -245,25 +333,25 @@ void main() {
       await _settle(tester);
 
       // Set 1 of the first exercise, last time + computed goal both shown.
-      // Previous: 55kg x 5, hit the fixed target's top (5>=5) → +2.5kg
+      // Previous: 30kg x 5, hit the fixed target's top (5>=5) → +2.5kg
       // compound (Chest), reps reset to the same fixed count.
       expect(find.text('Set 1 of 2'), findsOneWidget);
       expect(find.text('Bench'), findsOneWidget);
-      expect(find.text('Last time: 55kg × 5'), findsOneWidget);
-      expect(find.text('57.5kg × 5'), findsOneWidget); // the Goal label
+      expect(find.text('Last time: 30kg × 5'), findsOneWidget);
+      expect(find.text('32.5kg × 5'), findsOneWidget); // the Goal label
 
       // Reps/weight are prefilled from the goal, not the bare plan target.
       final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
       final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
       expect(repsField.controller!.text, '5');
-      expect(weightField.controller!.text, '57.5');
+      expect(weightField.controller!.text, '32.5');
 
       // Autosaved as an active session as soon as it starts.
       expect(sessions.current.any((s) => s.status == SessionStatus.active), isTrue);
 
       // Type a heavier weight than last time → the Pulse progression delta.
       // Reps is the first TextField (index 0), Weight the second (index 1).
-      await tester.enterText(find.byType(TextField).at(1), '60');
+      await tester.enterText(find.byType(TextField).at(1), '35');
       await tester.pump();
       expect(find.text('+5kg'), findsOneWidget);
 
@@ -282,7 +370,7 @@ void main() {
       // The just-logged set now shows as done (autosaved).
       final midSession = sessions.current.firstWhere((s) => s.status == SessionStatus.active);
       expect(midSession.exercises.single.sets[0].done, isTrue);
-      expect(midSession.exercises.single.sets[0].actualWeightKg, 60);
+      expect(midSession.exercises.single.sets[0].actualWeightKg, 35);
 
       // Adjust the rest window.
       await tester.tap(find.text('+15s'));
@@ -296,8 +384,8 @@ void main() {
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       expect(find.text('Set 2 of 2'), findsOneWidget);
-      expect(find.text('Last time: 57.5kg × 5'), findsOneWidget);
-      expect(find.text('60kg × 5'), findsOneWidget); // goal: 57.5 + 2.5
+      expect(find.text('Last time: 32.5kg × 5'), findsOneWidget);
+      expect(find.text('35kg × 5'), findsOneWidget); // goal: 32.5 + 2.5
 
       // Complete the final set → completed summary.
       await tester.drag(find.byType(ListView), const Offset(0, -300));
@@ -1124,6 +1212,323 @@ void main() {
 
       expect(find.text('Set 2 of 2'), findsOneWidget);
       expect(find.textContaining('Target:'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a qualifying compound gets an auto-generated warm-up ramp: distinct '
+    'treatment, short rest between steps, and a working-only "Set N of M" '
+    'once the ramp is done',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _heavyPlan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      // First warm-up step (80kg → 3-step ramp: 32.5/47.5/65kg @ 8/5/3) —
+      // its own eyebrow + guidance stand in for the Goal card and "Set N of
+      // M" entirely; no progression goal/history language leaks through.
+      expect(find.text('Squat'), findsOneWidget);
+      expect(find.text('WARM-UP'), findsOneWidget);
+      expect(find.text('Warm-up: 32.5kg × 8'), findsOneWidget);
+      expect(find.text('GOAL'), findsNothing);
+      expect(find.textContaining('Last time:'), findsNothing);
+      expect(find.textContaining('Set 1 of'), findsNothing);
+
+      // Reps/weight are prefilled from the ramp step, not a computed goal.
+      final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
+      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(repsField.controller!.text, '8');
+      expect(weightField.controller!.text, '32.5');
+
+      // Done on a warm-up set rests short (20s) — nowhere near smartRest's
+      // <2min working-set window.
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      expect(find.text('Skip rest'), findsOneWidget);
+      expect(find.text('0:20'), findsOneWidget);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+
+      // Second warm-up step.
+      expect(find.text('Warm-up: 47.5kg × 5'), findsOneWidget);
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+
+      // Third (final) warm-up step.
+      expect(find.text('Warm-up: 65kg × 3'), findsOneWidget);
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+
+      // Ramp exhausted → the first *working* set, numbered 1 of 2 (the 3
+      // warm-up steps that preceded it don't count), with the Goal card back.
+      expect(find.text('Set 1 of 2'), findsOneWidget);
+      expect(find.text('GOAL'), findsOneWidget);
+      expect(find.text('WARM-UP'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'isolation work never gets a warm-up ramp even at a qualifying weight',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = WorkoutPlan(
+        id: 'p3',
+        name: 'Arms',
+        status: WorkoutPlanStatus.active,
+        source: WorkoutPlanSource.manual,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        cycleCursor: 0,
+        days: const [
+          WorkoutDay(
+            id: 'a',
+            slot: 'A',
+            label: 'Arms',
+            order: 0,
+            exercises: [
+              PlannedExercise(
+                id: 'curl',
+                name: 'Curl',
+                order: 0,
+                muscleGroup: 'Biceps',
+                defaultRestSeconds: 60,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.fixed(12),
+                    restSeconds: 60,
+                    targetWeightKg: 60, // heavy enough, but isolation never ramps
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          WorkoutDay(id: 'b', slot: 'B', label: 'Rest', order: 1, exercises: []),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      expect(find.text('WARM-UP'), findsNothing);
+      expect(find.text('Set 1 of 1'), findsOneWidget);
+      expect(find.text('GOAL'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a warm-up ramp materializes from a history-computed goal weight even '
+    "when the plan itself carries no weight (the real app's actual shape — "
+    'see ziad_workout_plan.dart, which never sets targetWeightKg)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      // Prior completed session at 55kg → next session's computed goal for
+      // set 1 is 55+2.5=57.5kg (Chest, hit the fixed(5) top), well past the
+      // 40kg warm-up threshold — even though `_plan()` sets no weight at all.
+      await sessions.saveSession(_previousSession());
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      // The ramp only materializes once the real (async) history snapshot
+      // lands — not synchronously on the first frame.
+      await tester.pump();
+      expect(find.text('WARM-UP'), findsNothing);
+      await _settle(tester);
+
+      // 57.5kg → the 2-step tier: 22.5kg×8, 35kg×5 (see warmup_policy_test.dart).
+      expect(find.text('WARM-UP'), findsOneWidget);
+      expect(find.text('Warm-up: 22.5kg × 8'), findsOneWidget);
+      expect(find.textContaining('Set 1 of'), findsNothing);
+
+      // It's persisted, not just a UI illusion — a resumed session keeps it.
+      final saved = sessions.current.firstWhere((s) => s.status == SessionStatus.active);
+      final bench = saved.exercises.first;
+      expect(bench.sets.take(2).every((s) => s.type == SetType.warmup), isTrue);
+      expect(bench.sets[2].type, SetType.working);
+    },
+  );
+
+  testWidgets(
+    'no prior history and no plan weight → no warm-up materializes '
+    '(nothing to ramp toward)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan(); // never-trained; no history, no plan weight
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      expect(find.text('WARM-UP'), findsNothing);
+      expect(find.text('Set 1 of 2'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'typing without tapping Done autosaves a debounced draft; leaving keeps '
+    'the session (never discarded as "empty") and resuming restores it',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      await tester.enterText(find.byType(TextField).at(1), '62.5');
+      await tester.pump();
+
+      // Not yet debounced — nothing written to the session/repo just from
+      // the keystroke itself.
+      expect(sessions.current.single.exercises.first.sets.first.actualWeightKg, isNull);
+
+      // Past the ~450ms debounce window, it autosaves as a draft — NOT done.
+      await tester.pump(const Duration(milliseconds: 500));
+      final draftSet = sessions.current.single.exercises.first.sets.first;
+      expect(draftSet.actualWeightKg, 62.5);
+      expect(draftSet.done, isFalse);
+
+      // Closing (X) on a session with zero *completed* sets would normally
+      // silently discard it (see the sibling test above) — but a typed
+      // draft must never be treated as "empty".
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('go'), findsOneWidget); // popped
+      expect(sessions.current, hasLength(1)); // kept, not deleted
+      final left = sessions.current.single;
+      expect(left.exercises.first.sets.first.actualWeightKg, 62.5);
+
+      // Resuming shows the draft, not a reset back to a fresh goal.
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          resume: left,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(weightField.controller!.text, '62.5');
+    },
+  );
+
+  testWidgets(
+    "prefill prefers a not-done set's existing draft actuals over the computed goal",
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(_previousSession());
+      final plan = _plan();
+
+      // A typed-but-not-done draft (6 × 65kg) that differs from what
+      // computeGoal would suggest from history (57.5kg × 5, per
+      // _previousSession) — proves prefill prefers the draft. This draft
+      // also keeps the exercise out of warm-up materialization (it's
+      // "in progress" the moment any actual is set, done or not).
+      final draftSession = LiveSession(
+        id: 'draft1',
+        planId: 'p1',
+        dayId: 'a',
+        dayLabel: 'Push',
+        startedAt: DateTime(2026, 1, 2, 9),
+        status: SessionStatus.active,
+        exercises: const [
+          SessionExercise(
+            id: 'ex1',
+            exerciseId: 'ex1',
+            name: 'Bench',
+            restSeconds: 90,
+            sets: [
+              LoggedSet(id: 's0', target: RepTarget.fixed(5), actualReps: 6, actualWeightKg: 65),
+              LoggedSet(id: 's1', target: RepTarget.fixed(5)),
+            ],
+          ),
+        ],
+      );
+      await sessions.saveSession(draftSession);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          resume: draftSession,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
+      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(repsField.controller!.text, '6'); // the draft, not the goal's '5'
+      expect(weightField.controller!.text, '65'); // the draft, not the goal's '57.5'
     },
   );
 }

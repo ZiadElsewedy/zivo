@@ -23,7 +23,10 @@ const _day = WorkoutDay(
       muscleGroup: 'Chest',
       defaultRestSeconds: 90,
       sets: [
-        PlannedSet(order: 0, repTarget: RepTarget.fixed(5), restSeconds: 90, targetWeightKg: 60, type: SetType.working),
+        // Weight kept under the 40kg warm-up qualifying threshold (see
+        // warmup_policy_test.dart) so this generic CRUD fixture doesn't pick
+        // up an auto-generated ramp — that's covered by its own group below.
+        PlannedSet(order: 0, repTarget: RepTarget.fixed(5), restSeconds: 90, targetWeightKg: 30, type: SetType.working),
         PlannedSet(order: 1, repTarget: RepTarget.range(8, 10), restSeconds: 90, type: SetType.working),
       ],
     ),
@@ -60,13 +63,97 @@ void main() {
       expect(bench.sets, hasLength(2));
       final firstSet = bench.sets.first;
       expect(firstSet.target, const RepTarget.fixed(5));
-      expect(firstSet.targetWeightKg, 60); // carried from the plan
+      expect(firstSet.targetWeightKg, 30); // carried from the plan
       expect(firstSet.actualWeightKg, isNull); // nothing performed yet
       expect(firstSet.done, isFalse);
 
       // Current = first set of the first exercise.
       expect(s.currentExercise?.exerciseId, 'ex1');
       expect(s.currentSet?.id, bench.sets.first.id);
+    });
+  });
+
+  group('start: warm-up ramp integration', () {
+    const heavyDay = WorkoutDay(
+      id: 'day-b',
+      slot: 'B',
+      label: 'Legs',
+      order: 0,
+      exercises: [
+        PlannedExercise(
+          id: 'squat',
+          name: 'Squat',
+          order: 0,
+          muscleGroup: 'Legs',
+          defaultRestSeconds: 120,
+          sets: [
+            PlannedSet(
+              order: 0,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 120,
+              targetWeightKg: 80,
+              type: SetType.working,
+            ),
+            PlannedSet(
+              order: 1,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 120,
+              targetWeightKg: 80,
+              type: SetType.working,
+            ),
+          ],
+        ),
+        PlannedExercise(
+          id: 'curl',
+          name: 'Curl',
+          order: 1,
+          muscleGroup: 'Biceps',
+          defaultRestSeconds: 60,
+          sets: [
+            PlannedSet(
+              order: 0,
+              repTarget: RepTarget.fixed(12),
+              restSeconds: 60,
+              targetWeightKg: 60, // heavy enough, but isolation never ramps
+              type: SetType.working,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    test('prepends a warm-up ramp before a qualifying compound\'s working sets', () {
+      final s = LiveSession.start(heavyDay, id: 's1', planId: 'p1', now: _t0);
+      final squat = s.exercises.first;
+      // 80kg compound → the 3-step tier (see warmup_policy_test.dart).
+      expect(squat.sets, hasLength(5));
+      expect(squat.sets.sublist(0, 3).every((s) => s.type == SetType.warmup), isTrue);
+      expect(squat.sets.sublist(3).every((s) => s.type == SetType.working), isTrue);
+      // Ramp weights climb, floored/rounded, below the 80kg working weight.
+      expect(squat.sets[0].targetWeightKg, 32.5);
+      expect(squat.sets[1].targetWeightKg, 47.5);
+      expect(squat.sets[2].targetWeightKg, 65.0);
+      // Working sets keep the plan's own prescription untouched.
+      expect(squat.sets[3].target, const RepTarget.fixed(5));
+      expect(squat.sets[3].targetWeightKg, 80);
+      // The derived "current set" is the first warm-up, not the first working set.
+      expect(s.currentSet?.id, squat.sets.first.id);
+    });
+
+    test('isolation work never gets a ramp even at a qualifying weight', () {
+      final s = LiveSession.start(heavyDay, id: 's1', planId: 'p1', now: _t0);
+      final curl = s.exercises[1];
+      expect(curl.sets, hasLength(1));
+      expect(curl.sets.single.type, SetType.working);
+    });
+
+    test('a working set with no prescribed weight gets no ramp (nothing to ramp toward)', () {
+      final s = LiveSession.start(_day, id: 's1', planId: 'p1', now: _t0);
+      // ex1's first set is 30kg (sub-threshold, see the CRUD fixture above);
+      // ex2 has no targetWeightKg at all.
+      final row = s.exercises[1];
+      expect(row.sets, hasLength(1));
+      expect(row.sets.single.type, SetType.working);
     });
   });
 
@@ -112,11 +199,11 @@ void main() {
       s = s.updateSet('ex1', id, actualWeightKg: 70, actualReps: 6);
       expect(s.exercises.first.sets.first.actualWeightKg, 70);
       expect(s.exercises.first.sets.first.actualReps, 6);
-      // Clearing with an explicit null; targetWeightKg is preserved (60).
+      // Clearing with an explicit null; targetWeightKg is preserved (30).
       s = s.updateSet('ex1', id, actualWeightKg: null);
       expect(s.exercises.first.sets.first.actualWeightKg, isNull);
       expect(s.exercises.first.sets.first.actualReps, 6); // untouched
-      expect(s.exercises.first.sets.first.targetWeightKg, 60);
+      expect(s.exercises.first.sets.first.targetWeightKg, 30);
     });
 
     test('removeSet drops the set', () {

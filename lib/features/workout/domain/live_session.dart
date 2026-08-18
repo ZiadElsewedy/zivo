@@ -4,6 +4,7 @@ import 'rep_target.dart';
 import 'session_exercise.dart';
 import 'session_status.dart';
 import 'set_type.dart';
+import 'warmup_policy.dart';
 import 'workout_day.dart';
 
 /// A live (or finished) training session — the editable record of one workout.
@@ -57,6 +58,12 @@ class LiveSession {
   Iterable<LoggedSet> get allSets => exercises.expand((e) => e.sets);
   int get totalSets => exercises.fold(0, (sum, e) => sum + e.sets.length);
   int get completedSetCount => allSets.where((s) => s.done).length;
+
+  /// Whether any not-done set carries typed-but-unsubmitted actuals — a
+  /// draft the user entered but never tapped Done on. A session in this
+  /// state must never be silently discarded as "empty" on leave.
+  bool get hasDraftActuals =>
+      allSets.any((s) => !s.done && (s.actualReps != null || s.actualWeightKg != null));
 
   /// 0..1 progress across all sets (0 when the session has no sets).
   double get progress => totalSets == 0 ? 0 : completedSetCount / totalSets;
@@ -117,22 +124,48 @@ class LiveSession {
     exercises: [for (final e in day.exercises) _exerciseFromPlan(e)],
   );
 
-  static SessionExercise _exerciseFromPlan(PlannedExercise e) => SessionExercise(
-    id: e.id,
-    exerciseId: e.id,
-    name: e.name,
-    muscleGroup: e.muscleGroup,
-    restSeconds: e.defaultRestSeconds,
-    sets: [
-      for (var i = 0; i < e.sets.length; i++)
-        LoggedSet(
-          id: '${e.id}-s$i',
-          target: e.sets[i].repTarget,
-          targetWeightKg: e.sets[i].targetWeightKg,
-          type: e.sets[i].type,
-        ),
-    ],
-  );
+  static SessionExercise _exerciseFromPlan(PlannedExercise e) {
+    final ramp = _warmupRampFor(e);
+    return SessionExercise(
+      id: e.id,
+      exerciseId: e.id,
+      name: e.name,
+      muscleGroup: e.muscleGroup,
+      restSeconds: e.defaultRestSeconds,
+      sets: [
+        for (var i = 0; i < ramp.length; i++)
+          LoggedSet(
+            id: '${e.id}-w$i',
+            target: RepTarget.fixed(ramp[i].reps),
+            targetWeightKg: ramp[i].weightKg,
+            type: SetType.warmup,
+          ),
+        for (var i = 0; i < e.sets.length; i++)
+          LoggedSet(
+            id: '${e.id}-s$i',
+            target: e.sets[i].repTarget,
+            targetWeightKg: e.sets[i].targetWeightKg,
+            type: e.sets[i].type,
+          ),
+      ],
+    );
+  }
+
+  /// The auto-generated warm-up ramp to prepend to [e]'s working sets, keyed
+  /// off its *first* working set's prescribed weight — empty when that
+  /// weight isn't known (nothing to ramp toward) or [warmupRampFor] itself
+  /// doesn't qualify the lift (isolation work, or too light to bother).
+  static List<({double weightKg, int reps})> _warmupRampFor(PlannedExercise e) {
+    double? workingWeightKg;
+    for (final s in e.sets) {
+      if (s.type == SetType.working) {
+        workingWeightKg = s.targetWeightKg;
+        break;
+      }
+    }
+    if (workingWeightKg == null) return const [];
+    return warmupRampFor(workingWeightKg: workingWeightKg, muscleGroup: e.muscleGroup);
+  }
 
   // ---- Set-level CRUD ------------------------------------------------------
 
