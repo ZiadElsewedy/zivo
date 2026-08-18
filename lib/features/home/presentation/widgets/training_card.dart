@@ -18,9 +18,19 @@ class TrainingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ZCard(
-      wash: AppColors.pulseWash,
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [AppColors.pulseWash, AppColors.card],
+        stops: [0.0, 0.85],
+      ),
+      borderColor: AppColors.pulse.withValues(alpha: 0.14),
       washShadow: const [
-        BoxShadow(color: Color(0x0F0A8F63), blurRadius: 4, offset: Offset(0, 2)),
+        BoxShadow(
+          color: Color(0x0F0A8F63),
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
         BoxShadow(
           color: Color(0x420A8F63),
           blurRadius: 34,

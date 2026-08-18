@@ -22,13 +22,24 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// A bright, lifted card. Optionally carries a soft hue wash for its area.
+/// A bright, lifted card. Optionally carries a soft hue wash — as a flat
+/// [wash] color or, for more depth, a diagonal [gradient] — plus a faint
+/// tinted [borderColor] for a glassy, premium edge.
 class ZCard extends StatelessWidget {
-  const ZCard({required this.child, this.wash, this.washShadow, super.key});
+  const ZCard({
+    required this.child,
+    this.wash,
+    this.gradient,
+    this.washShadow,
+    this.borderColor,
+    super.key,
+  });
 
   final Widget child;
   final Color? wash;
+  final Gradient? gradient;
   final List<BoxShadow>? washShadow;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +47,12 @@ class ZCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       decoration: BoxDecoration(
-        color: wash ?? AppColors.card,
+        color: gradient == null ? (wash ?? AppColors.card) : null,
+        gradient: gradient,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: borderColor == null
+            ? null
+            : Border.all(color: borderColor!, width: 1),
         boxShadow: washShadow ?? AppShadows.card,
       ),
       child: child,
@@ -64,7 +79,10 @@ class CardHeaderRow extends StatelessWidget {
       children: [
         HueDot(hue),
         const SizedBox(width: AppSpacing.s),
-        Text(label.toUpperCase(), style: AppText.hueLabel.copyWith(color: hue.text)),
+        Text(
+          label.toUpperCase(),
+          style: AppText.hueLabel.copyWith(color: hue.text),
+        ),
         if (trailing != null) ...[
           const Spacer(),
           Text(trailing!, style: AppText.meta),
