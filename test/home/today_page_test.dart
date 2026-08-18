@@ -18,6 +18,7 @@ import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/domain/exercise.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
@@ -43,6 +44,7 @@ Widget _wrap({
     moments: InMemoryMomentRepository(),
     workouts: workouts ?? InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: diet,
     ai: FakeAiRepository(),

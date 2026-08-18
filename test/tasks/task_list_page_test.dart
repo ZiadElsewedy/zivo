@@ -16,6 +16,7 @@ import 'package:zivo/features/tasks/presentation/pages/task_capture_page.dart';
 import 'package:zivo/features/tasks/presentation/pages/task_list_page.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -35,6 +36,7 @@ Widget _wrap({
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -150,6 +152,7 @@ void main() {
         moments: InMemoryMomentRepository(),
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
+        workoutSessions: InMemoryWorkoutSessionRepository(),
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),

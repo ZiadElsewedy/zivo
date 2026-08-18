@@ -14,6 +14,7 @@ import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
@@ -67,6 +68,7 @@ Widget _wrap({required Widget child, required WorkoutPlanRepository plansOverrid
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: plansOverride,
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),

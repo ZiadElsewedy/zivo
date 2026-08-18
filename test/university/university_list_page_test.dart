@@ -17,6 +17,7 @@ import 'package:zivo/features/university/domain/university_repository.dart';
 import 'package:zivo/features/university/presentation/pages/university_capture_page.dart';
 import 'package:zivo/features/university/presentation/pages/university_list_page.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -63,6 +64,7 @@ Widget _wrap({
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: universityOverride,
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),

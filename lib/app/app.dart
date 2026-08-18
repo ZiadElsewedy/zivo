@@ -36,10 +36,13 @@ import '../features/university/data/in_memory_university_repository.dart';
 import '../features/university/domain/university_repository.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
 import '../features/workout/data/firestore_workout_repository.dart';
+import '../features/workout/data/firestore_workout_session_repository.dart';
 import '../features/workout/data/in_memory_workout_plan_repository.dart';
 import '../features/workout/data/in_memory_workout_repository.dart';
+import '../features/workout/data/in_memory_workout_session_repository.dart';
 import '../features/workout/domain/workout_plan_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
+import '../features/workout/domain/workout_session_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
@@ -67,6 +70,7 @@ class ZivoApp extends StatefulWidget {
     this.moments,
     this.workouts,
     this.workoutPlans,
+    this.workoutSessions,
     this.university,
     this.diet,
     this.ai,
@@ -82,6 +86,7 @@ class ZivoApp extends StatefulWidget {
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
+  final WorkoutSessionRepository? workoutSessions;
   final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
@@ -105,6 +110,8 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.workouts ?? _defaultWorkouts();
   late final WorkoutPlanRepository _workoutPlans =
       widget.workoutPlans ?? _defaultWorkoutPlans();
+  late final WorkoutSessionRepository _workoutSessions =
+      widget.workoutSessions ?? _defaultWorkoutSessions();
   late final UniversityRepository _university =
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -138,6 +145,10 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreWorkoutPlanRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutPlanRepository();
 
+  WorkoutSessionRepository _defaultWorkoutSessions() => _useFirestore
+      ? FirestoreWorkoutSessionRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutSessionRepository();
+
   UniversityRepository _defaultUniversity() => _useFirestore
       ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryUniversityRepository();
@@ -162,6 +173,7 @@ class _ZivoAppState extends State<ZivoApp> {
       moments: _moments,
       workouts: _workouts,
       workoutPlans: _workoutPlans,
+      workoutSessions: _workoutSessions,
       university: _university,
       diet: _diet,
       ai: _ai,
