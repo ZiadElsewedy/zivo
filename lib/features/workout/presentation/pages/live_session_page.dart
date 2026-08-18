@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shadows.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise_history.dart';
@@ -520,7 +522,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     }
     final target = set.target;
     final targetText = target.kind == RepTargetKind.toFailure
-        ? 'To failure'
+        ? null
         : '${repTargetLabel(target)} reps';
     final previousSet = _previousSetFor(exercise, set);
     final lastTimeLabel = _formatLastTime(previousSet);
@@ -534,43 +536,54 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
 
     return ListView(
       key: const ValueKey('running-list'),
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.l,
+        AppSpacing.m,
+        AppSpacing.l,
+        AppSpacing.l,
+      ),
       children: [
+        // Exercise header — consolidated: the name is the hero title, the
+        // muscle group a quiet pill beside it. No standalone "Target: X"
+        // line (that's now context inside the Goal card) and no separate
+        // "SET N OF M" eyebrow (the chip row below is the one set-position
+        // indicator).
         StaggeredReveal(
           index: 0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'SET ${setIndex + 1} OF ${exercise.setCount}',
-                style: AppText.meta.copyWith(
-                  color: AppColors.emberText,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(exercise.name, style: AppText.cardTitle.copyWith(fontSize: 28)),
-              const SizedBox(height: 6),
-              Text('Target: $targetText', style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
+              Text(exercise.name, style: AppText.cardTitle.copyWith(fontSize: 30)),
               if (exercise.muscleGroup != null) ...[
-                const SizedBox(height: 2),
-                Text(exercise.muscleGroup!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+                const SizedBox(height: AppSpacing.s),
+                _MuscleGroupPill(label: exercise.muscleGroup!),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.base),
         StaggeredReveal(
           index: 1,
-          child: _SetChipRow(exercise: exercise, currentSetId: set.id),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Set ${setIndex + 1} of ${exercise.setCount}',
+                style: AppText.meta.copyWith(color: AppColors.ink3),
+              ),
+              const SizedBox(height: AppSpacing.s),
+              _SetChipRow(exercise: exercise, currentSetId: set.id),
+            ],
+          ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.l),
+        // The hero: a lifted card carrying the computed goal, the point of
+        // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
           index: 2,
-          child: _GoalBlock(lastTimeLabel: lastTimeLabel, goal: goal),
+          child: _GoalBlock(lastTimeLabel: lastTimeLabel, goal: goal, targetText: targetText),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 3,
           child: Column(
@@ -579,7 +592,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
               Row(
                 children: [
                   _ActualField(label: 'Reps', controller: _reps, onChanged: () => setState(() {})),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpacing.m),
                   _ActualField(
                     label: 'Weight (kg)',
                     controller: _weight,
@@ -592,7 +605,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
             ],
           ),
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 4,
           child: PillButton(
@@ -873,22 +886,30 @@ class _ElapsedLabel extends StatelessWidget {
   }
 }
 
-/// The Last-time + Goal block — the point of the running phase per the
-/// "genuinely smarter" pass: Goal is the visually strongest data on screen
-/// (largest, boldest, Pulse-toned), Last time a quieter supporting line
-/// underneath. No motion here beyond the shared entrance stagger; prominence
-/// comes from the info hierarchy, not effects.
+/// The Last-time + Goal card — the point of the running phase per the
+/// "genuinely smarter" pass: a lifted card (the same `AppRadius.card` +
+/// `AppShadows.card` language every other premium surface in the app uses)
+/// so Goal reads as the dominant, hero element through hierarchy — biggest,
+/// boldest, on its own tinted surface — not through any new motion. "Last
+/// time" is a quiet supporting line, and the plan's own rep target sits
+/// underneath as quieter context still. No animation beyond the shared
+/// entrance stagger.
 class _GoalBlock extends StatelessWidget {
-  const _GoalBlock({required this.lastTimeLabel, required this.goal});
+  const _GoalBlock({required this.lastTimeLabel, required this.goal, this.targetText});
 
   final String lastTimeLabel;
   final ProgressionGoal goal;
+  final String? targetText;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(color: AppColors.pulseWash, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        color: AppColors.pulseWash,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadows.card,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -906,23 +927,54 @@ class _GoalBlock extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.s),
           Text(
             goal.label,
             key: const Key('goal-label'),
             style: AppText.cardTitle.copyWith(
-              fontSize: 26,
+              fontSize: 32,
               color: AppColors.pulseText,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.m),
           Text(
             'Last time: $lastTimeLabel',
             key: const Key('last-time-label'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
+          if (targetText != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Target: $targetText',
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w400),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// A quiet pill for the exercise's muscle group — beside the hero title
+/// rather than a bare line under it.
+class _MuscleGroupPill extends StatelessWidget {
+  const _MuscleGroupPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.hairline2),
+      ),
+      child: Text(
+        label,
+        style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
       ),
     );
   }
@@ -975,27 +1027,27 @@ class _ActualField extends StatelessWidget {
             label.toUpperCase(),
             style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.s),
           TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
             cursorColor: AppColors.ember,
-            style: AppText.rowTitle,
+            style: AppText.rowTitle.copyWith(fontSize: 20, fontWeight: FontWeight.w600),
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               isDense: true,
               hintText: hint,
               hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               filled: true,
               fillColor: AppColors.card,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
                 borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
               ),
             ),

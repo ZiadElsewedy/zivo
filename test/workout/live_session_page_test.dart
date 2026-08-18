@@ -247,7 +247,7 @@ void main() {
       // Set 1 of the first exercise, last time + computed goal both shown.
       // Previous: 55kg x 5, hit the fixed target's top (5>=5) → +2.5kg
       // compound (Chest), reps reset to the same fixed count.
-      expect(find.text('SET 1 OF 2'), findsOneWidget);
+      expect(find.text('Set 1 of 2'), findsOneWidget);
       expect(find.text('Bench'), findsOneWidget);
       expect(find.text('Last time: 55kg × 5'), findsOneWidget);
       expect(find.text('57.5kg × 5'), findsOneWidget); // the Goal label
@@ -270,6 +270,8 @@ void main() {
       // Complete set 1 → the smart-rest default for a fixed(5) set on a large
       // (Chest) muscle group is the full <=6-rep base, 115s → "1:55" — not
       // the plan's stored restSeconds (90s) any more.
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Skip rest'), findsOneWidget);
@@ -293,11 +295,13 @@ void main() {
       // Skip the rest → set 2 (already the current set — no manual pointer).
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
-      expect(find.text('SET 2 OF 2'), findsOneWidget);
+      expect(find.text('Set 2 of 2'), findsOneWidget);
       expect(find.text('Last time: 57.5kg × 5'), findsOneWidget);
       expect(find.text('60kg × 5'), findsOneWidget); // goal: 57.5 + 2.5
 
       // Complete the final set → completed summary.
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Finish'), findsOneWidget);
@@ -339,6 +343,8 @@ void main() {
     await _settle(tester);
 
     // Log a set, so there is autosaved progress to actually discard.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     expect(sessions.current, hasLength(1));
@@ -378,6 +384,8 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     expect(sessions.current, hasLength(1));
@@ -409,7 +417,7 @@ void main() {
     );
     await tester.tap(find.text('go'));
     await _settle(tester);
-    expect(find.text('SET 2 OF 2'), findsOneWidget);
+    expect(find.text('Set 2 of 2'), findsOneWidget);
     expect(sessions.current, hasLength(1)); // no duplicate session created
   });
 
@@ -463,6 +471,8 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await tester.pump();
     expect(find.text('1:55'), findsOneWidget); // smart-rest default for this set
@@ -471,7 +481,7 @@ void main() {
     // count — advance the clock alongside the pumped duration).
     fakeNow = fakeNow.add(const Duration(seconds: 116));
     await tester.pump(const Duration(seconds: 116));
-    expect(find.text('SET 2 OF 2'), findsOneWidget);
+    expect(find.text('Set 2 of 2'), findsOneWidget);
   });
 
   testWidgets(
@@ -497,6 +507,8 @@ void main() {
       await tester.tap(find.text('go'));
       await _settle(tester);
 
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
       expect(find.text('1:55'), findsOneWidget); // 115s smart-rest window
@@ -514,7 +526,7 @@ void main() {
       // And ending naturally still works post-resume.
       fakeNow = fakeNow.add(const Duration(seconds: 75));
       await tester.pump(const Duration(seconds: 75));
-      expect(find.text('SET 2 OF 2'), findsOneWidget);
+      expect(find.text('Set 2 of 2'), findsOneWidget);
     },
   );
 
@@ -552,6 +564,8 @@ void main() {
       expect(elapsedText(tester), '0:45');
 
       // Keeps ticking into a new phase (resting), not just the running one.
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
       fakeNow = fakeNow.add(const Duration(seconds: 5));
@@ -561,6 +575,8 @@ void main() {
       // Finish the day (single-exercise, 2-set plan) → completes and freezes.
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Finish'), findsOneWidget);
@@ -693,6 +709,8 @@ void main() {
       // Run the clock a bit, then start a rest by logging set 1.
       fakeNow = fakeNow.add(const Duration(seconds: 30));
       await tester.pump(const Duration(seconds: 30));
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
       expect(elapsedText(tester), '0:30');
@@ -781,6 +799,8 @@ void main() {
     await tester.pump(const Duration(seconds: 30));
     // Log a set first — Close on a zero-progress session silently discards
     // it (Phase 1 behavior), which would defeat this test's premise.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await tester.pump();
     await tester.tap(find.text('Pause'));
@@ -857,10 +877,14 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     expect(find.text('Finish'), findsOneWidget);
@@ -899,10 +923,14 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     expect(find.text('Finish'), findsOneWidget);
@@ -938,6 +966,8 @@ void main() {
     );
     await tester.tap(find.text('go'));
     await _settle(tester);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
 
@@ -1015,6 +1045,85 @@ void main() {
       // alongside the fresh one this screen started.
       expect(sessions.current.any((s) => s.id == 'killed-session'), isTrue);
       expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(2));
+    },
+  );
+
+  testWidgets(
+    'the Goal card suppresses the redundant "Target:" line for a to-failure set '
+    'but keeps it for a fixed/range target',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = WorkoutPlan(
+        id: 'p1',
+        name: 'Test Split',
+        status: WorkoutPlanStatus.active,
+        source: WorkoutPlanSource.manual,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        cycleCursor: 0,
+        days: const [
+          WorkoutDay(
+            id: 'a',
+            slot: 'A',
+            label: 'Push',
+            order: 0,
+            exercises: [
+              PlannedExercise(
+                id: 'ex1',
+                name: 'Row',
+                order: 0,
+                muscleGroup: 'Back',
+                defaultRestSeconds: 90,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(8, 10),
+                    restSeconds: 90,
+                    type: SetType.working,
+                  ),
+                  PlannedSet(
+                    order: 1,
+                    repTarget: RepTarget.toFailure(),
+                    restSeconds: 60,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          WorkoutDay(id: 'b', slot: 'B', label: 'Pull', order: 1, exercises: []),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      // Set 1: a range target — the "Target:" line adds real context, keep it.
+      expect(find.text('Set 1 of 2'), findsOneWidget);
+      expect(find.text('Target: 8–10 reps'), findsOneWidget);
+
+      // Advance to set 2: to-failure — "Target: To failure" would just
+      // restate the AMRAP goal label above it, so it's suppressed.
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+
+      expect(find.text('Set 2 of 2'), findsOneWidget);
+      expect(find.textContaining('Target:'), findsNothing);
     },
   );
 }
