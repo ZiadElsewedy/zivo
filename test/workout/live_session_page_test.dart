@@ -483,6 +483,127 @@ void main() {
     },
   );
 
+  String elapsedText(WidgetTester tester) =>
+      tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
+
+  testWidgets(
+    'the "time in workout" label starts at 0:00, ticks with wall-clock time, and '
+    'freezes once the session completes',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      // Visible immediately, from the moment the session opens.
+      expect(elapsedText(tester), '0:00');
+
+      fakeNow = fakeNow.add(const Duration(seconds: 45));
+      await tester.pump(const Duration(seconds: 45));
+      expect(elapsedText(tester), '0:45');
+
+      // Keeps ticking into a new phase (resting), not just the running one.
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      fakeNow = fakeNow.add(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 5));
+      expect(elapsedText(tester), '0:50');
+
+      // Finish the day (single-exercise, 2-set plan) → completes and freezes.
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      expect(find.text('Finish'), findsOneWidget);
+      final frozenAt = elapsedText(tester);
+
+      // Time continuing to pass afterward must not move it.
+      fakeNow = fakeNow.add(const Duration(seconds: 30));
+      await tester.pump(const Duration(seconds: 30));
+      expect(elapsedText(tester), frozenAt);
+    },
+  );
+
+  testWidgets('the "time in workout" label resyncs on app resume and formats past an hour', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+    var fakeNow = DateTime(2026, 1, 1, 8);
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        now: () => fakeNow,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+    expect(elapsedText(tester), '0:00');
+
+    // Backgrounded for over an hour — no ticks fire, only wall-clock passes.
+    fakeNow = fakeNow.add(const Duration(hours: 1, minutes: 4, seconds: 5));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(elapsedText(tester), '1:04:05');
+  });
+
+  testWidgets('a resumed session keeps its original startedAt for the elapsed label', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+    // Started 90s before "now" — as if the app was closed and reopened.
+    final startedAt = DateTime(2026, 1, 1, 8);
+    var fakeNow = startedAt.add(const Duration(seconds: 90));
+    final resumeSession = LiveSession.start(
+      plan.days.first,
+      id: 'resume1',
+      planId: plan.id,
+      now: startedAt,
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        resume: resumeSession,
+        now: () => fakeNow,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    // Reflects time since the ORIGINAL start, not since this screen opened.
+    expect(elapsedText(tester), '1:30');
+  });
+
   testWidgets('an empty day settles straight into the completed view', (tester) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();

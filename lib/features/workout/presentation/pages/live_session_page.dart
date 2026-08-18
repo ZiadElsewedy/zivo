@@ -76,6 +76,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// backgrounded/suspended timer can't leave the countdown stale.
   DateTime? _restEndsAt;
 
+  /// Ticks the "time in workout" label. Only runs while the session is
+  /// active — cancelled once it completes, at which point the display reads
+  /// [LiveSession.elapsed] (the session's own frozen, official duration)
+  /// instead of this ticking value.
+  Timer? _elapsedTimer;
+  Duration _elapsedSinceStart = Duration.zero;
+
   bool _reposInitialized = false;
   late WorkoutSessionRepository _sessionsRepo;
   StreamSubscription<List<LiveSession>>? _pastSessionsSub;
@@ -102,6 +109,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       // Nothing to do (an empty day) — settle straight into the completed view.
       _session = _session.complete(now: widget.now());
     }
+    _elapsedSinceStart = _session.isComplete
+        ? _session.elapsed
+        : widget.now().difference(_session.startedAt);
+    if (!_session.isComplete) {
+      _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+    }
     _prefillInputs();
   }
 
@@ -123,15 +136,19 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The OS suspends `Timer`s while backgrounded, so a plain tick-counter
-    // would resume from wherever it froze — resync from the absolute
-    // `_restEndsAt` instead, which reflects real elapsed time either way.
-    if (state == AppLifecycleState.resumed) _tickRest();
+    // would resume from wherever it froze — resync both timers from their
+    // wall-clock sources of truth instead.
+    if (state == AppLifecycleState.resumed) {
+      _tickRest();
+      _tickElapsed();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _restTimer?.cancel();
+    _elapsedTimer?.cancel();
     _pastSessionsSub?.cancel();
     _reps.dispose();
     _weight.dispose();
@@ -186,7 +203,11 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       _restTimer?.cancel();
       _restTotalSeconds = null;
       _restEndsAt = null;
-      setState(() => _restRemaining = null);
+      _elapsedTimer?.cancel();
+      setState(() {
+        _restRemaining = null;
+        _elapsedSinceStart = _session.elapsed;
+      });
       return;
     }
     _startRest(exercise.restSeconds);
@@ -230,6 +251,17 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     _restTotalSeconds = null;
     _restEndsAt = null;
     if (mounted) setState(() => _restRemaining = null);
+  }
+
+  /// Recomputes the "time in workout" label from [LiveSession.startedAt]
+  /// against the current wall clock — called on every timer tick and on app
+  /// resume, same wall-clock-survives-backgrounding approach as rest.
+  void _tickElapsed() {
+    if (!mounted || _session.isComplete) {
+      _elapsedTimer?.cancel();
+      return;
+    }
+    setState(() => _elapsedSinceStart = widget.now().difference(_session.startedAt));
   }
 
   void _adjustRest(int delta) {
@@ -342,6 +374,9 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
                 ),
               ),
               _ProgressBar(value: _session.progress),
+              _ElapsedLabel(
+                elapsed: _session.isComplete ? _session.elapsed : _elapsedSinceStart,
+              ),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
@@ -577,6 +612,20 @@ String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 
 /// "Day A · Push".
 String _dayTitle(WorkoutDay day) => 'Day ${day.slot} · ${day.label}';
 
+/// "4:05" under an hour, "1:04:05" past one — the "time in workout" label.
+String _formatElapsed(Duration d) {
+  final totalSeconds = d.inSeconds < 0 ? 0 : d.inSeconds;
+  final hours = totalSeconds ~/ 3600;
+  final minutes = (totalSeconds % 3600) ~/ 60;
+  final seconds = totalSeconds % 60;
+  final ss = seconds.toString().padLeft(2, '0');
+  if (hours > 0) {
+    final mm = minutes.toString().padLeft(2, '0');
+    return '$hours:$mm:$ss';
+  }
+  return '$minutes:$ss';
+}
+
 /// "Previous 60kg × 8" — omits either half when unset; null when there's
 /// nothing to show.
 String? _formatPrevious(LoggedSet? previous) {
@@ -628,6 +677,35 @@ class _ProgressBar extends StatelessWidget {
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.pulse),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The "time in workout" label — a small, tasteful clock + mm:ss just under
+/// the progress bar, visible in every phase while the session is active and
+/// frozen once it completes. Deliberately subtle; folded into the fuller
+/// redesign later.
+class _ElapsedLabel extends StatelessWidget {
+  const _ElapsedLabel({required this.elapsed});
+
+  final Duration elapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
+          const SizedBox(width: 5),
+          Text(
+            _formatElapsed(elapsed),
+            key: const Key('elapsed-timer'),
+            style: AppText.meta.copyWith(color: AppColors.ink3),
+          ),
+        ],
       ),
     );
   }
