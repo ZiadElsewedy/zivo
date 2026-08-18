@@ -10,9 +10,9 @@ import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
+import 'live_session_page.dart';
 import 'workout_history_page.dart';
 import 'workout_plan_edit_page.dart';
-import 'workout_session_page.dart';
 
 /// The Workout Plan page — the rotating-cycle template ("what I SHOULD do").
 /// Shows the day that's up next (the cycle cursor) prominently, then the whole
@@ -181,7 +181,7 @@ class _TodaySection extends StatelessWidget {
           color: AppColors.pulseText,
           enabled: true,
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => WorkoutSessionPage(day: day, plan: plan)),
+            MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
           ),
         ),
       ],
