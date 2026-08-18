@@ -289,17 +289,22 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     setState(() => _restRemaining = remaining);
   }
 
-  Future<void> _onFinish() async {
+  /// Fires the Firestore writes without waiting for them: `.set()`/`.delete()`
+  /// commit to the local cache (and any listener) immediately, cache-first —
+  /// but the returned Future only resolves once the server acknowledges it,
+  /// so awaiting it before popping would hang this button while offline.
+  /// Online, the write still lands the same way; this only changes when we
+  /// stop waiting for confirmation we don't need for a safe local pop.
+  void _onFinish() {
     if (_busy) return;
     setState(() => _busy = true);
-    // Read repositories before the first await (the app's capture convention).
     final workouts = AppScope.of(context).workouts;
     final plans = AppScope.of(context).workoutPlans;
     final sessions = _sessionsRepo;
-    await workouts.add(_session.toWorkoutLog());
-    await plans.savePlan(widget.plan.advanceCursor());
-    await sessions.saveSession(_session);
-    if (mounted) Navigator.of(context).pop();
+    unawaited(workouts.add(_session.toWorkoutLog()));
+    unawaited(plans.savePlan(widget.plan.advanceCursor()));
+    unawaited(sessions.saveSession(_session));
+    Navigator.of(context).pop();
   }
 
   /// LEAVE: the close (X) button and the system/edge-swipe back gesture. The
@@ -308,14 +313,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// exception: a session with zero logged sets is indistinguishable from
   /// never having started one, so it's discarded silently rather than left
   /// behind as a "Resume" with nothing in it.
-  Future<void> _onLeave() async {
+  void _onLeave() {
     if (_busy) return;
     setState(() => _busy = true);
     _restTimer?.cancel();
     if (_session.completedSetCount == 0) {
-      await _sessionsRepo.deleteSession(_session.id);
+      unawaited(_sessionsRepo.deleteSession(_session.id));
     }
-    if (mounted) Navigator.of(context).pop();
+    Navigator.of(context).pop();
   }
 
   /// DISCARD: the explicit destructive action, reached via the top bar's
@@ -348,8 +353,8 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
     _restTimer?.cancel();
-    await sessions.deleteSession(_session.id);
-    if (mounted) Navigator.of(context).pop();
+    unawaited(sessions.deleteSession(_session.id));
+    Navigator.of(context).pop();
   }
 
   // ---- Build -------------------------------------------------------------

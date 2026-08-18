@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
@@ -32,7 +34,11 @@ import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
 /// Records what the player writes, so tests can assert the completion path
-/// persists and the discard path writes nothing.
+/// persists and the discard path writes nothing. [add] resolves after a
+/// small artificial delay — Finish now fires this write unawaited (so it
+/// commits to the local cache and syncs later without blocking navigation,
+/// the fix for hanging offline), so this delay proves the button doesn't
+/// wait for it, not that it's slow to record.
 class _RecordingWorkoutRepository implements WorkoutRepository {
   final List<Workout> added = [];
 
@@ -44,9 +50,6 @@ class _RecordingWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<void> add(Workout workout) async {
-    // A small artificial delay widens the async window enough for a rapid
-    // double-tap on Finish to actually race, so the re-entrancy guard has
-    // something real to prove.
     await Future<void>.delayed(const Duration(milliseconds: 30));
     added.add(workout);
   }
@@ -56,6 +59,26 @@ class _RecordingWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<void> remove(String id) async {}
+}
+
+/// A [WorkoutRepository] whose [add] never completes — simulates being
+/// genuinely offline, where the write's Future waits for a server ack that
+/// isn't coming. Used to prove Finish doesn't block on it.
+class _NeverCompletingWorkoutRepository implements WorkoutRepository {
+  @override
+  List<Workout> get current => const [];
+
+  @override
+  Stream<List<Workout>> watchAll() => const Stream.empty();
+
+  @override
+  Future<void> add(Workout workout) => Completer<void>().future;
+
+  @override
+  Future<void> update(Workout workout) => Completer<void>().future;
+
+  @override
+  Future<void> remove(String id) => Completer<void>().future;
 }
 
 class _RecordingWorkoutPlanRepository implements WorkoutPlanRepository {
@@ -657,15 +680,56 @@ void main() {
     await _settle(tester);
     expect(find.text('Finish'), findsOneWidget);
 
-    // Two rapid taps before the first Finish's (artificially delayed) writes
-    // resolve — the second must be a no-op, not a duplicate write.
+    // Finish now pops synchronously (the write is fire-and-forget), so the
+    // first tap's pop transition may already be under way by the second —
+    // it's fine if the second doesn't even land on the button any more
+    // (warnIfMissed: false); what matters is the `_busy` guard still makes
+    // it a no-op rather than a duplicate write.
     await tester.tap(find.text('Finish'));
-    await tester.pump();
-    await tester.tap(find.text('Finish'));
-    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.text('Finish'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(workouts.added, hasLength(1));
+    expect(plans.saved, hasLength(1));
+    expect(plans.saved.single.cycleCursor, 1);
+  });
+
+  testWidgets('Finish pops immediately without waiting for the write to complete (offline-safe)', (
+    tester,
+  ) async {
+    final workouts = _NeverCompletingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await tester.tap(find.text('Skip rest'));
+    await _settle(tester);
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    expect(find.text('Finish'), findsOneWidget);
+
+    // `workouts.add` never resolves — if Finish awaited it, this would hang
+    // (and pumpAndSettle would time out). It doesn't: the write is fired
+    // unawaited, so the pop is not blocked on a server ack that (as if
+    // offline) is never coming.
+    await tester.tap(find.text('Finish'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('go'), findsOneWidget); // popped
     expect(plans.saved, hasLength(1));
     expect(plans.saved.single.cycleCursor, 1);
   });
