@@ -13,6 +13,7 @@ import '../../domain/live_session.dart';
 import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
+import '../../domain/rest_policy.dart';
 import '../../domain/session_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -210,7 +211,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       });
       return;
     }
-    _startRest(exercise.restSeconds);
+    _startRest(
+      smartRestSeconds(
+        repTargetMin: set.target.min ?? 1,
+        muscleGroup: exercise.muscleGroup,
+        workingSetIndex: workingSetIndexOf(exercise, set),
+      ),
+    );
   }
 
   void _startRest(int seconds) {

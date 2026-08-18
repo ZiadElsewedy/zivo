@@ -235,11 +235,13 @@ void main() {
       await tester.pump();
       expect(find.text('+5kg'), findsOneWidget);
 
-      // Complete set 1 → rest countdown (90s → "1:30"), warm gray "Rest".
+      // Complete set 1 → the smart-rest default for a fixed(5) set on a large
+      // (Chest) muscle group is the full <=6-rep base, 115s → "1:55" — not
+      // the plan's stored restSeconds (90s) any more.
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Skip rest'), findsOneWidget);
-      expect(find.text('1:30'), findsOneWidget);
+      expect(find.text('1:55'), findsOneWidget);
       expect(find.text('REST'), findsOneWidget);
       expect(find.textContaining('Next:'), findsOneWidget);
 
@@ -251,10 +253,10 @@ void main() {
       // Adjust the rest window.
       await tester.tap(find.text('+15s'));
       await tester.pump();
-      expect(find.text('1:45'), findsOneWidget);
+      expect(find.text('2:10'), findsOneWidget);
       await tester.tap(find.text('-15s'));
       await tester.pump();
-      expect(find.text('1:30'), findsOneWidget);
+      expect(find.text('1:55'), findsOneWidget);
 
       // Skip the rest → set 2 (already the current set — no manual pointer).
       await tester.tap(find.text('Skip rest'));
@@ -430,12 +432,12 @@ void main() {
 
     await tester.tap(find.text('Done'));
     await tester.pump();
-    expect(find.text('1:30'), findsOneWidget);
+    expect(find.text('1:55'), findsOneWidget); // smart-rest default for this set
 
     // Let the countdown run out (driven by wall-clock elapsed time, not tick
     // count — advance the clock alongside the pumped duration).
-    fakeNow = fakeNow.add(const Duration(seconds: 91));
-    await tester.pump(const Duration(seconds: 91));
+    fakeNow = fakeNow.add(const Duration(seconds: 116));
+    await tester.pump(const Duration(seconds: 116));
     expect(find.text('SET 2 OF 2'), findsOneWidget);
   });
 
@@ -464,7 +466,7 @@ void main() {
 
       await tester.tap(find.text('Done'));
       await tester.pump();
-      expect(find.text('1:30'), findsOneWidget); // 90s rest window
+      expect(find.text('1:55'), findsOneWidget); // 115s smart-rest window
 
       // Simulate the OS suspending the app's Timer for 40s while backgrounded
       // — no ticks fire, only wall-clock time passes — then resuming.
@@ -473,12 +475,12 @@ void main() {
       await tester.pump();
 
       // Resyncs to the real elapsed time on resume instead of staying frozen
-      // at 1:30 (what a plain tick-counter would show).
-      expect(find.text('0:50'), findsOneWidget);
+      // at 1:55 (what a plain tick-counter would show).
+      expect(find.text('1:15'), findsOneWidget);
 
       // And ending naturally still works post-resume.
-      fakeNow = fakeNow.add(const Duration(seconds: 50));
-      await tester.pump(const Duration(seconds: 50));
+      fakeNow = fakeNow.add(const Duration(seconds: 75));
+      await tester.pump(const Duration(seconds: 75));
       expect(find.text('SET 2 OF 2'), findsOneWidget);
     },
   );
