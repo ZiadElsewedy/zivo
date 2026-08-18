@@ -75,15 +75,22 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
 
   /// The absolute wall-clock moment rest ends — the source of truth for
   /// [_restRemaining], recomputed on every tick and on app resume so a
-  /// backgrounded/suspended timer can't leave the countdown stale.
+  /// backgrounded/suspended timer can't leave the countdown stale. Null
+  /// while paused (a rest in progress is frozen into [_pausedRestRemaining]
+  /// instead) as well as whenever there's no rest running.
   DateTime? _restEndsAt;
 
-  /// Ticks the "time in workout" label. Only runs while the session is
-  /// active — cancelled once it completes, at which point the display reads
-  /// [LiveSession.elapsed] (the session's own frozen, official duration)
-  /// instead of this ticking value.
+  /// The rest time left over from an active countdown that got paused —
+  /// restored (as a fresh [_restEndsAt]) on resume. Null unless a rest was
+  /// actually running at the moment [_onPause] was tapped.
+  Duration? _pausedRestRemaining;
+
+  /// Ticks the "time in workout" label once a second — just a rebuild
+  /// trigger; the displayed value itself is always read fresh from
+  /// [LiveSession.activeElapsed]/[LiveSession.elapsed] in [build], so it
+  /// can't drift from the session's own pause-aware model state. Not
+  /// running while paused or once the session completes.
   Timer? _elapsedTimer;
-  Duration _elapsedSinceStart = Duration.zero;
 
   bool _reposInitialized = false;
   late WorkoutSessionRepository _sessionsRepo;
@@ -119,10 +126,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       // Nothing to do (an empty day) — settle straight into the completed view.
       _session = _session.complete(now: widget.now());
     }
-    _elapsedSinceStart = _session.isComplete
-        ? _session.elapsed
-        : widget.now().difference(_session.startedAt);
-    if (!_session.isComplete) {
+    if (!_session.isComplete && !_session.isPaused) {
       _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
     }
     _prefillInputs();
@@ -151,7 +155,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The OS suspends `Timer`s while backgrounded, so a plain tick-counter
     // would resume from wherever it froze — resync both timers from their
-    // wall-clock sources of truth instead.
+    // wall-clock sources of truth instead. Both no-op on their own if the
+    // session is explicitly paused (`_restEndsAt` is null while paused, and
+    // `_tickElapsed` bails on `_session.isPaused`), so backgrounding while
+    // paused can't sneak the clock back to life.
     if (state == AppLifecycleState.resumed) {
       _tickRest();
       _tickElapsed();
@@ -232,10 +239,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       _restTotalSeconds = null;
       _restEndsAt = null;
       _elapsedTimer?.cancel();
-      setState(() {
-        _restRemaining = null;
-        _elapsedSinceStart = _session.elapsed;
-      });
+      setState(() => _restRemaining = null);
       return;
     }
     _startRest(
@@ -266,12 +270,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// Recomputes [_restRemaining] from [_restEndsAt] against the current wall
   /// clock — called on every timer tick and on app resume, so a `Timer` the
   /// OS suspended while backgrounded snaps back to the real remaining time
-  /// instead of resuming from wherever it froze.
+  /// instead of resuming from wherever it froze. A no-op while paused —
+  /// `_restEndsAt` is null then (frozen into [_pausedRestRemaining] instead).
   void _tickRest() {
     final endsAt = _restEndsAt;
     if (endsAt == null) return;
-    final remainingMs = endsAt.difference(widget.now()).inMilliseconds;
-    final remaining = (remainingMs / 1000).ceil();
+    final remaining = _ceilSeconds(endsAt.difference(widget.now()));
     if (remaining <= 0) {
       _endRest();
     } else if (mounted) {
@@ -287,15 +291,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     if (mounted) setState(() => _restRemaining = null);
   }
 
-  /// Recomputes the "time in workout" label from [LiveSession.startedAt]
-  /// against the current wall clock — called on every timer tick and on app
-  /// resume, same wall-clock-survives-backgrounding approach as rest.
+  /// Just a rebuild trigger — the "time in workout" value itself is always
+  /// read fresh from [LiveSession.activeElapsed] in [build]. A no-op (and
+  /// self-cancels) once the session completes or is paused, same wall-clock-
+  /// survives-backgrounding approach as rest.
   void _tickElapsed() {
-    if (!mounted || _session.isComplete) {
+    if (!mounted || _session.isComplete || _session.isPaused) {
       _elapsedTimer?.cancel();
       return;
     }
-    setState(() => _elapsedSinceStart = widget.now().difference(_session.startedAt));
+    setState(() {});
   }
 
   void _adjustRest(int delta) {
@@ -306,7 +311,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       _endRest();
       return;
     }
-    final remaining = (nextEndsAt.difference(widget.now()).inMilliseconds / 1000).ceil();
+    final remaining = _ceilSeconds(nextEndsAt.difference(widget.now()));
     _restEndsAt = nextEndsAt;
     // Keep the ring sensible: grow the total if the adjustment pushed the
     // remaining time past what it was counting down from.
@@ -315,6 +320,48 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     }
     setState(() => _restRemaining = remaining);
   }
+
+  /// Pauses the workout: stops the elapsed clock, and — if a rest was
+  /// actively counting down — freezes its remaining time rather than losing
+  /// it. Model state ([LiveSession.pause]), so it's saved and survives
+  /// leave/resume.
+  void _onPause() {
+    final now = widget.now();
+    final endsAt = _restEndsAt;
+    setState(() {
+      _session = _session.pause(now: now);
+      if (endsAt != null) {
+        final remaining = endsAt.difference(now);
+        _pausedRestRemaining = remaining;
+        _restTimer?.cancel();
+        _restEndsAt = null;
+        _restRemaining = _ceilSeconds(remaining);
+      }
+    });
+    _elapsedTimer?.cancel();
+    unawaited(_sessionsRepo.saveSession(_session));
+  }
+
+  /// Resumes from [_onPause]: restarts the elapsed clock, and — if a rest
+  /// was frozen — restores it from exactly where it left off.
+  void _onResume() {
+    final now = widget.now();
+    final pausedRemaining = _pausedRestRemaining;
+    setState(() {
+      _session = _session.resume(now: now);
+      if (pausedRemaining != null) {
+        _pausedRestRemaining = null;
+        _restEndsAt = now.add(pausedRemaining);
+        _restTimer?.cancel();
+        _restTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
+      }
+    });
+    unawaited(_sessionsRepo.saveSession(_session));
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+  }
+
+  void _onTogglePause() => _session.isPaused ? _onResume() : _onPause();
 
   /// Fires the Firestore writes without waiting for them: `.set()`/`.delete()`
   /// commit to the local cache (and any listener) immediately, cache-first —
@@ -414,22 +461,36 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
               ),
               _ProgressBar(value: _session.progress),
               _ElapsedLabel(
-                elapsed: _session.isComplete ? _session.elapsed : _elapsedSinceStart,
+                elapsed: _session.isComplete
+                    ? _session.elapsed
+                    : _session.activeElapsed(now: widget.now()),
+                isPaused: _session.isPaused,
+                onTogglePause: _session.isComplete ? null : _onTogglePause,
               ),
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.03),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
+                // Paused freezes the rest/elapsed clocks (model state), but a
+                // paused session is still visually "on hold" — dim the phase
+                // content and block its taps, no animation (kept minimal;
+                // prominence here is about info hierarchy, not motion).
+                child: IgnorePointer(
+                  ignoring: _session.isPaused,
+                  child: Opacity(
+                    opacity: _session.isPaused ? 0.35 : 1,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.03),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                      child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
                     ),
                   ),
-                  child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
                 ),
               ),
             ],
@@ -682,6 +743,11 @@ String _formatLastTime(LoggedSet? previous) {
   return parts.isEmpty ? 'First time' : parts.join(' ');
 }
 
+/// Whole seconds remaining until [d] elapses, rounded up so a countdown
+/// never flashes "0" a moment before it's actually over; clamped at 0 for an
+/// already-elapsed duration.
+int _ceilSeconds(Duration d) => d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 1000).ceil();
+
 // ---- Small building blocks ----------------------------------------------
 
 class _Eyebrow extends StatelessWidget {
@@ -731,24 +797,76 @@ class _ProgressBar extends StatelessWidget {
 /// frozen once it completes. Deliberately subtle; folded into the fuller
 /// redesign later.
 class _ElapsedLabel extends StatelessWidget {
-  const _ElapsedLabel({required this.elapsed});
+  const _ElapsedLabel({required this.elapsed, required this.isPaused, required this.onTogglePause});
 
   final Duration elapsed;
+  final bool isPaused;
+
+  /// Null hides the pause/resume control entirely (once the session is
+  /// complete — nothing left to pause).
+  final VoidCallback? onTogglePause;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
+          Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
           const SizedBox(width: 5),
           Text(
             _formatElapsed(elapsed),
             key: const Key('elapsed-timer'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
+          if (isPaused) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'PAUSED',
+                key: const Key('paused-badge'),
+                style: AppText.meta.copyWith(
+                  color: AppColors.ink2,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          if (onTogglePause != null)
+            InkWell(
+              key: const Key('pause-toggle'),
+              onTap: onTogglePause,
+              borderRadius: BorderRadius.circular(999),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                      size: 16,
+                      color: isPaused ? AppColors.pulseText : AppColors.ink3,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isPaused ? 'Resume' : 'Pause',
+                      style: AppText.meta.copyWith(
+                        color: isPaused ? AppColors.pulseText : AppColors.ink3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

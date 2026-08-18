@@ -27,6 +27,8 @@ class LiveSession {
     required this.status,
     required this.exercises,
     this.completedAt,
+    this.pausedAt,
+    this.pausedAccumMs = 0,
   });
 
   final String id;
@@ -37,6 +39,18 @@ class LiveSession {
   final SessionStatus status;
   final List<SessionExercise> exercises;
   final DateTime? completedAt;
+
+  /// When the current pause started, if the session is paused right now —
+  /// null otherwise. Model state (not UI state) so a pause survives leave/
+  /// resume: it's persisted through the session repository like everything
+  /// else here.
+  final DateTime? pausedAt;
+
+  /// Total time spent paused across every pause so far, in milliseconds
+  /// (stored as an int for a trivial Firestore round-trip — no `Duration`
+  /// codec needed). Does NOT include a currently-open pause; that's added in
+  /// once [resume] closes it.
+  final int pausedAccumMs;
 
   // ---- Derived getters -----------------------------------------------------
 
@@ -49,6 +63,7 @@ class LiveSession {
 
   bool get allSetsDone => totalSets > 0 && completedSetCount == totalSets;
   bool get isComplete => status == SessionStatus.completed;
+  bool get isPaused => pausedAt != null;
 
   /// The exercise holding the first not-done set — what the user is on now.
   SessionExercise? get currentExercise {
@@ -68,7 +83,19 @@ class LiveSession {
     return null;
   }
 
-  Duration get elapsed => (completedAt ?? startedAt).difference(startedAt);
+  Duration get pausedAccum => Duration(milliseconds: pausedAccumMs);
+
+  /// The session's final, official duration once it's [complete] — active
+  /// training time, with every pause (accumulated by [complete] closing any
+  /// still-open one first) excluded. Zero while still active.
+  Duration get elapsed => (completedAt ?? startedAt).difference(startedAt) - pausedAccum;
+
+  /// The *live*, still-running active-time reading for an in-progress
+  /// session — wall time since [startedAt], minus accumulated pauses, frozen
+  /// at the moment a pause started if one is open right now. Callers pass
+  /// `now`; this never reads the wall clock itself.
+  Duration activeElapsed({required DateTime now}) =>
+      (pausedAt ?? now).difference(startedAt) - pausedAccum;
 
   // ---- Construction --------------------------------------------------------
 
@@ -190,12 +217,33 @@ class LiveSession {
 
   LiveSession complete({required DateTime now}) {
     if (status != SessionStatus.active) return this;
-    return copyWith(status: SessionStatus.completed, completedAt: now);
+    // Close any still-open pause first, so its time lands in `pausedAccum`
+    // and `elapsed` (computed from it) excludes it — the logged duration is
+    // active training time, not wall time.
+    final closed = isPaused ? resume(now: now) : this;
+    return closed.copyWith(status: SessionStatus.completed, completedAt: now);
   }
 
   LiveSession abandon({required DateTime now}) {
     if (status != SessionStatus.active) return this;
     return copyWith(status: SessionStatus.abandoned, completedAt: now);
+  }
+
+  /// Pauses the timer — a no-op if already paused or not active. Model
+  /// state, so it's saved through the session repository and survives
+  /// leave/resume.
+  LiveSession pause({required DateTime now}) {
+    if (isPaused || status != SessionStatus.active) return this;
+    return copyWith(pausedAt: now);
+  }
+
+  /// Resumes from a pause, folding the just-closed pause's duration into
+  /// [pausedAccum] — a no-op if not currently paused.
+  LiveSession resume({required DateTime now}) {
+    final at = pausedAt;
+    if (at == null) return this;
+    final addedMs = now.difference(at).inMilliseconds;
+    return copyWith(pausedAt: null, pausedAccumMs: pausedAccumMs + (addedMs < 0 ? 0 : addedMs));
   }
 
   // ---- Internals -----------------------------------------------------------
@@ -216,6 +264,8 @@ class LiveSession {
     SessionStatus? status,
     List<SessionExercise>? exercises,
     Object? completedAt = _keep,
+    Object? pausedAt = _keep,
+    int? pausedAccumMs,
   }) => LiveSession(
     id: id,
     planId: planId,
@@ -225,6 +275,8 @@ class LiveSession {
     status: status ?? this.status,
     exercises: exercises ?? this.exercises,
     completedAt: completedAt == _keep ? this.completedAt : completedAt as DateTime?,
+    pausedAt: pausedAt == _keep ? this.pausedAt : pausedAt as DateTime?,
+    pausedAccumMs: pausedAccumMs ?? this.pausedAccumMs,
   );
 }
 

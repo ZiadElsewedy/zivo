@@ -182,6 +182,75 @@ void main() {
     });
   });
 
+  group('pause/resume', () {
+    test('pause records pausedAt; activeElapsed freezes there', () {
+      final s0 = _fresh(); // started at _t0
+      final paused = s0.pause(now: _t0.add(const Duration(minutes: 10)));
+      expect(paused.isPaused, isTrue);
+      expect(paused.pausedAt, _t0.add(const Duration(minutes: 10)));
+
+      // Frozen at the pause moment regardless of how much later `now` is.
+      final laterNow = _t0.add(const Duration(minutes: 25));
+      expect(paused.activeElapsed(now: laterNow), const Duration(minutes: 10));
+    });
+
+    test('resume folds the closed pause into pausedAccum and clears pausedAt', () {
+      final paused = _fresh().pause(now: _t0.add(const Duration(minutes: 10)));
+      final resumed = paused.resume(now: _t0.add(const Duration(minutes: 14)));
+
+      expect(resumed.isPaused, isFalse);
+      expect(resumed.pausedAt, isNull);
+      expect(resumed.pausedAccum, const Duration(minutes: 4));
+
+      // activeElapsed now counts real time again, minus the accumulated pause.
+      final now = _t0.add(const Duration(minutes: 20));
+      expect(resumed.activeElapsed(now: now), const Duration(minutes: 16)); // 20 - 4
+    });
+
+    test('pausedAccum keeps accumulating across multiple pause/resume cycles', () {
+      var s = _fresh();
+      s = s.pause(now: _t0.add(const Duration(minutes: 5)));
+      s = s.resume(now: _t0.add(const Duration(minutes: 8))); // +3min paused
+      s = s.pause(now: _t0.add(const Duration(minutes: 30)));
+      s = s.resume(now: _t0.add(const Duration(minutes: 36))); // +6min paused
+
+      expect(s.pausedAccum, const Duration(minutes: 9));
+      expect(s.isPaused, isFalse);
+    });
+
+    test('pause is a no-op while already paused or once terminal', () {
+      final paused = _fresh().pause(now: _t0.add(const Duration(minutes: 5)));
+      final pausedAgain = paused.pause(now: _t0.add(const Duration(minutes: 9)));
+      expect(pausedAgain.pausedAt, paused.pausedAt); // unchanged, not re-stamped
+
+      final completed = _fresh().complete(now: _t1);
+      expect(identical(completed, completed.pause(now: _t1)), isTrue);
+    });
+
+    test('resume is a no-op when not paused', () {
+      final s = _fresh();
+      expect(identical(s, s.resume(now: _t1)), isTrue);
+    });
+
+    test('complete closes an open pause first, and elapsed excludes all paused time', () {
+      var s = _fresh(); // starts at _t0
+      s = s.pause(now: _t0.add(const Duration(minutes: 20)));
+      // Still paused when Finish is tapped an hour after starting.
+      final finished = s.complete(now: _t0.add(const Duration(hours: 1)));
+
+      expect(finished.isComplete, isTrue);
+      expect(finished.isPaused, isFalse); // the open pause was closed
+      // Paused from minute 20 to minute 60 → 40min excluded from the 60min
+      // wall-clock span, leaving 20min of active elapsed.
+      expect(finished.elapsed, const Duration(minutes: 20));
+    });
+
+    test('elapsed on a session that was never paused is unaffected (pausedAccum 0)', () {
+      final s = _fresh().complete(now: _t1);
+      expect(s.elapsed, const Duration(hours: 1));
+    });
+  });
+
   group('lastPerformanceFor', () {
     LiveSession completedBench({
       required String id,

@@ -111,6 +111,8 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
       'completedAt': session.completedAt == null
           ? null
           : Timestamp.fromDate(session.completedAt!),
+      'pausedAt': session.pausedAt == null ? null : Timestamp.fromDate(session.pausedAt!),
+      'pausedAccumMs': session.pausedAccumMs,
       'exercises': session.exercises.map(_exerciseToMap).toList(),
       'schemaVersion': 1,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -160,6 +162,7 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     final data = doc.data();
     final startedAt = data['startedAt'];
     final completedAt = data['completedAt'];
+    final pausedAt = data['pausedAt'];
     final rawExercises = (data['exercises'] as List<dynamic>?) ?? const [];
     return LiveSession(
       id: doc.id,
@@ -169,6 +172,8 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
       status: sessionStatusFromName(data['status'] as String?),
       startedAt: startedAt is Timestamp ? startedAt.toDate() : DateTime.now(),
       completedAt: completedAt is Timestamp ? completedAt.toDate() : null,
+      pausedAt: pausedAt is Timestamp ? pausedAt.toDate() : null,
+      pausedAccumMs: (data['pausedAccumMs'] as num?)?.toInt() ?? 0,
       exercises: rawExercises.map(_exerciseFromMap).toList(growable: false),
     );
   }

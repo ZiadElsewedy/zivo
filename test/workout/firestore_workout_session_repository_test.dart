@@ -18,6 +18,8 @@ LiveSession _makeSession(
   SessionStatus status = SessionStatus.active,
   DateTime? startedAt,
   DateTime? completedAt,
+  DateTime? pausedAt,
+  int pausedAccumMs = 0,
   List<SessionExercise>? exercises,
 }) => LiveSession(
   id: id,
@@ -27,6 +29,8 @@ LiveSession _makeSession(
   startedAt: startedAt ?? DateTime(2026, 1, 1),
   status: status,
   completedAt: completedAt,
+  pausedAt: pausedAt,
+  pausedAccumMs: pausedAccumMs,
   exercises: exercises ?? _defaultExercises,
 );
 
@@ -126,6 +130,73 @@ void main() {
         await sub.cancel();
       },
     );
+
+    test(
+      'pausedAt/pausedAccumMs round-trip — leave-while-paused then resume '
+      'keeps the paused offset',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final paused = _makeSession(
+          's1',
+          startedAt: DateTime(2026, 1, 1, 9),
+          pausedAt: DateTime(2026, 1, 1, 9, 20), // paused 20min in
+          pausedAccumMs: const Duration(minutes: 4).inMilliseconds, // + prior pauses
+        );
+        await repo.saveSession(paused);
+
+        // Raw stored shape.
+        final doc = await firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('workoutSessions')
+            .doc('s1')
+            .get();
+        final data = doc.data()!;
+        expect(data['pausedAt'], isA<Timestamp>());
+        expect(data['pausedAccumMs'], const Duration(minutes: 4).inMilliseconds);
+
+        // Rehydrated: this simulates "leave while paused, come back later" —
+        // the paused offset survives the round-trip untouched.
+        final rehydrated = (await repo.watchAll().first).single;
+        expect(rehydrated.isPaused, isTrue);
+        expect(rehydrated.pausedAt, DateTime(2026, 1, 1, 9, 20));
+        expect(rehydrated.pausedAccum, const Duration(minutes: 4));
+
+        // Resuming from the rehydrated session behaves exactly like resuming
+        // one that was never persisted — the model doesn't care.
+        final resumed = rehydrated.resume(now: DateTime(2026, 1, 1, 9, 25));
+        expect(resumed.isPaused, isFalse);
+        expect(resumed.pausedAccum, const Duration(minutes: 9)); // 4 prior + 5 just closed
+      },
+    );
+
+    test('a never-paused session round-trips with pausedAt null, pausedAccumMs 0', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreWorkoutSessionRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.saveSession(_makeSession('s1'));
+
+      final doc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('workoutSessions')
+          .doc('s1')
+          .get();
+      expect(doc.data()!['pausedAt'], isNull);
+      expect(doc.data()!['pausedAccumMs'], 0);
+
+      final rehydrated = (await repo.watchAll().first).single;
+      expect(rehydrated.isPaused, isFalse);
+      expect(rehydrated.pausedAccum, Duration.zero);
+    });
 
     test('activeSession picks the most recent active session; ignores others', () async {
       final firestore = FakeFirebaseFirestore();

@@ -667,6 +667,153 @@ void main() {
     },
   );
 
+  testWidgets(
+    'pausing freezes both the elapsed clock and an active rest countdown; '
+    'resuming continues both from where they left off',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      // Run the clock a bit, then start a rest by logging set 1.
+      fakeNow = fakeNow.add(const Duration(seconds: 30));
+      await tester.pump(const Duration(seconds: 30));
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      expect(elapsedText(tester), '0:30');
+      expect(find.text('1:55'), findsOneWidget); // smart-rest window, running
+
+      // Pause — both clocks freeze even as real time keeps passing.
+      await tester.tap(find.text('Pause'));
+      await tester.pump();
+      expect(find.text('PAUSED'), findsOneWidget);
+      expect(find.text('Resume'), findsOneWidget);
+
+      fakeNow = fakeNow.add(const Duration(seconds: 20));
+      await tester.pump(const Duration(seconds: 20));
+      expect(elapsedText(tester), '0:30'); // unchanged
+      expect(find.text('1:55'), findsOneWidget); // unchanged
+
+      // Resume — elapsed continues from 0:30 (the 20 paused seconds are
+      // excluded, not just skipped-over), and rest resumes at 1:55 instead
+      // of restarting from the full 115s.
+      await tester.tap(find.text('Resume'));
+      await tester.pump();
+      expect(find.text('PAUSED'), findsNothing);
+
+      fakeNow = fakeNow.add(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 5));
+      expect(elapsedText(tester), '0:35');
+      expect(find.text('1:50'), findsOneWidget);
+    },
+  );
+
+  testWidgets('while paused, the phase content is dimmed and not tappable', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    await tester.tap(find.text('Pause'));
+    await tester.pump();
+    expect(find.text('PAUSED'), findsOneWidget);
+
+    // The Done button is still in the tree (dimmed via Opacity, not removed)
+    // but IgnorePointer blocks the tap from reaching it.
+    await tester.tap(find.text('Done'), warnIfMissed: false);
+    await tester.pump();
+    expect(sessions.current.single.completedSetCount, 0); // nothing logged
+
+    // Leave/discard stay reachable — Close is outside the dimmed subtree.
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('go'), findsOneWidget); // popped normally
+  });
+
+  testWidgets('a pause survives leave and resume (persisted model state)', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+    var fakeNow = DateTime(2026, 1, 1, 8);
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        now: () => fakeNow,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    fakeNow = fakeNow.add(const Duration(seconds: 30));
+    await tester.pump(const Duration(seconds: 30));
+    // Log a set first — Close on a zero-progress session silently discards
+    // it (Phase 1 behavior), which would defeat this test's premise.
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.tap(find.text('Pause'));
+    await tester.pump();
+
+    // Leave while paused — the paused session (with its pausedAt) autosaves.
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    final left = sessions.current.single;
+    expect(left.isPaused, isTrue);
+
+    // Time passes with the app fully closed, then the session is resumed.
+    fakeNow = fakeNow.add(const Duration(minutes: 10));
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        resume: left,
+        now: () => fakeNow,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    // Still paused, and frozen at exactly the elapsed time from before —
+    // the 10 minutes spent away don't leak into it.
+    expect(find.text('PAUSED'), findsOneWidget);
+    expect(elapsedText(tester), '0:30');
+  });
+
   testWidgets('an empty day settles straight into the completed view', (tester) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
