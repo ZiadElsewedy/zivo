@@ -13,6 +13,7 @@ import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/session_exercise.dart';
+import '../../domain/session_status.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
@@ -57,6 +58,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   late WorkoutSessionRepository _sessionsRepo;
   StreamSubscription<List<LiveSession>>? _pastSessionsSub;
   List<LiveSession> _pastSessions = const [];
+  bool _cleanedOrphans = false;
+
+  /// Guards [_onFinish]/[_onClose] against re-entrancy — both are async and
+  /// otherwise callable again (double-tap, or Finish racing the close button)
+  /// before the first call's writes/pop land.
+  bool _busy = false;
 
   @override
   void initState() {
@@ -85,6 +92,17 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
       setState(() {
         _pastSessions = sessions.where((s) => s.id != _session.id).toList(growable: false);
       });
+      // Self-heals orphaned "active" sessions left by a prior kill/back-swipe
+      // out of this screen (nothing currently offers a resume UI for them) —
+      // once, on the first real snapshot, so they don't accumulate forever.
+      if (!_cleanedOrphans) {
+        _cleanedOrphans = true;
+        for (final stale in sessions.where(
+          (s) => s.id != _session.id && s.status == SessionStatus.active,
+        )) {
+          unawaited(_sessionsRepo.deleteSession(stale.id));
+        }
+      }
     });
     unawaited(_sessionsRepo.saveSession(_session));
   }
@@ -183,6 +201,8 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   }
 
   Future<void> _onFinish() async {
+    if (_busy) return;
+    setState(() => _busy = true);
     // Read repositories before the first await (the app's capture convention).
     final workouts = AppScope.of(context).workouts;
     final plans = AppScope.of(context).workoutPlans;
@@ -194,6 +214,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   }
 
   Future<void> _onClose() async {
+    if (_busy) return;
     final sessions = _sessionsRepo;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -216,7 +237,8 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
     // DISCARD: nothing is kept — cancel the timer and erase any autosaved
     // progress, then leave without touching the plan's cursor.
     _restTimer?.cancel();
@@ -228,31 +250,41 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CaptureTopBar(title: _dayTitle(widget.day), onClose: _onClose),
-            _ProgressBar(value: _session.progress),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.03),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+    return PopScope(
+      // The system/edge-swipe back gesture must go through the same discard
+      // confirmation as the close button — otherwise it silently leaves the
+      // autosaved session active in storage with no way back to it.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _onClose();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.ground,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CaptureTopBar(title: _dayTitle(widget.day), onClose: _onClose),
+              _ProgressBar(value: _session.progress),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.03),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
                   ),
+                  child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
                 ),
-                child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -412,7 +444,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
           label: 'Finish',
           icon: Icons.check_rounded,
           color: AppColors.pulseText,
-          enabled: true,
+          enabled: !_busy,
           onTap: _onFinish,
         ),
       ],

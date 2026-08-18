@@ -43,7 +43,13 @@ class _RecordingWorkoutRepository implements WorkoutRepository {
   Stream<List<Workout>> watchAll() => Stream.value(added);
 
   @override
-  Future<void> add(Workout workout) async => added.add(workout);
+  Future<void> add(Workout workout) async {
+    // A small artificial delay widens the async window enough for a rapid
+    // double-tap on Finish to actually race, so the re-entrancy guard has
+    // something real to prove.
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    added.add(workout);
+  }
 
   @override
   Future<void> update(Workout workout) async {}
@@ -358,5 +364,117 @@ void main() {
 
     expect(find.text('WORKOUT COMPLETE'), findsOneWidget); // _Eyebrow uppercases
     expect(find.text('Finish'), findsOneWidget);
+  });
+
+  testWidgets('starting a session deletes a stale active session left behind by a prior exit', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+    // Simulates a prior session that never reached Finish/Discard (app killed,
+    // or a system back-gesture from before the PopScope fix) — still "active".
+    await sessions.saveSession(
+      LiveSession(
+        id: 'stale-active',
+        planId: 'p1',
+        dayId: 'a',
+        dayLabel: 'Push',
+        startedAt: DateTime(2026, 1, 1),
+        status: SessionStatus.active,
+        exercises: const [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    expect(sessions.current.any((s) => s.id == 'stale-active'), isFalse);
+    expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(1));
+  });
+
+  testWidgets('rapid double-tap on Finish only writes history and advances the cursor once', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await tester.tap(find.text('Skip rest'));
+    await _settle(tester);
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    expect(find.text('Finish'), findsOneWidget);
+
+    // Two rapid taps before the first Finish's (artificially delayed) writes
+    // resolve — the second must be a no-op, not a duplicate write.
+    await tester.tap(find.text('Finish'));
+    await tester.pump();
+    await tester.tap(find.text('Finish'));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.pumpAndSettle();
+
+    expect(workouts.added, hasLength(1));
+    expect(plans.saved, hasLength(1));
+    expect(plans.saved.single.cycleCursor, 1);
+  });
+
+  testWidgets('the system back gesture is intercepted like the close button', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    // Simulate the OS back gesture/button rather than tapping the close icon.
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+
+    // Intercepted: still on the session screen with the discard dialog up,
+    // instead of silently popping and orphaning the autosaved session.
+    expect(find.text('Discard this workout?'), findsOneWidget);
+    expect(find.text('go'), findsNothing);
+
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('go'), findsOneWidget);
+    expect(sessions.current, isEmpty);
   });
 }
