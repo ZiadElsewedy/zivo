@@ -477,4 +477,69 @@ void main() {
     expect(find.text('go'), findsOneWidget);
     expect(sessions.current, isEmpty);
   });
+
+  testWidgets(
+    'force-kill recovery: a session left active by a killed app never contaminates '
+    'previous-performance and is cleaned up on the next start',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      // Simulates a force-kill mid-session: autosave captured real progress
+      // (a done set with actuals) but the process died before Finish/Discard
+      // or even dispose() ran — the doc is still "active", not "completed".
+      await sessions.saveSession(
+        LiveSession(
+          id: 'killed-session',
+          planId: 'p1',
+          dayId: 'a',
+          dayLabel: 'Push',
+          startedAt: DateTime(2026, 1, 1, 8),
+          status: SessionStatus.active,
+          exercises: const [
+            SessionExercise(
+              id: 'ex1',
+              exerciseId: 'ex1',
+              name: 'Bench',
+              restSeconds: 90,
+              sets: [
+                LoggedSet(
+                  id: 'ex1-s0',
+                  target: RepTarget.fixed(5),
+                  done: true,
+                  actualReps: 5,
+                  actualWeightKg: 999, // deliberately extreme — must never surface
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      // lastPerformanceFor only trusts *completed* sessions — a killed,
+      // still-"active" session's actuals must never surface as "previous
+      // performance" or feed the progression delta.
+      expect(find.textContaining('999'), findsNothing);
+      expect(find.textContaining('Previous'), findsNothing);
+
+      // And storage self-heals: the orphan is deleted, not left to accumulate,
+      // while the fresh session this screen just started stays.
+      expect(sessions.current.any((s) => s.id == 'killed-session'), isFalse);
+      expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(1));
+    },
+  );
 }
