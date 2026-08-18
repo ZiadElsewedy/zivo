@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -176,7 +177,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('Nothing due — enjoy the quiet.'), findsNothing);
 
     university.emit([
@@ -189,7 +190,7 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Lab report'), findsOneWidget);
   });
 
@@ -209,7 +210,7 @@ void main() {
     university.emit(const []);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Nothing due — enjoy the quiet.'), findsOneWidget);
   });
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -111,7 +112,7 @@ void main() {
       _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No workouts yet.'), findsNothing);
 
     workouts.emit([
@@ -124,7 +125,7 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Push'), findsOneWidget);
   });
 
@@ -141,7 +142,7 @@ void main() {
     workouts.emit(const []);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No workouts yet.'), findsOneWidget);
   });
 

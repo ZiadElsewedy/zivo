@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
@@ -107,7 +108,7 @@ void main() {
 
     await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No diet plan yet.'), findsNothing);
     // No FAB while the real active plan isn't known yet.
     expect(find.byType(FloatingActionButton), findsNothing);
@@ -125,7 +126,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Cut'), findsOneWidget);
   });
 
@@ -138,7 +139,7 @@ void main() {
     diet.emit(null);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No diet plan yet.'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
@@ -153,7 +154,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(ErrorStateView), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No diet plan yet.'), findsNothing);
     // Can't edit a plan that failed to load, so no FAB.
     expect(find.byType(FloatingActionButton), findsNothing);
