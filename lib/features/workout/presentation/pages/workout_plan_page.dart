@@ -10,6 +10,7 @@ import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
+import '../widgets/staggered_reveal.dart';
 import 'live_session_page.dart';
 import 'workout_history_page.dart';
 import 'workout_plan_edit_page.dart';
@@ -132,10 +133,13 @@ class _PlanBody extends StatelessWidget {
           style: AppText.meta.copyWith(color: AppColors.pulseText, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
-        for (final day in days)
+        for (final (i, day) in days.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _BrowseDayCard(day: day, isNext: day.id == today?.id),
+            child: StaggeredReveal(
+              index: i,
+              child: _BrowseDayCard(day: day, isNext: day.id == today?.id),
+            ),
           ),
       ],
     );
@@ -153,38 +157,64 @@ class _TodaySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exercises = [...day.exercises]..sort((a, b) => a.order.compareTo(b.order));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'UP NEXT',
-          style: AppText.meta.copyWith(
-            color: AppColors.pulseText,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(offset: Offset(0, (1 - value) * 10), child: child),
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        decoration: BoxDecoration(
+          color: AppColors.pulseWash,
+          borderRadius: BorderRadius.circular(26),
         ),
-        const SizedBox(height: 6),
-        Text(_dayTitle(day), style: AppText.cardTitle.copyWith(fontSize: 20)),
-        const SizedBox(height: 4),
-        Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
-        const SizedBox(height: 14),
-        for (final exercise in exercises)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _ExerciseCard(exercise: exercise),
-          ),
-        const SizedBox(height: 4),
-        PillButton(
-          label: 'Start workout',
-          icon: Icons.play_arrow_rounded,
-          color: AppColors.pulseText,
-          enabled: true,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(color: AppColors.pulse, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'UP NEXT',
+                  style: AppText.meta.copyWith(
+                    color: AppColors.pulseText,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(_dayTitle(day), style: AppText.cardTitle.copyWith(fontSize: 26)),
+            const SizedBox(height: 4),
+            Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
+            const SizedBox(height: 16),
+            for (final (i, exercise) in exercises.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: StaggeredReveal(index: i, child: _ExerciseCard(exercise: exercise)),
+              ),
+            const SizedBox(height: 4),
+            PillButton(
+              label: 'Start workout',
+              icon: Icons.play_arrow_rounded,
+              color: AppColors.pulseText,
+              enabled: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -313,36 +343,59 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                   ],
                   Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
                   const SizedBox(width: 6),
-                  Icon(
-                    _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                    size: 20,
-                    color: AppColors.ink3,
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    child: const Icon(
+                      Icons.expand_more_rounded,
+                      size: 20,
+                      color: AppColors.ink3,
+                    ),
                   ),
                 ],
               ),
-              if (_expanded) ...[
-                const SizedBox(height: 8),
-                for (final exercise in exercises)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            exercise.name,
-                            style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2),
-                          ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: !_expanded
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final exercise in exercises)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        exercise.name,
+                                        style: AppText.body.copyWith(
+                                          fontSize: 14,
+                                          color: AppColors.ink2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      plannedExerciseMeta(exercise),
+                                      style: AppText.meta.copyWith(
+                                        color: AppColors.ink3,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          plannedExerciseMeta(exercise),
-                          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+                      ),
+              ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,7 @@ import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_session_repository.dart';
+import '../widgets/staggered_reveal.dart';
 
 /// The premium guided workout player (M1b) — walks the user set-by-set through
 /// the day's exercises around the editable [LiveSession] model (M1a),
@@ -53,6 +55,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
 
   Timer? _restTimer;
   int? _restRemaining;
+  int? _restTotalSeconds;
 
   bool _reposInitialized = false;
   late WorkoutSessionRepository _sessionsRepo;
@@ -162,6 +165,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
     _prefillInputs();
     if (_session.isComplete) {
       _restTimer?.cancel();
+      _restTotalSeconds = null;
       setState(() => _restRemaining = null);
       return;
     }
@@ -171,9 +175,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   void _startRest(int seconds) {
     _restTimer?.cancel();
     if (seconds <= 0) {
-      setState(() => _restRemaining = null);
+      setState(() {
+        _restRemaining = null;
+        _restTotalSeconds = null;
+      });
       return;
     }
+    _restTotalSeconds = seconds;
     setState(() => _restRemaining = seconds);
     _restTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       final remaining = _restRemaining ?? 0;
@@ -188,6 +196,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
   void _endRest() {
     _restTimer?.cancel();
     _restTimer = null;
+    _restTotalSeconds = null;
     if (mounted) setState(() => _restRemaining = null);
   }
 
@@ -320,44 +329,71 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
       key: const ValueKey('running-list'),
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
       children: [
-        Text(
-          'SET ${setIndex + 1} OF ${exercise.setCount}',
-          style: AppText.meta.copyWith(
-            color: AppColors.emberText,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+        StaggeredReveal(
+          index: 0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SET ${setIndex + 1} OF ${exercise.setCount}',
+                style: AppText.meta.copyWith(
+                  color: AppColors.emberText,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(exercise.name, style: AppText.cardTitle.copyWith(fontSize: 28)),
+              const SizedBox(height: 6),
+              Text('Target: $targetText', style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
+              if (exercise.muscleGroup != null) ...[
+                const SizedBox(height: 2),
+                Text(exercise.muscleGroup!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+              ],
+              if (previousLabel != null) ...[
+                const SizedBox(height: 10),
+                Text(previousLabel, style: AppText.meta.copyWith(color: AppColors.ink3)),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 6),
-        Text(exercise.name, style: AppText.cardTitle.copyWith(fontSize: 28)),
-        const SizedBox(height: 6),
-        Text('Target: $targetText', style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
-        if (exercise.muscleGroup != null) ...[
-          const SizedBox(height: 2),
-          Text(exercise.muscleGroup!, style: AppText.meta.copyWith(color: AppColors.ink3)),
-        ],
-        if (previousLabel != null) ...[
-          const SizedBox(height: 10),
-          Text(previousLabel, style: AppText.meta.copyWith(color: AppColors.ink3)),
-        ],
         const SizedBox(height: 18),
-        _SetChipRow(exercise: exercise, currentSetId: set.id),
-        const SizedBox(height: 22),
-        Row(
-          children: [
-            _ActualField(label: 'Reps', controller: _reps, onChanged: () => setState(() {})),
-            const SizedBox(width: 14),
-            _ActualField(
-              label: 'Weight (kg)',
-              controller: _weight,
-              hint: '—',
-              onChanged: () => setState(() {}),
-            ),
-          ],
+        StaggeredReveal(
+          index: 1,
+          child: _SetChipRow(exercise: exercise, currentSetId: set.id),
         ),
-        _ProgressionDelta(previousSet: previousSet, weightController: _weight),
+        const SizedBox(height: 22),
+        StaggeredReveal(
+          index: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _ActualField(label: 'Reps', controller: _reps, onChanged: () => setState(() {})),
+                  const SizedBox(width: 14),
+                  _ActualField(
+                    label: 'Weight (kg)',
+                    controller: _weight,
+                    hint: '—',
+                    onChanged: () => setState(() {}),
+                  ),
+                ],
+              ),
+              _ProgressionDelta(previousSet: previousSet, weightController: _weight),
+            ],
+          ),
+        ),
         const SizedBox(height: 26),
-        PillButton(label: 'Done', icon: Icons.check_rounded, enabled: true, onTap: _onSetDone),
+        StaggeredReveal(
+          index: 3,
+          child: PillButton(
+            label: 'Done',
+            icon: Icons.check_rounded,
+            enabled: true,
+            onTap: _onSetDone,
+          ),
+        ),
       ],
     );
   }
@@ -372,16 +408,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
         children: [
           const SizedBox(height: 8),
           Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Center(
-            child: _BreathingScale(
-              child: Text(
-                restLabel(_restRemaining ?? 0),
-                style: AppText.greeting.copyWith(fontSize: 64, color: AppColors.ink2),
-              ),
+            child: _RestRing(
+              remaining: _restRemaining ?? 0,
+              total: _restTotalSeconds ?? 1,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Center(
             child: Text('Next: $nextLabel', style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
           ),
@@ -428,24 +462,30 @@ class _LiveSessionPageState extends State<LiveSessionPage> {
           style: AppText.meta.copyWith(color: AppColors.pulseText),
         ),
         const SizedBox(height: 18),
-        for (final exercise in loggedExercises)
+        for (final (i, exercise) in loggedExercises.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              exercise.topWeightKg != null
-                  ? '${exercise.name} · ${exercise.doneSetCount} sets · '
-                        'top ${_trimWeight(exercise.topWeightKg!)}kg'
-                  : '${exercise.name} · ${exercise.doneSetCount} sets',
-              style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
+            child: StaggeredReveal(
+              index: i,
+              child: Text(
+                exercise.topWeightKg != null
+                    ? '${exercise.name} · ${exercise.doneSetCount} sets · '
+                          'top ${_trimWeight(exercise.topWeightKg!)}kg'
+                    : '${exercise.name} · ${exercise.doneSetCount} sets',
+                style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
+              ),
             ),
           ),
         const SizedBox(height: 26),
-        PillButton(
-          label: 'Finish',
-          icon: Icons.check_rounded,
-          color: AppColors.pulseText,
-          enabled: !_busy,
-          onTap: _onFinish,
+        StaggeredReveal(
+          index: loggedExercises.length,
+          child: PillButton(
+            label: 'Finish',
+            icon: Icons.check_rounded,
+            color: AppColors.pulseText,
+            enabled: !_busy,
+            onTap: _onFinish,
+          ),
         ),
       ],
     );
@@ -703,7 +743,15 @@ class _SetChip extends StatelessWidget {
               ),
             ),
     );
-    return state == _ChipState.current ? _PulsingGlow(color: AppColors.ember, child: dot) : dot;
+    final popped = AnimatedScale(
+      scale: state == _ChipState.current ? 1.1 : 1.0,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutBack,
+      child: dot,
+    );
+    return state == _ChipState.current
+        ? _PulsingGlow(color: AppColors.ember, child: popped)
+        : popped;
   }
 }
 
@@ -754,6 +802,83 @@ class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderSta
       child: widget.child,
     );
   }
+}
+
+/// The rest countdown — a ring sweeping down over the rest window with the
+/// remaining time centered inside, gently breathing. Warm gray/ink, per the
+/// approved "rest" identity (Ember stays reserved for the current set, Pulse
+/// for done).
+class _RestRing extends StatelessWidget {
+  const _RestRing({required this.remaining, required this.total});
+
+  final int remaining;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total <= 0 ? 0.0 : (remaining / total).clamp(0.0, 1.0);
+    return _BreathingScale(
+      child: SizedBox(
+        width: 216,
+        height: 216,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: progress),
+              duration: const Duration(milliseconds: 950),
+              curve: Curves.linear,
+              builder: (context, value, _) => CustomPaint(
+                size: const Size(216, 216),
+                painter: _RestRingPainter(progress: value),
+              ),
+            ),
+            Text(
+              restLabel(remaining),
+              style: AppText.greeting.copyWith(fontSize: 52, color: AppColors.ink),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RestRingPainter extends CustomPainter {
+  const _RestRingPainter({required this.progress});
+
+  /// 1.0 = the full rest window remains, 0.0 = rest is over.
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 10;
+    final track = Paint()
+      ..color = AppColors.hairline2
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, track);
+
+    final clamped = progress.clamp(0.0, 1.0);
+    if (clamped <= 0) return;
+    final sweep = Paint()
+      ..color = AppColors.ink2
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * clamped,
+      false,
+      sweep,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RestRingPainter oldDelegate) => oldDelegate.progress != progress;
 }
 
 /// A slow, subtle scale breathe — used behind the rest countdown so the warm
