@@ -197,12 +197,6 @@ class _TodaySection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
             const SizedBox(height: 16),
-            for (final (i, exercise) in exercises.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: StaggeredReveal(index: i, child: _ExerciseCard(exercise: exercise)),
-              ),
-            const SizedBox(height: 4),
             PillButton(
               label: 'Start workout',
               icon: Icons.play_arrow_rounded,
@@ -212,6 +206,12 @@ class _TodaySection extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => LiveSessionPage(day: day, plan: plan)),
               ),
             ),
+            const SizedBox(height: 16),
+            for (final (i, exercise) in exercises.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: StaggeredReveal(index: i, child: _ExerciseCard(exercise: exercise)),
+              ),
           ],
         ),
       ),
