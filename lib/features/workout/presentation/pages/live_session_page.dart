@@ -12,6 +12,7 @@ import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
 import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
+import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/rest_policy.dart';
 import '../../domain/session_exercise.dart';
@@ -89,6 +90,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   StreamSubscription<List<LiveSession>>? _pastSessionsSub;
   List<LiveSession> _pastSessions = const [];
 
+  /// The very first real history snapshot arrives asynchronously (even the
+  /// in-memory repo's stream yields nothing synchronously), so the initial
+  /// [_prefillInputs] call in [initState] runs before [_pastSessions] is
+  /// populated — the goal it seeds from can't yet see prior performance.
+  /// Re-running it once, the moment real history lands, keeps the prefilled
+  /// reps/weight in sync with what the Goal block ends up showing.
+  bool _prefillRefreshedFromHistory = false;
+
   /// Guards [_onFinish]/[_onLeave]/[_onDiscard] against re-entrancy — all are
   /// async and otherwise callable again (double-tap, or Finish racing the
   /// close button) before the first call's writes/pop land.
@@ -130,6 +139,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       setState(() {
         _pastSessions = sessions.where((s) => s.id != _session.id).toList(growable: false);
       });
+      if (!_prefillRefreshedFromHistory) {
+        _prefillRefreshedFromHistory = true;
+        _prefillInputs();
+      }
     });
     unawaited(_sessionsRepo.saveSession(_session));
   }
@@ -158,12 +171,26 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
 
   // ---- Input prefill -------------------------------------------------------
 
+  /// Seeds the reps/weight inputs from the computed [ProgressionGoal] — the
+  /// plan's own prescription when there's no history for this exact set, or
+  /// the double-progression suggestion once there is. "AMRAP" (to-failure,
+  /// no history) has no number to seed, so reps is left blank for the user.
   void _prefillInputs() {
+    final exercise = _session.currentExercise;
     final set = _session.currentSet;
-    _reps.text = (set != null && set.target.kind == RepTargetKind.fixed)
-        ? '${set.target.min}'
-        : '';
-    _weight.text = (set?.targetWeightKg != null) ? _trimWeight(set!.targetWeightKg!) : '';
+    if (exercise == null || set == null) {
+      _reps.text = '';
+      _weight.text = '';
+      return;
+    }
+    final goal = computeGoal(
+      target: set.target,
+      targetWeightKg: set.targetWeightKg,
+      previous: _previousSetFor(exercise, set),
+      muscleGroup: exercise.muscleGroup,
+    );
+    _reps.text = goal.repsLabel == 'AMRAP' ? '' : goal.repsLabel;
+    _weight.text = goal.weightKg != null ? _trimWeight(goal.weightKg!) : '';
   }
 
   // ---- Previous performance --------------------------------------------------
@@ -435,7 +462,13 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
         ? 'To failure'
         : '${repTargetLabel(target)} reps';
     final previousSet = _previousSetFor(exercise, set);
-    final previousLabel = _formatPrevious(previousSet);
+    final lastTimeLabel = _formatLastTime(previousSet);
+    final goal = computeGoal(
+      target: target,
+      targetWeightKg: set.targetWeightKg,
+      previous: previousSet,
+      muscleGroup: exercise.muscleGroup,
+    );
     final setIndex = exercise.sets.indexOf(set);
 
     return ListView(
@@ -463,10 +496,6 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
                 const SizedBox(height: 2),
                 Text(exercise.muscleGroup!, style: AppText.meta.copyWith(color: AppColors.ink3)),
               ],
-              if (previousLabel != null) ...[
-                const SizedBox(height: 10),
-                Text(previousLabel, style: AppText.meta.copyWith(color: AppColors.ink3)),
-              ],
             ],
           ),
         ),
@@ -475,9 +504,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
           index: 1,
           child: _SetChipRow(exercise: exercise, currentSetId: set.id),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         StaggeredReveal(
           index: 2,
+          child: _GoalBlock(lastTimeLabel: lastTimeLabel, goal: goal),
+        ),
+        const SizedBox(height: 18),
+        StaggeredReveal(
+          index: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -499,7 +533,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
         ),
         const SizedBox(height: 26),
         StaggeredReveal(
-          index: 3,
+          index: 4,
           child: PillButton(
             label: 'Done',
             icon: Icons.check_rounded,
@@ -638,16 +672,14 @@ String _formatElapsed(Duration d) {
   return '$minutes:$ss';
 }
 
-/// "Previous 60kg × 8" — omits either half when unset; null when there's
-/// nothing to show.
-String? _formatPrevious(LoggedSet? previous) {
-  if (previous == null) return null;
+/// "60kg × 8" — omits either half when unset; "First time" when there's no
+/// previous performance to show at all (never trained, or never logged).
+String _formatLastTime(LoggedSet? previous) {
   final parts = <String>[
-    if (previous.actualWeightKg != null) '${_trimWeight(previous.actualWeightKg!)}kg',
-    if (previous.actualReps != null) '× ${previous.actualReps}',
+    if (previous?.actualWeightKg != null) '${_trimWeight(previous!.actualWeightKg!)}kg',
+    if (previous?.actualReps != null) '× ${previous!.actualReps}',
   ];
-  if (parts.isEmpty) return null;
-  return 'Previous ${parts.join(' ')}';
+  return parts.isEmpty ? 'First time' : parts.join(' ');
 }
 
 // ---- Small building blocks ----------------------------------------------
@@ -715,6 +747,61 @@ class _ElapsedLabel extends StatelessWidget {
           Text(
             _formatElapsed(elapsed),
             key: const Key('elapsed-timer'),
+            style: AppText.meta.copyWith(color: AppColors.ink3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The Last-time + Goal block — the point of the running phase per the
+/// "genuinely smarter" pass: Goal is the visually strongest data on screen
+/// (largest, boldest, Pulse-toned), Last time a quieter supporting line
+/// underneath. No motion here beyond the shared entrance stagger; prominence
+/// comes from the info hierarchy, not effects.
+class _GoalBlock extends StatelessWidget {
+  const _GoalBlock({required this.lastTimeLabel, required this.goal});
+
+  final String lastTimeLabel;
+  final ProgressionGoal goal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(color: AppColors.pulseWash, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flag_rounded, size: 14, color: AppColors.pulseText),
+              const SizedBox(width: 6),
+              Text(
+                'GOAL',
+                style: AppText.meta.copyWith(
+                  color: AppColors.pulseText,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            goal.label,
+            key: const Key('goal-label'),
+            style: AppText.cardTitle.copyWith(
+              fontSize: 26,
+              color: AppColors.pulseText,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Last time: $lastTimeLabel',
+            key: const Key('last-time-label'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
         ],

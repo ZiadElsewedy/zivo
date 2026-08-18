@@ -244,10 +244,19 @@ void main() {
       await tester.tap(find.text('go'));
       await _settle(tester);
 
-      // Set 1 of the first exercise, previous performance shown inline.
+      // Set 1 of the first exercise, last time + computed goal both shown.
+      // Previous: 55kg x 5, hit the fixed target's top (5>=5) → +2.5kg
+      // compound (Chest), reps reset to the same fixed count.
       expect(find.text('SET 1 OF 2'), findsOneWidget);
       expect(find.text('Bench'), findsOneWidget);
-      expect(find.text('Previous 55kg × 5'), findsOneWidget);
+      expect(find.text('Last time: 55kg × 5'), findsOneWidget);
+      expect(find.text('57.5kg × 5'), findsOneWidget); // the Goal label
+
+      // Reps/weight are prefilled from the goal, not the bare plan target.
+      final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
+      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(repsField.controller!.text, '5');
+      expect(weightField.controller!.text, '57.5');
 
       // Autosaved as an active session as soon as it starts.
       expect(sessions.current.any((s) => s.status == SessionStatus.active), isTrue);
@@ -285,7 +294,8 @@ void main() {
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       expect(find.text('SET 2 OF 2'), findsOneWidget);
-      expect(find.text('Previous 57.5kg × 5'), findsOneWidget);
+      expect(find.text('Last time: 57.5kg × 5'), findsOneWidget);
+      expect(find.text('60kg × 5'), findsOneWidget); // goal: 57.5 + 2.5
 
       // Complete the final set → completed summary.
       await tester.tap(find.text('Done'));
@@ -628,6 +638,34 @@ void main() {
     // Reflects time since the ORIGINAL start, not since this screen opened.
     expect(elapsedText(tester), '1:30');
   });
+
+  testWidgets(
+    'no history for this exact set → "First time" and the goal is the plan '
+    'prescription, not a computed one',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository(); // no prior session saved
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      expect(find.text('Last time: First time'), findsOneWidget);
+      // Bench's plan sets carry no targetWeightKg, fixed(5) reps → the
+      // prescription-only goal is reps with no weight to suggest.
+      expect(find.text('× 5'), findsOneWidget);
+    },
+  );
 
   testWidgets('an empty day settles straight into the completed view', (tester) async {
     final workouts = _RecordingWorkoutRepository();
