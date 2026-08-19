@@ -30,7 +30,7 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 1 | Collapsible/expandable day tiles in Edit Workout Plan | ✅ done |
 | 2 | Progressive-overload **Analysis page** (current single-plan data) | ✅ done |
 | 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
-| 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ⬜ not started |
+| 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
 | 5 | **Retrofit** analysis + history to be split-scoped | ⬜ not started |
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
 | 7 | End-to-end verify + handoff doc refresh | ⬜ not started |
@@ -107,6 +107,30 @@ future refactor can't silently break it.
 **Deliberately out of this phase:** split management UX (create/switch/edit/
 delete splits — Phase 4) and on-device simulator verification of the splits
 plumbing (nothing here is UI-visible yet; the next UI-facing phase is 4).
+
+**Phase 4 notes:** a new `SplitManagementPage` (reached from the Workout page
+AppBar, `Icons.layers_rounded`, alongside Analysis/History) lists every saved
+split with an "Active" badge, and a per-tile bottom-sheet action menu — "Set as
+active", "Edit", "Duplicate", "Delete" — matching this feature's existing
+sheet-driven interaction pattern (day/exercise editing) rather than
+introducing a `PopupMenuButton`. Create/Edit reuse `WorkoutPlanEditPage`
+unchanged, via a new `asSplit` flag that routes save/delete through
+`saveSplit`/`deleteSplit` instead of `savePlan`/`deletePlan` — the
+back-compat pair always activates the saved plan, which split management must
+never do as a side effect of editing a split that isn't the active one.
+Duplicate mints a fresh plan id/createdAt but reuses the same day/exercise
+ids as the original — safe, since every history/analysis read filters by
+`planId` first, so two splits sharing an `exerciseId` never cross-contaminate
+each other's history. Delete removes the split record only; a split's own
+sessions are never touched (kept, just no longer reachable through the
+editor) — matches §3.1's "history is retained or archived, never silently
+destroyed." Switching (`setActiveSplit`) only moves the active pointer; a
+dedicated test seeds two splits with their own completed sessions, switches
+A→B→A, and asserts both sessions are byte-for-byte untouched throughout.
+Committed (`feat(workout): split management (create/switch/edit/delete)`).
+**Still open:** on-device simulator verification (of Phase 3 AND 4 together,
+since 4 is the first UI surface for the splits plumbing); Phase 5 will
+re-scope the Analysis page + history to the active split.
 
 ---
 
