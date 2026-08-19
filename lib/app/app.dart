@@ -1,9 +1,24 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/env/env_banner.dart';
 import '../core/firebase/uid_source.dart';
+import '../core/media/data/device_gallery_target.dart';
+import '../core/media/data/firestore_media_preferences_repository.dart';
+import '../core/media/data/firestore_media_registry.dart';
+import '../core/media/data/google_drive_backup_client.dart';
+import '../core/media/data/google_drive_target.dart';
+import '../core/media/data/in_memory_media_preferences_repository.dart';
+import '../core/media/data/in_memory_media_registry.dart';
+import '../core/media/data/local_media_store.dart';
+import '../core/media/domain/drive_backup_client.dart';
+import '../core/media/domain/media_backup_target.dart';
+import '../core/media/domain/media_registry.dart';
+import '../core/media/domain/media_storage_preferences.dart';
+import '../core/media/domain/media_store.dart';
+import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../features/ai/data/fake_ai_repository.dart';
@@ -75,6 +90,8 @@ class ZivoApp extends StatefulWidget {
     this.university,
     this.diet,
     this.ai,
+    this.media,
+    this.mediaPreferences,
     super.key,
   });
 
@@ -91,6 +108,8 @@ class ZivoApp extends StatefulWidget {
   final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
+  final MediaService? media;
+  final MediaPreferencesRepository? mediaPreferences;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -117,6 +136,52 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
   late final AiRepository _ai = widget.ai ?? _defaultAi();
+
+  // Media is local-first: the byte store is always the on-device documents
+  // directory, independent of the Firestore flag. Only the *metadata* registry
+  // and per-account preferences follow [_useFirestore].
+  late final MediaStore _mediaStore = LocalMediaStore();
+  late final MediaPreferencesRepository _mediaPreferences =
+      widget.mediaPreferences ?? _defaultMediaPreferences();
+  late final MediaService _media = widget.media ?? _defaultMedia();
+
+  MediaPreferencesRepository _defaultMediaPreferences() => _useFirestore
+      ? FirestoreMediaPreferencesRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryMediaPreferencesRepository();
+
+  MediaRegistry _defaultMediaRegistry() => _useFirestore
+      ? FirestoreMediaRegistry(uidSource: UidSource.firebaseAuth())
+      : InMemoryMediaRegistry();
+
+  MediaService _defaultMedia() {
+    final driveClient = _defaultDriveClient();
+    return MediaService(
+      store: _mediaStore,
+      registry: _defaultMediaRegistry(),
+      preferences: _mediaPreferences,
+      driveClient: driveClient,
+      isUnmetered: _isUnmetered,
+      targets: <BackupTargetId, MediaBackupTarget>{
+        BackupTargetId.gallery: DeviceGalleryTarget(store: _mediaStore),
+        if (driveClient != null)
+          BackupTargetId.drive:
+              GoogleDriveTarget(client: driveClient, store: _mediaStore),
+      },
+    );
+  }
+
+  /// True when the active connection is unmetered (wifi/ethernet) — gates the
+  /// "Wi-Fi only" automatic-backup preference.
+  Future<bool> _isUnmetered() async {
+    final results = await Connectivity().checkConnectivity();
+    return results.contains(ConnectivityResult.wifi) ||
+        results.contains(ConnectivityResult.ethernet);
+  }
+
+  /// Real Google Drive backup client when running against the real backend;
+  /// null in offline/dev runs (no OAuth), where Drive backup is simply absent.
+  DriveBackupClient? _defaultDriveClient() =>
+      _useFirestore ? GoogleDriveBackupClient() : null;
 
   TaskRepository _defaultTasks() => _useFirestore
       ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
@@ -178,6 +243,7 @@ class _ZivoAppState extends State<ZivoApp> {
       university: _university,
       diet: _diet,
       ai: _ai,
+      media: _media,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,

@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
+import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -125,7 +124,14 @@ class _MomentCard extends StatelessWidget {
                         ? const Center(
                             child: Icon(Icons.image_outlined, size: 28, color: AppColors.ink3),
                           )
-                        : Image.file(File(moment.imagePath!), fit: BoxFit.cover),
+                        : MediaImage(
+                            service: AppScope.of(context).requireMedia,
+                            ref: moment.imagePath,
+                            fit: BoxFit.cover,
+                            placeholder: const Center(
+                              child: Icon(Icons.image_outlined, size: 28, color: AppColors.ink3),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 10),

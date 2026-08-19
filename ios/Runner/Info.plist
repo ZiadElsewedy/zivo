@@ -42,6 +42,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ZIVO needs access to your photos so you can attach one to a moment.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ZIVO saves photos you capture in the app to your Photos library when you turn on Save to Photos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

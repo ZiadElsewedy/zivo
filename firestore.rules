@@ -110,7 +110,7 @@ service cloud.firestore {
     }
 
     // Moments: each user reads/writes only their own moments. imagePath is a
-    // local device path (Storage/photos are a later milestone), so no file rules here.
+    // media-store reference (relative local path), not a Firebase Storage URL.
     match /users/{userId}/moments/{momentId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
@@ -118,6 +118,22 @@ service cloud.firestore {
         && request.resource.data.takenAt is timestamp
         && request.resource.data.schemaVersion is int;
       allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Media registry: metadata for each app-captured media file (never the
+    // bytes — those live locally / in the user's chosen backup target). Owner
+    // only. Rules do not cascade from /users/{userId}, so this is explicit.
+    match /users/{userId}/media/{mediaId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.relativePath is string
+        && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Per-account settings (media/storage preferences live at settings/media).
+    match /users/{userId}/settings/{settingId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // University: each user reads/writes only their own assignments/exams.

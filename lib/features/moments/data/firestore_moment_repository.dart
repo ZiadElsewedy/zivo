@@ -20,12 +20,12 @@ import '../domain/moment_repository.dart';
 /// written and read back verbatim rather than stamped with
 /// `serverTimestamp()`.
 ///
-/// [Moment.imagePath] is a *local device file path* from image_picker, not
-/// portable image bytes or a URL. It is persisted as-is (a string), but it
-/// will only resolve on the device that captured it — real cross-device
-/// photo persistence (uploading to Firebase Storage and storing a
-/// `storageRef`) is a later milestone. No file bytes are read or uploaded
-/// here.
+/// [Moment.imagePath] is a *media-store reference* — a relative path owned by
+/// the `core/media` [MediaStore], not portable image bytes or a Firebase
+/// Storage URL. The capture flow imports the picked file into durable local
+/// storage via `MediaService`; this repository just persists the returned
+/// reference string. Resolving it back to a file (and any cloud backup) is the
+/// media module's job, not this one's.
 class FirestoreMomentRepository implements MomentRepository {
   FirestoreMomentRepository({
     FirebaseFirestore? firestore,
