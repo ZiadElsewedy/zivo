@@ -93,8 +93,9 @@ List<BoxShadow> _cardGlow(Color color) => [
 ];
 
 /// The Lottie loading mark renders in a dark ink tone of its own — nearly
-/// invisible directly on [SessionColors.ground] — so it gets a touch of a
-/// lighter (but still dark) backdrop for contrast, not a light island.
+/// invisible directly on [SessionColors.ground] — so it's recolored to the
+/// dark palette's muted ink via a color filter, then given a touch of a
+/// lighter (but still dark) backdrop for extra contrast.
 class _PlanLoadingState extends StatelessWidget {
   const _PlanLoadingState();
 
@@ -106,7 +107,10 @@ class _PlanLoadingState extends StatelessWidget {
         height: 140,
         decoration: const BoxDecoration(color: SessionColors.surfaceRaised, shape: BoxShape.circle),
         padding: const EdgeInsets.all(10),
-        child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
+        child: ColorFiltered(
+          colorFilter: const ColorFilter.mode(SessionColors.ink2, BlendMode.srcIn),
+          child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
+        ),
       ),
     );
   }
