@@ -40,6 +40,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>ZIVO uses the camera so you can take a photo for a moment.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ZIVO needs access to your photos so you can attach one to a moment.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

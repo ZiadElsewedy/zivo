@@ -7,8 +7,22 @@ import 'package:zivo/core/media/data/local_media_store.dart';
 import 'package:zivo/core/media/domain/media_backup_target.dart';
 import 'package:zivo/core/media/domain/media_kind.dart';
 import 'package:zivo/core/media/domain/media_object.dart';
+import 'package:zivo/core/media/domain/media_registry.dart';
 import 'package:zivo/core/media/domain/media_storage_preferences.dart';
 import 'package:zivo/core/media/media_service.dart';
+
+/// A registry whose writes always fail — models Firestore rules denying the
+/// media path, to prove capture degrades gracefully.
+class _ThrowingRegistry implements MediaRegistry {
+  @override
+  Future<void> put(MediaObject object) async => throw StateError('denied');
+  @override
+  Future<MediaObject?> get(String id) async => null;
+  @override
+  Future<List<MediaObject>> pendingBackups() async => const [];
+  @override
+  Future<void> remove(String id) async {}
+}
 
 /// Records every backup call and returns a scripted result.
 class _FakeTarget implements MediaBackupTarget {
@@ -93,6 +107,25 @@ void main() {
 
       expect(gallery.backedUp, ['m1']);
       expect((await registry.get('m1'))!.gallery, BackupState.done);
+    });
+
+    test('still stores locally and returns the ref when the registry throws '
+        '(e.g. Firestore rules deny) — the moment/photo is never lost', () async {
+      final service = MediaService(
+        store: storeImpl,
+        registry: _ThrowingRegistry(),
+        preferences: prefs,
+      );
+
+      final ref = await service.capture(
+        sourcePath: src('m.jpg'),
+        kind: MediaKind.moment,
+        id: 'm1',
+        ownerUid: 'u1',
+      );
+
+      expect(ref, 'media/moments/m1.jpg');
+      expect((await storeImpl.resolve(ref))!.existsSync(), isTrue);
     });
 
     test('records a gallery failure without throwing', () async {

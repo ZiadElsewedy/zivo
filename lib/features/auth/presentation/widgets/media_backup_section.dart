@@ -4,6 +4,7 @@ import '../../../../core/media/domain/media_storage_preferences.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/google_drive_mark.dart';
 import 'settings_row.dart';
 
 /// The "Media & Backup" Settings section — where each account controls what
@@ -115,6 +116,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
       return [
         SettingsRow(
           icon: Icons.cloud_outlined,
+          iconWidget: const GoogleDriveMark(),
           title: 'Google Drive backup',
           value: _busy ? 'Connecting…' : 'Connect',
           last: true,
@@ -126,6 +128,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
     return [
       SettingsRow(
         icon: Icons.cloud_done_outlined,
+        iconWidget: const GoogleDriveMark(),
         title: 'Google Drive',
         value: prefs.driveAccountEmail ?? 'Connected',
       ),

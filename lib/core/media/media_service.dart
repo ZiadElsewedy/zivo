@@ -64,7 +64,20 @@ class MediaService {
       id: id,
     );
 
-    final prefs = await preferences.read();
+    // The durable local copy above is the source of truth and has succeeded.
+    // Everything below (reading preferences, saving to Photos, registering
+    // metadata for backup) is best-effort: a failure there — e.g. Firestore
+    // rules not yet allowing the media/settings paths, or being offline — must
+    // never lose the photo or block the owning entity (a Moment/avatar) from
+    // saving. So each step is guarded and the local reference is always
+    // returned.
+    MediaStoragePreferences prefs;
+    try {
+      prefs = await preferences.read();
+    } catch (_) {
+      prefs = MediaStoragePreferences.defaults;
+    }
+
     var object = MediaObject(
       id: id,
       ownerUid: ownerUid,
@@ -80,7 +93,12 @@ class MediaService {
       object = await _run(BackupTargetId.gallery, object);
     }
 
-    await registry.put(object);
+    try {
+      await registry.put(object);
+    } catch (_) {
+      // Metadata is best-effort; the local file still exists and is referenced
+      // by the entity. Backup tracking simply catches up on a later capture.
+    }
     return stored.relativePath;
   }
 

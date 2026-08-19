@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -60,13 +61,36 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   }
 
   Future<void> _pickPhoto() async {
+    // Camera-first: a moment is usually something happening *now*, so "Take
+    // Photo" is the primary action and opens the camera in one tap; the library
+    // stays one tap away for existing shots.
+    final source = await showCupertinoModalPopup<ImageSource>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetContext, ImageSource.camera),
+            child: const Text('Take Photo'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            child: const Text('Choose from Library'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
     final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 1600,
       imageQuality: 85,
     );
     // Hold the picker's temp path for preview; the durable copy is made on save.
-    if (picked != null) setState(() => _pickedTempPath = picked.path);
+    if (picked != null && mounted) setState(() => _pickedTempPath = picked.path);
   }
 
   Future<void> _save() async {
