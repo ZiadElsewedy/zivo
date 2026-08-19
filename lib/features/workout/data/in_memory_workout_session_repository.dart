@@ -5,7 +5,15 @@ import '../domain/session_status.dart';
 import '../domain/workout_session_repository.dart';
 
 /// Demo store for live sessions, newest-started-first, broadcasting changes.
+/// [seed] pre-populates it at construction (e.g. dev-only sample sessions so
+/// the Analysis page has real data to render) — production callers just omit it.
 class InMemoryWorkoutSessionRepository implements WorkoutSessionRepository {
+  InMemoryWorkoutSessionRepository({List<LiveSession> seed = const []}) {
+    _items
+      ..addAll(seed)
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+  }
+
   final List<LiveSession> _items = [];
   final StreamController<List<LiveSession>> _controller =
       StreamController<List<LiveSession>>.broadcast();
