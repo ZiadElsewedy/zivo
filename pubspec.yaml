@@ -96,8 +96,12 @@ flutter:
 
   # The branded loading animation, shown wherever a reactive surface is
   # waiting on its first stream value (see LoadingStateView).
+  #
+  # transparent/ is the wordmark's Z knocked out to alpha — the "paper"
+  # (light) files are for ZIVO's dark surfaces, "ink" (dark) for light ones.
   assets:
     - assets/loading.json
+    - assets/transparent/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
