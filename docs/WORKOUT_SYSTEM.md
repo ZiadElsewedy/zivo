@@ -26,8 +26,8 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 
 | Phase | What | State |
 | --- | --- | --- |
-| 0 | This source-of-truth doc + data-model/invariants locked | ⬜ not started |
-| 1 | Collapsible/expandable day tiles in Edit Workout Plan | ⬜ not started |
+| 0 | This source-of-truth doc + data-model/invariants locked | ✅ done |
+| 1 | Collapsible/expandable day tiles in Edit Workout Plan | ✅ done |
 | 2 | Progressive-overload **Analysis page** (current single-plan data) | ⬜ not started |
 | 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ⬜ not started |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ⬜ not started |
@@ -35,8 +35,50 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
 | 7 | End-to-end verify + handoff doc refresh | ⬜ not started |
 
-> **In flight (separate, pre-milestone):** the Home Training-card sync +
-> always-on card animation. This milestone starts after that slice commits.
+**Phase 1 notes:** `_DayCard` (`workout_plan_edit_page.dart`) is now a
+collapsible tile — collapsed shows the header + exercise count only;
+tapping it springs open (critically damped, `AppSprings.standard`,
+interruptible) to reveal exercises/notes/"Add exercise", with a rotating
+chevron. Days start collapsed except one just added in this session (auto-
+expands — you're clearly about to fill it in). Multiple days can be open at
+once (not a forced accordion — useful for cross-referencing two days while
+editing). Expand state is keyed per day id, so it survives unrelated edits
+elsewhere on the page rather than resetting. Reduced motion snaps instantly
+(no spring). No existing behavior changed — edit/remove/notes/Default-rest
+bulk row/add-day/add-exercise all still work, including while expanded;
+only the exercises' *visibility* is now gated on expand state.
+
+**Phase 1 addendum — long-press drag-to-reorder (added after the owner felt
+the collapse/expand live, wanted reorder too):** both the day list and each
+day's exercise list are now `ReorderableListView.builder`s
+(`buildDefaultDragHandles: false`, `onReorderItem` — not the deprecated
+`onReorder`), with each item wrapped in `ReorderableDelayedDragStartListener`
+so a long-press starts the drag while a plain tap still reaches the header's
+expand toggle / a row's edit tap underneath — Flutter's own primitive for
+exactly that coexistence, not hand-rolled gesture-arena code. A custom
+`_liftProxyDecorator` replaces the default drag proxy: scale ~1.03,
+elevation/shadow, slight dim, matching each item's own corner radius;
+`onReorderStart`/`onReorderEnd` fire `selectionClick`/`lightImpact` haptics.
+Reduced motion drops the lift flourish (the reorder stays fully functional).
+Auto-scroll and 1:1 tracking/reflow come from `ReorderableListView` itself —
+deliberately not reimplemented from scratch.
+- **Known constraint, flagged rather than hidden:** the exercise list nested
+  inside a day card is `shrinkWrap: true` + `NeverScrollableScrollPhysics`
+  (it has no scroll extent of its own), and doesn't inherit real auto-scroll
+  from the page's outer scrollable — dragging an exercise past the day
+  card's own visible bounds can fail to complete the reorder. Low real risk
+  for a typical handful-of-exercises day; would need addressing if a day
+  ever has enough exercises to make that drag distance common.
+- **Rotation-cursor semantics, decided:** reordering days reassigns each
+  day's `order`, and `WorkoutPlan.cycleCursor`/`nextDay` — read by BOTH Home
+  and the Workout page — is an `order`-indexed pointer. So the cursor is now
+  tracked by the DAY'S IDENTITY it pointed at when editing opened (not a raw
+  index), and resolved back to that day's new index on save — reordering
+  days can never silently change which workout is "next." A day that gets
+  removed falls back to index 0.
+- The manual `if (newIndex > oldIndex) newIndex -= 1` adjustment Flutter's
+  own reorder examples use isn't needed — `onReorderItem` already delivers a
+  final, ready-to-insert index.
 
 ---
 
