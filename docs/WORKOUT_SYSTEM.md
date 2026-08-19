@@ -29,7 +29,7 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 0 | This source-of-truth doc + data-model/invariants locked | ✅ done |
 | 1 | Collapsible/expandable day tiles in Edit Workout Plan | ✅ done |
 | 2 | Progressive-overload **Analysis page** (current single-plan data) | ✅ done |
-| 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | 🔄 in progress |
+| 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ⬜ not started |
 | 5 | **Retrofit** analysis + history to be split-scoped | ⬜ not started |
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
@@ -80,19 +80,33 @@ deliberately not reimplemented from scratch.
   own reorder examples use isn't needed — `onReorderItem` already delivers a
   final, ready-to-insert index.
 
-**Phase 2 notes (done, uncommitted):** the progressive-overload Analysis page
-is fully implemented, tested, and green — it lives in the working tree
-(`workout_analysis_page.dart`, `day_progress_analysis.dart` + its test,
-`trend_chart.dart`, `verdict_style.dart`, `dev_analysis_seed.dart`,
-`workout_analysis_page_test.dart`) and the full suite passes. Not yet committed
-(the working tree carries Phase 2 + the in-flight Phase 3 foundation together).
+**Phase 2 notes:** the progressive-overload Analysis page — day picker,
+per-exercise last-vs-previous deltas/verdict (reusing `compareToLastTime`/
+`lastPerformanceFor`, not reinvented), a dependency-free `CustomPainter` trend
+chart tinted by verdict, and a shared `verdictStyle()` so the live session's
+set badge and the analysis badges read as one system. Committed
+(`feat(workout): progressive-overload analysis page`).
 
-**Phase 3 notes (in progress):** the splits data foundation is landing now, not
-finished. The `WorkoutPlanRepository` interface is extended additively and the
-in-memory impl + its splits test are green; the **real Firestore multi-split
-impl (workoutMeta/active pointer, migration-on-read) is still being written**,
-and nothing here is committed or verified on-device yet. Treat as WIP until the
-final integration audit passes.
+**Phase 3 notes:** `WorkoutPlanRepository` is now a multi-split repo + active
+pointer, extended additively (`activePlan`/`watchActivePlan`/`savePlan`/
+`deletePlan` still work unchanged) — in-memory (seeded active from the owner's
+real split) and Firestore (`workoutMeta/active` pointer doc, migration-on-read
+falling back to the first `status==active` plan when no pointer exists yet, so
+existing users lose nothing) both implemented and covered (in-memory 19 cases +
+Firestore 10, via `fake_cloud_firestore`). Committed
+(`feat(workout): first-class splits data foundation (multi-split repo +
+migration)`).
+Two invariants from §3.2 landed alongside: `LiveSession.splitId` is a
+documented getter alias for `planId` (the doc's own `splitId (=planId)`
+notation — no new stored field, no serialization change), and the
+exercise-id-preservation behavior (edit-in-place keeps `PlannedExercise.id`;
+add, or a name-identical remove+re-add, mints a fresh one) turned out to
+already be correct in `workout_plan_edit_page.dart` — pinned with a
+through-the-UI regression test (`plan_edit_exercise_identity_test.dart`) so a
+future refactor can't silently break it.
+**Deliberately out of this phase:** split management UX (create/switch/edit/
+delete splits — Phase 4) and on-device simulator verification of the splits
+plumbing (nothing here is UI-visible yet; the next UI-facing phase is 4).
 
 ---
 
