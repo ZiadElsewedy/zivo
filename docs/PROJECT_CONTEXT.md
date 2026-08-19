@@ -6,6 +6,11 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
+> **Last updated:** 2026-08-19 — active branch `claude/media-storage-architecture-95c0a4`: media
+> storage rework **Phase 1 (local-first pipeline) done & committed** (`cce035a`), Phase 2 (Google
+> Drive) pending the owner's GCP setup. See the **Active** entry in Current Handoff. Prior AI-streaming
+> context below was last verified 2026-08-17.
+>
 > **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
 > `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
 > spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
@@ -18,7 +23,50 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/ai-streaming-ux`.
+> without redoing completed work. Active development is on `claude/media-storage-architecture-95c0a4`
+> (media storage rework); the AI-streaming handoff below is the prior, still-valid `main`/
+> `feature/ai-streaming-ux` context.
+
+### Active: Media storage architecture (2026-08-19, `claude/media-storage-architecture-95c0a4`)
+
+- **Goal:** make media (Moments photos, profile pictures, future images) storage-agnostic and
+  per-account configurable — WhatsApp-style local-first storage with optional cloud backup —
+  instead of being tied to Firebase Storage. Key finding: **the app never actually used Firebase
+  Storage.** Moments stored the ephemeral `image_picker` cache path directly in Firestore; profile
+  avatars copied into `Documents/avatars/{uid}.ext` but stored an absolute path (breaks on iOS
+  reinstall). No bytes ever went to a bucket.
+- **Owner decisions (2026-08-19):** build local + Google Drive together on one branch; default =
+  durable local copy always + auto Drive backup every 3 days + a manual "Back up now"; **`drive.file`**
+  scope (app-created files only — no Google restricted-scope review); Save-to-Photos is opt-in.
+- **Status: Phase 1 (local-first pipeline) DONE & committed (`cce035a`).** New `lib/core/media/`
+  module: `MediaStore`/`LocalMediaStore` (durable copies under `Documents/media/{kind}/{id}.ext`,
+  addressed by **relative** refs so files survive iOS container-path changes), `MediaObject` +
+  `MediaRegistry` (Firestore/in-memory metadata + per-target backup state at `users/{uid}/media`;
+  bytes never touch Firestore), `MediaStoragePreferences` + repos (per-account at
+  `users/{uid}/settings/media`), `MediaBackupTarget` interface + `DeviceGalleryTarget` (via `gal`),
+  `MediaService` orchestrator (capture fan-out, `backupNow()`, 3-day `runAutoBackupIfDue()` — all
+  unit-tested against a fake Drive target), and a `MediaImage` display widget. Moments + profile
+  avatars migrated onto it; a "Media & Backup" Settings section added (Save to Photos works; Drive
+  row is a labelled placeholder). DI wired in `AppScope`/`app.dart`; Firestore rules added for
+  `media` + `settings`; iOS `NSPhotoLibraryAddUsageDescription` + Android legacy storage permission
+  added. Added `gal` + `path` deps. **`flutter analyze` clean; all 461 tests pass (19 new).**
+- **Phase 2 (Google Drive) — NOT started, blocked on owner's GCP setup** for project `zivo-63f15`:
+  (1) enable the Google Drive API, (2) add scope `https://www.googleapis.com/auth/drive.file` to the
+  OAuth consent screen, (3) add `ziadelsewedy1@gmail.com` as a test user. iOS URL scheme + Android
+  SHA-1 already exist from Firebase auth. Then: implement `GoogleDriveTarget` keyed
+  `BackupTargetId.drive` (`googleapis` + `extension_google_sign_in_as_googleapis_auth`), a
+  "Connect Drive" flow + cadence/wifi controls in the Media & Backup section, and call
+  `MediaService.runAutoBackupIfDue()` on app open. iOS can't guarantee true timed background — the
+  3-day cadence realistically fires on the next app open after 3 days.
+- **Exact next action:** wait for the owner's 3 GCP steps, then build Phase 2 (Drive target + connect
+  flow + cadence UI) on this branch. Nothing is merged to `main`; follows the milestone-branch /
+  never-auto-merge workflow.
+- **Manual owner action:** the 3 Google Cloud steps above; decide when to merge this branch.
+- **Do not redo:** don't re-derive the `lib/core/media/` module or the Moments/Profile migration —
+  Phase 1 is built, committed, and green. Don't reintroduce raw picker paths or absolute stored
+  paths; media flows through `MediaService`.
+
+### Prior handoff: AI streaming UX (2026-08-17, `feature/ai-streaming-ux`)
 
 - **Status (as of 2026-08-17):** **Phase 3.5 (AI streaming UX + caching cost win) is deployed to
   `zivo-63f15`.** `aiChat`, `aiConfirmAction`, `aiCancelAction` were redeployed 2026-08-17
