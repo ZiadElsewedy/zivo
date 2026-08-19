@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^8.2.1
   image_picker: ^1.2.3
+  path_provider: ^2.1.5
+  package_info_plus: ^8.3.1
 
   # Firebase Core, Auth, Functions, and now Firestore (user profiles). The
   # rest of the repository layer is still in-memory.
@@ -96,8 +98,12 @@ flutter:
 
   # The branded loading animation, shown wherever a reactive surface is
   # waiting on its first stream value (see LoadingStateView).
+  #
+  # transparent/ is the wordmark's Z knocked out to alpha — the "paper"
+  # (light) files are for ZIVO's dark surfaces, "ink" (dark) for light ones.
   assets:
     - assets/loading.json
+    - assets/transparent/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

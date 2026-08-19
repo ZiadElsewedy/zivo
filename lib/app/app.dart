@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/env/env_banner.dart';
@@ -180,11 +181,15 @@ class _ZivoAppState extends State<ZivoApp> {
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
         // Names the active build configuration in Development/Profile; compiled
         // out of Release so production UX is untouched.
-        builder: (context, child) =>
-            EnvBanner(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: EnvBanner(child: child ?? const SizedBox.shrink()),
+        ),
         home: const AuthGate(),
       ),
     );

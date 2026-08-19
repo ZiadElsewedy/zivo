@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// The ZIVO app theme (light & warm, Brand System v2).
+/// The ZIVO app theme (dark & warm, Brand System v2).
 abstract final class AppTheme {
-  static ThemeData get light {
+  static ThemeData get dark {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.ground,
-      colorScheme: const ColorScheme.light(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.ember,
         surface: AppColors.card,
         onSurface: AppColors.ink,

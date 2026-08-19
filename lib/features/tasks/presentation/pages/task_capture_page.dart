@@ -237,7 +237,7 @@ class _TopBar extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
+                color: AppColors.surfaceRaised,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
@@ -280,17 +280,17 @@ class _Chip extends StatelessWidget {
     final Color border;
     if (selected && tone == _ChipTone.flare) {
       bg = AppColors.flare;
-      fg = Colors.white;
+      fg = AppColors.ground;
       border = AppColors.flare;
     } else if (selected) {
       bg = AppColors.ink;
-      fg = Colors.white;
+      fg = AppColors.ground;
       border = AppColors.ink;
     } else {
       bg = Colors.transparent;
       fg = tone == _ChipTone.flare ? AppColors.flareText : AppColors.ink2;
       border = tone == _ChipTone.flare
-          ? const Color(0x59DE2C56)
+          ? const Color(0x59FF3D6E)
           : AppColors.hairline2;
     }
     return InkWell(

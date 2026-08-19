@@ -132,11 +132,11 @@ class _ModuleTile extends StatelessWidget {
               ..showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.ink,
+                  backgroundColor: AppColors.surfaceRaised,
                   content: Text(
                     '${module.label} — coming next.',
                     style: AppText.button.copyWith(
-                      color: Colors.white,
+                      color: AppColors.ink,
                       fontSize: 14,
                     ),
                   ),

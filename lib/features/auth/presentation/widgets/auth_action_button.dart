@@ -13,7 +13,7 @@ class AuthActionButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.background = AppColors.ink,
-    this.foreground = Colors.white,
+    this.foreground = AppColors.ground,
     this.border,
     this.loading = false,
     this.enabled = true,

@@ -12,7 +12,7 @@ class CaptureTopBar extends StatelessWidget {
     this.trailing,
     this.titleColor = AppColors.ink2,
     this.iconColor = AppColors.ink2,
-    this.chipColor = const Color(0xFFEFEBE3),
+    this.chipColor = AppColors.surfaceRaised,
     super.key,
   });
 
@@ -22,8 +22,7 @@ class CaptureTopBar extends StatelessWidget {
   /// Optional trailing action (e.g. delete) replacing the balancing spacer.
   final Widget? trailing;
 
-  /// Overridable for dark/immersive hosts (e.g. the live session screens) —
-  /// defaults keep every other caller's existing light look untouched.
+  /// Overridable per host; defaults are the app-wide dark theme.
   final Color titleColor;
   final Color iconColor;
   final Color chipColor;
@@ -68,7 +67,7 @@ class CaptureIconButton extends StatelessWidget {
     required this.onTap,
     required this.semanticLabel,
     this.iconColor = AppColors.ink2,
-    this.chipColor = const Color(0xFFEFEBE3),
+    this.chipColor = AppColors.surfaceRaised,
     super.key,
   });
 
@@ -194,16 +193,16 @@ class SelectChip extends StatelessWidget {
     final Color border;
     if (selected && tone == ChipTone.flare) {
       bg = AppColors.flare;
-      fg = Colors.white;
+      fg = AppColors.ground;
       border = AppColors.flare;
     } else if (selected) {
       bg = AppColors.ink;
-      fg = Colors.white;
+      fg = AppColors.ground;
       border = AppColors.ink;
     } else {
       bg = Colors.transparent;
       fg = tone == ChipTone.flare ? AppColors.flareText : AppColors.ink2;
-      border = tone == ChipTone.flare ? const Color(0x59DE2C56) : AppColors.hairline2;
+      border = tone == ChipTone.flare ? const Color(0x59FF3D6E) : AppColors.hairline2;
     }
     return InkWell(
       onTap: onTap,

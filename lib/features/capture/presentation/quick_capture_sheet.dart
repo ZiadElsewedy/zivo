@@ -21,7 +21,7 @@ Future<CaptureChoice?> showQuickCaptureSheet(BuildContext context) {
 class _QuickCaptureSheet extends StatelessWidget {
   const _QuickCaptureSheet();
 
-  static const _neutralTile = Color(0xFFF4F1EA);
+  static const _neutralTile = AppColors.surfaceRaised;
 
   @override
   Widget build(BuildContext context) {

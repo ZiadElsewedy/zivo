@@ -6,7 +6,6 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/session_colors.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/planned_exercise.dart';
@@ -49,8 +48,8 @@ class _DayDraft {
 /// within a day (added or edited in place via a sheet that captures a compact
 /// set spec and generates the working sets). Saving persists the whole plan,
 /// reusing its id when editing so it overwrites idempotently, and preserving
-/// the rotation cursor. Dark, matching the session/plan/history screens'
-/// [SessionColors].
+/// the rotation cursor. Dark, matching the session/plan/history screens on
+/// the app-wide [AppColors] theme.
 class WorkoutPlanEditPage extends StatefulWidget {
   const WorkoutPlanEditPage({super.key, this.initialPlan});
 
@@ -232,16 +231,16 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: SessionColors.surface,
-        title: Text('Delete this plan?', style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
+        backgroundColor: AppColors.card,
+        title: Text('Delete this plan?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
         content: Text(
           'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
-          style: AppText.body.copyWith(color: SessionColors.ink2),
+          style: AppText.body.copyWith(color: AppColors.ink2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: SessionColors.ink3)),
+            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -258,7 +257,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SessionColors.ground,
+      backgroundColor: AppColors.ground,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,9 +265,9 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
             CaptureTopBar(
               title: _editing ? 'Edit workout plan' : 'New workout plan',
               onClose: () => Navigator.of(context).maybePop(),
-              titleColor: SessionColors.ink2,
-              iconColor: SessionColors.ink2,
-              chipColor: SessionColors.surfaceRaised,
+              titleColor: AppColors.ink2,
+              iconColor: AppColors.ink2,
+              chipColor: AppColors.surfaceRaised,
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('workout-plan-delete'),
@@ -276,7 +275,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                       onTap: _delete,
                       semanticLabel: 'Delete plan',
                       iconColor: AppColors.flare,
-                      chipColor: SessionColors.surfaceRaised,
+                      chipColor: AppColors.surfaceRaised,
                     )
                   : null,
             ),
@@ -287,12 +286,12 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                 controller: _name,
                 textInputAction: TextInputAction.done,
                 cursorColor: AppColors.pulse,
-                style: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink),
+                style: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
                   hintText: 'Plan name',
-                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink3),
+                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink3),
                 ),
               ),
             ),
@@ -357,9 +356,9 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: SessionColors.ink3),
+          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
           const SizedBox(height: 12),
-          Text('No days yet.', style: AppText.aside.copyWith(color: SessionColors.ink2)),
+          Text('No days yet.', style: AppText.aside.copyWith(color: AppColors.ink2)),
           const SizedBox(height: 14),
           _AddButton(label: 'Add day', onTap: onAdd),
         ],
@@ -385,7 +384,7 @@ class _AddButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: SessionColors.hairline2, width: 1.4),
+            border: Border.all(color: AppColors.hairline2, width: 1.4),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -427,9 +426,9 @@ class _DefaultRestRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: SessionColors.surface,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: SessionColors.hairline2),
+              border: Border.all(color: AppColors.hairline2),
             ),
             child: Row(
               children: [
@@ -440,7 +439,7 @@ class _DefaultRestRow extends StatelessWidget {
                     'Default rest · ${restLabel(seconds)}',
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: SessionColors.ink,
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -449,7 +448,7 @@ class _DefaultRestRow extends StatelessWidget {
                   style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, size: 18, color: SessionColors.ink3),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
               ],
             ),
           ),
@@ -482,7 +481,7 @@ class _DefaultRestSheetState extends State<_DefaultRestSheet> {
         Text(
           'Sets every exercise in this plan to this rest. Editing one exercise '
           'afterward still overrides it individually.',
-          style: AppText.body.copyWith(color: SessionColors.ink2, fontSize: 13.5),
+          style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 13.5),
         ),
         const SizedBox(height: 16),
         _RestPicker(initialSeconds: _seconds, onChanged: (v) => _seconds = v),
@@ -519,9 +518,9 @@ class _DayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SessionColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: SessionColors.hairline2),
+        border: Border.all(color: AppColors.hairline2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,13 +530,13 @@ class _DayCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Day ${day.slot} · ${day.label}',
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: SessionColors.ink),
+                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                 ),
               ),
               PressableScale(
                 child: IconButton(
                   onPressed: onRemoveDay,
-                  icon: const Icon(Icons.close_rounded, size: 18, color: SessionColors.ink3),
+                  icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
                   splashRadius: 20,
                   tooltip: 'Remove day',
                 ),
@@ -547,7 +546,7 @@ class _DayCard extends StatelessWidget {
           if (day.notes != null && day.notes!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(day.notes!, style: AppText.meta.copyWith(color: SessionColors.ink3)),
+              child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
             ),
           for (var ei = 0; ei < day.exercises.length; ei++)
             Padding(
@@ -587,7 +586,7 @@ class _ExerciseRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
             decoration: BoxDecoration(
-              color: SessionColors.surfaceRaised,
+              color: AppColors.surfaceRaised,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -600,7 +599,7 @@ class _ExerciseRow extends StatelessWidget {
                         exercise.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: SessionColors.ink),
+                        style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -615,7 +614,7 @@ class _ExerciseRow extends StatelessWidget {
                 PressableScale(
                   child: IconButton(
                     onPressed: onRemove,
-                    icon: const Icon(Icons.close_rounded, size: 16, color: SessionColors.ink3),
+                    icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.ink3),
                     splashRadius: 18,
                     tooltip: 'Remove exercise',
                   ),
@@ -871,7 +870,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
                 children: [
                   Text(
                     'REP TARGET',
-                    style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
+                    style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -976,12 +975,12 @@ class _RestPickerState extends State<_RestPicker> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('REST', style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6)),
+        Text('REST', style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6)),
         const SizedBox(height: 6),
         Container(
           height: 132,
           decoration: BoxDecoration(
-            color: SessionColors.surfaceRaised,
+            color: AppColors.surfaceRaised,
             borderRadius: BorderRadius.circular(14),
           ),
           child: CupertinoPicker(
@@ -993,7 +992,7 @@ class _RestPickerState extends State<_RestPicker> {
             selectionOverlay: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: SessionColors.hairline2,
+                color: AppColors.hairline2,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -1006,7 +1005,7 @@ class _RestPickerState extends State<_RestPicker> {
                 Center(
                   child: Text(
                     restLabel(s),
-                    style: AppText.rowTitle.copyWith(color: SessionColors.ink),
+                    style: AppText.rowTitle.copyWith(color: AppColors.ink),
                   ),
                 ),
             ],
@@ -1030,7 +1029,7 @@ class _SheetShell extends StatelessWidget {
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
       decoration: const BoxDecoration(
-        color: SessionColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: SingleChildScrollView(
@@ -1050,7 +1049,7 @@ class _SheetShell extends StatelessWidget {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: SessionColors.hairline2,
+                  color: AppColors.hairline2,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1058,7 +1057,7 @@ class _SheetShell extends StatelessWidget {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.only(left: 2, bottom: 12),
-              child: Text(title, style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
+              child: Text(title, style: AppText.cardTitle.copyWith(color: AppColors.ink)),
             ),
             ...children,
           ],
@@ -1093,7 +1092,7 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
+          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -1103,19 +1102,19 @@ class _LabeledField extends StatelessWidget {
           textInputAction: TextInputAction.next,
           onSubmitted: onSubmitted,
           cursorColor: AppColors.pulse,
-          style: AppText.rowTitle.copyWith(color: SessionColors.ink),
+          style: AppText.rowTitle.copyWith(color: AppColors.ink),
           decoration: InputDecoration(
             isCollapsed: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: const UnderlineInputBorder(borderSide: BorderSide(color: SessionColors.hairline2)),
+            border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline2)),
             enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: SessionColors.hairline2),
+              borderSide: BorderSide(color: AppColors.hairline2),
             ),
             focusedBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
             ),
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
+            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
           ),
         ),
       ],
@@ -1137,7 +1136,7 @@ class _NumberField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
+          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -1145,14 +1144,14 @@ class _NumberField extends StatelessWidget {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
           cursorColor: AppColors.pulse,
-          style: AppText.rowTitle.copyWith(color: SessionColors.ink),
+          style: AppText.rowTitle.copyWith(color: AppColors.ink),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
+            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
             contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             filled: true,
-            fillColor: SessionColors.surfaceRaised,
+            fillColor: AppColors.surfaceRaised,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

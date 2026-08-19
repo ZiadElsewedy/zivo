@@ -11,7 +11,6 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/session_colors.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise_history.dart';
@@ -774,7 +773,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         _onLeave();
       },
       child: Scaffold(
-        backgroundColor: SessionColors.ground,
+        backgroundColor: AppColors.ground,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,15 +782,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                 child: CaptureTopBar(
                   title: _dayTitle(widget.day),
                   onClose: _onLeave,
-                  titleColor: SessionColors.ink2,
-                  iconColor: SessionColors.ink2,
-                  chipColor: SessionColors.surfaceRaised,
+                  titleColor: AppColors.ink2,
+                  iconColor: AppColors.ink2,
+                  chipColor: AppColors.surfaceRaised,
                   trailing: CaptureIconButton(
                     icon: Icons.delete_outline_rounded,
                     onTap: _onDiscard,
                     semanticLabel: 'Discard workout',
                     iconColor: AppColors.flare,
-                    chipColor: SessionColors.surfaceRaised,
+                    chipColor: AppColors.surfaceRaised,
                   ),
                 ),
               ),
@@ -893,7 +892,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             children: [
               Text(
                 'Set ${workingIndex + 1} of $workingSetCount',
-                style: AppText.meta.copyWith(color: SessionColors.ink3),
+                style: AppText.meta.copyWith(color: AppColors.ink3),
               ),
               const SizedBox(height: AppSpacing.s),
               _SetChipRow(exercise: exercise, currentSetId: set.id),
@@ -1033,7 +1032,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     children: [
       Text(
         exercise.name,
-        style: AppText.cardTitle.copyWith(fontSize: 30, color: SessionColors.ink),
+        style: AppText.cardTitle.copyWith(fontSize: 30, color: AppColors.ink),
       ),
       if (exercise.muscleGroup != null) ...[
         const SizedBox(height: AppSpacing.s),
@@ -1064,7 +1063,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           Center(
             child: Text(
               'Loosen up before your first set',
-              style: AppText.meta.copyWith(color: SessionColors.ink3),
+              style: AppText.meta.copyWith(color: AppColors.ink3),
             ),
           ),
           const Spacer(),
@@ -1104,7 +1103,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          Center(child: _Eyebrow('Rest', color: SessionColors.ink3)),
+          Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
           // The ring is the centerpiece — split the space between the
           // eyebrow and the bottom controls evenly around it, rather than
           // letting it float high with all the slack dumped below "Next:".
@@ -1119,7 +1118,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           Center(
             child: Text(
               'Next: $nextLabel',
-              style: AppText.rowTitle.copyWith(color: SessionColors.ink2),
+              style: AppText.rowTitle.copyWith(color: AppColors.ink2),
             ),
           ),
           const Spacer(),
@@ -1161,7 +1160,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         const SizedBox(height: 16),
         Text(
           widget.day.label,
-          style: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink),
+          style: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1179,7 +1178,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     ? '${exercise.name} · ${exercise.doneSetCount} sets · '
                           'top ${_trimWeight(exercise.topWeightKg!)}kg'
                     : '${exercise.name} · ${exercise.doneSetCount} sets',
-                style: AppText.body.copyWith(fontSize: 15, color: SessionColors.ink2),
+                style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
               ),
             ),
           ),
@@ -1284,13 +1283,13 @@ class _FrostedTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (reducedMotion(context)) {
-      return ColoredBox(color: SessionColors.ground, child: child);
+      return ColoredBox(color: AppColors.ground, child: child);
     }
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: ColoredBox(
-          color: SessionColors.ground.withValues(alpha: 0.72),
+          color: AppColors.ground.withValues(alpha: 0.72),
           child: child,
         ),
       ),
@@ -1357,7 +1356,7 @@ class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderSta
           builder: (context, _) => LinearProgressIndicator(
             value: _controller.value,
             minHeight: 5,
-            backgroundColor: SessionColors.hairline,
+            backgroundColor: AppColors.hairline,
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.pulse),
           ),
         ),
@@ -1386,26 +1385,26 @@ class _ElapsedLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Row(
         children: [
-          Icon(Icons.timer_outlined, size: 13, color: SessionColors.ink3),
+          Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
           const SizedBox(width: 5),
           Text(
             _formatElapsed(elapsed),
             key: const Key('elapsed-timer'),
-            style: AppText.meta.copyWith(color: SessionColors.ink3),
+            style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
           if (isPaused) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: SessionColors.hairline2,
+                color: AppColors.hairline2,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 'PAUSED',
                 key: const Key('paused-badge'),
                 style: AppText.meta.copyWith(
-                  color: SessionColors.ink2,
+                  color: AppColors.ink2,
                   fontWeight: FontWeight.w700,
                   fontSize: 10,
                   letterSpacing: 0.6,
@@ -1431,13 +1430,13 @@ class _ElapsedLabel extends StatelessWidget {
                       Icon(
                         isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                         size: 16,
-                        color: isPaused ? AppColors.pulse : SessionColors.ink3,
+                        color: isPaused ? AppColors.pulse : AppColors.ink3,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         isPaused ? 'Resume' : 'Pause',
                         style: AppText.meta.copyWith(
-                          color: isPaused ? AppColors.pulse : SessionColors.ink3,
+                          color: isPaused ? AppColors.pulse : AppColors.ink3,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1471,9 +1470,9 @@ class _GoalBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
-        color: SessionColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: SessionColors.hairline2),
+        border: Border.all(color: AppColors.hairline2),
         boxShadow: _cardGlow(AppColors.pulse),
       ),
       child: Column(
@@ -1499,7 +1498,7 @@ class _GoalBlock extends StatelessWidget {
             key: const Key('goal-label'),
             style: AppText.heroNumber.copyWith(
               fontSize: 40,
-              color: SessionColors.ink,
+              color: AppColors.ink,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1507,13 +1506,13 @@ class _GoalBlock extends StatelessWidget {
           Text(
             'Last time: $lastTimeLabel',
             key: const Key('last-time-label'),
-            style: AppText.meta.copyWith(color: SessionColors.ink3),
+            style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
           if (targetText != null) ...[
             const SizedBox(height: 2),
             Text(
               'Target: $targetText',
-              style: AppText.meta.copyWith(color: SessionColors.ink3, fontWeight: FontWeight.w400),
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w400),
             ),
           ],
         ],
@@ -1542,9 +1541,9 @@ class _WarmupBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
-        color: SessionColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: SessionColors.hairline2),
+        border: Border.all(color: AppColors.hairline2),
         boxShadow: _cardGlow(AppColors.ember),
       ),
       child: Column(
@@ -1570,7 +1569,7 @@ class _WarmupBlock extends StatelessWidget {
             key: const Key('warmup-guidance'),
             style: AppText.heroNumber.copyWith(
               fontSize: 32,
-              color: SessionColors.ink,
+              color: AppColors.ink,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1592,13 +1591,13 @@ class _MuscleGroupPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: SessionColors.surfaceRaised,
+        color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: SessionColors.hairline2),
+        border: Border.all(color: AppColors.hairline2),
       ),
       child: Text(
         label,
-        style: AppText.meta.copyWith(color: SessionColors.ink2, fontSize: 12),
+        style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
       ),
     );
   }
@@ -1621,11 +1620,11 @@ class _RestAdjustButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: SessionColors.hairline2, width: 1.4),
+            border: Border.all(color: AppColors.hairline2, width: 1.4),
           ),
           child: Text(
             label,
-            style: AppText.button.copyWith(fontSize: 15, color: SessionColors.ink2),
+            style: AppText.button.copyWith(fontSize: 15, color: AppColors.ink2),
           ),
         ),
       ),
@@ -1654,7 +1653,7 @@ class _ActualField extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
+            style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
           TextField(
@@ -1665,16 +1664,16 @@ class _ActualField extends StatelessWidget {
             style: AppText.rowTitle.copyWith(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: SessionColors.ink,
+              color: AppColors.ink,
             ),
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               isDense: true,
               hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
+              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               filled: true,
-              fillColor: SessionColors.surfaceRaised,
+              fillColor: AppColors.surfaceRaised,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.chip + 4),
                 borderSide: BorderSide.none,
@@ -1777,7 +1776,7 @@ class _WarmupChip extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: done ? SessionColors.surfaceRaised : Colors.transparent,
+        color: done ? AppColors.surfaceRaised : Colors.transparent,
         border: Border.all(color: AppColors.ember, width: 1.4),
       ),
       child: const Icon(Icons.whatshot_rounded, size: 15, color: AppColors.ember),
@@ -1839,7 +1838,7 @@ class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin 
           _ChipState.upcoming => Colors.transparent,
         },
         border: state == _ChipState.upcoming
-            ? Border.all(color: SessionColors.hairline2, width: 1.4)
+            ? Border.all(color: AppColors.hairline2, width: 1.4)
             : null,
       ),
       child: state == _ChipState.done
@@ -1847,7 +1846,7 @@ class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin 
           : Text(
               '${widget.number}',
               style: AppText.meta.copyWith(
-                color: state == _ChipState.current ? Colors.white : SessionColors.ink3,
+                color: state == _ChipState.current ? Colors.white : AppColors.ink3,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2018,8 +2017,8 @@ class _RestTimeLabel extends StatelessWidget {
 
   final ({String whole, String centis}) time;
 
-  static final _wholeStyle = AppText.heroNumber.copyWith(fontSize: 50, color: SessionColors.ink);
-  static final _centisStyle = AppText.heroNumber.copyWith(fontSize: 26, color: SessionColors.ink2);
+  static final _wholeStyle = AppText.heroNumber.copyWith(fontSize: 50, color: AppColors.ink);
+  static final _centisStyle = AppText.heroNumber.copyWith(fontSize: 26, color: AppColors.ink2);
 
   @override
   Widget build(BuildContext context) {
@@ -2110,7 +2109,7 @@ class _RestRingPainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 - 12;
     final track = Paint()
-      ..color = SessionColors.hairline2
+      ..color = AppColors.hairline2
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
@@ -2119,7 +2118,7 @@ class _RestRingPainter extends CustomPainter {
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final sweep = Paint()
-      ..color = SessionColors.ink2.withValues(alpha: 0.82 + 0.18 * glow)
+      ..color = AppColors.ink2.withValues(alpha: 0.82 + 0.18 * glow)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 11 + 1.5 * glow
       ..strokeCap = StrokeCap.round;

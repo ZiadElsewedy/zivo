@@ -5,7 +5,6 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/session_colors.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../workout/domain/live_session.dart';
@@ -211,9 +210,7 @@ class _StartConfirmSheetState extends State<_StartConfirmSheet> with SingleTicke
   }
 }
 
-/// The dark card itself — deliberately on [SessionColors], not the light
-/// [AppColors] the Today page otherwise uses, as a preview of the immersive
-/// session it's about to open into.
+/// The confirm card itself, on the shared [AppColors] dark theme.
 class _StartConfirmCard extends StatelessWidget {
   const _StartConfirmCard({
     required this.dayLabel,
@@ -232,9 +229,9 @@ class _StartConfirmCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
         decoration: BoxDecoration(
-          color: SessionColors.surface,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(AppRadius.card + 4),
-          border: Border.all(color: SessionColors.hairline2),
+          border: Border.all(color: AppColors.hairline2),
           boxShadow: const [
             BoxShadow(color: Color(0x66000000), blurRadius: 40, offset: Offset(0, 20)),
           ],
@@ -245,7 +242,7 @@ class _StartConfirmCard extends StatelessWidget {
           children: [
             Text(
               isResume ? 'Ready to jump back in?' : 'Ready to start $dayLabel?',
-              style: AppText.cardTitle.copyWith(color: SessionColors.ink, fontSize: 21),
+              style: AppText.cardTitle.copyWith(color: AppColors.ink, fontSize: 21),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -253,7 +250,7 @@ class _StartConfirmCard extends StatelessWidget {
               isResume
                   ? '$dayLabel · $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}'
                   : '$exerciseCount exercise${exerciseCount == 1 ? '' : 's'} today.',
-              style: AppText.body.copyWith(color: SessionColors.ink2),
+              style: AppText.body.copyWith(color: AppColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -269,11 +266,11 @@ class _StartConfirmCard extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: SessionColors.hairline2, width: 1.4),
+                          border: Border.all(color: AppColors.hairline2, width: 1.4),
                         ),
                         child: Text(
                           'Cancel',
-                          style: AppText.button.copyWith(color: SessionColors.ink2),
+                          style: AppText.button.copyWith(color: AppColors.ink2),
                         ),
                       ),
                     ),
