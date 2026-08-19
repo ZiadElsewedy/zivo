@@ -37,6 +37,7 @@ dependencies:
   google_fonts: ^8.2.1
   image_picker: ^1.2.3
   path_provider: ^2.1.5
+  package_info_plus: ^8.3.1
 
   # Firebase Core, Auth, Functions, and now Firestore (user profiles). The
   # rest of the repository layer is still in-memory.

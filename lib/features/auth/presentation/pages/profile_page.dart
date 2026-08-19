@@ -15,65 +15,81 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
+import '../widgets/settings_row.dart';
+import 'settings_page.dart';
 
-/// The "You" surface: identity at a glance, an editable account section, and
-/// sign-out. Reads the live [UserProfile] (name, date of birth, photo)
-/// alongside the [AuthUser] auth identity (email + sign-in provider) so
-/// every real piece of data ZIVO holds about the signed-in person has a
-/// home here.
-class ProfilePage extends StatefulWidget {
+/// The "You" surface: identity at a glance, an editable about-me + account
+/// section, and a way into [SettingsPage]. Reads the live [UserProfile]
+/// (name, date of birth, bio, photo) alongside the [AuthUser] auth identity
+/// (email + sign-in provider) so every real piece of data ZIVO holds about
+/// the signed-in person has a home here.
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  bool _signingOut = false;
-
-  Future<void> _signOut() async {
-    if (_signingOut) return;
-    final auth = AppScope.of(context).auth;
-    setState(() => _signingOut = true);
-    await auth.signOut();
-    // The auth gate reacts to the stream and swaps this whole subtree out, so
-    // there's nothing to navigate here; guard setState in case we're still up.
-    if (mounted) setState(() => _signingOut = false);
-  }
-
-  Future<void> _editName(UserProfile profile) async {
+  Future<void> _editName(BuildContext context, UserProfile profile) async {
     final name = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _EditNameSheet(initial: profile.name),
+      builder: (_) => _EditTextSheet(
+        title: 'Edit name',
+        hint: 'Your name',
+        maxLength: 60,
+        initial: profile.name,
+        capitalizeWords: true,
+      ),
     );
-    if (name == null || !mounted) return;
+    if (name == null || !context.mounted) return;
     await AppScope.of(context).profiles.saveProfile(
           uid: profile.uid,
           name: name,
           dateOfBirth: profile.dateOfBirth,
           photoPath: profile.photoPath,
+          bio: profile.bio,
         );
   }
 
-  Future<void> _editDob(UserProfile profile) async {
+  Future<void> _editBio(BuildContext context, UserProfile profile) async {
+    final bio = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _EditTextSheet(
+        title: 'About you',
+        hint: 'A few words about yourself…',
+        maxLength: 160,
+        initial: profile.bio ?? '',
+        multiline: true,
+      ),
+    );
+    if (bio == null || !context.mounted) return;
+    await AppScope.of(context).profiles.saveProfile(
+          uid: profile.uid,
+          name: profile.name,
+          dateOfBirth: profile.dateOfBirth,
+          photoPath: profile.photoPath,
+          bio: bio.isEmpty ? null : bio,
+        );
+  }
+
+  Future<void> _editDob(BuildContext context, UserProfile profile) async {
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _DobPickerSheet(initial: profile.dateOfBirth),
     );
-    if (picked == null || !mounted) return;
+    if (picked == null || !context.mounted) return;
     await AppScope.of(context).profiles.saveProfile(
           uid: profile.uid,
           name: profile.name,
           dateOfBirth: picked,
           photoPath: profile.photoPath,
+          bio: profile.bio,
         );
   }
 
-  Future<void> _changePhoto(UserProfile profile) async {
+  Future<void> _changePhoto(BuildContext context, UserProfile profile) async {
     final action = await showCupertinoModalPopup<_PhotoAction>(
       context: context,
       builder: (sheetContext) => CupertinoActionSheet(
@@ -96,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
-    if (action == null || !mounted) return;
+    if (action == null || !context.mounted) return;
 
     if (action == _PhotoAction.choose) {
       final picked = await ImagePicker().pickImage(
@@ -105,14 +121,15 @@ class _ProfilePageState extends State<ProfilePage> {
         maxHeight: 1024,
         imageQuality: 88,
       );
-      if (picked == null || !mounted) return;
+      if (picked == null || !context.mounted) return;
       final savedPath = await _persistAvatar(picked.path, profile.uid);
-      if (!mounted) return;
+      if (!context.mounted) return;
       await AppScope.of(context).profiles.saveProfile(
             uid: profile.uid,
             name: profile.name,
             dateOfBirth: profile.dateOfBirth,
             photoPath: savedPath,
+            bio: profile.bio,
           );
     } else {
       final oldPath = profile.photoPath;
@@ -121,6 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
             name: profile.name,
             dateOfBirth: profile.dateOfBirth,
             photoPath: null,
+            bio: profile.bio,
           );
       if (oldPath != null) {
         try {
@@ -148,7 +166,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return dest.path;
   }
 
-  void _copyUid(String uid) {
+  void _copyUid(BuildContext context, String uid) {
     Clipboard.setData(ClipboardData(text: uid));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -177,39 +195,61 @@ class _ProfilePageState extends State<ProfilePage> {
           builder: (context, snapshot) {
             final profile = snapshot.data;
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  RiseIn(child: Text('You', style: AppText.greeting)),
-                  const SizedBox(height: 22),
+                  RiseIn(
+                    child: Row(
+                      children: [
+                        Text('You', style: AppText.greeting),
+                        const Spacer(),
+                        _IconButton(
+                          icon: Icons.settings_outlined,
+                          semanticLabel: 'Settings',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsPage()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   RiseIn(
                     delay: const Duration(milliseconds: 50),
                     child: _ProfileHeader(
                       user: user,
                       profile: profile,
-                      onTapAvatar: profile == null ? null : () => _changePhoto(profile),
+                      onTapAvatar: profile == null ? null : () => _changePhoto(context, profile),
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
                   RiseIn(
-                    delay: const Duration(milliseconds: 100),
-                    child: _SectionCard(
+                    delay: const Duration(milliseconds: 90),
+                    child: _AboutCard(
+                      bio: profile?.bio,
+                      onTap: profile == null ? null : () => _editBio(context, profile),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 130),
+                    child: SettingsSectionCard(
                       label: 'ACCOUNT',
                       children: [
-                        _Row(
+                        SettingsRow(
                           icon: Icons.badge_outlined,
                           title: 'Name',
                           value: profile?.name ?? '—',
-                          onTap: profile == null ? null : () => _editName(profile),
+                          onTap: profile == null ? null : () => _editName(context, profile),
                         ),
-                        _Row(
+                        SettingsRow(
                           icon: Icons.cake_outlined,
                           title: 'Date of birth',
                           value: profile == null ? '—' : _formatDob(profile.dateOfBirth),
-                          onTap: profile == null ? null : () => _editDob(profile),
+                          onTap: profile == null ? null : () => _editDob(context, profile),
                         ),
-                        _Row(
+                        SettingsRow(
                           icon: Icons.mail_outline_rounded,
                           title: 'Email',
                           value: user.email ?? 'Hidden by provider',
@@ -219,13 +259,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ? const Icon(Icons.verified_rounded, size: 17, color: AppColors.pulse)
                                   : const Icon(Icons.error_outline_rounded, size: 17, color: AppColors.solar)),
                         ),
-                        _Row(
+                        SettingsRow(
                           icon: Icons.fingerprint_rounded,
                           title: 'User ID',
                           value: user.uid,
                           monospace: true,
                           trailing: const Icon(Icons.copy_rounded, size: 16, color: AppColors.ink3),
-                          onTap: () => _copyUid(user.uid),
+                          onTap: () => _copyUid(context, user.uid),
                           last: true,
                         ),
                       ],
@@ -233,19 +273,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 20),
                   RiseIn(
-                    delay: const Duration(milliseconds: 140),
-                    child: _SectionCard(
+                    delay: const Duration(milliseconds: 170),
+                    child: SettingsSectionCard(
                       label: 'SIGN-IN',
                       children: [
                         for (var i = 0; i < user.providerIds.length; i++)
-                          _Row(
+                          SettingsRow(
                             icon: _providerIcon(user.providerIds[i]),
                             title: _providerLabel(user.providerIds[i]),
                             value: 'Connected',
                             last: i == user.providerIds.length - 1,
                           ),
                         if (user.providerIds.isEmpty)
-                          const _Row(
+                          const SettingsRow(
                             icon: Icons.password_rounded,
                             title: 'Email',
                             value: 'Connected',
@@ -253,11 +293,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 30),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 180),
-                    child: _SignOutButton(loading: _signingOut, onTap: _signOut),
                   ),
                 ],
               ),
@@ -295,6 +330,37 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 enum _PhotoAction { choose, remove }
+
+/// A small circular icon button — the same 34px chip language as
+/// `CaptureIconButton`, kept local since this page's chip is neutral
+/// (surfaceRaised) rather than capture-flow-branded.
+class _IconButton extends StatelessWidget {
+  const _IconButton({required this.icon, required this.semanticLabel, required this.onTap});
+
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Tooltip(
+        message: semanticLabel,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+            child: Icon(icon, size: 19, color: AppColors.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Avatar + name + verified email — the identity summary above the account
 /// details.
@@ -412,131 +478,91 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-/// A grouped, hairline-divided list of [_Row]s under an uppercase [label] —
-/// the iOS Settings "inset grouped" pattern, in ZIVO's dark material.
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.label, required this.children});
+/// The "About" card — a short bio the person writes about themselves, tap
+/// anywhere to edit. Shows a muted prompt until one is set.
+class _AboutCard extends StatelessWidget {
+  const _AboutCard({required this.bio, required this.onTap});
 
-  final String label;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(label, style: AppText.sectionLabel),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            boxShadow: AppShadows.card,
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.trailing,
-    this.onTap,
-    this.monospace = false,
-    this.last = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Widget? trailing;
+  final String? bio;
   final VoidCallback? onTap;
-  final bool monospace;
-  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    final editable = onTap != null;
-    final row = Container(
+    final trimmed = bio?.trim();
+    final hasBio = trimmed != null && trimmed.isNotEmpty;
+    final card = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.hairline)),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadows.card,
       ),
-      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(icon, size: 16, color: AppColors.ink2),
+          Row(
+            children: [
+              Text('ABOUT', style: AppText.sectionLabel),
+              const Spacer(),
+              if (onTap != null)
+                Icon(hasBio ? Icons.edit_outlined : Icons.add_rounded, size: 16, color: AppColors.ink3),
+            ],
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Text(title, style: AppText.rowTitle.copyWith(fontSize: 15)),
+          const SizedBox(height: 8),
+          Text(
+            hasBio ? trimmed : 'Add a few words about yourself.',
+            style: AppText.body.copyWith(color: hasBio ? AppColors.ink2 : AppColors.ink3, fontSize: 14.5),
           ),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: AppText.meta.copyWith(
-                color: AppColors.ink3,
-                fontFamily: monospace ? 'monospace' : null,
-              ),
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ] else if (editable) ...[
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
-          ],
         ],
       ),
     );
-    if (!editable) return row;
+    if (onTap == null) return card;
     return PressableScale(
-      child: InkWell(onTap: onTap, child: row),
+      child: InkWell(borderRadius: BorderRadius.circular(AppRadius.card), onTap: onTap, child: card),
     );
   }
 }
 
-class _EditNameSheet extends StatefulWidget {
-  const _EditNameSheet({required this.initial});
+/// A bottom sheet with one text field — single-line (name) or multiline
+/// (bio) — capped at [maxLength] with a live counter. `.withInitial(...)`
+/// supplies the starting text (kept out of the const constructor since a
+/// [TextEditingController] can't be const).
+class _EditTextSheet extends StatefulWidget {
+  const _EditTextSheet({
+    required this.title,
+    required this.hint,
+    required this.maxLength,
+    required this.initial,
+    this.multiline = false,
+    this.capitalizeWords = false,
+  });
 
+  final String title;
+  final String hint;
+  final int maxLength;
   final String initial;
+  final bool multiline;
+  final bool capitalizeWords;
 
   @override
-  State<_EditNameSheet> createState() => _EditNameSheetState();
+  State<_EditTextSheet> createState() => _EditTextSheetState();
 }
 
-class _EditNameSheetState extends State<_EditNameSheet> {
-  late final TextEditingController _name = TextEditingController(text: widget.initial);
+class _EditTextSheetState extends State<_EditTextSheet> {
+  late final TextEditingController _text = TextEditingController(text: widget.initial);
 
-  bool get _canSave => _name.text.trim().isNotEmpty;
+  bool get _canSave => widget.multiline ? true : _text.text.trim().isNotEmpty;
 
   @override
   void dispose() {
-    _name.dispose();
+    _text.dispose();
     super.dispose();
   }
 
   void _submit() {
     if (!_canSave) return;
-    Navigator.of(context).pop(_name.text.trim());
+    Navigator.of(context).pop(_text.text.trim());
   }
 
   @override
@@ -566,24 +592,28 @@ class _EditNameSheetState extends State<_EditNameSheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Edit name', style: AppText.cardTitle),
+            child: Text(widget.title, style: AppText.cardTitle),
           ),
           TextField(
-            controller: _name,
+            controller: _text,
             autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
+            maxLength: widget.maxLength,
+            maxLines: widget.multiline ? 4 : 1,
+            minLines: widget.multiline ? 3 : 1,
+            textCapitalization: widget.capitalizeWords ? TextCapitalization.words : TextCapitalization.sentences,
+            textInputAction: widget.multiline ? TextInputAction.newline : TextInputAction.done,
+            onSubmitted: widget.multiline ? null : (_) => _submit(),
             onChanged: (_) => setState(() {}),
             cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+            style: AppText.rowTitle.copyWith(fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600),
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              counterStyle: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
               border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
               enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
               focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.ember, width: 1.6)),
-              hintText: 'Your name',
+              hintText: widget.hint,
               hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
             ),
           ),
@@ -799,50 +829,6 @@ class _DobPickerSheetState extends State<_DobPickerSheet> {
     return Container(
       margin: EdgeInsets.only(left: 2, right: edge ? 6 : 2),
       decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(10)),
-    );
-  }
-}
-
-class _SignOutButton extends StatelessWidget {
-  const _SignOutButton({required this.loading, required this.onTap});
-
-  final bool loading;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      enabled: !loading,
-      child: Material(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: InkWell(
-          onTap: loading ? null : onTap,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: AppColors.hairline2, width: 1.4),
-            ),
-            child: loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.flareText),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.logout_rounded, size: 18, color: AppColors.flareText),
-                      const SizedBox(width: 8),
-                      Text('Sign out', style: AppText.button.copyWith(fontSize: 15, color: AppColors.flareText)),
-                    ],
-                  ),
-          ),
-        ),
-      ),
     );
   }
 }

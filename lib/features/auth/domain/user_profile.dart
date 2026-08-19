@@ -9,6 +9,7 @@ class UserProfile {
     required this.name,
     required this.dateOfBirth,
     this.photoPath,
+    this.bio,
   });
 
   /// Matches the owning [AuthUser.uid] (the Firestore `users/{uid}` doc id).
@@ -24,16 +25,21 @@ class UserProfile {
   /// wherever the picker's source file lived.
   final String? photoPath;
 
+  /// A short "About me" line the person writes about themselves. Null/empty
+  /// means they haven't set one yet — the profile shows a prompt instead.
+  final String? bio;
+
   @override
   bool operator ==(Object other) =>
       other is UserProfile &&
       other.uid == uid &&
       other.name == name &&
       other.dateOfBirth == dateOfBirth &&
-      other.photoPath == photoPath;
+      other.photoPath == photoPath &&
+      other.bio == bio;
 
   @override
-  int get hashCode => Object.hash(uid, name, dateOfBirth, photoPath);
+  int get hashCode => Object.hash(uid, name, dateOfBirth, photoPath, bio);
 
   @override
   String toString() => 'UserProfile(uid: $uid, name: $name)';

@@ -31,11 +31,13 @@ class FirestoreProfileRepository implements ProfileRepository {
     required String name,
     required DateTime dateOfBirth,
     String? photoPath,
+    String? bio,
   }) {
     return _users.doc(uid).set({
       'name': name,
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
       'photoPath': photoPath,
+      'bio': bio,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -47,6 +49,7 @@ class FirestoreProfileRepository implements ProfileRepository {
     final name = data['name'];
     final dateOfBirth = data['dateOfBirth'];
     final photoPath = data['photoPath'];
+    final bio = data['bio'];
     if (name is! String || name.isEmpty) return null;
     if (dateOfBirth is! Timestamp) return null;
     return UserProfile(
@@ -54,6 +57,7 @@ class FirestoreProfileRepository implements ProfileRepository {
       name: name,
       dateOfBirth: dateOfBirth.toDate(),
       photoPath: photoPath is String ? photoPath : null,
+      bio: bio is String ? bio : null,
     );
   }
 }
