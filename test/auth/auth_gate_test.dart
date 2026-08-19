@@ -44,7 +44,10 @@ void main() {
       auth.emit(const Authenticated(AuthUser(uid: 'u1')));
       await tester.pump(); // rebuild on the new state
       await tester.pump(); // profile stream resolves (complete by default)
-      await tester.pumpAndSettle(); // fire + finish entrance timers
+      // Not pumpAndSettle — Today's up-next Training card carries a
+      // continuous, always-on repeating animation (`AliveColorDrift`) once
+      // there's an active plan, which never settles on its own.
+      await tester.pump(const Duration(seconds: 1)); // fire + finish entrance timers
       expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
       expect(find.text('Sign in with Apple'), findsNothing);
     } finally {
@@ -90,7 +93,9 @@ void main() {
     auth.emit(const Authenticated(AuthUser(uid: 'fake-uid', displayName: 'Ziad')));
     await tester.pump();
     await tester.pump(); // profile stream resolves (complete by default)
-    await tester.pumpAndSettle();
+    // Not pumpAndSettle — see the sibling test above for why (Today's
+    // always-on `AliveColorDrift` never settles on its own).
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
     expect(find.text('Complete your profile'), findsNothing);

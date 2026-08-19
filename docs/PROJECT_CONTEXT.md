@@ -22,74 +22,88 @@
 
 ### Workout/Diet overhaul — CURRENT
 
-- **Status (as of 2026-08-19):** Two slices on `feature/workout-diet-v2` now — (1) Feature B
-  (intelligent progression verdict) + Feature C (animated reps/weight stepper), **committed**
-  (`e8a4908` on top of `6b44175`, pushed to origin); (2) a follow-up slice — Home Training card
-  simplification + a premium confirm sheet, "alive while active" card animation, and the
-  per-exercise warm-up ramp's full retirement — **built, tested, still UNCOMMITTED**, awaiting the
-  owner's go-ahead to commit (see [[milestone-branch-workflow]] pattern: commit only on explicit
-  instruction). The owner paused the AI streaming/launch work (Phase 3.5, `feature/ai-streaming-ux`,
-  preserved further down this handoff) to build out training first.
-- **Feature B/C (committed, `e8a4908`):** `compareToLastTime` (reps %/weight Δ/volume %/overall %,
-  three-way `ProgressVerdict`) lives in `domain/progress_comparison.dart`, rendered live in the Goal
-  card via `_ProgressVerdictBadge`; the old narrow `_ProgressionDelta` callout was removed
-  (superseded). Reps/weight entry is now `_StepperField` — the same `TextField` flanked by ±
-  buttons (haptic + spring punch), typing still works as the fallback. Both in
-  `live_session_page.dart`.
-- **Home Training card + confirm sheet (uncommitted, `up_next_workout_card.dart`):** card face
-  simplified to day label + "N exercises" + a "Start Workout"/"Resume Workout" button (dropped the
-  "Day D ·" prefix; confirmed this was already the card's only face content — no per-exercise
-  breakdown lived here, that's a separate page). The confirm sheet (already existed pre-session,
-  now upgraded to the owner's apple-design spec): materializes with blur + scale together
-  (`BackdropFilter` sigma synced to the entrance spring, translucent card fill), critically damped
-  spring (was bounce, now `AppSprings.standard` — matches the requested ~0.35s response), symmetric
-  animated exit for Cancel/backdrop-tap/confirm (was an instant unanimated pop), and a genuine
-  drag-down-to-dismiss gesture (1:1 tracked, Apple's momentum-projection formula decides
-  commit-vs-spring-back, velocity carried through on reversal — see `_StartConfirmSheetState` in
-  that file for the full mechanics + why it's a sibling `Stack` rather than nested
-  `GestureDetector`s, a real gesture-arena bug hit and fixed mid-build). `selectionClick` haptic now
-  fires at the actual confirm tap, not after the dialog closes.
-- **"Alive while active" card animation (uncommitted, same file):** when an active/paused session
-  exists for the up-next day, the card springs to a slightly smaller scale (`_CardScale`, critically
-  damped ~0.4s response) and a soft blurred ember-colored blob drifts slowly inside it
-  (`_AliveBackground`, 18s round trip, reuses only `AppColors.ember` — no new hues). Compositor-
-  friendly by construction (the blob is built once; only a `Transform.translate` repaints per
-  frame). Reduced-motion gets a static wash instead. The background widget is only ever mounted
-  while a session is active, so its ticker starts/stops with that — nothing runs otherwise.
-- **Warm-up decision — SETTLED, ramp retired (uncommitted):** owner confirmed the 5-minute
-  pre-workout warm-up phase is the one warm-up; the old per-exercise ramp warm-up SETS (Phase 4)
-  are fully removed — both generators (`LiveSession.start`'s plan-weight path in `live_session.dart`
-  and the history-backfill path that used to live in `live_session_page.dart`), the mid-session
-  "WARM-UP" UI (`_buildWarmupRunning`, `_WarmupBlock`, `_WarmupChip`), and `domain/warmup_policy.dart`
-  + its test are all deleted. `SetType.warmup` stays in the enum (still valid for hand-authored
-  data/Firestore round-trips) but nothing live produces it anymore. Edge case (flagged, accepted,
-  ~zero real risk per the owner): an already-persisted session with a leftover warmup-type set
-  would now render it as a plain working set on resume — no crash, cosmetic only.
-- **Verification:** `flutter analyze` clean (whole repo). `flutter test` **442/442 pass** — net
-  count unchanged from session start (13 new `progress_comparison_test.dart` tests, 2 new
-  `today_page_test.dart` drag-dismiss tests, minus 7 retired ramp-generation tests +
-  `warmup_policy_test.dart`'s own suite, minus 1 `_heavyPlan` fixture). Existing tests updated for
-  the new card copy/gesture structure, not just left broken.
-- **Git state:** `feature/workout-diet-v2`, HEAD still `e8a4908` (uncommitted work on top): modified
-  `docs/PROJECT_CONTEXT.md` (this handoff), `lib/features/home/presentation/widgets/up_next_workout_card.dart`,
-  `lib/features/workout/domain/live_session.dart`, `lib/features/workout/presentation/pages/live_session_page.dart`,
-  `test/home/today_page_test.dart`, `test/workout/live_session_page_test.dart`,
-  `test/workout/live_session_test.dart`; deleted `lib/features/workout/domain/warmup_policy.dart` +
-  `test/workout/warmup_policy_test.dart`.
+- **Status (as of 2026-08-19):** Three slices on `feature/workout-diet-v2` now — (1) Feature B
+  (progression verdict) + Feature C (animated stepper), **committed** `e8a4908`; (2) Home card +
+  confirm sheet + alive animation + warm-up ramp retirement, **committed** `3b39f43`; (3) two
+  rounds of course-correction on top — Home/Workout page were showing DIFFERENT days (see below),
+  now fixed and confirmed in sync — **built, tested, still UNCOMMITTED**, awaiting the owner's
+  go-ahead to commit. The owner paused the AI streaming/launch work (Phase 3.5,
+  `feature/ai-streaming-ux`, preserved further down this handoff) to build out training first.
+- **Slice 1/2 recap (both committed):** `compareToLastTime`/`ProgressVerdict`
+  (`domain/progress_comparison.dart`) render live via `_ProgressVerdictBadge`; reps/weight entry is
+  `_StepperField` (± buttons + haptic/spring punch on the same `TextField`, typing still works).
+  The per-exercise warm-up ramp (Phase 4, `SetType.warmup` auto-generation) is fully retired — both
+  generators gone, the mid-session "WARM-UP" UI deleted, `domain/warmup_policy.dart` + its test
+  deleted. `SetType.warmup` stays in the enum (hand-authored/legacy data only) but nothing live
+  produces it.
+- **Slice 3, round 1 (superseded within the same session — see round 2):** first attempt kept
+  `TrainingCard` (the reflective "what I logged today" card) and bolted a Start flow onto it,
+  matching a plan day to the logged workout by label. **Root cause found afterward:** the Workout
+  tab's own page (`workout_plan_page.dart`) always shows `plan.nextDay` (the rotation's current
+  day), while this round's Home card showed `todaysWorkout()` (the LOGGED workout) — two different
+  sources, so Home and Workout could show two different days ("Push" vs "Full Arm") whenever
+  they'd drifted. Owner wants them **guaranteed in sync**.
+- **Slice 3, round 2 — the actual fix, uncommitted:** Home's Training section now reads the exact
+  same source as the Workout page (`watchActivePlan()` → `plan.nextDay`) and **always** shows it —
+  no more branching on `todaysWorkout()` at all. Concretely:
+  - `TrainingCard` and its supporting `training_builder.dart` (`todaysWorkout()`) are **deleted
+    outright** — confirmed no other callers anywhere in the codebase before deleting. The reflective
+    "what I actually did" view stays reachable via Workout History; Home no longer duplicates it.
+  - `today_page.dart`'s `_TrainingSection` is now just `SectionHeader('Training')` +
+    `_TrainingUpNext` (renamed from `_UpNextOrEmpty` — that naming no longer fits now that it's
+    unconditional, not a fallback branch) — the plan's up-next day + Start/Resume CTA, or a plain
+    empty line when there's no active plan. Same repo stream as the Workout page → **can't drift**.
+  - New `lib/features/home/presentation/widgets/workout_start_sheet.dart` (kept from round 1, per
+    the owner's "don't fork a second copy") still holds the confirm sheet (`showStartConfirmSheet`),
+    `CardScale`, and `AliveColorDrift` — `up_next_workout_card.dart` is its only consumer now, but
+    the extraction stays as the reusable seam it was built as.
+  - **`AliveColorDrift` is now CONTINUOUS/always-on**, not gated to an active session — the owner's
+    explicit correction ("colors should continuously shift/move in a smooth way," and the
+    active-gated ticker meant he'd never actually seen it move). It moved from sitting *behind* a
+    conditionally-transparent card to living *inside* `ZCard`'s child, under the real content,
+    over the normal ember gradient fill — so the base card look is unchanged and the drift is a
+    subtle always-present layer through it. `CardScale`'s compact-while-active spring is
+    unchanged/still active-only — only the color motion became unconditional.
+  - **This broke `pumpAndSettle` in three test files** (worth knowing, not just "tests were
+    updated"): once there's an active plan (the default seed in every relevant fixture),
+    `UpNextWorkoutCard` now ALWAYS carries a live repeating ticker, so `pumpAndSettle` never
+    terminates. Fixed by switching every affected `pumpAndSettle()` to a bounded
+    `pump()`+`pump(fixed duration)` pattern — `test/home/today_page_test.dart` (all 17, via its
+    existing `_settle` helper), `test/widget_test.dart`, and `test/auth/auth_gate_test.dart` (the
+    2 tests that route to the home shell). Same convention already used for `LiveSessionPage`'s own
+    repeating tickers.
+  - New test added per the owner's explicit ask: Home shows the startable up-next card even when
+    `todaysWorkout` is non-null (a workout IS logged today) — proves the two surfaces can't drift.
+- **"Start Workout" semantics (from round 1, still applies to `UpNextWorkoutCard`):** begins a
+  fresh session for the plan's up-next day; "Resume" continues an active/paused session for it.
+- **Verification:** `flutter analyze` clean (whole repo). `flutter test` **438/438 pass**.
+- **Git state:** `feature/workout-diet-v2`, HEAD `3b39f43` (uncommitted on top): modified
+  `docs/PROJECT_CONTEXT.md`, `lib/features/home/presentation/pages/today_page.dart`,
+  `lib/features/home/presentation/widgets/up_next_workout_card.dart`, `test/auth/auth_gate_test.dart`,
+  `test/home/today_page_test.dart`, `test/widget_test.dart`; new
+  `lib/features/home/presentation/widgets/workout_start_sheet.dart`; **deleted**
+  `lib/features/home/presentation/widgets/training_card.dart`,
+  `lib/features/home/presentation/training_builder.dart`, `test/home/training_builder_test.dart`.
+  **Note (separate, not part of this slice):** a peer session added an untracked
+  `docs/WORKOUT_SYSTEM.md` for the next milestone — explicitly NOT to be swept into this commit;
+  stage this slice's files by name, never `git add -A`/`.`.
 - **Mid-session git collision (resolved earlier, no data lost) — worth knowing if it recurs:** a
   concurrent `git checkout` in another terminal (Ziad, not a tool) hopped this shared working
   directory across branches while edits were uncommitted, producing a real checkout-merge conflict.
   Recovered via a verified scratchpad backup + `checkout --theirs` (no `--force`, no history
   rewrite) — no work lost. Avoid `git checkout`/branch switches on this shared working directory
   while another session has uncommitted changes in flight.
-- **Exact next action:** awaiting the owner's call on committing this second slice (Home card +
-  confirm sheet + alive animation + warm-up retirement). Nothing is in-progress/half-finished on
-  this branch — it's a clean, fully-tested stopping point either way.
+- **Exact next action:** awaiting the owner's call on committing slice 3 (round 2 content —
+  round 1's `TrainingCard` enhancement was superseded and reverted within the same session, never
+  committed). Nothing is in-progress/half-finished on this branch — clean, fully-tested stopping
+  point.
 - **Do not redo:** don't re-derive `compareToLastTime`/`SetProgressComparison`/`ProgressVerdict`,
-  `_StepperField`/`_ProgressVerdictBadge`, the confirm sheet's materialize/drag-dismiss mechanics,
-  `_CardScale`/`_AliveBackground`, or the warm-up ramp removal — all built, tested, and (bar the
-  commit itself) done. Don't reintroduce `_ActualField`/`_ProgressionDelta` or the per-exercise
-  ramp warm-up — both deliberately removed.
+  `_StepperField`/`_ProgressVerdictBadge`, the warm-up ramp removal, or
+  `workout_start_sheet.dart`'s confirm-sheet/`CardScale`/`AliveColorDrift` — all built, tested, and
+  (bar the commit) done. Don't reintroduce `TrainingCard`/`training_builder.dart`/`todaysWorkout()`
+  on Home, don't gate `AliveColorDrift` back to active-only, and don't reintroduce
+  `_ActualField`/`_ProgressionDelta`, the
+  per-exercise ramp warm-up, or a second/forked copy of the confirm-sheet chrome.
 
 ### AI streaming / launch (Phase 3.5) — paused, preserved for reference
 

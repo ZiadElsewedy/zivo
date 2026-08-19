@@ -18,19 +18,16 @@ import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../university/domain/university_item.dart';
 import '../../../workout/domain/live_session.dart';
-import '../../../workout/domain/workout.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../focus_builder.dart';
 import '../header_builder.dart';
 import '../now_next_builder.dart';
-import '../training_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/day_progress_ring.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
-import '../widgets/training_card.dart';
 import '../widgets/up_next_workout_card.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
@@ -392,41 +389,34 @@ class _FocusSection extends StatelessWidget {
   }
 }
 
+/// Always shows the active plan's up-next day — the SAME source
+/// (`watchActivePlan()` → `plan.nextDay`) the Workout tab's own page reads,
+/// so the two surfaces can't drift apart. Deliberately does NOT branch on
+/// whatever's been logged today (`todaysWorkout`) — that used to show a
+/// second, different card once anything was logged, which put Home and the
+/// Workout page out of sync (owner-reported, root-caused, fixed). The full
+/// history of what was actually done stays reachable via Workout History.
 class _TrainingSection extends StatelessWidget {
   const _TrainingSection();
 
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return StreamBuilder<List<Workout>>(
-      stream: scope.workouts.watchAll(),
-      initialData: scope.workouts.current,
-      builder: (context, snapshot) {
-        final workout = todaysWorkout(
-          snapshot.data ?? const <Workout>[],
-          DateTime.now(),
-        );
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader('Training'),
-            if (workout != null)
-              TrainingCard(workout)
-            else
-              _UpNextOrEmpty(scope: scope),
-          ],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('Training'),
+        _TrainingUpNext(scope: scope),
+      ],
     );
   }
 }
 
-/// The Training section's empty-of-history state: once nothing's been
-/// logged yet today, prompt the active plan's up-next day (with a Start/
-/// Resume CTA) instead of a bare "nothing yet" line — falling back to that
-/// line only when there's genuinely no active plan/day to offer.
-class _UpNextOrEmpty extends StatelessWidget {
-  const _UpNextOrEmpty({required this.scope});
+/// The active plan's up-next day, with a Start/Resume CTA — falling back to
+/// a plain empty line only when there's genuinely no active plan/day to
+/// offer.
+class _TrainingUpNext extends StatelessWidget {
+  const _TrainingUpNext({required this.scope});
 
   final AppScope scope;
 
