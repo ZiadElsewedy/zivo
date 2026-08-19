@@ -44,7 +44,7 @@ class TodayPage extends StatelessWidget {
         gradient: RadialGradient(
           center: Alignment(0, -1.1),
           radius: 1.1,
-          colors: [Color(0xFFFFFDF8), AppColors.ground, Color(0xFFF0EDE6)],
+          colors: [Color(0xFF241C15), AppColors.ground, Color(0xFF0E0B08)],
           stops: [0.0, 0.5, 1.0],
         ),
       ),

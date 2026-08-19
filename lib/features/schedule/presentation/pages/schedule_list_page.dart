@@ -32,7 +32,7 @@ class ScheduleListPage extends StatelessWidget {
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const EventCapturePage()),
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        child: const Icon(Icons.add_rounded, color: AppColors.ground),
       ),
       body: StreamBuilder<List<ScheduleEvent>>(
         stream: schedule.watchAll(),

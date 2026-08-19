@@ -681,7 +681,7 @@ class _ProposalCard extends StatelessWidget {
           chips.add(_chip(
             Icons.flag_rounded,
             'High',
-            bg: const Color(0xFFFBEAF0),
+            bg: AppColors.flareWash,
             fg: AppColors.flareText,
           ));
         }
@@ -707,7 +707,7 @@ class _ProposalCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: bg ?? const Color(0xFFF1EFE8),
+        color: bg ?? AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -746,14 +746,14 @@ class _ProposalCard extends StatelessWidget {
         return (
           icon: Icons.event_rounded,
           label: 'New event',
-          tintBg: const Color(0xFFEEEDFE),
+          tintBg: AppColors.irisWash,
           tintFg: AppColors.irisText,
         );
       case 'create_task':
         return (
           icon: Icons.add_task_rounded,
           label: 'New task',
-          tintBg: const Color(0xFFEEEDFE),
+          tintBg: AppColors.irisWash,
           tintFg: AppColors.irisText,
         );
       default:

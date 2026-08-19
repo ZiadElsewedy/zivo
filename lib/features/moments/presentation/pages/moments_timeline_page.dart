@@ -118,7 +118,7 @@ class _MomentCard extends StatelessWidget {
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFFF1ECE2), Color(0xFFE7E0D3)],
+                        colors: [AppColors.card, AppColors.surfaceRaised],
                       ),
                     ),
                     child: moment.imagePath == null

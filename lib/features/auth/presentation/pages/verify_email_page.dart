@@ -163,8 +163,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message, style: AppText.meta.copyWith(color: Colors.white)),
-          backgroundColor: AppColors.ink,
+          content: Text(message, style: AppText.meta.copyWith(color: AppColors.ink)),
+          backgroundColor: AppColors.surfaceRaised,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),

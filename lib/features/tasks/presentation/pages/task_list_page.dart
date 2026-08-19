@@ -32,7 +32,7 @@ class TaskListPage extends StatelessWidget {
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const TaskCapturePage()),
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        child: const Icon(Icons.add_rounded, color: AppColors.ground),
       ),
       body: StreamBuilder<List<Task>>(
         stream: tasks.watchAll(),
@@ -255,7 +255,7 @@ class _CheckBox extends StatelessWidget {
         ),
       ),
       child: checked
-          ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+          ? const Icon(Icons.check_rounded, size: 13, color: AppColors.ground)
           : null,
     );
   }
