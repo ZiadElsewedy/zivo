@@ -20,6 +20,7 @@ import 'package:zivo/features/workout/domain/workout.dart';
 
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
+import 'support/test_app.dart';
 
 void main() {
   testWidgets('Today renders the greeting and key sections when authenticated', (
@@ -71,6 +72,7 @@ void main() {
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),
+        media: testMediaService(),
       ),
     );
     await tester.pumpAndSettle(); // profile stream resolves, then RiseIn timers

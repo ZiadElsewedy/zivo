@@ -17,12 +17,11 @@ class UserProfile {
   final String name;
   final DateTime dateOfBirth;
 
-  /// A *local device file path* for the profile photo, mirroring
-  /// [Moment.imagePath]'s convention — it only resolves on the device that
-  /// set it. Cross-device photo sync (Firebase Storage) is a later
-  /// milestone; this is deliberately just a local file, copied into the
-  /// app's own `avatars/` documents folder so it survives independently of
-  /// wherever the picker's source file lived.
+  /// A *media-store reference* for the profile photo (a relative path owned by
+  /// the `core/media` [MediaStore]), mirroring `Moment.imagePath`'s convention.
+  /// The bytes are imported into durable local storage via `MediaService` and
+  /// resolved back for display; cloud backup of avatars rides the same media
+  /// pipeline as any other media. A legacy absolute path still resolves.
   final String? photoPath;
 
   /// A short "About me" line the person writes about themselves. Null/empty

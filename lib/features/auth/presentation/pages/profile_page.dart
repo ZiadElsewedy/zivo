@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/media/domain/media_kind.dart';
+import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
@@ -122,7 +121,17 @@ class ProfilePage extends StatelessWidget {
         imageQuality: 88,
       );
       if (picked == null || !context.mounted) return;
-      final savedPath = await _persistAvatar(picked.path, profile.uid);
+      // Route the avatar through the media pipeline: durable local copy +
+      // registry entry + any enabled backup targets. Returns the store
+      // reference persisted on the profile (relative, so it survives reinstalls
+      // that would strand an absolute path on iOS).
+      final media = AppScope.of(context).requireMedia;
+      final savedPath = await media.capture(
+        sourcePath: picked.path,
+        kind: MediaKind.avatar,
+        id: profile.uid,
+        ownerUid: profile.uid,
+      );
       if (!context.mounted) return;
       await AppScope.of(context).profiles.saveProfile(
             uid: profile.uid,
@@ -132,8 +141,9 @@ class ProfilePage extends StatelessWidget {
             bio: profile.bio,
           );
     } else {
+      final scope = AppScope.of(context);
       final oldPath = profile.photoPath;
-      await AppScope.of(context).profiles.saveProfile(
+      await scope.profiles.saveProfile(
             uid: profile.uid,
             name: profile.name,
             dateOfBirth: profile.dateOfBirth,
@@ -141,29 +151,10 @@ class ProfilePage extends StatelessWidget {
             bio: profile.bio,
           );
       if (oldPath != null) {
-        try {
-          await File(oldPath).delete();
-        } catch (_) {
-          // Best-effort cleanup; a stray file on disk is harmless.
-        }
+        // Best-effort: remove the local file and its registry entry.
+        await scope.requireMedia.deleteMedia(id: profile.uid, ref: oldPath);
       }
     }
-  }
-
-  /// Copies the picker's (often cache-scoped, ephemeral) source file into a
-  /// dedicated `avatars/` folder under the app's own documents directory —
-  /// creating it on first use — so the photo persists independently of
-  /// wherever image_picker happened to stage it.
-  Future<String> _persistAvatar(String pickedPath, String uid) async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final avatarsDir = Directory('${docsDir.path}/avatars');
-    if (!await avatarsDir.exists()) {
-      await avatarsDir.create(recursive: true);
-    }
-    final ext = pickedPath.contains('.') ? pickedPath.split('.').last : 'jpg';
-    final dest = File('${avatarsDir.path}/$uid.$ext');
-    await File(pickedPath).copy(dest.path);
-    return dest.path;
   }
 
   void _copyUid(BuildContext context, String uid) {
@@ -420,10 +411,14 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = photoPath;
-    final hasPhoto = path != null && File(path).existsSync();
     final hue = _hues[seed.hashCode.abs() % _hues.length];
     final fg = hue == AppColors.solar ? const Color(0xFF2A2205) : Colors.white;
 
+    // The monogram is the base layer; when a stored photo resolves it covers
+    // the circle. Resolution is async (the media store maps the ref to a file),
+    // so we can't decide sync — the gradient stays behind and the photo, when
+    // present, paints over it. A missing/stale ref falls back to the monogram.
+    final monogram = Text(_initials, style: AppText.cardTitle.copyWith(fontSize: 30, color: fg));
     final circle = Container(
       width: _size,
       height: _size,
@@ -431,20 +426,27 @@ class _Avatar extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: hasPhoto
-            ? null
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [hue, hue.withValues(alpha: 0.75)],
-              ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [hue, hue.withValues(alpha: 0.75)],
+        ),
         boxShadow: [
           BoxShadow(color: hue.withValues(alpha: 0.35), blurRadius: 28, spreadRadius: -6, offset: const Offset(0, 12)),
         ],
       ),
-      child: hasPhoto
-          ? Image.file(File(path), width: _size, height: _size, fit: BoxFit.cover)
-          : Text(_initials, style: AppText.cardTitle.copyWith(fontSize: 30, color: fg)),
+      child: path == null
+          ? monogram
+          : SizedBox(
+              width: _size,
+              height: _size,
+              child: MediaImage(
+                service: AppScope.of(context).requireMedia,
+                ref: path,
+                fit: BoxFit.cover,
+                placeholder: Center(child: monogram),
+              ),
+            ),
     );
 
     return PressableScale(

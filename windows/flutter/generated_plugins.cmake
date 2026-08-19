@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_app_check
   firebase_auth
   firebase_core
+  gal
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
