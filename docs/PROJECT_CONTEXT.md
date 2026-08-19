@@ -6,11 +6,11 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
-> `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
-> spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
-> milestone; App Check **still not enforced** (M9 Phase 4). On `feature/ai-streaming-ux`; Firestore
-> persistence, Authentication, and University are merged into `main`).
+> **Last verified against the codebase:** 2026-08-19 (active development moved to the Workout/Diet
+> overhaul on `feature/workout-diet-v2` — the AI streaming work described later in this handoff
+> (Phase 3.5, `feature/ai-streaming-ux`) is **paused, not abandoned**; M9 AI V2 remains the last
+> milestone once this track wraps. Firestore persistence, Authentication, and University are merged
+> into `main`).
 
 ---
 
@@ -18,7 +18,84 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/ai-streaming-ux`.
+> without redoing completed work. Active development is on `feature/workout-diet-v2`.
+
+### Workout/Diet overhaul — CURRENT
+
+- **Status (as of 2026-08-19):** Two slices on `feature/workout-diet-v2` now — (1) Feature B
+  (intelligent progression verdict) + Feature C (animated reps/weight stepper), **committed**
+  (`e8a4908` on top of `6b44175`, pushed to origin); (2) a follow-up slice — Home Training card
+  simplification + a premium confirm sheet, "alive while active" card animation, and the
+  per-exercise warm-up ramp's full retirement — **built, tested, still UNCOMMITTED**, awaiting the
+  owner's go-ahead to commit (see [[milestone-branch-workflow]] pattern: commit only on explicit
+  instruction). The owner paused the AI streaming/launch work (Phase 3.5, `feature/ai-streaming-ux`,
+  preserved further down this handoff) to build out training first.
+- **Feature B/C (committed, `e8a4908`):** `compareToLastTime` (reps %/weight Δ/volume %/overall %,
+  three-way `ProgressVerdict`) lives in `domain/progress_comparison.dart`, rendered live in the Goal
+  card via `_ProgressVerdictBadge`; the old narrow `_ProgressionDelta` callout was removed
+  (superseded). Reps/weight entry is now `_StepperField` — the same `TextField` flanked by ±
+  buttons (haptic + spring punch), typing still works as the fallback. Both in
+  `live_session_page.dart`.
+- **Home Training card + confirm sheet (uncommitted, `up_next_workout_card.dart`):** card face
+  simplified to day label + "N exercises" + a "Start Workout"/"Resume Workout" button (dropped the
+  "Day D ·" prefix; confirmed this was already the card's only face content — no per-exercise
+  breakdown lived here, that's a separate page). The confirm sheet (already existed pre-session,
+  now upgraded to the owner's apple-design spec): materializes with blur + scale together
+  (`BackdropFilter` sigma synced to the entrance spring, translucent card fill), critically damped
+  spring (was bounce, now `AppSprings.standard` — matches the requested ~0.35s response), symmetric
+  animated exit for Cancel/backdrop-tap/confirm (was an instant unanimated pop), and a genuine
+  drag-down-to-dismiss gesture (1:1 tracked, Apple's momentum-projection formula decides
+  commit-vs-spring-back, velocity carried through on reversal — see `_StartConfirmSheetState` in
+  that file for the full mechanics + why it's a sibling `Stack` rather than nested
+  `GestureDetector`s, a real gesture-arena bug hit and fixed mid-build). `selectionClick` haptic now
+  fires at the actual confirm tap, not after the dialog closes.
+- **"Alive while active" card animation (uncommitted, same file):** when an active/paused session
+  exists for the up-next day, the card springs to a slightly smaller scale (`_CardScale`, critically
+  damped ~0.4s response) and a soft blurred ember-colored blob drifts slowly inside it
+  (`_AliveBackground`, 18s round trip, reuses only `AppColors.ember` — no new hues). Compositor-
+  friendly by construction (the blob is built once; only a `Transform.translate` repaints per
+  frame). Reduced-motion gets a static wash instead. The background widget is only ever mounted
+  while a session is active, so its ticker starts/stops with that — nothing runs otherwise.
+- **Warm-up decision — SETTLED, ramp retired (uncommitted):** owner confirmed the 5-minute
+  pre-workout warm-up phase is the one warm-up; the old per-exercise ramp warm-up SETS (Phase 4)
+  are fully removed — both generators (`LiveSession.start`'s plan-weight path in `live_session.dart`
+  and the history-backfill path that used to live in `live_session_page.dart`), the mid-session
+  "WARM-UP" UI (`_buildWarmupRunning`, `_WarmupBlock`, `_WarmupChip`), and `domain/warmup_policy.dart`
+  + its test are all deleted. `SetType.warmup` stays in the enum (still valid for hand-authored
+  data/Firestore round-trips) but nothing live produces it anymore. Edge case (flagged, accepted,
+  ~zero real risk per the owner): an already-persisted session with a leftover warmup-type set
+  would now render it as a plain working set on resume — no crash, cosmetic only.
+- **Verification:** `flutter analyze` clean (whole repo). `flutter test` **442/442 pass** — net
+  count unchanged from session start (13 new `progress_comparison_test.dart` tests, 2 new
+  `today_page_test.dart` drag-dismiss tests, minus 7 retired ramp-generation tests +
+  `warmup_policy_test.dart`'s own suite, minus 1 `_heavyPlan` fixture). Existing tests updated for
+  the new card copy/gesture structure, not just left broken.
+- **Git state:** `feature/workout-diet-v2`, HEAD still `e8a4908` (uncommitted work on top): modified
+  `docs/PROJECT_CONTEXT.md` (this handoff), `lib/features/home/presentation/widgets/up_next_workout_card.dart`,
+  `lib/features/workout/domain/live_session.dart`, `lib/features/workout/presentation/pages/live_session_page.dart`,
+  `test/home/today_page_test.dart`, `test/workout/live_session_page_test.dart`,
+  `test/workout/live_session_test.dart`; deleted `lib/features/workout/domain/warmup_policy.dart` +
+  `test/workout/warmup_policy_test.dart`.
+- **Mid-session git collision (resolved earlier, no data lost) — worth knowing if it recurs:** a
+  concurrent `git checkout` in another terminal (Ziad, not a tool) hopped this shared working
+  directory across branches while edits were uncommitted, producing a real checkout-merge conflict.
+  Recovered via a verified scratchpad backup + `checkout --theirs` (no `--force`, no history
+  rewrite) — no work lost. Avoid `git checkout`/branch switches on this shared working directory
+  while another session has uncommitted changes in flight.
+- **Exact next action:** awaiting the owner's call on committing this second slice (Home card +
+  confirm sheet + alive animation + warm-up retirement). Nothing is in-progress/half-finished on
+  this branch — it's a clean, fully-tested stopping point either way.
+- **Do not redo:** don't re-derive `compareToLastTime`/`SetProgressComparison`/`ProgressVerdict`,
+  `_StepperField`/`_ProgressVerdictBadge`, the confirm sheet's materialize/drag-dismiss mechanics,
+  `_CardScale`/`_AliveBackground`, or the warm-up ramp removal — all built, tested, and (bar the
+  commit itself) done. Don't reintroduce `_ActualField`/`_ProgressionDelta` or the per-exercise
+  ramp warm-up — both deliberately removed.
+
+### AI streaming / launch (Phase 3.5) — paused, preserved for reference
+
+> Predates the workout/diet track above and is **paused, not superseded** — its own git state,
+> verification status, and manual next steps are unchanged from when it was last active. Resume
+> directly from here if the owner picks this track back up.
 
 - **Status (as of 2026-08-17):** **Phase 3.5 (AI streaming UX + caching cost win) is deployed to
   `zivo-63f15`.** `aiChat`, `aiConfirmAction`, `aiCancelAction` were redeployed 2026-08-17
