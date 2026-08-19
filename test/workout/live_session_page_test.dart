@@ -306,6 +306,30 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+String elapsedText(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
+
+/// The premium rest ring's sub-second label ("M:SS.CC" or "SS.CC"), read
+/// back as plain text — it's a `Text.rich` (two `TextSpan`s), so `.data` is
+/// null; `.textSpan!.toPlainText()` joins both spans.
+String restTimeText(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('rest-time-label'))).textSpan!.toPlainText();
+
+/// Rounds the rest ring's displayed text back to whole seconds. Tests assert
+/// against this (not the exact sub-second string) because the premium
+/// countdown is continuous — its hundredths drift with however much real
+/// wall-clock time a test happens to take to execute (most of these tests
+/// don't inject a fake `now`), so only the coarse value is deterministic.
+/// `closeTo(expected, 1)` at call sites absorbs the ±1s rounding edge.
+int restWholeSeconds(WidgetTester tester) {
+  final text = restTimeText(tester);
+  final match = RegExp(r'^(?:(\d+):)?(\d{2})\.(\d{2})$').firstMatch(text)!;
+  final minutes = int.parse(match.group(1) ?? '0');
+  final seconds = int.parse(match.group(2)!);
+  final centis = int.parse(match.group(3)!);
+  return minutes * 60 + seconds + (centis >= 50 ? 1 : 0);
+}
+
 void main() {
   testWidgets(
     'happy path: start → previous performance + delta → done → rest (±15s) → '
@@ -358,12 +382,12 @@ void main() {
       // Complete set 1 → the smart-rest default for a fixed(5) set on a large
       // (Chest) muscle group is the full <=6-rep base, 115s → "1:55" — not
       // the plan's stored restSeconds (90s) any more.
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Skip rest'), findsOneWidget);
-      expect(find.text('1:55'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(115, 1));
       expect(find.text('REST'), findsOneWidget);
       expect(find.textContaining('Next:'), findsOneWidget);
 
@@ -375,10 +399,10 @@ void main() {
       // Adjust the rest window.
       await tester.tap(find.text('+15s'));
       await tester.pump();
-      expect(find.text('2:10'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(130, 1));
       await tester.tap(find.text('-15s'));
       await tester.pump();
-      expect(find.text('1:55'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(115, 1));
 
       // Skip the rest → set 2 (already the current set — no manual pointer).
       await tester.tap(find.text('Skip rest'));
@@ -388,7 +412,7 @@ void main() {
       expect(find.text('35kg × 5'), findsOneWidget); // goal: 32.5 + 2.5
 
       // Complete the final set → completed summary.
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
@@ -431,7 +455,7 @@ void main() {
     await _settle(tester);
 
     // Log a set, so there is autosaved progress to actually discard.
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
@@ -472,7 +496,7 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
@@ -559,11 +583,11 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await tester.pump();
-    expect(find.text('1:55'), findsOneWidget); // smart-rest default for this set
+    expect(restWholeSeconds(tester), closeTo(115, 1)); // smart-rest default for this set
 
     // Let the countdown run out (driven by wall-clock elapsed time, not tick
     // count — advance the clock alongside the pumped duration).
@@ -595,13 +619,13 @@ void main() {
       await tester.tap(find.text('go'));
       await _settle(tester);
 
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
-      expect(find.text('1:55'), findsOneWidget); // 115s smart-rest window
+      expect(restWholeSeconds(tester), closeTo(115, 1)); // 115s smart-rest window
 
-      // Simulate the OS suspending the app's Timer for 40s while backgrounded
+      // Simulate the OS suspending the app's Ticker for 40s while backgrounded
       // — no ticks fire, only wall-clock time passes — then resuming.
       fakeNow = fakeNow.add(const Duration(seconds: 40));
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -609,7 +633,7 @@ void main() {
 
       // Resyncs to the real elapsed time on resume instead of staying frozen
       // at 1:55 (what a plain tick-counter would show).
-      expect(find.text('1:15'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(75, 1));
 
       // And ending naturally still works post-resume.
       fakeNow = fakeNow.add(const Duration(seconds: 75));
@@ -617,9 +641,6 @@ void main() {
       expect(find.text('Set 2 of 2'), findsOneWidget);
     },
   );
-
-  String elapsedText(WidgetTester tester) =>
-      tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
 
   testWidgets(
     'the "time in workout" label starts at 0:00, ticks with wall-clock time, and '
@@ -652,7 +673,7 @@ void main() {
       expect(elapsedText(tester), '0:45');
 
       // Keeps ticking into a new phase (resting), not just the running one.
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
@@ -663,7 +684,7 @@ void main() {
       // Finish the day (single-exercise, 2-set plan) → completes and freezes.
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
@@ -797,12 +818,12 @@ void main() {
       // Run the clock a bit, then start a rest by logging set 1.
       fakeNow = fakeNow.add(const Duration(seconds: 30));
       await tester.pump(const Duration(seconds: 30));
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
       expect(elapsedText(tester), '0:30');
-      expect(find.text('1:55'), findsOneWidget); // smart-rest window, running
+      expect(restWholeSeconds(tester), closeTo(115, 1)); // smart-rest window, running
 
       // Pause — both clocks freeze even as real time keeps passing.
       await tester.tap(find.text('Pause'));
@@ -813,7 +834,7 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 20));
       await tester.pump(const Duration(seconds: 20));
       expect(elapsedText(tester), '0:30'); // unchanged
-      expect(find.text('1:55'), findsOneWidget); // unchanged
+      expect(restWholeSeconds(tester), closeTo(115, 1)); // unchanged
 
       // Resume — elapsed continues from 0:30 (the 20 paused seconds are
       // excluded, not just skipped-over), and rest resumes at 1:55 instead
@@ -825,7 +846,7 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
       expect(elapsedText(tester), '0:35');
-      expect(find.text('1:50'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(110, 1));
     },
   );
 
@@ -887,7 +908,7 @@ void main() {
     await tester.pump(const Duration(seconds: 30));
     // Log a set first — Close on a zero-progress session silently discards
     // it (Phase 1 behavior), which would defeat this test's premise.
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await tester.pump();
@@ -965,13 +986,13 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
@@ -1011,13 +1032,13 @@ void main() {
     await tester.tap(find.text('go'));
     await _settle(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
@@ -1054,7 +1075,7 @@ void main() {
     );
     await tester.tap(find.text('go'));
     await _settle(tester);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
@@ -1203,7 +1224,7 @@ void main() {
 
       // Advance to set 2: to-failure — "Target: To failure" would just
       // restate the AMRAP goal label above it, so it's suppressed.
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
@@ -1258,7 +1279,7 @@ void main() {
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Skip rest'), findsOneWidget);
-      expect(find.text('0:20'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(20, 1));
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
 

@@ -9,6 +9,9 @@ class CaptureTopBar extends StatelessWidget {
     required this.title,
     required this.onClose,
     this.trailing,
+    this.titleColor = AppColors.ink2,
+    this.iconColor = AppColors.ink2,
+    this.chipColor = const Color(0xFFEFEBE3),
     super.key,
   });
 
@@ -17,6 +20,12 @@ class CaptureTopBar extends StatelessWidget {
 
   /// Optional trailing action (e.g. delete) replacing the balancing spacer.
   final Widget? trailing;
+
+  /// Overridable for dark/immersive hosts (e.g. the live session screens) —
+  /// defaults keep every other caller's existing light look untouched.
+  final Color titleColor;
+  final Color iconColor;
+  final Color chipColor;
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +37,12 @@ class CaptureTopBar extends StatelessWidget {
             icon: Icons.close_rounded,
             onTap: onClose,
             semanticLabel: 'Close',
+            iconColor: iconColor,
+            chipColor: chipColor,
           ),
           Expanded(
             child: Center(
-              child: Text(title, style: AppText.button.copyWith(color: AppColors.ink2)),
+              child: Text(title, style: AppText.button.copyWith(color: titleColor)),
             ),
           ),
           SizedBox(
@@ -56,6 +67,7 @@ class CaptureIconButton extends StatelessWidget {
     required this.onTap,
     required this.semanticLabel,
     this.iconColor = AppColors.ink2,
+    this.chipColor = const Color(0xFFEFEBE3),
     super.key,
   });
 
@@ -63,6 +75,7 @@ class CaptureIconButton extends StatelessWidget {
   final VoidCallback onTap;
   final String semanticLabel;
   final Color iconColor;
+  final Color chipColor;
 
   /// The visible chip diameter.
   static const double chipSize = 34;
@@ -84,10 +97,7 @@ class CaptureIconButton extends StatelessWidget {
             child: Container(
               width: chipSize,
               height: chipSize,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEFEBE3),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
               child: Icon(icon, size: 18, color: iconColor),
             ),
           ),

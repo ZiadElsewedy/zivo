@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/session_colors.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
@@ -67,14 +68,20 @@ class LiveSessionPage extends StatefulWidget {
   State<LiveSessionPage> createState() => _LiveSessionPageState();
 }
 
-class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingObserver {
+class _LiveSessionPageState extends State<LiveSessionPage>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   late LiveSession _session;
 
   final TextEditingController _reps = TextEditingController();
   final TextEditingController _weight = TextEditingController();
 
-  Timer? _restTimer;
-  int? _restRemaining;
+  /// Drives the premium rest countdown at frame rate (~60fps) rather than
+  /// once a second — every tick just triggers a rebuild; the actual
+  /// remaining time is always recomputed fresh from [_restEndsAt] against
+  /// [widget.now], never accumulated from the ticker's own elapsed time, so
+  /// it stays wall-clock-correct through pause/resume/adjust exactly like
+  /// the old 1Hz timer did.
+  Ticker? _restTicker;
   int? _restTotalSeconds;
 
   /// Debounces the current set's typed-but-not-done actuals into an
@@ -82,11 +89,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// is killed before Done is tapped.
   Timer? _draftDebounce;
 
-  /// The absolute wall-clock moment rest ends — the source of truth for
-  /// [_restRemaining], recomputed on every tick and on app resume so a
-  /// backgrounded/suspended timer can't leave the countdown stale. Null
-  /// while paused (a rest in progress is frozen into [_pausedRestRemaining]
-  /// instead) as well as whenever there's no rest running.
+  /// The absolute wall-clock moment rest ends — the single source of truth
+  /// [_restRemaining] reads on every frame (and on app resume, so a
+  /// backgrounded/suspended app snaps back to the real remaining time
+  /// instead of resuming from wherever it froze). Null while paused (a rest
+  /// in progress is frozen into [_pausedRestRemaining] instead) as well as
+  /// whenever there's no rest running.
   DateTime? _restEndsAt;
 
   /// The rest time left over from an active countdown that got paused —
@@ -128,6 +136,19 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// async and otherwise callable again (double-tap, or Finish racing the
   /// close button) before the first call's writes/pop land.
   bool _busy = false;
+
+  /// The live rest-countdown value, read fresh every frame — frozen at
+  /// [_pausedRestRemaining] while paused, otherwise the wall-clock gap to
+  /// [_restEndsAt] (never negative). Null whenever no rest is running, which
+  /// doubles as "are we in the resting phase" for [_phaseKey]/[_buildPhase].
+  Duration? get _restRemaining {
+    final paused = _pausedRestRemaining;
+    if (paused != null) return paused;
+    final endsAt = _restEndsAt;
+    if (endsAt == null) return null;
+    final remaining = endsAt.difference(widget.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
 
   @override
   void initState() {
@@ -180,7 +201,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     // `_tickElapsed` bails on `_session.isPaused`), so backgrounding while
     // paused can't sneak the clock back to life.
     if (state == AppLifecycleState.resumed) {
-      _tickRest();
+      _resyncRestOnResume();
       _tickElapsed();
     }
   }
@@ -188,7 +209,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _restTimer?.cancel();
+    _restTicker?.dispose();
     _elapsedTimer?.cancel();
     _draftDebounce?.cancel();
     _pastSessionsSub?.cancel();
@@ -401,11 +422,12 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     unawaited(_sessionsRepo.saveSession(_session));
     _prefillInputs();
     if (_session.isComplete) {
-      _restTimer?.cancel();
+      _restTicker?.dispose();
+      _restTicker = null;
       _restTotalSeconds = null;
       _restEndsAt = null;
       _elapsedTimer?.cancel();
-      setState(() => _restRemaining = null);
+      setState(() {});
       return;
     }
     _startRest(
@@ -420,10 +442,10 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   }
 
   void _startRest(int seconds) {
-    _restTimer?.cancel();
+    _restTicker?.dispose();
+    _restTicker = null;
     if (seconds <= 0) {
       setState(() {
-        _restRemaining = null;
         _restTotalSeconds = null;
         _restEndsAt = null;
       });
@@ -431,32 +453,47 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     }
     _restTotalSeconds = seconds;
     _restEndsAt = widget.now().add(Duration(seconds: seconds));
-    setState(() => _restRemaining = seconds);
-    _restTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
+    setState(() {});
+    _restTicker = createTicker(_onRestTick)..start();
   }
 
-  /// Recomputes [_restRemaining] from [_restEndsAt] against the current wall
-  /// clock — called on every timer tick and on app resume, so a `Timer` the
-  /// OS suspended while backgrounded snaps back to the real remaining time
-  /// instead of resuming from wherever it froze. A no-op while paused —
-  /// `_restEndsAt` is null then (frozen into [_pausedRestRemaining] instead).
-  void _tickRest() {
-    final endsAt = _restEndsAt;
-    if (endsAt == null) return;
-    final remaining = _ceilSeconds(endsAt.difference(widget.now()));
-    if (remaining <= 0) {
+  /// The [_restTicker]'s per-frame callback — fires every rendered frame
+  /// (~60fps) while resting, driving the premium sub-second countdown. Just
+  /// a rebuild trigger; [_restRemaining] is what's actually displayed, and
+  /// it's always recomputed fresh from [_restEndsAt] against [widget.now],
+  /// so this can't drift or accumulate error the way summing per-tick deltas
+  /// would.
+  void _onRestTick(Duration elapsed) {
+    if (!mounted) return;
+    final remaining = _restRemaining;
+    if (remaining == null) return;
+    if (remaining <= Duration.zero) {
+      _endRest();
+      return;
+    }
+    setState(() {});
+  }
+
+  /// Resyncs the rest countdown on app resume — the OS suspends `Ticker`
+  /// callbacks while backgrounded, so without this a rest that actually
+  /// finished while away would sit frozen instead of advancing to the next
+  /// set. A no-op while paused (`_restEndsAt` is null then, frozen into
+  /// [_pausedRestRemaining] instead) or when there's no rest running.
+  void _resyncRestOnResume() {
+    final remaining = _restRemaining;
+    if (_restEndsAt != null && remaining != null && remaining <= Duration.zero) {
       _endRest();
     } else if (mounted) {
-      setState(() => _restRemaining = remaining);
+      setState(() {});
     }
   }
 
   void _endRest() {
-    _restTimer?.cancel();
-    _restTimer = null;
+    _restTicker?.dispose();
+    _restTicker = null;
     _restTotalSeconds = null;
     _restEndsAt = null;
-    if (mounted) setState(() => _restRemaining = null);
+    if (mounted) setState(() {});
   }
 
   /// Just a rebuild trigger — the "time in workout" value itself is always
@@ -479,14 +516,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       _endRest();
       return;
     }
-    final remaining = _ceilSeconds(nextEndsAt.difference(widget.now()));
+    final remaining = nextEndsAt.difference(widget.now());
     _restEndsAt = nextEndsAt;
     // Keep the ring sensible: grow the total if the adjustment pushed the
     // remaining time past what it was counting down from.
-    if (_restTotalSeconds != null && remaining > _restTotalSeconds!) {
-      _restTotalSeconds = remaining;
+    final remainingCeilSeconds = _ceilSeconds(remaining);
+    if (_restTotalSeconds != null && remainingCeilSeconds > _restTotalSeconds!) {
+      _restTotalSeconds = remainingCeilSeconds;
     }
-    setState(() => _restRemaining = remaining);
+    setState(() {});
   }
 
   /// Pauses the workout: stops the elapsed clock, and — if a rest was
@@ -496,15 +534,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   void _onPause() {
     final now = widget.now();
     final endsAt = _restEndsAt;
+    if (endsAt != null) {
+      final remaining = endsAt.difference(now);
+      _pausedRestRemaining = remaining.isNegative ? Duration.zero : remaining;
+      _restTicker?.dispose();
+      _restTicker = null;
+      _restEndsAt = null;
+    }
     setState(() {
       _session = _session.pause(now: now);
-      if (endsAt != null) {
-        final remaining = endsAt.difference(now);
-        _pausedRestRemaining = remaining;
-        _restTimer?.cancel();
-        _restEndsAt = null;
-        _restRemaining = _ceilSeconds(remaining);
-      }
     });
     _elapsedTimer?.cancel();
     unawaited(_sessionsRepo.saveSession(_session));
@@ -515,14 +553,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   void _onResume() {
     final now = widget.now();
     final pausedRemaining = _pausedRestRemaining;
+    if (pausedRemaining != null) {
+      _pausedRestRemaining = null;
+      _restEndsAt = now.add(pausedRemaining);
+      _restTicker?.dispose();
+      _restTicker = createTicker(_onRestTick)..start();
+    }
     setState(() {
       _session = _session.resume(now: now);
-      if (pausedRemaining != null) {
-        _pausedRestRemaining = null;
-        _restEndsAt = now.add(pausedRemaining);
-        _restTimer?.cancel();
-        _restTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
-      }
     });
     unawaited(_sessionsRepo.saveSession(_session));
     _elapsedTimer?.cancel();
@@ -562,7 +600,8 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     if (_busy) return;
     _saveDraft();
     setState(() => _busy = true);
-    _restTimer?.cancel();
+    _restTicker?.dispose();
+    _restTicker = null;
     if (_session.completedSetCount == 0 && !_session.hasDraftActuals) {
       unawaited(_sessionsRepo.deleteSession(_session.id));
     }
@@ -598,7 +637,8 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
-    _restTimer?.cancel();
+    _restTicker?.dispose();
+    _restTicker = null;
     unawaited(sessions.deleteSession(_session.id));
     Navigator.of(context).pop();
   }
@@ -616,7 +656,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
         _onLeave();
       },
       child: Scaffold(
-        backgroundColor: AppColors.ground,
+        backgroundColor: SessionColors.ground,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,11 +664,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
               CaptureTopBar(
                 title: _dayTitle(widget.day),
                 onClose: _onLeave,
+                titleColor: SessionColors.ink2,
+                iconColor: SessionColors.ink2,
+                chipColor: SessionColors.surfaceRaised,
                 trailing: CaptureIconButton(
                   icon: Icons.delete_outline_rounded,
                   onTap: _onDiscard,
                   semanticLabel: 'Discard workout',
-                  iconColor: AppColors.flareText,
+                  iconColor: AppColors.flare,
+                  chipColor: SessionColors.surfaceRaised,
                 ),
               ),
               _ProgressBar(value: _session.progress),
@@ -709,22 +753,15 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
     final workingSetCount = exercise.sets.where((s) => s.type == SetType.working).length;
     final workingIndex = workingSetIndexOf(exercise, set);
 
-    return ListView(
-      key: const ValueKey('running-list'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.l,
-        AppSpacing.m,
-        AppSpacing.l,
-        AppSpacing.l,
-      ),
-      children: [
+    return _runningScaffold(
+      content: [
         // Exercise header — consolidated: the name is the hero title, the
         // muscle group a quiet pill beside it. No standalone "Target: X"
         // line (that's now context inside the Goal card) and no separate
         // "SET N OF M" eyebrow (the chip row below is the one set-position
         // indicator).
         StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
-        const SizedBox(height: AppSpacing.base),
+        const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 1,
           child: Column(
@@ -732,7 +769,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
             children: [
               Text(
                 'Set ${workingIndex + 1} of $workingSetCount',
-                style: AppText.meta.copyWith(color: AppColors.ink3),
+                style: AppText.meta.copyWith(color: SessionColors.ink3),
               ),
               const SizedBox(height: AppSpacing.s),
               _SetChipRow(exercise: exercise, currentSetId: set.id),
@@ -768,17 +805,47 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.l),
-        StaggeredReveal(
-          index: 4,
-          child: PillButton(
-            label: 'Done',
-            icon: Icons.check_rounded,
-            enabled: true,
-            onTap: _onSetDone,
-          ),
-        ),
       ],
+      done: StaggeredReveal(
+        index: 4,
+        child: PillButton(
+          label: 'Done',
+          icon: Icons.check_rounded,
+          enabled: true,
+          onTap: _onSetDone,
+        ),
+      ),
+    );
+  }
+
+  /// Shared shell for the running/warm-up-running screens: [content] groups
+  /// at the top with its own internal rhythm, [done] anchors to the bottom
+  /// via a flexible gap rather than sitting wherever the content happens to
+  /// end — no more dead void beneath it on tall screens. Still scrolls
+  /// gracefully (the flexible gap just collapses to 0) when content plus the
+  /// keyboard overflow a short screen.
+  Widget _runningScaffold({required List<Widget> content, required Widget done}) {
+    return LayoutBuilder(
+      key: const ValueKey('running-list'),
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.l,
+            AppSpacing.m,
+            AppSpacing.l,
+            AppSpacing.l,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - AppSpacing.m - AppSpacing.l),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [...content, const Spacer(), done],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -787,23 +854,16 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
   /// working-sets-only) — a "WARM-UP" eyebrow plus the ramp's own
   /// weight/reps prescription stand in for both.
   Widget _buildWarmupRunning(SessionExercise exercise, LoggedSet set) {
-    return ListView(
-      key: const ValueKey('running-list'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.l,
-        AppSpacing.m,
-        AppSpacing.l,
-        AppSpacing.l,
-      ),
-      children: [
+    return _runningScaffold(
+      content: [
         StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
-        const SizedBox(height: AppSpacing.base),
+        const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 1,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Warm-up', style: AppText.meta.copyWith(color: AppColors.emberText)),
+              Text('Warm-up', style: AppText.meta.copyWith(color: AppColors.ember)),
               const SizedBox(height: AppSpacing.s),
               _SetChipRow(exercise: exercise, currentSetId: set.id),
             ],
@@ -830,24 +890,26 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.l),
-        StaggeredReveal(
-          index: 4,
-          child: PillButton(
-            label: 'Done',
-            icon: Icons.check_rounded,
-            enabled: true,
-            onTap: _onSetDone,
-          ),
-        ),
       ],
+      done: StaggeredReveal(
+        index: 4,
+        child: PillButton(
+          label: 'Done',
+          icon: Icons.check_rounded,
+          enabled: true,
+          onTap: _onSetDone,
+        ),
+      ),
     );
   }
 
   Widget _exerciseHeader(SessionExercise exercise) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(exercise.name, style: AppText.cardTitle.copyWith(fontSize: 30)),
+      Text(
+        exercise.name,
+        style: AppText.cardTitle.copyWith(fontSize: 30, color: SessionColors.ink),
+      ),
       if (exercise.muscleGroup != null) ...[
         const SizedBox(height: AppSpacing.s),
         _MuscleGroupPill(label: exercise.muscleGroup!),
@@ -864,17 +926,23 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
-          const SizedBox(height: 18),
+          Center(child: _Eyebrow('Rest', color: SessionColors.ink3)),
+          // The ring is the centerpiece — split the space between the
+          // eyebrow and the bottom controls evenly around it, rather than
+          // letting it float high with all the slack dumped below "Next:".
+          const Spacer(),
           Center(
             child: _RestRing(
-              remaining: _restRemaining ?? 0,
+              remaining: _restRemaining ?? Duration.zero,
               total: _restTotalSeconds ?? 1,
             ),
           ),
           const SizedBox(height: 18),
           Center(
-            child: Text('Next: $nextLabel', style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
+            child: Text(
+              'Next: $nextLabel',
+              style: AppText.rowTitle.copyWith(color: SessionColors.ink2),
+            ),
           ),
           const Spacer(),
           Row(
@@ -888,7 +956,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
           PillButton(
             label: 'Skip rest',
             icon: Icons.skip_next_rounded,
-            color: AppColors.pulseText,
+            color: AppColors.pulse,
             enabled: true,
             onTap: _endRest,
           ),
@@ -904,7 +972,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
       key: const ValueKey('completed-list'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       children: [
-        Center(child: _Eyebrow('Workout complete', color: AppColors.pulseText)),
+        Center(child: _Eyebrow('Workout complete', color: AppColors.pulse)),
         const SizedBox(height: 14),
         Center(
           child: _PopIn(
@@ -912,11 +980,14 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
           ),
         ),
         const SizedBox(height: 16),
-        Text(widget.day.label, style: AppText.cardTitle.copyWith(fontSize: 24)),
+        Text(
+          widget.day.label,
+          style: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink),
+        ),
         const SizedBox(height: 6),
         Text(
           '${_session.completedSetCount} of ${_session.totalSets} sets · ${elapsed.inMinutes} min',
-          style: AppText.meta.copyWith(color: AppColors.pulseText),
+          style: AppText.meta.copyWith(color: AppColors.pulse),
         ),
         const SizedBox(height: 18),
         for (final (i, exercise) in loggedExercises.indexed)
@@ -929,7 +1000,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
                     ? '${exercise.name} · ${exercise.doneSetCount} sets · '
                           'top ${_trimWeight(exercise.topWeightKg!)}kg'
                     : '${exercise.name} · ${exercise.doneSetCount} sets',
-                style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
+                style: AppText.body.copyWith(fontSize: 15, color: SessionColors.ink2),
               ),
             ),
           ),
@@ -939,7 +1010,7 @@ class _LiveSessionPageState extends State<LiveSessionPage> with WidgetsBindingOb
           child: PillButton(
             label: 'Finish',
             icon: Icons.check_rounded,
-            color: AppColors.pulseText,
+            color: AppColors.pulse,
             enabled: !_busy,
             onTap: _onFinish,
           ),
@@ -1003,6 +1074,16 @@ int _ceilSeconds(Duration d) => d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 
 /// isn't taxing recovery the way a working set is.
 const int _warmupRestSeconds = 20;
 
+/// A restrained, low-opacity lift for the Goal/Warm-up cards on dark — the
+/// shared [AppShadows.pulse]/[AppShadows.ember] (tuned for light-mode pill
+/// buttons) read as a bright neon halo against near-black, which isn't the
+/// premium feel this screen wants. This is a much softer glow paired with a
+/// plain neutral hairline border, so the color reads as a subtle accent
+/// rather than the card's whole edge.
+List<BoxShadow> _cardGlow(Color color) => [
+  BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 24, spreadRadius: -6, offset: const Offset(0, 8)),
+];
+
 // ---- Small building blocks ----------------------------------------------
 
 class _Eyebrow extends StatelessWidget {
@@ -1038,7 +1119,7 @@ class _ProgressBar extends StatelessWidget {
           builder: (context, animatedValue, _) => LinearProgressIndicator(
             value: animatedValue,
             minHeight: 5,
-            backgroundColor: AppColors.hairline,
+            backgroundColor: SessionColors.hairline,
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.pulse),
           ),
         ),
@@ -1067,26 +1148,26 @@ class _ElapsedLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Row(
         children: [
-          Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
+          Icon(Icons.timer_outlined, size: 13, color: SessionColors.ink3),
           const SizedBox(width: 5),
           Text(
             _formatElapsed(elapsed),
             key: const Key('elapsed-timer'),
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: SessionColors.ink3),
           ),
           if (isPaused) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: SessionColors.hairline2,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 'PAUSED',
                 key: const Key('paused-badge'),
                 style: AppText.meta.copyWith(
-                  color: AppColors.ink2,
+                  color: SessionColors.ink2,
                   fontWeight: FontWeight.w700,
                   fontSize: 10,
                   letterSpacing: 0.6,
@@ -1108,13 +1189,13 @@ class _ElapsedLabel extends StatelessWidget {
                     Icon(
                       isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                       size: 16,
-                      color: isPaused ? AppColors.pulseText : AppColors.ink3,
+                      color: isPaused ? AppColors.pulse : SessionColors.ink3,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       isPaused ? 'Resume' : 'Pause',
                       style: AppText.meta.copyWith(
-                        color: isPaused ? AppColors.pulseText : AppColors.ink3,
+                        color: isPaused ? AppColors.pulse : SessionColors.ink3,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1129,13 +1210,12 @@ class _ElapsedLabel extends StatelessWidget {
 }
 
 /// The Last-time + Goal card — the point of the running phase per the
-/// "genuinely smarter" pass: a lifted card (the same `AppRadius.card` +
-/// `AppShadows.card` language every other premium surface in the app uses)
-/// so Goal reads as the dominant, hero element through hierarchy — biggest,
-/// boldest, on its own tinted surface — not through any new motion. "Last
-/// time" is a quiet supporting line, and the plan's own rep target sits
-/// underneath as quieter context still. No animation beyond the shared
-/// entrance stagger.
+/// "genuinely smarter" pass: an elevated dark card (a plain hairline border
+/// plus [_cardGlow]'s restrained pulse-tinted lift, not a bright halo) so
+/// Goal reads as the dominant, hero element through hierarchy — biggest,
+/// boldest, on its own surface — not through any new motion. "Last time" is
+/// a quiet supporting line, and the plan's own rep target sits underneath as
+/// quieter context still. No animation beyond the shared entrance stagger.
 class _GoalBlock extends StatelessWidget {
   const _GoalBlock({required this.lastTimeLabel, required this.goal, this.targetText});
 
@@ -1146,23 +1226,24 @@ class _GoalBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
-        color: AppColors.pulseWash,
+        color: SessionColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: SessionColors.hairline2),
+        boxShadow: _cardGlow(AppColors.pulse),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.flag_rounded, size: 14, color: AppColors.pulseText),
+              const Icon(Icons.flag_rounded, size: 14, color: AppColors.pulse),
               const SizedBox(width: 6),
               Text(
                 'GOAL',
                 style: AppText.meta.copyWith(
-                  color: AppColors.pulseText,
+                  color: AppColors.pulse,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                 ),
@@ -1173,9 +1254,9 @@ class _GoalBlock extends StatelessWidget {
           Text(
             goal.label,
             key: const Key('goal-label'),
-            style: AppText.cardTitle.copyWith(
-              fontSize: 32,
-              color: AppColors.pulseText,
+            style: AppText.heroNumber.copyWith(
+              fontSize: 40,
+              color: SessionColors.ink,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1183,13 +1264,13 @@ class _GoalBlock extends StatelessWidget {
           Text(
             'Last time: $lastTimeLabel',
             key: const Key('last-time-label'),
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: SessionColors.ink3),
           ),
           if (targetText != null) ...[
             const SizedBox(height: 2),
             Text(
               'Target: $targetText',
-              style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w400),
+              style: AppText.meta.copyWith(color: SessionColors.ink3, fontWeight: FontWeight.w400),
             ),
           ],
         ],
@@ -1216,23 +1297,24 @@ class _WarmupBlock extends StatelessWidget {
       if (reps != null) '× $reps',
     ].join(' ');
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
-        color: AppColors.emberWash,
+        color: SessionColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: SessionColors.hairline2),
+        boxShadow: _cardGlow(AppColors.ember),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.whatshot_rounded, size: 14, color: AppColors.emberText),
+              const Icon(Icons.whatshot_rounded, size: 14, color: AppColors.ember),
               const SizedBox(width: 6),
               Text(
                 'WARM-UP',
                 style: AppText.meta.copyWith(
-                  color: AppColors.emberText,
+                  color: AppColors.ember,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                 ),
@@ -1243,9 +1325,9 @@ class _WarmupBlock extends StatelessWidget {
           Text(
             'Warm-up: $guidance',
             key: const Key('warmup-guidance'),
-            style: AppText.cardTitle.copyWith(
-              fontSize: 28,
-              color: AppColors.emberText,
+            style: AppText.heroNumber.copyWith(
+              fontSize: 32,
+              color: SessionColors.ink,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1267,13 +1349,13 @@ class _MuscleGroupPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: SessionColors.surfaceRaised,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: SessionColors.hairline2),
       ),
       child: Text(
         label,
-        style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
+        style: AppText.meta.copyWith(color: SessionColors.ink2, fontSize: 12),
       ),
     );
   }
@@ -1295,9 +1377,12 @@ class _RestAdjustButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.hairline2, width: 1.4),
+          border: Border.all(color: SessionColors.hairline2, width: 1.4),
         ),
-        child: Text(label, style: AppText.button.copyWith(fontSize: 15, color: AppColors.ink2)),
+        child: Text(
+          label,
+          style: AppText.button.copyWith(fontSize: 15, color: SessionColors.ink2),
+        ),
       ),
     );
   }
@@ -1324,7 +1409,7 @@ class _ActualField extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+            style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
           TextField(
@@ -1332,15 +1417,19 @@ class _ActualField extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
             cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(fontSize: 20, fontWeight: FontWeight.w600),
+            style: AppText.rowTitle.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: SessionColors.ink,
+            ),
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               isDense: true,
               hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+              hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               filled: true,
-              fillColor: AppColors.card,
+              fillColor: SessionColors.surfaceRaised,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.chip + 4),
                 borderSide: BorderSide.none,
@@ -1377,11 +1466,11 @@ class _ProgressionDelta extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.pulseText),
+          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.pulse),
           const SizedBox(width: 2),
           Text(
             '+${_trimWeight(delta)}kg',
-            style: AppText.meta.copyWith(color: AppColors.pulseText, fontWeight: FontWeight.w700),
+            style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -1443,10 +1532,10 @@ class _WarmupChip extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: done ? AppColors.emberWash : Colors.transparent,
-        border: Border.all(color: AppColors.emberText, width: 1.4),
+        color: done ? SessionColors.surfaceRaised : Colors.transparent,
+        border: Border.all(color: AppColors.ember, width: 1.4),
       ),
-      child: const Icon(Icons.whatshot_rounded, size: 15, color: AppColors.emberText),
+      child: const Icon(Icons.whatshot_rounded, size: 15, color: AppColors.ember),
     );
     return isCurrent ? _PulsingGlow(color: AppColors.ember, child: dot) : dot;
   }
@@ -1474,7 +1563,7 @@ class _SetChip extends StatelessWidget {
           _ChipState.upcoming => Colors.transparent,
         },
         border: state == _ChipState.upcoming
-            ? Border.all(color: AppColors.hairline2, width: 1.4)
+            ? Border.all(color: SessionColors.hairline2, width: 1.4)
             : null,
       ),
       child: state == _ChipState.done
@@ -1482,7 +1571,7 @@ class _SetChip extends StatelessWidget {
           : Text(
               '$number',
               style: AppText.meta.copyWith(
-                color: state == _ChipState.current ? Colors.white : AppColors.ink3,
+                color: state == _ChipState.current ? Colors.white : SessionColors.ink3,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1548,44 +1637,71 @@ class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderSta
   }
 }
 
-/// The rest countdown — a ring sweeping down over the rest window with the
-/// remaining time centered inside, gently breathing. Warm gray/ink, per the
+/// The premium rest countdown — a ring sweeping down continuously (not
+/// stepped) over the rest window, with the remaining time centered inside
+/// at sub-second precision, gently breathing. Warm gray/ink, per the
 /// approved "rest" identity (Ember stays reserved for the current set, Pulse
-/// for done).
+/// for done) — a vivid hue here would compete with that meaning.
 class _RestRing extends StatelessWidget {
   const _RestRing({required this.remaining, required this.total});
 
-  final int remaining;
+  final Duration remaining;
   final int total;
 
   @override
   Widget build(BuildContext context) {
-    final progress = total <= 0 ? 0.0 : (remaining / total).clamp(0.0, 1.0);
+    final totalMs = total * 1000;
+    final progress = totalMs <= 0
+        ? 0.0
+        : (remaining.inMilliseconds / totalMs).clamp(0.0, 1.0);
+    final time = _restTimeParts(remaining);
     return _BreathingScale(
       child: SizedBox(
-        width: 216,
-        height: 216,
+        width: 240,
+        height: 240,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: progress),
-              duration: const Duration(milliseconds: 950),
-              curve: Curves.linear,
-              builder: (context, value, _) => CustomPaint(
-                size: const Size(216, 216),
-                painter: _RestRingPainter(progress: value),
-              ),
+            CustomPaint(
+              size: const Size(240, 240),
+              painter: _RestRingPainter(progress: progress),
             ),
-            Text(
-              restLabel(remaining),
-              style: AppText.greeting.copyWith(fontSize: 52, color: AppColors.ink),
+            Text.rich(
+              key: const Key('rest-time-label'),
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: time.whole,
+                    style: AppText.heroNumber.copyWith(fontSize: 50, color: SessionColors.ink),
+                  ),
+                  TextSpan(
+                    text: time.centis,
+                    style: AppText.heroNumber.copyWith(fontSize: 26, color: SessionColors.ink2),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Splits [remaining] into the premium countdown's two-tier display: the
+/// bold whole-second part ("1:54" at/above a minute, "45" under it) and a
+/// quieter ".CC" hundredths suffix — a common stopwatch convention that
+/// reads as precise without the decimals overwhelming the big numeral.
+({String whole, String centis}) _restTimeParts(Duration remaining) {
+  final clamped = remaining.isNegative ? Duration.zero : remaining;
+  final totalCentis = clamped.inMilliseconds ~/ 10;
+  final minutes = totalCentis ~/ 6000;
+  final seconds = (totalCentis % 6000) ~/ 100;
+  final centis = totalCentis % 100;
+  final whole = minutes > 0
+      ? '$minutes:${seconds.toString().padLeft(2, '0')}'
+      : seconds.toString().padLeft(2, '0');
+  return (whole: whole, centis: '.${centis.toString().padLeft(2, '0')}');
 }
 
 class _RestRingPainter extends CustomPainter {
@@ -1597,20 +1713,20 @@ class _RestRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2 - 10;
+    final radius = size.shortestSide / 2 - 12;
     final track = Paint()
-      ..color = AppColors.hairline2
+      ..color = SessionColors.hairline2
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
+      ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, track);
 
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final sweep = Paint()
-      ..color = AppColors.ink2
+      ..color = SessionColors.ink2
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
+      ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
