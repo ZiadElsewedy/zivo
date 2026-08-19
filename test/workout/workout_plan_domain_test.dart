@@ -115,6 +115,67 @@ void main() {
     });
   });
 
+  group('collapsedSetSummaries', () {
+    test('collapses identical sets into a single "N ×" line', () {
+      final sets = [
+        _set(order: 0, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
+        _set(order: 1, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
+        _set(order: 2, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
+      ];
+      expect(collapsedSetSummaries(sets), ['3 × 8–10 · rest 1:30']);
+    });
+
+    test('includes weight in the collapsed line when set', () {
+      final sets = [
+        _set(order: 0, repTarget: const RepTarget.fixed(10), restSeconds: 120, targetWeightKg: 60),
+        _set(order: 1, repTarget: const RepTarget.fixed(10), restSeconds: 120, targetWeightKg: 60),
+      ];
+      expect(collapsedSetSummaries(sets), ['2 × 10 · 60kg · rest 2:00']);
+    });
+
+    test('starts a new line only where a set actually differs (a heavier last set)', () {
+      final sets = [
+        _set(order: 0, repTarget: const RepTarget.range(8, 10), restSeconds: 90, targetWeightKg: 40),
+        _set(order: 1, repTarget: const RepTarget.range(8, 10), restSeconds: 90, targetWeightKg: 40),
+        _set(order: 2, repTarget: const RepTarget.range(6, 8), restSeconds: 90, targetWeightKg: 45),
+      ];
+      expect(collapsedSetSummaries(sets), [
+        '2 × 8–10 · 40kg · rest 1:30',
+        '1 × 6–8 · 45kg · rest 1:30',
+      ]);
+    });
+
+    test('every set differing yields one line per set, same as setSummary would', () {
+      final sets = [
+        _set(order: 0, repTarget: const RepTarget.fixed(12), restSeconds: 60),
+        _set(order: 1, repTarget: const RepTarget.fixed(10), restSeconds: 75),
+        _set(order: 2, repTarget: const RepTarget.toFailure(), restSeconds: 90),
+      ];
+      expect(collapsedSetSummaries(sets), [
+        '1 × 12 · rest 1:00',
+        '1 × 10 · rest 1:15',
+        '1 × To failure · rest 1:30',
+      ]);
+    });
+
+    test('a non-adjacent repeat of the same spec is NOT re-merged (order-sensitive grouping)', () {
+      final sets = [
+        _set(order: 0, repTarget: const RepTarget.fixed(10), restSeconds: 90),
+        _set(order: 1, repTarget: const RepTarget.fixed(8), restSeconds: 90),
+        _set(order: 2, repTarget: const RepTarget.fixed(10), restSeconds: 90),
+      ];
+      expect(collapsedSetSummaries(sets), [
+        '1 × 10 · rest 1:30',
+        '1 × 8 · rest 1:30',
+        '1 × 10 · rest 1:30',
+      ]);
+    });
+
+    test('empty sets list yields no lines', () {
+      expect(collapsedSetSummaries(const []), isEmpty);
+    });
+  });
+
   group('PlannedExercise', () {
     test('setCount reflects the number of sets', () {
       final e = PlannedExercise(

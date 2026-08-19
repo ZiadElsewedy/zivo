@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
-import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -175,8 +174,9 @@ void main() {
     expect(find.text('Bench Press'), findsOneWidget); // only the today section is expanded
     expect(find.text('Test Split'), findsOneWidget); // plan name
 
-    // Sets are rendered through the P0 formatter (range reps + weight + rest).
-    expect(find.textContaining('reps · 60kg · rest 2:00'), findsOneWidget);
+    // Sets are rendered collapsed — one line per distinct spec, "N ×" prefix
+    // (Bench Press has a single set here, so "1 ×").
+    expect(find.text('1 × 6–8 · 60kg · rest 2:00'), findsOneWidget);
   });
 
   testWidgets('browse section lists every day in the cycle and expands on tap', (tester) async {
@@ -185,6 +185,11 @@ void main() {
 
     await tester.pumpWidget(_wrap(child: const WorkoutPlanPage(), plansOverride: plans));
     plans.emit(_compactPlan());
+    await tester.pump();
+
+    // The dark hero card's taller rhythm pushes the browse list further down
+    // than the default (short) test viewport shows without scrolling.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pump();
 
     // All three cycle days appear in the browse list.
@@ -251,7 +256,9 @@ void main() {
     plans.emitError(Exception('read denied'));
     await tester.pump();
 
-    expect(find.byType(ErrorStateView), findsOneWidget);
+    // A page-local dark error state (not the shared light-mode ErrorStateView).
+    expect(find.text("Couldn't load this."), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_off_rounded), findsOneWidget);
     expect(find.byType(Lottie), findsNothing);
     expect(find.text('No workout plan yet.'), findsNothing);
   });

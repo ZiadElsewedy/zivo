@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/reactive_state_views.dart';
+import '../../../../core/theme/session_colors.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../data/ziad_workout_plan.dart';
 import '../../domain/live_session.dart';
@@ -20,8 +21,11 @@ import 'workout_plan_edit_page.dart';
 /// Shows the day that's up next (the cycle cursor) prominently, then the whole
 /// cycle browsable below. Read-only in this phase: guided execution, rest
 /// timers, and actual-set logging arrive with the session engine (P3). History
-/// ("what I did") stays one tap away via the AppBar. A Pulse surface, sibling
-/// hue to Diet.
+/// ("what I did") stays one tap away via the AppBar.
+///
+/// Dark, immersive body — Phase 5D — matching the live session screens'
+/// [SessionColors]; only the surrounding app shell (bottom nav, other tabs)
+/// stays on the light [AppColors] theme, an accepted seam for this round.
 class WorkoutPlanPage extends StatelessWidget {
   const WorkoutPlanPage({super.key});
 
@@ -35,16 +39,17 @@ class WorkoutPlanPage extends StatelessWidget {
         final plan = snapshot.data;
         final loading = plan == null && snapshot.connectionState == ConnectionState.waiting;
         return Scaffold(
-          backgroundColor: AppColors.ground,
+          backgroundColor: SessionColors.ground,
           appBar: AppBar(
-            backgroundColor: AppColors.ground,
+            backgroundColor: SessionColors.ground,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            title: Text('Workout', style: AppText.cardTitle),
+            iconTheme: const IconThemeData(color: SessionColors.ink2),
+            title: Text('Workout', style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
             actions: [
               IconButton(
                 tooltip: 'History',
-                icon: const Icon(Icons.history_rounded, color: AppColors.ink2),
+                icon: const Icon(Icons.history_rounded, color: SessionColors.ink2),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
                 ),
@@ -54,7 +59,7 @@ class WorkoutPlanPage extends StatelessWidget {
           floatingActionButton: loading || snapshot.hasError
               ? null
               : FloatingActionButton(
-                  backgroundColor: AppColors.pulseText,
+                  backgroundColor: AppColors.pulse,
                   elevation: 2,
                   tooltip: plan == null ? 'Create plan' : 'Edit plan',
                   onPressed: () => Navigator.of(context).push(
@@ -66,14 +71,74 @@ class WorkoutPlanPage extends StatelessWidget {
                   ),
                 ),
           body: snapshot.hasError
-              ? const ErrorStateView()
+              ? const _PlanErrorState()
               : loading
-              ? const LoadingStateView()
+              ? const _PlanLoadingState()
               : plan == null
               ? const _WorkoutPlanEmptyState()
               : _PlanBody(plan: plan),
         );
       },
+    );
+  }
+}
+
+/// A restrained, low-opacity lift for the plan's dark cards — a plain
+/// neutral hairline border does the structural work; this is just enough
+/// colored glow to read as "elevated," not a neon halo. Matches the live
+/// session screens' `_cardGlow` treatment (Phase 5A) so the two dark
+/// surfaces feel like one system.
+List<BoxShadow> _cardGlow(Color color) => [
+  BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 24, spreadRadius: -6, offset: const Offset(0, 8)),
+];
+
+/// The Lottie loading mark renders in a dark ink tone of its own — nearly
+/// invisible directly on [SessionColors.ground] — so it gets a touch of a
+/// lighter (but still dark) backdrop for contrast, not a light island.
+class _PlanLoadingState extends StatelessWidget {
+  const _PlanLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 140,
+        height: 140,
+        decoration: const BoxDecoration(color: SessionColors.surfaceRaised, shape: BoxShape.circle),
+        padding: const EdgeInsets.all(10),
+        child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
+      ),
+    );
+  }
+}
+
+class _PlanErrorState extends StatelessWidget {
+  const _PlanErrorState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 30, color: SessionColors.ink3),
+            const SizedBox(height: 12),
+            Text(
+              "Couldn't load this.",
+              style: AppText.aside.copyWith(color: SessionColors.ink2),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Check your connection and try again in a moment.',
+              style: AppText.meta.copyWith(color: SessionColors.ink3),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -90,16 +155,16 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const Icon(Icons.fitness_center_rounded, size: 30, color: SessionColors.ink3),
           const SizedBox(height: 12),
-          Text('No workout plan yet.', style: AppText.aside),
+          Text('No workout plan yet.', style: AppText.aside.copyWith(color: SessionColors.ink2)),
           const SizedBox(height: 18),
           SizedBox(
             width: 220,
             child: PillButton(
               label: 'Import my split',
               icon: Icons.download_rounded,
-              color: AppColors.pulseText,
+              color: AppColors.pulse,
               enabled: true,
               onTap: () => AppScope.of(context).workoutPlans.savePlan(ziadWorkoutPlan()),
             ),
@@ -122,16 +187,16 @@ class _PlanBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
       children: [
-        Text(plan.name, style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
+        Text(plan.name, style: AppText.rowTitle.copyWith(color: SessionColors.ink2)),
         const SizedBox(height: 18),
         if (today == null)
-          Text('No day up next.', style: AppText.aside)
+          Text('No day up next.', style: AppText.aside.copyWith(color: SessionColors.ink2))
         else
           _TodaySection(day: today, plan: plan),
         const SizedBox(height: 30),
         Text(
           'Full cycle',
-          style: AppText.meta.copyWith(color: AppColors.pulseText, fontWeight: FontWeight.w600),
+          style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         for (final (i, day) in days.indexed)
@@ -170,8 +235,10 @@ class _TodaySection extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
         decoration: BoxDecoration(
-          color: AppColors.pulseWash,
+          color: SessionColors.surface,
           borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: SessionColors.hairline2),
+          boxShadow: _cardGlow(AppColors.pulse),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +254,7 @@ class _TodaySection extends StatelessWidget {
                 Text(
                   'UP NEXT',
                   style: AppText.meta.copyWith(
-                    color: AppColors.pulseText,
+                    color: AppColors.pulse,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
                   ),
@@ -195,10 +262,17 @@ class _TodaySection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text(_dayTitle(day), style: AppText.cardTitle.copyWith(fontSize: 26)),
+            Text(
+              _dayTitle(day),
+              style: AppText.heroNumber.copyWith(
+                fontSize: 30,
+                color: SessionColors.ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
-            const SizedBox(height: 16),
+            Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: SessionColors.ink3)),
+            const SizedBox(height: 18),
             StreamBuilder<LiveSession?>(
               stream: sessions.watchActiveSession(),
               initialData: sessions.activeSession,
@@ -214,7 +288,7 @@ class _TodaySection extends StatelessWidget {
                 return PillButton(
                   label: resumable == null ? 'Start workout' : 'Resume workout',
                   icon: Icons.play_arrow_rounded,
-                  color: AppColors.pulseText,
+                  color: AppColors.pulse,
                   enabled: true,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
@@ -224,7 +298,7 @@ class _TodaySection extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             for (final (i, exercise) in exercises.indexed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -245,12 +319,13 @@ class _ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sets = [...exercise.sets]..sort((a, b) => a.order.compareTo(b.order));
+    final setLines = collapsedSetSummaries(sets);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: SessionColors.surfaceRaised,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: SessionColors.hairline2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,13 +335,16 @@ class _ExerciseCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   exercise.name,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                  style: AppText.rowTitle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: SessionColors.ink,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 plannedExerciseMeta(exercise),
-                style: AppText.meta.copyWith(color: AppColors.pulseText),
+                style: AppText.meta.copyWith(color: AppColors.pulse),
               ),
             ],
           ),
@@ -274,11 +352,14 @@ class _ExerciseCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               exercise.notes!,
-              style: AppText.body.copyWith(fontSize: 13, color: AppColors.ink2),
+              style: AppText.body.copyWith(fontSize: 13, color: SessionColors.ink2),
             ),
           ],
           const SizedBox(height: 10),
-          for (final set in sets)
+          // Collapsed to one line per distinct set spec — a 3-set exercise
+          // with identical sets reads as "3 × 8–10 · rest 1:30", not three
+          // repeated lines; only genuinely different sets get their own line.
+          for (final line in setLines)
             Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Row(
@@ -287,8 +368,8 @@ class _ExerciseCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      setSummary(set),
-                      style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 13),
+                      line,
+                      style: AppText.meta.copyWith(color: SessionColors.ink2, fontSize: 13),
                     ),
                   ),
                 ],
@@ -340,9 +421,9 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: SessionColors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline),
+            border: Border.all(color: SessionColors.hairline2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,14 +433,17 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                   Expanded(
                     child: Text(
                       _dayTitle(day),
-                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                      style: AppText.rowTitle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: SessionColors.ink,
+                      ),
                     ),
                   ),
                   if (widget.isNext) ...[
                     const _NextUpBadge(),
                     const SizedBox(width: 10),
                   ],
-                  Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
+                  Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: SessionColors.ink3)),
                   const SizedBox(width: 6),
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
@@ -368,7 +452,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                     child: const Icon(
                       Icons.expand_more_rounded,
                       size: 20,
-                      color: AppColors.ink3,
+                      color: SessionColors.ink3,
                     ),
                   ),
                 ],
@@ -395,7 +479,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                         exercise.name,
                                         style: AppText.body.copyWith(
                                           fontSize: 14,
-                                          color: AppColors.ink2,
+                                          color: SessionColors.ink2,
                                         ),
                                       ),
                                     ),
@@ -403,7 +487,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                     Text(
                                       plannedExerciseMeta(exercise),
                                       style: AppText.meta.copyWith(
-                                        color: AppColors.ink3,
+                                        color: SessionColors.ink3,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -430,13 +514,13 @@ class _NextUpBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.pulse.withValues(alpha: 0.12),
+        color: AppColors.pulse.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         'Next up',
         style: AppText.meta.copyWith(
-          color: AppColors.pulseText,
+          color: AppColors.pulse,
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
