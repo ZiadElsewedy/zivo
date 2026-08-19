@@ -30,10 +30,12 @@ class FirestoreProfileRepository implements ProfileRepository {
     required String uid,
     required String name,
     required DateTime dateOfBirth,
+    String? photoPath,
   }) {
     return _users.doc(uid).set({
       'name': name,
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
+      'photoPath': photoPath,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -44,12 +46,14 @@ class FirestoreProfileRepository implements ProfileRepository {
     if (data == null) return null;
     final name = data['name'];
     final dateOfBirth = data['dateOfBirth'];
+    final photoPath = data['photoPath'];
     if (name is! String || name.isEmpty) return null;
     if (dateOfBirth is! Timestamp) return null;
     return UserProfile(
       uid: snap.id,
       name: name,
       dateOfBirth: dateOfBirth.toDate(),
+      photoPath: photoPath is String ? photoPath : null,
     );
   }
 }

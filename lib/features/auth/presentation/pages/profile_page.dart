@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,9 +17,10 @@ import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
 
 /// The "You" surface: identity at a glance, an editable account section, and
-/// sign-out. Reads the live [UserProfile] (name + date of birth) alongside
-/// the [AuthUser] auth identity (email + sign-in provider) so every real
-/// piece of data ZIVO holds about the signed-in person has a home here.
+/// sign-out. Reads the live [UserProfile] (name, date of birth, photo)
+/// alongside the [AuthUser] auth identity (email + sign-in provider) so
+/// every real piece of data ZIVO holds about the signed-in person has a
+/// home here.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -47,26 +53,99 @@ class _ProfilePageState extends State<ProfilePage> {
           uid: profile.uid,
           name: name,
           dateOfBirth: profile.dateOfBirth,
+          photoPath: profile.photoPath,
         );
   }
 
   Future<void> _editDob(UserProfile profile) async {
-    final now = DateTime.now();
-    final lastDate = DateTime(now.year - 13, now.month, now.day);
-    final firstDate = DateTime(now.year - 120, now.month, now.day);
-    final picked = await showDatePicker(
+    final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: profile.dateOfBirth,
-      firstDate: firstDate,
-      lastDate: lastDate,
-      helpText: 'Date of birth',
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _DobPickerSheet(initial: profile.dateOfBirth),
     );
     if (picked == null || !mounted) return;
     await AppScope.of(context).profiles.saveProfile(
           uid: profile.uid,
           name: profile.name,
           dateOfBirth: picked,
+          photoPath: profile.photoPath,
         );
+  }
+
+  Future<void> _changePhoto(UserProfile profile) async {
+    final action = await showCupertinoModalPopup<_PhotoAction>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Profile Photo'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetContext, _PhotoAction.choose),
+            child: const Text('Choose Photo'),
+          ),
+          if (profile.photoPath != null)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(sheetContext, _PhotoAction.remove),
+              child: const Text('Remove Photo'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    if (action == _PhotoAction.choose) {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 88,
+      );
+      if (picked == null || !mounted) return;
+      final savedPath = await _persistAvatar(picked.path, profile.uid);
+      if (!mounted) return;
+      await AppScope.of(context).profiles.saveProfile(
+            uid: profile.uid,
+            name: profile.name,
+            dateOfBirth: profile.dateOfBirth,
+            photoPath: savedPath,
+          );
+    } else {
+      final oldPath = profile.photoPath;
+      await AppScope.of(context).profiles.saveProfile(
+            uid: profile.uid,
+            name: profile.name,
+            dateOfBirth: profile.dateOfBirth,
+            photoPath: null,
+          );
+      if (oldPath != null) {
+        try {
+          await File(oldPath).delete();
+        } catch (_) {
+          // Best-effort cleanup; a stray file on disk is harmless.
+        }
+      }
+    }
+  }
+
+  /// Copies the picker's (often cache-scoped, ephemeral) source file into a
+  /// dedicated `avatars/` folder under the app's own documents directory —
+  /// creating it on first use — so the photo persists independently of
+  /// wherever image_picker happened to stage it.
+  Future<String> _persistAvatar(String pickedPath, String uid) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final avatarsDir = Directory('${docsDir.path}/avatars');
+    if (!await avatarsDir.exists()) {
+      await avatarsDir.create(recursive: true);
+    }
+    final ext = pickedPath.contains('.') ? pickedPath.split('.').last : 'jpg';
+    final dest = File('${avatarsDir.path}/$uid.$ext');
+    await File(pickedPath).copy(dest.path);
+    return dest.path;
   }
 
   void _copyUid(String uid) {
@@ -106,7 +185,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 22),
                   RiseIn(
                     delay: const Duration(milliseconds: 50),
-                    child: _ProfileHeader(user: user, profile: profile),
+                    child: _ProfileHeader(
+                      user: user,
+                      profile: profile,
+                      onTapAvatar: profile == null ? null : () => _changePhoto(profile),
+                    ),
                   ),
                   const SizedBox(height: 30),
                   RiseIn(
@@ -211,15 +294,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
+enum _PhotoAction { choose, remove }
+
 /// Avatar + name + verified email — the identity summary above the account
-/// details. The avatar is a deterministic monogram (no photo storage exists
-/// yet): its hue is derived from [AuthUser.uid] so it's stable across
-/// sessions and distinct enough between accounts to feel personal.
+/// details.
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.user, required this.profile});
+  const _ProfileHeader({required this.user, required this.profile, required this.onTapAvatar});
 
   final AuthUser user;
   final UserProfile? profile;
+  final VoidCallback? onTapAvatar;
 
   String get _name {
     final profileName = profile?.name.trim();
@@ -233,7 +317,7 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _Avatar(seed: user.uid, name: _name),
+        _Avatar(seed: user.uid, name: _name, photoPath: profile?.photoPath, onTap: onTapAvatar),
         const SizedBox(height: 16),
         Text(_name, style: AppText.cardTitle.copyWith(fontSize: 22), textAlign: TextAlign.center),
         if (user.email != null) ...[
@@ -245,13 +329,20 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
+/// The identity avatar. Shows the saved photo when one exists; otherwise a
+/// deterministic monogram (hue derived from [seed], so it's stable across
+/// sessions and distinct enough between accounts to feel personal). A small
+/// camera badge signals it's tappable — standard iOS "edit photo" affordance.
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.seed, required this.name});
+  const _Avatar({required this.seed, required this.name, required this.photoPath, required this.onTap});
 
   final String seed;
   final String name;
+  final String? photoPath;
+  final VoidCallback? onTap;
 
   static const _hues = [AppColors.ember, AppColors.pulse, AppColors.iris, AppColors.flare, AppColors.solar];
+  static const double _size = 92;
 
   String get _initials {
     final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
@@ -262,26 +353,60 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final path = photoPath;
+    final hasPhoto = path != null && File(path).existsSync();
     final hue = _hues[seed.hashCode.abs() % _hues.length];
     final fg = hue == AppColors.solar ? const Color(0xFF2A2205) : Colors.white;
-    return Container(
-      width: 84,
-      height: 84,
+
+    final circle = Container(
+      width: _size,
+      height: _size,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [hue, hue.withValues(alpha: 0.75)],
-        ),
+        gradient: hasPhoto
+            ? null
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [hue, hue.withValues(alpha: 0.75)],
+              ),
         boxShadow: [
           BoxShadow(color: hue.withValues(alpha: 0.35), blurRadius: 28, spreadRadius: -6, offset: const Offset(0, 12)),
         ],
       ),
-      child: Text(
-        _initials,
-        style: AppText.cardTitle.copyWith(fontSize: 28, color: fg),
+      child: hasPhoto
+          ? Image.file(File(path), width: _size, height: _size, fit: BoxFit.cover)
+          : Text(_initials, style: AppText.cardTitle.copyWith(fontSize: 30, color: fg)),
+    );
+
+    return PressableScale(
+      enabled: onTap != null,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            circle,
+            if (onTap != null)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.ember,
+                    border: Border.all(color: AppColors.ground, width: 3),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -489,6 +614,191 @@ class _EditNameSheetState extends State<_EditNameSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A native-feeling wheel date picker for date of birth — three synced
+/// scrolling columns (month / day / year), matching the workout plan
+/// editor's rest-duration wheel: dark [AppColors.surfaceRaised] track, a
+/// hairline selection band, and a scroll-tick haptic on every settled value.
+/// Changing month or year clamps an out-of-range day (e.g. leaving 31 when
+/// moving off a 31-day month) rather than allowing an invalid date.
+class _DobPickerSheet extends StatefulWidget {
+  const _DobPickerSheet({required this.initial});
+
+  final DateTime initial;
+
+  @override
+  State<_DobPickerSheet> createState() => _DobPickerSheetState();
+}
+
+class _DobPickerSheetState extends State<_DobPickerSheet> {
+  static const _months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  late final int _minYear = DateTime.now().year - 120;
+  late final int _maxYear = DateTime.now().year - 13;
+
+  late int _year = widget.initial.year.clamp(_minYear, _maxYear);
+  late int _month = widget.initial.month;
+  late int _day = widget.initial.day;
+
+  late final _dayController = FixedExtentScrollController(initialItem: _day - 1);
+
+  int get _daysInMonth => DateTime(_year, _month + 1, 0).day;
+
+  void _tick() => HapticFeedback.selectionClick();
+
+  void _clampDay() {
+    final max = _daysInMonth;
+    if (_day > max) {
+      _day = max;
+      _dayController.jumpToItem(_day - 1);
+    }
+  }
+
+  @override
+  void dispose() {
+    _dayController.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(DateTime(_year, _month, _day));
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      padding: EdgeInsets.only(top: 12, left: 22, right: 22, bottom: MediaQuery.of(context).padding.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            child: Text('Date of birth', style: AppText.cardTitle),
+          ),
+          Container(
+            height: 190,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: CupertinoPicker(
+                    key: const Key('dob-picker-month'),
+                    scrollController: FixedExtentScrollController(initialItem: _month - 1),
+                    itemExtent: 40,
+                    diameterRatio: 1.3,
+                    backgroundColor: Colors.transparent,
+                    selectionOverlay: _selectionBand(edge: false),
+                    onSelectedItemChanged: (index) {
+                      _tick();
+                      setState(() {
+                        _month = index + 1;
+                        _clampDay();
+                      });
+                    },
+                    children: [
+                      for (final m in _months)
+                        Center(child: Text(m, style: AppText.rowTitle.copyWith(color: AppColors.ink, fontSize: 16))),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: CupertinoPicker(
+                    key: const Key('dob-picker-day'),
+                    scrollController: _dayController,
+                    itemExtent: 40,
+                    diameterRatio: 1.3,
+                    backgroundColor: Colors.transparent,
+                    selectionOverlay: _selectionBand(edge: false),
+                    onSelectedItemChanged: (index) {
+                      _tick();
+                      setState(() => _day = index + 1);
+                    },
+                    children: [
+                      for (var d = 1; d <= 31; d++)
+                        Center(child: Text('$d', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: CupertinoPicker(
+                    key: const Key('dob-picker-year'),
+                    scrollController: FixedExtentScrollController(initialItem: _year - _minYear),
+                    itemExtent: 40,
+                    diameterRatio: 1.3,
+                    backgroundColor: Colors.transparent,
+                    selectionOverlay: _selectionBand(edge: true),
+                    onSelectedItemChanged: (index) {
+                      _tick();
+                      setState(() {
+                        _year = _minYear + index;
+                        _clampDay();
+                      });
+                    },
+                    children: [
+                      for (var y = _minYear; y <= _maxYear; y++)
+                        Center(child: Text('$y', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Material(
+            color: AppColors.ember,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              onTap: _submit,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text('Save', style: AppText.button.copyWith(fontSize: 16, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The dark, rounded "current selection" band, right-inset on the last
+  /// (rightmost) column so it doesn't visually bleed past the sheet's edge.
+  Widget _selectionBand({required bool edge}) {
+    return Container(
+      margin: EdgeInsets.only(left: 2, right: edge ? 6 : 2),
+      decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(10)),
     );
   }
 }

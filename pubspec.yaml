@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^8.2.1
   image_picker: ^1.2.3
+  path_provider: ^2.1.5
 
   # Firebase Core, Auth, Functions, and now Firestore (user profiles). The
   # rest of the repository layer is still in-memory.
