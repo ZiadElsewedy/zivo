@@ -101,6 +101,34 @@ Widget _wrap({required Widget child, required WorkoutPlanRepository plans}) {
   );
 }
 
+/// Taps a day tile's header (its "Day {slot} · {label}" text, already
+/// unique per day) to expand it, and settles the spring. Days start
+/// collapsed — most tests that interact with a specific day's exercises
+/// need this first.
+Future<void> _expandDay(WidgetTester tester, String dayHeaderText) async {
+  await tester.tap(find.text(dayHeaderText));
+  await tester.pumpAndSettle();
+}
+
+/// Simulates the long-press-drag gesture `ReorderableDelayedDragStartListener`
+/// listens for: press and hold past the long-press threshold (so it wins the
+/// gesture arena over a plain tap), then drag by [offset], then release.
+/// Used to exercise real drag-to-reorder rather than calling the reorder
+/// callback directly, so this also proves the gesture itself is wired up
+/// (long-press starts a drag; a quick tap elsewhere stays a tap).
+Future<void> _longPressDragBy(
+  WidgetTester tester,
+  Finder finder,
+  Offset offset,
+) async {
+  final gesture = await tester.startGesture(tester.getCenter(finder));
+  await tester.pump(const Duration(milliseconds: 600)); // past the long-press threshold
+  await gesture.moveBy(offset);
+  await tester.pump(const Duration(milliseconds: 50));
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('create flow: name + day + exercise (compact set spec) → savePlan', (tester) async {
     final plans = _RecordingWorkoutPlanRepository();
@@ -195,8 +223,12 @@ void main() {
     );
     await tester.pump();
 
-    // Existing content is shown.
+    // Existing content is shown — days start collapsed, so Bench Press
+    // isn't visible until its day is expanded (see the day-tiles test
+    // below for the collapsed/expanded behavior itself).
     expect(find.text('Day A · Push'), findsOneWidget);
+    expect(find.text('Bench Press'), findsNothing);
+    await _expandDay(tester, 'Day A · Push');
     expect(find.text('Bench Press'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
@@ -218,6 +250,7 @@ void main() {
         _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
       );
       await tester.pump();
+      await _expandDay(tester, 'Day A · Push');
 
       await tester.tap(find.text('Bench Press'));
       await tester.pumpAndSettle();
@@ -398,6 +431,11 @@ void main() {
 
       await tester.pumpWidget(_wrap(child: WorkoutPlanEditPage(initialPlan: plan), plans: plans));
       await tester.pump();
+      // Both days expanded — the bulk-rest check below reads exercise rows
+      // across both, and "Overhead Press" (in Push) needs to stay
+      // tappable throughout.
+      await _expandDay(tester, 'Day A · Push');
+      await _expandDay(tester, 'Day B · Pull');
 
       // Open the bulk sheet — seeded from the first exercise's rest (90s,
       // item 18) — and dial it up to 3:00 (item 36): +18 items.
@@ -437,6 +475,201 @@ void main() {
       expect(pulldown.defaultRestSeconds, 180); // untouched, still the bulk value
     },
   );
+
+  testWidgets(
+    'day tiles start collapsed showing the exercise count; tapping the header toggles the '
+    'exercise list',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      await tester.pumpWidget(
+        _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+      );
+      await tester.pump();
+
+      // Collapsed: header + count visible, exercises hidden.
+      expect(find.text('Day A · Push'), findsOneWidget);
+      expect(find.text('1 exercise'), findsOneWidget);
+      expect(find.text('Day B · Pull'), findsOneWidget);
+      expect(find.text('0 exercises'), findsOneWidget);
+      expect(find.text('Bench Press'), findsNothing);
+
+      // Tapping the header expands it.
+      await _expandDay(tester, 'Day A · Push');
+      expect(find.text('Bench Press'), findsOneWidget);
+      // Pull stays collapsed — its own "Add exercise" isn't shown yet, only
+      // Push's (proves this isn't a forced single-open accordion — see the
+      // dedicated test below for the fuller case).
+      expect(find.text('Add exercise'), findsOneWidget);
+
+      // Tapping it again collapses it back.
+      await tester.tap(find.text('Day A · Push'));
+      await tester.pumpAndSettle();
+      expect(find.text('Bench Press'), findsNothing);
+    },
+  );
+
+  testWidgets('multiple days can be expanded at once — not a forced accordion', (tester) async {
+    final plans = _RecordingWorkoutPlanRepository();
+    await tester.pumpWidget(
+      _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+    );
+    await tester.pump();
+
+    await _expandDay(tester, 'Day A · Push');
+    await _expandDay(tester, 'Day B · Pull');
+
+    // Push's exercise is still visible after independently expanding Pull —
+    // expanding one never collapsed the other.
+    expect(find.text('Bench Press'), findsOneWidget);
+    expect(find.text('Add exercise'), findsNWidgets(2)); // both days' own button
+  });
+
+  testWidgets(
+    'expanding a day survives an unrelated edit elsewhere on the page (adding a new day)',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      await tester.pumpWidget(
+        _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+      );
+      await tester.pump();
+      await _expandDay(tester, 'Day A · Push');
+      expect(find.text('Bench Press'), findsOneWidget);
+
+      // An unrelated change elsewhere on the page (adding a new day)
+      // rebuilds the whole day list — Push must stay expanded, not
+      // silently re-collapse just because its parent rebuilt.
+      await tester.tap(find.text('Add day'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('day-label-field')), 'Legs');
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Add day'));
+      await tester.tap(find.widgetWithText(PillButton, 'Add day'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bench Press'), findsOneWidget); // Push still expanded
+      // The freshly-added day exists and auto-expands (see
+      // _DayCard.initiallyExpanded) — its own "Add exercise" button is
+      // visible immediately, no extra tap needed to start adding to it.
+      expect(find.text('Day C · Legs'), findsOneWidget);
+      expect(find.text('Add exercise'), findsNWidgets(2)); // Push's (expanded) + Legs' (auto-expanded)
+    },
+  );
+
+  testWidgets(
+    'long-press-drag reorders days, Save persists the new order, and the rotation cursor '
+    'follows the day it pointed at (not a fixed index)',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      // _existingPlan(): Push (order 0), Pull (order 1), cycleCursor 1 →
+      // points at Pull.
+      await tester.pumpWidget(
+        _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+      );
+      await tester.pump();
+
+      expect(find.text('Day A · Push'), findsOneWidget);
+      expect(find.text('Day B · Pull'), findsOneWidget);
+
+      // Long-press Push and drag it down past Pull.
+      await _longPressDragBy(tester, find.text('Day A · Push'), const Offset(0, 200));
+
+      await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.pumpAndSettle();
+
+      final saved = plans.saved.single;
+      expect(saved.days.map((d) => d.label), ['Pull', 'Push']); // swapped
+      // The cursor followed Pull (what it pointed at before the reorder) to
+      // its NEW index (0) — not left at the fixed index 1, which would now
+      // silently point at Push instead: exactly the bug being guarded
+      // against (Home/the Workout page both read `nextDay` from this).
+      expect(saved.cycleCursor, 0);
+    },
+  );
+
+  testWidgets(
+    'long-press-drag reorders exercises within an expanded day, and Save persists it',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = WorkoutPlan(
+        id: 'reorder-ex',
+        name: 'Reorder',
+        status: WorkoutPlanStatus.active,
+        source: WorkoutPlanSource.manual,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        cycleCursor: 0,
+        days: const [
+          WorkoutDay(
+            id: 'd1',
+            slot: 'A',
+            label: 'Push',
+            order: 0,
+            exercises: [
+              PlannedExercise(
+                id: 'e1',
+                name: 'Bench Press',
+                order: 0,
+                defaultRestSeconds: 90,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(6, 8),
+                    restSeconds: 90,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+              PlannedExercise(
+                id: 'e2',
+                name: 'Overhead Press',
+                order: 1,
+                defaultRestSeconds: 60,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(8, 10),
+                    restSeconds: 60,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_wrap(child: WorkoutPlanEditPage(initialPlan: plan), plans: plans));
+      await tester.pump();
+      await _expandDay(tester, 'Day A · Push');
+      expect(find.text('Bench Press'), findsOneWidget);
+      expect(find.text('Overhead Press'), findsOneWidget);
+
+      // Drag Bench Press down past Overhead Press.
+      await _longPressDragBy(tester, find.text('Bench Press'), const Offset(0, 45));
+
+      await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.pumpAndSettle();
+
+      final exercises = plans.saved.single.days.single.exercises;
+      expect(exercises.map((e) => e.name), ['Overhead Press', 'Bench Press']);
+    },
+  );
+
+  testWidgets("a day's expanded state survives being reordered", (tester) async {
+    final plans = _RecordingWorkoutPlanRepository();
+    await tester.pumpWidget(
+      _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+    );
+    await tester.pump();
+    await _expandDay(tester, 'Day A · Push');
+    expect(find.text('Bench Press'), findsOneWidget);
+
+    await _longPressDragBy(tester, find.text('Day A · Push'), const Offset(0, 200));
+
+    // Push (still keyed on its id, just moved) stays expanded even after
+    // changing position — expand state isn't reset by a reorder.
+    expect(find.text('Bench Press'), findsOneWidget);
+  });
 
   testWidgets('delete flow: confirm removes the plan', (tester) async {
     final plans = _RecordingWorkoutPlanRepository();

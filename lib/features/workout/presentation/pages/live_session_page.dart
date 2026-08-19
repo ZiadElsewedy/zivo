@@ -17,12 +17,12 @@ import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
 import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
+import '../../domain/progress_comparison.dart';
 import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/rest_policy.dart';
 import '../../domain/session_exercise.dart';
 import '../../domain/set_type.dart';
-import '../../domain/warmup_policy.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
@@ -88,9 +88,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   /// Drives the pre-workout warm-up countdown at the same per-frame rate as
   /// [_restTicker] — a distinct phase shown once, before the first set of a
-  /// genuinely fresh session, not to be confused with the per-exercise ramp
-  /// warm-up SETS ([SetType.warmup]/`warmup_policy.dart`), which stay
-  /// entirely as-is.
+  /// genuinely fresh session. This is the app's one warm-up: the old
+  /// per-exercise ramp warm-up SETS have been retired (owner decision).
   Ticker? _warmupTicker;
   int? _warmupTotalSeconds;
 
@@ -147,9 +146,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// [_prefillInputs] call in [initState] runs before [_pastSessions] is
   /// populated — the goal it seeds from can't yet see prior performance.
   /// Re-running it once, the moment real history lands, keeps the prefilled
-  /// reps/weight in sync with what the Goal block ends up showing. Also the
-  /// trigger for [_materializeWarmupsFromHistory] — see there for why warm-up
-  /// ramps can't be seeded any earlier than this.
+  /// reps/weight in sync with what the Goal block ends up showing.
   bool _prefillRefreshedFromHistory = false;
 
   /// Guards [_onFinish]/[_onLeave]/[_onDiscard] against re-entrancy — all are
@@ -224,7 +221,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       if (!_prefillRefreshedFromHistory) {
         _prefillRefreshedFromHistory = true;
         _prefillInputs();
-        _materializeWarmupsFromHistory();
       }
     });
     unawaited(_sessionsRepo.saveSession(_session));
@@ -262,13 +258,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   /// Seeds the reps/weight inputs — preferring a typed-but-not-done draft
   /// (see [_saveDraft]) over any computed suggestion, so returning to a set
-  /// shows what was actually typed, not a reset. A never-touched warm-up set
-  /// seeds from the ramp's own prescription (no progression math applies to
-  /// warm-ups); a never-touched working set seeds from the computed
-  /// [ProgressionGoal] — the plan's own prescription when there's no history
-  /// for this exact set, or the double-progression suggestion once there is.
-  /// "AMRAP" (to-failure, no history) has no number to seed, so reps is left
-  /// blank for the user.
+  /// shows what was actually typed, not a reset. A never-touched set seeds
+  /// from the computed [ProgressionGoal] — the plan's own prescription when
+  /// there's no history for this exact set, or the double-progression
+  /// suggestion once there is. "AMRAP" (to-failure, no history) has no
+  /// number to seed, so reps is left blank for the user.
   void _prefillInputs() {
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
@@ -286,11 +280,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       return;
     }
     _actualsTouched = false;
-    if (set.type == SetType.warmup) {
-      _reps.text = set.target.min?.toString() ?? '';
-      _weight.text = set.targetWeightKg != null ? _trimWeight(set.targetWeightKg!) : '';
-      return;
-    }
     final goal = computeGoal(
       target: set.target,
       targetWeightKg: set.targetWeightKg,
@@ -342,11 +331,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   ExerciseHistory? _historyFor(SessionExercise exercise) =>
       lastPerformanceFor(exercise.exerciseId, _pastSessions);
 
-  /// Index-aligned against [history]'s *working* sets only — warm-up ramp
-  /// steps aren't comparable across sessions (their count can change with
-  /// the working weight, see [warmupRampFor]), so raw position would
-  /// misalign a working set's "last time" once the ramp's step count
-  /// differs from last session's.
+  /// Index-aligned against [history]'s *working* sets only.
   LoggedSet? _previousSetFor(SessionExercise exercise, LoggedSet set) {
     if (set.type != SetType.working) return null;
     final history = _historyFor(exercise);
@@ -357,87 +342,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final index = workingSetIndexOf(exercise, set);
     if (index < 0 || index >= workingHistory.length) return null;
     return workingHistory[index];
-  }
-
-  // ---- Warm-up materialization ----------------------------------------------
-
-  /// [LiveSession.start] seeds a warm-up ramp from the *plan's own*
-  /// `targetWeightKg` — but that's null for virtually every real plan (both
-  /// the ingested seed plan and the plan editor leave weight for the user to
-  /// fill in-app; the working weight that actually matters lives in session
-  /// history, via the same computed [ProgressionGoal] already shown on the
-  /// Goal card). So the ramp has to be able to source from *that* weight
-  /// too, once it's known — which, like [_prefillInputs]'s own history
-  /// dependency, isn't until the first real snapshot lands from
-  /// [_pastSessionsSub]. Backfills a ramp for every exercise that doesn't
-  /// already have one (from the plan-weight path, or already persisted on a
-  /// [resume]d session) and hasn't been started yet — an exercise with any
-  /// done set is left alone entirely, never retro-fitted.
-  void _materializeWarmupsFromHistory() {
-    var changed = false;
-    final updatedExercises = [
-      for (final exercise in _session.exercises)
-        _materializedExercise(exercise, markChanged: () => changed = true),
-    ];
-    if (!changed) return;
-    setState(() {
-      _session = _session.copyWith(exercises: updatedExercises);
-    });
-    _prefillInputs();
-    unawaited(_sessionsRepo.saveSession(_session));
-  }
-
-  SessionExercise _materializedExercise(
-    SessionExercise exercise, {
-    required VoidCallback markChanged,
-  }) {
-    final alreadyHasWarmup = exercise.sets.any((s) => s.type == SetType.warmup);
-    // "In progress" includes a typed-but-not-done draft (see [_saveDraft]),
-    // not just a done set — retro-fitting a ramp in front of a set the user
-    // already has real input on would silently bury that input behind new
-    // warm-up steps, which is exactly the kind of surprise the never-lose-
-    // data guarantee exists to prevent.
-    final alreadyInProgress = exercise.sets.any(
-      (s) => s.done || s.actualReps != null || s.actualWeightKg != null,
-    );
-    if (alreadyHasWarmup || alreadyInProgress) return exercise;
-
-    LoggedSet? firstWorking;
-    for (final s in exercise.sets) {
-      if (s.type == SetType.working) {
-        firstWorking = s;
-        break;
-      }
-    }
-    if (firstWorking == null) return exercise;
-
-    // The exact same weight the Goal card will show once this set is
-    // current — plan prescription if there's no history yet, otherwise the
-    // double-progression suggestion.
-    final goalWeight = computeGoal(
-      target: firstWorking.target,
-      targetWeightKg: firstWorking.targetWeightKg,
-      previous: _previousSetFor(exercise, firstWorking),
-      muscleGroup: exercise.muscleGroup,
-    ).weightKg;
-    if (goalWeight == null) return exercise; // nothing to ramp toward
-
-    final ramp = warmupRampFor(workingWeightKg: goalWeight, muscleGroup: exercise.muscleGroup);
-    if (ramp.isEmpty) return exercise;
-
-    markChanged();
-    return exercise.copyWith(
-      sets: [
-        for (var i = 0; i < ramp.length; i++)
-          LoggedSet(
-            id: '${exercise.id}-w$i',
-            target: RepTarget.fixed(ramp[i].reps),
-            targetWeightKg: ramp[i].weightKg,
-            type: SetType.warmup,
-          ),
-        ...exercise.sets,
-      ],
-    );
   }
 
   // ---- Transitions -----------------------------------------------------------
@@ -471,12 +375,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       setState(() {});
       return;
     }
-    // Working-set rest is the plan's own value (Edit Workout's per-exercise
-    // rest, or its "Default rest" bulk value) — the session counts down what
-    // Ziad actually set, not a computed guess. `smartRestSeconds` stays as
-    // the *seed* default a freshly-added exercise starts at (see the add
-    // sheet), it just no longer overrides the plan at session time.
-    _startRest(set.type == SetType.warmup ? _warmupRestSeconds : exercise.restSeconds);
+    // Rest is the plan's own value (Edit Workout's per-exercise rest, or its
+    // "Default rest" bulk value) — the session counts down what Ziad
+    // actually set, not a computed guess. `smartRestSeconds` stays as the
+    // *seed* default a freshly-added exercise starts at (see the add sheet),
+    // it just no longer overrides the plan at session time.
+    _startRest(exercise.restSeconds);
   }
 
   void _startRest(int seconds) {
@@ -857,7 +761,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (exercise == null || set == null) {
       return const Center(child: Text('Nothing to do.'));
     }
-    if (set.type == SetType.warmup) return _buildWarmupRunning(exercise, set);
 
     final target = set.target;
     final targetText = target.kind == RepTargetKind.toFailure
@@ -870,6 +773,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       targetWeightKg: set.targetWeightKg,
       previous: previousSet,
       muscleGroup: exercise.muscleGroup,
+    );
+    final comparison = compareToLastTime(
+      previous: previousSet,
+      actualReps: int.tryParse(_reps.text.trim()),
+      actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
     );
     // Working-only position — warm-up ramp steps (if any) sit before this
     // in `exercise.sets` but aren't part of the numbered working sequence.
@@ -904,27 +812,32 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
           index: 2,
-          child: _GoalBlock(lastTimeLabel: lastTimeLabel, goal: goal, targetText: targetText),
+          child: _GoalBlock(
+            lastTimeLabel: lastTimeLabel,
+            goal: goal,
+            targetText: targetText,
+            comparison: comparison,
+          ),
         ),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  _ActualField(label: 'Reps', controller: _reps, onChanged: _onActualChanged),
-                  const SizedBox(width: AppSpacing.m),
-                  _ActualField(
-                    label: 'Weight (kg)',
-                    controller: _weight,
-                    hint: '—',
-                    onChanged: _onActualChanged,
-                  ),
-                ],
+              _StepperField(
+                label: 'Reps',
+                controller: _reps,
+                step: 1,
+                onChanged: _onActualChanged,
               ),
-              _ProgressionDelta(previousSet: previousSet, weightController: _weight),
+              const SizedBox(width: AppSpacing.m),
+              _StepperField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                step: 2.5,
+                hint: '—',
+                onChanged: _onActualChanged,
+              ),
             ],
           ),
         ),
@@ -973,60 +886,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     );
   }
 
-  /// The running screen's warm-up treatment: no Goal card (no progression
-  /// math applies to a ramp step) and no "Set N of M" (that counter is
-  /// working-sets-only) — a "WARM-UP" eyebrow plus the ramp's own
-  /// weight/reps prescription stand in for both.
-  Widget _buildWarmupRunning(SessionExercise exercise, LoggedSet set) {
-    return _runningScaffold(
-      content: [
-        StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
-        const SizedBox(height: AppSpacing.l),
-        StaggeredReveal(
-          index: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Warm-up', style: AppText.meta.copyWith(color: AppColors.ember)),
-              const SizedBox(height: AppSpacing.s),
-              _SetChipRow(exercise: exercise, currentSetId: set.id),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.l),
-        StaggeredReveal(
-          index: 2,
-          child: _WarmupBlock(weightKg: set.targetWeightKg, reps: set.target.min),
-        ),
-        const SizedBox(height: AppSpacing.l),
-        StaggeredReveal(
-          index: 3,
-          child: Row(
-            children: [
-              _ActualField(label: 'Reps', controller: _reps, onChanged: _onActualChanged),
-              const SizedBox(width: AppSpacing.m),
-              _ActualField(
-                label: 'Weight (kg)',
-                controller: _weight,
-                hint: '—',
-                onChanged: _onActualChanged,
-              ),
-            ],
-          ),
-        ),
-      ],
-      done: StaggeredReveal(
-        index: 4,
-        child: PillButton(
-          label: 'Done',
-          icon: Icons.check_rounded,
-          enabled: true,
-          onTap: _onSetDone,
-        ),
-      ),
-    );
-  }
-
   Widget _exerciseHeader(SessionExercise exercise) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -1046,10 +905,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// [_RestRing]/[_RestAdjustButton] wholesale rather than a parallel
   /// implementation: same fixed-size, sub-second, wall-clock countdown,
   /// distinct only in its eyebrow/copy/duration and the color it hangs off
-  /// (Ember — this app's warm-up hue everywhere else — instead of Rest's
-  /// neutral ink3). "Pre-workout" rather than a literal "WARM-UP" eyebrow
-  /// keeps it text-distinct from the per-exercise ramp's own "WARM-UP" label
-  /// ([_WarmupBlock]) — a different concept shown later, mid-exercise.
+  /// (Ember — this app's warm-up hue — instead of Rest's neutral ink3). This
+  /// is the app's one warm-up (owner decision) — the old per-exercise ramp
+  /// warm-up SETS have been retired.
   Widget _buildWarmup() {
     return Padding(
       key: const ValueKey('warmup'),
@@ -1204,7 +1062,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return 'Finish';
-    if (set.type == SetType.warmup) return 'Warm-up · ${exercise.name}';
     final workingIndex = workingSetIndexOf(exercise, set);
     return 'Set ${workingIndex + 1} · ${exercise.name}';
   }
@@ -1246,11 +1103,6 @@ String _formatLastTime(LoggedSet? previous) {
 /// never flashes "0" a moment before it's actually over; clamped at 0 for an
 /// already-elapsed duration.
 int _ceilSeconds(Duration d) => d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 1000).ceil();
-
-/// A brief breather between warm-up ramp steps — deliberately far short of
-/// [smartRestSeconds]'s full working-set rest window, since a ramp step
-/// isn't taxing recovery the way a working set is.
-const int _warmupRestSeconds = 20;
 
 /// The pre-workout warm-up phase's fixed default length — 5:00, chosen as a
 /// reasonable one-size loosen-up window; configurable later, not now.
@@ -1459,11 +1311,22 @@ class _ElapsedLabel extends StatelessWidget {
 /// a quiet supporting line, and the plan's own rep target sits underneath as
 /// quieter context still. No animation beyond the shared entrance stagger.
 class _GoalBlock extends StatelessWidget {
-  const _GoalBlock({required this.lastTimeLabel, required this.goal, this.targetText});
+  const _GoalBlock({
+    required this.lastTimeLabel,
+    required this.goal,
+    this.targetText,
+    this.comparison,
+  });
 
   final String lastTimeLabel;
   final ProgressionGoal goal;
   final String? targetText;
+
+  /// Today's in-progress verdict against [lastTimeLabel] (see
+  /// [compareToLastTime]) — null whenever there's nothing real to compare
+  /// yet (first time ever, or no rep count typed in), in which case no
+  /// badge shows at all.
+  final SetProgressComparison? comparison;
 
   @override
   Widget build(BuildContext context) {
@@ -1508,6 +1371,7 @@ class _GoalBlock extends StatelessWidget {
             key: const Key('last-time-label'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
+          if (comparison != null) _ProgressVerdictBadge(comparison: comparison!),
           if (targetText != null) ...[
             const SizedBox(height: 2),
             Text(
@@ -1515,64 +1379,6 @@ class _GoalBlock extends StatelessWidget {
               style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w400),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// The running screen's warm-up treatment, standing in for the Goal card
-/// while the current set is an auto-generated ramp step — no progression
-/// math applies here, just the ramp's own prescribed weight/reps ([weightKg]/
-/// [reps]), in the same amber/ember hue as the current-set chip elsewhere on
-/// this screen.
-class _WarmupBlock extends StatelessWidget {
-  const _WarmupBlock({required this.weightKg, required this.reps});
-
-  final double? weightKg;
-  final int? reps;
-
-  @override
-  Widget build(BuildContext context) {
-    final guidance = [
-      if (weightKg != null) '${_trimWeight(weightKg!)}kg',
-      if (reps != null) '× $reps',
-    ].join(' ');
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline2),
-        boxShadow: _cardGlow(AppColors.ember),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.whatshot_rounded, size: 14, color: AppColors.ember),
-              const SizedBox(width: 6),
-              Text(
-                'WARM-UP',
-                style: AppText.meta.copyWith(
-                  color: AppColors.ember,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s),
-          Text(
-            'Warm-up: $guidance',
-            key: const Key('warmup-guidance'),
-            style: AppText.heroNumber.copyWith(
-              fontSize: 32,
-              color: AppColors.ink,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
         ],
       ),
     );
@@ -1632,18 +1438,65 @@ class _RestAdjustButton extends StatelessWidget {
   }
 }
 
-class _ActualField extends StatelessWidget {
-  const _ActualField({
+/// A premium tap-to-step reps/weight input (Feature C) — the same
+/// [TextField] the plain field always used (typing directly into it, the
+/// fallback, still works exactly as before — nothing about that path
+/// changed), now flanked by ± stepper buttons that nudge the value by
+/// [step] with a selection-click haptic and a small spring "punch" on the
+/// field itself, the "alive" feedback the plain field never had.
+class _StepperField extends StatefulWidget {
+  const _StepperField({
     required this.label,
     required this.controller,
+    required this.step,
     required this.onChanged,
     this.hint,
   });
 
   final String label;
   final TextEditingController controller;
+
+  /// How much each ± tap moves the value — whole reps (1) or a plate-sized
+  /// weight jump (2.5kg), passed in per call site.
+  final double step;
   final VoidCallback onChanged;
   final String? hint;
+
+  @override
+  State<_StepperField> createState() => _StepperFieldState();
+}
+
+class _StepperFieldState extends State<_StepperField> with SingleTickerProviderStateMixin {
+  late final AnimationController _punch = AnimationController(vsync: this, value: 1);
+
+  double? get _value {
+    final raw = widget.controller.text.trim().replaceAll(',', '.');
+    return raw.isEmpty ? null : double.tryParse(raw);
+  }
+
+  /// Nudges the value by [delta] and writes it straight back into
+  /// [widget.controller] — the same controller the typed fallback edits, so
+  /// both paths always agree on what's actually entered.
+  void _step(double delta) {
+    HapticFeedback.selectionClick();
+    final raw = (_value ?? 0) + delta;
+    final next = raw < 0 ? 0.0 : raw;
+    widget.controller.text = _trimWeight(next);
+    widget.controller.selection = TextSelection.collapsed(offset: widget.controller.text.length);
+    if (reducedMotion(context)) {
+      _punch.value = 1;
+    } else {
+      _punch.value = 0.88;
+      _punch.springTo(1, spring: AppSprings.bounce);
+    }
+    widget.onChanged();
+  }
+
+  @override
+  void dispose() {
+    _punch.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1652,37 +1505,52 @@ class _ActualField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label.toUpperCase(),
+            widget.label.toUpperCase(),
             style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
-          TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-            cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
-            onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              filled: true,
-              fillColor: AppColors.surfaceRaised,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                borderSide: BorderSide.none,
+          Row(
+            children: [
+              _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _punch,
+                  builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
+                  child: TextField(
+                    controller: widget.controller,
+                    textAlign: TextAlign.center,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                    cursorColor: AppColors.ember,
+                    style: AppText.rowTitle.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                    onChanged: (_) => widget.onChanged(),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: widget.hint,
+                      hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                      filled: true,
+                      fillColor: AppColors.surfaceRaised,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+                        borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
-              ),
-            ),
+              const SizedBox(width: 6),
+              _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
+            ],
           ),
         ],
       ),
@@ -1690,33 +1558,111 @@ class _ActualField extends StatelessWidget {
   }
 }
 
-/// The Pulse "↑" progression callout — shown once the entered weight beats
-/// the last time this exact set (by index) was trained.
-class _ProgressionDelta extends StatelessWidget {
-  const _ProgressionDelta({required this.previousSet, required this.weightController});
+/// A single ± tap target for [_StepperField] — a quiet outlined square
+/// beside the field, pressed feedback via the shared [PressableScale].
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, required this.onTap});
 
-  final LoggedSet? previousSet;
-  final TextEditingController weightController;
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final previousWeight = previousSet?.actualWeightKg;
-    if (previousWeight == null) return const SizedBox.shrink();
-    final entered = double.tryParse(weightController.text.trim().replaceAll(',', '.'));
-    if (entered == null || entered <= previousWeight) return const SizedBox.shrink();
-    final delta = entered - previousWeight;
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.pulse),
-          const SizedBox(width: 2),
-          Text(
-            '+${_trimWeight(delta)}kg',
-            style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w700),
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+        child: Container(
+          width: 40,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+            border: Border.all(color: AppColors.hairline2),
           ),
-        ],
+          child: Icon(icon, size: 18, color: AppColors.ink2),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Progress verdict callout (Feature B) — how today's in-progress set
+/// stacks up against the same set from last time (see [compareToLastTime]):
+/// reps %, weight delta, and volume % rolled into one verdict. Lives right
+/// under "Last time" in the Goal card, since that's the number it's judged
+/// against, and updates live on every keystroke/step. Punches (a small
+/// spring scale) only when the verdict/label actually changes — the same
+/// settle-in idiom as the numbered set chips — so it doesn't just flicker
+/// on every unrelated rebuild.
+class _ProgressVerdictBadge extends StatefulWidget {
+  const _ProgressVerdictBadge({required this.comparison});
+
+  final SetProgressComparison comparison;
+
+  @override
+  State<_ProgressVerdictBadge> createState() => _ProgressVerdictBadgeState();
+}
+
+class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scale = AnimationController(vsync: this, value: 1);
+
+  @override
+  void didUpdateWidget(covariant _ProgressVerdictBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final same =
+        oldWidget.comparison.verdict == widget.comparison.verdict &&
+        oldWidget.comparison.overallChangePercent.round() ==
+            widget.comparison.overallChangePercent.round();
+    if (same) return;
+    if (reducedMotion(context)) {
+      _scale.value = 1;
+    } else {
+      _scale.value = 0.9;
+      _scale.springTo(1, spring: AppSprings.bounce);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final comparison = widget.comparison;
+    final (icon, color, word) = switch (comparison.verdict) {
+      ProgressVerdict.progressing => (Icons.trending_up_rounded, AppColors.pulse, 'Progressing'),
+      ProgressVerdict.matched => (Icons.horizontal_rule_rounded, AppColors.ink3, 'Matched'),
+      ProgressVerdict.down => (Icons.trending_down_rounded, AppColors.flare, 'Down'),
+    };
+    final pct = comparison.overallChangePercent.round();
+    final label = comparison.verdict == ProgressVerdict.matched
+        ? word
+        : '$word ${pct > 0 ? '+' : ''}$pct%';
+
+    return AnimatedBuilder(
+      animation: _scale,
+      builder: (context, child) => Transform.scale(scale: _scale.value, child: child),
+      child: Container(
+        key: const Key('progress-verdict'),
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }
@@ -1741,47 +1687,16 @@ class _SetChipRow extends StatelessWidget {
       runSpacing: 10,
       children: [
         for (final s in exercise.sets)
-          if (s.type == SetType.warmup)
-            _WarmupChip(isCurrent: s.id == currentSetId, done: s.done)
-          else
-            _SetChip(
-              number: ++workingNumber,
-              state: s.done
-                  ? _ChipState.done
-                  : s.id == currentSetId
-                  ? _ChipState.current
-                  : _ChipState.upcoming,
-            ),
+          _SetChip(
+            number: ++workingNumber,
+            state: s.done
+                ? _ChipState.done
+                : s.id == currentSetId
+                ? _ChipState.current
+                : _ChipState.upcoming,
+          ),
       ],
     );
-  }
-}
-
-/// A distinct hollow marker for a warm-up ramp step — deliberately not part
-/// of the numbered working-set sequence ([_SetChip]), just a quiet signal
-/// that a ramp step sits at this position.
-class _WarmupChip extends StatelessWidget {
-  const _WarmupChip({required this.isCurrent, required this.done});
-
-  final bool isCurrent;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    final dot = AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOut,
-      width: 34,
-      height: 34,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: done ? AppColors.surfaceRaised : Colors.transparent,
-        border: Border.all(color: AppColors.ember, width: 1.4),
-      ),
-      child: const Icon(Icons.whatshot_rounded, size: 15, color: AppColors.ember),
-    );
-    return isCurrent ? _PulsingGlow(color: AppColors.ember, child: dot) : dot;
   }
 }
 
