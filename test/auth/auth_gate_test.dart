@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/auth/presentation/auth_gate.dart';
+import 'package:zivo/features/auth/presentation/pages/splash_screen.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -24,7 +25,7 @@ void main() {
 
       // AuthUnknown → splash (branded loader, no auth screen).
       expect(find.text('Sign in with Apple'), findsNothing);
-      expect(find.text('ZIVO'), findsOneWidget);
+      expect(find.byType(SplashScreen), findsOneWidget);
 
       // Unauthenticated → auth screen.
       auth.emit(const Unauthenticated());

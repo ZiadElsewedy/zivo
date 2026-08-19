@@ -19,6 +19,8 @@ class _ThrowingRegistry implements MediaRegistry {
   @override
   Future<MediaObject?> get(String id) async => null;
   @override
+  Future<List<MediaObject>> getAll() async => const [];
+  @override
   Future<List<MediaObject>> pendingBackups() async => const [];
   @override
   Future<void> remove(String id) async {}

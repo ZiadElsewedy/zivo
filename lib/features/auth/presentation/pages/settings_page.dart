@@ -95,9 +95,58 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 30),
               _SignOutButton(loading: _signingOut, onTap: _signOut),
+              const SizedBox(height: 44),
+              _BrandFooter(
+                version: info == null
+                    ? null
+                    : 'Version ${info.version} (${info.buildNumber})',
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A quiet brand signature at the foot of Settings — the ZIVO mark in the
+/// light "paper" tone, the wordmark, and the build. Gives the screen identity
+/// without competing with the controls above it.
+class _BrandFooter extends StatelessWidget {
+  const _BrandFooter({this.version});
+
+  final String? version;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.55,
+      child: Column(
+        children: [
+          Image.asset(
+            'assets/transparent/zivo-mark-paper-256.png',
+            width: 42,
+            height: 42,
+            filterQuality: FilterQuality.medium,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'ZIVO',
+            style: AppText.button.copyWith(
+              fontSize: 12,
+              letterSpacing: 5,
+              color: AppColors.ink2,
+            ),
+          ),
+          if (version != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              version!,
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+            ),
+          ],
+        ],
       ),
     );
   }

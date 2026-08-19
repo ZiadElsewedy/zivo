@@ -14,6 +14,9 @@ class InMemoryMediaRegistry implements MediaRegistry {
   Future<MediaObject?> get(String id) async => _items[id];
 
   @override
+  Future<List<MediaObject>> getAll() async => _items.values.toList(growable: false);
+
+  @override
   Future<List<MediaObject>> pendingBackups() async {
     return _items.values
         .where((m) => m.drive != BackupState.done || m.gallery == BackupState.failed)

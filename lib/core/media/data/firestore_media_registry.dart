@@ -38,6 +38,9 @@ class FirestoreMediaRegistry implements MediaRegistry {
       'byteSize': object.byteSize,
       'contentHash': object.contentHash,
       'capturedAt': Timestamp.fromDate(object.capturedAt),
+      'source': object.source.name,
+      'width': object.width,
+      'height': object.height,
       'gallery': object.gallery.name,
       'drive': object.drive.name,
       'driveFileId': object.driveFileId,
@@ -52,6 +55,15 @@ class FirestoreMediaRegistry implements MediaRegistry {
     final snap = await _media(uid).doc(id).get();
     if (!snap.exists) return null;
     return _fromDoc(uid, snap.id, snap.data()!);
+  }
+
+  @override
+  Future<List<MediaObject>> getAll() async {
+    final uid = _requireUid();
+    final snap = await _media(uid).get();
+    return snap.docs
+        .map((d) => _fromDoc(uid, d.id, d.data()))
+        .toList(growable: false);
   }
 
   @override
@@ -84,6 +96,9 @@ class FirestoreMediaRegistry implements MediaRegistry {
       byteSize: (data['byteSize'] as num?)?.toInt() ?? 0,
       contentHash: data['contentHash'] as String? ?? '',
       capturedAt: capturedAt is Timestamp ? capturedAt.toDate() : DateTime.now(),
+      source: CaptureSource.fromName(data['source'] as String?),
+      width: (data['width'] as num?)?.toInt(),
+      height: (data['height'] as num?)?.toInt(),
       gallery: _stateFrom(data['gallery']),
       drive: _stateFrom(data['drive']),
       driveFileId: data['driveFileId'] as String?,

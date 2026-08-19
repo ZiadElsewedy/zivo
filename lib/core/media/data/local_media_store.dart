@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -43,6 +45,8 @@ class LocalMediaStore implements MediaStore {
     final bytes = await source.readAsBytes();
     await dest.writeAsBytes(bytes, flush: true);
 
+    final size = await _decodeSize(bytes);
+
     return StoredMedia(
       id: id,
       // Store forward-slashed relative paths for portability across platforms
@@ -51,8 +55,26 @@ class LocalMediaStore implements MediaStore {
       mimeType: _mimeForExtension(ext),
       byteSize: bytes.length,
       contentHash: sha256.convert(bytes).toString(),
+      width: size?.$1,
+      height: size?.$2,
       file: dest,
     );
+  }
+
+  /// Reads the image's pixel dimensions from its bytes. Best-effort — returns
+  /// null for unreadable/non-image data rather than failing the import.
+  Future<(int, int)?> _decodeSize(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final result = (image.width, image.height);
+      image.dispose();
+      codec.dispose();
+      return result;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

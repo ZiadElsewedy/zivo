@@ -56,6 +56,7 @@ class MediaService {
     required MediaKind kind,
     required String id,
     required String ownerUid,
+    CaptureSource source = CaptureSource.unknown,
     DateTime? capturedAt,
   }) async {
     final stored = await store.importFile(
@@ -87,6 +88,9 @@ class MediaService {
       byteSize: stored.byteSize,
       contentHash: stored.contentHash,
       capturedAt: capturedAt ?? DateTime.now(),
+      source: source,
+      width: stored.width,
+      height: stored.height,
     );
 
     if (prefs.saveToPhotos) {

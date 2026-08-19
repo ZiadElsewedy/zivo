@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/media/domain/media_kind.dart';
+import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -36,6 +37,10 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   /// A freshly-picked file not yet imported into the media store. Held only
   /// until save, when [MediaService.capture] copies it into durable storage.
   String? _pickedTempPath;
+
+  /// How the freshly-picked photo was obtained (camera vs library), recorded
+  /// as media metadata.
+  CaptureSource _pickedSource = CaptureSource.unknown;
 
   bool _canSave = false;
 
@@ -90,7 +95,14 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       imageQuality: 85,
     );
     // Hold the picker's temp path for preview; the durable copy is made on save.
-    if (picked != null && mounted) setState(() => _pickedTempPath = picked.path);
+    if (picked != null && mounted) {
+      setState(() {
+        _pickedTempPath = picked.path;
+        _pickedSource = source == ImageSource.camera
+            ? CaptureSource.camera
+            : CaptureSource.library;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -113,6 +125,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
         kind: MediaKind.moment,
         id: id,
         ownerUid: scope.auth.currentUser?.uid ?? 'local',
+        source: _pickedSource,
         capturedAt: takenAt,
       );
     }

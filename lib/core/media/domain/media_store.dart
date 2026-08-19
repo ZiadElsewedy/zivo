@@ -11,6 +11,8 @@ class StoredMedia {
     required this.byteSize,
     required this.contentHash,
     required this.file,
+    this.width,
+    this.height,
   });
 
   final String id;
@@ -18,6 +20,10 @@ class StoredMedia {
   final String mimeType;
   final int byteSize;
   final String contentHash;
+
+  /// Pixel dimensions of the decoded image, when they could be read.
+  final int? width;
+  final int? height;
 
   /// The absolute file on disk right now (valid this session).
   final File file;

@@ -10,6 +10,10 @@ abstract interface class MediaRegistry {
   /// Reads one entry by id for the current account, or null if none.
   Future<MediaObject?> get(String id);
 
+  /// All entries for the current account (small, personal collection). The
+  /// gallery joins these onto moments for metadata display and filtering.
+  Future<List<MediaObject>> getAll();
+
   /// All entries for the current account whose backup to some target is still
   /// pending/failed — the work list the "Back up now" / auto-backup flows walk.
   Future<List<MediaObject>> pendingBackups();
