@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/session_colors.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
@@ -406,6 +409,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
+    HapticFeedback.lightImpact();
     final reps = int.tryParse(_reps.text.trim());
     final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
     setState(() {
@@ -468,6 +472,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final remaining = _restRemaining;
     if (remaining == null) return;
     if (remaining <= Duration.zero) {
+      HapticFeedback.heavyImpact();
       _endRest();
       return;
     }
@@ -511,6 +516,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   void _adjustRest(int delta) {
     final endsAt = _restEndsAt;
     if (endsAt == null) return;
+    HapticFeedback.selectionClick();
     final nextEndsAt = endsAt.add(Duration(seconds: delta));
     if (!nextEndsAt.isAfter(widget.now())) {
       _endRest();
@@ -661,18 +667,20 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CaptureTopBar(
-                title: _dayTitle(widget.day),
-                onClose: _onLeave,
-                titleColor: SessionColors.ink2,
-                iconColor: SessionColors.ink2,
-                chipColor: SessionColors.surfaceRaised,
-                trailing: CaptureIconButton(
-                  icon: Icons.delete_outline_rounded,
-                  onTap: _onDiscard,
-                  semanticLabel: 'Discard workout',
-                  iconColor: AppColors.flare,
+              _FrostedTopBar(
+                child: CaptureTopBar(
+                  title: _dayTitle(widget.day),
+                  onClose: _onLeave,
+                  titleColor: SessionColors.ink2,
+                  iconColor: SessionColors.ink2,
                   chipColor: SessionColors.surfaceRaised,
+                  trailing: CaptureIconButton(
+                    icon: Icons.delete_outline_rounded,
+                    onTap: _onDiscard,
+                    semanticLabel: 'Discard workout',
+                    iconColor: AppColors.flare,
+                    chipColor: SessionColors.surfaceRaised,
+                  ),
                 ),
               ),
               _ProgressBar(value: _session.progress),
@@ -694,16 +702,18 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     opacity: _session.isPaused ? 0.35 : 1,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 280),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.03),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      ),
+                      transitionBuilder: (child, animation) => reducedMotion(context)
+                          ? FadeTransition(opacity: animation, child: child)
+                          : FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 0.03),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            ),
                       child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
                     ),
                   ),
@@ -829,6 +839,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       key: const ValueKey('running-list'),
       builder: (context, constraints) {
         return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.l,
             AppSpacing.m,
@@ -970,6 +981,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final loggedExercises = _session.exercises.where((e) => e.doneSetCount > 0).toList();
     return ListView(
       key: const ValueKey('completed-list'),
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       children: [
         Center(child: _Eyebrow('Workout complete', color: AppColors.pulse)),
@@ -1086,6 +1098,35 @@ List<BoxShadow> _cardGlow(Color color) => [
 
 // ---- Small building blocks ----------------------------------------------
 
+/// The in-session top bar as a translucent, blurred material rather than a
+/// flat opaque strip — chrome that reads as a physical layer over the
+/// session, matching the ground beneath it in hue so it darkens rather than
+/// washes out. `prefers-reduced-transparency`-style: falls back to a solid
+/// (unblurred) surface when reduced motion is on, since blur is itself a
+/// subtle, continuous visual effect best paired with the rest of the
+/// session's motion.
+class _FrostedTopBar extends StatelessWidget {
+  const _FrostedTopBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reducedMotion(context)) {
+      return ColoredBox(color: SessionColors.ground, child: child);
+    }
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: ColoredBox(
+          color: SessionColors.ground.withValues(alpha: 0.72),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 class _Eyebrow extends StatelessWidget {
   const _Eyebrow(this.text, {required this.color});
 
@@ -1101,10 +1142,38 @@ class _Eyebrow extends StatelessWidget {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
+/// The session's overall progress — springs to [value] from wherever it
+/// currently sits (rather than a fixed-duration tween restarting from 0 each
+/// time), so a set completing right after a previous spring settled doesn't
+/// visibly reset before re-animating.
+class _ProgressBar extends StatefulWidget {
   const _ProgressBar({required this.value});
 
   final double value;
+
+  @override
+  State<_ProgressBar> createState() => _ProgressBarState();
+}
+
+class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, value: widget.value);
+
+  @override
+  void didUpdateWidget(covariant _ProgressBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value == widget.value) return;
+    if (reducedMotion(context)) {
+      _controller.value = widget.value;
+    } else {
+      _controller.springTo(widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1112,12 +1181,10 @@ class _ProgressBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(999),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: value),
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOut,
-          builder: (context, animatedValue, _) => LinearProgressIndicator(
-            value: animatedValue,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => LinearProgressIndicator(
+            value: _controller.value,
             minHeight: 5,
             backgroundColor: SessionColors.hairline,
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.pulse),
@@ -1177,29 +1244,34 @@ class _ElapsedLabel extends StatelessWidget {
           ],
           const Spacer(),
           if (onTogglePause != null)
-            InkWell(
-              key: const Key('pause-toggle'),
-              onTap: onTogglePause,
-              borderRadius: BorderRadius.circular(999),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                      size: 16,
-                      color: isPaused ? AppColors.pulse : SessionColors.ink3,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isPaused ? 'Resume' : 'Pause',
-                      style: AppText.meta.copyWith(
+            PressableScale(
+              child: InkWell(
+                key: const Key('pause-toggle'),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onTogglePause!();
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        size: 16,
                         color: isPaused ? AppColors.pulse : SessionColors.ink3,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        isPaused ? 'Resume' : 'Pause',
+                        style: AppText.meta.copyWith(
+                          color: isPaused ? AppColors.pulse : SessionColors.ink3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1369,19 +1441,21 @@ class _RestAdjustButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: SessionColors.hairline2, width: 1.4),
-        ),
-        child: Text(
-          label,
-          style: AppText.button.copyWith(fontSize: 15, color: SessionColors.ink2),
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: SessionColors.hairline2, width: 1.4),
+          ),
+          child: Text(
+            label,
+            style: AppText.button.copyWith(fontSize: 15, color: SessionColors.ink2),
+          ),
         ),
       ),
     );
@@ -1541,14 +1615,45 @@ class _WarmupChip extends StatelessWidget {
   }
 }
 
-class _SetChip extends StatelessWidget {
+class _SetChip extends StatefulWidget {
   const _SetChip({required this.number, required this.state});
 
   final int number;
   final _ChipState state;
 
   @override
+  State<_SetChip> createState() => _SetChipState();
+}
+
+class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin {
+  late final AnimationController _scale = AnimationController(vsync: this, value: _targetScale(widget.state));
+
+  double _targetScale(_ChipState state) => state == _ChipState.current ? 1.1 : 1.0;
+
+  @override
+  void didUpdateWidget(covariant _SetChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state == widget.state) return;
+    final target = _targetScale(widget.state);
+    if (reducedMotion(context)) {
+      _scale.value = target;
+      return;
+    }
+    // A set completing is the one momentum moment here — a set going
+    // current/upcoming just settles, no overshoot earned.
+    final spring = widget.state == _ChipState.done ? AppSprings.bounce : AppSprings.standard;
+    _scale.springTo(target, spring: spring);
+  }
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final dot = AnimatedContainer(
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOut,
@@ -1569,17 +1674,16 @@ class _SetChip extends StatelessWidget {
       child: state == _ChipState.done
           ? const Icon(Icons.check_rounded, size: 17, color: Colors.white)
           : Text(
-              '$number',
+              '${widget.number}',
               style: AppText.meta.copyWith(
                 color: state == _ChipState.current ? Colors.white : SessionColors.ink3,
                 fontWeight: FontWeight.w700,
               ),
             ),
     );
-    final popped = AnimatedScale(
-      scale: state == _ChipState.current ? 1.1 : 1.0,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutBack,
+    final popped = AnimatedBuilder(
+      animation: _scale,
+      builder: (context, child) => Transform.scale(scale: _scale.value, child: child),
       child: dot,
     );
     return state == _ChipState.current
@@ -1639,51 +1743,167 @@ class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderSta
 
 /// The premium rest countdown — a ring sweeping down continuously (not
 /// stepped) over the rest window, with the remaining time centered inside
-/// at sub-second precision, gently breathing. Warm gray/ink, per the
-/// approved "rest" identity (Ember stays reserved for the current set, Pulse
-/// for done) — a vivid hue here would compete with that meaning.
-class _RestRing extends StatelessWidget {
+/// at sub-second precision. Warm gray/ink, per the approved "rest" identity
+/// (Ember stays reserved for the current set, Pulse for done) — a vivid hue
+/// here would compete with that meaning.
+///
+/// The ring and the digits stay a fixed size at all times — the "alive"
+/// feel comes from a slow stroke color/width ease on the sweep itself
+/// ([_glow]), never from scaling the whole thing (see M2: constant-size
+/// timer).
+class _RestRing extends StatefulWidget {
   const _RestRing({required this.remaining, required this.total});
 
   final Duration remaining;
   final int total;
 
   @override
+  State<_RestRing> createState() => _RestRingState();
+}
+
+class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat(reverse: true);
+
+  /// Absorbs a discontinuous jump in [_trueProgress] (a ±15s adjustment) as a
+  /// correction that starts at the jump's size and springs back to zero —
+  /// the ring keeps tracking wall-clock time exactly every frame, but a
+  /// sudden retarget visibly *springs* to the new fraction instead of
+  /// snapping. The normal continuous per-frame decay between adjustments
+  /// never touches this (it's already smooth by construction).
+  late final AnimationController _correction = AnimationController.unbounded(vsync: this)..value = 0;
+
+  double? _lastProgress;
+
+  double get _trueProgress {
+    final totalMs = widget.total * 1000;
+    return totalMs <= 0 ? 0.0 : (widget.remaining.inMilliseconds / totalMs).clamp(0.0, 1.0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RestRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final last = _lastProgress;
+    final next = _trueProgress;
+    // A normal tick decays by a fraction of a percent; only a ±15s jump
+    // moves it enough to cross this threshold, so this reliably tells the
+    // two apart regardless of exact rebuild cadence.
+    if (last != null && (next - last).abs() > 0.01 && !reducedMotion(context)) {
+      final jump = last - next;
+      _correction.value = _correction.value + jump;
+      _correction.springTo(0, spring: AppSprings.standard);
+    }
+    _lastProgress = next;
+  }
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    _correction.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final totalMs = total * 1000;
-    final progress = totalMs <= 0
-        ? 0.0
-        : (remaining.inMilliseconds / totalMs).clamp(0.0, 1.0);
-    final time = _restTimeParts(remaining);
-    return _BreathingScale(
-      child: SizedBox(
-        width: 240,
-        height: 240,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CustomPaint(
-              size: const Size(240, 240),
-              painter: _RestRingPainter(progress: progress),
-            ),
-            Text.rich(
-              key: const Key('rest-time-label'),
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: time.whole,
-                    style: AppText.heroNumber.copyWith(fontSize: 50, color: SessionColors.ink),
-                  ),
-                  TextSpan(
-                    text: time.centis,
-                    style: AppText.heroNumber.copyWith(fontSize: 26, color: SessionColors.ink2),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    _lastProgress ??= _trueProgress;
+    final time = _restTimeParts(widget.remaining);
+    // The outer box is wider than the drawn ring (still 240x240, unchanged)
+    // to give the fixed-width label ([_RestTimeLabel]) headroom for its
+    // widest case ("M:SS.CC") without ever needing to reflow or clip.
+    return SizedBox(
+      width: 300,
+      height: 260,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: Listenable.merge([_glow, _correction]),
+            builder: (context, _) {
+              final t = Curves.easeInOut.transform(_glow.value);
+              final progress = (_trueProgress + _correction.value).clamp(0.0, 1.0);
+              return CustomPaint(
+                size: const Size(240, 240),
+                painter: _RestRingPainter(progress: progress, glow: t),
+              );
+            },
+          ),
+          _RestTimeLabel(time: time),
+        ],
       ),
+    );
+  }
+}
+
+/// The rest ring's sub-second readout: a bold whole-second part ("1:54" at/
+/// above a minute, "45" under it) plus a quieter ".CC" hundredths suffix.
+/// Each part lives in a [_FixedSlot] sized for its widest possible content,
+/// so neither the digits nor the ring around them resize or shift as the
+/// digit count changes crossing a minute boundary or ticking down — only
+/// the glyphs inside each slot update.
+class _RestTimeLabel extends StatelessWidget {
+  const _RestTimeLabel({required this.time});
+
+  final ({String whole, String centis}) time;
+
+  static final _wholeStyle = AppText.heroNumber.copyWith(fontSize: 50, color: SessionColors.ink);
+  static final _centisStyle = AppText.heroNumber.copyWith(fontSize: 26, color: SessionColors.ink2);
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${time.whole}${time.centis}',
+      excludeSemantics: true,
+      child: Row(
+        key: const Key('rest-time-label'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _FixedSlot(
+            // Widest realistic rest window: single-digit minutes, "M:SS".
+            reference: '9:59',
+            alignment: Alignment.centerRight,
+            style: _wholeStyle,
+            child: Text(time.whole, key: const Key('rest-time-whole'), style: _wholeStyle),
+          ),
+          _FixedSlot(
+            reference: '.99',
+            alignment: Alignment.centerLeft,
+            style: _centisStyle,
+            child: Text(time.centis, key: const Key('rest-time-centis'), style: _centisStyle),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Reserves layout width for [reference] (the slot's widest possible
+/// content) and aligns [child] within it per [alignment] — so [child] can
+/// grow/shrink its own character count without the slot itself, or anything
+/// laid out around it, reflowing.
+class _FixedSlot extends StatelessWidget {
+  const _FixedSlot({
+    required this.reference,
+    required this.child,
+    required this.style,
+    required this.alignment,
+  });
+
+  final String reference;
+  final Widget child;
+  final TextStyle style;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: alignment,
+      children: [
+        Opacity(opacity: 0, child: Text(reference, style: style)),
+        child,
+      ],
     );
   }
 }
@@ -1705,10 +1925,14 @@ class _RestRing extends StatelessWidget {
 }
 
 class _RestRingPainter extends CustomPainter {
-  const _RestRingPainter({required this.progress});
+  const _RestRingPainter({required this.progress, required this.glow});
 
   /// 1.0 = the full rest window remains, 0.0 = rest is over.
   final double progress;
+
+  /// 0..1 easing value driving the sweep's stroke width/opacity — the
+  /// timer's "alive" pulse. Never affects layout size, only paint.
+  final double glow;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1724,9 +1948,9 @@ class _RestRingPainter extends CustomPainter {
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final sweep = Paint()
-      ..color = SessionColors.ink2
+      ..color = SessionColors.ink2.withValues(alpha: 0.82 + 0.18 * glow)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
+      ..strokeWidth = 11 + 1.5 * glow
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
@@ -1738,25 +1962,41 @@ class _RestRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RestRingPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _RestRingPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.glow != glow;
 }
 
-/// A slow, subtle scale breathe — used behind the rest countdown so the warm
-/// gray "rest" state still feels alive.
-class _BreathingScale extends StatefulWidget {
-  const _BreathingScale({required this.child});
+/// A one-shot scale-in — used for the completion checkmark.
+/// The completion checkmark's one-shot arrival — the one other genuinely
+/// earned momentum moment (alongside a set chip completing), so it springs
+/// in with the same slight, controlled overshoot rather than a scripted
+/// multi-wiggle elastic curve.
+class _PopIn extends StatefulWidget {
+  const _PopIn({required this.child});
 
   final Widget child;
 
   @override
-  State<_BreathingScale> createState() => _BreathingScaleState();
+  State<_PopIn> createState() => _PopInState();
 }
 
-class _BreathingScaleState extends State<_BreathingScale> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1600),
-  )..repeat(reverse: true);
+class _PopInState extends State<_PopIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, value: 0);
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // MediaQuery isn't available yet in initState — this is the earliest
+    // safe place to read it, and it only needs to run once, on arrival.
+    if (_started) return;
+    _started = true;
+    if (reducedMotion(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.springTo(1, spring: AppSprings.bounce);
+    }
+  }
 
   @override
   void dispose() {
@@ -1768,29 +2008,8 @@ class _BreathingScaleState extends State<_BreathingScale> with SingleTickerProvi
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) {
-        final scale = 0.98 + 0.04 * Curves.easeInOut.transform(_controller.value);
-        return Transform.scale(scale: scale, child: child);
-      },
+      builder: (context, child) => Transform.scale(scale: _controller.value, child: child),
       child: widget.child,
-    );
-  }
-}
-
-/// A one-shot scale-in — used for the completion checkmark.
-class _PopIn extends StatelessWidget {
-  const _PopIn({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 480),
-      curve: Curves.elasticOut,
-      builder: (context, value, child) => Transform.scale(scale: value, child: child),
-      child: child,
     );
   }
 }

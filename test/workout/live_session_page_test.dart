@@ -298,7 +298,7 @@ Widget _wrap({
 }
 
 /// [LiveSessionPage] wraps its current-set/rest indicators in *repeating*
-/// animation controllers (the ember pulse, the rest breathing scale) that
+/// animation controllers (the ember pulse, the rest ring's stroke glow) that
 /// never settle on their own — `pumpAndSettle` would hang while either view
 /// is on screen, so every step advances by a fixed, generous duration instead.
 Future<void> _settle(WidgetTester tester) async {
@@ -310,10 +310,12 @@ String elapsedText(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
 
 /// The premium rest ring's sub-second label ("M:SS.CC" or "SS.CC"), read
-/// back as plain text — it's a `Text.rich` (two `TextSpan`s), so `.data` is
-/// null; `.textSpan!.toPlainText()` joins both spans.
+/// back as plain text — the whole-second and ".CC" parts each live in their
+/// own fixed-width slot (see `_FixedSlot` in live_session_page.dart) as
+/// separate `Text` widgets, keyed individually, so this joins them back.
 String restTimeText(WidgetTester tester) =>
-    tester.widget<Text>(find.byKey(const Key('rest-time-label'))).textSpan!.toPlainText();
+    tester.widget<Text>(find.byKey(const Key('rest-time-whole'))).data! +
+    tester.widget<Text>(find.byKey(const Key('rest-time-centis'))).data!;
 
 /// Rounds the rest ring's displayed text back to whole seconds. Tests assert
 /// against this (not the exact sub-second string) because the premium

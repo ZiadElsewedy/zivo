@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 
 /// A close button + centred title, shared by the capture screens.
 class CaptureTopBar extends StatelessWidget {
@@ -85,20 +86,22 @@ class CaptureIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: semanticLabel,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: targetSize,
-          height: targetSize,
-          child: Center(
-            child: Container(
-              width: chipSize,
-              height: chipSize,
-              decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
-              child: Icon(icon, size: 18, color: iconColor),
+    return PressableScale(
+      child: Tooltip(
+        message: semanticLabel,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: targetSize,
+            height: targetSize,
+            child: Center(
+              child: Container(
+                width: chipSize,
+                height: chipSize,
+                decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
             ),
           ),
         ),
@@ -128,32 +131,35 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
+    return PressableScale(
+      enabled: enabled,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Material(
+          color: color,
           borderRadius: BorderRadius.circular(999),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: textColor),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.button.copyWith(fontSize: 16, color: textColor),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18, color: textColor),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.button.copyWith(fontSize: 16, color: textColor),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
