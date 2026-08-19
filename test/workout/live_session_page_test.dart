@@ -389,11 +389,13 @@ void main() {
       // Autosaved as an active session as soon as it starts.
       expect(sessions.current.any((s) => s.status == SessionStatus.active), isTrue);
 
-      // Type a heavier weight than last time → the Pulse progression delta.
-      // Reps is the first TextField (index 0), Weight the second (index 1).
+      // Type a heavier weight than last time (reps unchanged at the
+      // prefilled 5) → volume 150 → 175 = +16.67%, rounds to the verdict
+      // badge's "Progressing +17%". Reps is the first TextField (index 0),
+      // Weight the second (index 1).
       await tester.enterText(find.byType(TextField).at(1), '35');
       await tester.pump();
-      expect(find.text('+5kg'), findsOneWidget);
+      expect(find.text('Progressing +17%'), findsOneWidget);
 
       // Complete set 1 → the session counts down the exercise's own plan
       // rest (90s, "1:30") — the plan Ziad set in Edit Workout, not a

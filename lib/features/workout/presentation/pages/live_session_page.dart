@@ -17,6 +17,7 @@ import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
 import '../../domain/live_session_to_workout_log.dart';
 import '../../domain/logged_set.dart';
+import '../../domain/progress_comparison.dart';
 import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/rest_policy.dart';
@@ -871,6 +872,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       previous: previousSet,
       muscleGroup: exercise.muscleGroup,
     );
+    final comparison = compareToLastTime(
+      previous: previousSet,
+      actualReps: int.tryParse(_reps.text.trim()),
+      actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
+    );
     // Working-only position — warm-up ramp steps (if any) sit before this
     // in `exercise.sets` but aren't part of the numbered working sequence.
     final workingSetCount = exercise.sets.where((s) => s.type == SetType.working).length;
@@ -904,27 +910,32 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
           index: 2,
-          child: _GoalBlock(lastTimeLabel: lastTimeLabel, goal: goal, targetText: targetText),
+          child: _GoalBlock(
+            lastTimeLabel: lastTimeLabel,
+            goal: goal,
+            targetText: targetText,
+            comparison: comparison,
+          ),
         ),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  _ActualField(label: 'Reps', controller: _reps, onChanged: _onActualChanged),
-                  const SizedBox(width: AppSpacing.m),
-                  _ActualField(
-                    label: 'Weight (kg)',
-                    controller: _weight,
-                    hint: '—',
-                    onChanged: _onActualChanged,
-                  ),
-                ],
+              _StepperField(
+                label: 'Reps',
+                controller: _reps,
+                step: 1,
+                onChanged: _onActualChanged,
               ),
-              _ProgressionDelta(previousSet: previousSet, weightController: _weight),
+              const SizedBox(width: AppSpacing.m),
+              _StepperField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                step: 2.5,
+                hint: '—',
+                onChanged: _onActualChanged,
+              ),
             ],
           ),
         ),
@@ -1003,11 +1014,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           index: 3,
           child: Row(
             children: [
-              _ActualField(label: 'Reps', controller: _reps, onChanged: _onActualChanged),
+              _StepperField(
+                label: 'Reps',
+                controller: _reps,
+                step: 1,
+                onChanged: _onActualChanged,
+              ),
               const SizedBox(width: AppSpacing.m),
-              _ActualField(
+              _StepperField(
                 label: 'Weight (kg)',
                 controller: _weight,
+                step: 2.5,
                 hint: '—',
                 onChanged: _onActualChanged,
               ),
@@ -1459,11 +1476,22 @@ class _ElapsedLabel extends StatelessWidget {
 /// a quiet supporting line, and the plan's own rep target sits underneath as
 /// quieter context still. No animation beyond the shared entrance stagger.
 class _GoalBlock extends StatelessWidget {
-  const _GoalBlock({required this.lastTimeLabel, required this.goal, this.targetText});
+  const _GoalBlock({
+    required this.lastTimeLabel,
+    required this.goal,
+    this.targetText,
+    this.comparison,
+  });
 
   final String lastTimeLabel;
   final ProgressionGoal goal;
   final String? targetText;
+
+  /// Today's in-progress verdict against [lastTimeLabel] (see
+  /// [compareToLastTime]) — null whenever there's nothing real to compare
+  /// yet (first time ever, or no rep count typed in), in which case no
+  /// badge shows at all.
+  final SetProgressComparison? comparison;
 
   @override
   Widget build(BuildContext context) {
@@ -1508,6 +1536,7 @@ class _GoalBlock extends StatelessWidget {
             key: const Key('last-time-label'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
+          if (comparison != null) _ProgressVerdictBadge(comparison: comparison!),
           if (targetText != null) ...[
             const SizedBox(height: 2),
             Text(
@@ -1632,18 +1661,65 @@ class _RestAdjustButton extends StatelessWidget {
   }
 }
 
-class _ActualField extends StatelessWidget {
-  const _ActualField({
+/// A premium tap-to-step reps/weight input (Feature C) — the same
+/// [TextField] the plain field always used (typing directly into it, the
+/// fallback, still works exactly as before — nothing about that path
+/// changed), now flanked by ± stepper buttons that nudge the value by
+/// [step] with a selection-click haptic and a small spring "punch" on the
+/// field itself, the "alive" feedback the plain field never had.
+class _StepperField extends StatefulWidget {
+  const _StepperField({
     required this.label,
     required this.controller,
+    required this.step,
     required this.onChanged,
     this.hint,
   });
 
   final String label;
   final TextEditingController controller;
+
+  /// How much each ± tap moves the value — whole reps (1) or a plate-sized
+  /// weight jump (2.5kg), passed in per call site.
+  final double step;
   final VoidCallback onChanged;
   final String? hint;
+
+  @override
+  State<_StepperField> createState() => _StepperFieldState();
+}
+
+class _StepperFieldState extends State<_StepperField> with SingleTickerProviderStateMixin {
+  late final AnimationController _punch = AnimationController(vsync: this, value: 1);
+
+  double? get _value {
+    final raw = widget.controller.text.trim().replaceAll(',', '.');
+    return raw.isEmpty ? null : double.tryParse(raw);
+  }
+
+  /// Nudges the value by [delta] and writes it straight back into
+  /// [widget.controller] — the same controller the typed fallback edits, so
+  /// both paths always agree on what's actually entered.
+  void _step(double delta) {
+    HapticFeedback.selectionClick();
+    final raw = (_value ?? 0) + delta;
+    final next = raw < 0 ? 0.0 : raw;
+    widget.controller.text = _trimWeight(next);
+    widget.controller.selection = TextSelection.collapsed(offset: widget.controller.text.length);
+    if (reducedMotion(context)) {
+      _punch.value = 1;
+    } else {
+      _punch.value = 0.88;
+      _punch.springTo(1, spring: AppSprings.bounce);
+    }
+    widget.onChanged();
+  }
+
+  @override
+  void dispose() {
+    _punch.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1652,37 +1728,52 @@ class _ActualField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label.toUpperCase(),
+            widget.label.toUpperCase(),
             style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
-          TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-            cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
-            onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              filled: true,
-              fillColor: AppColors.surfaceRaised,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                borderSide: BorderSide.none,
+          Row(
+            children: [
+              _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _punch,
+                  builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
+                  child: TextField(
+                    controller: widget.controller,
+                    textAlign: TextAlign.center,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                    cursorColor: AppColors.ember,
+                    style: AppText.rowTitle.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                    onChanged: (_) => widget.onChanged(),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: widget.hint,
+                      hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                      filled: true,
+                      fillColor: AppColors.surfaceRaised,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+                        borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
-              ),
-            ),
+              const SizedBox(width: 6),
+              _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
+            ],
           ),
         ],
       ),
@@ -1690,33 +1781,111 @@ class _ActualField extends StatelessWidget {
   }
 }
 
-/// The Pulse "↑" progression callout — shown once the entered weight beats
-/// the last time this exact set (by index) was trained.
-class _ProgressionDelta extends StatelessWidget {
-  const _ProgressionDelta({required this.previousSet, required this.weightController});
+/// A single ± tap target for [_StepperField] — a quiet outlined square
+/// beside the field, pressed feedback via the shared [PressableScale].
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, required this.onTap});
 
-  final LoggedSet? previousSet;
-  final TextEditingController weightController;
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final previousWeight = previousSet?.actualWeightKg;
-    if (previousWeight == null) return const SizedBox.shrink();
-    final entered = double.tryParse(weightController.text.trim().replaceAll(',', '.'));
-    if (entered == null || entered <= previousWeight) return const SizedBox.shrink();
-    final delta = entered - previousWeight;
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.pulse),
-          const SizedBox(width: 2),
-          Text(
-            '+${_trimWeight(delta)}kg',
-            style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w700),
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+        child: Container(
+          width: 40,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadius.chip + 4),
+            border: Border.all(color: AppColors.hairline2),
           ),
-        ],
+          child: Icon(icon, size: 18, color: AppColors.ink2),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Progress verdict callout (Feature B) — how today's in-progress set
+/// stacks up against the same set from last time (see [compareToLastTime]):
+/// reps %, weight delta, and volume % rolled into one verdict. Lives right
+/// under "Last time" in the Goal card, since that's the number it's judged
+/// against, and updates live on every keystroke/step. Punches (a small
+/// spring scale) only when the verdict/label actually changes — the same
+/// settle-in idiom as the numbered set chips — so it doesn't just flicker
+/// on every unrelated rebuild.
+class _ProgressVerdictBadge extends StatefulWidget {
+  const _ProgressVerdictBadge({required this.comparison});
+
+  final SetProgressComparison comparison;
+
+  @override
+  State<_ProgressVerdictBadge> createState() => _ProgressVerdictBadgeState();
+}
+
+class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scale = AnimationController(vsync: this, value: 1);
+
+  @override
+  void didUpdateWidget(covariant _ProgressVerdictBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final same =
+        oldWidget.comparison.verdict == widget.comparison.verdict &&
+        oldWidget.comparison.overallChangePercent.round() ==
+            widget.comparison.overallChangePercent.round();
+    if (same) return;
+    if (reducedMotion(context)) {
+      _scale.value = 1;
+    } else {
+      _scale.value = 0.9;
+      _scale.springTo(1, spring: AppSprings.bounce);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final comparison = widget.comparison;
+    final (icon, color, word) = switch (comparison.verdict) {
+      ProgressVerdict.progressing => (Icons.trending_up_rounded, AppColors.pulse, 'Progressing'),
+      ProgressVerdict.matched => (Icons.horizontal_rule_rounded, AppColors.ink3, 'Matched'),
+      ProgressVerdict.down => (Icons.trending_down_rounded, AppColors.flare, 'Down'),
+    };
+    final pct = comparison.overallChangePercent.round();
+    final label = comparison.verdict == ProgressVerdict.matched
+        ? word
+        : '$word ${pct > 0 ? '+' : ''}$pct%';
+
+    return AnimatedBuilder(
+      animation: _scale,
+      builder: (context, child) => Transform.scale(scale: _scale.value, child: child),
+      child: Container(
+        key: const Key('progress-verdict'),
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }
