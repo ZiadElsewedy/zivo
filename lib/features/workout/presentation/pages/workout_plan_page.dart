@@ -4,7 +4,6 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/session_colors.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../data/ziad_workout_plan.dart';
 import '../../domain/live_session.dart';
@@ -24,7 +23,7 @@ import 'workout_plan_edit_page.dart';
 /// ("what I did") stays one tap away via the AppBar.
 ///
 /// Dark, immersive body — Phase 5D — matching the live session screens'
-/// [SessionColors]; only the surrounding app shell (bottom nav, other tabs)
+/// AppColors; only the surrounding app shell (bottom nav, other tabs)
 /// stays on the light [AppColors] theme, an accepted seam for this round.
 class WorkoutPlanPage extends StatelessWidget {
   const WorkoutPlanPage({super.key});
@@ -39,17 +38,17 @@ class WorkoutPlanPage extends StatelessWidget {
         final plan = snapshot.data;
         final loading = plan == null && snapshot.connectionState == ConnectionState.waiting;
         return Scaffold(
-          backgroundColor: SessionColors.ground,
+          backgroundColor: AppColors.ground,
           appBar: AppBar(
-            backgroundColor: SessionColors.ground,
+            backgroundColor: AppColors.ground,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            iconTheme: const IconThemeData(color: SessionColors.ink2),
-            title: Text('Workout', style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
+            iconTheme: const IconThemeData(color: AppColors.ink2),
+            title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
             actions: [
               IconButton(
                 tooltip: 'History',
-                icon: const Icon(Icons.history_rounded, color: SessionColors.ink2),
+                icon: const Icon(Icons.history_rounded, color: AppColors.ink2),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
                 ),
@@ -93,7 +92,7 @@ List<BoxShadow> _cardGlow(Color color) => [
 ];
 
 /// The Lottie loading mark renders in a dark ink tone of its own — nearly
-/// invisible directly on [SessionColors.ground] — so it's recolored to the
+/// invisible directly on [AppColors.ground] — so it's recolored to the
 /// dark palette's muted ink via a color filter, then given a touch of a
 /// lighter (but still dark) backdrop for extra contrast.
 class _PlanLoadingState extends StatelessWidget {
@@ -105,10 +104,10 @@ class _PlanLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: SessionColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(SessionColors.ink2, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -127,17 +126,17 @@ class _PlanErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: SessionColors.ink3),
+            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
-              style: AppText.aside.copyWith(color: SessionColors.ink2),
+              style: AppText.aside.copyWith(color: AppColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: SessionColors.ink3),
+              style: AppText.meta.copyWith(color: AppColors.ink3),
               textAlign: TextAlign.center,
             ),
           ],
@@ -159,9 +158,9 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: SessionColors.ink3),
+          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
           const SizedBox(height: 12),
-          Text('No workout plan yet.', style: AppText.aside.copyWith(color: SessionColors.ink2)),
+          Text('No workout plan yet.', style: AppText.aside.copyWith(color: AppColors.ink2)),
           const SizedBox(height: 18),
           SizedBox(
             width: 220,
@@ -191,10 +190,10 @@ class _PlanBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
       children: [
-        Text(plan.name, style: AppText.rowTitle.copyWith(color: SessionColors.ink2)),
+        Text(plan.name, style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
         const SizedBox(height: 18),
         if (today == null)
-          Text('No day up next.', style: AppText.aside.copyWith(color: SessionColors.ink2))
+          Text('No day up next.', style: AppText.aside.copyWith(color: AppColors.ink2))
         else
           _TodaySection(day: today, plan: plan),
         const SizedBox(height: 30),
@@ -239,9 +238,9 @@ class _TodaySection extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
         decoration: BoxDecoration(
-          color: SessionColors.surface,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: SessionColors.hairline2),
+          border: Border.all(color: AppColors.hairline2),
           boxShadow: _cardGlow(AppColors.pulse),
         ),
         child: Column(
@@ -270,12 +269,12 @@ class _TodaySection extends StatelessWidget {
               _dayTitle(day),
               style: AppText.heroNumber.copyWith(
                 fontSize: 30,
-                color: SessionColors.ink,
+                color: AppColors.ink,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
-            Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: SessionColors.ink3)),
+            Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
             const SizedBox(height: 18),
             StreamBuilder<LiveSession?>(
               stream: sessions.watchActiveSession(),
@@ -327,9 +326,9 @@ class _ExerciseCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SessionColors.surfaceRaised,
+        color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: SessionColors.hairline2),
+        border: Border.all(color: AppColors.hairline2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,7 +340,7 @@ class _ExerciseCard extends StatelessWidget {
                   exercise.name,
                   style: AppText.rowTitle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: SessionColors.ink,
+                    color: AppColors.ink,
                   ),
                 ),
               ),
@@ -356,7 +355,7 @@ class _ExerciseCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               exercise.notes!,
-              style: AppText.body.copyWith(fontSize: 13, color: SessionColors.ink2),
+              style: AppText.body.copyWith(fontSize: 13, color: AppColors.ink2),
             ),
           ],
           const SizedBox(height: 10),
@@ -373,7 +372,7 @@ class _ExerciseCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       line,
-                      style: AppText.meta.copyWith(color: SessionColors.ink2, fontSize: 13),
+                      style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 13),
                     ),
                   ),
                 ],
@@ -425,9 +424,9 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: SessionColors.surface,
+            color: AppColors.card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: SessionColors.hairline2),
+            border: Border.all(color: AppColors.hairline2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,7 +438,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                       _dayTitle(day),
                       style: AppText.rowTitle.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: SessionColors.ink,
+                        color: AppColors.ink,
                       ),
                     ),
                   ),
@@ -447,7 +446,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                     const _NextUpBadge(),
                     const SizedBox(width: 10),
                   ],
-                  Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: SessionColors.ink3)),
+                  Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
                   const SizedBox(width: 6),
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
@@ -456,7 +455,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                     child: const Icon(
                       Icons.expand_more_rounded,
                       size: 20,
-                      color: SessionColors.ink3,
+                      color: AppColors.ink3,
                     ),
                   ),
                 ],
@@ -483,7 +482,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                         exercise.name,
                                         style: AppText.body.copyWith(
                                           fontSize: 14,
-                                          color: SessionColors.ink2,
+                                          color: AppColors.ink2,
                                         ),
                                       ),
                                     ),
@@ -491,7 +490,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                     Text(
                                       plannedExerciseMeta(exercise),
                                       style: AppText.meta.copyWith(
-                                        color: SessionColors.ink3,
+                                        color: AppColors.ink3,
                                         fontSize: 12,
                                       ),
                                     ),

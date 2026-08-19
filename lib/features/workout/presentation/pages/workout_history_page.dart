@@ -4,7 +4,6 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/session_colors.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../domain/workout.dart';
 import '../../domain/workout_format.dart';
@@ -12,7 +11,7 @@ import 'workout_capture_page.dart';
 
 /// The Workout history — logged sessions, newest first.
 ///
-/// Dark, immersive — matching the live session and plan pages' [SessionColors]
+/// Dark, immersive — matching the live session and plan pages' AppColors
 /// (Phase 5A/5D); the surrounding app shell (bottom nav, other tabs) stays on
 /// the light [AppColors] theme, the same accepted seam as the plan page.
 class WorkoutHistoryPage extends StatelessWidget {
@@ -22,13 +21,13 @@ class WorkoutHistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final workouts = AppScope.of(context).workouts;
     return Scaffold(
-      backgroundColor: SessionColors.ground,
+      backgroundColor: AppColors.ground,
       appBar: AppBar(
-        backgroundColor: SessionColors.ground,
+        backgroundColor: AppColors.ground,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: SessionColors.ink2),
-        title: Text('Workout', style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
+        iconTheme: const IconThemeData(color: AppColors.ink2),
+        title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.pulse,
@@ -79,7 +78,7 @@ class WorkoutHistoryPage extends StatelessWidget {
 }
 
 /// The Lottie loading mark renders in a dark ink tone of its own — nearly
-/// invisible directly on [SessionColors.ground] — so it's recolored to the
+/// invisible directly on [AppColors.ground] — so it's recolored to the
 /// dark palette's muted ink via a color filter, then given a touch of a
 /// lighter (but still dark) backdrop for extra contrast.
 class _HistoryLoadingState extends StatelessWidget {
@@ -91,10 +90,10 @@ class _HistoryLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: SessionColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(SessionColors.ink2, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -113,17 +112,17 @@ class _HistoryErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: SessionColors.ink3),
+            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
-              style: AppText.aside.copyWith(color: SessionColors.ink2),
+              style: AppText.aside.copyWith(color: AppColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: SessionColors.ink3),
+              style: AppText.meta.copyWith(color: AppColors.ink3),
               textAlign: TextAlign.center,
             ),
           ],
@@ -143,7 +142,7 @@ class _HistoryEmptyState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Text(
           'No workouts yet.',
-          style: AppText.aside.copyWith(color: SessionColors.ink2),
+          style: AppText.aside.copyWith(color: AppColors.ink2),
           textAlign: TextAlign.center,
         ),
       ),
@@ -186,9 +185,9 @@ class _WorkoutCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: SessionColors.surface,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: SessionColors.hairline2),
+              border: Border.all(color: AppColors.hairline2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,14 +210,14 @@ class _WorkoutCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: AppText.rowTitle.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: SessionColors.ink,
+                          color: AppColors.ink,
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Text(
                       timeAgo(workout.performedAt, now),
-                      style: AppText.meta.copyWith(color: SessionColors.ink3),
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
                     ),
                   ],
                 ),
@@ -227,7 +226,7 @@ class _WorkoutCard extends StatelessWidget {
                   workout.summary,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(fontSize: 14, color: SessionColors.ink2),
+                  style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2),
                 ),
                 const SizedBox(height: 8),
                 Text(
