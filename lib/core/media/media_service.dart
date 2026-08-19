@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'domain/drive_backup_client.dart';
 import 'domain/media_backup_target.dart';
 import 'domain/media_kind.dart';
 import 'domain/media_object.dart';
@@ -22,12 +23,26 @@ class MediaService {
     required this.registry,
     required this.preferences,
     this.targets = const {},
+    this.driveClient,
+    this.isUnmetered,
   });
 
   final MediaStore store;
   final MediaRegistry registry;
   final MediaPreferencesRepository preferences;
   final Map<BackupTargetId, MediaBackupTarget> targets;
+
+  /// The Google Drive connection seam, used by the Settings connect/disconnect
+  /// flow. Null when Drive isn't wired (offline/dev builds); the Drive backup
+  /// *upload* path goes through [targets] instead.
+  final DriveBackupClient? driveClient;
+
+  /// Whether Drive backup is available to offer in the UI at all.
+  bool get supportsDrive => driveClient != null;
+
+  /// Reports whether the current connection is unmetered (wifi/ethernet), used
+  /// to honor "Wi-Fi only" for *automatic* backups. Null = unknown/always allow.
+  final Future<bool> Function()? isUnmetered;
 
   /// Imports a just-captured/picked file into durable local storage, registers
   /// it for [ownerUid], and — if the account opted into "Save to Photos" —
@@ -72,6 +87,35 @@ class MediaService {
   /// Resolves a stored reference to an absolute [File] for display, or null.
   Future<File?> resolve(String? ref) => store.resolve(ref);
 
+  /// Connects a Google account for Drive backup (interactive) and, on success,
+  /// records it in preferences (connected + enabled + email). Returns whether
+  /// it connected. No-op returning false when Drive isn't wired.
+  Future<bool> connectDrive() async {
+    final client = driveClient;
+    if (client == null) return false;
+    final account = await client.connect();
+    if (account == null) return false;
+    final prefs = await preferences.read();
+    await preferences.save(prefs.copyWith(
+      driveConnected: true,
+      driveBackupEnabled: true,
+      driveAccountEmail: account.email,
+    ));
+    return true;
+  }
+
+  /// Disconnects Drive: revokes the Google session and clears the connection
+  /// from preferences (backup stays local-only).
+  Future<void> disconnectDrive() async {
+    await driveClient?.disconnect();
+    final prefs = await preferences.read();
+    await preferences.save(prefs.copyWith(
+      driveConnected: false,
+      driveBackupEnabled: false,
+      clearDriveAccountEmail: true,
+    ));
+  }
+
   /// Deletes the local file and its registry entry. (Removing an already
   /// backed-up copy from a remote target is a Phase 2 concern.)
   Future<void> deleteMedia({required String id, required String? ref}) async {
@@ -110,6 +154,9 @@ class MediaService {
     final last = prefs.lastBackupAt;
     final current = now ?? DateTime.now();
     if (last != null && current.difference(last).inDays < everyDays) return;
+    // Honor "Wi-Fi only" for the automatic path (the manual "Back up now"
+    // action deliberately ignores it — the user asked for it explicitly).
+    if (prefs.wifiOnly && isUnmetered != null && !await isUnmetered!()) return;
     await backupNow();
   }
 

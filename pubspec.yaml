@@ -56,6 +56,12 @@ dependencies:
   crypto: ^3.0.7
   firebase_app_check: ^0.4.6
   lottie: ^3.5.1
+  # Google Drive backup target (Phase 2): the Drive v3 API plus a plain http
+  # client we wrap with google_sign_in's OAuth bearer token (drive.file scope).
+  googleapis: ^14.0.0
+  http: ^1.2.0
+  # Lets the media pipeline honor "Wi-Fi only" for automatic Drive backups.
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

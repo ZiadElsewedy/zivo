@@ -51,6 +51,7 @@ class MediaStoragePreferences {
     String? driveAccountEmail,
     bool clearDriveAccountEmail = false,
     int? autoBackupEveryDays,
+    bool clearAutoBackupEveryDays = false,
     bool? wifiOnly,
     DateTime? lastBackupAt,
   }) {
@@ -61,7 +62,9 @@ class MediaStoragePreferences {
       driveAccountEmail: clearDriveAccountEmail
           ? null
           : (driveAccountEmail ?? this.driveAccountEmail),
-      autoBackupEveryDays: autoBackupEveryDays ?? this.autoBackupEveryDays,
+      autoBackupEveryDays: clearAutoBackupEveryDays
+          ? null
+          : (autoBackupEveryDays ?? this.autoBackupEveryDays),
       wifiOnly: wifiOnly ?? this.wifiOnly,
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
     );

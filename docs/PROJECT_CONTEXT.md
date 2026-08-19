@@ -7,9 +7,9 @@
 > describes what is *actually built today*.
 >
 > **Last updated:** 2026-08-19 — active branch `claude/media-storage-architecture-95c0a4`: media
-> storage rework **Phase 1 (local-first pipeline) done & committed** (`cce035a`), Phase 2 (Google
-> Drive) pending the owner's GCP setup. See the **Active** entry in Current Handoff. Prior AI-streaming
-> context below was last verified 2026-08-17.
+> storage rework **Phase 1 (local-first pipeline) + Phase 2 (Google Drive) code done & committed**;
+> Phase 2 now pending only the owner's GCP setup + an on-device OAuth check. See the **Active** entry
+> in Current Handoff. Prior AI-streaming context below was last verified 2026-08-17.
 >
 > **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
 > `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
@@ -50,21 +50,30 @@
   row is a labelled placeholder). DI wired in `AppScope`/`app.dart`; Firestore rules added for
   `media` + `settings`; iOS `NSPhotoLibraryAddUsageDescription` + Android legacy storage permission
   added. Added `gal` + `path` deps. **`flutter analyze` clean; all 461 tests pass (19 new).**
-- **Phase 2 (Google Drive) — NOT started, blocked on owner's GCP setup** for project `zivo-63f15`:
-  (1) enable the Google Drive API, (2) add scope `https://www.googleapis.com/auth/drive.file` to the
-  OAuth consent screen, (3) add `ziadelsewedy1@gmail.com` as a test user. iOS URL scheme + Android
-  SHA-1 already exist from Firebase auth. Then: implement `GoogleDriveTarget` keyed
-  `BackupTargetId.drive` (`googleapis` + `extension_google_sign_in_as_googleapis_auth`), a
-  "Connect Drive" flow + cadence/wifi controls in the Media & Backup section, and call
-  `MediaService.runAutoBackupIfDue()` on app open. iOS can't guarantee true timed background — the
-  3-day cadence realistically fires on the next app open after 3 days.
-- **Exact next action:** wait for the owner's 3 GCP steps, then build Phase 2 (Drive target + connect
-  flow + cadence UI) on this branch. Nothing is merged to `main`; follows the milestone-branch /
-  never-auto-merge workflow.
+- **Phase 2 (Google Drive) — CODE DONE & committed; blocked only on the owner's GCP setup + an
+  on-device OAuth check.** Built: `DriveBackupClient` interface + `GoogleDriveBackupClient`
+  (google_sign_in v7 incremental authorization — `authorizationClient.authorizeScopes([DriveApi.driveFileScope])`
+  — plus googleapis Drive v3, with the OAuth bearer token injected into a custom `http.Client`, so no
+  google_sign_in↔googleapis bridge package is needed); `GoogleDriveTarget` keyed `BackupTargetId.drive`;
+  `MediaService.connectDrive()/disconnectDrive()/supportsDrive` and an `isUnmetered` seam
+  (`connectivity_plus`) that enforces "Wi-Fi only" on the **automatic** path only (manual "Back up now"
+  ignores it, by design). The Media & Backup Settings section is now a full flow (Connect / Back up now /
+  Auto-backup 3-day toggle / Wi-Fi only / Disconnect), and `HomeShell.initState` fires
+  `runAutoBackupIfDue()` on app open. Deps added: `googleapis`, `http`, `connectivity_plus`.
+  **`flutter analyze` clean; 471 tests pass (+10 Drive tests using a fake `DriveBackupClient`).**
+- **Still needed from the owner** (project `zivo-63f15`): (1) enable the Google Drive API, (2) add scope
+  `https://www.googleapis.com/auth/drive.file` to the OAuth consent screen, (3) add
+  `ziadelsewedy1@gmail.com` as a test user. iOS URL scheme + Android SHA-1 already exist from Firebase auth.
+- **Exact next action:** after the 3 GCP steps, do the **on-device verification** of
+  `GoogleDriveBackupClient` (the only file unit tests couldn't exercise): connect prompt, `drive.file`
+  scope grant, app folder create, upload, and re-backup via `replaceFileId`. Fix any google_sign_in v7 /
+  googleapis signature mismatches surfaced there. Then decide on merging the branch. iOS can't guarantee
+  true timed background — the 3-day cadence realistically fires on the next app open after 3 days.
 - **Manual owner action:** the 3 Google Cloud steps above; decide when to merge this branch.
-- **Do not redo:** don't re-derive the `lib/core/media/` module or the Moments/Profile migration —
-  Phase 1 is built, committed, and green. Don't reintroduce raw picker paths or absolute stored
-  paths; media flows through `MediaService`.
+- **Do not redo:** don't re-derive the `lib/core/media/` module, the Moments/Profile migration, or the
+  Drive client/target/connect flow — Phases 1 and 2 are built, committed, and green. Don't reintroduce
+  raw picker paths or absolute stored paths; media flows through `MediaService`. Don't add a
+  google_sign_in↔googleapis bridge package — the custom bearer `http.Client` is deliberate.
 
 ### Prior handoff: AI streaming UX (2026-08-17, `feature/ai-streaming-ux`)
 
