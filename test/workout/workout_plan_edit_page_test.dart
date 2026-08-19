@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/capture/presentation/widgets/capture_widgets.dart';
@@ -115,6 +117,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('day-label-field')), 'Push');
     await tester.pump(); // rebuild so the submit button enables
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Add day'));
     await tester.tap(find.widgetWithText(PillButton, 'Add day')); // sheet submit
     await tester.pumpAndSettle();
     expect(find.text('Day A · Push'), findsOneWidget);
@@ -124,11 +127,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('exercise-name-field')), 'Bench Press');
     await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Add exercise'));
     await tester.tap(find.widgetWithText(PillButton, 'Add exercise')); // sheet submit
     await tester.pumpAndSettle();
     expect(find.text('Bench Press'), findsOneWidget);
 
     // Save.
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
     await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
     await tester.pumpAndSettle();
 
@@ -161,6 +166,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('day-label-field')), 'Arms');
     await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Add day'));
     await tester.tap(find.widgetWithText(PillButton, 'Add day'));
     await tester.pumpAndSettle();
 
@@ -170,6 +176,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('To failure')); // switch rep mode
     await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Add exercise'));
     await tester.tap(find.widgetWithText(PillButton, 'Add exercise'));
     await tester.pumpAndSettle();
 
@@ -201,6 +208,235 @@ void main() {
     expect(plan.days, hasLength(2));
     expect(plan.days.first.exercises.single.name, 'Bench Press');
   });
+
+  testWidgets(
+    'tap-to-edit: tapping an exercise opens it pre-filled and saving replaces it in place',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+
+      await tester.pumpWidget(
+        _wrap(child: WorkoutPlanEditPage(initialPlan: _existingPlan()), plans: plans),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Bench Press'));
+      await tester.pumpAndSettle();
+
+      // Pre-filled from the existing exercise, not blank — and the sheet
+      // knows it's editing (title + button label switch).
+      expect(find.text('Edit exercise'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byKey(const Key('exercise-name-field'))).controller!.text,
+        'Bench Press',
+      );
+      // The rest wheel opens centered on the exercise's actual rest (120s →
+      // item 24 of the 5s-step wheel), not some other/default value.
+      expect(
+        tester
+            .widget<CupertinoPicker>(find.byKey(const Key('rest-picker')))
+            .scrollController!
+            .initialItem,
+        24,
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('exercise-name-field')),
+        'Incline Bench Press',
+      );
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save changes'));
+      await tester.tap(find.widgetWithText(PillButton, 'Save changes'));
+      await tester.pumpAndSettle();
+
+      // Replaced in place — not appended as a second exercise.
+      expect(find.text('Incline Bench Press'), findsOneWidget);
+      expect(find.text('Bench Press'), findsNothing);
+
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.pumpAndSettle();
+
+      final day = plans.saved.single.days.first;
+      expect(day.exercises, hasLength(1));
+      final exercise = day.exercises.single;
+      expect(exercise.id, 'e1'); // identity preserved, not regenerated
+      expect(exercise.name, 'Incline Bench Press');
+    },
+  );
+
+  testWidgets(
+    'the rest wheel picker updates the saved rest and fires a selection-click haptic per tick',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final hapticCalls = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (
+        call,
+      ) async {
+        if (call.method == 'HapticFeedback.vibrate') hapticCalls.add(call.arguments as String);
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      await tester.pumpWidget(_wrap(child: const WorkoutPlanEditPage(), plans: plans));
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('plan-name-field')), 'S');
+
+      await tester.tap(find.text('Add day'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('day-label-field')), 'Push');
+      await tester.pump();
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Add day'));
+      await tester.tap(find.widgetWithText(PillButton, 'Add day'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add exercise'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('exercise-name-field')), 'Bench Press');
+      await tester.pump();
+
+      // Default rest is 90s. Drag the wheel up by 3 items (15s each tick's
+      // worth of 5s steps) to land on 90 + 3*5 = 105s ("1:45").
+      await tester.drag(find.byKey(const Key('rest-picker')), const Offset(0, -34 * 3));
+      await tester.pumpAndSettle();
+
+      expect(hapticCalls, isNotEmpty);
+      expect(hapticCalls, everyElement('HapticFeedbackType.selectionClick'));
+
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Add exercise'));
+      await tester.tap(find.widgetWithText(PillButton, 'Add exercise'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.pumpAndSettle();
+
+      final exercise = plans.saved.single.days.single.exercises.single;
+      expect(exercise.sets.first.restSeconds, 105);
+      expect(exercise.defaultRestSeconds, 105);
+    },
+  );
+
+  testWidgets(
+    'Default rest bulk-sets every exercise across every day, and a later '
+    'per-exercise edit sticks without a re-apply clobbering it',
+    (tester) async {
+      final plans = _RecordingWorkoutPlanRepository();
+      final plan = WorkoutPlan(
+        id: 'bulk',
+        name: 'Bulk',
+        status: WorkoutPlanStatus.active,
+        source: WorkoutPlanSource.manual,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        cycleCursor: 0,
+        days: const [
+          WorkoutDay(
+            id: 'd1',
+            slot: 'A',
+            label: 'Push',
+            order: 0,
+            exercises: [
+              PlannedExercise(
+                id: 'e1',
+                name: 'Bench Press',
+                order: 0,
+                defaultRestSeconds: 90,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(6, 8),
+                    restSeconds: 90,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+              PlannedExercise(
+                id: 'e2',
+                name: 'Overhead Press',
+                order: 1,
+                defaultRestSeconds: 60,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(8, 10),
+                    restSeconds: 60,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          WorkoutDay(
+            id: 'd2',
+            slot: 'B',
+            label: 'Pull',
+            order: 1,
+            exercises: [
+              PlannedExercise(
+                id: 'e3',
+                name: 'Lat Pulldown',
+                order: 0,
+                defaultRestSeconds: 75,
+                sets: [
+                  PlannedSet(
+                    order: 0,
+                    repTarget: RepTarget.range(8, 12),
+                    restSeconds: 75,
+                    type: SetType.working,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_wrap(child: WorkoutPlanEditPage(initialPlan: plan), plans: plans));
+      await tester.pump();
+
+      // Open the bulk sheet — seeded from the first exercise's rest (90s,
+      // item 18) — and dial it up to 3:00 (item 36): +18 items.
+      await tester.tap(find.textContaining('Default rest'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byKey(const Key('rest-picker')), const Offset(0, -34 * 18));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Set all'));
+      await tester.tap(find.widgetWithText(PillButton, 'Set all'));
+      await tester.pumpAndSettle();
+
+      // Every exercise reads the bulk value in the list before any save —
+      // the mutation is visible immediately, not just after a round-trip.
+      expect(find.textContaining('rest 3:00'), findsNWidgets(3));
+
+      // Now override just "Overhead Press" down to 2:30 (item 30, -6 items
+      // from the 3:00 it's currently seeded at) via the existing tap-to-edit
+      // flow — without touching Default rest again — then save once.
+      await tester.tap(find.text('Overhead Press'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byKey(const Key('rest-picker')), const Offset(0, 34 * 6));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save changes'));
+      await tester.tap(find.widgetWithText(PillButton, 'Save changes'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+      await tester.pumpAndSettle();
+
+      final finalPlan = plans.saved.last;
+      final overhead = finalPlan.days.first.exercises.firstWhere((e) => e.id == 'e2');
+      expect(overhead.defaultRestSeconds, 150); // overridden
+      final bench = finalPlan.days.first.exercises.firstWhere((e) => e.id == 'e1');
+      final pulldown = finalPlan.days.last.exercises.single;
+      expect(bench.defaultRestSeconds, 180); // untouched, still the bulk value
+      expect(pulldown.defaultRestSeconds, 180); // untouched, still the bulk value
+    },
+  );
 
   testWidgets('delete flow: confirm removes the plan', (tester) async {
     final plans = _RecordingWorkoutPlanRepository();

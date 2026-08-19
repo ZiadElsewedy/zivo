@@ -1,9 +1,13 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/session_colors.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/rep_target.dart';
@@ -42,10 +46,11 @@ class _DayDraft {
 }
 
 /// Create or edit the workout plan — name, days (slot + label), and exercises
-/// within a day (added via a sheet that captures a compact set spec and
-/// generates the working sets). Saving persists the whole plan, reusing its id
-/// when editing so it overwrites idempotently, and preserving the rotation
-/// cursor. A Pulse screen, sibling to Diet's editor.
+/// within a day (added or edited in place via a sheet that captures a compact
+/// set spec and generates the working sets). Saving persists the whole plan,
+/// reusing its id when editing so it overwrites idempotently, and preserving
+/// the rotation cursor. Dark, matching the session/plan/history screens'
+/// [SessionColors].
 class WorkoutPlanEditPage extends StatefulWidget {
   const WorkoutPlanEditPage({super.key, this.initialPlan});
 
@@ -129,8 +134,61 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     setState(() => _days[dayIndex].exercises.add(exercise));
   }
 
+  /// Opens the exercise sheet pre-filled with the exercise already at
+  /// [exerciseIndex] and, on save, replaces it in place — the whole point
+  /// being that editing an exercise no longer means deleting and re-adding
+  /// it (which loses its position in the day and its id).
+  Future<void> _editExercise(int dayIndex, int exerciseIndex) async {
+    final current = _days[dayIndex].exercises[exerciseIndex];
+    final exercise = await showModalBottomSheet<PlannedExercise>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ExerciseSheet(initial: current),
+    );
+    if (exercise == null) return;
+    setState(() => _days[dayIndex].exercises[exerciseIndex] = exercise);
+  }
+
   void _removeExercise(int dayIndex, int exerciseIndex) {
     setState(() => _days[dayIndex].exercises.removeAt(exerciseIndex));
+  }
+
+  /// The wheel's seed when opening the default-rest sheet — the first
+  /// exercise's own rest if there is one, so re-opening it after already
+  /// bulk-setting a value starts from that value rather than always 1:30.
+  int _currentSeedRest() {
+    for (final day in _days) {
+      for (final exercise in day.exercises) {
+        return exercise.defaultRestSeconds;
+      }
+    }
+    return 90;
+  }
+
+  /// Sets EVERY exercise's rest, across every day, to one chosen value —
+  /// the bulk counterpart to the per-exercise override in [_editExercise].
+  /// Per-exercise overrides made *after* this still stick; a later bulk
+  /// apply overwrites them again, same as re-running any bulk action.
+  Future<void> _pickDefaultRest() async {
+    final seconds = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _DefaultRestSheet(initialSeconds: _currentSeedRest()),
+    );
+    if (seconds == null) return;
+    setState(() {
+      for (final day in _days) {
+        for (var i = 0; i < day.exercises.length; i++) {
+          final exercise = day.exercises[i];
+          day.exercises[i] = exercise.copyWith(
+            defaultRestSeconds: seconds,
+            sets: [for (final set in exercise.sets) set.copyWith(restSeconds: seconds)],
+          );
+        }
+      }
+    });
   }
 
   Future<void> _save() async {
@@ -174,20 +232,20 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('Delete this plan?', style: AppText.cardTitle),
+        backgroundColor: SessionColors.surface,
+        title: Text('Delete this plan?', style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
         content: Text(
           'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
-          style: AppText.body,
+          style: AppText.body.copyWith(color: SessionColors.ink2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text('Cancel', style: AppText.button.copyWith(color: SessionColors.ink3)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flareText)),
+            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
           ),
         ],
       ),
@@ -200,7 +258,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: SessionColors.ground,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,13 +266,17 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
             CaptureTopBar(
               title: _editing ? 'Edit workout plan' : 'New workout plan',
               onClose: () => Navigator.of(context).maybePop(),
+              titleColor: SessionColors.ink2,
+              iconColor: SessionColors.ink2,
+              chipColor: SessionColors.surfaceRaised,
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('workout-plan-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
                       semanticLabel: 'Delete plan',
-                      iconColor: AppColors.flareText,
+                      iconColor: AppColors.flare,
+                      chipColor: SessionColors.surfaceRaised,
                     )
                   : null,
             ),
@@ -225,13 +287,20 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                 controller: _name,
                 textInputAction: TextInputAction.done,
                 cursorColor: AppColors.pulse,
-                style: AppText.cardTitle.copyWith(fontSize: 24),
+                style: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
                   hintText: 'Plan name',
-                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink3),
+                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: SessionColors.ink3),
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 10, 24, 4),
+              child: _DefaultRestRow(
+                seconds: _currentSeedRest(),
+                onTap: _pickDefaultRest,
               ),
             ),
             Expanded(
@@ -249,6 +318,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                           day: _days[i],
                           onRemoveDay: () => _removeDay(i),
                           onAddExercise: () => _addExercise(i),
+                          onEditExercise: (ei) => _editExercise(i, ei),
                           onRemoveExercise: (ei) => _removeExercise(i, ei),
                         );
                       },
@@ -264,7 +334,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
               child: PillButton(
                 label: 'Save plan',
                 icon: Icons.check_rounded,
-                color: AppColors.pulseText,
+                color: AppColors.pulse,
                 enabled: _canSave,
                 onTap: _save,
               ),
@@ -287,9 +357,9 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const Icon(Icons.fitness_center_rounded, size: 30, color: SessionColors.ink3),
           const SizedBox(height: 12),
-          Text('No days yet.', style: AppText.aside),
+          Text('No days yet.', style: AppText.aside.copyWith(color: SessionColors.ink2)),
           const SizedBox(height: 14),
           _AddButton(label: 'Add day', onTap: onAdd),
         ],
@@ -307,30 +377,124 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.hairline2, width: 1.4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded, size: compact ? 14 : 17, color: AppColors.pulseText),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppText.button.copyWith(
-                fontSize: compact ? 12.5 : 14,
-                color: AppColors.pulseText,
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: SessionColors.hairline2, width: 1.4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, size: compact ? 14 : 17, color: AppColors.pulse),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppText.button.copyWith(
+                  fontSize: compact ? 12.5 : 14,
+                  color: AppColors.pulse,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// The discoverable bulk-rest control — "where's Edit Rest" for the whole
+/// plan at once. Shows the value it'll apply so it reads as a real control,
+/// not a mystery button.
+class _DefaultRestRow extends StatelessWidget {
+  const _DefaultRestRow({required this.seconds, required this.onTap});
+
+  final int seconds;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: SessionColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: SessionColors.hairline2),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.timer_outlined, size: 18, color: AppColors.pulse),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Default rest · ${restLabel(seconds)}',
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: SessionColors.ink,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Set all',
+                  style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: SessionColors.ink3),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The bulk-rest sheet — the same dark [_RestPicker] wheel used for a single
+/// exercise's rest, but its result applies to every exercise in the plan at
+/// once (see [_WorkoutPlanEditPageState._pickDefaultRest]).
+class _DefaultRestSheet extends StatefulWidget {
+  const _DefaultRestSheet({required this.initialSeconds});
+
+  final int initialSeconds;
+
+  @override
+  State<_DefaultRestSheet> createState() => _DefaultRestSheetState();
+}
+
+class _DefaultRestSheetState extends State<_DefaultRestSheet> {
+  late int _seconds = widget.initialSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetShell(
+      title: 'Default rest',
+      children: [
+        Text(
+          'Sets every exercise in this plan to this rest. Editing one exercise '
+          'afterward still overrides it individually.',
+          style: AppText.body.copyWith(color: SessionColors.ink2, fontSize: 13.5),
+        ),
+        const SizedBox(height: 16),
+        _RestPicker(initialSeconds: _seconds, onChanged: (v) => _seconds = v),
+        const SizedBox(height: 22),
+        PillButton(
+          label: 'Set all',
+          icon: Icons.check_rounded,
+          color: AppColors.pulse,
+          enabled: true,
+          onTap: () => Navigator.of(context).pop(_seconds),
+        ),
+      ],
     );
   }
 }
@@ -340,12 +504,14 @@ class _DayCard extends StatelessWidget {
     required this.day,
     required this.onRemoveDay,
     required this.onAddExercise,
+    required this.onEditExercise,
     required this.onRemoveExercise,
   });
 
   final _DayDraft day;
   final VoidCallback onRemoveDay;
   final VoidCallback onAddExercise;
+  final void Function(int exerciseIndex) onEditExercise;
   final void Function(int exerciseIndex) onRemoveExercise;
 
   @override
@@ -353,9 +519,9 @@ class _DayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: SessionColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: SessionColors.hairline2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,27 +531,30 @@ class _DayCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Day ${day.slot} · ${day.label}',
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: SessionColors.ink),
                 ),
               ),
-              IconButton(
-                onPressed: onRemoveDay,
-                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
-                splashRadius: 20,
-                tooltip: 'Remove day',
+              PressableScale(
+                child: IconButton(
+                  onPressed: onRemoveDay,
+                  icon: const Icon(Icons.close_rounded, size: 18, color: SessionColors.ink3),
+                  splashRadius: 20,
+                  tooltip: 'Remove day',
+                ),
               ),
             ],
           ),
           if (day.notes != null && day.notes!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+              child: Text(day.notes!, style: AppText.meta.copyWith(color: SessionColors.ink3)),
             ),
           for (var ei = 0; ei < day.exercises.length; ei++)
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: _ExerciseRow(
                 exercise: day.exercises[ei],
+                onEdit: () => onEditExercise(ei),
                 onRemove: () => onRemoveExercise(ei),
               ),
             ),
@@ -397,46 +566,64 @@ class _DayCard extends StatelessWidget {
   }
 }
 
+/// One exercise within a day card — tapping it opens the exercise sheet
+/// pre-filled for editing in place; the trailing X stays a separate, direct
+/// remove action.
 class _ExerciseRow extends StatelessWidget {
-  const _ExerciseRow({required this.exercise, required this.onRemove});
+  const _ExerciseRow({required this.exercise, required this.onEdit, required this.onRemove});
 
   final PlannedExercise exercise;
+  final VoidCallback onEdit;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-      decoration: BoxDecoration(color: AppColors.ground, borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            decoration: BoxDecoration(
+              color: SessionColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
               children: [
-                Text(
-                  exercise.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        exercise.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: SessionColors.ink),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _setSpecLabel(exercise),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.meta.copyWith(color: AppColors.pulse),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _setSpecLabel(exercise),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.meta.copyWith(color: AppColors.pulseText),
+                PressableScale(
+                  child: IconButton(
+                    onPressed: onRemove,
+                    icon: const Icon(Icons.close_rounded, size: 16, color: SessionColors.ink3),
+                    splashRadius: 18,
+                    tooltip: 'Remove exercise',
+                  ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.ink3),
-            splashRadius: 18,
-            tooltip: 'Remove exercise',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -533,7 +720,7 @@ class _DaySheetState extends State<_DaySheet> {
         PillButton(
           label: 'Add day',
           icon: Icons.add_rounded,
-          color: AppColors.pulseText,
+          color: AppColors.pulse,
           enabled: _canAdd,
           onTap: _submit,
         ),
@@ -544,11 +731,16 @@ class _DaySheetState extends State<_DaySheet> {
 
 enum _RepMode { fixed, range, toFailure }
 
-/// A sheet to add one exercise via a compact set spec: name, muscle group, a
-/// set count, a rep target (fixed / range / to-failure), rest, and an optional
-/// weight — which it expands into that many identical working sets.
+/// A sheet to add or edit one exercise via a compact set spec: name, muscle
+/// group, a set count, a rep target (fixed / range / to-failure), a rest
+/// wheel, and an optional weight — which it expands into that many identical
+/// working sets. Passing [initial] pre-fills every field from that exercise
+/// and, on submit, keeps its id so the caller can replace it in place rather
+/// than append a new one.
 class _ExerciseSheet extends StatefulWidget {
-  const _ExerciseSheet();
+  const _ExerciseSheet({this.initial});
+
+  final PlannedExercise? initial;
 
   @override
   State<_ExerciseSheet> createState() => _ExerciseSheetState();
@@ -560,14 +752,37 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   final TextEditingController _sets = TextEditingController(text: '3');
   final TextEditingController _reps = TextEditingController(text: '8');
   final TextEditingController _repsMax = TextEditingController(text: '12');
-  final TextEditingController _rest = TextEditingController(text: '90');
   final TextEditingController _weight = TextEditingController();
   _RepMode _mode = _RepMode.range;
+  int _restSeconds = 90;
   bool _canAdd = false;
+
+  bool get _editing => widget.initial != null;
 
   @override
   void initState() {
     super.initState();
+    final initial = widget.initial;
+    if (initial != null) {
+      _name.text = initial.name;
+      _muscle.text = initial.muscleGroup ?? '';
+      _sets.text = '${initial.sets.length}';
+      final first = initial.sets.isNotEmpty ? initial.sets.first : null;
+      if (first != null) {
+        _mode = switch (first.repTarget.kind) {
+          RepTargetKind.fixed => _RepMode.fixed,
+          RepTargetKind.range => _RepMode.range,
+          RepTargetKind.toFailure => _RepMode.toFailure,
+        };
+        if (first.repTarget.min != null) _reps.text = '${first.repTarget.min}';
+        if (first.repTarget.max != null) _repsMax.text = '${first.repTarget.max}';
+        if (first.targetWeightKg != null) _weight.text = _trimWeight(first.targetWeightKg!);
+        _restSeconds = first.restSeconds;
+      } else {
+        _restSeconds = initial.defaultRestSeconds;
+      }
+    }
+    _canAdd = _name.text.trim().isNotEmpty;
     _name.addListener(() {
       final canAdd = _name.text.trim().isNotEmpty;
       if (canAdd != _canAdd) setState(() => _canAdd = canAdd);
@@ -581,7 +796,6 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
     _sets.dispose();
     _reps.dispose();
     _repsMax.dispose();
-    _rest.dispose();
     _weight.dispose();
     super.dispose();
   }
@@ -605,25 +819,24 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   void _submit() {
     if (!_canAdd) return;
     final count = (int.tryParse(_sets.text.trim()) ?? 1).clamp(1, 20);
-    final rest = int.tryParse(_rest.text.trim()) ?? 0;
-    final restSeconds = rest < 0 ? 0 : rest;
     final weightRaw = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
     final weight = (weightRaw == null || weightRaw <= 0) ? null : weightRaw;
     final target = _buildTarget();
     final muscle = _muscle.text.trim();
+    final initial = widget.initial;
     Navigator.of(context).pop(
       PlannedExercise(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         name: _name.text.trim(),
-        order: 0,
+        order: initial?.order ?? 0,
         muscleGroup: muscle.isEmpty ? null : muscle,
-        defaultRestSeconds: restSeconds,
+        defaultRestSeconds: _restSeconds,
         sets: [
           for (var i = 0; i < count; i++)
             PlannedSet(
               order: i,
               repTarget: target,
-              restSeconds: restSeconds,
+              restSeconds: _restSeconds,
               targetWeightKg: weight,
               type: SetType.working,
             ),
@@ -635,14 +848,14 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Add exercise',
+      title: _editing ? 'Edit exercise' : 'Add exercise',
       children: [
         _LabeledField(
           fieldKey: const Key('exercise-name-field'),
           label: 'Name',
           controller: _name,
           hint: 'Bench Press',
-          autofocus: true,
+          autofocus: !_editing,
         ),
         const SizedBox(height: 14),
         _LabeledField(label: 'Muscle group (optional)', controller: _muscle, hint: 'Chest'),
@@ -658,7 +871,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
                 children: [
                   Text(
                     'REP TARGET',
-                    style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+                    style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -705,17 +918,23 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
         ],
         const SizedBox(height: 14),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _NumberField(label: 'Rest (sec)', controller: _rest)),
+            Expanded(
+              child: _RestPicker(
+                initialSeconds: _restSeconds,
+                onChanged: (v) => _restSeconds = v,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(child: _NumberField(label: 'Weight (kg)', controller: _weight, hint: '—')),
           ],
         ),
         const SizedBox(height: 22),
         PillButton(
-          label: 'Add exercise',
-          icon: Icons.add_rounded,
-          color: AppColors.pulseText,
+          label: _editing ? 'Save changes' : 'Add exercise',
+          icon: _editing ? Icons.check_rounded : Icons.add_rounded,
+          color: AppColors.pulse,
           enabled: _canAdd,
           onTap: _submit,
         ),
@@ -724,8 +943,82 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   }
 }
 
+/// A dark, physical rest-duration wheel — 5s increments up to 5:00, with a
+/// native scroll-tick haptic on every value that settles under the band.
+/// Replaces a free-text seconds field: rest is a duration people dial in by
+/// feel, not a number they type.
+class _RestPicker extends StatefulWidget {
+  const _RestPicker({required this.initialSeconds, required this.onChanged});
+
+  final int initialSeconds;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_RestPicker> createState() => _RestPickerState();
+}
+
+class _RestPickerState extends State<_RestPicker> {
+  static const _stepSeconds = 5;
+  static const _maxSeconds = 300;
+
+  late final FixedExtentScrollController _controller = FixedExtentScrollController(
+    initialItem: widget.initialSeconds.clamp(0, _maxSeconds) ~/ _stepSeconds,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('REST', style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6)),
+        const SizedBox(height: 6),
+        Container(
+          height: 132,
+          decoration: BoxDecoration(
+            color: SessionColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: CupertinoPicker(
+            key: const Key('rest-picker'),
+            scrollController: _controller,
+            itemExtent: 34,
+            diameterRatio: 1.4,
+            backgroundColor: Colors.transparent,
+            selectionOverlay: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: SessionColors.hairline2,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onSelectedItemChanged: (index) {
+              if (!reducedMotion(context)) HapticFeedback.selectionClick();
+              widget.onChanged(index * _stepSeconds);
+            },
+            children: [
+              for (var s = 0; s <= _maxSeconds; s += _stepSeconds)
+                Center(
+                  child: Text(
+                    restLabel(s),
+                    style: AppText.rowTitle.copyWith(color: SessionColors.ink),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// The shared bottom-sheet chrome (grabber + title + content), matching the
-/// capture sheets.
+/// session/plan screens' dark palette.
 class _SheetShell extends StatelessWidget {
   const _SheetShell({required this.title, required this.children});
 
@@ -735,37 +1028,41 @@ class _SheetShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: SessionColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.hairline2,
-                borderRadius: BorderRadius.circular(999),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(
+          top: 12,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: SessionColors.hairline2,
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text(title, style: AppText.cardTitle),
-          ),
-          ...children,
-        ],
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.only(left: 2, bottom: 12),
+              child: Text(title, style: AppText.cardTitle.copyWith(color: SessionColors.ink)),
+            ),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -796,7 +1093,7 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+          style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -806,19 +1103,19 @@ class _LabeledField extends StatelessWidget {
           textInputAction: TextInputAction.next,
           onSubmitted: onSubmitted,
           cursorColor: AppColors.pulse,
-          style: AppText.rowTitle,
+          style: AppText.rowTitle.copyWith(color: SessionColors.ink),
           decoration: InputDecoration(
             isCollapsed: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
+            border: const UnderlineInputBorder(borderSide: BorderSide(color: SessionColors.hairline2)),
             enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.hairline),
+              borderSide: BorderSide(color: SessionColors.hairline2),
             ),
             focusedBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
             ),
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+            hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
           ),
         ),
       ],
@@ -840,7 +1137,7 @@ class _NumberField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+          style: AppText.meta.copyWith(color: SessionColors.ink3, letterSpacing: 0.6),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -848,14 +1145,14 @@ class _NumberField extends StatelessWidget {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
           cursorColor: AppColors.pulse,
-          style: AppText.rowTitle,
+          style: AppText.rowTitle.copyWith(color: SessionColors.ink),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+            hintStyle: AppText.rowTitle.copyWith(color: SessionColors.ink3),
             contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             filled: true,
-            fillColor: AppColors.ground,
+            fillColor: SessionColors.surfaceRaised,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
