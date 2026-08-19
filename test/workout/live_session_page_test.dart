@@ -381,15 +381,15 @@ void main() {
       await tester.pump();
       expect(find.text('+5kg'), findsOneWidget);
 
-      // Complete set 1 → the smart-rest default for a fixed(5) set on a large
-      // (Chest) muscle group is the full <=6-rep base, 115s → "1:55" — not
-      // the plan's stored restSeconds (90s) any more.
+      // Complete set 1 → the session counts down the exercise's own plan
+      // rest (90s, "1:30") — the plan Ziad set in Edit Workout, not a
+      // computed smart-rest guess.
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
       expect(find.text('Skip rest'), findsOneWidget);
-      expect(restWholeSeconds(tester), closeTo(115, 1));
+      expect(restWholeSeconds(tester), closeTo(90, 1));
       expect(find.text('REST'), findsOneWidget);
       expect(find.textContaining('Next:'), findsOneWidget);
 
@@ -401,10 +401,10 @@ void main() {
       // Adjust the rest window.
       await tester.tap(find.text('+15s'));
       await tester.pump();
-      expect(restWholeSeconds(tester), closeTo(130, 1));
+      expect(restWholeSeconds(tester), closeTo(105, 1));
       await tester.tap(find.text('-15s'));
       await tester.pump();
-      expect(restWholeSeconds(tester), closeTo(115, 1));
+      expect(restWholeSeconds(tester), closeTo(90, 1));
 
       // Skip the rest → set 2 (already the current set — no manual pointer).
       await tester.tap(find.text('Skip rest'));
@@ -589,12 +589,12 @@ void main() {
       await tester.pump();
     await tester.tap(find.text('Done'));
     await tester.pump();
-    expect(restWholeSeconds(tester), closeTo(115, 1)); // smart-rest default for this set
+    expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
 
     // Let the countdown run out (driven by wall-clock elapsed time, not tick
     // count — advance the clock alongside the pumped duration).
-    fakeNow = fakeNow.add(const Duration(seconds: 116));
-    await tester.pump(const Duration(seconds: 116));
+    fakeNow = fakeNow.add(const Duration(seconds: 91));
+    await tester.pump(const Duration(seconds: 91));
     expect(find.text('Set 2 of 2'), findsOneWidget);
   });
 
@@ -625,7 +625,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await tester.pump();
-      expect(restWholeSeconds(tester), closeTo(115, 1)); // 115s smart-rest window
+      expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
 
       // Simulate the OS suspending the app's Ticker for 40s while backgrounded
       // — no ticks fire, only wall-clock time passes — then resuming.
@@ -634,12 +634,12 @@ void main() {
       await tester.pump();
 
       // Resyncs to the real elapsed time on resume instead of staying frozen
-      // at 1:55 (what a plain tick-counter would show).
-      expect(restWholeSeconds(tester), closeTo(75, 1));
+      // at 1:30 (what a plain tick-counter would show).
+      expect(restWholeSeconds(tester), closeTo(50, 1));
 
       // And ending naturally still works post-resume.
-      fakeNow = fakeNow.add(const Duration(seconds: 75));
-      await tester.pump(const Duration(seconds: 75));
+      fakeNow = fakeNow.add(const Duration(seconds: 50));
+      await tester.pump(const Duration(seconds: 50));
       expect(find.text('Set 2 of 2'), findsOneWidget);
     },
   );
@@ -825,7 +825,7 @@ void main() {
       await tester.tap(find.text('Done'));
       await tester.pump();
       expect(elapsedText(tester), '0:30');
-      expect(restWholeSeconds(tester), closeTo(115, 1)); // smart-rest window, running
+      expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest, running
 
       // Pause — both clocks freeze even as real time keeps passing.
       await tester.tap(find.text('Pause'));
@@ -836,11 +836,11 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 20));
       await tester.pump(const Duration(seconds: 20));
       expect(elapsedText(tester), '0:30'); // unchanged
-      expect(restWholeSeconds(tester), closeTo(115, 1)); // unchanged
+      expect(restWholeSeconds(tester), closeTo(90, 1)); // unchanged
 
       // Resume — elapsed continues from 0:30 (the 20 paused seconds are
-      // excluded, not just skipped-over), and rest resumes at 1:55 instead
-      // of restarting from the full 115s.
+      // excluded, not just skipped-over), and rest resumes at 1:30 instead
+      // of restarting from the full 90s.
       await tester.tap(find.text('Resume'));
       await tester.pump();
       expect(find.text('PAUSED'), findsNothing);
@@ -848,7 +848,7 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
       expect(elapsedText(tester), '0:35');
-      expect(restWholeSeconds(tester), closeTo(110, 1));
+      expect(restWholeSeconds(tester), closeTo(85, 1));
     },
   );
 

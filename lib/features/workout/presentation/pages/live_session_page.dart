@@ -434,15 +434,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       setState(() {});
       return;
     }
-    _startRest(
-      set.type == SetType.warmup
-          ? _warmupRestSeconds
-          : smartRestSeconds(
-              repTargetMin: set.target.min ?? 1,
-              muscleGroup: exercise.muscleGroup,
-              workingSetIndex: workingSetIndexOf(exercise, set),
-            ),
-    );
+    // Working-set rest is the plan's own value (Edit Workout's per-exercise
+    // rest, or its "Default rest" bulk value) — the session counts down what
+    // Ziad actually set, not a computed guess. `smartRestSeconds` stays as
+    // the *seed* default a freshly-added exercise starts at (see the add
+    // sheet), it just no longer overrides the plan at session time.
+    _startRest(set.type == SetType.warmup ? _warmupRestSeconds : exercise.restSeconds);
   }
 
   void _startRest(int seconds) {
