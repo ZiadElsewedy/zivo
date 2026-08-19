@@ -17,7 +17,9 @@ import '../../../schedule/domain/schedule_event.dart';
 import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../university/domain/university_item.dart';
+import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/workout.dart';
+import '../../../workout/domain/workout_plan.dart';
 import '../focus_builder.dart';
 import '../header_builder.dart';
 import '../now_next_builder.dart';
@@ -29,6 +31,7 @@ import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
 import '../widgets/training_card.dart';
+import '../widgets/up_next_workout_card.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -394,10 +397,10 @@ class _TrainingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workouts = AppScope.of(context).workouts;
+    final scope = AppScope.of(context);
     return StreamBuilder<List<Workout>>(
-      stream: workouts.watchAll(),
-      initialData: workouts.current,
+      stream: scope.workouts.watchAll(),
+      initialData: scope.workouts.current,
       builder: (context, snapshot) {
         final workout = todaysWorkout(
           snapshot.data ?? const <Workout>[],
@@ -407,14 +410,53 @@ class _TrainingSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader('Training'),
-            if (workout == null)
-              const _EmptyLine(
-                'No training logged yet today.',
-                icon: Icons.fitness_center_rounded,
-              )
+            if (workout != null)
+              TrainingCard(workout)
             else
-              TrainingCard(workout),
+              _UpNextOrEmpty(scope: scope),
           ],
+        );
+      },
+    );
+  }
+}
+
+/// The Training section's empty-of-history state: once nothing's been
+/// logged yet today, prompt the active plan's up-next day (with a Start/
+/// Resume CTA) instead of a bare "nothing yet" line — falling back to that
+/// line only when there's genuinely no active plan/day to offer.
+class _UpNextOrEmpty extends StatelessWidget {
+  const _UpNextOrEmpty({required this.scope});
+
+  final AppScope scope;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<WorkoutPlan?>(
+      stream: scope.workoutPlans.watchActivePlan(),
+      initialData: scope.workoutPlans.activePlan,
+      builder: (context, planSnapshot) {
+        final plan = planSnapshot.data;
+        final day = plan?.nextDay;
+        if (plan == null || day == null) {
+          return const _EmptyLine(
+            'No training logged yet today.',
+            icon: Icons.fitness_center_rounded,
+          );
+        }
+        return StreamBuilder<LiveSession?>(
+          stream: scope.workoutSessions.watchActiveSession(),
+          initialData: scope.workoutSessions.activeSession,
+          builder: (context, sessionSnapshot) {
+            final active = sessionSnapshot.data;
+            // Only resume the session this card is actually offering — an
+            // active session for a different plan/day is left alone.
+            final resumable =
+                active != null && active.planId == plan.id && active.dayId == day.id
+                ? active
+                : null;
+            return UpNextWorkoutCard(plan: plan, day: day, resumable: resumable);
+          },
         );
       },
     );

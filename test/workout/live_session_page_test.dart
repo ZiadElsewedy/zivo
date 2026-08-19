@@ -306,6 +306,21 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+/// Taps 'go' and settles, then skips the pre-workout warm-up phase if it's
+/// showing — a genuinely fresh (non-resume, nothing-done) session always
+/// opens on it now, so every test below that isn't specifically about
+/// warm-up uses this instead of a bare tap+settle to land straight on the
+/// first set, same as before that phase existed. A resumed session never
+/// shows it, so this is safe to use unconditionally.
+Future<void> _start(WidgetTester tester) async {
+  await tester.tap(find.text('go'));
+  await _settle(tester);
+  if (find.text('Skip warm-up').evaluate().isNotEmpty) {
+    await tester.tap(find.text('Skip warm-up'));
+    await _settle(tester);
+  }
+}
+
 String elapsedText(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
 
@@ -355,8 +370,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // Set 1 of the first exercise, last time + computed goal both shown.
       // Previous: 30kg x 5, hit the fixed target's top (5>=5) → +2.5kg
@@ -453,8 +467,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     // Log a set, so there is autosaved progress to actually discard.
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
@@ -495,8 +508,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
@@ -529,8 +541,7 @@ void main() {
         resume: left,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
     expect(find.text('Set 2 of 2'), findsOneWidget);
     expect(sessions.current, hasLength(1)); // no duplicate session created
   });
@@ -550,8 +561,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
     expect(sessions.current, hasLength(1)); // autosaved as soon as it starts
 
     // Nothing logged yet — closing must not leave a resumable, empty session.
@@ -582,8 +592,7 @@ void main() {
         now: () => fakeNow,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
@@ -618,8 +627,7 @@ void main() {
           now: () => fakeNow,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
@@ -664,8 +672,7 @@ void main() {
           now: () => fakeNow,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // Visible immediately, from the moment the session opens.
       expect(elapsedText(tester), '0:00');
@@ -719,8 +726,7 @@ void main() {
         now: () => fakeNow,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
     expect(elapsedText(tester), '0:00');
 
     // Backgrounded for over an hour — no ticks fire, only wall-clock passes.
@@ -759,8 +765,7 @@ void main() {
         now: () => fakeNow,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     // Reflects time since the ORIGINAL start, not since this screen opened.
     expect(elapsedText(tester), '1:30');
@@ -784,8 +789,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       expect(find.text('Last time: First time'), findsOneWidget);
       // Bench's plan sets carry no targetWeightKg, fixed(5) reps → the
@@ -814,8 +818,7 @@ void main() {
           now: () => fakeNow,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // Run the clock a bit, then start a rest by logging set 1.
       fakeNow = fakeNow.add(const Duration(seconds: 30));
@@ -867,8 +870,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     await tester.tap(find.text('Pause'));
     await tester.pump();
@@ -903,8 +905,7 @@ void main() {
         now: () => fakeNow,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     fakeNow = fakeNow.add(const Duration(seconds: 30));
     await tester.pump(const Duration(seconds: 30));
@@ -936,8 +937,7 @@ void main() {
         now: () => fakeNow,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     // Still paused, and frozen at exactly the elapsed time from before —
     // the 10 minutes spent away don't leak into it.
@@ -985,8 +985,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
@@ -1031,8 +1030,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
 
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
@@ -1075,8 +1073,7 @@ void main() {
         plan: plan,
       ),
     );
-    await tester.tap(find.text('go'));
-    await _settle(tester);
+    await _start(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
@@ -1142,8 +1139,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // lastPerformanceFor only trusts *completed* sessions — a killed,
       // still-"active" session's actuals must never surface as "previous
@@ -1217,8 +1213,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // Set 1: a range target — the "Target:" line adds real context, keep it.
       expect(find.text('Set 1 of 2'), findsOneWidget);
@@ -1257,8 +1252,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       // First warm-up step (80kg → 3-step ramp: 32.5/47.5/65kg @ 8/5/3) —
       // its own eyebrow + guidance stand in for the Goal card and "Set N of
@@ -1359,8 +1353,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       expect(find.text('WARM-UP'), findsNothing);
       expect(find.text('Set 1 of 1'), findsOneWidget);
@@ -1381,6 +1374,17 @@ void main() {
       // 40kg warm-up threshold — even though `_plan()` sets no weight at all.
       await sessions.saveSession(_previousSession());
       final plan = _plan();
+      // Routed through `resume` (of an otherwise-fresh session) purely to
+      // bypass the pre-workout warm-up phase — this test is about the
+      // per-exercise ramp's own async materialization timing, unrelated to
+      // that phase, and doing it this way keeps the single-pump timing this
+      // test relies on identical to before that phase existed.
+      final freshSession = LiveSession.start(
+        plan.days.first,
+        id: 'ramp-fresh',
+        planId: plan.id,
+        now: DateTime(2026, 1, 1, 10),
+      );
 
       await tester.pumpWidget(
         _wrap(
@@ -1389,6 +1393,7 @@ void main() {
           workoutSessions: sessions,
           day: plan.days.first,
           plan: plan,
+          resume: freshSession,
         ),
       );
       await tester.tap(find.text('go'));
@@ -1429,8 +1434,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       expect(find.text('WARM-UP'), findsNothing);
       expect(find.text('Set 1 of 2'), findsOneWidget);
@@ -1455,8 +1459,7 @@ void main() {
           plan: plan,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       await tester.enterText(find.byType(TextField).at(1), '62.5');
       await tester.pump();
@@ -1492,8 +1495,7 @@ void main() {
           resume: left,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
       final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
       expect(weightField.controller!.text, '62.5');
     },
@@ -1545,8 +1547,7 @@ void main() {
           resume: draftSession,
         ),
       );
-      await tester.tap(find.text('go'));
-      await _settle(tester);
+      await _start(tester);
 
       final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
       final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
@@ -1554,4 +1555,163 @@ void main() {
       expect(weightField.controller!.text, '65'); // the draft, not the goal's '57.5'
     },
   );
+
+  testWidgets(
+    'a fresh session opens on a pre-workout warm-up phase before the first set',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+
+      expect(find.text('PRE-WORKOUT'), findsOneWidget); // _Eyebrow uppercases
+      expect(find.text('Loosen up before your first set'), findsOneWidget);
+      expect(find.text('Skip warm-up'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(300, 1)); // 5:00 default
+
+      // Not yet on the first set — the per-exercise view hasn't shown at all.
+      expect(find.text('Set 1 of 2'), findsNothing);
+      expect(find.text('Bench'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the warm-up countdown ticks with wall-clock time and supports ±15s adjust',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+      expect(restWholeSeconds(tester), closeTo(300, 1));
+
+      fakeNow = fakeNow.add(const Duration(seconds: 45));
+      await tester.pump(const Duration(seconds: 45));
+      expect(restWholeSeconds(tester), closeTo(255, 1));
+
+      await tester.tap(find.text('+15s'));
+      await tester.pump();
+      expect(restWholeSeconds(tester), closeTo(270, 1));
+      await tester.tap(find.text('-15s'));
+      await tester.pump();
+      expect(restWholeSeconds(tester), closeTo(255, 1));
+    },
+  );
+
+  testWidgets('Skip warm-up advances straight to the first set', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+    expect(find.text('Skip warm-up'), findsOneWidget);
+
+    await tester.tap(find.text('Skip warm-up'));
+    await _settle(tester);
+
+    expect(find.text('Set 1 of 2'), findsOneWidget);
+    expect(find.text('Bench'), findsOneWidget);
+    expect(find.text('Skip warm-up'), findsNothing);
+    expect(find.text('PRE-WORKOUT'), findsNothing);
+  });
+
+  testWidgets(
+    'the warm-up countdown auto-advances to the first set when it reaches zero',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await _settle(tester);
+      expect(find.text('Skip warm-up'), findsOneWidget);
+
+      // Driven by wall-clock elapsed time, not tick count — same convention
+      // as the rest countdown's own auto-advance test.
+      fakeNow = fakeNow.add(const Duration(seconds: 301));
+      await tester.pump(const Duration(seconds: 301));
+
+      expect(find.text('Set 1 of 2'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a resumed session skips the warm-up phase', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+    final resumeSession = LiveSession.start(
+      plan.days.first,
+      id: 'resume1',
+      planId: plan.id,
+      now: DateTime(2026, 1, 1, 8),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+        resume: resumeSession,
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await _settle(tester);
+
+    // Even though nothing's logged yet — a *resume* never re-opens on the
+    // "before your first set" phase, unlike a genuinely fresh start.
+    expect(find.text('PRE-WORKOUT'), findsNothing);
+    expect(find.text('Skip warm-up'), findsNothing);
+    expect(find.text('Set 1 of 2'), findsOneWidget);
+  });
 }

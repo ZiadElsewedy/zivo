@@ -87,6 +87,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   Ticker? _restTicker;
   int? _restTotalSeconds;
 
+  /// Drives the pre-workout warm-up countdown at the same per-frame rate as
+  /// [_restTicker] — a distinct phase shown once, before the first set of a
+  /// genuinely fresh session, not to be confused with the per-exercise ramp
+  /// warm-up SETS ([SetType.warmup]/`warmup_policy.dart`), which stay
+  /// entirely as-is.
+  Ticker? _warmupTicker;
+  int? _warmupTotalSeconds;
+
   /// Debounces the current set's typed-but-not-done actuals into an
   /// autosaved draft (see [_saveDraft]) — never lose data even if the app
   /// is killed before Done is tapped.
@@ -104,6 +112,16 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// restored (as a fresh [_restEndsAt]) on resume. Null unless a rest was
   /// actually running at the moment [_onPause] was tapped.
   Duration? _pausedRestRemaining;
+
+  /// The [_restEndsAt] analog for the pre-workout warm-up phase — the
+  /// absolute wall-clock moment it ends. Null once skipped/expired, and
+  /// never re-armed after that (see [_phaseKey]/[initState]: it's a one-shot
+  /// phase, not persisted, so leaving and resuming just lands on the first
+  /// set rather than re-showing it).
+  DateTime? _warmupEndsAt;
+
+  /// The [_pausedRestRemaining] analog for the warm-up phase.
+  Duration? _pausedWarmupRemaining;
 
   /// Ticks the "time in workout" label once a second — just a rebuild
   /// trigger; the displayed value itself is always read fresh from
@@ -153,6 +171,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// The live warm-up-countdown value — same shape as [_restRemaining], and
+  /// doubles as "is the warm-up phase showing" for [_phaseKey]/[_buildPhase].
+  Duration? get _warmupRemaining {
+    final paused = _pausedWarmupRemaining;
+    if (paused != null) return paused;
+    final endsAt = _warmupEndsAt;
+    if (endsAt == null) return null;
+    final remaining = endsAt.difference(widget.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -171,6 +200,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     }
     if (!_session.isComplete && !_session.isPaused) {
       _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+    }
+    // Only a genuinely fresh start opens on the warm-up phase — a resumed
+    // session (even one with nothing logged yet) or one that already has a
+    // done set skips straight to running, since re-showing it wouldn't mean
+    // "before your first set" any more.
+    if (widget.resume == null && _session.completedSetCount == 0 && !_session.isComplete) {
+      _startWarmup();
     }
     _prefillInputs();
   }
@@ -205,6 +241,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     // paused can't sneak the clock back to life.
     if (state == AppLifecycleState.resumed) {
       _resyncRestOnResume();
+      _resyncWarmupOnResume();
       _tickElapsed();
     }
   }
@@ -213,6 +250,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _restTicker?.dispose();
+    _warmupTicker?.dispose();
     _elapsedTimer?.cancel();
     _draftDebounce?.cancel();
     _pastSessionsSub?.cancel();
@@ -498,6 +536,68 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (mounted) setState(() {});
   }
 
+  /// Opens the one-shot pre-workout warm-up phase — same wall-clock-endsAt
+  /// approach as [_startRest], just fixed at [_warmupSeconds] rather than a
+  /// per-exercise rest window.
+  void _startWarmup() {
+    _warmupTicker?.dispose();
+    _warmupTotalSeconds = _warmupSeconds;
+    _warmupEndsAt = widget.now().add(const Duration(seconds: _warmupSeconds));
+    _warmupTicker = createTicker(_onWarmupTick)..start();
+  }
+
+  /// The [_warmupTicker]'s per-frame callback — the [_onRestTick] analog.
+  void _onWarmupTick(Duration elapsed) {
+    if (!mounted) return;
+    final remaining = _warmupRemaining;
+    if (remaining == null) return;
+    if (remaining <= Duration.zero) {
+      HapticFeedback.heavyImpact();
+      _endWarmup();
+      return;
+    }
+    setState(() {});
+  }
+
+  /// The [_resyncRestOnResume] analog for the warm-up phase.
+  void _resyncWarmupOnResume() {
+    final remaining = _warmupRemaining;
+    if (_warmupEndsAt != null && remaining != null && remaining <= Duration.zero) {
+      _endWarmup();
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Ends the warm-up phase — reached both by the countdown hitting zero and
+  /// by "Skip warm-up".
+  void _endWarmup() {
+    _warmupTicker?.dispose();
+    _warmupTicker = null;
+    _warmupTotalSeconds = null;
+    _warmupEndsAt = null;
+    if (mounted) setState(() {});
+  }
+
+  /// The [_adjustRest] analog for the warm-up phase.
+  void _adjustWarmup(int delta) {
+    final endsAt = _warmupEndsAt;
+    if (endsAt == null) return;
+    HapticFeedback.selectionClick();
+    final nextEndsAt = endsAt.add(Duration(seconds: delta));
+    if (!nextEndsAt.isAfter(widget.now())) {
+      _endWarmup();
+      return;
+    }
+    final remaining = nextEndsAt.difference(widget.now());
+    _warmupEndsAt = nextEndsAt;
+    final remainingCeilSeconds = _ceilSeconds(remaining);
+    if (_warmupTotalSeconds != null && remainingCeilSeconds > _warmupTotalSeconds!) {
+      _warmupTotalSeconds = remainingCeilSeconds;
+    }
+    setState(() {});
+  }
+
   /// Just a rebuild trigger — the "time in workout" value itself is always
   /// read fresh from [LiveSession.activeElapsed] in [build]. A no-op (and
   /// self-cancels) once the session completes or is paused, same wall-clock-
@@ -544,6 +644,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restTicker = null;
       _restEndsAt = null;
     }
+    final warmupEndsAt = _warmupEndsAt;
+    if (warmupEndsAt != null) {
+      final remaining = warmupEndsAt.difference(now);
+      _pausedWarmupRemaining = remaining.isNegative ? Duration.zero : remaining;
+      _warmupTicker?.dispose();
+      _warmupTicker = null;
+      _warmupEndsAt = null;
+    }
     setState(() {
       _session = _session.pause(now: now);
     });
@@ -561,6 +669,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restEndsAt = now.add(pausedRemaining);
       _restTicker?.dispose();
       _restTicker = createTicker(_onRestTick)..start();
+    }
+    final pausedWarmupRemaining = _pausedWarmupRemaining;
+    if (pausedWarmupRemaining != null) {
+      _pausedWarmupRemaining = null;
+      _warmupEndsAt = now.add(pausedWarmupRemaining);
+      _warmupTicker?.dispose();
+      _warmupTicker = createTicker(_onWarmupTick)..start();
     }
     setState(() {
       _session = _session.resume(now: now);
@@ -725,12 +840,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   String get _phaseKey {
     if (_session.isComplete) return 'completed';
+    if (_warmupRemaining != null) return 'warmup';
     if (_restRemaining != null) return 'resting';
     return 'running:${_session.currentSet?.id}';
   }
 
   Widget _buildPhase() {
     if (_session.isComplete) return _buildCompleted();
+    if (_warmupRemaining != null) return _buildWarmup();
     if (_restRemaining != null) return _buildResting();
     return _buildRunning();
   }
@@ -925,6 +1042,59 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     ],
   );
 
+  /// The pre-workout warm-up phase — shown once, before the first set of a
+  /// genuinely fresh session (see [initState]). Deliberately reuses
+  /// [_RestRing]/[_RestAdjustButton] wholesale rather than a parallel
+  /// implementation: same fixed-size, sub-second, wall-clock countdown,
+  /// distinct only in its eyebrow/copy/duration and the color it hangs off
+  /// (Ember — this app's warm-up hue everywhere else — instead of Rest's
+  /// neutral ink3). "Pre-workout" rather than a literal "WARM-UP" eyebrow
+  /// keeps it text-distinct from the per-exercise ramp's own "WARM-UP" label
+  /// ([_WarmupBlock]) — a different concept shown later, mid-exercise.
+  Widget _buildWarmup() {
+    return Padding(
+      key: const ValueKey('warmup'),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Center(child: _Eyebrow('Pre-workout', color: AppColors.ember)),
+          const SizedBox(height: 6),
+          Center(
+            child: Text(
+              'Loosen up before your first set',
+              style: AppText.meta.copyWith(color: SessionColors.ink3),
+            ),
+          ),
+          const Spacer(),
+          Center(
+            child: _RestRing(
+              remaining: _warmupRemaining ?? Duration.zero,
+              total: _warmupTotalSeconds ?? 1,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustWarmup(-15))),
+              const SizedBox(width: 12),
+              Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustWarmup(15))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          PillButton(
+            label: 'Skip warm-up',
+            icon: Icons.skip_next_rounded,
+            color: AppColors.ember,
+            enabled: true,
+            onTap: _endWarmup,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildResting() {
     final nextLabel = _nextUpLabel();
     return Padding(
@@ -1082,6 +1252,10 @@ int _ceilSeconds(Duration d) => d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 
 /// [smartRestSeconds]'s full working-set rest window, since a ramp step
 /// isn't taxing recovery the way a working set is.
 const int _warmupRestSeconds = 20;
+
+/// The pre-workout warm-up phase's fixed default length — 5:00, chosen as a
+/// reasonable one-size loosen-up window; configurable later, not now.
+const int _warmupSeconds = 300;
 
 /// A restrained, low-opacity lift for the Goal/Warm-up cards on dark — the
 /// shared [AppShadows.pulse]/[AppShadows.ember] (tuned for light-mode pill
