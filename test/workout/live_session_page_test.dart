@@ -99,6 +99,25 @@ class _RecordingWorkoutPlanRepository implements WorkoutPlanRepository {
 
   @override
   Future<void> deletePlan(String id) async {}
+
+  @override
+  List<WorkoutPlan> get splits =>
+      activePlan == null ? const <WorkoutPlan>[] : <WorkoutPlan>[activePlan!];
+
+  @override
+  Stream<List<WorkoutPlan>> watchSplits() => Stream.value(splits);
+
+  @override
+  String? get activeSplitId => activePlan?.id;
+
+  @override
+  Future<void> setActiveSplit(String id) async {}
+
+  @override
+  Future<void> saveSplit(WorkoutPlan plan) => savePlan(plan);
+
+  @override
+  Future<void> deleteSplit(String id) => deletePlan(id);
 }
 
 WorkoutPlan _plan() => WorkoutPlan(

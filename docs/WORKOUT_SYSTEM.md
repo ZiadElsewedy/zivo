@@ -28,8 +28,8 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | --- | --- | --- |
 | 0 | This source-of-truth doc + data-model/invariants locked | ✅ done |
 | 1 | Collapsible/expandable day tiles in Edit Workout Plan | ✅ done |
-| 2 | Progressive-overload **Analysis page** (current single-plan data) | ⬜ not started |
-| 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ⬜ not started |
+| 2 | Progressive-overload **Analysis page** (current single-plan data) | ✅ done |
+| 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | 🔄 in progress |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ⬜ not started |
 | 5 | **Retrofit** analysis + history to be split-scoped | ⬜ not started |
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
@@ -79,6 +79,20 @@ deliberately not reimplemented from scratch.
 - The manual `if (newIndex > oldIndex) newIndex -= 1` adjustment Flutter's
   own reorder examples use isn't needed — `onReorderItem` already delivers a
   final, ready-to-insert index.
+
+**Phase 2 notes (done, uncommitted):** the progressive-overload Analysis page
+is fully implemented, tested, and green — it lives in the working tree
+(`workout_analysis_page.dart`, `day_progress_analysis.dart` + its test,
+`trend_chart.dart`, `verdict_style.dart`, `dev_analysis_seed.dart`,
+`workout_analysis_page_test.dart`) and the full suite passes. Not yet committed
+(the working tree carries Phase 2 + the in-flight Phase 3 foundation together).
+
+**Phase 3 notes (in progress):** the splits data foundation is landing now, not
+finished. The `WorkoutPlanRepository` interface is extended additively and the
+in-memory impl + its splits test are green; the **real Firestore multi-split
+impl (workoutMeta/active pointer, migration-on-read) is still being written**,
+and nothing here is committed or verified on-device yet. Treat as WIP until the
+final integration audit passes.
 
 ---
 
