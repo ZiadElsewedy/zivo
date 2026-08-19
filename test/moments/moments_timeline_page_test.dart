@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
@@ -16,6 +17,8 @@ import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
 import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -62,6 +65,8 @@ Widget _wrap({
     notes: InMemoryNoteRepository(),
     moments: momentsOverride,
     workouts: InMemoryWorkoutRepository(),
+    workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -197,7 +202,7 @@ void main() {
       _wrap(child: const MomentsTimelinePage(), momentsOverride: moments),
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No moments yet.'), findsNothing);
 
     moments.emit([
@@ -205,7 +210,7 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Fresh moment'), findsOneWidget);
   });
 
@@ -222,7 +227,7 @@ void main() {
     moments.emit(const []);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No moments yet.'), findsOneWidget);
   });
 
@@ -238,7 +243,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(ErrorStateView), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No moments yet.'), findsNothing);
   });
 }

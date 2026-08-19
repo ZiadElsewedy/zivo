@@ -72,6 +72,13 @@ const TOKEN_CEILING_MESSAGE =
   "could you narrow it down a bit?";
 const REFUSAL_MESSAGE = "I'm not able to help with that one.";
 const FALLBACK_MESSAGE = "I don't have anything to add for that.";
+// Shown when the model tries to propose a change while one is already awaiting
+// the user's confirmation. The existing card is the single confirm path (there
+// is no free-text confirm), so we steer the user back to it rather than mint a
+// second pending action — which would risk a duplicate write on double-confirm.
+const PENDING_ACTION_MESSAGE =
+  "You've already got a suggestion waiting above — tap Confirm or Cancel on " +
+  "it first, then I can help with the next thing.";
 
 // Prompt-injection defense: tool output is the user's own stored data, never
 // instructions. This fence is load-bearing — do not remove it when editing
@@ -88,6 +95,14 @@ effect when you call them: calling one only PROPOSES a change that the user must
 confirm with a tap before anything is saved. Therefore:
 - Propose at most ONE change per message; don't call a create tool alongside
   other tools in the same message.
+- When the user clearly asks to create one of these and you have what you need,
+  propose it directly by calling the tool — don't narrate a proposal in prose
+  first, and don't ask follow-up questions unless a REQUIRED field is genuinely
+  missing. The confirmation card is how the user reviews the details.
+- If you have already proposed a change that the user has not yet confirmed or
+  cancelled, do NOT propose another and do NOT treat a "confirm"/"yes" reply as
+  permission to act — only the card's Confirm button saves anything. Ask the
+  user to tap Confirm or Cancel on the pending card first.
 - Phrase your reply as a proposal ("I can add…", "Want me to log…"), NEVER as
   done. Never say you created, saved, logged, or scheduled anything — until the
   user confirms, nothing has happened.
@@ -135,6 +150,27 @@ function extractText(content) {
       .map((b) => b.text)
       .join("\n")
       .trim();
+}
+
+/**
+ * Sanitizes an assistant `content` array before it is echoed back in the
+ * message history for the next model call. Drops `thinking` blocks that carry
+ * no usable reasoning — a signed, non-empty thinking block must round-trip
+ * verbatim, but `claude-sonnet-5` emits an empty placeholder thinking block
+ * even with extended thinking off, and the streaming SDK
+ * (`@anthropic-ai/sdk` finalMessage) reconstructs it with an empty signature.
+ * Re-sending that block fails the API's "each thinking block must contain
+ * thinking" check, breaking every multi-call (tool_use) streamed turn. The
+ * buffered path keeps a valid signature, so this only bit streaming — but
+ * dropping empty thinking blocks is correct for both transports while thinking
+ * is not enabled. Revisit if extended thinking is turned on.
+ * @param {?Array<Object>} content
+ * @return {?Array<Object>}
+ */
+function stripEmptyThinking(content) {
+  if (!Array.isArray(content)) return content;
+  return content.filter((b) =>
+    !(b && b.type === "thinking" && !(b.thinking && b.thinking.length)));
 }
 
 /**
@@ -278,6 +314,9 @@ async function runAiTurn({
   let refusal = false;
   let tokenCeilingHit = false;
   let proposedAction = null;
+  // Set when the model tries to propose while an unexpired pending action
+  // already awaits the user — the new proposal is suppressed (no duplicate).
+  let proposalBlocked = false;
   // Phases are emitted once as the loop crosses each real boundary.
   let workingEmitted = false;
 
@@ -313,7 +352,7 @@ async function runAiTurn({
       break;
     }
 
-    messages.push({role: "assistant", content: resp.content});
+    messages.push({role: "assistant", content: stripEmptyThinking(resp.content)});
 
     const toolResults = [];
     let proposal = null;
@@ -372,8 +411,18 @@ async function runAiTurn({
 
     // A valid proposal ends the turn: persist a pending action + an
     // action_proposal message, and stop (no tool_result is fed back, so the
-    // loop halts cleanly awaiting the user).
+    // loop halts cleanly awaiting the user). But only ONE pending action may
+    // await the user at a time (ADR-003) — if one already does, suppress this
+    // one and steer the user back to the existing card, so a re-proposal (e.g.
+    // the user typing "confirm" instead of tapping) can't create a second
+    // action and a duplicate write on double-confirm.
     if (proposal) {
+      const active = await store.getActivePendingAction(
+          uid, conversationId, turnNow);
+      if (active) {
+        proposalBlocked = true;
+        break;
+      }
       emitPhase("preparing_change");
       proposedAction = await persistProposal({
         store,
@@ -406,6 +455,9 @@ async function runAiTurn({
     status = "proposed";
     assistantText = proposedAction.summary;
     alreadyAppended = true;
+  } else if (proposalBlocked) {
+    status = "proposal-blocked";
+    assistantText = PENDING_ACTION_MESSAGE;
   } else if (refusal) {
     status = "refusal";
     assistantText = REFUSAL_MESSAGE;
@@ -509,6 +561,10 @@ async function persistProposal({
     actionId,
     actionKind: tool.kind,
     fields,
+    status: "pending",
+    // Carried on the message so the client can render the card as expired once
+    // the TTL passes, without waiting for a confirm attempt to flip the status.
+    expiresAt,
     createdAt,
   });
   return {actionId, summary, fields, kind: tool.kind};
@@ -597,12 +653,14 @@ async function confirmAction({store, uid, conversationId, actionId, now}) {
   }
   if (action.expiresAt && action.expiresAt.getTime() <= clock().getTime()) {
     await store.markPendingAction(uid, conversationId, actionId, "expired");
+    await store.markProposalMessage(uid, conversationId, actionId, "expired");
     throw new GatewayError(
         "failed-precondition", "That suggestion expired — ask again.");
   }
 
   await applyProposedAction(store, uid, action);
   await store.markPendingAction(uid, conversationId, actionId, "applied");
+  await store.markProposalMessage(uid, conversationId, actionId, "applied");
   const resultText = resultLineFor(action);
   await store.appendMessage(uid, conversationId, {
     role: "assistant",
@@ -645,6 +703,7 @@ async function cancelAction({store, uid, conversationId, actionId, now}) {
   }
 
   await store.markPendingAction(uid, conversationId, actionId, "cancelled");
+  await store.markProposalMessage(uid, conversationId, actionId, "cancelled");
   const text = "Okay — I won't add that.";
   await store.appendMessage(uid, conversationId, {
     role: "assistant",
@@ -665,4 +724,5 @@ module.exports = {
   ITERATION_LIMIT_MESSAGE,
   TOKEN_CEILING_MESSAGE,
   REFUSAL_MESSAGE,
+  PENDING_ACTION_MESSAGE,
 };

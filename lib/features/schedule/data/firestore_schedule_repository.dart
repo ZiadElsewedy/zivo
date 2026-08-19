@@ -24,6 +24,7 @@ class FirestoreScheduleRepository implements ScheduleRepository {
   final UidSource uidSource;
 
   List<ScheduleEvent> _current = const [];
+  bool _hasSnapshot = false;
   StreamController<List<ScheduleEvent>>? _controller;
   StreamSubscription<String?>? _uidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
@@ -32,11 +33,20 @@ class FirestoreScheduleRepository implements ScheduleRepository {
   List<ScheduleEvent> get current => List.unmodifiable(_current);
 
   @override
-  Stream<List<ScheduleEvent>> watchAll() {
-    return (_controller ??= StreamController<List<ScheduleEvent>>.broadcast(
+  Stream<List<ScheduleEvent>> watchAll() async* {
+    _controller ??= StreamController<List<ScheduleEvent>>.broadcast(
       onListen: _start,
       onCancel: _stop,
-    )).stream;
+    );
+    // A broadcast stream never replays its latest value to a *late* subscriber.
+    // The Today dashboard subscribes first (it stays alive in the shell's
+    // IndexedStack) and consumes the initial snapshot, so a Hub detail page
+    // opened afterwards would otherwise sit on ConnectionState.waiting forever
+    // whenever the collection is empty. Replay the cached snapshot on subscribe
+    // so every listener sees the current value immediately — matching the
+    // in-memory repo contract the pages and tests rely on.
+    if (_hasSnapshot) yield current;
+    yield* _controller!.stream;
   }
 
   void _start() {
@@ -66,11 +76,12 @@ class FirestoreScheduleRepository implements ScheduleRepository {
         .snapshots()
         .listen((snapshot) {
           _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-        });
+        }, onError: (e, s) => _controller?.addError(e, s));
   }
 
   void _emit(List<ScheduleEvent> events) {
     _current = events;
+    _hasSnapshot = true;
     _controller?.add(current);
   }
 

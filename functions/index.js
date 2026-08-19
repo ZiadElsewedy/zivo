@@ -354,7 +354,15 @@ const toHttpsError = (err) => {
  * Anthropic client and Firestore store and maps errors.
  */
 exports.aiChat = onCall(
-    {secrets: [ANTHROPIC_API_KEY], region: "us-central1"},
+    {
+      secrets: [ANTHROPIC_API_KEY],
+      region: "us-central1",
+      // M9 Phase 4: attest that calls come from a genuine app instance (the
+      // client activates App Check in `lib/main.dart`). MUST NOT be deployed
+      // until App Check providers are registered in the Firebase Console for
+      // this project, or the owner's own device is locked out of Ask.
+      enforceAppCheck: true,
+    },
     async (request, response) => {
       const auth = request.auth;
       if (!auth) {
@@ -411,11 +419,11 @@ async function streamModelCall(anthropic, req, onText) {
 
 // --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
 
-// NOTE: these WRITE user data, so — like `aiChat` — App Check must be enforced
-// before they go live (add `enforceAppCheck: true` to all three callables and
-// redeploy once the client's App Check providers are verified in the Console).
-// Enforcement is deliberately deferred to the live-deploy step, not the
-// offline-tested logic below.
+// These WRITE user data, so — like `aiChat` — they enforce App Check
+// (`enforceAppCheck: true`). CRITICAL DEPLOY ORDERING: register App Check
+// providers in the Firebase Console for this project FIRST, then deploy the
+// functions. Deploying enforcement before the Console providers exist locks the
+// owner's own device out of all three AI callables.
 
 /**
  * Executes a user-confirmed pending action (ADR-003): performs the proposed
@@ -423,48 +431,50 @@ async function streamModelCall(anthropic, req, onText) {
  * logic lives in `./ai/gateway.js` (offline-testable); this handler only wires
  * the store and maps errors.
  */
-exports.aiConfirmAction = onCall({region: "us-central1"}, async (request) => {
-  const auth = request.auth;
-  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+exports.aiConfirmAction = onCall(
+    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+      const auth = request.auth;
+      if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
-  const data = request.data || {};
-  const conversationId = (data.conversationId || "").toString();
-  const actionId = (data.actionId || "").toString();
+      const data = request.data || {};
+      const conversationId = (data.conversationId || "").toString();
+      const actionId = (data.actionId || "").toString();
 
-  try {
-    return await confirmAction({
-      store: new FirestoreStore(db),
-      uid: auth.uid,
-      conversationId,
-      actionId,
-      now: () => new Date(),
+      try {
+        return await confirmAction({
+          store: new FirestoreStore(db),
+          uid: auth.uid,
+          conversationId,
+          actionId,
+          now: () => new Date(),
+        });
+      } catch (err) {
+        throw toHttpsError(err);
+      }
     });
-  } catch (err) {
-    throw toHttpsError(err);
-  }
-});
 
 /**
  * Cancels a pending action (ADR-003): marks it cancelled and appends a note.
  * Never writes an entity.
  */
-exports.aiCancelAction = onCall({region: "us-central1"}, async (request) => {
-  const auth = request.auth;
-  if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+exports.aiCancelAction = onCall(
+    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+      const auth = request.auth;
+      if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
-  const data = request.data || {};
-  const conversationId = (data.conversationId || "").toString();
-  const actionId = (data.actionId || "").toString();
+      const data = request.data || {};
+      const conversationId = (data.conversationId || "").toString();
+      const actionId = (data.actionId || "").toString();
 
-  try {
-    return await cancelAction({
-      store: new FirestoreStore(db),
-      uid: auth.uid,
-      conversationId,
-      actionId,
-      now: () => new Date(),
+      try {
+        return await cancelAction({
+          store: new FirestoreStore(db),
+          uid: auth.uid,
+          conversationId,
+          actionId,
+          now: () => new Date(),
+        });
+      } catch (err) {
+        throw toHttpsError(err);
+      }
     });
-  } catch (err) {
-    throw toHttpsError(err);
-  }
-});

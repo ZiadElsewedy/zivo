@@ -182,7 +182,7 @@ class _OtpCodeInputState extends State<OtpCodeInput>
       decoration: BoxDecoration(
         color: widget.hasError
             ? const Color(0x0FFF3D6E)
-            : (filled ? AppColors.card : const Color(0xFFFBF9F5)),
+            : (filled ? AppColors.card : AppColors.ground),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: borderWidth),
       ),

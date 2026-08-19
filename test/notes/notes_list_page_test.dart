@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
@@ -16,6 +17,8 @@ import 'package:zivo/features/notes/presentation/pages/notes_list_page.dart';
 import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -57,6 +60,8 @@ Widget _wrap({required Widget child, required NoteRepository notesOverride}) {
     notes: notesOverride,
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
+    workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -151,7 +156,7 @@ void main() {
       _wrap(child: const NotesListPage(), notesOverride: notes),
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No notes yet.'), findsNothing);
 
     notes.emit([
@@ -164,7 +169,7 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     // Title is distinct from the body so it matches exactly one Text (the row
     // renders both a title and a body preview).
     expect(find.text('Fresh note'), findsOneWidget);
@@ -183,7 +188,7 @@ void main() {
     notes.emit(const []);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No notes yet.'), findsOneWidget);
   });
 
@@ -200,7 +205,7 @@ void main() {
 
     // Error is distinct from both loading and the calm empty state.
     expect(find.byType(ErrorStateView), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No notes yet.'), findsNothing);
   });
 }

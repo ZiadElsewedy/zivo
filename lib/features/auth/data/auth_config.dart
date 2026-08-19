@@ -1,3 +1,5 @@
+import '../../../core/env/app_environment.dart';
+
 /// Non-secret client configuration for the auth data layer.
 ///
 /// The Google **Web** client ID is a public OAuth client identifier (not a
@@ -13,12 +15,12 @@
 /// ```
 /// flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
 /// ```
+///
+/// The value is owned centrally by [AppEnvironment]; this is the auth layer's
+/// stable accessor for it.
 class AuthConfig {
   const AuthConfig._();
 
-  static const String googleServerClientId = String.fromEnvironment(
-    'GOOGLE_SERVER_CLIENT_ID',
-    defaultValue:
-        '317167114617-k2u8fg7u6a3ppa5gagmcbu2jr7u4ljnb.apps.googleusercontent.com',
-  );
+  static const String googleServerClientId =
+      AppEnvironment.googleServerClientId;
 }

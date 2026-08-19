@@ -73,6 +73,38 @@ void main() {
       },
     );
 
+    test(
+      'a late second subscriber immediately receives the current snapshot '
+      'even when the collection is empty (regression: infinite spinner)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreScheduleRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        // First subscriber (mirrors the always-alive Today dashboard) drains
+        // the initial empty snapshot from the shared broadcast controller.
+        final first = <List<ScheduleEvent>>[];
+        final firstSub = repo.watchAll().listen(first.add);
+        await Future<void>.delayed(Duration.zero);
+        expect(first, isNotEmpty);
+        expect(first.last, isEmpty);
+
+        // A late second subscriber (a Hub detail page opened afterwards) must
+        // still receive the current value immediately instead of hanging on
+        // ConnectionState.waiting. Against the old raw-broadcast stream this
+        // .first never completed and the page spun forever.
+        final late = await repo
+            .watchAll()
+            .first
+            .timeout(const Duration(seconds: 1));
+        expect(late, isEmpty);
+
+        await firstSub.cancel();
+      },
+    );
+
     test('watchAll returns events start-ascending', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreScheduleRepository(

@@ -152,7 +152,7 @@ class FirebaseAiRepository implements AiRepository {
           .snapshots()
           .listen((snapshot) {
             controller.add(snapshot.docs.map(_fromDoc).toList(growable: false));
-          });
+          }, onError: (e, s) => controller.addError(e, s));
     }
 
     controller = StreamController<List<AiMessage>>.broadcast(
@@ -229,14 +229,28 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   /// Maps an `action_proposal` message (ADR-003) into an [AiPendingAction]; the
-  /// message doc carries `actionId`, `actionKind`, and `fields`. The card's
-  /// resolved state is tracked optimistically client-side after a tap.
+  /// message doc carries `actionId`, `actionKind`, `fields`, `status`, and
+  /// `expiresAt`. The card renders from the server-stored [status], so it
+  /// reflects the true resolution — applied/cancelled/expired — on reopen and
+  /// however the action was resolved (a card tap, a typed reply, or expiry), not
+  /// just an optimistic client flag. A still-`pending` proposal whose `expiresAt`
+  /// has passed is rendered as expired here, so a stale card doesn't keep
+  /// offering Confirm/Cancel until it's tapped. Legacy messages without a
+  /// `status` default to pending.
   AiPendingAction? _pendingActionFrom(Map<String, dynamic> data) {
     if (data['kind'] != 'action_proposal') return null;
     final actionId = data['actionId'] as String?;
     final actionKind = data['actionKind'] as String?;
     if (actionId == null || actionKind == null) return null;
     final rawFields = data['fields'];
+    final stored = aiActionStatusFromName(data['status'] as String?);
+    final expiresAtRaw = data['expiresAt'];
+    final expiresAt = expiresAtRaw is Timestamp ? expiresAtRaw.toDate() : null;
+    final status = stored == AiActionStatus.pending &&
+            expiresAt != null &&
+            expiresAt.isBefore(DateTime.now())
+        ? AiActionStatus.expired
+        : stored;
     return AiPendingAction(
       actionId: actionId,
       kind: actionKind,
@@ -244,7 +258,7 @@ class FirebaseAiRepository implements AiRepository {
       fields: rawFields is Map
           ? Map<String, dynamic>.from(rawFields)
           : const <String, dynamic>{},
-      status: AiActionStatus.pending,
+      status: status,
     );
   }
 }

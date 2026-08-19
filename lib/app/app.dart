@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../core/env/app_environment.dart';
+import '../core/env/env_banner.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
@@ -32,16 +35,21 @@ import '../features/tasks/domain/task_repository.dart';
 import '../features/university/data/firestore_university_repository.dart';
 import '../features/university/data/in_memory_university_repository.dart';
 import '../features/university/domain/university_repository.dart';
+import '../features/workout/data/firestore_workout_plan_repository.dart';
 import '../features/workout/data/firestore_workout_repository.dart';
+import '../features/workout/data/firestore_workout_session_repository.dart';
+import '../features/workout/data/in_memory_workout_plan_repository.dart';
 import '../features/workout/data/in_memory_workout_repository.dart';
+import '../features/workout/data/in_memory_workout_session_repository.dart';
+import '../features/workout/domain/workout_plan_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
+import '../features/workout/domain/workout_session_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
-const bool _useFirestore = bool.fromEnvironment(
-  'USE_FIRESTORE',
-  defaultValue: true,
-);
+/// The flag itself lives in [AppEnvironment]; aliased here for the repository
+/// wiring below.
+const bool _useFirestore = AppEnvironment.useFirestore;
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
@@ -62,6 +70,8 @@ class ZivoApp extends StatefulWidget {
     this.notes,
     this.moments,
     this.workouts,
+    this.workoutPlans,
+    this.workoutSessions,
     this.university,
     this.diet,
     this.ai,
@@ -76,6 +86,8 @@ class ZivoApp extends StatefulWidget {
   final NoteRepository? notes;
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
+  final WorkoutPlanRepository? workoutPlans;
+  final WorkoutSessionRepository? workoutSessions;
   final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
@@ -97,6 +109,10 @@ class _ZivoAppState extends State<ZivoApp> {
   late final MomentRepository _moments = widget.moments ?? _defaultMoments();
   late final WorkoutRepository _workouts =
       widget.workouts ?? _defaultWorkouts();
+  late final WorkoutPlanRepository _workoutPlans =
+      widget.workoutPlans ?? _defaultWorkoutPlans();
+  late final WorkoutSessionRepository _workoutSessions =
+      widget.workoutSessions ?? _defaultWorkoutSessions();
   late final UniversityRepository _university =
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -126,6 +142,14 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreWorkoutRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutRepository();
 
+  WorkoutPlanRepository _defaultWorkoutPlans() => _useFirestore
+      ? FirestoreWorkoutPlanRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutPlanRepository();
+
+  WorkoutSessionRepository _defaultWorkoutSessions() => _useFirestore
+      ? FirestoreWorkoutSessionRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutSessionRepository();
+
   UniversityRepository _defaultUniversity() => _useFirestore
       ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryUniversityRepository();
@@ -149,13 +173,23 @@ class _ZivoAppState extends State<ZivoApp> {
       notes: _notes,
       moments: _moments,
       workouts: _workouts,
+      workoutPlans: _workoutPlans,
+      workoutSessions: _workoutSessions,
       university: _university,
       diet: _diet,
       ai: _ai,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+        // Names the active build configuration in Development/Profile; compiled
+        // out of Release so production UX is untouched.
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: EnvBanner(child: child ?? const SizedBox.shrink()),
+        ),
         home: const AuthGate(),
       ),
     );

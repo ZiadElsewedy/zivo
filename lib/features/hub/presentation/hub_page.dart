@@ -10,7 +10,7 @@ import '../../notes/presentation/pages/notes_list_page.dart';
 import '../../schedule/presentation/pages/schedule_list_page.dart';
 import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
-import '../../workout/presentation/pages/workout_history_page.dart';
+import '../../workout/presentation/pages/workout_plan_page.dart';
 
 /// The Hub — the OS-style launcher into each module's depth. Modules open as
 /// they are built; the rest show a "soon" placeholder.
@@ -37,7 +37,7 @@ class HubPage extends StatelessWidget {
         'Workout',
         Icons.fitness_center_rounded,
         AppColors.pulseText,
-        (c) => const WorkoutHistoryPage(),
+        (c) => const WorkoutPlanPage(),
       ),
       _Module(
         'Diet',
@@ -132,11 +132,11 @@ class _ModuleTile extends StatelessWidget {
               ..showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.ink,
+                  backgroundColor: AppColors.surfaceRaised,
                   content: Text(
                     '${module.label} — coming next.',
                     style: AppText.button.copyWith(
-                      color: Colors.white,
+                      color: AppColors.ink,
                       fontSize: 14,
                     ),
                   ),

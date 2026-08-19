@@ -8,6 +8,8 @@ class UserProfile {
     required this.uid,
     required this.name,
     required this.dateOfBirth,
+    this.photoPath,
+    this.bio,
   });
 
   /// Matches the owning [AuthUser.uid] (the Firestore `users/{uid}` doc id).
@@ -15,15 +17,29 @@ class UserProfile {
   final String name;
   final DateTime dateOfBirth;
 
+  /// A *local device file path* for the profile photo, mirroring
+  /// [Moment.imagePath]'s convention — it only resolves on the device that
+  /// set it. Cross-device photo sync (Firebase Storage) is a later
+  /// milestone; this is deliberately just a local file, copied into the
+  /// app's own `avatars/` documents folder so it survives independently of
+  /// wherever the picker's source file lived.
+  final String? photoPath;
+
+  /// A short "About me" line the person writes about themselves. Null/empty
+  /// means they haven't set one yet — the profile shows a prompt instead.
+  final String? bio;
+
   @override
   bool operator ==(Object other) =>
       other is UserProfile &&
       other.uid == uid &&
       other.name == name &&
-      other.dateOfBirth == dateOfBirth;
+      other.dateOfBirth == dateOfBirth &&
+      other.photoPath == photoPath &&
+      other.bio == bio;
 
   @override
-  int get hashCode => Object.hash(uid, name, dateOfBirth);
+  int get hashCode => Object.hash(uid, name, dateOfBirth, photoPath, bio);
 
   @override
   String toString() => 'UserProfile(uid: $uid, name: $name)';

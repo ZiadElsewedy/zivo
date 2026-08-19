@@ -36,6 +36,7 @@ class FirestoreMomentRepository implements MomentRepository {
   final UidSource uidSource;
 
   List<Moment> _current = const [];
+  bool _hasSnapshot = false;
   StreamController<List<Moment>>? _controller;
   StreamSubscription<String?>? _uidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
@@ -44,11 +45,20 @@ class FirestoreMomentRepository implements MomentRepository {
   List<Moment> get current => List.unmodifiable(_current);
 
   @override
-  Stream<List<Moment>> watchAll() {
-    return (_controller ??= StreamController<List<Moment>>.broadcast(
+  Stream<List<Moment>> watchAll() async* {
+    _controller ??= StreamController<List<Moment>>.broadcast(
       onListen: _start,
       onCancel: _stop,
-    )).stream;
+    );
+    // A broadcast stream never replays its latest value to a *late* subscriber.
+    // The Today dashboard subscribes first (it stays alive in the shell's
+    // IndexedStack) and consumes the initial snapshot, so a Hub detail page
+    // opened afterwards would otherwise sit on ConnectionState.waiting forever
+    // whenever the collection is empty. Replay the cached snapshot on subscribe
+    // so every listener sees the current value immediately — matching the
+    // in-memory repo contract the pages and tests rely on.
+    if (_hasSnapshot) yield current;
+    yield* _controller!.stream;
   }
 
   void _start() {
@@ -78,11 +88,12 @@ class FirestoreMomentRepository implements MomentRepository {
         .snapshots()
         .listen((snapshot) {
           _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-        });
+        }, onError: (e, s) => _controller?.addError(e, s));
   }
 
   void _emit(List<Moment> moments) {
     _current = moments;
+    _hasSnapshot = true;
     _controller?.add(current);
   }
 

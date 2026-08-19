@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -11,6 +12,8 @@ import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
 import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/domain/exercise.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
@@ -60,6 +63,8 @@ Widget _wrap({
     notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
     workouts: workoutsOverride,
+    workoutPlans: InMemoryWorkoutPlanRepository(),
+    workoutSessions: InMemoryWorkoutSessionRepository(),
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -107,7 +112,7 @@ void main() {
       _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
     );
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No workouts yet.'), findsNothing);
 
     workouts.emit([
@@ -120,7 +125,7 @@ void main() {
     ]);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('Push'), findsOneWidget);
   });
 
@@ -137,7 +142,7 @@ void main() {
     workouts.emit(const []);
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(Lottie), findsNothing);
     expect(find.text('No workouts yet.'), findsOneWidget);
   });
 

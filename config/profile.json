@@ -1,0 +1,4 @@
+{
+  "USE_FIRESTORE": true,
+  "FORCE_APP_CHECK_DEBUG": false
+}

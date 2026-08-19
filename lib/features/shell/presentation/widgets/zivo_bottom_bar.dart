@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -17,45 +19,50 @@ class ZivoBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xF2FFFFFF),
-        border: Border(top: BorderSide(color: AppColors.hairline)),
-      ),
-      padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 12),
-      child: Row(
-        children: [
-          _Tab(
-            index: 0,
-            label: 'Today',
-            icon: Icons.home_rounded,
-            activeIcon: Icons.home_rounded,
-            filled: true,
-            currentIndex: currentIndex,
-            onTap: onTap,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xE0211A14),
+            border: Border(top: BorderSide(color: AppColors.hairline)),
           ),
-          _Tab(
-            index: 1,
-            label: 'Hub',
-            icon: Icons.grid_view_rounded,
-            currentIndex: currentIndex,
-            onTap: onTap,
+          padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 12),
+          child: Row(
+            children: [
+              _Tab(
+                index: 0,
+                label: 'Today',
+                icon: Icons.home_rounded,
+                activeIcon: Icons.home_rounded,
+                filled: true,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _Tab(
+                index: 1,
+                label: 'Hub',
+                icon: Icons.grid_view_rounded,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _Tab(
+                index: 2,
+                label: 'Ask',
+                icon: Icons.adjust_rounded,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _Tab(
+                index: 3,
+                label: 'You',
+                icon: Icons.person_outline_rounded,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+            ],
           ),
-          _Tab(
-            index: 2,
-            label: 'Ask',
-            icon: Icons.adjust_rounded,
-            currentIndex: currentIndex,
-            onTap: onTap,
-          ),
-          _Tab(
-            index: 3,
-            label: 'You',
-            icon: Icons.person_outline_rounded,
-            currentIndex: currentIndex,
-            onTap: onTap,
-          ),
-        ],
+        ),
       ),
     );
   }

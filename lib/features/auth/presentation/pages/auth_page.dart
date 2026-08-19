@@ -74,6 +74,8 @@ class _AuthPageState extends State<AuthPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Image.asset('assets/transparent/zivo-mark-paper-256.png', width: 40, height: 40),
+                      const SizedBox(height: 16),
                       Text('ZIVO', style: AppText.greeting.copyWith(letterSpacing: 1)),
                       const SizedBox(height: 8),
                       Text(

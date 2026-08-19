@@ -34,6 +34,7 @@ class FirestoreDietRepository implements DietRepository {
   final UidSource uidSource;
 
   DietPlan? _activePlan;
+  bool _hasPlanSnapshot = false;
   StreamController<DietPlan?>? _planController;
   StreamSubscription<String?>? _planUidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _planQuerySub;
@@ -42,11 +43,20 @@ class FirestoreDietRepository implements DietRepository {
   DietPlan? get activePlan => _activePlan;
 
   @override
-  Stream<DietPlan?> watchActivePlan() {
-    return (_planController ??= StreamController<DietPlan?>.broadcast(
+  Stream<DietPlan?> watchActivePlan() async* {
+    _planController ??= StreamController<DietPlan?>.broadcast(
       onListen: _startPlan,
       onCancel: _stopPlan,
-    )).stream;
+    );
+    // A broadcast stream never replays its latest value to a *late* subscriber.
+    // The Today dashboard subscribes first (it stays alive in the shell's
+    // IndexedStack) and consumes the initial snapshot, so the Diet page opened
+    // afterwards would otherwise sit on ConnectionState.waiting forever whenever
+    // there is no active plan. Replay the cached plan on subscribe so every
+    // listener sees the current value immediately — matching the in-memory repo
+    // contract the pages and tests rely on.
+    if (_hasPlanSnapshot) yield _activePlan;
+    yield* _planController!.stream;
   }
 
   void _startPlan() {
@@ -77,7 +87,7 @@ class FirestoreDietRepository implements DietRepository {
         .listen((snapshot) {
           final plans = snapshot.docs.map(_planFromDoc).toList(growable: false);
           _emitPlan(_firstActive(plans));
-        });
+        }, onError: (e, s) => _planController?.addError(e, s));
   }
 
   DietPlan? _firstActive(List<DietPlan> plans) {
@@ -89,6 +99,7 @@ class FirestoreDietRepository implements DietRepository {
 
   void _emitPlan(DietPlan? plan) {
     _activePlan = plan;
+    _hasPlanSnapshot = true;
     _planController?.add(_activePlan);
   }
 
@@ -141,7 +152,7 @@ class FirestoreDietRepository implements DietRepository {
               }
             }
             controller.add(eaten);
-          });
+          }, onError: (e, s) => controller.addError(e, s));
     }
 
     controller = StreamController<Set<String>>.broadcast(

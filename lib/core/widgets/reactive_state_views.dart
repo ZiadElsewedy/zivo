@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -12,14 +13,19 @@ import '../theme/app_typography.dart';
 /// read silently looked like "you have nothing here". Routing all surfaces
 /// through these keeps them consistent and makes the error case explicit.
 
-/// Shown while a stream has not yet emitted its first value.
+/// Shown while a stream has not yet emitted its first value — the branded
+/// loading animation in place of a bare spinner.
 class LoadingStateView extends StatelessWidget {
   const LoadingStateView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(color: AppColors.ink3),
+    return Center(
+      child: SizedBox(
+        width: 120,
+        height: 120,
+        child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
+      ),
     );
   }
 }

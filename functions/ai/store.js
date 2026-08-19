@@ -228,12 +228,20 @@ class FirestoreStore {
       schemaVersion: 1,
     };
     // An action_proposal message (ADR-003) carries the pending action the
-    // client renders as a confirmation card.
+    // client renders as a confirmation card. Its `status` mirrors the pending
+    // action's lifecycle (pending → applied/cancelled/expired) so the card
+    // reflects the true server state — including on reopen and however it was
+    // resolved (button tap or otherwise) — not just an optimistic client flag.
     if (message.kind) {
       data.kind = message.kind;
       data.actionId = message.actionId || null;
       data.actionKind = message.actionKind || null;
       data.fields = message.fields || null;
+      data.status = message.status || "pending";
+      // When the pending action's TTL passes, the client renders the card as
+      // expired from this even before a confirm attempt flips `status`.
+      data.expiresAt = message.expiresAt ?
+        Timestamp.fromDate(message.expiresAt) : null;
     }
     await ref.set(data);
     return ref.id;
@@ -384,6 +392,35 @@ class FirestoreStore {
   }
 
   /**
+   * The oldest still-`pending`, unexpired action in the conversation, or null.
+   * Used to block a second proposal while one already awaits the user (ADR-003:
+   * one pending action at a time), which prevents a duplicate entity write when
+   * the model re-proposes. Equality-only on `status` (no composite index).
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {!Date} nowDate
+   * @return {!Promise<?Object>}
+   */
+  async getActivePendingAction(uid, conversationId, nowDate) {
+    const snap = await this._pendingActions(uid, conversationId)
+        .where("status", "==", "pending").get();
+    const nowMs = (nowDate instanceof Date ? nowDate : new Date()).getTime();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const expiresAt = toDate(d.expiresAt);
+      if (!expiresAt || expiresAt.getTime() > nowMs) {
+        return {
+          actionId: doc.id,
+          kind: d.kind,
+          summary: d.summary || "",
+          status: d.status || "pending",
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
    * @param {string} uid
    * @param {string} conversationId
    * @param {string} actionId
@@ -395,6 +432,30 @@ class FirestoreStore {
       status,
       resolvedAt: FieldValue.serverTimestamp(),
     });
+  }
+
+  /**
+   * Flips the `status` on the `action_proposal` message carrying `actionId`, so
+   * the client's confirmation card reflects the resolution (applied/cancelled/
+   * expired) on its next render and on reopen — regardless of how the action
+   * was resolved. Equality-only on `actionId` (no composite index). A no-op if
+   * the message is missing.
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} actionId
+   * @param {string} status
+   * @return {!Promise<void>}
+   */
+  async markProposalMessage(uid, conversationId, actionId, status) {
+    const snap = await this._user(uid)
+        .collection("aiConversations")
+        .doc(conversationId)
+        .collection("messages")
+        .where("actionId", "==", actionId)
+        .limit(1)
+        .get();
+    if (snap.empty) return;
+    await snap.docs[0].ref.update({status});
   }
 
   /**

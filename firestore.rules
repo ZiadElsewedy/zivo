@@ -77,6 +77,38 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Workout plans: each user reads/writes only their own plan(s) — the
+    // rotating-cycle template ("what I SHOULD do"), distinct from the workouts
+    // log above ("what I did"). Days/exercises/sets are embedded as an array,
+    // like Diet's meals/items. Rules do not cascade from /users/{userId}, so explicit.
+    match /users/{userId}/workoutPlans/{planId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.name is string
+        && request.resource.data.status in ['active', 'archived']
+        && request.resource.data.source in ['manual', 'pdf']
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.days is list
+        && request.resource.data.cycleCursor is number;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Workout sessions: each user reads/writes only their own live/finished
+    // sessions — the guided execution record ("what I'm doing/did this run"),
+    // distinct from the workoutPlans template above. Exercises/sets are
+    // embedded as an array, like workoutPlans' days/exercises/sets. Rules do
+    // not cascade from /users/{userId}, so explicit.
+    match /users/{userId}/workoutSessions/{sessionId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.dayLabel is string
+        && request.resource.data.status in ['active', 'completed', 'abandoned']
+        && request.resource.data.startedAt is timestamp
+        && request.resource.data.exercises is list
+        && request.resource.data.schemaVersion == 1;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Moments: each user reads/writes only their own moments. imagePath is a
     // local device path (Storage/photos are a later milestone), so no file rules here.
     match /users/{userId}/moments/{momentId} {
@@ -160,7 +192,9 @@ service cloud.firestore {
 
     // Nothing else is exposed to clients. All eight feature repositories
     // (tasks, expenses, schedule, notes, workouts, moments, university, diet) are migrated,
-    // plus the AI conversation store (aiConversations client-writable; messages/aiUsage
+    // plus the workout-plan store (workoutPlans — the "what I SHOULD do" template),
+    // the workout-session store (workoutSessions — the guided execution record),
+    // and the AI conversation store (aiConversations client-writable; messages/aiUsage
     // server-only).
     match /{document=**} {
       allow read, write: if false;

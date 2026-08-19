@@ -203,6 +203,28 @@ void main() {
       },
     );
 
+    test(
+      'add is idempotent by id: calling it twice with the same id overwrites, '
+      'never duplicates (the guarantee LiveSessionPage\'s Finish relies on)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreWorkoutRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        // Same id, as a rapid double-tap on Finish would produce (the second
+        // call races the first with an unchanged Workout built from the same
+        // session).
+        await repo.add(_make('w1', title: 'Push'));
+        await repo.add(_make('w1', title: 'Push'));
+
+        final workouts = await repo.watchAll().first;
+        expect(workouts, hasLength(1));
+        expect(workouts.single.id, 'w1');
+      },
+    );
+
     test('remove deletes the doc, no longer observed on the stream', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreWorkoutRepository(

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 
 Widget _host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
-  testWidgets('LoadingStateView shows a spinner', (tester) async {
+  testWidgets('LoadingStateView shows the branded loading animation', (tester) async {
     await tester.pumpWidget(_host(const LoadingStateView()));
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(Lottie), findsOneWidget);
   });
 
   testWidgets('EmptyStateView shows its message', (tester) async {

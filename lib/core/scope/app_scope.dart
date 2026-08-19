@@ -10,7 +10,9 @@ import '../../features/notes/domain/note_repository.dart';
 import '../../features/schedule/domain/schedule_repository.dart';
 import '../../features/tasks/domain/task_repository.dart';
 import '../../features/university/domain/university_repository.dart';
+import '../../features/workout/domain/workout_plan_repository.dart';
 import '../../features/workout/domain/workout_repository.dart';
+import '../../features/workout/domain/workout_session_repository.dart';
 
 /// Provides shared repositories to the widget tree. A deliberately tiny
 /// seam for now; it will be replaced by a proper DI container (get_it) when
@@ -26,6 +28,8 @@ class AppScope extends InheritedWidget {
     required this.notes,
     required this.moments,
     required this.workouts,
+    required this.workoutPlans,
+    required this.workoutSessions,
     required this.university,
     required this.diet,
     required this.ai,
@@ -45,6 +49,8 @@ class AppScope extends InheritedWidget {
   final NoteRepository notes;
   final MomentRepository moments;
   final WorkoutRepository workouts;
+  final WorkoutPlanRepository workoutPlans;
+  final WorkoutSessionRepository workoutSessions;
   final UniversityRepository university;
   final DietRepository diet;
 
@@ -69,6 +75,8 @@ class AppScope extends InheritedWidget {
       notes != oldWidget.notes ||
       moments != oldWidget.moments ||
       workouts != oldWidget.workouts ||
+      workoutPlans != oldWidget.workoutPlans ||
+      workoutSessions != oldWidget.workoutSessions ||
       university != oldWidget.university ||
       diet != oldWidget.diet ||
       ai != oldWidget.ai;

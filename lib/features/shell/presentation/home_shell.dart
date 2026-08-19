@@ -85,10 +85,10 @@ class _HomeShellState extends State<HomeShell> {
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.ink,
+          backgroundColor: AppColors.surfaceRaised,
           content: Text(
             message,
-            style: AppText.button.copyWith(color: Colors.white, fontSize: 14),
+            style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14),
           ),
           duration: const Duration(seconds: 2),
         ),

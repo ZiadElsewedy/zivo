@@ -6,10 +6,11 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
-> **Last verified against the codebase:** 2026-08-16 (V1 read-only Ask **deployed + verified
-> on-device**; composer fix landed; App Check client wired (not enforced); Android sign-in SHA in
-> progress; **V2 planned** in `docs/DECISIONS/ADR-003-ai-mutations-v2.md`. On `feature/ai-assistant`;
-> Firestore persistence, Authentication, and University are merged into `main`).
+> **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
+> `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
+> spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
+> milestone; App Check **still not enforced** (M9 Phase 4). On `feature/ai-streaming-ux`; Firestore
+> persistence, Authentication, and University are merged into `main`).
 
 ---
 
@@ -17,34 +18,104 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/ai-assistant`.
+> without redoing completed work. Active development is on `feature/ai-streaming-ux`.
 
-- **Status (as of 2026-08-16):** Phase 9 V1 (read-only Ask) is **deployed and verified on-device.**
-  `aiChat` is live in `zivo-63f15` (Claude `claude-sonnet-5`, 9 uid-scoped read tools, ceilings,
-  `aiUsage` logging, injection fence); the app uses the real `FirebaseAiRepository` (`USE_FIRESTORE`
-  defaults to `true`). The read-only gateway/tools/store/`FirebaseAiRepository` described under
-  "What part 2 adds" are unchanged. **V2 (mutations with confirmation) is now planned** — see
-  `docs/DECISIONS/ADR-003-ai-mutations-v2.md`; no V2 code yet, pending owner UX approval (Phase -1).
-  The Anthropic API key is read only via `defineSecret("ANTHROPIC_API_KEY").value()` inside the
-  `aiChat` handler; never hardcoded, logged, or in the client.
-- **Since deploy (this session's work, in the working tree — review/commit pending):**
-  - **Composer layout fix** (committed, `2f24562`): `ask_page.dart` composer clears the bottom nav
-    bar / keyboard via `max(viewInsets.bottom, padding.bottom)`; regression test added. Full suite
-    **148 pass**.
-  - **Functions deps repaired:** `@anthropic-ai/sdk` was declared but never installed (deploy failed
-    with `MODULE_NOT_FOUND`); `npm install` in `functions/` fixed it. `functions/package-lock.json`
-    is modified and should be committed.
-  - **App Check — IN PROGRESS, not enforced.** Client wired: `firebase_app_check` added;
-    `lib/main.dart` calls `FirebaseAppCheck.instance.activate(...)` (debug providers in debug builds,
-    Play Integrity / App Attest in release). Server `aiChat` has **no** `enforceAppCheck: true` yet.
-    Remaining (owner): register providers + debug token in Console, confirm verified requests, then
-    flip enforcement and redeploy. **Enforce before V2 mutations ship.**
-  - **Android Google sign-in — IN PROGRESS.** Debug SHA-1
-    `5A:05:84:16:E0:D2:20:12:23:A9:80:CB:47:24:EF:5D:E6:CF:A0:4F` added in Console; re-pull
-    `google-services.json` (`firebase apps:sdkconfig ANDROID <appId>`) and confirm a `client_type: 1`
-    Android OAuth client is present. iOS sign-in unaffected.
-- **Branch:** `feature/ai-assistant`, checked out and active.
-- **What part 2 adds:**
+- **Status (as of 2026-08-17):** **Phase 3.5 (AI streaming UX + caching cost win) is deployed to
+  `zivo-63f15`.** `aiChat`, `aiConfirmAction`, `aiCancelAction` were redeployed 2026-08-17
+  (Node 24, 2nd Gen, `us-central1`). Phase 3.5 shipped three slices: **Slice C** — real streaming
+  (`aiChat` streams over Firebase callable streaming, `response.sendChunk` ↔ `httpsCallable.stream()`;
+  server-authoritative phase events drive the iris activity rail); **Slice A** — prompt caching + history
+  trimming (a cached static system+tools prefix reads back at 0.1×; `aiUsage` docs gain
+  `cacheReadTokens`/`cacheWriteTokens` and `schemaVersion: 2`); **Slice B** — a client typewriter
+  fallback for the buffered `.call()` path. Runbook: `docs/PHASE_3_5_DEPLOY.md`.
+- **Bug found & fixed during the Phase 3.5 deploy validation (committed, `9c6d153`):**
+  the emulator dry-run (driving the emulated `aiChat` over the real callable streaming wire against
+  the **real Anthropic API**) exposed a prod-breaking defect the offline suite could not catch.
+  `claude-sonnet-5` returns a **signed placeholder `thinking` block** by default; the buffered path
+  (`messages.create`) preserves its signature so the follow-up model call is accepted, but the
+  streaming path (`@anthropic-ai/sdk@0.32.0` `stream.finalMessage()`) reconstructs it with an
+  **empty signature**. Re-sending that block on the second model call of any `tool_use` turn fails
+  the API's `each thinking block must contain thinking` check → **400 on every streamed multi-tool
+  (read) turn**. The offline tests stayed green because their canned fake model emits no thinking
+  blocks. **Fix** (`functions/ai/gateway.js`, `stripEmptyThinking`): strip empty-content thinking
+  blocks from the assistant message before echoing it back into history — transport-agnostic,
+  genuinely-signed blocks preserved. A gateway **regression test** covers both (empty stripped,
+  signed kept). Note added to revisit if extended thinking is ever enabled.
+- **Validation done (server/wire, without a device):** post-fix, verified live against the
+  emulator — read turn streams `understanding → working → text deltas → done → ok` result;
+  proposal turn streams `understanding → deltas → preparing_change → done → proposed` (+`actionId`).
+  **Slice A caching confirmed with real numbers** from the emulator's `aiUsage` docs:
+  `schemaVersion: 2` on every doc and `cacheReadTokens > 0` every turn (~4712 on 2-call read turns,
+  2356 on the single-call proposal) — the static prefix reads back cached, saving ≈ $0.013/read turn
+  vs. full price. The runbook's failure condition (reads stuck at 0) is not hit.
+- **On-device client check — DONE (2026-08-17, owner verified):** ran the Ask mutation flow on a
+  signed-in simulator. `can you add a random task today` → model **proposed** (title/due/priority)
+  → owner **confirmed** → **`Confirmed`** card → **`Added to Tasks · Random task`**. The streamed
+  response settled cleanly into one durable message — **no double-bubble** (the specific runbook
+  Step 2 concern). This closes the last device-only validation for Phase 3.5's `add task` path.
+  Two behavior notes to review (not bugs): (1) the model **asked clarifying questions first**
+  ("set a due time? high or normal?") instead of proposing one action immediately per ADR-003's
+  "propose-one" intent — candidate system-prompt tightening; (2) the proposal arrived as **prose**
+  ("just confirm and I'll add it") rather than the structured iris confirmation *card*, yet the
+  Confirmed/Added cards still rendered after — confirm whether that's the intended path.
+- **Separate infinite-spinner bug — root-caused & FIXED (committed, `3635a60`; earlier partial
+  `eaebc17`):** opening any **empty** Hub detail page (Schedule, Diet, …) spun forever — no data,
+  no error. The handoff's backend theory (App Check / indexes / Firestore connection) was a **red
+  herring**: reproduced live, the Today screen renders real Firestore data, so the backend works.
+  Real cause: Firestore repos returned a **raw broadcast stream** from `watchAll()`, and a Dart
+  broadcast stream **never replays its latest value to a late subscriber**. The Today dashboard
+  (kept alive in the `IndexedStack`) is the *first* subscriber to every `watchAll()`; a Hub detail
+  page's `StreamBuilder` is a *second, late* subscriber → gets no replay → sits at `waiting` with
+  empty `initialData` → infinite spinner, but **only for empty collections** (non-empty ones render
+  from non-empty `current`). The in-memory repos never had this because they `yield current` first;
+  the Firestore repos silently broke that contract — which is why 255 tests and the console stayed
+  clean. **Fix:** all 8 Firestore repos (`schedule`/`tasks`/`expenses`/`notes`/`moments`/`workout`/
+  `university` list repos + `diet`'s `watchActivePlan()`) now track a `_hasSnapshot` flag and
+  `yield current` on subscribe before the broadcast stream — restoring the in-memory contract.
+  A schedule **regression test** was *proven* to catch it (times out on old code, passes on new).
+  `flutter analyze` clean; `flutter test` **256 pass**.
+- **Spinner fix — live re-verify CONFIRMED (2026-08-17):** fresh full rebuild on the iPhone 17
+  sim; both empty Hub pages Today pre-subscribes to now render their empty state instead of
+  spinning (Workout → "No workouts yet.", Diet → "No diet plan yet." + Create plan). Console clean
+  (zero `cloud_firestore` errors), 256 tests green. (Note: `3635a60` was auto-committed by a
+  concurrent session — byte-for-byte identical to the fix author's working tree, nothing added.)
+- **Confirmation-card state bug — FIXED & committed (`1a85c77`, 2026-08-17):** *"fix(ai): make
+  confirmation cards reflect true server state and stop duplicate writes."* Fixed five things:
+  (1) **duplicate-write guard** — gateway refuses a second proposal while an unexpired pending
+  action exists (`store.getActivePendingAction`), so re-proposing (e.g. typing "confirm") can't mint
+  a second card/task; (2) **card reflects true server state + survives reopen** — action_proposal
+  messages now persist `status` (+ `expiresAt`); confirm/cancel/expire flip it (`store.markProposalMessage`);
+  the client reads the stored status instead of hardcoding `pending`; (3) **typed "confirm" = nudge**
+  (owner decision) — hits the guard, replies "tap Confirm or Cancel on the card above"; tap-to-confirm
+  stays the only write path (ADR-003), no free-text auto-execute; (4) **expiry edge** — a still-pending
+  card renders as **Expired** on read once its TTL passes; (5) **prompt tightening** — don't re-propose
+  while one is pending, don't treat typed "confirm"/"yes" as permission, propose via the tool not prose.
+  Root cause had been: the applied-state override `_resolved[actionId]` was only set on button tap
+  (`ask_page.dart`), and the proposal message's server status was never flipped for a text-turn confirm.
+  Gates: functions node --test **42/42**, `flutter test` **258/258**, analyze + eslint clean.
+  6 files (`functions/ai/{gateway,store}.js` + 2 gateway tests, `firebase_ai_repository.dart` + its
+  test). **NOT pushed, NOT deployed.** ⚠️ **Deploy client + server together** — the client reads the
+  `status`/`expiresAt` fields the new gateway writes, so `firebase deploy --only functions` and a
+  fresh app build must ship in the same go, or deployed cards won't reflect server state.
+- **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
+  `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation on the owner's
+  account; add + verify providers in the Console before any public launch.
+- **M7 Performance — DONE (2026-08-17):** owner ran the on-device profiling passes and signed off
+  — performance is good, **no measured fixes needed**. The profiling harness stays in the repo
+  (`docs/performance/`, `scripts/perf/`). This leaves **M9 (AI V2) as the only remaining milestone.**
+- **Branch:** `feature/ai-streaming-ux`, checked out and active. Latest commits: `3635a60`
+  (broadcast-replay fix) on top of `9c6d153` (empty-thinking-block fix). Working tree: this handoff
+  doc update only.
+- **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
+  `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation; this is **M9 Phase
+  4** — enforce it (server flag + Console providers) before any public launch.
+- **Exact next action:** (1) confirm the live-simulator re-verify of the spinner fix completed
+  (open an empty Hub detail page → empty state, not a spinner); (2) **decide on merging
+  `feature/ai-streaming-ux` into `main`** — Phase 3.5 is deployed & on-device-verified, the spinner
+  fix is landed & 256 tests green; (3) then finish **M9 Phase 4** (enforce App Check + final deploy),
+  the last step to launch-readiness. Optionally review the two AI-behavior notes above (propose-one;
+  card vs. prose) as a system-prompt polish.
+- **What the read-only V1 slice (still current architecture) adds:**
   - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
     message, now, config})` — a pure-ish orchestration function kept free of
     `@anthropic-ai/sdk`/`firebase-admin` so it runs offline. Persists the user message, checks the
@@ -94,39 +165,25 @@
     just the in-memory cache), message ordering/role-mapping, `send()` invoking the injected fake
     `invokeChat` with the trimmed text, and no-op on empty/whitespace input. The real callable
     invocation is on-device-only and explicitly not exercised here.
-- **In progress:** App Check (enforce on server + Console setup) and Android Google sign-in (SHA-1
-  propagation) — see the "Since deploy" bullets above.
-- **Last completed action:** deployed V1 (read-only Ask) and verified on-device; landed the composer
-  layout fix; repaired functions deps; wired the App Check client; wrote the **V2 plan**
-  (`docs/DECISIONS/ADR-003-ai-mutations-v2.md`) and refreshed this handoff.
-- **Exact next action:** (1) finish App Check — owner registers providers + debug token, confirm
-  verified requests, then flip `enforceAppCheck: true` on `aiChat` and redeploy; (2) finish Android
-  sign-in (re-pull `google-services.json`); (3) commit the working-tree changes (App Check wiring,
-  `functions/package-lock.json`, doc updates); (4) get owner UX approval for ADR-003 Phase -1, then
-  start V2 slice 1 (server-side, offline-testable).
-- **Files currently being modified:** none (this slice is complete, pending review/commit).
-- **Verification status:** ALL FIVE gates GREEN (run by the orchestrator on the final diff):
-  `flutter analyze` → clean; `flutter test` → **147 pass** (was 141 — +6 `firebase_ai_repository_test.dart`
-  cases); `npm --prefix functions run lint` → clean; `npm --prefix functions test` → **17/17 pass**
-  (`node --test`, offline — `gateway.js`/`tools.js` never import `@anthropic-ai/sdk`); Firestore
-  emulator rules-tests → **53 pass** (unchanged; no rules edits this part). One construct-time bug was
-  found and fixed during review: `FirebaseAiRepository` resolved `FirebaseFunctions.instanceFor(...)`
-  eagerly in its constructor (crashing any `fake_cloud_firestore` test with `[core/no-app]`); the
-  default `invokeChat` seam now resolves `FirebaseFunctions` lazily inside its closure, so the repo
-  constructs without a live Firebase app. The gateway/tools/store logic is unit-tested but has **not**
-  yet run against the real Anthropic API or a deployed function — that is the on-device step below.
-- **Blockers:** none code-side (all five gates green). The deploy + on-device verification need the
-  owner's Firebase Console/CLI access. `ANTHROPIC_API_KEY` is already set in Secret Manager (and the
-  previously-exposed key rotated), so nothing is waiting on the key.
-- **Manual user action:** (1) `firebase deploy --only functions,firestore:rules --project zivo-63f15`
-  (deploys `aiChat` and the still-undeployed AI + Diet rules together); (2) decide on App Check timing
-  (ADR-001 open decision 4); (3) verify a real Ask turn on a device/simulator once deployed; (4)
-  decide on merging `feature/ai-assistant` into `main`. **The assistant does not answer over real data
-  until deployed — nothing in this session claims otherwise.**
-- **Do not redo:** don't re-derive `functions/ai/{gateway,tools,store,dates}.js`, their test suites,
-  `FirebaseAiRepository`, or its test — the read-only V1 slice is complete and deployed. Don't start
-  V2 mutating tools / confirmation UI until the owner approves ADR-003 Phase -1 (UX). Don't set
-  secrets or flip App Check enforcement — owner-only.
+  *(V1 read-only architecture above is still current; V2 mutations (ADR-003) and Phase 3.5
+  streaming/caching build on top of it.)*
+- **Last completed action:** ran the Phase 3.5 deploy & validation runbook — emulator dry-run,
+  discovered and fixed the streamed empty-thinking-block 400 (`9c6d153`, with a regression test),
+  redeployed the three AI callables, and validated the streaming transport + Slice A caching against
+  the emulator with the real Anthropic API (see Status bullets above).
+- **Verification status:** functions lint clean; `functions` offline suite **40/40 pass** (was 39,
+  +1 `stripEmptyThinking` regression test); `flutter test` **251 pass** (unchanged — server-only
+  fix). Live emulator validation: streaming read + proposal turns both stream phases→deltas→result;
+  `aiUsage` docs show `schemaVersion: 2` with `cacheReadTokens > 0` every turn. **Not run:** the
+  on-device signed-in client rendering (runbook Step 2) — needs the owner's device.
+- **Manual user action:** (1) run runbook Step 2 on a signed-in device (`what's due this week?`,
+  `add task Submit the report`) to confirm the client rendering — rail phases, no double-bubble,
+  durable message persists across reopen; (2) enforce App Check (server `enforceAppCheck: true` +
+  Console providers) before any public launch; (3) decide on merging `feature/ai-streaming-ux`.
+- **Do not redo:** don't re-derive the gateway/tools/store or the streaming/caching slices — Phase
+  3.5 is built and deployed. The empty-thinking-block fix is committed; don't reintroduce echoing
+  raw `resp.content` back into history without stripping empty thinking blocks. Don't set secrets or
+  flip App Check enforcement — owner-only.
 
 ---
 
