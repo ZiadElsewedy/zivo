@@ -88,6 +88,21 @@ void main() {
       expect(log.exercises.single.sets, 1);
     });
 
+    test('a skipped set logs no volume — excluded from sets/reps/weight entirely', () {
+      var s = _fresh();
+      s = s.markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
+      s = s.markSetSkipped('ex1', 'ex1-s1'); // second Bench set skipped
+      s = s.markSetSkipped('ex2', 'ex2-s0'); // Row's only set skipped
+
+      final log = s.toWorkoutLog();
+      // Row has zero done sets (its one set was skipped) — excluded entirely,
+      // same as an exercise nobody touched.
+      expect(log.exercises.map((e) => e.name), ['Bench']);
+      final bench = log.exercises.single;
+      expect(bench.sets, 1); // only the completed set counts
+      expect(bench.weightKg, 60); // the skipped set's (null) weight isn't the "last"
+    });
+
     test('performedAt falls back to startedAt when completedAt is null', () {
       final s = _fresh().markSetDone('ex1', 'ex1-s0', actualReps: 5, actualWeightKg: 60);
       expect(s.completedAt, isNull);

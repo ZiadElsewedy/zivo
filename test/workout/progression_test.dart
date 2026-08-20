@@ -2,11 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/progression.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 
 LoggedSet _done({required int reps, double? weightKg}) => LoggedSet(
   id: 'prev',
   target: RepTarget.fixed(reps),
-  done: true,
+  outcome: SetOutcome.completed,
   actualReps: reps,
   actualWeightKg: weightKg,
 );

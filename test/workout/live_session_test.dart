@@ -97,6 +97,67 @@ void main() {
     });
   });
 
+  group('markSetSkipped', () {
+    test('advances the current pointer exactly like markSetDone, but logs no volume', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+
+      final s1 = s0.markSetSkipped('ex1', firstId);
+      final skipped = s1.exercises.first.sets.first;
+      expect(skipped.done, isFalse);
+      expect(skipped.skipped, isTrue);
+      expect(s1.completedSetCount, 0); // skipped is never logged volume
+      expect(s1.currentSet?.id, s0.exercises.first.sets[1].id); // still advances
+    });
+
+    test('preserves already-typed actuals instead of clearing them', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+      final withDraft = s0.updateSet('ex1', firstId, actualReps: 3, actualWeightKg: 25);
+
+      final skipped = withDraft.markSetSkipped('ex1', firstId);
+      final set = skipped.exercises.first.sets.first;
+      expect(set.actualReps, 3);
+      expect(set.actualWeightKg, 25);
+      expect(set.skipped, isTrue);
+    });
+
+    test('a skipped set with leftover actuals is not a "draft" — hasDraftActuals excludes it', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+      final withDraft = s0.updateSet('ex1', firstId, actualReps: 3, actualWeightKg: 25);
+      expect(withDraft.hasDraftActuals, isTrue);
+
+      final skipped = withDraft.markSetSkipped('ex1', firstId);
+      expect(skipped.hasDraftActuals, isFalse);
+    });
+  });
+
+  group('clearOutcome', () {
+    test('un-does a skip back to pending, making the set current again (Undo)', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+      final skipped = s0.markSetSkipped('ex1', firstId);
+      expect(skipped.currentSet?.id, s0.exercises.first.sets[1].id);
+
+      final undone = skipped.clearOutcome('ex1', firstId);
+      expect(undone.exercises.first.sets.first.pending, isTrue);
+      expect(undone.currentSet?.id, firstId); // current again, ahead of set 2
+    });
+
+    test('un-does a completion back to pending (Back), actuals untouched', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+      final done = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5);
+      expect(done.completedSetCount, 1);
+
+      final undone = done.clearOutcome('ex1', firstId);
+      expect(undone.completedSetCount, 0);
+      expect(undone.currentSet?.id, firstId);
+      expect(undone.exercises.first.sets.first.actualWeightKg, 62.5); // preserved
+    });
+  });
+
   group('set CRUD', () {
     test('addSet appends inheriting the last set target/weight', () {
       final s = _fresh().addSet('ex1', setId: 'new-set');

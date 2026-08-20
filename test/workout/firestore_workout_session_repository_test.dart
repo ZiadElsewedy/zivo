@@ -8,6 +8,7 @@ import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 
 UidSource _signedInAs(String uid) =>
@@ -48,7 +49,7 @@ const _defaultExercises = [
         id: 'ex-bench-s0',
         target: RepTarget.fixed(10),
         type: SetType.warmup,
-        done: true,
+        outcome: SetOutcome.completed,
         actualReps: 10,
         actualWeightKg: 40,
       ),
@@ -57,7 +58,7 @@ const _defaultExercises = [
         target: RepTarget.range(6, 8),
         targetWeightKg: 60,
         type: SetType.working,
-        done: true,
+        outcome: SetOutcome.completed,
         actualReps: 7,
         actualWeightKg: 60,
         rpe: 8.5,
@@ -109,6 +110,8 @@ void main() {
         expect((sets[1] as Map)['targetWeightKg'], 60);
         expect((sets[1] as Map)['rpe'], 8.5);
         expect((sets[2] as Map)['repKind'], 'toFailure');
+        expect((sets[0] as Map)['outcome'], 'completed');
+        expect((sets[2] as Map)['outcome'], 'pending');
 
         // Rehydrated domain tree.
         final session = seen.last.single;
@@ -175,6 +178,127 @@ void main() {
         expect(rehydrated.completedSetCount, 0);
       },
     );
+
+    test(
+      'a skipped set round-trips as outcome=skipped and carries no completed volume',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final withSkip = _makeSession(
+          's1',
+          exercises: const [
+            SessionExercise(
+              id: 'ex-squat',
+              exerciseId: 'ex-squat',
+              name: 'Squat',
+              restSeconds: 120,
+              sets: [
+                LoggedSet(
+                  id: 'ex-squat-s0',
+                  target: RepTarget.fixed(5),
+                  actualReps: 3, // typed before the skip — must survive as-is
+                  outcome: SetOutcome.skipped,
+                ),
+              ],
+            ),
+          ],
+        );
+        await repo.saveSession(withSkip);
+
+        final doc = await firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('workoutSessions')
+            .doc('s1')
+            .get();
+        final rawSet = ((doc.data()!['exercises'] as List)[0] as Map)['sets'] as List;
+        expect((rawSet[0] as Map)['outcome'], 'skipped');
+
+        final rehydrated = (await repo.watchAll().first).single;
+        final set = rehydrated.exercises.single.sets.single;
+        expect(set.skipped, isTrue);
+        expect(set.done, isFalse);
+        expect(set.actualReps, 3); // preserved
+        expect(rehydrated.completedSetCount, 0); // never logged volume
+      },
+    );
+
+    group('outcome migration from a pre-outcome doc', () {
+      // Writes the RAW legacy shape directly (bypassing saveSession, which
+      // always writes the current schema) to prove the repository's read
+      // path — not just a round-trip through its own writer — handles a doc
+      // saved before `outcome` existed.
+      Future<void> writeLegacyDoc(
+        FakeFirebaseFirestore firestore, {
+        required String setId,
+        bool? done,
+      }) => firestore.collection('users').doc('test-uid').collection('workoutSessions').doc('s1').set({
+        'planId': 'plan-1',
+        'dayId': 'day-a',
+        'dayLabel': 'Push',
+        'status': 'active',
+        'startedAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+        'pausedAccumMs': 0,
+        'exercises': [
+          {
+            'id': 'ex1',
+            'exerciseId': 'ex1',
+            'name': 'Bench',
+            'restSeconds': 90,
+            'sets': [
+              {
+                'id': setId,
+                'repKind': 'fixed',
+                'repMin': 5,
+                'type': 'working',
+                'done': ?done,
+                // deliberately no 'outcome' field — the pre-migration shape.
+              },
+            ],
+          },
+        ],
+      });
+
+      test('done: true migrates to completed', () async {
+        final firestore = FakeFirebaseFirestore();
+        await writeLegacyDoc(firestore, setId: 's0', done: true);
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final session = (await repo.watchAll().first).single;
+        expect(session.exercises.single.sets.single.outcome, SetOutcome.completed);
+      });
+
+      test('done: false migrates to pending (not skipped)', () async {
+        final firestore = FakeFirebaseFirestore();
+        await writeLegacyDoc(firestore, setId: 's0', done: false);
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final session = (await repo.watchAll().first).single;
+        expect(session.exercises.single.sets.single.outcome, SetOutcome.pending);
+      });
+
+      test('missing done field (even older doc) migrates to pending', () async {
+        final firestore = FakeFirebaseFirestore();
+        await writeLegacyDoc(firestore, setId: 's0', done: null);
+        final repo = FirestoreWorkoutSessionRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final session = (await repo.watchAll().first).single;
+        expect(session.exercises.single.sets.single.outcome, SetOutcome.pending);
+      });
+    });
 
     test(
       'pausedAt/pausedAccumMs round-trip — leave-while-paused then resume '

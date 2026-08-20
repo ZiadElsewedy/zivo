@@ -21,6 +21,7 @@ import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
@@ -303,7 +304,7 @@ void main() {
               exerciseId: 'e1',
               name: 'Bench Press',
               restSeconds: 120,
-              sets: [LoggedSet(id: 'e1-s0', target: RepTarget.range(6, 8), done: true)],
+              sets: [LoggedSet(id: 'e1-s0', target: RepTarget.range(6, 8), outcome: SetOutcome.completed)],
             ),
           ],
         ),

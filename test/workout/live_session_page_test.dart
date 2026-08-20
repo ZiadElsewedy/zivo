@@ -17,6 +17,7 @@ import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
@@ -173,14 +174,14 @@ LiveSession _previousSession() => LiveSession(
         LoggedSet(
           id: 's0',
           target: RepTarget.fixed(5),
-          done: true,
+          outcome: SetOutcome.completed,
           actualReps: 5,
           actualWeightKg: 55,
         ),
         LoggedSet(
           id: 's1',
           target: RepTarget.fixed(5),
-          done: true,
+          outcome: SetOutcome.completed,
           actualReps: 5,
           actualWeightKg: 57.5,
         ),
@@ -210,14 +211,14 @@ LiveSession _previousSessionLight() => LiveSession(
         LoggedSet(
           id: 's0',
           target: RepTarget.fixed(5),
-          done: true,
+          outcome: SetOutcome.completed,
           actualReps: 5,
           actualWeightKg: 30,
         ),
         LoggedSet(
           id: 's1',
           target: RepTarget.fixed(5),
-          done: true,
+          outcome: SetOutcome.completed,
           actualReps: 5,
           actualWeightKg: 32.5,
         ),
@@ -799,7 +800,7 @@ void main() {
               name: 'Bench',
               restSeconds: 90,
               sets: [
-                LoggedSet(id: 's0', target: RepTarget.fixed(5), done: true, actualReps: 5, actualWeightKg: 999),
+                LoggedSet(id: 's0', target: RepTarget.fixed(5), outcome: SetOutcome.completed, actualReps: 5, actualWeightKg: 999),
               ],
             ),
           ],
@@ -1147,7 +1148,7 @@ void main() {
                 LoggedSet(
                   id: 'ex1-s0',
                   target: RepTarget.fixed(5),
-                  done: true,
+                  outcome: SetOutcome.completed,
                   actualReps: 5,
                   actualWeightKg: 999, // deliberately extreme — must never surface
                 ),
