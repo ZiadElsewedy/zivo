@@ -62,7 +62,7 @@ dependencies:
   lucide_icons_flutter: ^3.0.0
   # Native crop/straighten/rotate editor for moment photos (iOS Photos-style
   # cropper; uCrop on Android).
-  image_cropper: ^9.1.0
+  image_cropper: ^12.0.0
   # Google Drive backup target (Phase 2): the Drive v3 API plus a plain http
   # client we wrap with google_sign_in's OAuth bearer token (drive.file scope).
   googleapis: ^14.0.0
