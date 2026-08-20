@@ -33,7 +33,7 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
 | 5 | **Retrofit** analysis + history to be split-scoped | ✅ done |
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | 🔄 built + tested, **not deployed** |
-| 7 | End-to-end verify + handoff doc refresh | ⬜ not started |
+| 7 | End-to-end verify + handoff doc refresh | 🔄 verification pass done; **live-PDF E2E owner-gated** (needs deploy) |
 
 **Phase 1 notes:** `_DayCard` (`workout_plan_edit_page.dart`) is now a
 collapsible tile — collapsed shows the header + exercise count only;
@@ -266,6 +266,24 @@ passing; eslint clean.
 
 flutter analyze clean; full suite 551 passing (+1); functions node --test 52
 passing (+2); eslint clean.
+
+**Phase 7 — verify + handoff:** ran a full end-to-end pass of everything that
+doesn't require the un-deployed callable: `flutter analyze`, `flutter test`,
+functions `node --test`, and eslint all still hold the 551/52/clean bar with
+nothing new found. Sanity-checked test coverage for every flow this milestone
+touches — splits create/switch/edit/delete
+(`split_management_page_test.dart`, `*_splits_test.dart` for both the
+Firestore and in-memory repos), analysis + history scoped to the active split
+(`workout_analysis_page_test.dart`, `day_progress_analysis_test.dart`,
+`workout_plan_page_test.dart`), and the PDF-import **client** flow up to the
+callable boundary (`workout_pdf_import_page_test.dart`, against
+`FakeAiRepository`'s canned response) — all present and green. **The one flow
+this pass cannot close is the live PDF import end-to-end** (real PDF →
+`aiImportWorkoutPlan` → review → confirm → new split): it depends on
+`firebase deploy --only functions`, which stays the owner's manual step per
+every other AI callable in this repo. That step — deploy, then the real-PDF
+verify — is what's left before this milestone is fully done; it's marked
+owner-gated above, not done.
 
 ---
 
