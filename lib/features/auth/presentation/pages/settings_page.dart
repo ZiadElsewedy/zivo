@@ -37,12 +37,15 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _signOut() async {
     if (_signingOut) return;
     final auth = AppScope.of(context).auth;
+    // Capture the navigator before the async gap (context may be unsafe after).
+    final navigator = Navigator.of(context);
     setState(() => _signingOut = true);
     await auth.signOut();
-    // The auth gate reacts to the stream and swaps the whole shell out from
-    // under this page, so there's nothing to navigate here; guard setState
-    // in case this page is somehow still up.
-    if (mounted) setState(() => _signingOut = false);
+    // The auth gate swaps the shell for the sign-in screen *underneath* this
+    // pushed Settings route. Pop back to the gate so the user actually lands on
+    // sign-in instead of a Settings page floating over it.
+    if (!mounted) return;
+    navigator.popUntil((route) => route.isFirst);
   }
 
   @override
