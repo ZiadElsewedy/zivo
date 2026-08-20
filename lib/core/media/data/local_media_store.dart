@@ -86,6 +86,15 @@ class LocalMediaStore implements MediaStore {
   }
 
   @override
+  Future<File> writeBytes(String ref, List<int> bytes) async {
+    final root = await _rootDir();
+    final dest = File(p.join(root.path, p.joinAll(p.posix.split(ref))));
+    await dest.parent.create(recursive: true);
+    await dest.writeAsBytes(bytes, flush: true);
+    return dest;
+  }
+
+  @override
   Future<void> delete(String? ref) async {
     final file = await resolve(ref);
     if (file == null) return;

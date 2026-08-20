@@ -296,7 +296,14 @@ class _GalleryTile extends StatelessWidget {
           service: AppScope.of(context).requireMedia,
           ref: moment.imagePath,
           fit: BoxFit.cover,
-          placeholder: const ColoredBox(color: AppColors.surfaceRaised),
+          // Shown until the photo resolves — on another device it may live only
+          // in Google Drive and is being fetched, or isn't backed up/reachable.
+          placeholder: const ColoredBox(
+            color: AppColors.surfaceRaised,
+            child: Center(
+              child: Icon(AppIcons.driveCloud, size: 22, color: AppColors.ink3),
+            ),
+          ),
         ),
         if (media?.source == CaptureSource.camera)
           const Positioned(

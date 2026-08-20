@@ -35,14 +35,14 @@ class _MediaImageState extends State<MediaImage> {
   @override
   void initState() {
     super.initState();
-    _resolved = widget.service.resolve(widget.ref);
+    _resolved = widget.service.resolveOrFetch(widget.ref);
   }
 
   @override
   void didUpdateWidget(MediaImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.ref != widget.ref || oldWidget.service != widget.service) {
-      _resolved = widget.service.resolve(widget.ref);
+      _resolved = widget.service.resolveOrFetch(widget.ref);
     }
   }
 

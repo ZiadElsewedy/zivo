@@ -38,4 +38,9 @@ abstract interface class DriveBackupClient {
     required String mimeType,
     String? replaceFileId,
   });
+
+  /// Downloads the bytes of a previously-backed-up file by its Drive id — the
+  /// counterpart to [uploadImage], used to pull a photo onto a second device
+  /// (or after a reinstall). Returns null if unavailable/failed.
+  Future<List<int>?> download(String fileId);
 }

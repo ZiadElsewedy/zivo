@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'domain/drive_backup_client.dart';
 import 'domain/media_backup_target.dart';
 import 'domain/media_kind.dart';
@@ -108,6 +110,43 @@ class MediaService {
 
   /// Resolves a stored reference to an absolute [File] for display, or null.
   Future<File?> resolve(String? ref) => store.resolve(ref);
+
+  /// Like [resolve], but if the local copy is missing (e.g. this is a second
+  /// device, or a fresh reinstall) it tries to pull the bytes down from Google
+  /// Drive using the media's stored `driveFileId`, materializes them into the
+  /// local store, and returns that file. Returns null when the file can't be
+  /// produced (no Drive backup for it, Drive not connected, or offline) — the
+  /// caller then shows a placeholder.
+  ///
+  /// Once fetched, the file is on disk, so subsequent [resolve]s are instant.
+  Future<File?> resolveOrFetch(String? ref) async {
+    final local = await store.resolve(ref);
+    if (local != null && await local.exists()) return local;
+    if (ref == null || ref.isEmpty) return null;
+
+    final client = driveClient;
+    if (client == null) return null;
+
+    // The media id is the ref's basename (media/{kind}/{id}.{ext}).
+    final id = p.posix.basenameWithoutExtension(ref);
+    MediaObject? object;
+    try {
+      object = await registry.get(id);
+    } catch (_) {
+      return null;
+    }
+    final driveFileId = object?.driveFileId;
+    if (driveFileId == null) return null;
+
+    try {
+      if (!await client.isConnected()) return null;
+      final bytes = await client.download(driveFileId);
+      if (bytes == null || bytes.isEmpty) return null;
+      return await store.writeBytes(ref, bytes);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Connects a Google account for Drive backup (interactive) and, on success,
   /// records it in preferences (connected + enabled + email). Returns whether

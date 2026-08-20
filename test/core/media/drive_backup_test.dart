@@ -20,6 +20,8 @@ class _FakeDriveClient implements DriveBackupClient {
   bool connected;
   String? uploadId;
   final List<String> uploaded = [];
+  final List<String> downloaded = [];
+  List<int>? downloadBytes;
   int disconnectCalls = 0;
 
   @override
@@ -46,6 +48,12 @@ class _FakeDriveClient implements DriveBackupClient {
   }) async {
     uploaded.add(fileName);
     return uploadId;
+  }
+
+  @override
+  Future<List<int>?> download(String fileId) async {
+    downloaded.add(fileId);
+    return downloadBytes;
   }
 }
 
@@ -225,6 +233,64 @@ void main() {
 
       await service.runAutoBackupIfDue(now: DateTime(2026, 1, 10));
       expect(client.uploaded, ['m1.jpg']);
+    });
+  });
+
+  group('resolveOrFetch (second-device / reinstall download)', () {
+    const ref = 'media/moments/m1.jpg';
+
+    MediaService buildService(_FakeDriveClient client, InMemoryMediaRegistry registry) =>
+        MediaService(
+          store: store,
+          registry: registry,
+          preferences: InMemoryMediaPreferencesRepository(),
+          driveClient: client,
+        );
+
+    test('returns the local file without downloading when it already exists', () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      final client = _FakeDriveClient(connected: true);
+      final service = buildService(client, InMemoryMediaRegistry());
+
+      final file = await service.resolveOrFetch(ref);
+      expect(file, isNotNull);
+      expect(file!.existsSync(), isTrue);
+      expect(client.downloaded, isEmpty);
+    });
+
+    test('downloads from Drive and writes locally when the file is missing', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(driveFileId: 'd1'));
+      final client = _FakeDriveClient(connected: true)..downloadBytes = [4, 5, 6];
+      final service = buildService(client, registry);
+
+      final file = await service.resolveOrFetch(ref);
+      expect(client.downloaded, ['d1']);
+      expect(file, isNotNull);
+      expect(file!.readAsBytesSync(), [4, 5, 6]);
+      // Now cached locally — a second call doesn't download again.
+      await service.resolveOrFetch(ref);
+      expect(client.downloaded, ['d1']);
+    });
+
+    test('returns null when there is no Drive backup for the media', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject()); // no driveFileId
+      final client = _FakeDriveClient(connected: true);
+      final service = buildService(client, registry);
+
+      expect(await service.resolveOrFetch(ref), isNull);
+      expect(client.downloaded, isEmpty);
+    });
+
+    test('returns null when Drive is not connected on this device', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(driveFileId: 'd1'));
+      final client = _FakeDriveClient(connected: false)..downloadBytes = [1];
+      final service = buildService(client, registry);
+
+      expect(await service.resolveOrFetch(ref), isNull);
+      expect(client.downloaded, isEmpty);
     });
   });
 }

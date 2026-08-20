@@ -126,6 +126,33 @@ class GoogleDriveBackupClient implements DriveBackupClient {
     }
   }
 
+  @override
+  Future<List<int>?> download(String fileId) async {
+    final account = await _account(interactive: false);
+    if (account == null) return null;
+    final headers = await account.authorizationClient
+        .authorizationHeaders(_scopes, promptIfNecessary: false);
+    if (headers == null) return null;
+
+    final client = _BearerClient(headers);
+    try {
+      final api = drive.DriveApi(client);
+      final media = await api.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
+      final chunks = <int>[];
+      await for (final chunk in media.stream) {
+        chunks.addAll(chunk);
+      }
+      return chunks;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
   /// Finds the app's Drive folder (among files this app created) or creates it.
   Future<String?> _ensureFolder(drive.DriveApi api) async {
     final escaped = folderName.replaceAll("'", r"\'");
