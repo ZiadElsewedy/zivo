@@ -38,9 +38,14 @@ class FirestoreMediaRegistry implements MediaRegistry {
       'byteSize': object.byteSize,
       'contentHash': object.contentHash,
       'capturedAt': Timestamp.fromDate(object.capturedAt),
+      'source': object.source.name,
+      'width': object.width,
+      'height': object.height,
       'gallery': object.gallery.name,
-      'drive': object.drive.name,
-      'driveFileId': object.driveFileId,
+      // Firestore keys kept as 'drive'/'driveFileId' for back-compat with
+      // already-stored docs; the domain fields are provider-neutral.
+      'drive': object.remoteBackup.name,
+      'driveFileId': object.remoteId,
       'schemaVersion': 1,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -55,6 +60,27 @@ class FirestoreMediaRegistry implements MediaRegistry {
   }
 
   @override
+  Future<MediaObject?> getByRelativePath(String relativePath) async {
+    final uid = _requireUid();
+    final snap = await _media(uid)
+        .where('relativePath', isEqualTo: relativePath)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final doc = snap.docs.first;
+    return _fromDoc(uid, doc.id, doc.data());
+  }
+
+  @override
+  Future<List<MediaObject>> getAll() async {
+    final uid = _requireUid();
+    final snap = await _media(uid).get();
+    return snap.docs
+        .map((d) => _fromDoc(uid, d.id, d.data()))
+        .toList(growable: false);
+  }
+
+  @override
   Future<List<MediaObject>> pendingBackups() async {
     final uid = _requireUid();
     // Drive not yet done is the primary work list; the whole set is small
@@ -63,7 +89,7 @@ class FirestoreMediaRegistry implements MediaRegistry {
     final snap = await _media(uid).get();
     return snap.docs
         .map((d) => _fromDoc(uid, d.id, d.data()))
-        .where((m) => m.drive != BackupState.done || m.gallery == BackupState.failed)
+        .where((m) => m.remoteBackup != BackupState.done || m.gallery == BackupState.failed)
         .toList(growable: false);
   }
 
@@ -84,9 +110,12 @@ class FirestoreMediaRegistry implements MediaRegistry {
       byteSize: (data['byteSize'] as num?)?.toInt() ?? 0,
       contentHash: data['contentHash'] as String? ?? '',
       capturedAt: capturedAt is Timestamp ? capturedAt.toDate() : DateTime.now(),
+      source: CaptureSource.fromName(data['source'] as String?),
+      width: (data['width'] as num?)?.toInt(),
+      height: (data['height'] as num?)?.toInt(),
       gallery: _stateFrom(data['gallery']),
-      drive: _stateFrom(data['drive']),
-      driveFileId: data['driveFileId'] as String?,
+      remoteBackup: _stateFrom(data['drive']),
+      remoteId: data['driveFileId'] as String?,
     );
   }
 

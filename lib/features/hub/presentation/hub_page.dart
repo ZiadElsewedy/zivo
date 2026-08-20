@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/pressable_scale.dart';
+import '../../../core/widgets/zivo_toast.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
@@ -12,8 +16,9 @@ import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_plan_page.dart';
 
-/// The Hub — the OS-style launcher into each module's depth. Modules open as
-/// they are built; the rest show a "soon" placeholder.
+/// The Hub — the OS-style launcher into each module's depth. A clean two-column
+/// grid of premium module cards, each with a tinted icon chip in its module
+/// colour. Modules open as they are built; the rest show a "soon" chip.
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
@@ -21,54 +26,22 @@ class HubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final modules = <_Module>[
-      _Module(
-        'Schedule',
-        Icons.calendar_today_rounded,
-        AppColors.emberText,
-        (c) => const ScheduleListPage(),
-      ),
-      _Module(
-        'Tasks',
-        Icons.check_circle_outline_rounded,
-        AppColors.ink,
-        (c) => const TaskListPage(),
-      ),
-      _Module(
-        'Workout',
-        Icons.fitness_center_rounded,
-        AppColors.pulseText,
-        (c) => const WorkoutPlanPage(),
-      ),
-      _Module(
-        'Diet',
-        Icons.restaurant_rounded,
-        AppColors.pulseText,
-        (c) => const DietPlanPage(),
-      ),
-      _Module(
-        'Expenses',
-        Icons.payments_rounded,
-        AppColors.solarText,
-        (c) => const ExpensesListPage(),
-      ),
-      _Module(
-        'University',
-        Icons.school_outlined,
-        AppColors.irisText,
-        (c) => const UniversityListPage(),
-      ),
-      _Module(
-        'Notes',
-        Icons.sticky_note_2_rounded,
-        AppColors.ink,
-        (c) => const NotesListPage(),
-      ),
-      _Module(
-        'Moments',
-        Icons.photo_camera_rounded,
-        AppColors.ink,
-        (c) => const MomentsTimelinePage(),
-      ),
+      _Module('Schedule', AppIcons.schedule, AppColors.ember, AppColors.emberWash,
+          (c) => const ScheduleListPage()),
+      _Module('Tasks', AppIcons.tasks, AppColors.pulse, AppColors.pulseWash,
+          (c) => const TaskListPage()),
+      _Module('Workout', AppIcons.workout, AppColors.pulse, AppColors.pulseWash,
+          (c) => const WorkoutPlanPage()),
+      _Module('Diet', AppIcons.diet, AppColors.solar, AppColors.solarWash,
+          (c) => const DietPlanPage()),
+      _Module('Expenses', AppIcons.expenses, AppColors.solar, AppColors.solarWash,
+          (c) => const ExpensesListPage()),
+      _Module('University', AppIcons.university, AppColors.iris, AppColors.irisWash,
+          (c) => const UniversityListPage()),
+      _Module('Notes', AppIcons.notes, AppColors.iris, AppColors.irisWash,
+          (c) => const NotesListPage()),
+      _Module('Moments', AppIcons.moments, AppColors.ember, AppColors.emberWash,
+          (c) => const MomentsTimelinePage()),
     ];
 
     return Container(
@@ -84,14 +57,14 @@ class HubPage extends StatelessWidget {
           Text('Hub', style: AppText.greeting),
           const SizedBox(height: 4),
           Text('Everything, one tap away.', style: AppText.aside),
-          const SizedBox(height: 24),
+          const SizedBox(height: 26),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 14,
             crossAxisSpacing: 14,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.32,
             children: [for (final m in modules) _ModuleTile(m)],
           ),
         ],
@@ -101,10 +74,11 @@ class HubPage extends StatelessWidget {
 }
 
 class _Module {
-  const _Module(this.label, this.icon, this.color, this.builder);
+  const _Module(this.label, this.icon, this.color, this.wash, this.builder);
   final String label;
   final IconData icon;
   final Color color;
+  final Color wash;
   final WidgetBuilder? builder;
 }
 
@@ -116,66 +90,67 @@ class _ModuleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final live = module.builder != null;
-    return Material(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
+    return PressableScale(
+      child: Material(
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: () {
-          if (live) {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: module.builder!));
-          } else {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.surfaceRaised,
-                  content: Text(
-                    '${module.label} — coming next.',
-                    style: AppText.button.copyWith(
-                      color: AppColors.ink,
-                      fontSize: 14,
-                    ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          onTap: () {
+            if (live) {
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: module.builder!));
+            } else {
+              showZivoToast(context, '${module.label} — coming next.');
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: AppColors.hairline),
+              boxShadow: AppShadows.card,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: module.wash,
+                    borderRadius: BorderRadius.circular(13),
                   ),
+                  child: Icon(module.icon, size: 23, color: module.color),
                 ),
-              );
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.hairline),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(module.icon, size: 24, color: module.color),
-              Row(
-                children: [
-                  Text(
-                    module.label,
-                    style: AppText.rowTitle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (!live) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      'soon',
-                      style: AppText.meta.copyWith(
-                        color: AppColors.ink3,
-                        fontSize: 11,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        module.label,
+                        style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
+                    if (!live) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          'soon',
+                          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 10),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

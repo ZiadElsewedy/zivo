@@ -7,8 +7,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../widgets/media_backup_section.dart';
-import '../widgets/settings_row.dart';
+import '../../../../core/widgets/settings_row.dart';
 
 /// Settings — appearance and about, plus sign out. Split from [ProfilePage]
 /// the way most apps separate "who you are" from "how the app behaves" —
@@ -36,12 +37,15 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _signOut() async {
     if (_signingOut) return;
     final auth = AppScope.of(context).auth;
+    // Capture the navigator before the async gap (context may be unsafe after).
+    final navigator = Navigator.of(context);
     setState(() => _signingOut = true);
     await auth.signOut();
-    // The auth gate reacts to the stream and swaps the whole shell out from
-    // under this page, so there's nothing to navigate here; guard setState
-    // in case this page is somehow still up.
-    if (mounted) setState(() => _signingOut = false);
+    // The auth gate swaps the shell for the sign-in screen *underneath* this
+    // pushed Settings route. Pop back to the gate so the user actually lands on
+    // sign-in instead of a Settings page floating over it.
+    if (!mounted) return;
+    navigator.popUntil((route) => route.isFirst);
   }
 
   @override
@@ -65,7 +69,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 label: 'APPEARANCE',
                 children: [
                   SettingsRow(
-                    icon: Icons.dark_mode_rounded,
+                    icon: AppIcons.theme,
                     title: 'Theme',
                     value: 'Dark',
                     last: true,
@@ -79,14 +83,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 label: 'ABOUT',
                 children: [
                   SettingsRow(
-                    icon: Icons.info_outline_rounded,
+                    icon: AppIcons.version,
                     title: 'Version',
                     value: info == null ? '…' : '${info.version} (${info.buildNumber})',
                     last: AppEnvironment.isRelease,
                   ),
                   if (!AppEnvironment.isRelease)
                     SettingsRow(
-                      icon: Icons.build_outlined,
+                      icon: AppIcons.build,
                       title: 'Build',
                       value: AppEnvironment.name,
                       last: true,
@@ -95,9 +99,58 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 30),
               _SignOutButton(loading: _signingOut, onTap: _signOut),
+              const SizedBox(height: 44),
+              _BrandFooter(
+                version: info == null
+                    ? null
+                    : 'Version ${info.version} (${info.buildNumber})',
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A quiet brand signature at the foot of Settings — the ZIVO mark in the
+/// light "paper" tone, the wordmark, and the build. Gives the screen identity
+/// without competing with the controls above it.
+class _BrandFooter extends StatelessWidget {
+  const _BrandFooter({this.version});
+
+  final String? version;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.55,
+      child: Column(
+        children: [
+          Image.asset(
+            'assets/transparent/zivo-mark-paper-256.png',
+            width: 42,
+            height: 42,
+            filterQuality: FilterQuality.medium,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'ZIVO',
+            style: AppText.button.copyWith(
+              fontSize: 12,
+              letterSpacing: 5,
+              color: AppColors.ink2,
+            ),
+          ),
+          if (version != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              version!,
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -135,7 +188,7 @@ class _SignOutButton extends StatelessWidget {
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.logout_rounded, size: 18, color: AppColors.flareText),
+                      const Icon(AppIcons.signOut, size: 18, color: AppColors.flareText),
                       const SizedBox(width: 8),
                       Text('Sign out', style: AppText.button.copyWith(fontSize: 15, color: AppColors.flareText)),
                     ],

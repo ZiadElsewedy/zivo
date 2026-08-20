@@ -8,7 +8,10 @@ plugins {
 
 android {
     namespace = "com.ziadelsewedy.zivo"
-    compileSdk = flutter.compileSdkVersion
+    // image_cropper's AndroidX deps (exifinterface, annotation-experimental)
+    // require compiling against API 34+. compileSdk only enables newer APIs at
+    // compile time; targetSdk/minSdk below are intentionally left as-is.
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

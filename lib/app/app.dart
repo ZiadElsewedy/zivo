@@ -1,4 +1,5 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,24 +10,24 @@ import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
 import '../core/media/data/firestore_media_registry.dart';
 import '../core/media/data/google_drive_backup_client.dart';
-import '../core/media/data/google_drive_target.dart';
 import '../core/media/data/in_memory_media_preferences_repository.dart';
 import '../core/media/data/in_memory_media_registry.dart';
 import '../core/media/data/local_media_store.dart';
-import '../core/media/domain/drive_backup_client.dart';
-import '../core/media/domain/media_backup_target.dart';
+import '../core/media/domain/media_backup_provider.dart';
 import '../core/media/domain/media_registry.dart';
 import '../core/media/domain/media_storage_preferences.dart';
 import '../core/media/domain/media_store.dart';
 import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/zivo_scroll_behavior.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
 import '../features/auth/data/firestore_profile_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
+import '../features/auth/domain/auth_state.dart';
 import '../features/auth/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
@@ -146,6 +147,32 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.mediaPreferences ?? _defaultMediaPreferences();
   late final MediaService _media = widget.media ?? _defaultMedia();
 
+  /// Watches the signed-in account and clears the device-local backup
+  /// connection when it changes away from a signed-in account (sign-out or
+  /// account switch), so account A's backup connection can never leak into
+  /// account B. The initial session restore (prev == null) is deliberately not
+  /// treated as a change, so a valid connection survives app launch.
+  StreamSubscription<AuthState>? _authSub;
+  String? _prevUid;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSub = _auth.watchAuthState().listen((_) {
+      final uid = _auth.currentUser?.uid;
+      if (_prevUid != null && _prevUid != uid) {
+        _media.disconnectBackup();
+      }
+      _prevUid = uid;
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
   MediaPreferencesRepository _defaultMediaPreferences() => _useFirestore
       ? FirestoreMediaPreferencesRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryMediaPreferencesRepository();
@@ -154,34 +181,19 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreMediaRegistry(uidSource: UidSource.firebaseAuth())
       : InMemoryMediaRegistry();
 
-  MediaService _defaultMedia() {
-    final driveClient = _defaultDriveClient();
-    return MediaService(
-      store: _mediaStore,
-      registry: _defaultMediaRegistry(),
-      preferences: _mediaPreferences,
-      driveClient: driveClient,
-      isUnmetered: _isUnmetered,
-      targets: <BackupTargetId, MediaBackupTarget>{
-        BackupTargetId.gallery: DeviceGalleryTarget(store: _mediaStore),
-        if (driveClient != null)
-          BackupTargetId.drive:
-              GoogleDriveTarget(client: driveClient, store: _mediaStore),
-      },
-    );
-  }
+  MediaService _defaultMedia() => MediaService(
+        store: _mediaStore,
+        registry: _defaultMediaRegistry(),
+        preferences: _mediaPreferences,
+        galleryTarget: DeviceGalleryTarget(store: _mediaStore),
+        backup: _defaultBackupProvider(),
+        currentAccountId: () => _auth.currentUser?.uid,
+      );
 
-  /// True when the active connection is unmetered (wifi/ethernet) — gates the
-  /// "Wi-Fi only" automatic-backup preference.
-  Future<bool> _isUnmetered() async {
-    final results = await Connectivity().checkConnectivity();
-    return results.contains(ConnectivityResult.wifi) ||
-        results.contains(ConnectivityResult.ethernet);
-  }
-
-  /// Real Google Drive backup client when running against the real backend;
-  /// null in offline/dev runs (no OAuth), where Drive backup is simply absent.
-  DriveBackupClient? _defaultDriveClient() =>
+  /// Real Google Drive backup provider when running against the real backend;
+  /// null in offline/dev runs (no OAuth), where cloud backup is simply absent.
+  /// Swapping providers is a one-line change here — nothing else moves.
+  MediaBackupProvider? _defaultBackupProvider() =>
       _useFirestore ? GoogleDriveBackupClient() : null;
 
   TaskRepository _defaultTasks() => _useFirestore
@@ -255,6 +267,7 @@ class _ZivoAppState extends State<ZivoApp> {
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
+        scrollBehavior: const ZivoScrollBehavior(),
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,

@@ -20,9 +20,6 @@ class DeviceGalleryTarget implements MediaBackupTarget {
   final String album;
 
   @override
-  BackupTargetId get id => BackupTargetId.gallery;
-
-  @override
   Future<bool> isConfigured() async {
     // Permission is requested lazily on first save; treat as available so the
     // service attempts it (the request prompt appears then).
@@ -30,20 +27,18 @@ class DeviceGalleryTarget implements MediaBackupTarget {
   }
 
   @override
-  Future<BackupResult> backup(MediaObject object) async {
+  Future<bool> backup(MediaObject object) async {
     final file = await store.resolve(object.relativePath);
-    if (file == null || !await file.exists()) {
-      return const BackupResult.failure();
-    }
+    if (file == null || !await file.exists()) return false;
     try {
       if (!await Gal.hasAccess()) {
         final granted = await Gal.requestAccess();
-        if (!granted) return const BackupResult.failure();
+        if (!granted) return false;
       }
       await Gal.putImage(file.path, album: album);
-      return const BackupResult.success();
+      return true;
     } on GalException {
-      return const BackupResult.failure();
+      return false;
     }
   }
 }

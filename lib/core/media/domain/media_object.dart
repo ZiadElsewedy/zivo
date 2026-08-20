@@ -1,5 +1,28 @@
 import 'media_kind.dart';
 
+/// How a photo entered the app — surfaced in the gallery's metadata and used
+/// for filtering ("Camera" vs "Library").
+enum CaptureSource {
+  /// Taken with the in-app camera.
+  camera,
+
+  /// Chosen from the device's photo library.
+  library,
+
+  /// Unknown (legacy media captured before this was tracked).
+  unknown;
+
+  static CaptureSource fromName(String? name) => CaptureSource.values
+      .firstWhere((s) => s.name == name, orElse: () => CaptureSource.unknown);
+
+  /// Human label for the metadata panel.
+  String get label => switch (this) {
+        CaptureSource.camera => 'Camera',
+        CaptureSource.library => 'Photo Library',
+        CaptureSource.unknown => 'Unknown',
+      };
+}
+
 /// Where a single backup target stands for one media file.
 enum BackupState {
   /// Never attempted, or the target is off. The default for a fresh file.
@@ -31,9 +54,12 @@ class MediaObject {
     required this.byteSize,
     required this.contentHash,
     required this.capturedAt,
+    this.source = CaptureSource.unknown,
+    this.width,
+    this.height,
     this.gallery = BackupState.pending,
-    this.drive = BackupState.pending,
-    this.driveFileId,
+    this.remoteBackup = BackupState.pending,
+    this.remoteId,
   });
 
   /// Stable id, also embedded in [relativePath] and referenced by the owning
@@ -59,18 +85,27 @@ class MediaObject {
   /// The moment the media was captured/imported (domain time, not server time).
   final DateTime capturedAt;
 
-  /// Per-target backup status.
-  final BackupState gallery;
-  final BackupState drive;
+  /// How the photo entered the app (camera vs library).
+  final CaptureSource source;
 
-  /// The Google Drive file id once uploaded (for update/delete/restore). Null
-  /// until a Drive backup succeeds.
-  final String? driveFileId;
+  /// Pixel dimensions of the stored image, when known.
+  final int? width;
+  final int? height;
+
+  /// Copied to the device gallery ("Save to Photos").
+  final BackupState gallery;
+
+  /// Backed up to the remote cloud provider (Drive today; provider-agnostic).
+  final BackupState remoteBackup;
+
+  /// The provider-assigned id of the uploaded file (for update/restore). Null
+  /// until a remote backup succeeds.
+  final String? remoteId;
 
   MediaObject copyWith({
     BackupState? gallery,
-    BackupState? drive,
-    String? driveFileId,
+    BackupState? remoteBackup,
+    String? remoteId,
   }) {
     return MediaObject(
       id: id,
@@ -81,9 +116,12 @@ class MediaObject {
       byteSize: byteSize,
       contentHash: contentHash,
       capturedAt: capturedAt,
+      source: source,
+      width: width,
+      height: height,
       gallery: gallery ?? this.gallery,
-      drive: drive ?? this.drive,
-      driveFileId: driveFileId ?? this.driveFileId,
+      remoteBackup: remoteBackup ?? this.remoteBackup,
+      remoteId: remoteId ?? this.remoteId,
     );
   }
 }

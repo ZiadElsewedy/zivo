@@ -11,6 +11,8 @@ class StoredMedia {
     required this.byteSize,
     required this.contentHash,
     required this.file,
+    this.width,
+    this.height,
   });
 
   final String id;
@@ -18,6 +20,10 @@ class StoredMedia {
   final String mimeType;
   final int byteSize;
   final String contentHash;
+
+  /// Pixel dimensions of the decoded image, when they could be read.
+  final int? width;
+  final int? height;
 
   /// The absolute file on disk right now (valid this session).
   final File file;
@@ -53,6 +59,11 @@ abstract interface class MediaStore {
   /// Async because discovering the documents directory is async; the store
   /// caches it after the first call, so later resolves are effectively instant.
   Future<File?> resolve(String? ref);
+
+  /// Writes [bytes] into the store at the given relative [ref] — used to
+  /// materialize a file pulled down from a backup target (e.g. Google Drive)
+  /// onto a device that doesn't have the local copy. Returns the written file.
+  Future<File> writeBytes(String ref, List<int> bytes);
 
   /// Best-effort deletion of a stored file by its relative [ref]. A missing
   /// file is not an error.

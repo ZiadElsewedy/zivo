@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shadows.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/pressable_scale.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_shadows.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
+import 'pressable_scale.dart';
 
 /// A grouped, hairline-divided list of [SettingsRow]s under an uppercase
 /// [label] — the iOS Settings "inset grouped" pattern, in ZIVO's dark
@@ -45,6 +45,7 @@ class SettingsRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
+    this.iconWidget,
     this.trailing,
     this.onTap,
     this.monospace = false,
@@ -53,6 +54,10 @@ class SettingsRow extends StatelessWidget {
   });
 
   final IconData icon;
+
+  /// Optional custom mark shown inside the leading chip instead of [icon]
+  /// (e.g. a brand logo like the Google Drive mark).
+  final Widget? iconWidget;
   final String title;
   final String value;
   final Widget? trailing;
@@ -78,7 +83,7 @@ class SettingsRow extends StatelessWidget {
               color: AppColors.surfaceRaised,
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon, size: 16, color: AppColors.ink2),
+            child: iconWidget ?? Icon(icon, size: 16, color: AppColors.ink2),
           ),
           const SizedBox(width: 13),
           Expanded(

@@ -1,51 +1,93 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zivo/core/media/data/google_drive_target.dart';
 import 'package:zivo/core/media/data/in_memory_media_preferences_repository.dart';
 import 'package:zivo/core/media/data/in_memory_media_registry.dart';
 import 'package:zivo/core/media/data/local_media_store.dart';
-import 'package:zivo/core/media/domain/drive_backup_client.dart';
-import 'package:zivo/core/media/domain/media_backup_target.dart';
+import 'package:zivo/core/media/domain/media_backup_provider.dart';
 import 'package:zivo/core/media/domain/media_kind.dart';
 import 'package:zivo/core/media/domain/media_object.dart';
-import 'package:zivo/core/media/domain/media_storage_preferences.dart';
 import 'package:zivo/core/media/media_service.dart';
 
 /// A scriptable [DriveBackupClient] — no real Google/network.
-class _FakeDriveClient implements DriveBackupClient {
-  _FakeDriveClient({this.account, this.connected = false, this.uploadId = 'drive-1'});
+class _FakeDriveClient implements MediaBackupProvider {
+  _FakeDriveClient({
+    this.connectAccount,
+    this.deviceConnected = false,
+    this.liveSession = false,
+    this.uploadId = 'drive-1',
+    this.ownerId,
+  });
 
-  DriveAccount? account;
-  bool connected;
+  BackupAccount? connectAccount;
+  bool deviceConnected;
+  bool liveSession;
   String? uploadId;
+  List<int>? downloadBytes;
+  String? ownerId;
+
+  final List<String> uploadedFolders = [];
   final List<String> uploaded = [];
+  final List<String> downloaded = [];
+  int connectCalls = 0;
   int disconnectCalls = 0;
+  int restoreCalls = 0;
 
   @override
-  Future<DriveAccount?> connect() async {
-    if (account != null) connected = true;
-    return account;
+  bool get hasLiveSession => liveSession;
+
+  @override
+  Future<bool> isDeviceConnected() async => deviceConnected;
+
+  @override
+  Future<String?> connectedEmail() async => connectAccount?.email;
+
+  @override
+  Future<String?> connectedOwnerId() async => ownerId;
+
+  @override
+  Future<BackupAccount?> connect({required String ownerAccountId}) async {
+    connectCalls++;
+    if (connectAccount != null) {
+      deviceConnected = true;
+      liveSession = true;
+      ownerId = ownerAccountId;
+    }
+    return connectAccount;
   }
 
   @override
-  Future<bool> isConnected() async => connected;
+  Future<BackupAccount?> restoreSession() async {
+    restoreCalls++;
+    if (deviceConnected) liveSession = true;
+    return liveSession ? connectAccount : null;
+  }
 
   @override
   Future<void> disconnect() async {
     disconnectCalls++;
-    connected = false;
+    deviceConnected = false;
+    liveSession = false;
+    ownerId = null;
   }
 
   @override
-  Future<String?> uploadImage({
+  Future<String?> upload({
     required File file,
     required String fileName,
     required String mimeType,
-    String? replaceFileId,
+    required String accountFolder,
+    String? replaceRemoteId,
   }) async {
     uploaded.add(fileName);
+    uploadedFolders.add(accountFolder);
     return uploadId;
+  }
+
+  @override
+  Future<List<int>?> download(String fileId) async {
+    downloaded.add(fileId);
+    return downloadBytes;
   }
 }
 
@@ -68,163 +110,169 @@ void main() {
   String src(String name) =>
       (File('${srcDir.path}/$name')..writeAsBytesSync([1, 2, 3])).path;
 
-  MediaObject makeObject({String? driveFileId}) => MediaObject(
-        id: 'm1',
-        ownerUid: 'u1',
+  MediaObject makeObject({String id = 'm1', String? remoteId, String uid = 'u1'}) =>
+      MediaObject(
+        id: id,
+        ownerUid: uid,
         kind: MediaKind.moment,
-        relativePath: 'media/moments/m1.jpg',
+        relativePath: 'media/moments/$id.jpg',
         mimeType: 'image/jpeg',
         byteSize: 3,
         contentHash: 'h',
         capturedAt: DateTime(2026, 1, 1),
-        driveFileId: driveFileId,
+        remoteId: remoteId,
       );
 
-  group('GoogleDriveTarget', () {
-    test('uploads the resolved file and returns the Drive id', () async {
-      // Put a real file at the object's relative path.
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
-      final client = _FakeDriveClient(uploadId: 'drive-xyz');
-      final target = GoogleDriveTarget(client: client, store: store);
+  MediaService buildService(
+    _FakeDriveClient client,
+    InMemoryMediaRegistry registry, {
+    String? account = 'u1',
+  }) =>
+      MediaService(
+        store: store,
+        registry: registry,
+        preferences: InMemoryMediaPreferencesRepository(),
+        backup: client,
+        currentAccountId: () => account,
+      );
 
-      final result = await target.backup(makeObject());
-      expect(result.succeeded, isTrue);
-      expect(result.remoteId, 'drive-xyz');
-      expect(client.uploaded, ['m1.jpg']);
+  group('connect / disconnect', () {
+    test('connectDrive returns true and marks the device connected', () async {
+      final client = _FakeDriveClient(connectAccount: const BackupAccount(id: '1', email: 'x@e.com'));
+      final service = buildService(client, InMemoryMediaRegistry());
+
+      expect(await service.connectBackup(), isTrue);
+      expect(client.connectCalls, 1);
+      expect(await service.isBackupConnected(), isTrue);
+      expect(await service.connectedBackupAccount(), 'x@e.com');
     });
 
-    test('fails when the local file is missing', () async {
-      final client = _FakeDriveClient();
-      final target = GoogleDriveTarget(client: client, store: store);
-      final result = await target.backup(makeObject());
-      expect(result.succeeded, isFalse);
-      expect(client.uploaded, isEmpty);
+    test('connectDrive returns false on cancel', () async {
+      final client = _FakeDriveClient(connectAccount: null);
+      expect(await buildService(client, InMemoryMediaRegistry()).connectBackup(), isFalse);
     });
 
-    test('fails when the client returns no id', () async {
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
-      final client = _FakeDriveClient(uploadId: null);
-      final target = GoogleDriveTarget(client: client, store: store);
-      final result = await target.backup(makeObject());
-      expect(result.succeeded, isFalse);
-    });
-
-    test('isConfigured reflects the client connection', () async {
-      final client = _FakeDriveClient(connected: true);
-      final target = GoogleDriveTarget(client: client, store: store);
-      expect(await target.isConfigured(), isTrue);
-    });
-  });
-
-  group('MediaService Drive connection', () {
-    MediaService buildService(
-      _FakeDriveClient client, {
-      Future<bool> Function()? isUnmetered,
-      InMemoryMediaPreferencesRepository? prefs,
-    }) =>
-        MediaService(
-          store: store,
-          registry: InMemoryMediaRegistry(),
-          preferences: prefs ?? InMemoryMediaPreferencesRepository(),
-          driveClient: client,
-          isUnmetered: isUnmetered,
-        );
-
-    test('connectDrive records the account and enables backup', () async {
-      final prefs = InMemoryMediaPreferencesRepository();
-      final client = _FakeDriveClient(account: const DriveAccount(id: '1', email: 'x@e.com'));
-      final service = buildService(client, prefs: prefs);
-
-      final ok = await service.connectDrive();
-      expect(ok, isTrue);
-      final saved = await prefs.read();
-      expect(saved.driveConnected, isTrue);
-      expect(saved.driveBackupEnabled, isTrue);
-      expect(saved.driveAccountEmail, 'x@e.com');
-    });
-
-    test('connectDrive returns false and records nothing on cancel', () async {
-      final prefs = InMemoryMediaPreferencesRepository();
-      final client = _FakeDriveClient(account: null);
-      final service = buildService(client, prefs: prefs);
-
-      expect(await service.connectDrive(), isFalse);
-      expect((await prefs.read()).driveConnected, isFalse);
-    });
-
-    test('disconnectDrive revokes and clears the connection', () async {
-      final prefs = InMemoryMediaPreferencesRepository(const MediaStoragePreferences(
-        driveConnected: true,
-        driveBackupEnabled: true,
-        driveAccountEmail: 'x@e.com',
-      ));
-      final client = _FakeDriveClient(connected: true);
-      final service = buildService(client, prefs: prefs);
-
-      await service.disconnectDrive();
+    test('disconnectDrive revokes the device connection', () async {
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true);
+      await buildService(client, InMemoryMediaRegistry()).disconnectBackup();
       expect(client.disconnectCalls, 1);
-      final saved = await prefs.read();
-      expect(saved.driveConnected, isFalse);
-      expect(saved.driveBackupEnabled, isFalse);
-      expect(saved.driveAccountEmail, isNull);
+      expect(await client.isDeviceConnected(), isFalse);
     });
 
     test('supportsDrive reflects whether a client is wired', () async {
-      final withDrive = buildService(_FakeDriveClient());
-      expect(withDrive.supportsDrive, isTrue);
+      expect(buildService(_FakeDriveClient(), InMemoryMediaRegistry()).supportsBackup, isTrue);
       final withoutDrive = MediaService(
         store: store,
         registry: InMemoryMediaRegistry(),
         preferences: InMemoryMediaPreferencesRepository(),
       );
-      expect(withoutDrive.supportsDrive, isFalse);
+      expect(withoutDrive.supportsBackup, isFalse);
     });
   });
 
-  group('runAutoBackupIfDue Wi-Fi gating', () {
-    test('skips on a metered connection when Wi-Fi only is on', () async {
-      final prefs = InMemoryMediaPreferencesRepository(MediaStoragePreferences(
-        driveBackupEnabled: true,
-        autoBackupEveryDays: 3,
-        wifiOnly: true,
-        lastBackupAt: DateTime(2026, 1, 1),
-      ));
-      final client = _FakeDriveClient(connected: true);
-      final service = MediaService(
-        store: store,
-        registry: InMemoryMediaRegistry(),
-        preferences: prefs,
-        driveClient: client,
-        targets: {BackupTargetId.drive: GoogleDriveTarget(client: client, store: store)},
-        isUnmetered: () async => false,
-      );
+  group('backupNow (manual)', () {
+    test('uploads pending media to the per-account folder and records the id', () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(uid: 'acct-9'));
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, uploadId: 'drive-xyz', ownerId: 'u1');
+      final service = buildService(client, registry);
 
-      await service.runAutoBackupIfDue(now: DateTime(2026, 1, 10));
-      expect(client.uploaded, isEmpty);
+      final pushed = await service.backupNow();
+
+      expect(pushed, 1);
+      expect(client.uploaded, ['m1.jpg']);
+      expect(client.uploadedFolders, ['acct-9']); // per-account subfolder
+      expect((await registry.get('m1'))!.remoteId, 'drive-xyz');
+      expect((await registry.get('m1'))!.remoteBackup, BackupState.done);
     });
 
-    test('runs on wifi when Wi-Fi only is on', () async {
+    test('does nothing when Drive is not connected on this device', () async {
       await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject());
-      final prefs = InMemoryMediaPreferencesRepository(MediaStoragePreferences(
-        driveBackupEnabled: true,
-        autoBackupEveryDays: 3,
-        wifiOnly: true,
-        lastBackupAt: DateTime(2026, 1, 1),
-      ));
-      final client = _FakeDriveClient(connected: true);
-      final service = MediaService(
-        store: store,
-        registry: registry,
-        preferences: prefs,
-        driveClient: client,
-        targets: {BackupTargetId.drive: GoogleDriveTarget(client: client, store: store)},
-        isUnmetered: () async => true,
-      );
+      final client = _FakeDriveClient(deviceConnected: false, liveSession: false);
+      final service = buildService(client, registry);
 
-      await service.runAutoBackupIfDue(now: DateTime(2026, 1, 10));
+      expect(await service.backupNow(), 0);
+      expect(client.uploaded, isEmpty);
+    });
+
+    test('restores the session first when connected but not live (Back up now)', () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject());
+      final client = _FakeDriveClient(
+        connectAccount: const BackupAccount(id: '1', email: 'x@e.com'),
+        deviceConnected: true,
+        liveSession: false,
+        ownerId: 'u1',
+      );
+      final service = buildService(client, registry);
+
+      await service.backupNow();
+      expect(client.restoreCalls, 1);
       expect(client.uploaded, ['m1.jpg']);
+    });
+  });
+
+  group('resolveOrFetch never prompts', () {
+    const ref = 'media/moments/m1.jpg';
+
+    test('returns the local file without downloading when it exists', () async {
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true);
+      final file = await buildService(client, InMemoryMediaRegistry()).resolveOrFetch(ref);
+      expect(file!.existsSync(), isTrue);
+      expect(client.downloaded, isEmpty);
+    });
+
+    test('does NOT touch Drive when no session is live (passive read)', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(remoteId: 'd1'));
+      // Connected on device, but session not live → still must not download.
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: false)
+        ..downloadBytes = [9];
+      final service = buildService(client, registry);
+
+      expect(await service.resolveOrFetch(ref), isNull);
+      expect(client.downloaded, isEmpty);
+      expect(client.restoreCalls, 0);
+    });
+
+    test('downloads when a session is live and the file is backed up', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(remoteId: 'd1'));
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true)
+        ..downloadBytes = [4, 5, 6];
+      final service = buildService(client, registry);
+
+      final file = await service.resolveOrFetch(ref);
+      expect(client.downloaded, ['d1']);
+      expect(file!.readAsBytesSync(), [4, 5, 6]);
+    });
+  });
+
+  group('syncFromDrive (manual)', () {
+    test('downloads backed-up media that is missing locally', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(id: 'm1', remoteId: 'd1'));
+      await registry.put(makeObject(id: 'm2')); // no drive backup → skipped
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, ownerId: 'u1')
+        ..downloadBytes = [7];
+      final service = buildService(client, registry);
+
+      final fetched = await service.syncFromBackup();
+      expect(fetched, 1);
+      expect(client.downloaded, ['d1']);
+      expect((await store.resolve('media/moments/m1.jpg'))!.existsSync(), isTrue);
+    });
+
+    test('does nothing when Drive is not connected', () async {
+      final registry = InMemoryMediaRegistry();
+      await registry.put(makeObject(remoteId: 'd1'));
+      final client = _FakeDriveClient(deviceConnected: false, liveSession: false);
+      expect(await buildService(client, registry).syncFromBackup(), 0);
     });
   });
 }

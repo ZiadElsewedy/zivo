@@ -70,14 +70,6 @@ class FirestoreMediaPreferencesRepository implements MediaPreferencesRepository 
     }
     await _doc(uid).set({
       'saveToPhotos': preferences.saveToPhotos,
-      'driveBackupEnabled': preferences.driveBackupEnabled,
-      'driveConnected': preferences.driveConnected,
-      'driveAccountEmail': preferences.driveAccountEmail,
-      'autoBackupEveryDays': preferences.autoBackupEveryDays,
-      'wifiOnly': preferences.wifiOnly,
-      'lastBackupAt': preferences.lastBackupAt == null
-          ? null
-          : Timestamp.fromDate(preferences.lastBackupAt!),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -85,15 +77,8 @@ class FirestoreMediaPreferencesRepository implements MediaPreferencesRepository 
   MediaStoragePreferences _fromSnap(DocumentSnapshot<Map<String, dynamic>> snap) {
     final data = snap.data();
     if (data == null) return MediaStoragePreferences.defaults;
-    final lastBackupAt = data['lastBackupAt'];
     return MediaStoragePreferences(
       saveToPhotos: data['saveToPhotos'] as bool? ?? false,
-      driveBackupEnabled: data['driveBackupEnabled'] as bool? ?? false,
-      driveConnected: data['driveConnected'] as bool? ?? false,
-      driveAccountEmail: data['driveAccountEmail'] as String?,
-      autoBackupEveryDays: (data['autoBackupEveryDays'] as num?)?.toInt() ?? 3,
-      wifiOnly: data['wifiOnly'] as bool? ?? true,
-      lastBackupAt: lastBackupAt is Timestamp ? lastBackupAt.toDate() : null,
     );
   }
 }

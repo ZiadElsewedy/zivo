@@ -38,14 +38,14 @@ void main() {
         byteSize: 20,
         contentHash: 'hash2',
         capturedAt: DateTime(2026, 1, 3),
-        drive: BackupState.done,
+        remoteBackup: BackupState.done,
       ));
 
       final m1 = await registry.get('m1');
       expect(m1, isNotNull);
       expect(m1!.relativePath, 'media/moments/m1.jpg');
       expect(m1.kind, MediaKind.moment);
-      expect(m1.drive, BackupState.pending);
+      expect(m1.remoteBackup, BackupState.pending);
 
       // m2 is fully backed up; only m1 remains pending.
       final pending = await registry.pendingBackups();
@@ -63,22 +63,10 @@ void main() {
 
       expect(await repo.read(), MediaStoragePreferences.defaults);
 
-      await repo.save(const MediaStoragePreferences(
-        saveToPhotos: true,
-        driveBackupEnabled: true,
-        driveConnected: true,
-        driveAccountEmail: 'x@example.com',
-        autoBackupEveryDays: 3,
-        wifiOnly: false,
-      ));
+      await repo.save(const MediaStoragePreferences(saveToPhotos: true));
 
       final read = await repo.read();
       expect(read.saveToPhotos, isTrue);
-      expect(read.driveBackupEnabled, isTrue);
-      expect(read.driveConnected, isTrue);
-      expect(read.driveAccountEmail, 'x@example.com');
-      expect(read.autoBackupEveryDays, 3);
-      expect(read.wifiOnly, isFalse);
     });
 
     test('watch emits defaults for the signed-out account', () async {

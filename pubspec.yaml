@@ -56,12 +56,20 @@ dependencies:
   crypto: ^3.0.7
   firebase_app_check: ^0.4.6
   lottie: ^3.5.1
+  # Premium, consistent line-icon set used app-wide via core/theme/app_icons.
+  # (Lucide — Phosphor's package can't compile on this Flutter: it subclasses
+  # the now-final IconData.)
+  lucide_icons_flutter: ^3.0.0
+  # Native crop/straighten/rotate editor for moment photos (iOS Photos-style
+  # cropper; uCrop on Android).
+  image_cropper: ^12.0.0
   # Google Drive backup target (Phase 2): the Drive v3 API plus a plain http
   # client we wrap with google_sign_in's OAuth bearer token (drive.file scope).
   googleapis: ^14.0.0
   http: ^1.2.0
-  # Lets the media pipeline honor "Wi-Fi only" for automatic Drive backups.
-  connectivity_plus: ^7.0.0
+  # Per-device Drive connection state (which device is authorized, and which
+  # Google account) — kept local so opening Moments never triggers a sign-in.
+  shared_preferences: ^2.3.0
   # Picks an arbitrary file (a workout PDF) from device storage — image_picker
   # above is camera/gallery-only, not general file access.
   file_picker: ^8.1.6

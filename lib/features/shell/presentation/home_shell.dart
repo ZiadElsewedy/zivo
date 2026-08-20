@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../../../core/scope/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
@@ -34,20 +31,6 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    // Run the 3-day Drive auto-backup cadence on entering the authenticated
-    // app. Best-effort and self-gating: a no-op unless Drive is connected and
-    // at least the cadence has elapsed. iOS can't guarantee true timed
-    // background execution, so "on app open" is the practical trigger.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final media = AppScope.of(context).media;
-      if (media != null) unawaited(media.runAutoBackupIfDue().catchError((_) {}));
-    });
-  }
 
   static const _tabs = [
     TodayPage(),

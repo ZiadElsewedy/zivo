@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
+import 'package:zivo/core/media/presentation/media_image.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
+import 'package:zivo/features/moments/presentation/pages/photo_viewer_page.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -120,11 +123,54 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.tap(find.byIcon(AppIcons.camera));
     await tester.pumpAndSettle();
 
     expect(find.byType(MomentCapturePage), findsOneWidget);
     expect(find.text('New moment'), findsOneWidget);
+  });
+
+  testWidgets('shows the gallery filter bar', (tester) async {
+    _useTallSurface(tester);
+    final moments = InMemoryMomentRepository();
+    addTearDown(moments.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const MomentsTimelinePage(), momentsOverride: moments),
+    );
+    await tester.pump();
+
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Camera'), findsOneWidget);
+    expect(find.text('Library'), findsOneWidget);
+  });
+
+  testWidgets('tapping a photo opens the full-screen viewer', (tester) async {
+    _useTallSurface(tester);
+    final moments = InMemoryMomentRepository();
+    addTearDown(moments.dispose);
+    await moments.add(
+      Moment(
+        id: 'p1',
+        caption: 'Beach',
+        takenAt: DateTime.now(),
+        imagePath: 'media/moments/p1.jpg',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(child: const MomentsTimelinePage(), momentsOverride: moments),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(MediaImage).first);
+    // Not pumpAndSettle: the viewer's loading placeholder spins continuously
+    // (and never settles) until the file resolves, which it can't in a test.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(PhotoViewerPage), findsOneWidget);
   });
 
   testWidgets('tapping a card opens it for editing, prefilled', (tester) async {
@@ -174,7 +220,8 @@ void main() {
     expect(edited.takenAt, takenAt);
   });
 
-  testWidgets('swiping a card deletes it via the repository', (tester) async {
+  testWidgets('deleting from the editor removes the moment', (tester) async {
+    _useTallSurface(tester);
     final moments = InMemoryMomentRepository();
     addTearDown(moments.dispose);
     await moments.add(
@@ -188,7 +235,10 @@ void main() {
 
     expect(moments.current.any((m) => m.id == 'to-delete'), isTrue);
 
-    await tester.drag(find.text('Temp moment'), const Offset(-500, 0));
+    // A caption-only moment opens straight into the editor, which owns delete.
+    await tester.tap(find.text('Temp moment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('moment-delete')));
     await tester.pumpAndSettle();
 
     expect(moments.current.any((m) => m.id == 'to-delete'), isFalse);
