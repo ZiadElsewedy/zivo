@@ -208,6 +208,39 @@ deploys functions"). Nothing here is live until that happens.
   needed for this volume), and on-device verification (needs a live deploy
   first).
 
+**Code-review follow-ups (Phases 0–6, `code-review` skill at high effort):**
+a full pass over the whole milestone's diff surfaced six real issues, all
+fixed:
+- `WorkoutPlanEditPage._save()` hardcoded `source: manual`, silently
+  discarding an imported draft's `source: pdf` on Save. Now preserves
+  `widget.initialPlan?.source`.
+- `MAX_PDF_BASE64_CHARS`'s comment falsely claimed ADR-002's ~32MB parity;
+  corrected to state the real ~10.5MB raw-PDF ceiling the cap actually
+  enforces (fine for this feature's short PDFs).
+- `aiImportWorkoutPlan` had no `timeoutSeconds`; a whole-PDF Claude call can
+  run past the 60s platform default — set to 180s.
+- The Firestore/in-memory repos' no-pointer migration fallback (oldest vs
+  newest active-status split on a tie) was undocumented as intentional and
+  untested — confirmed it already matches `deleteSplit`'s own "oldest by
+  createdAt" re-pointing convention (not a silent regression, as first
+  suspected), then documented and pinned it with a dedicated tie test rather
+  than flipping it.
+- `saveSplit()` did an unconditional full-collection read on every save to
+  check for an existing active pointer. Now prefers the already-live
+  snapshot cache (gated on an actually-attached listener, not just "has ever
+  received one," so a stale cache after every listener detaches still falls
+  back to the server) — cheaper on the common path, pinned with a
+  live-listener test distinct from the existing cold-path ones.
+- `WorkoutImportResult`/`ImportedDay`/`ImportedExercise` lived under
+  `lib/features/ai/domain/` despite being workout-shaped data, bolted onto
+  the generic, chat-oriented `AiRepository` interface — moved to
+  `lib/features/workout/domain/`, matching every other workout type's home;
+  `AiRepository` now depends on workout domain for this one method's return
+  type, not the reverse.
+
+flutter analyze clean; full suite 550 passing; functions node --test 50
+passing; eslint clean.
+
 ---
 
 ## 1. Vocabulary (use these words precisely)

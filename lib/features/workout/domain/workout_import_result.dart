@@ -34,8 +34,14 @@ class ImportedDay {
 
 /// The full proposed split extracted from a PDF — never saved directly; the
 /// caller reviews/edits it (reusing `WorkoutPlanEditPage` in `asSplit` mode)
-/// before it becomes a real, saved split. See `workoutPlanFromImport` in the
-/// workout feature for the conversion into a domain `WorkoutPlan`.
+/// before it becomes a real, saved split. See `workoutPlanFromImport` in this
+/// same feature for the conversion into a domain `WorkoutPlan`.
+///
+/// Lives in the workout domain (not `ai/domain/`) because it's fundamentally
+/// workout-shaped data — the same convention every other workout type
+/// follows. `AiRepository.importWorkoutPlan` (a generic AI transport method
+/// that happens to produce a workout-specific artifact) imports it from here,
+/// not the other way around.
 class WorkoutImportResult {
   const WorkoutImportResult({required this.planName, required this.days});
 

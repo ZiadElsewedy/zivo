@@ -1,8 +1,8 @@
-import '../../ai/domain/workout_import_result.dart';
 import 'planned_exercise.dart';
 import 'rep_target.dart';
 import 'set_type.dart';
 import 'workout_day.dart';
+import 'workout_import_result.dart';
 import 'workout_plan.dart';
 import 'workout_plan_source.dart';
 import 'workout_plan_status.dart';

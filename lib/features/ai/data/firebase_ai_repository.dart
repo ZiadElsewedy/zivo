@@ -6,12 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
-import '../domain/workout_import_result.dart';
 
 /// The real [AiRepository], backed by Firestore's
 /// `users/{uid}/aiConversations` (+ nested `messages`) and the `aiChat`

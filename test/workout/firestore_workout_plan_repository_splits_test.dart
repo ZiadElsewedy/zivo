@@ -71,6 +71,28 @@ void main() {
       expect((await repo.watchActivePlan().first)!.id, 'a');
     });
 
+    test('with a LIVE listener attached, a second saveSplit still does not steal active '
+        '(exercises the cached-active-lookup path, not just the cold server-read one)', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreWorkoutPlanRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('u1'),
+      );
+
+      // A persistent subscription (unlike `.first`, which auto-cancels) keeps
+      // the repo's internal listener — and its cache — live for the rest of
+      // this test.
+      final sub = repo.watchSplits().listen((_) {});
+      addTearDown(sub.cancel);
+
+      await repo.saveSplit(_split('a', createdAt: DateTime(2024, 1, 1)));
+      expect(await _pointerId(firestore, 'u1'), 'a');
+
+      await repo.saveSplit(_split('b', createdAt: DateTime(2024, 2, 1)));
+      expect(await _pointerId(firestore, 'u1'), 'a'); // still 'a' — 'b' didn't steal active
+      expect(repo.activeSplitId, 'a');
+    });
+
     test('savePlan (back-compat) saves AND makes the saved plan active', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreWorkoutPlanRepository(
@@ -202,6 +224,41 @@ void main() {
       expect(await _pointerId(firestore, 'u1'), isNull);
       // Active resolves the old way: the first status==active plan.
       expect((await repo.watchActivePlan().first)!.id, 'live');
+    });
+
+    test('migration tie-break: with no pointer, the OLDEST active-status split wins '
+        '(same convention deleteSplit already uses to repoint)', () async {
+      final firestore = FakeFirebaseFirestore();
+      final plans = firestore.collection('users').doc('u1').collection('workoutPlans');
+      // Two genuinely tied candidates — both status: active, no pointer doc.
+      await plans.doc('newer').set({
+        'name': 'Newer',
+        'status': 'active',
+        'source': 'manual',
+        'cycleCursor': 0,
+        'days': const [],
+        'schemaVersion': 1,
+        'createdAt': Timestamp.fromDate(DateTime(2024, 6, 1)),
+        'updatedAt': Timestamp.fromDate(DateTime(2024, 6, 1)),
+      });
+      await plans.doc('older').set({
+        'name': 'Older',
+        'status': 'active',
+        'source': 'manual',
+        'cycleCursor': 0,
+        'days': const [],
+        'schemaVersion': 1,
+        'createdAt': Timestamp.fromDate(DateTime(2024, 1, 1)),
+        'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 1)),
+      });
+
+      final repo = FirestoreWorkoutPlanRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('u1'),
+      );
+
+      expect(await _pointerId(firestore, 'u1'), isNull);
+      expect((await repo.watchActivePlan().first)!.id, 'older');
     });
 
     test('signed-out uid source emits null/empty and guards writes', () async {

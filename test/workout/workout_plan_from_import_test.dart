@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zivo/features/ai/domain/workout_import_result.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
+import 'package:zivo/features/workout/domain/workout_import_result.dart';
 import 'package:zivo/features/workout/domain/workout_plan_from_import.dart';
 import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 

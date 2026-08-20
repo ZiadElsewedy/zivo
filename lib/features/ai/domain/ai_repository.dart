@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
+import '../../workout/domain/workout_import_result.dart';
 import 'ai_message.dart';
 import 'ai_turn_event.dart';
-import 'workout_import_result.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
 /// so both today's in-memory [FakeAiRepository] and the future

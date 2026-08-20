@@ -128,8 +128,11 @@ class InMemoryWorkoutPlanRepository implements WorkoutPlanRepository {
   }
 
   /// The active split: the one whose id == [_activeId]; falling back (for
-  /// back-compat when no pointer is set) to the first `active`-status split,
-  /// then the first split, then null.
+  /// back-compat when no pointer is set) to the OLDEST `active`-status split
+  /// (createdAt order — [_sorted] is ascending), then the oldest split overall,
+  /// then null. Deliberately the same "oldest wins a tie" convention
+  /// [deleteSplit] already uses when repointing after the active split is
+  /// removed — not an accident of iteration order.
   WorkoutPlan? _resolveActive() {
     if (_splits.isEmpty) return null;
     if (_activeId != null) {

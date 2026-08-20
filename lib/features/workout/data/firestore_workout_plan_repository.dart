@@ -141,7 +141,19 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
   Future<void> _saveSplit(String uid, WorkoutPlan normalized) async {
     // Only the first split ever saved (no active split yet) becomes active;
     // saving a second split must leave the current active pointer untouched.
-    final activeBefore = await _activeSplitIdFromServer(uid);
+    // Prefer the already-live cache — kept fresh by an ACTIVE snapshot
+    // listener, the same one `activePlan`/`activeSplitId` already trust —
+    // over a fresh full-collection read; a listener is virtually always
+    // attached once the app is open (the plan/analysis/split-management
+    // pages all watch these streams), so this avoids re-reading every
+    // split's embedded days on every single save. Gated on [_listenerCount]
+    // (not just [_hasSplitsSnapshot], which stays true even after every
+    // listener has since detached) — no *live* listener means the cache
+    // could be stale, so those calls fall back to the server read, same as
+    // before this optimization.
+    final activeBefore = _listenerCount > 0 && _hasSplitsSnapshot
+        ? _resolveActive()?.id
+        : await _activeSplitIdFromServer(uid);
     await _writeSplitDoc(uid, normalized);
     if (activeBefore == null) {
       await _writePointer(uid, normalized.id);
@@ -243,8 +255,11 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
   }
 
   /// The active split: the one whose id == the pointer; falling back (for
-  /// back-compat when no valid pointer is set) to the first `active`-status
-  /// split, then the first split (createdAt order), then null.
+  /// back-compat when no valid pointer is set) to the OLDEST `active`-status
+  /// split (createdAt order — [_splitDocs] is ascending), then the oldest
+  /// split overall, then null. Deliberately the same "oldest wins a tie"
+  /// convention [_deleteSplit] already uses when repointing after the active
+  /// split is removed — not an accident of iteration order.
   WorkoutPlan? _resolveActive() {
     if (_splitDocs.isEmpty) return null;
     final pointer = _activePointerId;
@@ -263,8 +278,8 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
 
   /// Resolves the currently-active split id straight from the server (used by
   /// [saveSplit] to decide whether the incoming split should become active).
-  /// Mirrors [_resolveActive]: pointer if valid, else first active-status, else
-  /// first by createdAt, else null when there are no splits.
+  /// Mirrors [_resolveActive]: pointer if valid, else oldest active-status,
+  /// else oldest overall by createdAt, else null when there are no splits.
   Future<String?> _activeSplitIdFromServer(String uid) async {
     final pointerSnap = await _metaDoc(uid).get();
     final pointer = _pointerIdFrom(pointerSnap.data());

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
-import '../domain/workout_import_result.dart';
 
 /// The assistant isn't connected yet — an honest, canned reply. Never
 /// masquerades as real AI (ADR-001's client-seam-first requirement).
