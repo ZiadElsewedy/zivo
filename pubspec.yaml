@@ -67,8 +67,9 @@ dependencies:
   # client we wrap with google_sign_in's OAuth bearer token (drive.file scope).
   googleapis: ^14.0.0
   http: ^1.2.0
-  # Lets the media pipeline honor "Wi-Fi only" for automatic Drive backups.
-  connectivity_plus: ^7.0.0
+  # Per-device Drive connection state (which device is authorized, and which
+  # Google account) — kept local so opening Moments never triggers a sign-in.
+  shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:

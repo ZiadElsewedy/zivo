@@ -13,6 +13,7 @@ import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/moment.dart';
 import 'moment_capture_page.dart';
 import 'photo_viewer_page.dart';
+import 'storage_sync_page.dart';
 
 /// How the gallery grid is filtered. Camera/Library read the media record's
 /// capture source; Photos filters to moments that actually have an image.
@@ -115,6 +116,18 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text('Moments', style: AppText.cardTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(AppIcons.backupNow, color: AppColors.ink2),
+            tooltip: 'Storage & Sync',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StorageSyncPage()),
+              );
+              await _loadMedia();
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.ember,

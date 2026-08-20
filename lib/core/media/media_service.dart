@@ -13,12 +13,14 @@ import 'domain/media_storage_preferences.dart';
 /// The single entry point features use for media. It hides *where* bytes go:
 /// callers hand it a captured file and get back a durable reference to embed in
 /// their entity; the service copies the bytes into the local [MediaStore],
-/// records a [MediaObject] in the [MediaRegistry], and fans the file out to
-/// whatever backup targets the account has enabled.
+/// records a [MediaObject] in the [MediaRegistry], and — only if the account
+/// opted in — copies to the system Photos.
 ///
-/// Storage policy (local always on; Photos on capture; Drive on the manual /
-/// 3-day cadence) lives here, driven by [MediaPreferencesRepository] — not in
-/// the features, and not in the targets.
+/// Google Drive is deliberately **manual and device-local**: nothing here ever
+/// touches the Google SDK on its own. Uploads/downloads happen only from the
+/// user-initiated [backupNow] / [syncFromDrive], and passive reads
+/// ([resolveOrFetch]) fetch from Drive only when a session is already live —
+/// so opening Moments or taking a photo never triggers a sign-in prompt.
 class MediaService {
   MediaService({
     required this.store,
@@ -26,33 +28,36 @@ class MediaService {
     required this.preferences,
     this.targets = const {},
     this.driveClient,
-    this.isUnmetered,
   });
 
   final MediaStore store;
   final MediaRegistry registry;
   final MediaPreferencesRepository preferences;
+
+  /// Non-Drive fan-out targets (currently the device gallery for "Save to
+  /// Photos"). Drive is handled directly, not as a passive target.
   final Map<BackupTargetId, MediaBackupTarget> targets;
 
-  /// The Google Drive connection seam, used by the Settings connect/disconnect
-  /// flow. Null when Drive isn't wired (offline/dev builds); the Drive backup
-  /// *upload* path goes through [targets] instead.
+  /// The Google Drive seam, or null in offline/dev builds.
   final DriveBackupClient? driveClient;
 
-  /// Whether Drive backup is available to offer in the UI at all.
+  /// Whether Drive backup is offered in the UI at all (build has a client).
   bool get supportsDrive => driveClient != null;
 
-  /// Reports whether the current connection is unmetered (wifi/ethernet), used
-  /// to honor "Wi-Fi only" for *automatic* backups. Null = unknown/always allow.
-  final Future<bool> Function()? isUnmetered;
+  /// Whether an authorized Drive session is live right now (no SDK call).
+  bool get isDriveSessionLive => driveClient?.hasLiveSession ?? false;
+
+  /// Whether this *device* has connected Drive before (persisted).
+  Future<bool> isDriveConnected() async =>
+      await driveClient?.isDeviceConnected() ?? false;
+
+  /// The connected Google account email on this device, if any.
+  Future<String?> connectedDriveEmail() async =>
+      await driveClient?.connectedEmail();
 
   /// Imports a just-captured/picked file into durable local storage, registers
-  /// it for [ownerUid], and — if the account opted into "Save to Photos" —
-  /// copies it to the system gallery. Drive backup is deliberately *not* done
-  /// here; it runs on the manual "Back up now" action or the 3-day cadence.
-  ///
-  /// Returns the store-relative reference to persist on the owning entity
-  /// (`Moment.imagePath` / `UserProfile.photoPath`).
+  /// it, and — if "Save to Photos" is on — copies it to the system gallery.
+  /// Never touches Drive. Returns the store-relative reference to persist.
   Future<String> capture({
     required String sourcePath,
     required MediaKind kind,
@@ -61,19 +66,10 @@ class MediaService {
     CaptureSource source = CaptureSource.unknown,
     DateTime? capturedAt,
   }) async {
-    final stored = await store.importFile(
-      sourcePath: sourcePath,
-      kind: kind,
-      id: id,
-    );
+    final stored = await store.importFile(sourcePath: sourcePath, kind: kind, id: id);
 
-    // The durable local copy above is the source of truth and has succeeded.
-    // Everything below (reading preferences, saving to Photos, registering
-    // metadata for backup) is best-effort: a failure there — e.g. Firestore
-    // rules not yet allowing the media/settings paths, or being offline — must
-    // never lose the photo or block the owning entity (a Moment/avatar) from
-    // saving. So each step is guarded and the local reference is always
-    // returned.
+    // Local copy done — everything below is best-effort and must never lose the
+    // photo or block the owning entity from saving.
     MediaStoragePreferences prefs;
     try {
       prefs = await preferences.read();
@@ -96,14 +92,13 @@ class MediaService {
     );
 
     if (prefs.saveToPhotos) {
-      object = await _run(BackupTargetId.gallery, object);
+      object = await _runGallery(object);
     }
 
     try {
       await registry.put(object);
     } catch (_) {
-      // Metadata is best-effort; the local file still exists and is referenced
-      // by the entity. Backup tracking simply catches up on a later capture.
+      // Metadata is best-effort; the local file still exists.
     }
     return stored.relativePath;
   }
@@ -111,23 +106,18 @@ class MediaService {
   /// Resolves a stored reference to an absolute [File] for display, or null.
   Future<File?> resolve(String? ref) => store.resolve(ref);
 
-  /// Like [resolve], but if the local copy is missing (e.g. this is a second
-  /// device, or a fresh reinstall) it tries to pull the bytes down from Google
-  /// Drive using the media's stored `driveFileId`, materializes them into the
-  /// local store, and returns that file. Returns null when the file can't be
-  /// produced (no Drive backup for it, Drive not connected, or offline) — the
-  /// caller then shows a placeholder.
-  ///
-  /// Once fetched, the file is on disk, so subsequent [resolve]s are instant.
+  /// Like [resolve], but if the local copy is missing it pulls the bytes from
+  /// Drive — *only when a session is already live* (so it never prompts). On a
+  /// second device the user connects Drive once (in Storage & Sync), which
+  /// establishes the session; then photos download on demand and are cached.
   Future<File?> resolveOrFetch(String? ref) async {
     final local = await store.resolve(ref);
     if (local != null && await local.exists()) return local;
     if (ref == null || ref.isEmpty) return null;
 
     final client = driveClient;
-    if (client == null) return null;
+    if (client == null || !client.hasLiveSession) return null;
 
-    // The media id is the ref's basename (media/{kind}/{id}.{ext}).
     final id = p.posix.basenameWithoutExtension(ref);
     MediaObject? object;
     try {
@@ -139,7 +129,6 @@ class MediaService {
     if (driveFileId == null) return null;
 
     try {
-      if (!await client.isConnected()) return null;
       final bytes = await client.download(driveFileId);
       if (bytes == null || bytes.isEmpty) return null;
       return await store.writeBytes(ref, bytes);
@@ -148,83 +137,79 @@ class MediaService {
     }
   }
 
-  /// Connects a Google account for Drive backup (interactive) and, on success,
-  /// records it in preferences (connected + enabled + email). Returns whether
-  /// it connected. No-op returning false when Drive isn't wired.
-  Future<bool> connectDrive() async {
-    final client = driveClient;
-    if (client == null) return false;
-    final account = await client.connect();
-    if (account == null) return false;
-    final prefs = await preferences.read();
-    await preferences.save(prefs.copyWith(
-      driveConnected: true,
-      driveBackupEnabled: true,
-      driveAccountEmail: account.email,
-    ));
-    return true;
-  }
-
-  /// Disconnects Drive: revokes the Google session and clears the connection
-  /// from preferences (backup stays local-only).
-  Future<void> disconnectDrive() async {
-    await driveClient?.disconnect();
-    final prefs = await preferences.read();
-    await preferences.save(prefs.copyWith(
-      driveConnected: false,
-      driveBackupEnabled: false,
-      clearDriveAccountEmail: true,
-    ));
-  }
-
-  /// Deletes the local file and its registry entry. (Removing an already
-  /// backed-up copy from a remote target is a Phase 2 concern.)
+  /// Deletes the local file and its registry entry.
   Future<void> deleteMedia({required String id, required String? ref}) async {
     await store.delete(ref);
     await registry.remove(id);
   }
 
-  /// Runs a backup pass over every media file whose Drive copy is still
-  /// pending/failed, then stamps [MediaStoragePreferences.lastBackupAt].
-  /// A no-op (beyond the stamp) until a Drive target is registered (Phase 2).
-  /// Returns how many files were successfully pushed.
+  /// Interactive connect to Google Drive (user-initiated). Returns whether it
+  /// connected. The connection is remembered per-device by the client.
+  Future<bool> connectDrive() async {
+    final account = await driveClient?.connect();
+    return account != null;
+  }
+
+  /// Disconnects Drive on this device.
+  Future<void> disconnectDrive() => driveClient?.disconnect() ?? Future.value();
+
+  /// Uploads every not-yet-backed-up photo to the account's Drive subfolder.
+  /// User-initiated ("Back up now"): may establish/restore the session. Returns
+  /// how many were pushed (0 if Drive isn't connected on this device).
   Future<int> backupNow() async {
-    final prefs = await preferences.read();
+    final client = driveClient;
+    if (client == null) return 0;
+    if (!client.hasLiveSession && await client.restoreSession() == null) return 0;
+
+    final pending = await registry.pendingBackups();
     var pushed = 0;
-    if (prefs.driveBackupEnabled && targets.containsKey(BackupTargetId.drive)) {
-      final pending = await registry.pendingBackups();
-      for (final object in pending) {
-        if (object.drive == BackupState.done) continue;
-        final updated = await _run(BackupTargetId.drive, object);
-        await registry.put(updated);
-        if (updated.drive == BackupState.done) pushed++;
+    for (final object in pending) {
+      if (object.drive == BackupState.done) continue;
+      final file = await store.resolve(object.relativePath);
+      if (file == null || !await file.exists()) continue; // nothing local to upload
+      final remoteId = await client.uploadImage(
+        file: file,
+        fileName: p.posix.basename(object.relativePath),
+        mimeType: object.mimeType,
+        accountFolder: object.ownerUid,
+        replaceFileId: object.driveFileId,
+      );
+      if (remoteId != null) {
+        await registry.put(object.copyWith(drive: BackupState.done, driveFileId: remoteId));
+        pushed++;
+      } else {
+        await registry.put(object.copyWith(drive: BackupState.failed));
       }
     }
-    await preferences.save(prefs.copyWith(lastBackupAt: DateTime.now()));
     return pushed;
   }
 
-  /// Runs [backupNow] only if the account's auto-backup cadence is due
-  /// (>= [MediaStoragePreferences.autoBackupEveryDays] since the last run).
-  /// Intended to be called on app open; iOS cannot guarantee true timed
-  /// background execution.
-  Future<void> runAutoBackupIfDue({DateTime? now}) async {
-    final prefs = await preferences.read();
-    final everyDays = prefs.autoBackupEveryDays;
-    if (!prefs.driveBackupEnabled || everyDays == null) return;
-    final last = prefs.lastBackupAt;
-    final current = now ?? DateTime.now();
-    if (last != null && current.difference(last).inDays < everyDays) return;
-    // Honor "Wi-Fi only" for the automatic path (the manual "Back up now"
-    // action deliberately ignores it — the user asked for it explicitly).
-    if (prefs.wifiOnly && isUnmetered != null && !await isUnmetered!()) return;
-    await backupNow();
+  /// Downloads every backed-up photo missing locally (e.g. a second device or
+  /// after reinstall) into the local store. User-initiated ("Sync from Drive").
+  /// Returns how many were fetched.
+  Future<int> syncFromDrive() async {
+    final client = driveClient;
+    if (client == null) return 0;
+    if (!client.hasLiveSession && await client.restoreSession() == null) return 0;
+
+    final all = await registry.getAll();
+    var fetched = 0;
+    for (final object in all) {
+      final driveFileId = object.driveFileId;
+      if (driveFileId == null) continue;
+      final local = await store.resolve(object.relativePath);
+      if (local != null && await local.exists()) continue;
+      final bytes = await client.download(driveFileId);
+      if (bytes == null || bytes.isEmpty) continue;
+      await store.writeBytes(object.relativePath, bytes);
+      fetched++;
+    }
+    return fetched;
   }
 
-  /// Invokes one target and folds its result back into the [MediaObject]'s
-  /// per-target state. Never throws — a target failure is recorded, not fatal.
-  Future<MediaObject> _run(BackupTargetId targetId, MediaObject object) async {
-    final target = targets[targetId];
+  /// Invokes the gallery target and folds its result into the object's state.
+  Future<MediaObject> _runGallery(MediaObject object) async {
+    final target = targets[BackupTargetId.gallery];
     if (target == null) return object;
     BackupResult result;
     try {
@@ -233,12 +218,8 @@ class MediaService {
     } catch (_) {
       result = const BackupResult.failure();
     }
-    final state = result.succeeded ? BackupState.done : BackupState.failed;
-    switch (targetId) {
-      case BackupTargetId.gallery:
-        return object.copyWith(gallery: state);
-      case BackupTargetId.drive:
-        return object.copyWith(drive: state, driveFileId: result.remoteId);
-    }
+    return object.copyWith(
+      gallery: result.succeeded ? BackupState.done : BackupState.failed,
+    );
   }
 }

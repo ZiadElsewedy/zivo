@@ -63,22 +63,10 @@ void main() {
 
       expect(await repo.read(), MediaStoragePreferences.defaults);
 
-      await repo.save(const MediaStoragePreferences(
-        saveToPhotos: true,
-        driveBackupEnabled: true,
-        driveConnected: true,
-        driveAccountEmail: 'x@example.com',
-        autoBackupEveryDays: 3,
-        wifiOnly: false,
-      ));
+      await repo.save(const MediaStoragePreferences(saveToPhotos: true));
 
       final read = await repo.read();
       expect(read.saveToPhotos, isTrue);
-      expect(read.driveBackupEnabled, isTrue);
-      expect(read.driveConnected, isTrue);
-      expect(read.driveAccountEmail, 'x@example.com');
-      expect(read.autoBackupEveryDays, 3);
-      expect(read.wifiOnly, isFalse);
     });
 
     test('watch emits defaults for the signed-out account', () async {
