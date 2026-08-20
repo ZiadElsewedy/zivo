@@ -5,10 +5,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../../env/app_environment.dart';
-import '../domain/drive_backup_client.dart';
+import '../domain/media_backup_provider.dart';
 import 'drive_connection_store.dart';
 
-/// The real [DriveBackupClient], backed by `google_sign_in` (v7 incremental
+/// The real [MediaBackupProvider], backed by `google_sign_in` (v7 incremental
 /// authorization) and the Drive v3 REST API. The only file that touches Google
 /// authorization scopes or the `googleapis` Drive surface.
 ///
@@ -23,7 +23,7 @@ import 'drive_connection_store.dart';
 /// NOTE: needs the Google side configured in Cloud project `zivo-63f15` (Drive
 /// API on, `drive.file` on the consent screen); the live flows need on-device
 /// verification.
-class GoogleDriveBackupClient implements DriveBackupClient {
+class GoogleDriveBackupClient implements MediaBackupProvider {
   GoogleDriveBackupClient({
     GoogleSignIn? signIn,
     DriveConnectionStore? connectionStore,
@@ -66,7 +66,7 @@ class GoogleDriveBackupClient implements DriveBackupClient {
   }
 
   @override
-  Future<DriveAccount?> connect() async {
+  Future<BackupAccount?> connect() async {
     await _ensureInit();
     if (!_signIn.supportsAuthenticate()) return null;
     final account = await _signIn.authenticate(scopeHint: _scopes);
@@ -74,13 +74,13 @@ class GoogleDriveBackupClient implements DriveBackupClient {
     if (authz.accessToken.isEmpty) return null;
     _liveAccount = account;
     await _store.setConnected(account.email);
-    return DriveAccount(id: account.id, email: account.email);
+    return BackupAccount(id: account.id, email: account.email);
   }
 
   @override
-  Future<DriveAccount?> restoreSession() async {
+  Future<BackupAccount?> restoreSession() async {
     if (_liveAccount != null) {
-      return DriveAccount(id: _liveAccount!.id, email: _liveAccount!.email);
+      return BackupAccount(id: _liveAccount!.id, email: _liveAccount!.email);
     }
     if (!await _store.isConnected()) return null;
     await _ensureInit();
@@ -89,7 +89,7 @@ class GoogleDriveBackupClient implements DriveBackupClient {
     final authz = await account.authorizationClient.authorizationForScopes(_scopes);
     if (authz == null) return null;
     _liveAccount = account;
-    return DriveAccount(id: account.id, email: account.email);
+    return BackupAccount(id: account.id, email: account.email);
   }
 
   @override
@@ -111,12 +111,12 @@ class GoogleDriveBackupClient implements DriveBackupClient {
   }
 
   @override
-  Future<String?> uploadImage({
+  Future<String?> upload({
     required File file,
     required String fileName,
     required String mimeType,
     required String accountFolder,
-    String? replaceFileId,
+    String? replaceRemoteId,
   }) async {
     final headers = await _headers();
     if (headers == null) return null;
@@ -126,8 +126,8 @@ class GoogleDriveBackupClient implements DriveBackupClient {
       final api = drive.DriveApi(client);
       final media = drive.Media(file.openRead(), await file.length(), contentType: mimeType);
 
-      if (replaceFileId != null) {
-        final updated = await api.files.update(drive.File(), replaceFileId, uploadMedia: media);
+      if (replaceRemoteId != null) {
+        final updated = await api.files.update(drive.File(), replaceRemoteId, uploadMedia: media);
         return updated.id;
       }
 

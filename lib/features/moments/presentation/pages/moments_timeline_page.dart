@@ -13,7 +13,7 @@ import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/moment.dart';
 import 'moment_capture_page.dart';
 import 'photo_viewer_page.dart';
-import 'storage_sync_page.dart';
+import '../../../../core/media/presentation/storage_sync_page.dart';
 
 /// How the gallery grid is filtered. Camera/Library read the media record's
 /// capture source; Photos filters to moments that actually have an image.

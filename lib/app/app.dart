@@ -11,8 +11,7 @@ import '../core/media/data/google_drive_backup_client.dart';
 import '../core/media/data/in_memory_media_preferences_repository.dart';
 import '../core/media/data/in_memory_media_registry.dart';
 import '../core/media/data/local_media_store.dart';
-import '../core/media/domain/drive_backup_client.dart';
-import '../core/media/domain/media_backup_target.dart';
+import '../core/media/domain/media_backup_provider.dart';
 import '../core/media/domain/media_registry.dart';
 import '../core/media/domain/media_storage_preferences.dart';
 import '../core/media/domain/media_store.dart';
@@ -156,15 +155,14 @@ class _ZivoAppState extends State<ZivoApp> {
         store: _mediaStore,
         registry: _defaultMediaRegistry(),
         preferences: _mediaPreferences,
-        driveClient: _defaultDriveClient(),
-        targets: <BackupTargetId, MediaBackupTarget>{
-          BackupTargetId.gallery: DeviceGalleryTarget(store: _mediaStore),
-        },
+        galleryTarget: DeviceGalleryTarget(store: _mediaStore),
+        backup: _defaultBackupProvider(),
       );
 
-  /// Real Google Drive backup client when running against the real backend;
-  /// null in offline/dev runs (no OAuth), where Drive backup is simply absent.
-  DriveBackupClient? _defaultDriveClient() =>
+  /// Real Google Drive backup provider when running against the real backend;
+  /// null in offline/dev runs (no OAuth), where cloud backup is simply absent.
+  /// Swapping providers is a one-line change here — nothing else moves.
+  MediaBackupProvider? _defaultBackupProvider() =>
       _useFirestore ? GoogleDriveBackupClient() : null;
 
   TaskRepository _defaultTasks() => _useFirestore

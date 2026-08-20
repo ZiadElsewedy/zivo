@@ -14,7 +14,7 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
-import '../widgets/settings_row.dart';
+import '../../../../core/widgets/settings_row.dart';
 import 'settings_page.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account

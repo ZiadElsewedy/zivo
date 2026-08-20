@@ -19,6 +19,8 @@ class _ThrowingRegistry implements MediaRegistry {
   @override
   Future<MediaObject?> get(String id) async => null;
   @override
+  Future<MediaObject?> getByRelativePath(String relativePath) async => null;
+  @override
   Future<List<MediaObject>> getAll() async => const [];
   @override
   Future<List<MediaObject>> pendingBackups() async => const [];
@@ -26,12 +28,10 @@ class _ThrowingRegistry implements MediaRegistry {
   Future<void> remove(String id) async {}
 }
 
-/// Records every backup call and returns a scripted result.
+/// Records every gallery-copy call and returns a scripted result.
 class _FakeTarget implements MediaBackupTarget {
-  _FakeTarget(this.id, {this.succeed = true});
+  _FakeTarget({this.succeed = true});
 
-  @override
-  final BackupTargetId id;
   final bool succeed;
   final List<String> backedUp = [];
 
@@ -39,9 +39,9 @@ class _FakeTarget implements MediaBackupTarget {
   Future<bool> isConfigured() async => true;
 
   @override
-  Future<BackupResult> backup(MediaObject object) async {
+  Future<bool> backup(MediaObject object) async {
     backedUp.add(object.id);
-    return succeed ? const BackupResult.success() : const BackupResult.failure();
+    return succeed;
   }
 }
 
@@ -70,8 +70,8 @@ void main() {
     return f.path;
   }
 
-  MediaService buildService({Map<BackupTargetId, MediaBackupTarget> targets = const {}}) =>
-      MediaService(store: storeImpl, registry: registry, preferences: prefs, targets: targets);
+  MediaService buildService({MediaBackupTarget? galleryTarget}) =>
+      MediaService(store: storeImpl, registry: registry, preferences: prefs, galleryTarget: galleryTarget);
 
   group('capture', () {
     test('stores bytes, registers metadata, and returns the relative ref', () async {
@@ -93,16 +93,16 @@ void main() {
     });
 
     test('does not touch the gallery when Save to Photos is off', () async {
-      final gallery = _FakeTarget(BackupTargetId.gallery);
-      final service = buildService(targets: {BackupTargetId.gallery: gallery});
+      final gallery = _FakeTarget();
+      final service = buildService(galleryTarget: gallery);
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
       expect(gallery.backedUp, isEmpty);
     });
 
     test('copies to the gallery and records done when Save to Photos is on', () async {
       await prefs.save(const MediaStoragePreferences(saveToPhotos: true));
-      final gallery = _FakeTarget(BackupTargetId.gallery);
-      final service = buildService(targets: {BackupTargetId.gallery: gallery});
+      final gallery = _FakeTarget();
+      final service = buildService(galleryTarget: gallery);
 
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
 
@@ -131,8 +131,8 @@ void main() {
 
     test('records a gallery failure without throwing', () async {
       await prefs.save(const MediaStoragePreferences(saveToPhotos: true));
-      final gallery = _FakeTarget(BackupTargetId.gallery, succeed: false);
-      final service = buildService(targets: {BackupTargetId.gallery: gallery});
+      final gallery = _FakeTarget(succeed: false);
+      final service = buildService(galleryTarget: gallery);
 
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
       expect((await registry.get('m1'))!.gallery, BackupState.failed);

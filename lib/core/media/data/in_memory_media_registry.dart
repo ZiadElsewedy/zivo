@@ -14,12 +14,20 @@ class InMemoryMediaRegistry implements MediaRegistry {
   Future<MediaObject?> get(String id) async => _items[id];
 
   @override
+  Future<MediaObject?> getByRelativePath(String relativePath) async {
+    for (final object in _items.values) {
+      if (object.relativePath == relativePath) return object;
+    }
+    return null;
+  }
+
+  @override
   Future<List<MediaObject>> getAll() async => _items.values.toList(growable: false);
 
   @override
   Future<List<MediaObject>> pendingBackups() async {
     return _items.values
-        .where((m) => m.drive != BackupState.done || m.gallery == BackupState.failed)
+        .where((m) => m.remoteBackup != BackupState.done || m.gallery == BackupState.failed)
         .toList(growable: false);
   }
 

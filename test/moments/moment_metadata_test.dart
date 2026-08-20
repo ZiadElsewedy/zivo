@@ -50,7 +50,7 @@ void main() {
         source: CaptureSource.camera,
         width: 100,
         height: 200,
-        drive: BackupState.done,
+        remoteBackup: BackupState.done,
       );
       final rows = buildMomentMetadata(moment, media);
       final map = {for (final r in rows) r.label: r.value};

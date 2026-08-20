@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_icons.dart';
-import '../../../moments/presentation/pages/storage_sync_page.dart';
-import 'settings_row.dart';
+import '../../../../core/media/presentation/storage_sync_page.dart';
+import '../../../../core/widgets/settings_row.dart';
 
 /// The Settings entry into media storage. The actual controls live on the
 /// dedicated [StorageSyncPage] (also reachable from Moments) — this is just the

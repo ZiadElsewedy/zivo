@@ -10,6 +10,11 @@ abstract interface class MediaRegistry {
   /// Reads one entry by id for the current account, or null if none.
   Future<MediaObject?> get(String id);
 
+  /// Finds an entry by its stored relative path, or null. Lets a caller that
+  /// holds only a store reference (e.g. `Moment.imagePath`) look up the media's
+  /// backup metadata without knowing the id↔path convention.
+  Future<MediaObject?> getByRelativePath(String relativePath);
+
   /// All entries for the current account (small, personal collection). The
   /// gallery joins these onto moments for metadata display and filtering.
   Future<List<MediaObject>> getAll();

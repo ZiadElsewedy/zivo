@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/media/domain/media_object.dart';
-import '../../../../core/media/domain/media_storage_preferences.dart';
-import '../../../../core/media/media_service.dart';
-import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/google_drive_mark.dart';
-import '../../../../core/widgets/pressable_scale.dart';
-import '../../../../core/widgets/zivo_toast.dart';
-import '../../../auth/presentation/widgets/settings_row.dart';
+import '../../scope/app_scope.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_icons.dart';
+import '../../theme/app_shadows.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
+import '../../widgets/google_drive_mark.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../widgets/settings_row.dart';
+import '../../widgets/zivo_toast.dart';
+import '../domain/media_object.dart';
+import '../domain/media_storage_preferences.dart';
+import '../media_service.dart';
 
 /// "Storage & Sync" — the one screen that answers *where your photos are*:
 /// always on this device, and optionally backed up to a Google Drive account
@@ -42,15 +42,15 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
 
   Future<void> _refresh() async {
     try {
-      final connected = await _media.isDriveConnected();
-      final email = await _media.connectedDriveEmail();
+      final connected = await _media.isBackupConnected();
+      final email = await _media.connectedBackupAccount();
       final all = await _media.registry.getAll();
       if (!mounted) return;
       setState(() {
         _connected = connected;
         _email = email;
         _total = all.length;
-        _backedUp = all.where((m) => m.drive == BackupState.done).length;
+        _backedUp = all.where((m) => m.remoteBackup == BackupState.done).length;
       });
     } catch (_) {
       // Best-effort status.
@@ -73,7 +73,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
   }
 
   Future<void> _connect() => _run(() async {
-        final ok = await _media.connectDrive();
+        final ok = await _media.connectBackup();
         _toast(
           ok ? 'Google Drive connected on this device.' : 'Couldn’t connect Google Drive.',
           ok ? ToastKind.success : ToastKind.error,
@@ -81,7 +81,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
       });
 
   Future<void> _disconnect() => _run(() async {
-        await _media.disconnectDrive();
+        await _media.disconnectBackup();
         _toast('Google Drive disconnected on this device.', ToastKind.info);
       });
 
@@ -94,7 +94,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
       });
 
   Future<void> _syncFromDrive() => _run(() async {
-        final n = await _media.syncFromDrive();
+        final n = await _media.syncFromBackup();
         _toast(
           n == 0 ? 'Nothing new to download.' : 'Downloaded $n ${_p(n)} from Drive.',
           ToastKind.success,
@@ -123,7 +123,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
             Text('BACKUP & SYNC', style: AppText.sectionLabel),
             const SizedBox(height: 8),
             _DriveCard(
-              supported: _media.supportsDrive,
+              supported: _media.supportsBackup,
               connected: _connected,
               email: _email,
               total: _total,

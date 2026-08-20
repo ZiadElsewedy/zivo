@@ -38,14 +38,14 @@ void main() {
         byteSize: 20,
         contentHash: 'hash2',
         capturedAt: DateTime(2026, 1, 3),
-        drive: BackupState.done,
+        remoteBackup: BackupState.done,
       ));
 
       final m1 = await registry.get('m1');
       expect(m1, isNotNull);
       expect(m1!.relativePath, 'media/moments/m1.jpg');
       expect(m1.kind, MediaKind.moment);
-      expect(m1.drive, BackupState.pending);
+      expect(m1.remoteBackup, BackupState.pending);
 
       // m2 is fully backed up; only m1 remains pending.
       final pending = await registry.pendingBackups();

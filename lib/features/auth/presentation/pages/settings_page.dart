@@ -9,7 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../widgets/media_backup_section.dart';
-import '../widgets/settings_row.dart';
+import '../../../../core/widgets/settings_row.dart';
 
 /// Settings — appearance and about, plus sign out. Split from [ProfilePage]
 /// the way most apps separate "who you are" from "how the app behaves" —

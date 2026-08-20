@@ -91,6 +91,6 @@ String formatBytes(int bytes) {
 String _backupLabel(MediaObject media) {
   final parts = <String>['On this device'];
   if (media.gallery == BackupState.done) parts.add('Photos');
-  if (media.drive == BackupState.done) parts.add('Google Drive');
+  if (media.remoteBackup == BackupState.done) parts.add('Google Drive');
   return parts.join(' · ');
 }

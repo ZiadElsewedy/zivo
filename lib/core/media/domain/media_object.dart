@@ -58,8 +58,8 @@ class MediaObject {
     this.width,
     this.height,
     this.gallery = BackupState.pending,
-    this.drive = BackupState.pending,
-    this.driveFileId,
+    this.remoteBackup = BackupState.pending,
+    this.remoteId,
   });
 
   /// Stable id, also embedded in [relativePath] and referenced by the owning
@@ -92,18 +92,20 @@ class MediaObject {
   final int? width;
   final int? height;
 
-  /// Per-target backup status.
+  /// Copied to the device gallery ("Save to Photos").
   final BackupState gallery;
-  final BackupState drive;
 
-  /// The Google Drive file id once uploaded (for update/delete/restore). Null
-  /// until a Drive backup succeeds.
-  final String? driveFileId;
+  /// Backed up to the remote cloud provider (Drive today; provider-agnostic).
+  final BackupState remoteBackup;
+
+  /// The provider-assigned id of the uploaded file (for update/restore). Null
+  /// until a remote backup succeeds.
+  final String? remoteId;
 
   MediaObject copyWith({
     BackupState? gallery,
-    BackupState? drive,
-    String? driveFileId,
+    BackupState? remoteBackup,
+    String? remoteId,
   }) {
     return MediaObject(
       id: id,
@@ -118,8 +120,8 @@ class MediaObject {
       width: width,
       height: height,
       gallery: gallery ?? this.gallery,
-      drive: drive ?? this.drive,
-      driveFileId: driveFileId ?? this.driveFileId,
+      remoteBackup: remoteBackup ?? this.remoteBackup,
+      remoteId: remoteId ?? this.remoteId,
     );
   }
 }

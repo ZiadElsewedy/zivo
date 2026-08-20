@@ -4,13 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/media/data/in_memory_media_preferences_repository.dart';
 import 'package:zivo/core/media/data/in_memory_media_registry.dart';
 import 'package:zivo/core/media/data/local_media_store.dart';
-import 'package:zivo/core/media/domain/drive_backup_client.dart';
+import 'package:zivo/core/media/domain/media_backup_provider.dart';
 import 'package:zivo/core/media/domain/media_kind.dart';
 import 'package:zivo/core/media/domain/media_object.dart';
 import 'package:zivo/core/media/media_service.dart';
 
 /// A scriptable [DriveBackupClient] — no real Google/network.
-class _FakeDriveClient implements DriveBackupClient {
+class _FakeDriveClient implements MediaBackupProvider {
   _FakeDriveClient({
     this.connectAccount,
     this.deviceConnected = false,
@@ -18,7 +18,7 @@ class _FakeDriveClient implements DriveBackupClient {
     this.uploadId = 'drive-1',
   });
 
-  DriveAccount? connectAccount;
+  BackupAccount? connectAccount;
   bool deviceConnected;
   bool liveSession;
   String? uploadId;
@@ -41,7 +41,7 @@ class _FakeDriveClient implements DriveBackupClient {
   Future<String?> connectedEmail() async => connectAccount?.email;
 
   @override
-  Future<DriveAccount?> connect() async {
+  Future<BackupAccount?> connect() async {
     connectCalls++;
     if (connectAccount != null) {
       deviceConnected = true;
@@ -51,7 +51,7 @@ class _FakeDriveClient implements DriveBackupClient {
   }
 
   @override
-  Future<DriveAccount?> restoreSession() async {
+  Future<BackupAccount?> restoreSession() async {
     restoreCalls++;
     if (deviceConnected) liveSession = true;
     return liveSession ? connectAccount : null;
@@ -65,12 +65,12 @@ class _FakeDriveClient implements DriveBackupClient {
   }
 
   @override
-  Future<String?> uploadImage({
+  Future<String?> upload({
     required File file,
     required String fileName,
     required String mimeType,
     required String accountFolder,
-    String? replaceFileId,
+    String? replaceRemoteId,
   }) async {
     uploaded.add(fileName);
     uploadedFolders.add(accountFolder);
@@ -103,7 +103,7 @@ void main() {
   String src(String name) =>
       (File('${srcDir.path}/$name')..writeAsBytesSync([1, 2, 3])).path;
 
-  MediaObject makeObject({String id = 'm1', String? driveFileId, String uid = 'u1'}) =>
+  MediaObject makeObject({String id = 'm1', String? remoteId, String uid = 'u1'}) =>
       MediaObject(
         id: id,
         ownerUid: uid,
@@ -113,7 +113,7 @@ void main() {
         byteSize: 3,
         contentHash: 'h',
         capturedAt: DateTime(2026, 1, 1),
-        driveFileId: driveFileId,
+        remoteId: remoteId,
       );
 
   MediaService buildService(_FakeDriveClient client, InMemoryMediaRegistry registry) =>
@@ -121,40 +121,40 @@ void main() {
         store: store,
         registry: registry,
         preferences: InMemoryMediaPreferencesRepository(),
-        driveClient: client,
+        backup: client,
       );
 
   group('connect / disconnect', () {
     test('connectDrive returns true and marks the device connected', () async {
-      final client = _FakeDriveClient(connectAccount: const DriveAccount(id: '1', email: 'x@e.com'));
+      final client = _FakeDriveClient(connectAccount: const BackupAccount(id: '1', email: 'x@e.com'));
       final service = buildService(client, InMemoryMediaRegistry());
 
-      expect(await service.connectDrive(), isTrue);
+      expect(await service.connectBackup(), isTrue);
       expect(client.connectCalls, 1);
-      expect(await service.isDriveConnected(), isTrue);
-      expect(await service.connectedDriveEmail(), 'x@e.com');
+      expect(await service.isBackupConnected(), isTrue);
+      expect(await service.connectedBackupAccount(), 'x@e.com');
     });
 
     test('connectDrive returns false on cancel', () async {
       final client = _FakeDriveClient(connectAccount: null);
-      expect(await buildService(client, InMemoryMediaRegistry()).connectDrive(), isFalse);
+      expect(await buildService(client, InMemoryMediaRegistry()).connectBackup(), isFalse);
     });
 
     test('disconnectDrive revokes the device connection', () async {
       final client = _FakeDriveClient(deviceConnected: true, liveSession: true);
-      await buildService(client, InMemoryMediaRegistry()).disconnectDrive();
+      await buildService(client, InMemoryMediaRegistry()).disconnectBackup();
       expect(client.disconnectCalls, 1);
       expect(await client.isDeviceConnected(), isFalse);
     });
 
     test('supportsDrive reflects whether a client is wired', () async {
-      expect(buildService(_FakeDriveClient(), InMemoryMediaRegistry()).supportsDrive, isTrue);
+      expect(buildService(_FakeDriveClient(), InMemoryMediaRegistry()).supportsBackup, isTrue);
       final withoutDrive = MediaService(
         store: store,
         registry: InMemoryMediaRegistry(),
         preferences: InMemoryMediaPreferencesRepository(),
       );
-      expect(withoutDrive.supportsDrive, isFalse);
+      expect(withoutDrive.supportsBackup, isFalse);
     });
   });
 
@@ -171,8 +171,8 @@ void main() {
       expect(pushed, 1);
       expect(client.uploaded, ['m1.jpg']);
       expect(client.uploadedFolders, ['acct-9']); // per-account subfolder
-      expect((await registry.get('m1'))!.driveFileId, 'drive-xyz');
-      expect((await registry.get('m1'))!.drive, BackupState.done);
+      expect((await registry.get('m1'))!.remoteId, 'drive-xyz');
+      expect((await registry.get('m1'))!.remoteBackup, BackupState.done);
     });
 
     test('does nothing when Drive is not connected on this device', () async {
@@ -191,7 +191,7 @@ void main() {
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject());
       final client = _FakeDriveClient(
-        connectAccount: const DriveAccount(id: '1', email: 'x@e.com'),
+        connectAccount: const BackupAccount(id: '1', email: 'x@e.com'),
         deviceConnected: true,
         liveSession: false,
       );
@@ -216,7 +216,7 @@ void main() {
 
     test('does NOT touch Drive when no session is live (passive read)', () async {
       final registry = InMemoryMediaRegistry();
-      await registry.put(makeObject(driveFileId: 'd1'));
+      await registry.put(makeObject(remoteId: 'd1'));
       // Connected on device, but session not live → still must not download.
       final client = _FakeDriveClient(deviceConnected: true, liveSession: false)
         ..downloadBytes = [9];
@@ -229,7 +229,7 @@ void main() {
 
     test('downloads when a session is live and the file is backed up', () async {
       final registry = InMemoryMediaRegistry();
-      await registry.put(makeObject(driveFileId: 'd1'));
+      await registry.put(makeObject(remoteId: 'd1'));
       final client = _FakeDriveClient(deviceConnected: true, liveSession: true)
         ..downloadBytes = [4, 5, 6];
       final service = buildService(client, registry);
@@ -243,13 +243,13 @@ void main() {
   group('syncFromDrive (manual)', () {
     test('downloads backed-up media that is missing locally', () async {
       final registry = InMemoryMediaRegistry();
-      await registry.put(makeObject(id: 'm1', driveFileId: 'd1'));
+      await registry.put(makeObject(id: 'm1', remoteId: 'd1'));
       await registry.put(makeObject(id: 'm2')); // no drive backup → skipped
       final client = _FakeDriveClient(deviceConnected: true, liveSession: true)
         ..downloadBytes = [7];
       final service = buildService(client, registry);
 
-      final fetched = await service.syncFromDrive();
+      final fetched = await service.syncFromBackup();
       expect(fetched, 1);
       expect(client.downloaded, ['d1']);
       expect((await store.resolve('media/moments/m1.jpg'))!.existsSync(), isTrue);
@@ -257,9 +257,9 @@ void main() {
 
     test('does nothing when Drive is not connected', () async {
       final registry = InMemoryMediaRegistry();
-      await registry.put(makeObject(driveFileId: 'd1'));
+      await registry.put(makeObject(remoteId: 'd1'));
       final client = _FakeDriveClient(deviceConnected: false, liveSession: false);
-      expect(await buildService(client, registry).syncFromDrive(), 0);
+      expect(await buildService(client, registry).syncFromBackup(), 0);
     });
   });
 }

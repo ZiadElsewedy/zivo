@@ -42,8 +42,10 @@ class FirestoreMediaRegistry implements MediaRegistry {
       'width': object.width,
       'height': object.height,
       'gallery': object.gallery.name,
-      'drive': object.drive.name,
-      'driveFileId': object.driveFileId,
+      // Firestore keys kept as 'drive'/'driveFileId' for back-compat with
+      // already-stored docs; the domain fields are provider-neutral.
+      'drive': object.remoteBackup.name,
+      'driveFileId': object.remoteId,
       'schemaVersion': 1,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -55,6 +57,18 @@ class FirestoreMediaRegistry implements MediaRegistry {
     final snap = await _media(uid).doc(id).get();
     if (!snap.exists) return null;
     return _fromDoc(uid, snap.id, snap.data()!);
+  }
+
+  @override
+  Future<MediaObject?> getByRelativePath(String relativePath) async {
+    final uid = _requireUid();
+    final snap = await _media(uid)
+        .where('relativePath', isEqualTo: relativePath)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final doc = snap.docs.first;
+    return _fromDoc(uid, doc.id, doc.data());
   }
 
   @override
@@ -75,7 +89,7 @@ class FirestoreMediaRegistry implements MediaRegistry {
     final snap = await _media(uid).get();
     return snap.docs
         .map((d) => _fromDoc(uid, d.id, d.data()))
-        .where((m) => m.drive != BackupState.done || m.gallery == BackupState.failed)
+        .where((m) => m.remoteBackup != BackupState.done || m.gallery == BackupState.failed)
         .toList(growable: false);
   }
 
@@ -100,8 +114,8 @@ class FirestoreMediaRegistry implements MediaRegistry {
       width: (data['width'] as num?)?.toInt(),
       height: (data['height'] as num?)?.toInt(),
       gallery: _stateFrom(data['gallery']),
-      drive: _stateFrom(data['drive']),
-      driveFileId: data['driveFileId'] as String?,
+      remoteBackup: _stateFrom(data['drive']),
+      remoteId: data['driveFileId'] as String?,
     );
   }
 
