@@ -31,7 +31,7 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 2 | Progressive-overload **Analysis page** (current single-plan data) | ✅ done |
 | 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
-| 5 | **Retrofit** analysis + history to be split-scoped | ⬜ not started |
+| 5 | **Retrofit** analysis + history to be split-scoped | ✅ done |
 | 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
 | 7 | End-to-end verify + handoff doc refresh | ⬜ not started |
 
@@ -129,8 +129,29 @@ dedicated test seeds two splits with their own completed sessions, switches
 A→B→A, and asserts both sessions are byte-for-byte untouched throughout.
 Committed (`feat(workout): split management (create/switch/edit/delete)`).
 **Still open:** on-device simulator verification (of Phase 3 AND 4 together,
-since 4 is the first UI surface for the splits plumbing); Phase 5 will
-re-scope the Analysis page + history to the active split.
+since 4 is the first UI surface for the splits plumbing).
+
+**Phase 5 notes:** audited every read of session history for split scoping.
+The Analysis page (`day_progress_analysis.dart`) was already correctly
+scoped — it filters by `planId` before anything else — and Home's "Resume
+workout" card already checks `active.planId == plan.id`. **One real gap
+found and fixed:** the live session page's "previous performance" lookup
+(`live_session_page.dart`) filtered `_pastSessions` only by excluding the
+current session's own id, never by `planId` — so a live session could show
+another split's numbers for any exercise sharing an `exerciseId`, which
+Phase 4's own Duplicate action makes trivial to trigger (a duplicate starts
+with identical exercise ids to its source). Now filtered by
+`s.planId == _session.planId` too. A regression test seeds a 999kg "other
+split" session on the same `exerciseId` and asserts it never surfaces —
+this is exactly the scenario Phase 4's notes assumed was already safe and
+wasn't. Added a direct two-splits-sharing-a-dayId/exerciseId test to
+`day_progress_analysis_test.dart` confirming each split's analysis is fully
+independent (§3.2 invariant 4/5). The flat `Workout` log
+(`workout_history_page.dart`) is deliberately left un-scoped — per §1's own
+vocabulary it "has no split/day/exercise ids" and is documented as a display
+projection, not an analytical source, so it stays a cross-split activity
+feed rather than gaining a schema change out of this phase's stated scope.
+Committed (`refactor(workout): scope analysis + history to active split`).
 
 ---
 

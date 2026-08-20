@@ -217,7 +217,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _pastSessionsSub = _sessionsRepo.watchAll().listen((sessions) {
       if (!mounted) return;
       setState(() {
-        _pastSessions = sessions.where((s) => s.id != _session.id).toList(growable: false);
+        // §3.2 invariant 4: a split's history is its own — scoped to THIS
+        // session's split (splitId == planId), never another split's, even
+        // when they happen to share an exerciseId (e.g. one is a duplicate
+        // of the other). Without the planId filter, "previous performance"
+        // could silently show a different split's numbers.
+        _pastSessions = sessions
+            .where((s) => s.id != _session.id && s.planId == _session.planId)
+            .toList(growable: false);
       });
       if (!_prefillRefreshedFromHistory) {
         _prefillRefreshedFromHistory = true;

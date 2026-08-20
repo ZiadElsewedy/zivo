@@ -304,5 +304,37 @@ void main() {
 
       expect(result.sessionCount, 0);
     });
+
+    test(
+      'Phase 5: two splits sharing the same dayId/exerciseId (e.g. one a Duplicate of the '
+      'other) get fully independent analyses — neither sees the other\'s sessions',
+      () {
+        final day = _dayWith([_plannedEx('e1')]); // dayId 'day-a', exerciseId 'e1' — reused by both splits
+        final splitASessions = [
+          _session(id: 'a1', planId: 'split-a', completedAt: DateTime(2026, 1, 1), exercises: [
+            _sessionEx('e1', [_set('e1-s0', reps: 8, weight: 40)]),
+          ]),
+          _session(id: 'a2', planId: 'split-a', completedAt: DateTime(2026, 1, 8), exercises: [
+            _sessionEx('e1', [_set('e1-s0', reps: 8, weight: 45)]),
+          ]),
+        ];
+        final splitBSessions = [
+          _session(id: 'b1', planId: 'split-b', completedAt: DateTime(2026, 1, 1), exercises: [
+            _sessionEx('e1', [_set('e1-s0', reps: 8, weight: 999)]),
+          ]),
+        ];
+        final allSessions = [...splitASessions, ...splitBSessions];
+
+        final analysisA = analyzeDayProgress(day: day, planId: 'split-a', allSessions: allSessions);
+        expect(analysisA.sessionCount, 2);
+        expect(analysisA.exercises.single.verdict, ProgressVerdict.progressing);
+        expect(analysisA.exercises.single.lastTopWeightKg, 45); // never B's 999
+
+        final analysisB = analyzeDayProgress(day: day, planId: 'split-b', allSessions: allSessions);
+        expect(analysisB.sessionCount, 1);
+        expect(analysisB.exercises.single.lastTopWeightKg, 999);
+        expect(analysisB.exercises.single.verdict, isNull); // only 1 session — nothing to compare
+      },
+    );
   });
 }

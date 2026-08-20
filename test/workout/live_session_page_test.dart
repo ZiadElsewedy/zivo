@@ -773,6 +773,59 @@ void main() {
   );
 
   testWidgets(
+    'cross-split isolation (§3.2/Phase 5): previous performance never leaks from a '
+    'different split, even one sharing this exerciseId (the shape a Duplicate produces)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      // A completed session belonging to a DIFFERENT split ('p2'), but
+      // trained on the SAME exerciseId ('ex1') as this test's plan's Bench
+      // — exactly what split management's Duplicate produces. An extreme
+      // weight (999kg) so any leak is unmistakable.
+      await sessions.saveSession(
+        LiveSession(
+          id: 'other-split-prev',
+          planId: 'p2',
+          dayId: 'a',
+          dayLabel: 'Push',
+          startedAt: DateTime(2026, 1, 1, 9),
+          completedAt: DateTime(2026, 1, 1, 10),
+          status: SessionStatus.completed,
+          exercises: const [
+            SessionExercise(
+              id: 'ex1',
+              exerciseId: 'ex1',
+              name: 'Bench',
+              restSeconds: 90,
+              sets: [
+                LoggedSet(id: 's0', target: RepTarget.fixed(5), done: true, actualReps: 5, actualWeightKg: 999),
+              ],
+            ),
+          ],
+        ),
+      );
+      final plan = _plan(); // planId 'p1' — a different split entirely
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // "First time" for THIS split's Bench — split p2's 999kg must never
+      // surface here, even though the exerciseId matches.
+      expect(find.text('Last time: First time'), findsOneWidget);
+      expect(find.textContaining('999'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'pausing freezes both the elapsed clock and an active rest countdown; '
     'resuming continues both from where they left off',
     (tester) async {
