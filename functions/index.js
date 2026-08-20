@@ -498,6 +498,13 @@ const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
  * result (reusing `WorkoutPlanEditPage` in `asSplit` mode) and saves it
  * itself via `saveSplit` — that review screen is the "human confirms before
  * it becomes real" gate, so there is nothing here to confirm or cancel.
+ *
+ * Deliberately UNauthenticated: this call reads and extracts a PDF, nothing
+ * more — it never touches Firestore, so there's no user data to protect at
+ * this step. `enforceAppCheck` is the abuse control here (blocks scripted
+ * callers, not signed-out humans); auth is required later, at save time
+ * (`saveSplit`/`savePlan`, gated client-side and by Firestore's owner-only
+ * rules), where a workout plan actually gets written to an account.
  */
 exports.aiImportWorkoutPlan = onCall(
     {
@@ -511,12 +518,6 @@ exports.aiImportWorkoutPlan = onCall(
       timeoutSeconds: 180,
     },
     async (request) => {
-      const auth = request.auth;
-      if (!auth) {
-        throw new HttpsError(
-            "unauthenticated", "Sign in to import a workout plan.");
-      }
-
       const data = request.data || {};
       const pdfBase64 = (data.pdfBase64 || "").toString();
       if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
