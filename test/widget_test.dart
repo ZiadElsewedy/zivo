@@ -20,6 +20,7 @@ import 'package:zivo/features/workout/domain/workout.dart';
 
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
+import 'support/test_app.dart';
 
 void main() {
   testWidgets('Today renders the greeting and key sections when authenticated', (
@@ -39,13 +40,16 @@ void main() {
     // fake profile repo (complete by default) keeps Firestore out of the test,
     // and in-memory tasks/expenses/schedule/notes/moments/workouts/university
     // repos override the Firestore-backed defaults so Today's sections render
-    // without a live backend. The workout repo is seeded with today's session
-    // so the reflective Training card has something real to show.
+    // without a live backend. A workout is logged today too ("Pull") — the
+    // Training card must show the active plan's up-next day ("Push", from
+    // the default `InMemoryWorkoutPlanRepository` seed, cycleCursor 0) NOT
+    // roll back to reflect what was just logged, so the workout repo here
+    // deliberately exercises that it doesn't leak through.
     final workouts = InMemoryWorkoutRepository();
     await workouts.add(
       Workout(
         id: 'today-w1',
-        title: 'Push',
+        title: 'Pull',
         performedAt: DateTime.now(),
         durationMinutes: 50,
         exercises: const [
@@ -71,14 +75,26 @@ void main() {
         university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),
+        media: testMediaService(),
       ),
     );
-    await tester.pumpAndSettle(); // profile stream resolves, then RiseIn timers
+    // Not pumpAndSettle — the up-next Training card carries a continuous,
+    // always-on repeating animation (`AliveColorDrift`, in
+    // `up_next_workout_card.dart`) that never settles on its own now that
+    // an active plan is always seeded here. Bounded pumps instead: one to
+    // let the profile stream resolve, then a generous fixed duration for
+    // the RiseIn entrance timers.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.textContaining('Ziad'), findsOneWidget); // greeting
     expect(find.text('Data Structures'), findsOneWidget);
-    expect(find.text('Push'), findsOneWidget); // reflective Training card
-    expect(find.text('Bench Press'), findsOneWidget);
+    // The plan's up-next day ("Push", order 0) — not "Pull", the workout
+    // logged today (see the seeding comment above for why that matters).
+    expect(find.text('Push'), findsOneWidget);
+    expect(find.text('Start Workout'), findsOneWidget);
+    expect(find.text('Pull'), findsNothing);
+    expect(find.text('Bench Press'), findsNothing);
     expect(find.text('TODAY'), findsWidgets); // section label + tab
   });
 }

@@ -1,4 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:zivo/core/media/data/in_memory_media_preferences_repository.dart';
+import 'package:zivo/core/media/data/in_memory_media_registry.dart';
+import 'package:zivo/core/media/data/local_media_store.dart';
+import 'package:zivo/core/media/media_service.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
@@ -19,12 +25,25 @@ import 'fake_profile_repository.dart';
 
 /// Wraps [child] in an [AppScope] (fake auth + fresh in-memory repos) and a
 /// [MaterialApp], for widget tests that need the full DI seam.
+/// An in-memory [MediaService] backed by a throwaway temp directory, so media
+/// pages render in tests without the `path_provider` platform channel.
+MediaService testMediaService() {
+  final root = Directory.systemTemp.createTempSync('zivo_media_test');
+  return MediaService(
+    store: LocalMediaStore(rootOverride: root),
+    registry: InMemoryMediaRegistry(),
+    preferences: InMemoryMediaPreferencesRepository(),
+  );
+}
+
 Widget wrapWithScope(
   Widget child, {
   AuthRepository? auth,
   ProfileRepository? profiles,
+  MediaService? media,
 }) {
   return AppScope(
+    media: media ?? testMediaService(),
     auth: auth ?? FakeAuthRepository(),
     profiles: profiles ?? FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),

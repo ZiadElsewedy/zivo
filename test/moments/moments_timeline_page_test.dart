@@ -23,6 +23,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/test_app.dart';
 
 /// A repository whose stream stays open without ever emitting, so the list
 /// page sits in its loading state until [emit] is called.
@@ -57,6 +58,7 @@ Widget _wrap({
   required MomentRepository momentsOverride,
 }) {
   return AppScope(
+    media: testMediaService(),
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),

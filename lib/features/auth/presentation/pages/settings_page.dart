@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../widgets/media_backup_section.dart';
 import '../widgets/settings_row.dart';
 
 /// Settings — appearance and about, plus sign out. Split from [ProfilePage]
@@ -71,6 +72,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              const MediaBackupSection(),
               const SizedBox(height: 20),
               SettingsSectionCard(
                 label: 'ABOUT',

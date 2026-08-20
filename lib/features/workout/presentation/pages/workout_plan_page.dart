@@ -13,6 +13,8 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../widgets/staggered_reveal.dart';
 import 'live_session_page.dart';
+import 'split_management_page.dart';
+import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
 import 'workout_plan_edit_page.dart';
 
@@ -45,6 +47,20 @@ class WorkoutPlanPage extends StatelessWidget {
             iconTheme: const IconThemeData(color: AppColors.ink2),
             title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
             actions: [
+              IconButton(
+                tooltip: 'Splits',
+                icon: const Icon(Icons.layers_rounded, color: AppColors.ink2),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SplitManagementPage()),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Analysis',
+                icon: const Icon(Icons.trending_up_rounded, color: AppColors.ink2),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutAnalysisPage()),
+                ),
+              ),
               IconButton(
                 tooltip: 'History',
                 icon: const Icon(Icons.history_rounded, color: AppColors.ink2),

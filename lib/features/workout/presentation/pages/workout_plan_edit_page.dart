@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +27,36 @@ String _slotForIndex(int count) => count < 26 ? String.fromCharCode(0x41 + count
 /// "60" / "22.5" — a weight without a trailing ".0".
 String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
+/// A custom "lift" for drag-reordered items (day tiles, exercise rows) —
+/// scales up slightly, gains elevation/shadow, and dims a touch while being
+/// dragged, replacing [ReorderableListView]'s plain default proxy (a flat
+/// `Material` with no real weight to it). [animation] is driven by
+/// [ReorderableListView] itself (0 at pickup/drop, ~1 while actively
+/// dragging) — the internal reflow/settle timing isn't swappable for a
+/// custom spring via the public API, but it's already a smooth transition,
+/// not an instant snap. Reduced motion drops the lift flourish entirely
+/// (the reorder itself stays fully functional either way).
+Widget _liftProxyDecorator(Widget child, Animation<double> animation, {required double radius}) {
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (context, builtChild) {
+      if (reducedMotion(context)) return builtChild!;
+      final t = animation.value;
+      return Transform.scale(
+        scale: 1.0 + 0.03 * t,
+        child: Material(
+          color: Colors.transparent,
+          elevation: 10 * t,
+          shadowColor: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(radius),
+          child: Opacity(opacity: 1 - 0.05 * t, child: builtChild!),
+        ),
+      );
+    },
+    child: child,
+  );
+}
+
 /// A mutable day while editing — its exercises are fully-formed
 /// [PlannedExercise]s (built by the exercise sheet), so drafts round-trip
 /// losslessly through save.
@@ -51,9 +83,18 @@ class _DayDraft {
 /// the rotation cursor. Dark, matching the session/plan/history screens on
 /// the app-wide [AppColors] theme.
 class WorkoutPlanEditPage extends StatefulWidget {
-  const WorkoutPlanEditPage({super.key, this.initialPlan});
+  const WorkoutPlanEditPage({super.key, this.initialPlan, this.asSplit = false});
 
   final WorkoutPlan? initialPlan;
+
+  /// Reached from split management rather than the single-active-plan flow —
+  /// saves/deletes go through [WorkoutPlanRepository.saveSplit]/[deleteSplit]
+  /// instead of [savePlan]/[deletePlan], so creating or editing a split here
+  /// never silently steals the active pointer (`saveSplit` only activates
+  /// when nothing is active yet; `savePlan` always would). Everything else —
+  /// the day/exercise builder itself — is identical either way, per
+  /// WORKOUT_SYSTEM.md Phase 4's "reuse the plan editor."
+  final bool asSplit;
 
   @override
   State<WorkoutPlanEditPage> createState() => _WorkoutPlanEditPageState();
@@ -63,9 +104,26 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   late final TextEditingController _name;
   late final String _planId;
   late final DateTime _createdAt;
-  late final int _cycleCursor;
+
+  /// The id of the day the plan's rotation cursor pointed at when editing
+  /// opened — null for a new plan (nothing to preserve; a fresh plan just
+  /// starts its rotation at day 0, same as before). Tracked by IDENTITY
+  /// rather than the raw index [WorkoutPlan.cycleCursor] stores, so
+  /// reordering days (see `_reorderDays`) keeps the rotation pointed at the
+  /// SAME logical "next day" in its new position — reordering must never
+  /// silently scramble which workout Home/the Workout page show as next.
+  /// Recomputed back to an index in [_save].
+  late final String? _cursorDayId;
   final List<_DayDraft> _days = [];
   bool _canSave = false;
+
+  /// Days added during this editing session — they start expanded (see
+  /// `_DayCard.initiallyExpanded`), since adding a day is immediately
+  /// followed by adding exercises to it. Days loaded from an existing plan
+  /// start collapsed. Membership only matters the moment a `_DayCard`'s
+  /// State is first created for that id (its `late` initializer reads it
+  /// once) — never removed, harmless to keep growing.
+  final Set<String> _autoExpandDayIds = {};
 
   bool get _editing => widget.initialPlan != null;
 
@@ -76,7 +134,11 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     _name = TextEditingController(text: plan?.name ?? '');
     _planId = plan?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
     _createdAt = plan?.createdAt ?? DateTime.now();
-    _cycleCursor = plan?.cycleCursor ?? 0;
+    _cursorDayId = (plan == null || plan.days.isEmpty)
+        ? null
+        : plan.days
+              .firstWhere((d) => d.order == plan.cycleCursor, orElse: () => plan.days.first)
+              .id;
     if (plan != null) {
       _days.addAll(
         plan.days.map(
@@ -113,6 +175,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       builder: (_) => _DaySheet(suggestedSlot: _slotForIndex(_days.length)),
     );
     if (result == null) return;
+    _autoExpandDayIds.add(result.id);
     setState(() => _days.add(result));
     _recompute();
   }
@@ -120,6 +183,19 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   void _removeDay(int index) {
     setState(() => _days.removeAt(index));
     _recompute();
+  }
+
+  /// Long-press-drag reorder for days — wired to `onReorderItem`, so
+  /// [newIndex] already arrives as the final insert position (no manual
+  /// removal-adjustment needed; that's the whole point of `onReorderItem`
+  /// over the older, deprecated `onReorder`). Rotation-cursor identity (see
+  /// [_cursorDayId]) is untouched here — it's resolved back to an index
+  /// from the day's id in [_save], so it follows wherever that day ends up.
+  void _reorderDays(int oldIndex, int newIndex) {
+    setState(() {
+      final day = _days.removeAt(oldIndex);
+      _days.insert(newIndex, day);
+    });
   }
 
   Future<void> _addExercise(int dayIndex) async {
@@ -151,6 +227,16 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
 
   void _removeExercise(int dayIndex, int exerciseIndex) {
     setState(() => _days[dayIndex].exercises.removeAt(exerciseIndex));
+  }
+
+  /// Long-press-drag reorder for exercises within one day — same
+  /// `onReorderItem` convention as [_reorderDays] (newIndex already final).
+  void _reorderExercises(int dayIndex, int oldIndex, int newIndex) {
+    setState(() {
+      final exercises = _days[dayIndex].exercises;
+      final exercise = exercises.removeAt(oldIndex);
+      exercises.insert(newIndex, exercise);
+    });
   }
 
   /// The wheel's seed when opening the default-rest sheet — the first
@@ -209,18 +295,32 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
         ),
       );
     }
+    // Follow the SAME day the cursor pointed at through any reorder — not
+    // a fixed index. Falls back to day 0 for a new plan (nothing to
+    // preserve) or if that day was removed since (nothing sensible left to
+    // point at).
+    final cursorIndex = _cursorDayId == null
+        ? -1
+        : days.indexWhere((d) => d.id == _cursorDayId);
     final plan = WorkoutPlan(
       id: _planId,
       name: _name.text.trim(),
       status: WorkoutPlanStatus.active,
-      source: WorkoutPlanSource.manual,
+      // Preserves an imported draft's `pdf` marker through the mandatory
+      // review step (WORKOUT_SYSTEM.md §3.4) — only a genuinely new plan
+      // (no initialPlan) defaults to `manual`.
+      source: widget.initialPlan?.source ?? WorkoutPlanSource.manual,
       createdAt: _createdAt,
       updatedAt: now,
-      // Keep the rotation where it was; clamp in case days were removed.
-      cycleCursor: days.isEmpty ? 0 : _cycleCursor % days.length,
+      cycleCursor: days.isEmpty ? 0 : (cursorIndex >= 0 ? cursorIndex : 0),
       days: days,
     );
-    await AppScope.of(context).workoutPlans.savePlan(plan);
+    final plans = AppScope.of(context).workoutPlans;
+    if (widget.asSplit) {
+      await plans.saveSplit(plan);
+    } else {
+      await plans.savePlan(plan);
+    }
     if (mounted) Navigator.of(context).pop(plan);
   }
 
@@ -228,11 +328,12 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     final plan = widget.initialPlan;
     if (plan == null) return;
     final plans = AppScope.of(context).workoutPlans;
+    final noun = widget.asSplit ? 'split' : 'plan';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: Text('Delete this plan?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        title: Text('Delete this $noun?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
         content: Text(
           'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
           style: AppText.body.copyWith(color: AppColors.ink2),
@@ -250,7 +351,11 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       ),
     );
     if (confirmed != true) return;
-    await plans.deletePlan(plan.id);
+    if (widget.asSplit) {
+      await plans.deleteSplit(plan.id);
+    } else {
+      await plans.deletePlan(plan.id);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -263,7 +368,9 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: _editing ? 'Edit workout plan' : 'New workout plan',
+              title: _editing
+                  ? (widget.asSplit ? 'Edit split' : 'Edit workout plan')
+                  : (widget.asSplit ? 'New split' : 'New workout plan'),
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: AppColors.ink2,
               iconColor: AppColors.ink2,
@@ -273,7 +380,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                       key: const Key('workout-plan-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete plan',
+                      semanticLabel: widget.asSplit ? 'Delete split' : 'Delete plan',
                       iconColor: AppColors.flare,
                       chipColor: AppColors.surfaceRaised,
                     )
@@ -305,20 +412,57 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
             Expanded(
               child: _days.isEmpty
                   ? _EmptyDays(onAdd: _addDay)
-                  : ListView.separated(
+                  : ReorderableListView.builder(
                       padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
                       itemCount: _days.length + 1,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      // Default handles would make the WHOLE row (including
+                      // the trailing "Add day" button) a drag target; days
+                      // opt in individually via ReorderableDelayedDragStartListener
+                      // below instead, and the add-button — outside that
+                      // wrapper — is never draggable.
+                      buildDefaultDragHandles: false,
+                      proxyDecorator: (child, index, animation) =>
+                          _liftProxyDecorator(child, animation, radius: 18),
+                      onReorderStart: (_) => HapticFeedback.selectionClick(),
+                      onReorderEnd: (_) => HapticFeedback.lightImpact(),
+                      onReorderItem: (oldIndex, newIndex) {
+                        // Guards the trailing "Add day" item defensively —
+                        // it always sits at _days.length and, since only
+                        // day items are wrapped in a drag-start listener
+                        // (see buildDefaultDragHandles above), never
+                        // actually starts a drag in the first place.
+                        if (oldIndex >= _days.length) return;
+                        _reorderDays(oldIndex, newIndex);
+                      },
                       itemBuilder: (context, i) {
                         if (i == _days.length) {
-                          return _AddButton(label: 'Add day', onTap: _addDay);
+                          return _AddButton(
+                            key: const ValueKey('add-day-button'),
+                            label: 'Add day',
+                            onTap: _addDay,
+                          );
                         }
-                        return _DayCard(
-                          day: _days[i],
-                          onRemoveDay: () => _removeDay(i),
-                          onAddExercise: () => _addExercise(i),
-                          onEditExercise: (ei) => _editExercise(i, ei),
-                          onRemoveExercise: (ei) => _removeExercise(i, ei),
+                        final day = _days[i];
+                        return Padding(
+                          // Keyed on the day's stable id so both its expand
+                          // state (owned by _DayCardState) and its
+                          // reorderable identity survive parent rebuilds
+                          // from unrelated edits, rather than being
+                          // recreated fresh (and re-collapsed) every time.
+                          key: ValueKey(day.id),
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: ReorderableDelayedDragStartListener(
+                            index: i,
+                            child: _DayCard(
+                              day: day,
+                              onRemoveDay: () => _removeDay(i),
+                              onAddExercise: () => _addExercise(i),
+                              onEditExercise: (ei) => _editExercise(i, ei),
+                              onRemoveExercise: (ei) => _removeExercise(i, ei),
+                              onReorderExercise: (oi, ni) => _reorderExercises(i, oi, ni),
+                              initiallyExpanded: _autoExpandDayIds.contains(day.id),
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -368,7 +512,7 @@ class _EmptyDays extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.label, required this.onTap, this.compact = false});
+  const _AddButton({required this.label, required this.onTap, this.compact = false, super.key});
 
   final String label;
   final VoidCallback onTap;
@@ -498,13 +642,28 @@ class _DefaultRestSheetState extends State<_DefaultRestSheet> {
   }
 }
 
-class _DayCard extends StatelessWidget {
+/// A collapsible day tile — collapsed shows just the header (day title +
+/// exercise count); tapping the header springs it open to reveal the
+/// exercise list (notes, rows, "Add exercise"). Exists so editing a plan
+/// with many days doesn't mean scrolling past every prior day's full
+/// exercise list to reach the last one — collapsed, each day is one glance.
+///
+/// Multiple days can be open at once (deliberately not a forced accordion —
+/// useful when cross-referencing two days while editing, e.g. copying a
+/// rest value). Expand state lives in this State object, keyed by the
+/// caller on the day's stable id ([_DayDraft.id]), so it survives parent
+/// rebuilds (editing/removing a DIFFERENT day, or an exercise within this
+/// one) without collapsing back — re-expanding after an edit would be a
+/// regression, not a feature.
+class _DayCard extends StatefulWidget {
   const _DayCard({
     required this.day,
     required this.onRemoveDay,
     required this.onAddExercise,
     required this.onEditExercise,
     required this.onRemoveExercise,
+    required this.onReorderExercise,
+    this.initiallyExpanded = false,
   });
 
   final _DayDraft day;
@@ -512,9 +671,49 @@ class _DayCard extends StatelessWidget {
   final VoidCallback onAddExercise;
   final void Function(int exerciseIndex) onEditExercise;
   final void Function(int exerciseIndex) onRemoveExercise;
+  final void Function(int oldIndex, int newIndex) onReorderExercise;
+
+  /// Only meaningful the first time this State is created for a given key —
+  /// a day the caller just added (see `_WorkoutPlanEditPageState._addDay`)
+  /// starts open, since the user is clearly about to add exercises to it;
+  /// every other day starts collapsed.
+  final bool initiallyExpanded;
+
+  @override
+  State<_DayCard> createState() => _DayCardState();
+}
+
+class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin {
+  late bool _expanded = widget.initiallyExpanded;
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    value: widget.initiallyExpanded ? 1 : 0,
+  );
+
+  void _toggle() {
+    final target = _expanded ? 0.0 : 1.0;
+    setState(() => _expanded = !_expanded);
+    if (reducedMotion(context)) {
+      _controller.value = target;
+    } else {
+      // Critically damped, no bounce — this is a disclosure, not a
+      // momentum-driven gesture. Always retargets from the controller's
+      // live value, so tapping again mid-animation reverses smoothly
+      // instead of jumping.
+      _controller.springTo(target, spring: AppSprings.standard);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final day = widget.day;
+    final count = day.exercises.length;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -525,40 +724,120 @@ class _DayCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Day ${day.slot} · ${day.label}',
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+          PressableScale(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _toggle,
+                borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Day ${day.slot} · ${day.label}',
+                            style: AppText.rowTitle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$count exercise${count == 1 ? '' : 's'}',
+                            style: AppText.meta.copyWith(color: AppColors.ink3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) =>
+                          Transform.rotate(angle: _controller.value * math.pi, child: child),
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 22,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                    PressableScale(
+                      child: IconButton(
+                        onPressed: widget.onRemoveDay,
+                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
+                        splashRadius: 20,
+                        tooltip: 'Remove day',
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              PressableScale(
-                child: IconButton(
-                  onPressed: onRemoveDay,
-                  icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
-                  splashRadius: 20,
-                  tooltip: 'Remove day',
-                ),
-              ),
-            ],
+            ),
           ),
-          if (day.notes != null && day.notes!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              // Fully collapsed and at rest — skip the subtree entirely
+              // rather than just squashing it to zero height, so a
+              // collapsed day's exercises are genuinely absent (not
+              // present-but-invisible/still-hit-testable). Gated on
+              // `!_controller.isAnimating`, not an exact `value == 0` check
+              // — a settled SpringSimulation can land at a tiny residual
+              // (within its tolerance) rather than precisely 0.
+              if (!_expanded && !_controller.isAnimating) return const SizedBox.shrink();
+              return ClipRect(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: _controller.value.clamp(0.0, 1.0),
+                  child: child,
+                ),
+              );
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (day.notes != null && day.notes!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+                  ),
+                if (day.exercises.isNotEmpty)
+                  ReorderableListView.builder(
+                    // Nested inside the page's own scrollable — sizes
+                    // itself to its (typically short) exercise list rather
+                    // than trying to scroll independently.
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    buildDefaultDragHandles: false,
+                    proxyDecorator: (child, index, animation) =>
+                        _liftProxyDecorator(child, animation, radius: 14),
+                    onReorderStart: (_) => HapticFeedback.selectionClick(),
+                    onReorderEnd: (_) => HapticFeedback.lightImpact(),
+                    onReorderItem: widget.onReorderExercise,
+                    itemCount: day.exercises.length,
+                    itemBuilder: (context, ei) {
+                      final exercise = day.exercises[ei];
+                      return Padding(
+                        key: ValueKey(exercise.id),
+                        padding: const EdgeInsets.only(top: 10),
+                        child: ReorderableDelayedDragStartListener(
+                          index: ei,
+                          child: _ExerciseRow(
+                            exercise: exercise,
+                            onEdit: () => widget.onEditExercise(ei),
+                            onRemove: () => widget.onRemoveExercise(ei),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 10),
+                _AddButton(label: 'Add exercise', onTap: widget.onAddExercise, compact: true),
+              ],
             ),
-          for (var ei = 0; ei < day.exercises.length; ei++)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: _ExerciseRow(
-                exercise: day.exercises[ei],
-                onEdit: () => onEditExercise(ei),
-                onRemove: () => onRemoveExercise(ei),
-              ),
-            ),
-          const SizedBox(height: 10),
-          _AddButton(label: 'Add exercise', onTap: onAddExercise, compact: true),
+          ),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../media/media_service.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
@@ -33,6 +34,7 @@ class AppScope extends InheritedWidget {
     required this.university,
     required this.diet,
     required this.ai,
+    this.media,
     required super.child,
     super.key,
   });
@@ -59,6 +61,24 @@ class AppScope extends InheritedWidget {
   /// once the server half is built and deployed.
   final AiRepository ai;
 
+  /// The media pipeline: durable local storage of captured photos, per-account
+  /// backup fan-out (Photos now, Drive next), read-side resolution, and — via
+  /// [MediaService.preferences] — the account's storage choices surfaced in
+  /// Settings. Every feature that captures or displays media goes through this
+  /// instead of touching files or Firebase Storage directly.
+  ///
+  /// Optional so the many widget tests that don't exercise media can keep
+  /// constructing a scope without it; production and media-page tests always
+  /// provide one. Read it through [requireMedia] from media-bearing pages.
+  final MediaService? media;
+
+  /// The media pipeline, asserting it was provided. Use from pages that capture
+  /// or display media (Moments, Profile, Settings) — production always wires it.
+  MediaService get requireMedia {
+    assert(media != null, 'AppScope.media was not provided to this scope');
+    return media!;
+  }
+
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
     assert(scope != null, 'AppScope not found in the widget tree');
@@ -79,5 +99,6 @@ class AppScope extends InheritedWidget {
       workoutSessions != oldWidget.workoutSessions ||
       university != oldWidget.university ||
       diet != oldWidget.diet ||
-      ai != oldWidget.ai;
+      ai != oldWidget.ai ||
+      media != oldWidget.media;
 }

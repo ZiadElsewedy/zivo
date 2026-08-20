@@ -37,7 +37,13 @@ dependencies:
   google_fonts: ^8.2.1
   image_picker: ^1.2.3
   path_provider: ^2.1.5
+  # Cross-platform path joins/splits for the local media store's relative refs.
+  path: ^1.9.0
   package_info_plus: ^8.3.1
+  # Saves app-captured media into the device's system Photos/Gallery — the
+  # opt-in "Save to Photos" media backup target. Well-maintained; the older
+  # image_gallery_saver is abandoned.
+  gal: ^2.3.0
 
   # Firebase Core, Auth, Functions, and now Firestore (user profiles). The
   # rest of the repository layer is still in-memory.
@@ -50,6 +56,15 @@ dependencies:
   crypto: ^3.0.7
   firebase_app_check: ^0.4.6
   lottie: ^3.5.1
+  # Google Drive backup target (Phase 2): the Drive v3 API plus a plain http
+  # client we wrap with google_sign_in's OAuth bearer token (drive.file scope).
+  googleapis: ^14.0.0
+  http: ^1.2.0
+  # Lets the media pipeline honor "Wi-Fi only" for automatic Drive backups.
+  connectivity_plus: ^7.0.0
+  # Picks an arbitrary file (a workout PDF) from device storage — image_picker
+  # above is camera/gallery-only, not general file access.
+  file_picker: ^8.1.6
 
 dev_dependencies:
   flutter_test:

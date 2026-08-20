@@ -1,0 +1,554 @@
+# ZIVO — Workout System: Source of Truth
+
+> **Purpose.** This is the single all-in-one context file for ZIVO's Workout
+> system. If you open a fresh AI/Cursor/Claude chat, read this file first: it
+> explains what we are building, how the system is designed, what is already
+> done, and what the next step is. Keep it current — every completed phase
+> updates the **Status** section below.
+
+---
+
+## 0. Status (read this first)
+
+**Branch:** `feature/workout-diet-v2` (this milestone continues here — no new branch).
+
+**Sequencing decision:** *Analysis first, retrofit splits.* We ship the
+progressive-overload analysis page on the current single-active-plan data,
+then introduce first-class Splits and re-scope analysis to them. (The
+alternative — splits foundation first — was considered and declined for
+speed of a visible result.)
+
+**Workflow (every phase):** plan → implement → test → verify → **commit**.
+Each completed phase is its own commit so we always have clean checkpoints.
+Keep work uncommitted until a phase is green (`flutter analyze` clean +
+`flutter test` passing); watch the repo's auto-commit tool and check
+`git log` before/after any git action.
+
+| Phase | What | State |
+| --- | --- | --- |
+| 0 | This source-of-truth doc + data-model/invariants locked | ✅ done |
+| 1 | Collapsible/expandable day tiles in Edit Workout Plan | ✅ done |
+| 2 | Progressive-overload **Analysis page** (current single-plan data) | ✅ done |
+| 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
+| 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
+| 5 | **Retrofit** analysis + history to be split-scoped | ✅ done |
+| 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ✅ built + tested + **deployed** (2026-08-20) |
+| 7 | End-to-end verify + handoff doc refresh | ✅ verification pass done; deployed. **Only remaining:** real-PDF-in-app manual E2E (owner, needs running app) |
+
+**Phase 1 notes:** `_DayCard` (`workout_plan_edit_page.dart`) is now a
+collapsible tile — collapsed shows the header + exercise count only;
+tapping it springs open (critically damped, `AppSprings.standard`,
+interruptible) to reveal exercises/notes/"Add exercise", with a rotating
+chevron. Days start collapsed except one just added in this session (auto-
+expands — you're clearly about to fill it in). Multiple days can be open at
+once (not a forced accordion — useful for cross-referencing two days while
+editing). Expand state is keyed per day id, so it survives unrelated edits
+elsewhere on the page rather than resetting. Reduced motion snaps instantly
+(no spring). No existing behavior changed — edit/remove/notes/Default-rest
+bulk row/add-day/add-exercise all still work, including while expanded;
+only the exercises' *visibility* is now gated on expand state.
+
+**Phase 1 addendum — long-press drag-to-reorder (added after the owner felt
+the collapse/expand live, wanted reorder too):** both the day list and each
+day's exercise list are now `ReorderableListView.builder`s
+(`buildDefaultDragHandles: false`, `onReorderItem` — not the deprecated
+`onReorder`), with each item wrapped in `ReorderableDelayedDragStartListener`
+so a long-press starts the drag while a plain tap still reaches the header's
+expand toggle / a row's edit tap underneath — Flutter's own primitive for
+exactly that coexistence, not hand-rolled gesture-arena code. A custom
+`_liftProxyDecorator` replaces the default drag proxy: scale ~1.03,
+elevation/shadow, slight dim, matching each item's own corner radius;
+`onReorderStart`/`onReorderEnd` fire `selectionClick`/`lightImpact` haptics.
+Reduced motion drops the lift flourish (the reorder stays fully functional).
+Auto-scroll and 1:1 tracking/reflow come from `ReorderableListView` itself —
+deliberately not reimplemented from scratch.
+- **Known constraint, flagged rather than hidden:** the exercise list nested
+  inside a day card is `shrinkWrap: true` + `NeverScrollableScrollPhysics`
+  (it has no scroll extent of its own), and doesn't inherit real auto-scroll
+  from the page's outer scrollable — dragging an exercise past the day
+  card's own visible bounds can fail to complete the reorder. Low real risk
+  for a typical handful-of-exercises day; would need addressing if a day
+  ever has enough exercises to make that drag distance common.
+- **Rotation-cursor semantics, decided:** reordering days reassigns each
+  day's `order`, and `WorkoutPlan.cycleCursor`/`nextDay` — read by BOTH Home
+  and the Workout page — is an `order`-indexed pointer. So the cursor is now
+  tracked by the DAY'S IDENTITY it pointed at when editing opened (not a raw
+  index), and resolved back to that day's new index on save — reordering
+  days can never silently change which workout is "next." A day that gets
+  removed falls back to index 0.
+- The manual `if (newIndex > oldIndex) newIndex -= 1` adjustment Flutter's
+  own reorder examples use isn't needed — `onReorderItem` already delivers a
+  final, ready-to-insert index.
+
+**Phase 2 notes:** the progressive-overload Analysis page — day picker,
+per-exercise last-vs-previous deltas/verdict (reusing `compareToLastTime`/
+`lastPerformanceFor`, not reinvented), a dependency-free `CustomPainter` trend
+chart tinted by verdict, and a shared `verdictStyle()` so the live session's
+set badge and the analysis badges read as one system. Committed
+(`feat(workout): progressive-overload analysis page`).
+
+**Phase 3 notes:** `WorkoutPlanRepository` is now a multi-split repo + active
+pointer, extended additively (`activePlan`/`watchActivePlan`/`savePlan`/
+`deletePlan` still work unchanged) — in-memory (seeded active from the owner's
+real split) and Firestore (`workoutMeta/active` pointer doc, migration-on-read
+falling back to the first `status==active` plan when no pointer exists yet, so
+existing users lose nothing) both implemented and covered (in-memory 19 cases +
+Firestore 10, via `fake_cloud_firestore`). Committed
+(`feat(workout): first-class splits data foundation (multi-split repo +
+migration)`).
+Two invariants from §3.2 landed alongside: `LiveSession.splitId` is a
+documented getter alias for `planId` (the doc's own `splitId (=planId)`
+notation — no new stored field, no serialization change), and the
+exercise-id-preservation behavior (edit-in-place keeps `PlannedExercise.id`;
+add, or a name-identical remove+re-add, mints a fresh one) turned out to
+already be correct in `workout_plan_edit_page.dart` — pinned with a
+through-the-UI regression test (`plan_edit_exercise_identity_test.dart`) so a
+future refactor can't silently break it.
+**Deliberately out of this phase:** split management UX (create/switch/edit/
+delete splits — Phase 4) and on-device simulator verification of the splits
+plumbing (nothing here is UI-visible yet; the next UI-facing phase is 4).
+
+**Phase 4 notes:** a new `SplitManagementPage` (reached from the Workout page
+AppBar, `Icons.layers_rounded`, alongside Analysis/History) lists every saved
+split with an "Active" badge, and a per-tile bottom-sheet action menu — "Set as
+active", "Edit", "Duplicate", "Delete" — matching this feature's existing
+sheet-driven interaction pattern (day/exercise editing) rather than
+introducing a `PopupMenuButton`. Create/Edit reuse `WorkoutPlanEditPage`
+unchanged, via a new `asSplit` flag that routes save/delete through
+`saveSplit`/`deleteSplit` instead of `savePlan`/`deletePlan` — the
+back-compat pair always activates the saved plan, which split management must
+never do as a side effect of editing a split that isn't the active one.
+Duplicate mints a fresh plan id/createdAt but reuses the same day/exercise
+ids as the original — safe, since every history/analysis read filters by
+`planId` first, so two splits sharing an `exerciseId` never cross-contaminate
+each other's history. Delete removes the split record only; a split's own
+sessions are never touched (kept, just no longer reachable through the
+editor) — matches §3.1's "history is retained or archived, never silently
+destroyed." Switching (`setActiveSplit`) only moves the active pointer; a
+dedicated test seeds two splits with their own completed sessions, switches
+A→B→A, and asserts both sessions are byte-for-byte untouched throughout.
+Committed (`feat(workout): split management (create/switch/edit/delete)`).
+**Still open:** on-device simulator verification (of Phase 3 AND 4 together,
+since 4 is the first UI surface for the splits plumbing).
+
+**Phase 5 notes:** audited every read of session history for split scoping.
+The Analysis page (`day_progress_analysis.dart`) was already correctly
+scoped — it filters by `planId` before anything else — and Home's "Resume
+workout" card already checks `active.planId == plan.id`. **One real gap
+found and fixed:** the live session page's "previous performance" lookup
+(`live_session_page.dart`) filtered `_pastSessions` only by excluding the
+current session's own id, never by `planId` — so a live session could show
+another split's numbers for any exercise sharing an `exerciseId`, which
+Phase 4's own Duplicate action makes trivial to trigger (a duplicate starts
+with identical exercise ids to its source). Now filtered by
+`s.planId == _session.planId` too. A regression test seeds a 999kg "other
+split" session on the same `exerciseId` and asserts it never surfaces —
+this is exactly the scenario Phase 4's notes assumed was already safe and
+wasn't. Added a direct two-splits-sharing-a-dayId/exerciseId test to
+`day_progress_analysis_test.dart` confirming each split's analysis is fully
+independent (§3.2 invariant 4/5). The flat `Workout` log
+(`workout_history_page.dart`) is deliberately left un-scoped — per §1's own
+vocabulary it "has no split/day/exercise ids" and is documented as a display
+projection, not an analytical source, so it stays a cross-split activity
+feed rather than gaining a schema change out of this phase's stated scope.
+Committed (`refactor(workout): scope analysis + history to active split`).
+
+**Phase 6 notes:** built, offline-tested, and **deployed 2026-08-20** —
+`aiImportWorkoutPlan` is now live (v2 callable, us-central1) in project
+`zivo-63f15`, deployed via `firebase deploy --only functions:aiImportWorkoutPlan`
+after a full green verification pass (551 Flutter / 52 Node tests, analyze +
+eslint clean). It reuses the existing `ANTHROPIC_API_KEY` secret already bound
+to `aiChat`. The owner had directed skipping ADR-002's normal "Phase -1 UX
+approval before any code" gate for this slice (see Decisions log below). **The
+one step still open** is the real-PDF-in-app manual end-to-end (import an actual
+PDF, review, confirm, see the new split) — that needs the running app and is the
+owner's to do.
+
+- **Server** (`functions/ai/workout_import.js`, wired into `functions/index.js`
+  as `aiImportWorkoutPlan`): one Claude call per import, PDF sent as a native
+  `document` content block (no separate text-extraction/OCR pipeline — a
+  deliberate simplification of ADR-002's full digital-vs-scanned router,
+  reasonable for the short 1-3 page plans this is aimed at; the router
+  remains a "later" item if longer/messier documents turn out to need it), a
+  **strict** tool call (`propose_workout_split`) forces a schema-shaped
+  response, malformed entries are dropped rather than failing the whole
+  import (ADR-002's "partial parse → editable draft, not a hard failure").
+  Model: `claude-sonnet-5`, matching `aiChat`'s gateway model per §3.4's own
+  instruction to match unless there's a reason to differ — flagging this
+  explicitly in case the owner wants `claude-opus-5` for extraction accuracy
+  on messier real-world PDFs; that's a one-line change
+  (`functions/ai/workout_import.js`'s `MODEL` constant). `enforceAppCheck:
+  true` + auth required, matching every other AI callable's security
+  posture; a `MAX_PDF_BASE64_CHARS` guard rejects an oversized upload before
+  it reaches the model (ADR-002 guardrail). 8 offline `node --test` cases
+  (mapping, malformed-input dropping, refusal, no-tool-call, callModel
+  failure, missing input) — no network, no emulator, same seam pattern as
+  `gateway.test.js`.
+- **No pending-action/confirm-cancel pair, unlike ADR-003's task/expense
+  mutations** — deliberately simpler: the callable never writes to
+  Firestore at all. The client's own review screen (reusing
+  `WorkoutPlanEditPage` in `asSplit` mode, pre-filled with the parsed draft)
+  IS the human-confirms gate; the actual save is the same
+  `WorkoutPlanRepository.saveSplit` call Phase 4 already added. One callable,
+  no new Firestore collection, no expiry/idempotency to manage.
+- **Client**: `AiRepository.importWorkoutPlan` (implemented in both
+  `FakeAiRepository`, canned two-day sample, and `FirebaseAiRepository`, the
+  real callable, base64-encoding the PDF), `workoutPlanFromImport()`
+  (`lib/features/workout/domain/workout_plan_from_import.dart`) converts the
+  extracted JSON into a real `WorkoutPlan` draft with freshly-minted plan/
+  day/exercise ids, and `WorkoutPdfImportPage` (new AppBar action on
+  `SplitManagementPage`, `Icons.picture_as_pdf_rounded`) drives pick → call →
+  review, with its file-picker call injectable for testing (added the
+  `file_picker` package — `image_picker` already in the project is
+  camera/gallery-only, not general file access). 4 widget tests (cancel,
+  picker error, successful import → editor pre-fill, import failure → retry)
+  plus 10 converter unit tests (fixed/range/to-failure rep-target mapping,
+  set-count expansion, id minting, blank-slot fallback).
+- **Deliberately deferred**: the digital-vs-scanned router (ADR-002's
+  reserved multimodal fallback — native PDF input already handles both since
+  Claude reads both the text layer and a page image), Storage-based upload
+  (PDF goes straight in the callable payload, capped well under Cloud
+  Functions' request limit — no `users/{uid}/imports/` Storage path or rules
+  needed for this volume), and on-device verification (needs a live deploy
+  first).
+
+**Code-review follow-ups (Phases 0–6, `code-review` skill at high effort):**
+a full pass over the whole milestone's diff surfaced six real issues, all
+fixed:
+- `WorkoutPlanEditPage._save()` hardcoded `source: manual`, silently
+  discarding an imported draft's `source: pdf` on Save. Now preserves
+  `widget.initialPlan?.source`.
+- `MAX_PDF_BASE64_CHARS`'s comment falsely claimed ADR-002's ~32MB parity;
+  corrected to state the real ~10.5MB raw-PDF ceiling the cap actually
+  enforces (fine for this feature's short PDFs).
+- `aiImportWorkoutPlan` had no `timeoutSeconds`; a whole-PDF Claude call can
+  run past the 60s platform default — set to 180s.
+- The Firestore/in-memory repos' no-pointer migration fallback (oldest vs
+  newest active-status split on a tie) was undocumented as intentional and
+  untested — confirmed it already matches `deleteSplit`'s own "oldest by
+  createdAt" re-pointing convention (not a silent regression, as first
+  suspected), then documented and pinned it with a dedicated tie test rather
+  than flipping it.
+- `saveSplit()` did an unconditional full-collection read on every save to
+  check for an existing active pointer. Now prefers the already-live
+  snapshot cache (gated on an actually-attached listener, not just "has ever
+  received one," so a stale cache after every listener detaches still falls
+  back to the server) — cheaper on the common path, pinned with a
+  live-listener test distinct from the existing cold-path ones.
+- `WorkoutImportResult`/`ImportedDay`/`ImportedExercise` lived under
+  `lib/features/ai/domain/` despite being workout-shaped data, bolted onto
+  the generic, chat-oriented `AiRepository` interface — moved to
+  `lib/features/workout/domain/`, matching every other workout type's home;
+  `AiRepository` now depends on workout domain for this one method's return
+  type, not the reverse.
+
+flutter analyze clean; full suite 550 passing; functions node --test 50
+passing; eslint clean.
+
+**Phase 6 hardening pass (§6 test-depth follow-up):**
+
+- **Real bug found:** `workoutPlanFromImport`'s `_repTargetFrom` built
+  `RepTarget.range(min, max)` whenever `repsMin != repsMax`, with no check
+  that `min < max`. `RepTarget.range` asserts `min <= max`, so a reversed
+  extraction (e.g. a descending pyramid like "12 → 8" read as
+  `repsMin: 12, repsMax: 8`) would throw an `AssertionError` and crash the
+  split-review screen in debug/test builds. Fixed by swapping to
+  `(min(a,b), max(a,b))` before constructing the range; pinned with a
+  reversed-range regression test.
+- **Defensive hardening:** `normalize()` in `functions/ai/workout_import.js`
+  only floored `sets` (≥1, no ceiling) and accepted any `typeof === "number"`
+  for `targetWeightKg` (including `NaN`/`Infinity`) and any integer
+  (including negative) for `repsMin`/`repsMax`/`restSeconds` — strict tool
+  schemas constrain shape, not range, so a hallucinated extraction on a
+  messy PDF could still slip through numerically-valid-but-absurd values
+  (e.g. `sets: 500`, which the client would turn into a 500-`PlannedSet`
+  list). Added named bound constants (`MAX_SETS`) and two small guards
+  (`nonNegativeInt`, `nonNegativeFinite`) that drop out-of-range values to
+  `null`/clamp rather than hard-fail, matching the existing malformed-entry
+  posture. New fixtures cover an oversized `sets` and negative/non-finite
+  reps/rest/weight.
+
+flutter analyze clean; full suite 551 passing (+1); functions node --test 52
+passing (+2); eslint clean.
+
+**Phase 7 — verify + handoff:** ran a full end-to-end pass of everything that
+doesn't require the un-deployed callable: `flutter analyze`, `flutter test`,
+functions `node --test`, and eslint all still hold the 551/52/clean bar with
+nothing new found. Sanity-checked test coverage for every flow this milestone
+touches — splits create/switch/edit/delete
+(`split_management_page_test.dart`, `*_splits_test.dart` for both the
+Firestore and in-memory repos), analysis + history scoped to the active split
+(`workout_analysis_page_test.dart`, `day_progress_analysis_test.dart`,
+`workout_plan_page_test.dart`), and the PDF-import **client** flow up to the
+callable boundary (`workout_pdf_import_page_test.dart`, against
+`FakeAiRepository`'s canned response) — all present and green. The function was
+**deployed 2026-08-20** (`aiImportWorkoutPlan` live, v2 callable, us-central1).
+**The one flow still open is the real-PDF-in-app end-to-end** (real PDF →
+`aiImportWorkoutPlan` → review → confirm → new split): it needs the running app
+and a real file, so it's the owner's manual verify. Everything up to that line
+is done.
+
+---
+
+## 1. Vocabulary (use these words precisely)
+
+- **Split** — a named workout configuration/template (e.g. "Push Pull Legs",
+  "Arnold Split"). A user has many saved splits; exactly **one is active** at
+  a time. A split owns its own days, its own history, and its own analysis.
+  *In code, a Split is a generalized `WorkoutPlan`.*
+- **Plan / `WorkoutPlan`** — today's model for the (single) active split: a
+  named, ordered **rotating cycle** of days (`cycleCursor` picks the next
+  day; not tied to weekdays). Fields: `id, name, status, source, createdAt,
+  updatedAt, days, cycleCursor`. `source` is `manual | pdf` (`pdf` already
+  reserved).
+- **Day / `WorkoutDay`** — one day in the rotation: `slot` ("A"/"B"/"C"),
+  `label` ("Push"), `order`, `notes`, `exercises`.
+- **Planned exercise / `PlannedExercise`** — a movement in a day: `id, name,
+  order, muscleGroup, notes, defaultRestSeconds, sets` (planned `PlannedSet`s).
+- **Session / `LiveSession`** — a live or completed *execution* of a day.
+  Rich log: carries `planId`, `dayId`, per-exercise `exerciseId`, executed
+  `sets` (with `done`, actual reps/weight), `status`, `startedAt`,
+  `completedAt`. **This is the entity analysis is built on.**
+- **Workout log / `Workout`** — a *flattened* "what happened" record (`title,
+  performedAt, exercises[name/sets/reps/weightKg]`). Used on Home/History.
+  **Has no split/day/exercise ids** — do not build analysis on this; it is a
+  display projection, not the analytical source.
+- **Progressive overload** — trained the same movement over time and moved a
+  meaningful metric up (weight, reps, or volume = reps × weight).
+
+---
+
+## 2. What already exists (do not rebuild)
+
+- **`WorkoutPlan` is already split-shaped** — named, dayed, with a reserved
+  `pdf` source. The only gap for splits: the repo enforces a single active
+  plan (`WorkoutPlanRepository.activePlan / watchActivePlan / savePlan`
+  replaces by id).
+- **History is already split-scopeable** — `LiveSession` carries
+  `planId + dayId + exerciseId`, so completed sessions can be filtered to a
+  split and a day today.
+- **Progression math is done** (set-level):
+  - `progression.dart` — `computeGoal(...)`: double-progression target.
+  - `progress_comparison.dart` — `compareToLastTime(...)`: reps % / weight Δ /
+    volume % / overall %, rolled into `ProgressVerdict {progressing, matched,
+    down}`.
+  - `exercise_history.dart` — `lastPerformanceFor(exerciseId, pastSessions)`:
+    most recent completed session for an exercise; `ExerciseHistory` with
+    index-aligned done sets + `topWeightKg`.
+  The **analysis page aggregates these**; it does not reinvent the math.
+- **AI backend is mature** — an `aiChat` **Cloud Function** gateway
+  (`functions/`), client is server-write-only, with an **action-proposal
+  pattern** (ADR-003: AI proposes a structured action → user confirms/cancels
+  → server writes). **PDF import reuses this shape.**
+
+---
+
+## 3. Target architecture
+
+### 3.1 Splits (generalize the single plan)
+
+- A **Split is a `WorkoutPlan`**. Move `WorkoutPlanRepository` from
+  *one active plan* → *a set of splits + one active pointer*:
+  - `watchSplits()` → all saved splits; `watchActivePlan()` keeps returning
+    the active one (back-compat); `activeSplitId` pointer; `setActiveSplit(id)`;
+    `saveSplit` (create/replace by id); `deleteSplit(id)` (history is retained
+    or archived, never silently destroyed).
+  - **Migration:** the existing single active plan becomes the first split;
+    `activeSplitId` points at it. No user data lost.
+
+### 3.2 History & edit invariants (the part that must be right)
+
+1. **Completed sessions are immutable.** A `LiveSession` once completed is
+   never rewritten by later plan edits.
+2. **Sessions are stamped with context:** `splitId` (= `planId`) + `dayId` +
+   per-exercise `exerciseId`, **plus a snapshot of the exercise name/prescription
+   at log time**, so renaming or reordering later never corrupts past records.
+3. **Editing a split preserves identity for unchanged exercises** — same
+   `exerciseId` ⇒ history stays linked. **Replacing/changing an exercise mints
+   a new `exerciseId`** ⇒ a fresh history line; the old exercise's history is
+   preserved under its old id, never mixed with the new movement.
+4. **Switching splits** only moves the active pointer. Every split keeps its
+   own sessions; analysis for split X reads only split X's sessions.
+5. **Comparing the same exercise across sessions** keys on `exerciseId`
+   (stable), not on the display name (which can change).
+
+### 3.3 Progressive-overload analysis
+
+- **Scope:** a chosen **day** within a split (e.g. "Push"), comparing the two
+  most recent completed sessions of that day — and per-exercise trends across
+  the last N sessions.
+- **Per exercise:** weight ↑/↓ (top set + per-set), reps ↑/↓, volume change,
+  a Progressing/Matched/Down verdict (reuse `compareToLastTime`), best/PR
+  weight, and a small trend line over recent sessions.
+- **Per day/session:** total volume trend, an overall progression verdict,
+  count of exercises improved/matched/regressed.
+- **Data source:** completed `LiveSession`s filtered by (active split's)
+  `planId` + `dayId`. Never the flat `Workout` log.
+- Handle first-time / single-session gracefully (nothing to compare → a clear
+  "log another session to see progress" empty state).
+
+### 3.4 AI PDF import
+
+Flow: **Import PDF → AI reads & understands → extracts workout structure →
+mapped into our model → user reviews → confirmed → saved as a Split
+(`source: pdf`).**
+
+- **Server-side** (a new callable Cloud Function in the existing gateway
+  style, e.g. `aiImportWorkoutPlan`): receives the PDF (or its extracted
+  text), calls the model with a **structured-output schema** matching our
+  domain (days → exercises → sets, rep targets, rest, muscle group), returns a
+  proposed split. Keys stay server-side. *(Confirm which model the existing
+  gateway uses before wiring; match it unless there's reason to differ.)*
+- **Client:** import entry point → progress state → a **review screen** (the
+  action-proposal/confirm pattern) where the user can eyeball/fix the parsed
+  structure → confirm creates the split. Never auto-commit an unreviewed import.
+- **Robustness:** the model may misread; the review step is mandatory, and the
+  extractor must degrade gracefully (partial parse → editable draft, not a
+  hard failure).
+
+---
+
+## 4. Firestore layout (target)
+
+```
+users/{uid}/
+  workoutSplits/{splitId}          # was the single active plan; now many
+    (WorkoutPlan fields incl. days[], source, cycleCursor)
+  workoutMeta/active               # { activeSplitId }
+  workoutSessions/{sessionId}      # LiveSession; stamped splitId+dayId+exerciseId
+  workouts/{workoutId}             # flat Workout log (display projection)
+  aiConversations/{id}/messages    # existing AI (server-write-only)
+```
+
+Security rules follow the existing pattern (user-owned subtrees; AI writes via
+Cloud Functions only). Add a `schemaVersion` to new docs for migration safety.
+
+---
+
+## 5. Phased implementation plan (executable, commit per phase)
+
+Each phase: **plan → implement → test → verify → commit.** Suggested commit
+message prefixes in parentheses.
+
+### Phase 0 — Source of truth + model lock  *(docs)*
+- Land this file. Confirm the data model + invariants in §3. No feature code.
+- **Commit:** `docs(workout): add Workout System source-of-truth + phased plan`.
+
+### Phase 1 — Collapsible day tiles  *(quick, independent)*
+- In `workout_plan_edit_page.dart`, make each `_DayCard` an expand/collapse
+  tile: collapsed shows `Day {slot} · {label}` + exercise count; tapping
+  expands to the `_ExerciseRow`s. Default collapsed (or remember last).
+- Apple-polished: spring expand/collapse (critically damped), animate height +
+  a chevron rotation; respect `prefers-reduced-motion`. Not a raw
+  `ExpansionTile` if it can't be made to feel premium.
+- **Tests:** widget test — tapping a day toggles its exercises' visibility;
+  reorder/edit still work while expanded.
+- **Verify:** run the app, expand/collapse each day, confirm editing the last
+  exercise no longer needs a long scroll.
+- **Commit:** `feat(workout): collapsible day tiles in Edit Workout Plan`.
+
+### Phase 2 — Progressive-overload Analysis page  *(on current single plan)*
+- New page under the workout section (reachable from Hub → Workout and/or the
+  Training card). Pick a **day** (default the active/next day), show:
+  - Last-session vs previous-session comparison per exercise (reuse
+    `compareToLastTime` / `lastPerformanceFor`), with weight/reps/volume deltas
+    and a Progressing/Matched/Down verdict.
+  - A recent-sessions trend per exercise (top-set weight and/or volume).
+  - A day-level overall verdict + improved/matched/regressed counts.
+- **Data:** completed `LiveSession`s for the active plan's `planId`, grouped by
+  `dayId`. Add a repository read for session history if one isn't already
+  exposed (`watchSessions()` / `pastSessions`).
+- Empty/first-time states handled.
+- **Tests:** unit tests for the aggregation (given N sessions → expected
+  deltas/verdicts/trends); widget test for the page states (empty, one
+  session, multiple).
+- **Verify:** run the app on real/seed history, confirm numbers match hand
+  calculation for a known day.
+- **Commit:** `feat(workout): progressive-overload analysis page`.
+
+### Phase 3 — Splits data foundation  *(retrofit begins)*
+- Generalize `WorkoutPlanRepository` to multi-split (§3.1): `watchSplits`,
+  active pointer, `setActiveSplit`, `saveSplit`, `deleteSplit`. Keep
+  `watchActivePlan` working.
+- Firestore layout §4 + **migration** of the current plan into `workoutSplits`
+  with `activeSplitId` set. In-memory + Firestore impls both.
+- Stamp `splitId` on new/edited `LiveSession`s; enforce exercise-id
+  preservation on split edits (§3.2 invariants 2–3).
+- **Tests:** repo tests for multi-split CRUD + active pointer; migration test
+  (single plan → one split, no data loss); edit-preserves-exerciseId test;
+  Firestore round-trip.
+- **Verify:** app still boots with existing data (migrated), active split shows
+  as before.
+- **Commit:** `feat(workout): first-class splits data model + migration`.
+
+### Phase 4 — Split management UX
+- UI to list splits, switch active, create, edit (reuse the plan editor),
+  duplicate, delete. Switching must not touch history.
+- **Tests:** widget tests for create/switch/delete; switching split A→B→A keeps
+  each split's history intact.
+- **Verify:** create a second split, switch back and forth, confirm history and
+  analysis stay correct per split.
+- **Commit:** `feat(workout): split management (create/switch/edit/delete)`.
+
+### Phase 5 — Retrofit analysis + history to splits
+- Re-scope the Phase 2 analysis and any history views to the **active split**
+  (filter by `splitId`), so each split has independent analysis. Cross-split
+  data never mixes.
+- **Tests:** analysis for split X excludes split Y's sessions; same-exercise
+  comparison keys on `exerciseId`.
+- **Verify:** two splits with distinct histories show distinct analysis.
+- **Commit:** `refactor(workout): scope analysis + history to active split`.
+
+### Phase 6 — AI PDF import
+- Cloud Function `aiImportWorkoutPlan` (§3.4): PDF/text → structured split
+  proposal. Client import → review/confirm (action-proposal pattern) → save as
+  a split (`source: pdf`).
+- **Tests:** function-level extraction test against a sample PDF/text fixture
+  (structure maps to our model); client review-screen widget test (edit before
+  confirm; confirm creates the split; cancel discards).
+- **Verify:** import a real PDF end-to-end, review, confirm, see the new split.
+- **Commit:** `feat(workout): AI PDF import → structured split`.
+
+### Phase 7 — Verify + handoff
+- End-to-end pass of all flows; update this doc's **Status** table and
+  `docs/PROJECT_CONTEXT.md` handoff with what's done + what's next.
+- **Commit:** `docs(workout): mark splits/analysis/AI milestone complete`.
+
+---
+
+## 6. After implementation — recommended next steps
+
+Once the phases land, the sensible follow-ups (verify/test/review/build):
+- **Verify with real data:** import your actual PDF, run a full session against
+  a split, confirm analysis reflects the real progression.
+- **Review:** a focused code review of the splits data model + migration
+  (highest-risk area) and the AI extraction prompt/schema.
+- **Test depth:** add fixtures for messy real-world PDFs; property-test the
+  progression aggregation.
+- **Build next:** AI-driven progression *suggestions* (the assistant reading
+  your analysis and recommending next weights/reps), diet/nutrition tie-in, and
+  wiring the analysis verdicts back into the live session Goal card.
+
+---
+
+## 7. Decisions log
+
+- **2026-08-19** — Sequencing: **analysis first, then retrofit splits** (speed
+  of a visible result over foundation-first purity).
+- **2026-08-19** — Branch: **continue on `feature/workout-diet-v2`** (no new
+  milestone branch for this work).
+- **2026-08-19** — A **Split == generalized `WorkoutPlan`**; history scoped by
+  `splitId (=planId) + dayId + exerciseId`; analysis built on `LiveSession`,
+  not the flat `Workout` log.
+- **2026-08-19** — AI PDF extraction runs **server-side** in the existing
+  Cloud Function gateway, using the action-proposal/confirm pattern; imports
+  are always user-reviewed before saving.
+- **2026-08-20** — Phase 6 (AI PDF import) was built and offline-tested
+  **before** ADR-002's own "Phase -1 UX approval before any code" gate was
+  satisfied — the owner explicitly directed skipping that gate for this
+  slice ("just build it") rather than mocking the flow first. ADR-002 itself
+  is still formally `Status: Proposed`. The propose→confirm pattern used is
+  simpler than ADR-003's (no pending-action Firestore record — see the Phase
+  6 notes above for why that's safe here), not the exact pattern ADR-002/
+  ADR-003 describe; deployment remains a separate, owner-only manual step
+  not taken as part of this slice.

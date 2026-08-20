@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Saving app-captured photos into the system gallery (gal / "Save to
+         Photos"). API 29+ uses scoped storage (MediaStore) and needs no
+         permission; only API 28 and below require this legacy write grant. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <application
         android:label="zivo"
         android:name="${applicationName}"

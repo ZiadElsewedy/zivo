@@ -116,7 +116,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(child: const TodayPage(), diet: InMemoryDietRepository()),
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     // FakeProfileRepository defaults to the name 'Ziad'.
     expect(find.textContaining('Ziad'), findsOneWidget);
@@ -126,37 +126,44 @@ void main() {
     );
   });
 
-  testWidgets('Training reflects an injected workout logged today', (
-    tester,
-  ) async {
-    await tallView(tester);
+  testWidgets(
+    'Training always shows the active plan\'s up-next day — even once something was logged '
+    'today — so it can never drift from what the Workout tab shows (same watchActivePlan source)',
+    (tester) async {
+      await tallView(tester);
 
-    final workouts = InMemoryWorkoutRepository();
-    await workouts.add(
-      Workout(
-        id: 'today-w1',
-        title: 'Pull',
-        performedAt: DateTime.now(),
-        durationMinutes: 45,
-        exercises: const [
-          Exercise(name: 'Lat Pulldown', sets: 4, reps: 10),
-        ],
-      ),
-    );
+      // A workout ("Pull") was already logged today, but the active plan's
+      // up-next day is "Full Arm" — Home must show "Full Arm" (matching the
+      // Workout page's own `plan.nextDay`), NOT roll back to reflect what
+      // was just logged. This is the owner-reported inconsistency, fixed.
+      final workouts = InMemoryWorkoutRepository();
+      await workouts.add(
+        Workout(
+          id: 'today-w1',
+          title: 'Pull',
+          performedAt: DateTime.now(),
+          durationMinutes: 45,
+          exercises: const [Exercise(name: 'Lat Pulldown', sets: 4, reps: 10)],
+        ),
+      );
 
-    await tester.pumpWidget(
-      _wrap(
-        child: const TodayPage(),
-        diet: InMemoryDietRepository(),
-        workouts: workouts,
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workouts: workouts,
+          workoutPlans: _FixedPlanRepository(_planWithNextDay()),
+        ),
+      );
+      await _settle(tester);
 
-    expect(find.text('Pull'), findsOneWidget);
-    expect(find.text('Lat Pulldown'), findsOneWidget);
-    expect(find.text('No training logged yet today.'), findsNothing);
-  });
+      expect(find.text('Full Arm'), findsOneWidget);
+      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Pull'), findsNothing);
+      expect(find.text('Lat Pulldown'), findsNothing);
+      expect(find.text('No training logged yet today.'), findsNothing);
+    },
+  );
 
   testWidgets(
     'Training shows the empty state when nothing was logged today and there is no active plan',
@@ -174,7 +181,7 @@ void main() {
           workoutPlans: _NoActivePlanRepository(),
         ),
       );
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.text('No training logged yet today.'), findsOneWidget);
     },
@@ -192,11 +199,11 @@ void main() {
           workoutPlans: _FixedPlanRepository(_planWithNextDay()),
         ),
       );
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
-      expect(find.text('Day D · Full Arm'), findsOneWidget);
+      expect(find.text('Full Arm'), findsOneWidget);
       expect(find.text('1 exercise'), findsOneWidget);
-      expect(find.text('Start'), findsOneWidget);
+      expect(find.text('Start Workout'), findsOneWidget);
       expect(find.text('No training logged yet today.'), findsNothing);
     },
   );
@@ -213,10 +220,10 @@ void main() {
           workoutPlans: _FixedPlanRepository(_planWithNextDay()),
         ),
       );
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
-      await tester.tap(find.text('Start'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Workout'));
+      await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsOneWidget);
       expect(find.text('1 exercise today.'), findsOneWidget);
@@ -224,11 +231,66 @@ void main() {
       expect(find.byType(LiveSessionPage), findsNothing);
 
       await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsNothing);
       expect(find.byType(LiveSessionPage), findsNothing);
-      expect(find.text('Day D · Full Arm'), findsOneWidget); // still on Today
+      expect(find.text('Full Arm'), findsOneWidget); // still on Today
+    },
+  );
+
+  testWidgets(
+    'dragging the confirm sheet down past the threshold dismisses it, without navigating',
+    (tester) async {
+      await tallView(tester);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: _FixedPlanRepository(_planWithNextDay()),
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(find.text('Start Workout'));
+      await _settle(tester);
+      expect(find.text('Ready to start Full Arm?'), findsOneWidget);
+
+      // Well past the 120px dismiss threshold — same exit as Cancel.
+      await tester.drag(find.text('Ready to start Full Arm?'), const Offset(0, 300));
+      await _settle(tester);
+
+      expect(find.text('Ready to start Full Arm?'), findsNothing);
+      expect(find.byType(LiveSessionPage), findsNothing);
+      expect(find.text('Full Arm'), findsOneWidget); // still on Today
+    },
+  );
+
+  testWidgets(
+    'dragging the confirm sheet down short of the threshold springs it back open',
+    (tester) async {
+      await tallView(tester);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: _FixedPlanRepository(_planWithNextDay()),
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(find.text('Start Workout'));
+      await _settle(tester);
+
+      // A short drag, well under the 120px dismiss threshold.
+      await tester.drag(find.text('Ready to start Full Arm?'), const Offset(0, 30));
+      await _settle(tester);
+
+      // Still open — sprang back rather than dismissing.
+      expect(find.text('Ready to start Full Arm?'), findsOneWidget);
+      expect(find.byType(LiveSessionPage), findsNothing);
     },
   );
 
@@ -245,13 +307,13 @@ void main() {
           workoutPlans: _FixedPlanRepository(plan),
         ),
       );
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
+      await tester.tap(find.text('Start Workout'));
+      await _settle(tester);
+      // The card's own CTA reads "Start Workout" (distinct text), so the
+      // sheet's plain "Start" confirm button is the only match here.
       await tester.tap(find.text('Start'));
-      await tester.pumpAndSettle();
-      // Two "Start"s on screen now (the sheet's own CTA) — the second/last
-      // one is the confirm action.
-      await tester.tap(find.text('Start').last);
       await _settle(tester);
 
       expect(find.byType(LiveSessionPage), findsOneWidget);
@@ -274,6 +336,12 @@ void main() {
       );
       await sessions.saveSession(active);
 
+      // Not pumpAndSettle anywhere in this file now — the card's
+      // `AliveColorDrift` (up_next_workout_card.dart) is a continuous,
+      // always-on repeating animation (not gated to an active session
+      // anymore), same convention as `live_session_page_test.dart`'s own
+      // `_settle` (and it stays mounted, ticking, even once covered by the
+      // confirm sheet/LiveSessionPage — Navigator keeps prior routes alive).
       await tester.pumpWidget(
         _wrap(
           child: const TodayPage(),
@@ -282,16 +350,18 @@ void main() {
           workoutSessions: sessions,
         ),
       );
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
-      expect(find.text('Resume'), findsOneWidget);
-      expect(find.text('Start'), findsNothing);
+      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Start Workout'), findsNothing);
 
-      await tester.tap(find.text('Resume'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Resume Workout'));
+      await _settle(tester);
       expect(find.text('Ready to jump back in?'), findsOneWidget);
 
-      await tester.tap(find.text('Resume').last);
+      // The card's own CTA reads "Resume Workout" (distinct text), so the
+      // sheet's plain "Resume" confirm button is the only match here.
+      await tester.tap(find.text('Resume'));
       await _settle(tester);
 
       expect(find.byType(LiveSessionPage), findsOneWidget);
@@ -308,7 +378,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(child: const TodayPage(), diet: InMemoryDietRepository()),
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     // Seeded plan: 3 meals (Breakfast/Lunch/Dinner), none eaten yet.
     expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
@@ -328,21 +398,30 @@ void main() {
     );
 
     await tester.pumpWidget(_wrap(child: const TodayPage(), diet: diet));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(find.text('DIET'), findsNothing);
     expect(find.textContaining('meals eaten'), findsNothing);
   });
 }
 
-/// [LiveSessionPage] carries repeating animation controllers (the current-
-/// set pulse, the rest/warm-up ring's stroke glow) that never settle on
-/// their own — `pumpAndSettle` would hang once it's on screen, so any step
-/// past navigating into it advances by a fixed, generous duration instead
-/// (same convention as `live_session_page_test.dart`).
+/// Used everywhere in this file instead of `pumpAndSettle` — the up-next
+/// card's `AliveColorDrift` (`up_next_workout_card.dart`) is a continuous,
+/// always-on repeating animation the moment there's an active plan (which
+/// the default `_wrap` always seeds), so `pumpAndSettle` would hang on
+/// almost every test here. [LiveSessionPage] adds its own repeating
+/// controllers too (the current-set pulse, the rest ring's stroke glow) —
+/// same reasoning, same convention as `live_session_page_test.dart`. Also
+/// long enough to cover the confirm sheet's own symmetric exit spring (critically damped,
+/// ~0.35s response — see `up_next_workout_card.dart`'s `_resolve`), which
+/// the Start/Resume confirm tap awaits before popping. The trailing bare
+/// `pump()` matters too: `Navigator.push` fired from inside that awaited
+/// async chain doesn't materialize the new route's widget tree within the
+/// same timed pump that triggers it — it needs one more frame.
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pump(const Duration(milliseconds: 1000));
+  await tester.pump();
 }
 
 class _NoActivePlanRepository implements WorkoutPlanRepository {
@@ -357,6 +436,25 @@ class _NoActivePlanRepository implements WorkoutPlanRepository {
 
   @override
   Future<void> deletePlan(String id) async {}
+
+  @override
+  List<WorkoutPlan> get splits =>
+      activePlan == null ? const <WorkoutPlan>[] : <WorkoutPlan>[activePlan!];
+
+  @override
+  Stream<List<WorkoutPlan>> watchSplits() => Stream.value(splits);
+
+  @override
+  String? get activeSplitId => activePlan?.id;
+
+  @override
+  Future<void> setActiveSplit(String id) async {}
+
+  @override
+  Future<void> saveSplit(WorkoutPlan plan) => savePlan(plan);
+
+  @override
+  Future<void> deleteSplit(String id) => deletePlan(id);
 }
 
 class _FixedPlanRepository implements WorkoutPlanRepository {
@@ -379,4 +477,23 @@ class _FixedPlanRepository implements WorkoutPlanRepository {
   Future<void> deletePlan(String id) async {
     _plan = null;
   }
+
+  @override
+  List<WorkoutPlan> get splits =>
+      activePlan == null ? const <WorkoutPlan>[] : <WorkoutPlan>[activePlan!];
+
+  @override
+  Stream<List<WorkoutPlan>> watchSplits() => Stream.value(splits);
+
+  @override
+  String? get activeSplitId => activePlan?.id;
+
+  @override
+  Future<void> setActiveSplit(String id) async {}
+
+  @override
+  Future<void> saveSplit(WorkoutPlan plan) => savePlan(plan);
+
+  @override
+  Future<void> deleteSplit(String id) => deletePlan(id);
 }

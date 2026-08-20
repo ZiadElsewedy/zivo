@@ -6,6 +6,16 @@
 > disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
 > describes what is *actually built today*.
 >
+> **Last verified against the codebase:** 2026-08-19 (active development moved to the Workout/Diet
+> overhaul on `feature/workout-diet-v2` — the AI streaming work described later in this handoff
+> (Phase 3.5, `feature/ai-streaming-ux`) is **paused, not abandoned**; M9 AI V2 remains the last
+> milestone once this track wraps. Firestore persistence, Authentication, and University are merged
+> into `main`).
+> **Last updated:** 2026-08-19 — active branch `claude/media-storage-architecture-95c0a4`: media
+> storage rework **Phase 1 (local-first pipeline) + Phase 2 (Google Drive) code done & committed**;
+> Phase 2 now pending only the owner's GCP setup + an on-device OAuth check. See the **Active** entry
+> in Current Handoff. Prior AI-streaming context below was last verified 2026-08-17.
+>
 > **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
 > `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
 > spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
@@ -18,7 +28,117 @@
 
 > Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
 > git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/ai-streaming-ux`.
+> without redoing completed work. Active development is on `feature/workout-diet-v2`.
+
+### Workout/Diet overhaul — CURRENT
+
+- **Status (as of 2026-08-20):** `feature/workout-diet-v2`, HEAD `6f78302`, working tree **CLEAN**
+  (all committed). Since the last handoff snapshot (`3b39f43`, then an uncommitted Home/Workout
+  sync fix), the branch landed — in order — `9dfe432` (progressive-overload analysis page),
+  `245a051` (first-class splits data foundation: multi-split repo + migration), `e4c7601` (pinned
+  the exercise-identity invariant + `splitId` alias), `9253b2a` (split management: create/switch/
+  edit/delete), `dff3c4d` (scoped analysis + history to the active split), `33d0630` (AI PDF
+  import — extractor + review UI, **Phase 6**), `a9d3f5b` + `76c9fb0` (two code-review passes over
+  Phases 0–6), and `6f78302` (a further Phase 6 hardening pass: a reversed-rep-range crash fix +
+  `normalize()` numeric bounds). The Home/Workout sync fix from the prior handoff (deleting
+  `TrainingCard`/`training_builder.dart`, `AliveColorDrift` made continuous) is folded into this
+  history and done.
+- **Phase 6 (AI PDF import) is BUILT + TESTED + DEPLOYED (2026-08-20).** `aiImportWorkoutPlan` is
+  live (v2 callable, us-central1) in `zivo-63f15`, deployed via
+  `firebase deploy --only functions:aiImportWorkoutPlan` after a full green verification pass
+  (551 Flutter / 52 Node tests, analyze + eslint clean); it reuses the existing `ANTHROPIC_API_KEY`
+  secret already bound to `aiChat`. **Phase 7 (verify + handoff) is done.** The ONLY step still
+  open is the real-PDF-in-app end-to-end (import → review → confirm → see the new split) — needs
+  the running app + a real file, so it's the owner's manual verify.
+- **Verification bar:** `flutter analyze` clean; `flutter test` **551 passing**; functions
+  `node --test` **52 passing**; eslint clean.
+- **Do not redo / do not undo (compressed):**
+  - Don't re-derive the progression-analysis page, the first-class splits data foundation +
+    migration, the exercise-identity invariant/`splitId` alias, split management (create/switch/
+    edit/delete), or active-split scoping for analysis/history — all built, tested, committed.
+  - Don't re-derive the Phase 6 AI PDF import pipeline (server `aiImportWorkoutPlan` callable,
+    client import→review→save flow) or its hardening pass (the reversed-range fix in
+    `workoutPlanFromImport`, `normalize()`'s `MAX_SETS`/non-negative bounds in
+    `functions/ai/workout_import.js`).
+  - The splits migration's "oldest vs newest active split on a tie" fallback resolves to
+    oldest-by-`createdAt` — confirmed intentional, matches `deleteSplit()`'s own re-pointing
+    convention, not a bug; don't flip it.
+  - `WorkoutImportResult`/`ImportedDay`/`ImportedExercise` live in `lib/features/workout/domain/`
+    (moved off `lib/features/ai/domain/`) — don't move them back.
+  - Settled, deliberately-not-fixed (don't re-flag as bugs without surfacing first): a collapsed
+    day hiding its notes is Phase 1's intentional design, not a regression; the AI Cloud Function
+    callables' auth-boilerplate duplication and `analyzeDayProgress()`'s lack of memoization are
+    both real but deliberately deferred at this app's personal scale.
+  - From the earlier Home-card slice: don't reintroduce `TrainingCard`/`training_builder.dart`/
+    `todaysWorkout()` on Home (Home reads the same `watchActivePlan()` → `plan.nextDay` source as
+    the Workout page, guaranteed in sync); don't gate `AliveColorDrift` back to active-only — it's
+    deliberately continuous.
+  - **Shared working directory caution:** avoid `git checkout`/branch switches on this repo while
+    another session has uncommitted changes in flight; stage files by name, never
+    `git add -A`/`.`.
+- **Exact next action:** the milestone is code-complete, verified, and deployed. The ONLY step
+  left is the owner's manual **real-PDF-in-app end-to-end verify** (import an actual PDF → review →
+  confirm → see the new split) on the running app. Deploy is done (`aiImportWorkoutPlan` live,
+  2026-08-20); Phase 7 handoff docs are refreshed.
+
+### AI streaming / launch (Phase 3.5) — paused, preserved for reference
+
+> Predates the workout/diet track above and is **paused, not superseded** — its own git state,
+> verification status, and manual next steps are unchanged from when it was last active. Resume
+> directly from here if the owner picks this track back up.
+> without redoing completed work. Active development is on `claude/media-storage-architecture-95c0a4`
+> (media storage rework); the AI-streaming handoff below is the prior, still-valid `main`/
+> `feature/ai-streaming-ux` context.
+
+### Active: Media storage architecture (2026-08-19, `claude/media-storage-architecture-95c0a4`)
+
+- **Goal:** make media (Moments photos, profile pictures, future images) storage-agnostic and
+  per-account configurable — WhatsApp-style local-first storage with optional cloud backup —
+  instead of being tied to Firebase Storage. Key finding: **the app never actually used Firebase
+  Storage.** Moments stored the ephemeral `image_picker` cache path directly in Firestore; profile
+  avatars copied into `Documents/avatars/{uid}.ext` but stored an absolute path (breaks on iOS
+  reinstall). No bytes ever went to a bucket.
+- **Owner decisions (2026-08-19):** build local + Google Drive together on one branch; default =
+  durable local copy always + auto Drive backup every 3 days + a manual "Back up now"; **`drive.file`**
+  scope (app-created files only — no Google restricted-scope review); Save-to-Photos is opt-in.
+- **Status: Phase 1 (local-first pipeline) DONE & committed (`cce035a`).** New `lib/core/media/`
+  module: `MediaStore`/`LocalMediaStore` (durable copies under `Documents/media/{kind}/{id}.ext`,
+  addressed by **relative** refs so files survive iOS container-path changes), `MediaObject` +
+  `MediaRegistry` (Firestore/in-memory metadata + per-target backup state at `users/{uid}/media`;
+  bytes never touch Firestore), `MediaStoragePreferences` + repos (per-account at
+  `users/{uid}/settings/media`), `MediaBackupTarget` interface + `DeviceGalleryTarget` (via `gal`),
+  `MediaService` orchestrator (capture fan-out, `backupNow()`, 3-day `runAutoBackupIfDue()` — all
+  unit-tested against a fake Drive target), and a `MediaImage` display widget. Moments + profile
+  avatars migrated onto it; a "Media & Backup" Settings section added (Save to Photos works; Drive
+  row is a labelled placeholder). DI wired in `AppScope`/`app.dart`; Firestore rules added for
+  `media` + `settings`; iOS `NSPhotoLibraryAddUsageDescription` + Android legacy storage permission
+  added. Added `gal` + `path` deps. **`flutter analyze` clean; all 461 tests pass (19 new).**
+- **Phase 2 (Google Drive) — CODE DONE & committed; blocked only on the owner's GCP setup + an
+  on-device OAuth check.** Built: `DriveBackupClient` interface + `GoogleDriveBackupClient`
+  (google_sign_in v7 incremental authorization — `authorizationClient.authorizeScopes([DriveApi.driveFileScope])`
+  — plus googleapis Drive v3, with the OAuth bearer token injected into a custom `http.Client`, so no
+  google_sign_in↔googleapis bridge package is needed); `GoogleDriveTarget` keyed `BackupTargetId.drive`;
+  `MediaService.connectDrive()/disconnectDrive()/supportsDrive` and an `isUnmetered` seam
+  (`connectivity_plus`) that enforces "Wi-Fi only" on the **automatic** path only (manual "Back up now"
+  ignores it, by design). The Media & Backup Settings section is now a full flow (Connect / Back up now /
+  Auto-backup 3-day toggle / Wi-Fi only / Disconnect), and `HomeShell.initState` fires
+  `runAutoBackupIfDue()` on app open. Deps added: `googleapis`, `http`, `connectivity_plus`.
+  **`flutter analyze` clean; 471 tests pass (+10 Drive tests using a fake `DriveBackupClient`).**
+- **Still needed from the owner** (project `zivo-63f15`): (1) enable the Google Drive API, (2) add scope
+  `https://www.googleapis.com/auth/drive.file` to the OAuth consent screen, (3) add
+  `ziadelsewedy1@gmail.com` as a test user. iOS URL scheme + Android SHA-1 already exist from Firebase auth.
+- **Exact next action:** after the 3 GCP steps, do the **on-device verification** of
+  `GoogleDriveBackupClient` (the only file unit tests couldn't exercise): connect prompt, `drive.file`
+  scope grant, app folder create, upload, and re-backup via `replaceFileId`. Fix any google_sign_in v7 /
+  googleapis signature mismatches surfaced there. Then decide on merging the branch. iOS can't guarantee
+  true timed background — the 3-day cadence realistically fires on the next app open after 3 days.
+- **Manual owner action:** the 3 Google Cloud steps above; decide when to merge this branch.
+- **Do not redo:** don't re-derive the `lib/core/media/` module, the Moments/Profile migration, or the
+  Drive client/target/connect flow — Phases 1 and 2 are built, committed, and green. Don't reintroduce
+  raw picker paths or absolute stored paths; media flows through `MediaService`. Don't add a
+  google_sign_in↔googleapis bridge package — the custom bearer `http.Client` is deliberate.
+
+### Prior handoff: AI streaming UX (2026-08-17, `feature/ai-streaming-ux`)
 
 - **Status (as of 2026-08-17):** **Phase 3.5 (AI streaming UX + caching cost win) is deployed to
   `zivo-63f15`.** `aiChat`, `aiConfirmAction`, `aiCancelAction` were redeployed 2026-08-17

@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/media/domain/media_kind.dart';
+import '../../../../core/media/media_service.dart';
+import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -24,7 +27,15 @@ class MomentCapturePage extends StatefulWidget {
 
 class _MomentCapturePageState extends State<MomentCapturePage> {
   late final TextEditingController _caption;
-  String? _imagePath;
+
+  /// The stored media reference persisted on the moment (relative store path).
+  /// For an edited moment this starts as its existing ref.
+  String? _imageRef;
+
+  /// A freshly-picked file not yet imported into the media store. Held only
+  /// until save, when [MediaService.capture] copies it into durable storage.
+  String? _pickedTempPath;
+
   bool _canSave = false;
 
   bool get _editing => widget.initial != null;
@@ -34,7 +45,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
     super.initState();
     final initial = widget.initial;
     _caption = TextEditingController(text: initial?.caption ?? '');
-    _imagePath = initial?.imagePath;
+    _imageRef = initial?.imagePath;
     _canSave = _caption.text.trim().isNotEmpty;
     _caption.addListener(() {
       final canSave = _caption.text.trim().isNotEmpty;
@@ -54,19 +65,39 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       maxWidth: 1600,
       imageQuality: 85,
     );
-    if (picked != null) setState(() => _imagePath = picked.path);
+    // Hold the picker's temp path for preview; the durable copy is made on save.
+    if (picked != null) setState(() => _pickedTempPath = picked.path);
   }
 
   Future<void> _save() async {
     if (!_canSave) return;
-    final moments = AppScope.of(context).moments;
+    final scope = AppScope.of(context);
+    final moments = scope.moments;
     final initial = widget.initial;
+    final id = initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
+    // Preserve the original capture time on edit; only stamp `now` when new.
+    final takenAt = initial?.takenAt ?? DateTime.now();
+
+    // If a new photo was picked, import it into the durable media store now
+    // (this also fans out to enabled backup targets, e.g. Save to Photos) and
+    // persist the returned store reference instead of the ephemeral temp path.
+    var imageRef = _imageRef;
+    final tempPath = _pickedTempPath;
+    if (tempPath != null) {
+      imageRef = await scope.requireMedia.capture(
+        sourcePath: tempPath,
+        kind: MediaKind.moment,
+        id: id,
+        ownerUid: scope.auth.currentUser?.uid ?? 'local',
+        capturedAt: takenAt,
+      );
+    }
+
     final moment = Moment(
-      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: id,
       caption: _caption.text.trim(),
-      // Preserve the original capture time on edit; only stamp `now` when new.
-      takenAt: initial?.takenAt ?? DateTime.now(),
-      imagePath: _imagePath,
+      takenAt: takenAt,
+      imagePath: imageRef,
       // Location has no capture UI yet; carry it through untouched on edit.
       location: initial?.location,
     );
@@ -109,7 +140,12 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 22, 24, 6),
-              child: _PhotoTile(imagePath: _imagePath, onTap: _pickPhoto),
+              child: _PhotoTile(
+                service: AppScope.of(context).requireMedia,
+                imageRef: _imageRef,
+                pickedTempPath: _pickedTempPath,
+                onTap: _pickPhoto,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 6),
@@ -151,9 +187,20 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
 }
 
 class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({required this.imagePath, required this.onTap});
+  const _PhotoTile({
+    required this.service,
+    required this.imageRef,
+    required this.pickedTempPath,
+    required this.onTap,
+  });
 
-  final String? imagePath;
+  final MediaService service;
+
+  /// The stored (durable) reference for an existing photo.
+  final String? imageRef;
+
+  /// A just-picked, not-yet-stored temp file (takes precedence for preview).
+  final String? pickedTempPath;
   final VoidCallback onTap;
 
   @override
@@ -172,19 +219,27 @@ class _PhotoTile extends StatelessWidget {
               colors: [AppColors.card, AppColors.surfaceRaised],
             ),
           ),
-          child: imagePath == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.add_a_photo_outlined, size: 28, color: AppColors.ink3),
-                      const SizedBox(height: 8),
-                      Text('Add a photo', style: AppText.body.copyWith(color: AppColors.ink3)),
-                    ],
-                  ),
-                )
-              : Image.file(File(imagePath!), fit: BoxFit.cover),
+          child: _preview(),
         ),
+      ),
+    );
+  }
+
+  Widget _preview() {
+    if (pickedTempPath != null) {
+      return Image.file(File(pickedTempPath!), fit: BoxFit.cover);
+    }
+    if (imageRef != null) {
+      return MediaImage(service: service, ref: imageRef, fit: BoxFit.cover);
+    }
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add_a_photo_outlined, size: 28, color: AppColors.ink3),
+          const SizedBox(height: 8),
+          Text('Add a photo', style: AppText.body.copyWith(color: AppColors.ink3)),
+        ],
       ),
     );
   }

@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import '../../workout/domain/workout_import_result.dart';
 import 'ai_message.dart';
 import 'ai_turn_event.dart';
 
@@ -40,4 +43,11 @@ abstract interface class AiRepository {
     required String conversationId,
     required String actionId,
   });
+
+  /// Extracts a proposed workout split from a PDF's raw bytes
+  /// (WORKOUT_SYSTEM.md §3.4, Phase 6) via the `aiImportWorkoutPlan`
+  /// callable — one Claude call, no Firestore write. The caller reviews/edits
+  /// the result before saving it (via `WorkoutPlanRepository.saveSplit`);
+  /// this method alone never creates a split.
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes});
 }
