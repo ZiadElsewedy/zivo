@@ -22,11 +22,17 @@ import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
 /// An [AiRepository] whose `importWorkoutPlan` always throws — proves the
-/// page's own error state (as opposed to the file-picker's).
+/// page's own error state (as opposed to the file-picker's). [error] defaults
+/// to a generic failure; pass a specific one to exercise message classification
+/// (e.g. an App Check rejection).
 class _FailingImportAi extends FakeAiRepository {
+  _FailingImportAi([this.error = 'extraction failed']);
+
+  final Object error;
+
   @override
   Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) {
-    throw StateError('extraction failed');
+    throw error is String ? StateError(error as String) : error;
   }
 }
 
@@ -121,5 +127,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(pickCount, 2);
+  });
+
+  testWidgets('an App Check rejection surfaces the App Check message, not "clearer PDF"', (tester) async {
+    await _pumpImportPage(
+      tester,
+      pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
+      // Mirrors how a cloud_functions callable rejection stringifies.
+      ai: _FailingImportAi(
+        StateError('[firebase_functions/unauthenticated] App Check token was rejected'),
+      ),
+    );
+
+    // The friendly line explains the real cause ("verify itself (App Check)")
+    // instead of blaming the PDF.
+    expect(find.textContaining("verify itself"), findsOneWidget);
+    expect(
+      find.text("Couldn't read that plan — try a clearer PDF, or build the split manually."),
+      findsNothing,
+    );
   });
 }

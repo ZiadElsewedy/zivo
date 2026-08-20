@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -53,6 +52,10 @@ enum _ImportPhase { picking, importing, error }
 class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   _ImportPhase _phase = _ImportPhase.picking;
   String? _errorMessage;
+  // The raw failure text, shown only in debug builds so a real backend cause
+  // (App Check, auth, network) is visible on-device instead of hidden behind
+  // the friendly line. Never surfaced in release.
+  String? _errorDetail;
 
   @override
   void initState() {
@@ -64,16 +67,20 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     setState(() {
       _phase = _ImportPhase.picking;
       _errorMessage = null;
+      _errorDetail = null;
     });
 
     Uint8List? bytes;
     try {
       bytes = await widget.pickPdfBytes();
-    } catch (_) {
+    } catch (error, stack) {
+      debugPrint('WorkoutPdfImport: could not read the picked file: $error');
+      debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
         _errorMessage = "Couldn't read that file.";
+        _errorDetail = kDebugMode ? error.toString() : null;
       });
       return;
     }
@@ -101,11 +108,17 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       // Whether the review ended in Save, Delete, or just closing — the
       // import flow itself is done either way.
       if (mounted) Navigator.of(context).pop();
-    } catch (_) {
+    } catch (error, stack) {
+      // Surface the real failure instead of swallowing it. The old blanket
+      // "couldn't read that plan" hid App Check / auth / network rejections
+      // and sent people deleting data to chase a backend problem.
+      debugPrint('WorkoutPdfImport: aiImportWorkoutPlan failed: $error');
+      debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage = "Couldn't read that plan — try a clearer PDF, or build the split manually.";
+        _errorMessage = _importErrorMessage(error);
+        _errorDetail = kDebugMode ? error.toString() : null;
       });
     }
   }
@@ -139,9 +152,42 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       case _ImportPhase.importing:
         return const _StatusMessage(label: 'Reading your plan…', showSpinner: true);
       case _ImportPhase.error:
-        return _ErrorMessage(message: _errorMessage!, onRetry: _pickAndImport);
+        return _ErrorMessage(
+          message: _errorMessage!,
+          detail: _errorDetail,
+          onRetry: _pickAndImport,
+        );
     }
   }
+}
+
+/// Maps a raw import failure to a user-facing line, recognising the common
+/// backend rejections so the message points at the real cause instead of
+/// blaming the PDF. Classifies from the error's string form deliberately — this
+/// presentation layer must not import the `cloud_functions` SDK (its exception
+/// types are confined to the data layer), and callable failures render their
+/// code/message into `toString()` (e.g. `[firebase_functions/unauthenticated]`).
+String _importErrorMessage(Object error) {
+  final text = error.toString().toLowerCase();
+  if (text.contains('app-check') ||
+      text.contains('app check') ||
+      text.contains('appcheck')) {
+    return "The app couldn't verify itself (App Check). Register this "
+        "build's debug token in the Firebase console, then try again.";
+  }
+  if (text.contains('unauthenticated') ||
+      text.contains('permission-denied') ||
+      text.contains('permission denied')) {
+    return 'You need to be signed in to import a plan.';
+  }
+  if (text.contains('deadline') ||
+      text.contains('timeout') ||
+      text.contains('unavailable') ||
+      text.contains('network')) {
+    return 'Network problem reaching the import service — check your '
+        'connection and try again.';
+  }
+  return "Couldn't read that plan — try a clearer PDF, or build the split manually.";
 }
 
 class _StatusMessage extends StatelessWidget {
@@ -170,10 +216,13 @@ class _StatusMessage extends StatelessWidget {
 }
 
 class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({required this.message, required this.onRetry});
+  const _ErrorMessage({required this.message, required this.onRetry, this.detail});
 
   final String message;
   final VoidCallback onRetry;
+  /// Raw failure text (debug builds only) — the real backend cause, shown
+  /// small and dim under the friendly line.
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +234,14 @@ class _ErrorMessage extends StatelessWidget {
           const Icon(Icons.picture_as_pdf_outlined, size: 30, color: AppColors.ink3),
           const SizedBox(height: 12),
           Text(message, style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+          if (detail != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              detail!,
+              style: AppText.aside.copyWith(color: AppColors.ink3, fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ],
           const SizedBox(height: 18),
           SizedBox(
             width: 180,

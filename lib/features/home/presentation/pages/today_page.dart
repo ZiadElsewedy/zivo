@@ -18,6 +18,7 @@ import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../university/domain/university_item.dart';
 import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../focus_builder.dart';
 import '../header_builder.dart';
@@ -412,9 +413,15 @@ class _TrainingSection extends StatelessWidget {
   }
 }
 
-/// The active plan's up-next day, with a Start/Resume CTA — falling back to
-/// a plain empty line only when there's genuinely no active plan/day to
-/// offer.
+/// The active plan's training card, driven by the live-session repository as
+/// the single source of truth for whether a workout is under way. When a
+/// session is active for the plan the card mirrors *its* day with a Resume CTA
+/// — whichever day it is, and through pause/resume, since a pause keeps the
+/// session `active` (see [LiveSession.isPaused]). With nothing running it
+/// offers the next-due day with a Start CTA. Finishing a workout advances the
+/// plan cursor and clears the active session (see `live_session_page.dart`),
+/// so the card falls back to the new next-due day on its own. Falls back to a
+/// plain empty line only when there's genuinely no plan/day to offer.
 class _TrainingUpNext extends StatelessWidget {
   const _TrainingUpNext({required this.scope});
 
@@ -427,29 +434,58 @@ class _TrainingUpNext extends StatelessWidget {
       initialData: scope.workoutPlans.activePlan,
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
-        final day = plan?.nextDay;
-        if (plan == null || day == null) {
+        if (plan == null) {
           return const _EmptyLine(
             'No training logged yet today.',
             icon: Icons.fitness_center_rounded,
           );
         }
+        // Nested under the plan so the session stream — the source of truth for
+        // a running workout — drives the card. Kept inside (not merged with the
+        // plan stream) so a session save re-renders the card without waiting on
+        // a plan emission.
         return StreamBuilder<LiveSession?>(
           stream: scope.workoutSessions.watchActiveSession(),
           initialData: scope.workoutSessions.activeSession,
           builder: (context, sessionSnapshot) {
             final active = sessionSnapshot.data;
-            // Only resume the session this card is actually offering — an
-            // active session for a different plan/day is left alone.
-            final resumable =
-                active != null && active.planId == plan.id && active.dayId == day.id
-                ? active
-                : null;
-            return UpNextWorkoutCard(plan: plan, day: day, resumable: resumable);
+            // A session in progress for this plan wins: show its own day so the
+            // card mirrors what's actually running (Home stayed on `nextDay`
+            // before, so a session on any other day read as "not active"). The
+            // day must still exist in the plan — a session whose day was edited
+            // away falls back to the next-due day rather than showing nothing.
+            final activeForPlan =
+                active != null && active.planId == plan.id ? active : null;
+            final sessionDay = activeForPlan == null
+                ? null
+                : _dayById(plan, activeForPlan.dayId);
+            final day = sessionDay ?? plan.nextDay;
+            if (day == null) {
+              return const _EmptyLine(
+                'No training logged yet today.',
+                icon: Icons.fitness_center_rounded,
+              );
+            }
+            // Resume only when the card is actually showing the running
+            // session's day; otherwise it's a fresh Start on the next-due day.
+            return UpNextWorkoutCard(
+              plan: plan,
+              day: day,
+              resumable: sessionDay == null ? null : activeForPlan,
+            );
           },
         );
       },
     );
+  }
+
+  /// The plan's day with [dayId], or null if none matches (e.g. it was edited
+  /// out from under a still-active session).
+  static WorkoutDay? _dayById(WorkoutPlan plan, String dayId) {
+    for (final day in plan.days) {
+      if (day.id == dayId) return day;
+    }
+    return null;
   }
 }
 

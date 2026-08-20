@@ -100,6 +100,47 @@ WorkoutPlan _planWithNextDay() => WorkoutPlan(
   ],
 );
 
+/// A two-day plan whose next-due day (cursor 0) is "Full Arm" (id `d`), with a
+/// second day "Legs" (id `d2`) that is NOT next-due — used to prove Home
+/// mirrors an active session on any day, not just `nextDay`.
+WorkoutPlan _planWithTwoDays() {
+  final base = _planWithNextDay();
+  return WorkoutPlan(
+    id: base.id,
+    name: base.name,
+    status: base.status,
+    source: base.source,
+    createdAt: base.createdAt,
+    updatedAt: base.updatedAt,
+    cycleCursor: 0,
+    days: [
+      base.days.first,
+      const WorkoutDay(
+        id: 'd2',
+        slot: 'E',
+        label: 'Legs',
+        order: 1,
+        exercises: [
+          PlannedExercise(
+            id: 'ex2',
+            name: 'Back Squat',
+            order: 0,
+            defaultRestSeconds: 120,
+            sets: [
+              PlannedSet(
+                order: 0,
+                repTarget: RepTarget.fixed(5),
+                restSeconds: 120,
+                type: SetType.working,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 void main() {
   Future<void> tallView(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 3200);
@@ -367,6 +408,76 @@ void main() {
       expect(find.byType(LiveSessionPage), findsOneWidget);
       // A resumed session never re-opens on the warm-up phase.
       expect(find.text('PRE-WORKOUT'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an active session on a NON-next day mirrors that day with Resume — the '
+    'source-of-truth fix, so Home never reads "not active" while a workout runs',
+    (tester) async {
+      await tallView(tester);
+      final plan = _planWithTwoDays(); // next-due is "Full Arm"; session is "Legs"
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(
+        LiveSession.start(
+          plan.days.firstWhere((d) => d.id == 'd2'),
+          id: 'active-legs',
+          planId: plan.id,
+          now: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: _FixedPlanRepository(plan),
+          workoutSessions: sessions,
+        ),
+      );
+      await _settle(tester);
+
+      // Home follows the running session's day, not the next-due day.
+      expect(find.text('Legs'), findsOneWidget);
+      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Full Arm'), findsNothing);
+      expect(find.text('Start Workout'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'ending the active session (it clears) returns Home to the next-due day with Start',
+    (tester) async {
+      await tallView(tester);
+      final plan = _planWithTwoDays();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final active = LiveSession.start(
+        plan.days.firstWhere((d) => d.id == 'd2'),
+        id: 'active-legs',
+        planId: plan.id,
+        now: DateTime.now(),
+      );
+      await sessions.saveSession(active);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: _FixedPlanRepository(plan),
+          workoutSessions: sessions,
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('Resume Workout'), findsOneWidget);
+
+      // Completing the session clears "active" — Home reactively falls back to
+      // the next-due day (no rebuild/navigation needed).
+      await sessions.saveSession(active.complete(now: DateTime.now()));
+      await _settle(tester);
+
+      expect(find.text('Full Arm'), findsOneWidget);
+      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Resume Workout'), findsNothing);
     },
   );
 
