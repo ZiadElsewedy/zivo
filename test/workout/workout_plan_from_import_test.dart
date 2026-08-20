@@ -61,6 +61,26 @@ void main() {
       expect(set.repTarget, const RepTarget.range(8, 12));
     });
 
+    test('a reversed range (repsMin > repsMax) is swapped, not passed through to the range assert', () {
+      final result = const WorkoutImportResult(
+        planName: 'X',
+        days: [
+          ImportedDay(
+            slot: 'A',
+            label: 'Push',
+            exercises: [
+              ImportedExercise(name: 'Descending Pyramid', sets: 3, repsMin: 12, repsMax: 8, toFailure: false),
+            ],
+          ),
+        ],
+      );
+
+      final plan = workoutPlanFromImport(result, id: 'p1', now: DateTime(2026, 1, 1));
+      final set = plan.days.single.exercises.single.sets.first;
+
+      expect(set.repTarget, const RepTarget.range(8, 12));
+    });
+
     test('toFailure: true becomes RepTarget.toFailure regardless of reps fields', () {
       final result = const WorkoutImportResult(
         planName: 'X',

@@ -77,7 +77,13 @@ RepTarget _repTargetFrom(ImportedExercise exercise) {
   if (exercise.toFailure) return const RepTarget.toFailure();
   final min = exercise.repsMin;
   final max = exercise.repsMax;
-  if (min != null && max != null && min != max) return RepTarget.range(min, max);
+  if (min != null && max != null && min != max) {
+    // A messy/misread source can extract a reversed range (e.g. a descending
+    // pyramid "12 -> 8" read as repsMin: 12, repsMax: 8). RepTarget.range
+    // asserts min <= max, so swap rather than let that assert crash the
+    // review screen on an otherwise-valid extraction.
+    return min < max ? RepTarget.range(min, max) : RepTarget.range(max, min);
+  }
   return RepTarget.fixed(min ?? max ?? 8);
 }
 

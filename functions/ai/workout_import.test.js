@@ -138,6 +138,48 @@ test("extractWorkoutPlan: a malformed day/exercise is dropped, not thrown (parti
   assert.equal(result.days[0].exercises[0].muscleGroup, null);
 });
 
+test("extractWorkoutPlan: an absurd sets count is clamped, not passed through raw", async () => {
+  const callModel = scriptedModel(toolResponse({
+    planName: "X",
+    days: [
+      {slot: "A", label: "Push", exercises: [
+        {name: "Bench Press", sets: 500, repsMin: 8, repsMax: 8, toFailure: false},
+      ]},
+    ],
+  }));
+
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+
+  assert.equal(result.days[0].exercises[0].sets, 20);
+});
+
+test("extractWorkoutPlan: negative or non-finite numeric fields fall back to null, not passed through", async () => {
+  const callModel = scriptedModel(toolResponse({
+    planName: "X",
+    days: [
+      {slot: "A", label: "Push", exercises: [
+        {
+          name: "Bench Press",
+          sets: 3,
+          repsMin: -5,
+          repsMax: -1,
+          toFailure: false,
+          targetWeightKg: NaN,
+          restSeconds: -90,
+        },
+      ]},
+    ],
+  }));
+
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  const exercise = result.days[0].exercises[0];
+
+  assert.equal(exercise.repsMin, null);
+  assert.equal(exercise.repsMax, null);
+  assert.equal(exercise.targetWeightKg, null);
+  assert.equal(exercise.restSeconds, null);
+});
+
 test("extractWorkoutPlan: missing planName falls back to a default", async () => {
   const callModel = scriptedModel(toolResponse({days: []}));
   const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});

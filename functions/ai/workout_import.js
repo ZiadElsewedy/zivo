@@ -26,6 +26,17 @@ const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
 const TOOL_NAME = "propose_workout_split";
 
+// normalize() bounds — a hallucinated/misread extraction on a messy PDF can
+// produce numerically-valid-but-absurd values that strict mode's schema
+// can't rule out (it only constrains shape, not range).
+// A real single working exercise tops out well under this; anything higher
+// is a misread, not a plan, and would otherwise make the client build a
+// PlannedSet list of that length.
+const MAX_SETS = 20;
+// Reps/rest/weight below zero (or non-finite, e.g. a stray "NaN"/Infinity
+// slipping through as a number) are never a real prescription — treat them
+// as unstated rather than passing garbage through to the review screen.
+
 // Every property is `required` (nullable via a union type where the field is
 // conceptually optional) — Anthropic's strict tool schemas don't support
 // genuinely-optional properties alongside `additionalProperties: false`.
@@ -178,6 +189,29 @@ async function extractWorkoutPlan({callModel, pdfBase64}) {
 }
 
 /**
+ * A non-negative integer, or `null` if `value` isn't one — a negative reps/
+ * rest extraction is never a real prescription, so treat it as unstated
+ * rather than pass it through.
+ * @param {*} value
+ * @return {?number}
+ */
+function nonNegativeInt(value) {
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+/**
+ * A non-negative finite number, or `null` otherwise — guards against a
+ * stray `NaN`/`Infinity` (which pass `typeof value === "number"`) or a
+ * negative weight reaching the client.
+ * @param {*} value
+ * @return {?number}
+ */
+function nonNegativeFinite(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ?
+    value : null;
+}
+
+/**
  * Defensive normalization of the model's tool input — strict mode guarantees
  * shape, but this degrades gracefully (drops a malformed exercise/day rather
  * than throwing) per ADR-002's "partial parse → editable draft, not a hard
@@ -208,12 +242,13 @@ function normalize(raw) {
       normalizedExercises.push({
         name,
         muscleGroup: typeof ex.muscleGroup === "string" ? ex.muscleGroup : null,
-        sets: Number.isInteger(ex.sets) && ex.sets > 0 ? ex.sets : 1,
-        repsMin: Number.isInteger(ex.repsMin) ? ex.repsMin : null,
-        repsMax: Number.isInteger(ex.repsMax) ? ex.repsMax : null,
+        sets: Number.isInteger(ex.sets) && ex.sets > 0 ?
+          Math.min(ex.sets, MAX_SETS) : 1,
+        repsMin: nonNegativeInt(ex.repsMin),
+        repsMax: nonNegativeInt(ex.repsMax),
         toFailure: ex.toFailure === true,
-        targetWeightKg: typeof ex.targetWeightKg === "number" ? ex.targetWeightKg : null,
-        restSeconds: Number.isInteger(ex.restSeconds) ? ex.restSeconds : null,
+        targetWeightKg: nonNegativeFinite(ex.targetWeightKg),
+        restSeconds: nonNegativeInt(ex.restSeconds),
       });
     }
 

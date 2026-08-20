@@ -241,6 +241,32 @@ fixed:
 flutter analyze clean; full suite 550 passing; functions node --test 50
 passing; eslint clean.
 
+**Phase 6 hardening pass (§6 test-depth follow-up):**
+
+- **Real bug found:** `workoutPlanFromImport`'s `_repTargetFrom` built
+  `RepTarget.range(min, max)` whenever `repsMin != repsMax`, with no check
+  that `min < max`. `RepTarget.range` asserts `min <= max`, so a reversed
+  extraction (e.g. a descending pyramid like "12 → 8" read as
+  `repsMin: 12, repsMax: 8`) would throw an `AssertionError` and crash the
+  split-review screen in debug/test builds. Fixed by swapping to
+  `(min(a,b), max(a,b))` before constructing the range; pinned with a
+  reversed-range regression test.
+- **Defensive hardening:** `normalize()` in `functions/ai/workout_import.js`
+  only floored `sets` (≥1, no ceiling) and accepted any `typeof === "number"`
+  for `targetWeightKg` (including `NaN`/`Infinity`) and any integer
+  (including negative) for `repsMin`/`repsMax`/`restSeconds` — strict tool
+  schemas constrain shape, not range, so a hallucinated extraction on a
+  messy PDF could still slip through numerically-valid-but-absurd values
+  (e.g. `sets: 500`, which the client would turn into a 500-`PlannedSet`
+  list). Added named bound constants (`MAX_SETS`) and two small guards
+  (`nonNegativeInt`, `nonNegativeFinite`) that drop out-of-range values to
+  `null`/clamp rather than hard-fail, matching the existing malformed-entry
+  posture. New fixtures cover an oversized `sets` and negative/non-finite
+  reps/rest/weight.
+
+flutter analyze clean; full suite 551 passing (+1); functions node --test 52
+passing (+2); eslint clean.
+
 ---
 
 ## 1. Vocabulary (use these words precisely)
