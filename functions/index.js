@@ -36,6 +36,7 @@ const {
   cancelAction,
   GatewayError,
 } = require("./ai/gateway");
+const {extractWorkoutPlan} = require("./ai/workout_import");
 const {FirestoreStore} = require("./ai/store");
 
 initializeApp();
@@ -478,3 +479,52 @@ exports.aiCancelAction = onCall(
         throw toHttpsError(err);
       }
     });
+
+// --- aiImportWorkoutPlan (WORKOUT_SYSTEM.md §3.4, Phase 6) -----------------
+
+// ADR-002 guardrail: reject an oversized upload before it reaches the model.
+// Base64 runs ~4/3 the raw byte size, so ~14M chars covers the ADR's ~32MB
+// PDF ceiling with headroom; callable payloads are capped well below that by
+// Cloud Functions itself, but this gives a clear, on-brand error instead of
+// a generic transport failure.
+const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
+
+/**
+ * Extracts a proposed workout split from an uploaded PDF (WORKOUT_SYSTEM.md
+ * §3.4): one Claude call, no Firestore write. The client reviews/edits the
+ * result (reusing `WorkoutPlanEditPage` in `asSplit` mode) and saves it
+ * itself via `saveSplit` — that review screen is the "human confirms before
+ * it becomes real" gate, so there is nothing here to confirm or cancel.
+ */
+exports.aiImportWorkoutPlan = onCall(
+    {
+      secrets: [ANTHROPIC_API_KEY],
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError(
+            "unauthenticated", "Sign in to import a workout plan.");
+      }
+
+      const data = request.data || {};
+      const pdfBase64 = (data.pdfBase64 || "").toString();
+      if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
+        throw new HttpsError(
+            "invalid-argument", "That PDF is too large to import.");
+      }
+
+      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+
+      try {
+        return await extractWorkoutPlan({
+          callModel: (req) => anthropic.messages.create(req),
+          pdfBase64,
+        });
+      } catch (err) {
+        throw toHttpsError(err);
+      }
+    },
+);

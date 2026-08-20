@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
+import '../domain/workout_import_result.dart';
 
 /// The assistant isn't connected yet — an honest, canned reply. Never
 /// masquerades as real AI (ADR-001's client-seam-first requirement).
@@ -165,6 +167,34 @@ class FakeAiRepository implements AiRepository {
       ),
     );
     _controller.add(List.unmodifiable(_messages));
+  }
+
+  /// A canned, deterministic extraction — offline-testable stand-in for the
+  /// real `aiImportWorkoutPlan` callable. Ignores [pdfBytes] entirely (this
+  /// fake never actually reads a PDF); a real upload always yields the same
+  /// small two-day sample so the review screen is buildable/testable without
+  /// Firebase.
+  @override
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) async {
+    return const WorkoutImportResult(
+      planName: 'Imported Split',
+      days: [
+        ImportedDay(
+          slot: 'A',
+          label: 'Push',
+          exercises: [
+            ImportedExercise(name: 'Bench Press', muscleGroup: 'Chest', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+          ],
+        ),
+        ImportedDay(
+          slot: 'B',
+          label: 'Pull',
+          exercises: [
+            ImportedExercise(name: 'Lat Pulldown', muscleGroup: 'Back', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+          ],
+        ),
+      ],
+    );
   }
 
   /// Flips a still-pending action to [status] in place; returns it, or null if

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,7 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/workout_import_result.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -62,6 +64,10 @@ class _GatedAi implements AiRepository {
     required String conversationId,
     required String actionId,
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
+
+  @override
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+      _inner.importWorkoutPlan(pdfBytes: pdfBytes);
 }
 
 Widget _host(AiRepository ai) => AppScope(

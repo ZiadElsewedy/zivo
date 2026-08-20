@@ -32,7 +32,7 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
 | 5 | **Retrofit** analysis + history to be split-scoped | ✅ done |
-| 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ⬜ not started |
+| 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | 🔄 built + tested, **not deployed** |
 | 7 | End-to-end verify + handoff doc refresh | ⬜ not started |
 
 **Phase 1 notes:** `_DayCard` (`workout_plan_edit_page.dart`) is now a
@@ -152,6 +152,61 @@ vocabulary it "has no split/day/exercise ids" and is documented as a display
 projection, not an analytical source, so it stays a cross-split activity
 feed rather than gaining a schema change out of this phase's stated scope.
 Committed (`refactor(workout): scope analysis + history to active split`).
+
+**Phase 6 notes:** built and offline-tested; **explicitly not deployed** —
+the owner directed skipping ADR-002's normal "Phase -1 UX approval before
+any code" gate for this slice (see Decisions log below), but deployment
+(`firebase deploy --only functions`) is still the owner's own manual step,
+same as every other AI callable in this codebase (ADR-003's Handoff: "owner
+deploys functions"). Nothing here is live until that happens.
+
+- **Server** (`functions/ai/workout_import.js`, wired into `functions/index.js`
+  as `aiImportWorkoutPlan`): one Claude call per import, PDF sent as a native
+  `document` content block (no separate text-extraction/OCR pipeline — a
+  deliberate simplification of ADR-002's full digital-vs-scanned router,
+  reasonable for the short 1-3 page plans this is aimed at; the router
+  remains a "later" item if longer/messier documents turn out to need it), a
+  **strict** tool call (`propose_workout_split`) forces a schema-shaped
+  response, malformed entries are dropped rather than failing the whole
+  import (ADR-002's "partial parse → editable draft, not a hard failure").
+  Model: `claude-sonnet-5`, matching `aiChat`'s gateway model per §3.4's own
+  instruction to match unless there's a reason to differ — flagging this
+  explicitly in case the owner wants `claude-opus-5` for extraction accuracy
+  on messier real-world PDFs; that's a one-line change
+  (`functions/ai/workout_import.js`'s `MODEL` constant). `enforceAppCheck:
+  true` + auth required, matching every other AI callable's security
+  posture; a `MAX_PDF_BASE64_CHARS` guard rejects an oversized upload before
+  it reaches the model (ADR-002 guardrail). 8 offline `node --test` cases
+  (mapping, malformed-input dropping, refusal, no-tool-call, callModel
+  failure, missing input) — no network, no emulator, same seam pattern as
+  `gateway.test.js`.
+- **No pending-action/confirm-cancel pair, unlike ADR-003's task/expense
+  mutations** — deliberately simpler: the callable never writes to
+  Firestore at all. The client's own review screen (reusing
+  `WorkoutPlanEditPage` in `asSplit` mode, pre-filled with the parsed draft)
+  IS the human-confirms gate; the actual save is the same
+  `WorkoutPlanRepository.saveSplit` call Phase 4 already added. One callable,
+  no new Firestore collection, no expiry/idempotency to manage.
+- **Client**: `AiRepository.importWorkoutPlan` (implemented in both
+  `FakeAiRepository`, canned two-day sample, and `FirebaseAiRepository`, the
+  real callable, base64-encoding the PDF), `workoutPlanFromImport()`
+  (`lib/features/workout/domain/workout_plan_from_import.dart`) converts the
+  extracted JSON into a real `WorkoutPlan` draft with freshly-minted plan/
+  day/exercise ids, and `WorkoutPdfImportPage` (new AppBar action on
+  `SplitManagementPage`, `Icons.picture_as_pdf_rounded`) drives pick → call →
+  review, with its file-picker call injectable for testing (added the
+  `file_picker` package — `image_picker` already in the project is
+  camera/gallery-only, not general file access). 4 widget tests (cancel,
+  picker error, successful import → editor pre-fill, import failure → retry)
+  plus 10 converter unit tests (fixed/range/to-failure rep-target mapping,
+  set-count expansion, id minting, blank-slot fallback).
+- **Deliberately deferred**: the digital-vs-scanned router (ADR-002's
+  reserved multimodal fallback — native PDF input already handles both since
+  Claude reads both the text layer and a page image), Storage-based upload
+  (PDF goes straight in the callable payload, capped well under Cloud
+  Functions' request limit — no `users/{uid}/imports/` Storage path or rules
+  needed for this volume), and on-device verification (needs a live deploy
+  first).
 
 ---
 
@@ -408,3 +463,12 @@ Once the phases land, the sensible follow-ups (verify/test/review/build):
 - **2026-08-19** — AI PDF extraction runs **server-side** in the existing
   Cloud Function gateway, using the action-proposal/confirm pattern; imports
   are always user-reviewed before saving.
+- **2026-08-20** — Phase 6 (AI PDF import) was built and offline-tested
+  **before** ADR-002's own "Phase -1 UX approval before any code" gate was
+  satisfied — the owner explicitly directed skipping that gate for this
+  slice ("just build it") rather than mocking the flow first. ADR-002 itself
+  is still formally `Status: Proposed`. The propose→confirm pattern used is
+  simpler than ADR-003's (no pending-action Firestore record — see the Phase
+  6 notes above for why that's safe here), not the exact pattern ADR-002/
+  ADR-003 describe; deployment remains a separate, owner-only manual step
+  not taken as part of this slice.

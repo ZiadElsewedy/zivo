@@ -8,6 +8,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../widgets/staggered_reveal.dart';
+import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
 
 /// Split management (WORKOUT_SYSTEM.md Phase 4) — list every saved split,
@@ -32,6 +33,15 @@ class SplitManagementPage extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.ink2),
         title: Text('Splits', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        actions: [
+          IconButton(
+            tooltip: 'Import PDF',
+            icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.ink2),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.pulse,

@@ -62,6 +62,9 @@ dependencies:
   http: ^1.2.0
   # Lets the media pipeline honor "Wi-Fi only" for automatic Drive backups.
   connectivity_plus: ^7.0.0
+  # Picks an arbitrary file (a workout PDF) from device storage — image_picker
+  # above is camera/gallery-only, not general file access.
+  file_picker: ^8.1.6
 
 dev_dependencies:
   flutter_test:

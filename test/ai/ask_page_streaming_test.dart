@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,7 @@ import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/workout_import_result.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -86,6 +88,10 @@ class _StreamingAi implements AiRepository {
     required String conversationId,
     required String actionId,
   }) async {}
+
+  @override
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+      throw UnimplementedError('not exercised by this test');
 
   void dispose() => _controller.close();
 }

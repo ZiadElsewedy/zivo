@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -9,6 +11,7 @@ import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
+import '../domain/workout_import_result.dart';
 
 /// The real [AiRepository], backed by Firestore's
 /// `users/{uid}/aiConversations` (+ nested `messages`) and the `aiChat`
@@ -39,11 +42,13 @@ class FirebaseAiRepository implements AiRepository {
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
+    Future<WorkoutImportResult> Function(Uint8List pdfBytes)? invokeImport,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
        _invokeChatStream =
            invokeChatStream ?? _defaultInvokeChatStream(functions),
-       _invokeAction = invokeAction ?? _defaultInvokeAction(functions);
+       _invokeAction = invokeAction ?? _defaultInvokeAction(functions),
+       _invokeImport = invokeImport ?? _defaultInvokeImport(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
@@ -53,6 +58,7 @@ class FirebaseAiRepository implements AiRepository {
       void Function(AiTurnEvent event) onEvent) _invokeChatStream;
   final Future<void> Function(String name, String conversationId,
       String actionId) _invokeAction;
+  final Future<WorkoutImportResult> Function(Uint8List pdfBytes) _invokeImport;
 
   String? _cachedConversationId;
 
@@ -108,6 +114,22 @@ class FirebaseAiRepository implements AiRepository {
         'conversationId': conversationId,
         'actionId': actionId,
       });
+    };
+  }
+
+  /// The default `importWorkoutPlan` invoker — calls `aiImportWorkoutPlan`
+  /// with the PDF base64-encoded. Like [_defaultInvokeChat], resolves
+  /// [FirebaseFunctions] lazily so the repo builds without a live Firebase
+  /// app.
+  static Future<WorkoutImportResult> Function(Uint8List pdfBytes)
+  _defaultInvokeImport(FirebaseFunctions? functions) {
+    return (pdfBytes) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final result = await f.httpsCallable('aiImportWorkoutPlan').call({
+        'pdfBase64': base64Encode(pdfBytes),
+      });
+      return _importResultFromJson(result.data);
     };
   }
 
@@ -194,6 +216,10 @@ class FirebaseAiRepository implements AiRepository {
     required String actionId,
   }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
+  @override
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+      _invokeImport(pdfBytes);
+
   Stream<String?> _uidWithInitial() async* {
     yield uidSource.currentUid();
     yield* uidSource.uidChanges;
@@ -261,4 +287,47 @@ class FirebaseAiRepository implements AiRepository {
       status: status,
     );
   }
+}
+
+/// Maps `aiImportWorkoutPlan`'s raw callable result (a platform-channel
+/// `Map<Object?, Object?>`, not `Map<String, dynamic>`) into a
+/// [WorkoutImportResult]. Mirrors `functions/ai/workout_import.js`'s
+/// `normalize()` shape exactly — that function already guarantees every
+/// field is present and well-typed, so this only needs to cast, not
+/// re-validate.
+WorkoutImportResult _importResultFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  final planName = map['planName'] as String? ?? 'Imported Split';
+  final rawDays = map['days'];
+  final days = rawDays is List
+      ? [for (final d in rawDays) _importedDayFromJson(d)]
+      : const <ImportedDay>[];
+  return WorkoutImportResult(planName: planName, days: days);
+}
+
+ImportedDay _importedDayFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  final rawExercises = map['exercises'];
+  final exercises = rawExercises is List
+      ? [for (final e in rawExercises) _importedExerciseFromJson(e)]
+      : const <ImportedExercise>[];
+  return ImportedDay(
+    slot: map['slot'] as String? ?? '',
+    label: map['label'] as String? ?? '',
+    exercises: exercises,
+  );
+}
+
+ImportedExercise _importedExerciseFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  return ImportedExercise(
+    name: map['name'] as String? ?? '',
+    muscleGroup: map['muscleGroup'] as String?,
+    sets: (map['sets'] as num?)?.toInt() ?? 1,
+    repsMin: (map['repsMin'] as num?)?.toInt(),
+    repsMax: (map['repsMax'] as num?)?.toInt(),
+    toFailure: map['toFailure'] == true,
+    targetWeightKg: (map['targetWeightKg'] as num?)?.toDouble(),
+    restSeconds: (map['restSeconds'] as num?)?.toInt(),
+  );
 }
