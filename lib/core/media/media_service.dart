@@ -185,19 +185,31 @@ class MediaService {
   /// Uploads every not-yet-backed-up photo to the account's namespace.
   /// User-initiated ("Back up now"): may establish/restore the session. Returns
   /// how many were pushed (0 if the provider isn't connected on this device).
-  Future<int> backupNow() async {
+  ///
+  /// [onProgress] (optional) is called as the run advances — `(done, total)`,
+  /// where `total` is how many photos need uploading and `done` counts those
+  /// finished so far — so the UI can show live "backing up 3 of 10" feedback.
+  /// It fires once with `(0, total)` before the first upload, then after each.
+  Future<int> backupNow({void Function(int done, int total)? onProgress}) async {
     final provider = backup;
     if (provider == null) return 0;
     // Never revive a connection that belongs to another account.
     if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
-    final pending = await registry.pendingBackups();
+    final pending = (await registry.pendingBackups())
+        .where((o) => o.remoteBackup != BackupState.done)
+        .toList();
+    final total = pending.length;
+    var done = 0;
+    onProgress?.call(done, total);
     var pushed = 0;
     for (final object in pending) {
-      if (object.remoteBackup == BackupState.done) continue;
       final file = await store.resolve(object.relativePath);
-      if (file == null || !await file.exists()) continue; // nothing local to upload
+      if (file == null || !await file.exists()) {
+        onProgress?.call(++done, total); // nothing local to upload — still advance
+        continue;
+      }
       final remoteId = await provider.upload(
         file: file,
         fileName: p.posix.basename(object.relativePath),
@@ -211,30 +223,46 @@ class MediaService {
       } else {
         await registry.put(object.copyWith(remoteBackup: BackupState.failed));
       }
+      onProgress?.call(++done, total);
     }
     return pushed;
   }
 
   /// Downloads every backed-up photo missing locally (e.g. a second device or
   /// after reinstall). User-initiated ("Sync"). Returns how many were fetched.
-  Future<int> syncFromBackup() async {
+  ///
+  /// [onProgress] (optional) reports `(done, total)` as the run advances, where
+  /// `total` is how many backed-up photos are missing locally — so the UI can
+  /// show live "downloading 3 of 10" feedback. It fires once with `(0, total)`
+  /// before the first download, then after each candidate.
+  Future<int> syncFromBackup({void Function(int done, int total)? onProgress}) async {
     final provider = backup;
     if (provider == null) return 0;
     // Never revive a connection that belongs to another account.
     if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
+    // Resolve the missing-locally candidates first so progress has a real total.
     final all = await registry.getAll();
-    var fetched = 0;
+    final missing = <MediaObject>[];
     for (final object in all) {
-      final remoteId = object.remoteId;
-      if (remoteId == null) continue;
+      if (object.remoteId == null) continue;
       final local = await store.resolve(object.relativePath);
       if (local != null && await local.exists()) continue;
-      final bytes = await provider.download(remoteId);
-      if (bytes == null || bytes.isEmpty) continue;
-      await store.writeBytes(object.relativePath, bytes);
-      fetched++;
+      missing.add(object);
+    }
+
+    final total = missing.length;
+    var done = 0;
+    onProgress?.call(done, total);
+    var fetched = 0;
+    for (final object in missing) {
+      final bytes = await provider.download(object.remoteId!);
+      if (bytes != null && bytes.isNotEmpty) {
+        await store.writeBytes(object.relativePath, bytes);
+        fetched++;
+      }
+      onProgress?.call(++done, total);
     }
     return fetched;
   }

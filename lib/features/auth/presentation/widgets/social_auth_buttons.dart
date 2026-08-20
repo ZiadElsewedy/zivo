@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/google_g_mark.dart';
 import 'auth_action_button.dart';
 
 /// Which auth action, if any, is currently in flight — so the busy button shows
@@ -41,7 +42,7 @@ class SocialAuthButtons extends StatelessWidget {
         ],
         AuthActionButton(
           label: 'Continue with Google',
-          icon: const _GoogleMark(),
+          icon: const GoogleGMark(size: 20),
           background: AppColors.card,
           foreground: AppColors.ink,
           border: AppColors.hairline2,
@@ -50,33 +51,6 @@ class SocialAuthButtons extends StatelessWidget {
           onTap: onGoogle,
         ),
       ],
-    );
-  }
-}
-
-/// A simple, recognisable Google "G" badge (avoids bundling an image asset).
-class _GoogleMark extends StatelessWidget {
-  const _GoogleMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: const Text(
-        'G',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF4285F4), // Google blue
-          height: 1.1,
-        ),
-      ),
     );
   }
 }

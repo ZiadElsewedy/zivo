@@ -157,20 +157,6 @@ class ProfilePage extends StatelessWidget {
     }
   }
 
-  void _copyUid(BuildContext context, String uid) {
-    Clipboard.setData(ClipboardData(text: uid));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surfaceRaised,
-          content: Text('User ID copied', style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
-
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
@@ -244,20 +230,12 @@ class ProfilePage extends StatelessWidget {
                           icon: Icons.mail_outline_rounded,
                           title: 'Email',
                           value: user.email ?? 'Hidden by provider',
+                          last: true,
                           trailing: user.email == null
                               ? null
                               : (user.isEmailVerified
                                   ? const Icon(Icons.verified_rounded, size: 17, color: AppColors.pulse)
                                   : const Icon(Icons.error_outline_rounded, size: 17, color: AppColors.solar)),
-                        ),
-                        SettingsRow(
-                          icon: Icons.fingerprint_rounded,
-                          title: 'User ID',
-                          value: user.uid,
-                          monospace: true,
-                          trailing: const Icon(Icons.copy_rounded, size: 16, color: AppColors.ink3),
-                          onTap: () => _copyUid(context, user.uid),
-                          last: true,
                         ),
                       ],
                     ),

@@ -17,7 +17,8 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/moment.dart';
 
-/// Moment capture — an optional photo plus a line. Off-by-default privacy: no
+/// Moment capture — a photo, a line, or both (either alone is enough to save).
+/// Off-by-default privacy: no
 /// location is captured unless the user adds it. Pass [initial] to edit an
 /// existing moment in place instead of creating a new one; its capture time and
 /// any location are preserved untouched.
@@ -49,17 +50,23 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
 
   bool get _editing => widget.initial != null;
 
+  /// A moment is saveable with *either* a caption or a photo — a photo on its
+  /// own is a complete moment, so we never force the user to type a line.
+  bool get _hasPhoto => _pickedTempPath != null || _imageRef != null;
+
+  void _recomputeCanSave() {
+    final canSave = _caption.text.trim().isNotEmpty || _hasPhoto;
+    if (canSave != _canSave) setState(() => _canSave = canSave);
+  }
+
   @override
   void initState() {
     super.initState();
     final initial = widget.initial;
     _caption = TextEditingController(text: initial?.caption ?? '');
     _imageRef = initial?.imagePath;
-    _canSave = _caption.text.trim().isNotEmpty;
-    _caption.addListener(() {
-      final canSave = _caption.text.trim().isNotEmpty;
-      if (canSave != _canSave) setState(() => _canSave = canSave);
-    });
+    _canSave = _caption.text.trim().isNotEmpty || _hasPhoto;
+    _caption.addListener(_recomputeCanSave);
   }
 
   @override
@@ -104,6 +111,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
         _pickedSource = source == ImageSource.camera
             ? CaptureSource.camera
             : CaptureSource.library;
+        _canSave = true; // a photo alone is enough to save
       });
     }
   }
@@ -158,6 +166,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       setState(() {
         _pickedTempPath = picked.path;
         _pickedSource = CaptureSource.camera;
+        _canSave = true; // a photo alone is enough to save
       });
     }
   }
@@ -167,6 +176,8 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       _pickedTempPath = null;
       _imageRef = null;
       _pickedSource = CaptureSource.unknown;
+      // No photo now ⇒ fall back to requiring a caption.
+      _canSave = _caption.text.trim().isNotEmpty;
     });
   }
 

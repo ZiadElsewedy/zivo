@@ -7,6 +7,7 @@ import 'package:zivo/core/media/presentation/media_image.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
+import 'package:zivo/features/capture/presentation/widgets/capture_widgets.dart';
 import 'package:zivo/features/moments/presentation/pages/photo_viewer_page.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -218,6 +219,39 @@ void main() {
     final edited = moments.current.firstWhere((m) => m.id == 'edit-me');
     expect(edited.caption, 'New caption');
     expect(edited.takenAt, takenAt);
+  });
+
+  testWidgets('a photo with no caption can still be saved', (tester) async {
+    _useTallSurface(tester);
+    final moments = InMemoryMomentRepository();
+    addTearDown(moments.dispose);
+
+    // Open the editor on a moment that has a photo but an empty caption.
+    await tester.pumpWidget(
+      _wrap(
+        child: MomentCapturePage(
+          initial: Moment(
+            id: 'photo-only',
+            caption: '',
+            takenAt: DateTime(2026, 1, 2),
+            imagePath: 'media/moments/p1.jpg',
+          ),
+        ),
+        momentsOverride: moments,
+      ),
+    );
+    await tester.pump();
+
+    // No caption typed, yet the save button is enabled because a photo alone
+    // is a complete moment.
+    final withPhoto = tester.widget<PillButton>(find.byType(PillButton));
+    expect(withPhoto.enabled, isTrue);
+
+    // Removing the photo with the caption still empty disables save again.
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    final noPhoto = tester.widget<PillButton>(find.byType(PillButton));
+    expect(noPhoto.enabled, isFalse);
   });
 
   testWidgets('deleting from the editor removes the moment', (tester) async {

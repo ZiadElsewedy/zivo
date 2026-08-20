@@ -25,12 +25,21 @@ class StorageSyncPage extends StatefulWidget {
   State<StorageSyncPage> createState() => _StorageSyncPageState();
 }
 
+/// Which long-running operation, if any, is in flight — drives the live
+/// progress banner and which button shows a spinner.
+enum _Op { none, connect, disconnect, backup, sync }
+
 class _StorageSyncPageState extends State<StorageSyncPage> {
-  bool _busy = false;
+  _Op _op = _Op.none;
+  int _opDone = 0;
+  int _opTotal = 0;
+
   bool _connected = false;
   String? _email;
   int _total = 0;
   int _backedUp = 0;
+
+  bool get _busy => _op != _Op.none;
 
   MediaService get _media => AppScope.of(context).requireMedia;
 
@@ -57,13 +66,29 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     }
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  /// Runs [action] under operation [op], surfacing its progress (via the
+  /// `onProgress` it's handed) in the live banner, then refreshing status.
+  Future<void> _run(
+    _Op op,
+    Future<void> Function(void Function(int done, int total) onProgress) action,
+  ) async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _op = op;
+      _opDone = 0;
+      _opTotal = 0;
+    });
     try {
-      await action();
+      await action((done, total) {
+        if (mounted) {
+          setState(() {
+            _opDone = done;
+            _opTotal = total;
+          });
+        }
+      });
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _op = _Op.none);
       await _refresh();
     }
   }
@@ -72,7 +97,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     if (mounted) showZivoToast(context, message, kind: kind);
   }
 
-  Future<void> _connect() => _run(() async {
+  Future<void> _connect() => _run(_Op.connect, (_) async {
         final ok = await _media.connectBackup();
         _toast(
           ok ? 'Google Drive connected on this device.' : 'Couldn’t connect Google Drive.',
@@ -80,21 +105,21 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
         );
       });
 
-  Future<void> _disconnect() => _run(() async {
+  Future<void> _disconnect() => _run(_Op.disconnect, (_) async {
         await _media.disconnectBackup();
         _toast('Google Drive disconnected on this device.', ToastKind.info);
       });
 
-  Future<void> _backupNow() => _run(() async {
-        final n = await _media.backupNow();
+  Future<void> _backupNow() => _run(_Op.backup, (onProgress) async {
+        final n = await _media.backupNow(onProgress: onProgress);
         _toast(
           n == 0 ? 'Everything is already backed up.' : 'Backed up $n ${_p(n)} to Drive.',
           ToastKind.success,
         );
       });
 
-  Future<void> _syncFromDrive() => _run(() async {
-        final n = await _media.syncFromBackup();
+  Future<void> _syncFromDrive() => _run(_Op.sync, (onProgress) async {
+        final n = await _media.syncFromBackup(onProgress: onProgress);
         _toast(
           n == 0 ? 'Nothing new to download.' : 'Downloaded $n ${_p(n)} from Drive.',
           ToastKind.success,
@@ -128,7 +153,9 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
               email: _email,
               total: _total,
               backedUp: _backedUp,
-              busy: _busy,
+              op: _op,
+              opDone: _opDone,
+              opTotal: _opTotal,
               onConnect: _connect,
               onDisconnect: _disconnect,
               onBackupNow: _backupNow,
@@ -227,7 +254,9 @@ class _DriveCard extends StatelessWidget {
     required this.email,
     required this.total,
     required this.backedUp,
-    required this.busy,
+    required this.op,
+    required this.opDone,
+    required this.opTotal,
     required this.onConnect,
     required this.onDisconnect,
     required this.onBackupNow,
@@ -239,11 +268,15 @@ class _DriveCard extends StatelessWidget {
   final String? email;
   final int total;
   final int backedUp;
-  final bool busy;
+  final _Op op;
+  final int opDone;
+  final int opTotal;
   final VoidCallback onConnect;
   final VoidCallback onDisconnect;
   final VoidCallback onBackupNow;
   final VoidCallback onSync;
+
+  bool get _busy => op != _Op.none;
 
   @override
   Widget build(BuildContext context) {
@@ -277,25 +310,48 @@ class _DriveCard extends StatelessWidget {
           if (supported) ...[
             const SizedBox(height: 16),
             if (!connected)
-              _PrimaryButton(label: 'Connect Google Drive', busy: busy, onTap: onConnect)
+              _PrimaryButton(label: 'Connect Google Drive', loading: op == _Op.connect, onTap: onConnect)
             else ...[
-              if (total > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    '$backedUp of $total backed up',
-                    style: AppText.meta.copyWith(color: AppColors.ink2),
-                  ),
-                ),
+              _BackupStatusBanner(
+                total: total,
+                backedUp: backedUp,
+                op: op,
+                opDone: opDone,
+                opTotal: opTotal,
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _MiniButton(icon: AppIcons.backupNow, label: 'Back up now', busy: busy, onTap: onBackupNow)),
+                  Expanded(
+                    child: _MiniButton(
+                      icon: AppIcons.backupNow,
+                      label: 'Back up now',
+                      loading: op == _Op.backup,
+                      enabled: !_busy,
+                      onTap: onBackupNow,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _MiniButton(icon: AppIcons.retake, label: 'Sync', busy: busy, onTap: onSync)),
+                  Expanded(
+                    child: _MiniButton(
+                      icon: AppIcons.retake,
+                      label: 'Sync',
+                      loading: op == _Op.sync,
+                      enabled: !_busy,
+                      onTap: onSync,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
-              _MiniButton(icon: AppIcons.disconnect, label: 'Disconnect', busy: busy, onTap: onDisconnect, tint: AppColors.flareText),
+              _MiniButton(
+                icon: AppIcons.disconnect,
+                label: 'Disconnect',
+                loading: op == _Op.disconnect,
+                enabled: !_busy,
+                onTap: onDisconnect,
+                tint: AppColors.flareText,
+              ),
             ],
           ],
         ],
@@ -307,6 +363,151 @@ class _DriveCard extends StatelessWidget {
     if (!supported) return 'Unavailable in this build';
     if (connected) return email ?? 'Connected on this device';
     return 'Not connected on this device';
+  }
+}
+
+/// The polished status panel inside the Drive card — the app's answer to
+/// "am I backed up?". It has three resting looks (all-safe, some-pending,
+/// nothing-yet) and, while a backup/sync runs, becomes a live progress readout
+/// with a determinate bar and a "3 of 10" counter. Replaces the old bare
+/// "$backedUp of $total backed up" line with something that reads as premium.
+class _BackupStatusBanner extends StatelessWidget {
+  const _BackupStatusBanner({
+    required this.total,
+    required this.backedUp,
+    required this.op,
+    required this.opDone,
+    required this.opTotal,
+  });
+
+  final int total;
+  final int backedUp;
+  final _Op op;
+  final int opDone;
+  final int opTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final running = op == _Op.backup || op == _Op.sync;
+
+    // Accent + copy per state.
+    late final Color accent;
+    late final Color wash;
+    late final IconData icon;
+    late final String title;
+    late final String subtitle;
+    double? progress; // null → no bar (or indeterminate while checking)
+    bool indeterminate = false;
+
+    if (running) {
+      accent = AppColors.ember;
+      wash = AppColors.emberWash;
+      icon = op == _Op.backup ? AppIcons.backupNow : AppIcons.retake;
+      title = op == _Op.backup ? 'Backing up…' : 'Syncing…';
+      if (opTotal == 0) {
+        subtitle = 'Checking your photos…';
+        indeterminate = true;
+      } else {
+        subtitle = '$opDone of $opTotal ${opTotal == 1 ? 'photo' : 'photos'}';
+        progress = opDone / opTotal;
+      }
+    } else if (total == 0) {
+      accent = AppColors.ink3;
+      wash = AppColors.surfaceRaised;
+      icon = AppIcons.driveCloud;
+      title = 'Nothing to back up yet';
+      subtitle = 'Photos you add will back up here.';
+    } else if (backedUp >= total) {
+      accent = AppColors.pulse;
+      wash = AppColors.pulseWash;
+      icon = AppIcons.success;
+      title = 'All backed up';
+      subtitle = '$total ${total == 1 ? 'photo is' : 'photos are'} safe in Google Drive.';
+    } else {
+      accent = AppColors.solar;
+      wash = AppColors.solarWash;
+      icon = AppIcons.backupNow;
+      title = '$backedUp of $total backed up';
+      final pending = total - backedUp;
+      subtitle = '$pending ${pending == 1 ? 'photo is' : 'photos are'} waiting to back up.';
+      progress = total == 0 ? 0 : backedUp / total;
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: wash,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: running
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2.2, color: accent),
+                      )
+                    : Icon(icon, size: 18, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppText.rowTitle.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppText.meta.copyWith(color: AppColors.ink3)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (progress != null || indeterminate) ...[
+            const SizedBox(height: 12),
+            _ProgressBar(value: indeterminate ? null : progress, color: accent),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A slim, rounded progress bar tinted to the banner's accent. A null [value]
+/// renders the indeterminate sweep (used while a run is still counting work).
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.value, required this.color});
+
+  final double? value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: SizedBox(
+        height: 6,
+        child: LinearProgressIndicator(
+          value: value?.clamp(0.0, 1.0),
+          backgroundColor: color.withValues(alpha: 0.16),
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+        ),
+      ),
+    );
   }
 }
 
@@ -323,23 +524,23 @@ class _ConnectedDot extends StatelessWidget {
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.label, required this.busy, required this.onTap});
+  const _PrimaryButton({required this.label, required this.loading, required this.onTap});
   final String label;
-  final bool busy;
+  final bool loading;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PressableScale(
-      enabled: !busy,
+      enabled: !loading,
       child: GestureDetector(
-        onTap: busy ? null : onTap,
+        onTap: loading ? null : onTap,
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 14),
           alignment: Alignment.center,
           decoration: BoxDecoration(color: AppColors.ember, borderRadius: BorderRadius.circular(AppRadius.pill)),
-          child: busy
+          child: loading
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : Text(label, style: AppText.button.copyWith(color: Colors.white, fontSize: 15)),
         ),
@@ -349,35 +550,55 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 class _MiniButton extends StatelessWidget {
-  const _MiniButton({required this.icon, required this.label, required this.busy, required this.onTap, this.tint});
+  const _MiniButton({
+    required this.icon,
+    required this.label,
+    required this.loading,
+    required this.enabled,
+    required this.onTap,
+    this.tint,
+  });
   final IconData icon;
   final String label;
-  final bool busy;
+
+  /// This button's own action is the one in flight — show its spinner.
+  final bool loading;
+
+  /// Tappable at all — false while any operation runs (including another
+  /// button's), so the row dims and disables together.
+  final bool enabled;
   final VoidCallback onTap;
   final Color? tint;
 
   @override
   Widget build(BuildContext context) {
     final color = tint ?? AppColors.ink;
-    return PressableScale(
-      enabled: !busy,
-      child: GestureDetector(
-        onTap: busy ? null : onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.hairline2),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 7),
-              Text(label, style: AppText.button.copyWith(fontSize: 13, color: color)),
-            ],
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: enabled || loading ? 1 : 0.45,
+      child: PressableScale(
+        enabled: enabled,
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (loading)
+                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+                else
+                  Icon(icon, size: 16, color: color),
+                const SizedBox(width: 7),
+                Text(label, style: AppText.button.copyWith(fontSize: 13, color: color)),
+              ],
+            ),
           ),
         ),
       ),
