@@ -23,6 +23,7 @@ class _FakeDriveClient implements MediaBackupProvider {
   bool liveSession;
   String? uploadId;
   List<int>? downloadBytes;
+  String? ownerId;
 
   final List<String> uploadedFolders = [];
   final List<String> uploaded = [];
@@ -41,11 +42,15 @@ class _FakeDriveClient implements MediaBackupProvider {
   Future<String?> connectedEmail() async => connectAccount?.email;
 
   @override
-  Future<BackupAccount?> connect() async {
+  Future<String?> connectedOwnerId() async => ownerId;
+
+  @override
+  Future<BackupAccount?> connect({required String ownerAccountId}) async {
     connectCalls++;
     if (connectAccount != null) {
       deviceConnected = true;
       liveSession = true;
+      ownerId = ownerAccountId;
     }
     return connectAccount;
   }
@@ -62,6 +67,7 @@ class _FakeDriveClient implements MediaBackupProvider {
     disconnectCalls++;
     deviceConnected = false;
     liveSession = false;
+    ownerId = null;
   }
 
   @override
@@ -116,12 +122,17 @@ void main() {
         remoteId: remoteId,
       );
 
-  MediaService buildService(_FakeDriveClient client, InMemoryMediaRegistry registry) =>
+  MediaService buildService(
+    _FakeDriveClient client,
+    InMemoryMediaRegistry registry, {
+    String? account = 'u1',
+  }) =>
       MediaService(
         store: store,
         registry: registry,
         preferences: InMemoryMediaPreferencesRepository(),
         backup: client,
+        currentAccountId: () => account,
       );
 
   group('connect / disconnect', () {

@@ -51,6 +51,9 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   @override
   Future<String?> connectedEmail() => _store.email();
 
+  @override
+  Future<String?> connectedOwnerId() => _store.ownerUid();
+
   Future<void> _ensureInit() async {
     if (_initTried) return;
     _initTried = true;
@@ -66,14 +69,14 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   }
 
   @override
-  Future<BackupAccount?> connect() async {
+  Future<BackupAccount?> connect({required String ownerAccountId}) async {
     await _ensureInit();
     if (!_signIn.supportsAuthenticate()) return null;
     final account = await _signIn.authenticate(scopeHint: _scopes);
     final authz = await account.authorizationClient.authorizeScopes(_scopes);
     if (authz.accessToken.isEmpty) return null;
     _liveAccount = account;
-    await _store.setConnected(account.email);
+    await _store.setConnected(email: account.email, ownerUid: ownerAccountId);
     return BackupAccount(id: account.id, email: account.email);
   }
 

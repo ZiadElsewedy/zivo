@@ -28,10 +28,12 @@ class BackupAccount {
 /// ZIVO accounts sharing one cloud account never mix.
 abstract interface class MediaBackupProvider {
   /// Interactive connect on this device: authenticates + authorizes and
-  /// persists the connection. Returns the account, or null if cancelled/failed.
-  Future<BackupAccount?> connect();
+  /// persists the connection, tagged with the [ownerAccountId] (the ZIVO
+  /// account connecting it). Returns the account, or null if cancelled/failed.
+  Future<BackupAccount?> connect({required String ownerAccountId});
 
-  /// Disconnects: clears this device's connection and signs out.
+  /// Disconnects: clears this device's connection (in-memory session AND
+  /// persisted state) and signs out.
   Future<void> disconnect();
 
   /// Whether an authorized session is live in memory right now — a pure,
@@ -43,6 +45,10 @@ abstract interface class MediaBackupProvider {
 
   /// The connected account email on this device, if any.
   Future<String?> connectedEmail();
+
+  /// The ZIVO account uid that connected this device, or null — used to reject
+  /// a stale connection after a sign-out / account switch.
+  Future<String?> connectedOwnerId();
 
   /// Restores a prior session (may briefly show native auth UI). Call ONLY from
   /// user-initiated actions (Back up now / Sync).

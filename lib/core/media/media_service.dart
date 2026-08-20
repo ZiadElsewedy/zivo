@@ -30,6 +30,7 @@ class MediaService {
     required this.preferences,
     this.galleryTarget,
     this.backup,
+    this.currentAccountId,
   });
 
   final MediaStore store;
@@ -42,15 +43,39 @@ class MediaService {
   /// The cloud backup provider, or null in offline/dev builds.
   final MediaBackupProvider? backup;
 
+  /// The signed-in ZIVO account uid right now (from the composition root). Used
+  /// to enforce backup-connection ownership so account A's connection is never
+  /// used by account B.
+  final String? Function()? currentAccountId;
+
   /// Whether cloud backup is offered in the UI at all (build has a provider).
   bool get supportsBackup => backup != null;
 
-  /// Whether this *device* has connected the backup provider before (persisted).
-  Future<bool> isBackupConnected() async =>
-      await backup?.isDeviceConnected() ?? false;
+  /// Whether this *device* has a backup connection usable by the current
+  /// account. A connection owned by a different account is treated as not
+  /// connected (and cleared — see [_backupConnectionValidForCurrentAccount]).
+  Future<bool> isBackupConnected() => _backupConnectionValidForCurrentAccount();
 
   /// The connected backup account email on this device, if any.
   Future<String?> connectedBackupAccount() async => await backup?.connectedEmail();
+
+  /// Defense in depth against cross-account leakage: a device connection is
+  /// only usable by the account that created it. If a persisted connection
+  /// belongs to a different account (e.g. a sign-out/switch hook was missed),
+  /// it is disconnected here and treated as absent. Returns whether a valid
+  /// connection for the current account exists.
+  Future<bool> _backupConnectionValidForCurrentAccount() async {
+    final provider = backup;
+    if (provider == null) return false;
+    if (!await provider.isDeviceConnected()) return false;
+    final owner = await provider.connectedOwnerId();
+    final current = currentAccountId?.call();
+    if (owner != null && current != null && owner != current) {
+      await provider.disconnect(); // stale connection from another account
+      return false;
+    }
+    return true;
+  }
 
   /// Imports a just-captured/picked file into durable local storage, registers
   /// it, and — if "Save to Photos" is on — copies it to the system gallery.
@@ -139,11 +164,19 @@ class MediaService {
     await registry.remove(id);
   }
 
-  /// Interactive connect to the backup provider (user-initiated). Returns
-  /// whether it connected; the connection is remembered per-device.
-  Future<bool> connectBackup() async => await backup?.connect() != null;
+  /// Interactive connect to the backup provider (user-initiated). Tags the
+  /// connection with the current account so it can't later be used by another.
+  /// Returns whether it connected.
+  Future<bool> connectBackup() async {
+    final provider = backup;
+    final owner = currentAccountId?.call();
+    if (provider == null || owner == null) return false;
+    return await provider.connect(ownerAccountId: owner) != null;
+  }
 
-  /// Disconnects the backup provider on this device.
+  /// Disconnects the backup provider on this device — clears both the in-memory
+  /// session and the persisted connection state. Called on sign-out / account
+  /// switch, and when a stale cross-account connection is detected.
   Future<void> disconnectBackup() => backup?.disconnect() ?? Future.value();
 
   /// Uploads every not-yet-backed-up photo to the account's namespace.
@@ -152,6 +185,8 @@ class MediaService {
   Future<int> backupNow() async {
     final provider = backup;
     if (provider == null) return 0;
+    // Never revive a connection that belongs to another account.
+    if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
     final pending = await registry.pendingBackups();
@@ -182,6 +217,8 @@ class MediaService {
   Future<int> syncFromBackup() async {
     final provider = backup;
     if (provider == null) return 0;
+    // Never revive a connection that belongs to another account.
+    if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
     final all = await registry.getAll();
