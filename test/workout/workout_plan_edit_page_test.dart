@@ -749,6 +749,69 @@ void main() {
     expect(plans.saved, isEmpty); // never touched the always-activates path
   });
 
+  testWidgets("saving preserves an imported draft's pdf source through the review step", (tester) async {
+    final plans = _RecordingWorkoutPlanRepository();
+    final importedDraft = WorkoutPlan(
+      id: 'imported',
+      name: 'Imported Split',
+      status: WorkoutPlanStatus.active,
+      source: WorkoutPlanSource.pdf,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      cycleCursor: 0,
+      days: const [
+        WorkoutDay(
+          id: 'd1',
+          slot: 'A',
+          label: 'Push',
+          order: 0,
+          exercises: [
+            PlannedExercise(
+              id: 'e1',
+              name: 'Bench Press',
+              order: 0,
+              defaultRestSeconds: 90,
+              sets: [PlannedSet(order: 0, repTarget: RepTarget.fixed(8), restSeconds: 90, type: SetType.working)],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrap(child: WorkoutPlanEditPage(initialPlan: importedDraft, asSplit: true), plans: plans),
+    );
+    await tester.pump();
+
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
+    await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+    await tester.pumpAndSettle();
+
+    expect(plans.savedAsSplit.single.source, WorkoutPlanSource.pdf);
+  });
+
+  testWidgets('a brand-new plan (no initialPlan) still defaults to manual source', (tester) async {
+    final plans = _RecordingWorkoutPlanRepository();
+    await tester.pumpWidget(_wrap(child: const WorkoutPlanEditPage(), plans: plans));
+    await tester.pump();
+
+    await tester.enterText(find.byKey(const Key('plan-name-field')), 'Fresh Plan');
+    await tester.pump();
+    await tester.tap(find.text('Add day'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('day-label-field')), 'Push');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Add day'));
+    await tester.tap(find.widgetWithText(PillButton, 'Add day'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.widgetWithText(PillButton, 'Save plan'));
+    await tester.tap(find.widgetWithText(PillButton, 'Save plan'));
+    await tester.pumpAndSettle();
+
+    expect(plans.saved.single.source, WorkoutPlanSource.manual);
+  });
+
   testWidgets('asSplit: true routes delete through deleteSplit (never deletePlan)', (tester) async {
     final plans = _RecordingWorkoutPlanRepository();
     await tester.pumpWidget(

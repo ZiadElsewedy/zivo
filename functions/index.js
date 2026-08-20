@@ -483,10 +483,13 @@ exports.aiCancelAction = onCall(
 // --- aiImportWorkoutPlan (WORKOUT_SYSTEM.md §3.4, Phase 6) -----------------
 
 // ADR-002 guardrail: reject an oversized upload before it reaches the model.
-// Base64 runs ~4/3 the raw byte size, so ~14M chars covers the ADR's ~32MB
-// PDF ceiling with headroom; callable payloads are capped well below that by
-// Cloud Functions itself, but this gives a clear, on-brand error instead of
-// a generic transport failure.
+// Base64 runs ~4/3 the raw byte size, so this ~14M-char cap covers roughly a
+// 10.5MB raw PDF — well short of ADR-002's ~32MB ceiling (that number is
+// sized for messier scanned/multi-page documents; a 32MB cap here would need
+// ~43M base64 chars, which risks the callable transport's own payload
+// limit). Workout PDFs are typically a few pages, so this leaves generous
+// headroom for the real target while failing fast, with a clear message,
+// well before any transport-level rejection.
 const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
 
 /**
@@ -501,6 +504,11 @@ exports.aiImportWorkoutPlan = onCall(
       secrets: [ANTHROPIC_API_KEY],
       region: "us-central1",
       enforceAppCheck: true,
+      // A single Claude call reading a whole PDF (native document input,
+      // every page) can run well past the platform's 60s default — unlike
+      // aiChat's short per-turn tool calls, there's no streaming/chunking
+      // here to keep each round-trip small.
+      timeoutSeconds: 180,
     },
     async (request) => {
       const auth = request.auth;

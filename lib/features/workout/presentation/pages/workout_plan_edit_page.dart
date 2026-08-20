@@ -306,7 +306,10 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       id: _planId,
       name: _name.text.trim(),
       status: WorkoutPlanStatus.active,
-      source: WorkoutPlanSource.manual,
+      // Preserves an imported draft's `pdf` marker through the mandatory
+      // review step (WORKOUT_SYSTEM.md §3.4) — only a genuinely new plan
+      // (no initialPlan) defaults to `manual`.
+      source: widget.initialPlan?.source ?? WorkoutPlanSource.manual,
       createdAt: _createdAt,
       updatedAt: now,
       cycleCursor: days.isEmpty ? 0 : (cursorIndex >= 0 ? cursorIndex : 0),
