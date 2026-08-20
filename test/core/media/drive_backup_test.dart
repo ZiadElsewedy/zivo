@@ -16,6 +16,7 @@ class _FakeDriveClient implements MediaBackupProvider {
     this.deviceConnected = false,
     this.liveSession = false,
     this.uploadId = 'drive-1',
+    this.ownerId,
   });
 
   BackupAccount? connectAccount;
@@ -174,7 +175,7 @@ void main() {
       await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject(uid: 'acct-9'));
-      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, uploadId: 'drive-xyz');
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, uploadId: 'drive-xyz', ownerId: 'u1');
       final service = buildService(client, registry);
 
       final pushed = await service.backupNow();
@@ -205,6 +206,7 @@ void main() {
         connectAccount: const BackupAccount(id: '1', email: 'x@e.com'),
         deviceConnected: true,
         liveSession: false,
+        ownerId: 'u1',
       );
       final service = buildService(client, registry);
 
@@ -256,7 +258,7 @@ void main() {
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject(id: 'm1', remoteId: 'd1'));
       await registry.put(makeObject(id: 'm2')); // no drive backup → skipped
-      final client = _FakeDriveClient(deviceConnected: true, liveSession: true)
+      final client = _FakeDriveClient(deviceConnected: true, liveSession: true, ownerId: 'u1')
         ..downloadBytes = [7];
       final service = buildService(client, registry);
 

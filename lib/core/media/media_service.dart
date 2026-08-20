@@ -60,18 +60,21 @@ class MediaService {
   Future<String?> connectedBackupAccount() async => await backup?.connectedEmail();
 
   /// Defense in depth against cross-account leakage: a device connection is
-  /// only usable by the account that created it. If a persisted connection
-  /// belongs to a different account (e.g. a sign-out/switch hook was missed),
-  /// it is disconnected here and treated as absent. Returns whether a valid
-  /// connection for the current account exists.
+  /// only usable by the exact account that created it. Fail-closed — the
+  /// connection is valid *only* when its recorded owner equals the current
+  /// account. A different owner, an unknown owner (`null`, e.g. a connection
+  /// made before owner tracking existed), or no current account all cause the
+  /// persisted/in-memory connection to be cleared and rejected. (A pre-existing
+  /// unowned connection therefore requires the user to reconnect once — by
+  /// design.) Returns whether a valid connection for the current account exists.
   Future<bool> _backupConnectionValidForCurrentAccount() async {
     final provider = backup;
     if (provider == null) return false;
     if (!await provider.isDeviceConnected()) return false;
     final owner = await provider.connectedOwnerId();
     final current = currentAccountId?.call();
-    if (owner != null && current != null && owner != current) {
-      await provider.disconnect(); // stale connection from another account
+    if (owner == null || current == null || owner != current) {
+      await provider.disconnect(); // unknown or foreign owner — clear it
       return false;
     }
     return true;
