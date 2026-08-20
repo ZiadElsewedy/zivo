@@ -21,6 +21,7 @@ import '../core/media/domain/media_store.dart';
 import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/zivo_scroll_behavior.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
@@ -247,6 +248,7 @@ class _ZivoAppState extends State<ZivoApp> {
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,
+        scrollBehavior: const ZivoScrollBehavior(),
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,

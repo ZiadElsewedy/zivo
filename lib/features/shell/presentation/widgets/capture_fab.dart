@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 
 /// The global Quick Capture entry — one Ember action, reachable from Today.
 class CaptureFab extends StatelessWidget {
@@ -31,7 +32,7 @@ class CaptureFab extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+          child: const Icon(AppIcons.add, color: Colors.white, size: 26),
         ),
       ),
     );

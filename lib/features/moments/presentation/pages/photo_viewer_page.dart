@@ -6,6 +6,7 @@ import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/moment.dart';
 import '../moment_metadata.dart';
@@ -294,7 +295,7 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _GlyphButton(icon: Icons.close_rounded, onTap: onClose, semantic: 'Close'),
+          _GlyphButton(icon: AppIcons.close, onTap: onClose, semantic: 'Close'),
           Expanded(
             child: Text(
               '${index + 1} of $total',
@@ -302,7 +303,7 @@ class _TopBar extends StatelessWidget {
               style: AppText.meta.copyWith(color: Colors.white),
             ),
           ),
-          _GlyphButton(icon: Icons.delete_outline_rounded, onTap: onDelete, semantic: 'Delete'),
+          _GlyphButton(icon: AppIcons.trash, onTap: onDelete, semantic: 'Delete'),
         ],
       ),
     );
@@ -352,7 +353,7 @@ class _BottomBar extends StatelessWidget {
                     ),
                   ),
                   _GlyphButton(
-                    icon: infoOpen ? Icons.info_rounded : Icons.info_outline_rounded,
+                    icon: infoOpen ? AppIcons.infoFill : AppIcons.info,
                     onTap: onToggleInfo,
                     semantic: 'Photo info',
                   ),

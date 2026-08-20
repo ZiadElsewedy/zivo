@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie/lottie.dart';
 import 'package:zivo/core/media/presentation/media_image.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/moments/presentation/pages/photo_viewer_page.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
@@ -122,7 +123,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.add_a_photo_rounded));
+    await tester.tap(find.byIcon(AppIcons.camera));
     await tester.pumpAndSettle();
 
     expect(find.byType(MomentCapturePage), findsOneWidget);

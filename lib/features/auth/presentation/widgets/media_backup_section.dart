@@ -4,7 +4,9 @@ import '../../../../core/media/domain/media_storage_preferences.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/widgets/google_drive_mark.dart';
+import '../../../../core/widgets/zivo_toast.dart';
 import 'settings_row.dart';
 
 /// The "Media & Backup" Settings section — where each account controls what
@@ -33,17 +35,8 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
     }
   }
 
-  void _toast(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surfaceRaised,
-          content: Text(message),
-        ),
-      );
+  void _toast(String message, ToastKind kind) {
+    if (mounted) showZivoToast(context, message, kind: kind);
   }
 
   Future<void> _setPrefs(MediaStoragePreferences prefs) =>
@@ -51,21 +44,27 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
 
   Future<void> _connectDrive() => _run(() async {
         final connected = await _media.connectDrive();
-        _toast(connected
-            ? 'Google Drive connected — backups are on.'
-            : 'Couldn’t connect Google Drive.');
+        _toast(
+          connected
+              ? 'Google Drive connected — backups are on.'
+              : 'Couldn’t connect Google Drive.',
+          connected ? ToastKind.success : ToastKind.error,
+        );
       });
 
   Future<void> _backupNow() => _run(() async {
         final pushed = await _media.backupNow();
-        _toast(pushed == 0
-            ? 'Everything is already backed up.'
-            : 'Backed up $pushed ${pushed == 1 ? 'photo' : 'photos'} to Drive.');
+        _toast(
+          pushed == 0
+              ? 'Everything is already backed up.'
+              : 'Backed up $pushed ${pushed == 1 ? 'photo' : 'photos'} to Drive.',
+          ToastKind.success,
+        );
       });
 
   Future<void> _disconnectDrive() => _run(() async {
         await _media.disconnectDrive();
-        _toast('Google Drive disconnected.');
+        _toast('Google Drive disconnected.', ToastKind.info);
       });
 
   @override
@@ -81,7 +80,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
           label: 'MEDIA & BACKUP',
           children: [
             SettingsRow(
-              icon: Icons.photo_library_outlined,
+              icon: AppIcons.photos,
               title: 'Save to Photos',
               value: prefs.saveToPhotos ? 'On' : 'Off',
               trailing: Switch.adaptive(
@@ -104,7 +103,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
     if (!_media.supportsDrive) {
       return [
         SettingsRow(
-          icon: Icons.cloud_off_outlined,
+          icon: AppIcons.driveCloud,
           title: 'Google Drive backup',
           value: 'Unavailable',
           last: true,
@@ -133,13 +132,13 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
         value: prefs.driveAccountEmail ?? 'Connected',
       ),
       SettingsRow(
-        icon: Icons.backup_outlined,
+        icon: AppIcons.backupNow,
         title: 'Back up now',
         value: _busy ? 'Working…' : '',
         onTap: _busy ? null : _backupNow,
       ),
       SettingsRow(
-        icon: Icons.schedule_outlined,
+        icon: AppIcons.schedule3Day,
         title: 'Auto-backup every 3 days',
         value: prefs.autoBackupEveryDays != null ? 'On' : 'Off',
         trailing: Switch.adaptive(
@@ -153,7 +152,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
         ),
       ),
       SettingsRow(
-        icon: Icons.wifi_outlined,
+        icon: AppIcons.wifi,
         title: 'Wi-Fi only',
         value: prefs.wifiOnly ? 'On' : 'Off',
         trailing: Switch.adaptive(
@@ -164,7 +163,7 @@ class _MediaBackupSectionState extends State<MediaBackupSection> {
         ),
       ),
       SettingsRow(
-        icon: Icons.link_off_outlined,
+        icon: AppIcons.disconnect,
         title: 'Disconnect Drive',
         value: '',
         last: true,

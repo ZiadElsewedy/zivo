@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 
 /// The four-tab command bar: Today · Hub · Ask · You (decision D-1).
@@ -33,8 +34,8 @@ class ZivoBottomBar extends StatelessWidget {
               _Tab(
                 index: 0,
                 label: 'Today',
-                icon: Icons.home_rounded,
-                activeIcon: Icons.home_rounded,
+                icon: AppIcons.today,
+                activeIcon: AppIcons.todayFill,
                 filled: true,
                 currentIndex: currentIndex,
                 onTap: onTap,
@@ -42,21 +43,27 @@ class ZivoBottomBar extends StatelessWidget {
               _Tab(
                 index: 1,
                 label: 'Hub',
-                icon: Icons.grid_view_rounded,
+                icon: AppIcons.hub,
+                activeIcon: AppIcons.hubFill,
+                filled: true,
                 currentIndex: currentIndex,
                 onTap: onTap,
               ),
               _Tab(
                 index: 2,
                 label: 'Ask',
-                icon: Icons.adjust_rounded,
+                icon: AppIcons.ask,
+                activeIcon: AppIcons.askFill,
+                filled: true,
                 currentIndex: currentIndex,
                 onTap: onTap,
               ),
               _Tab(
                 index: 3,
                 label: 'You',
-                icon: Icons.person_outline_rounded,
+                icon: AppIcons.you,
+                activeIcon: AppIcons.youFill,
+                filled: true,
                 currentIndex: currentIndex,
                 onTap: onTap,
               ),

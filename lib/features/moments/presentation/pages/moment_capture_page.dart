@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/media/domain/media_kind.dart';
@@ -10,7 +11,9 @@ import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/moment.dart';
 
@@ -105,6 +108,68 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
     }
   }
 
+  /// Opens the native crop/straighten/rotate editor on the current photo and
+  /// keeps the edited result. Works for a freshly-picked photo or an existing
+  /// moment's stored photo (resolved from the media store first).
+  Future<void> _editPhoto() async {
+    var path = _pickedTempPath;
+    if (path == null && _imageRef != null) {
+      final file = await AppScope.of(context).requireMedia.resolve(_imageRef);
+      path = file?.path;
+    }
+    if (path == null) return;
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: path,
+      compressQuality: 92,
+      uiSettings: [
+        IOSUiSettings(
+          title: 'Edit Photo',
+          doneButtonTitle: 'Done',
+          cancelButtonTitle: 'Cancel',
+          aspectRatioLockEnabled: false,
+          resetAspectRatioEnabled: true,
+        ),
+        AndroidUiSettings(
+          toolbarTitle: 'Edit Photo',
+          toolbarColor: AppColors.ground,
+          toolbarWidgetColor: AppColors.ink,
+          backgroundColor: AppColors.ground,
+          activeControlsWidgetColor: AppColors.ember,
+          cropFrameColor: AppColors.ink,
+          cropGridColor: AppColors.hairline2,
+          statusBarLight: false,
+          lockAspectRatio: false,
+        ),
+      ],
+    );
+    if (cropped != null && mounted) {
+      setState(() => _pickedTempPath = cropped.path);
+    }
+  }
+
+  /// Retake straight from the camera, replacing the current photo.
+  Future<void> _retake() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _pickedTempPath = picked.path;
+        _pickedSource = CaptureSource.camera;
+      });
+    }
+  }
+
+  void _removePhoto() {
+    setState(() {
+      _pickedTempPath = null;
+      _imageRef = null;
+      _pickedSource = CaptureSource.unknown;
+    });
+  }
+
   Future<void> _save() async {
     if (!_canSave) return;
     final scope = AppScope.of(context);
@@ -177,11 +242,14 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 22, 24, 6),
-              child: _PhotoTile(
+              child: _PhotoArea(
                 service: AppScope.of(context).requireMedia,
                 imageRef: _imageRef,
                 pickedTempPath: _pickedTempPath,
-                onTap: _pickPhoto,
+                onAdd: _pickPhoto,
+                onEdit: _editPhoto,
+                onRetake: _retake,
+                onRemove: _removePhoto,
               ),
             ),
             Padding(
@@ -223,60 +291,137 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   }
 }
 
-class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({
+/// The capture page's photo block. Empty: a tap-to-add tile that opens the
+/// camera-first sheet. With a photo: the image plus a polished action bar —
+/// Edit (crop/straighten), Retake, Remove — so the whole take/edit/keep flow
+/// lives in one place.
+class _PhotoArea extends StatelessWidget {
+  const _PhotoArea({
     required this.service,
     required this.imageRef,
     required this.pickedTempPath,
-    required this.onTap,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onRetake,
+    required this.onRemove,
   });
 
   final MediaService service;
-
-  /// The stored (durable) reference for an existing photo.
   final String? imageRef;
-
-  /// A just-picked, not-yet-stored temp file (takes precedence for preview).
   final String? pickedTempPath;
-  final VoidCallback onTap;
+  final VoidCallback onAdd;
+  final VoidCallback onEdit;
+  final VoidCallback onRetake;
+  final VoidCallback onRemove;
+
+  bool get _hasPhoto => pickedTempPath != null || imageRef != null;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 3 / 2,
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.card, AppColors.surfaceRaised],
+    if (!_hasPhoto) {
+      return GestureDetector(
+        onTap: onAdd,
+        child: AspectRatio(
+          aspectRatio: 3 / 2,
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.card, AppColors.surfaceRaised],
+              ),
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(AppIcons.camera, size: 30, color: AppColors.ink3),
+                  const SizedBox(height: 10),
+                  Text('Add a photo', style: AppText.body.copyWith(color: AppColors.ink3)),
+                ],
+              ),
             ),
           ),
-          child: _preview(),
         ),
-      ),
+      );
+    }
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onEdit,
+          child: AspectRatio(
+            aspectRatio: 3 / 2,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
+              child: pickedTempPath != null
+                  ? Image.file(File(pickedTempPath!), fit: BoxFit.cover)
+                  : MediaImage(service: service, ref: imageRef, fit: BoxFit.cover),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _PhotoAction(icon: AppIcons.crop, label: 'Edit', onTap: onEdit),
+            const SizedBox(width: 10),
+            _PhotoAction(icon: AppIcons.retake, label: 'Retake', onTap: onRetake),
+            const SizedBox(width: 10),
+            _PhotoAction(
+              icon: AppIcons.trash,
+              label: 'Remove',
+              onTap: onRemove,
+              tint: AppColors.flareText,
+            ),
+          ],
+        ),
+      ],
     );
   }
+}
 
-  Widget _preview() {
-    if (pickedTempPath != null) {
-      return Image.file(File(pickedTempPath!), fit: BoxFit.cover);
-    }
-    if (imageRef != null) {
-      return MediaImage(service: service, ref: imageRef, fit: BoxFit.cover);
-    }
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_a_photo_outlined, size: 28, color: AppColors.ink3),
-          const SizedBox(height: 8),
-          Text('Add a photo', style: AppText.body.copyWith(color: AppColors.ink3)),
-        ],
+class _PhotoAction extends StatelessWidget {
+  const _PhotoAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.tint,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? tint;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tint ?? AppColors.ink;
+    return Expanded(
+      child: PressableScale(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 17, color: color),
+                const SizedBox(width: 7),
+                Text(label, style: AppText.button.copyWith(fontSize: 13.5, color: color)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

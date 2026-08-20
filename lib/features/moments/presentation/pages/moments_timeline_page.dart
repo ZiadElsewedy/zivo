@@ -4,6 +4,7 @@ import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
@@ -120,7 +121,7 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
         elevation: 2,
         tooltip: 'New moment',
         onPressed: _newMoment,
-        child: const Icon(Icons.add_a_photo_rounded, color: Colors.white),
+        child: const Icon(AppIcons.camera, color: Colors.white),
       ),
       body: StreamBuilder<List<Moment>>(
         stream: moments.watchAll(),
@@ -301,7 +302,7 @@ class _GalleryTile extends StatelessWidget {
           const Positioned(
             right: 6,
             top: 6,
-            child: _CornerGlyph(icon: Icons.photo_camera_rounded),
+            child: _CornerGlyph(icon: AppIcons.camera),
           ),
       ],
     );
@@ -314,7 +315,7 @@ class _GalleryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(Icons.notes_rounded, size: 18, color: AppColors.ink3),
+          const Icon(AppIcons.caption, size: 18, color: AppColors.ink3),
           Text(
             moment.caption.isEmpty ? 'Untitled' : moment.caption,
             maxLines: 3,

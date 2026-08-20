@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../widgets/media_backup_section.dart';
 import '../widgets/settings_row.dart';
 
@@ -65,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 label: 'APPEARANCE',
                 children: [
                   SettingsRow(
-                    icon: Icons.dark_mode_rounded,
+                    icon: AppIcons.theme,
                     title: 'Theme',
                     value: 'Dark',
                     last: true,
@@ -79,14 +80,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 label: 'ABOUT',
                 children: [
                   SettingsRow(
-                    icon: Icons.info_outline_rounded,
+                    icon: AppIcons.version,
                     title: 'Version',
                     value: info == null ? '…' : '${info.version} (${info.buildNumber})',
                     last: AppEnvironment.isRelease,
                   ),
                   if (!AppEnvironment.isRelease)
                     SettingsRow(
-                      icon: Icons.build_outlined,
+                      icon: AppIcons.build,
                       title: 'Build',
                       value: AppEnvironment.name,
                       last: true,
@@ -184,7 +185,7 @@ class _SignOutButton extends StatelessWidget {
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.logout_rounded, size: 18, color: AppColors.flareText),
+                      const Icon(AppIcons.signOut, size: 18, color: AppColors.flareText),
                       const SizedBox(width: 8),
                       Text('Sign out', style: AppText.button.copyWith(fontSize: 15, color: AppColors.flareText)),
                     ],
