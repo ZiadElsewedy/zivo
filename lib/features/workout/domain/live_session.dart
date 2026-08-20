@@ -54,6 +54,12 @@ class LiveSession {
 
   // ---- Derived getters -----------------------------------------------------
 
+  /// §3.2: a session's split IS its plan. [planId] already stores the split's
+  /// id (a split is a `WorkoutPlan`), so this is a documented alias — no stored
+  /// field, no serialization change — giving history/analysis code an explicit
+  /// name for the split a session belongs to.
+  String get splitId => planId;
+
   Iterable<LoggedSet> get allSets => exercises.expand((e) => e.sets);
   int get totalSets => exercises.fold(0, (sum, e) => sum + e.sets.length);
   int get completedSetCount => allSets.where((s) => s.done).length;

@@ -70,6 +70,9 @@ dependencies:
   # Per-device Drive connection state (which device is authorized, and which
   # Google account) — kept local so opening Moments never triggers a sign-in.
   shared_preferences: ^2.3.0
+  # Picks an arbitrary file (a workout PDF) from device storage — image_picker
+  # above is camera/gallery-only, not general file access.
+  file_picker: ^8.1.6
 
 dev_dependencies:
   flutter_test:

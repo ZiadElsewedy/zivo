@@ -7,6 +7,7 @@
 // Every other repository is an in-memory / fake stand-in; nothing touches
 // Firebase, so no config or sign-in is required.
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:zivo/core/scope/app_scope.dart';
@@ -26,6 +27,7 @@ import 'package:zivo/features/university/data/in_memory_university_repository.da
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/domain/workout_import_result.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -130,6 +132,10 @@ class DemoAi implements AiRepository {
     required String conversationId,
     required String actionId,
   }) async {}
+
+  @override
+  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+      throw UnimplementedError('not exercised by this manual demo');
 }
 
 class _AskDemoRoot extends StatefulWidget {

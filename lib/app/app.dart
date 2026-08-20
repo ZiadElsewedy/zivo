@@ -51,6 +51,7 @@ import '../features/tasks/domain/task_repository.dart';
 import '../features/university/data/firestore_university_repository.dart';
 import '../features/university/data/in_memory_university_repository.dart';
 import '../features/university/domain/university_repository.dart';
+import '../features/workout/data/dev_analysis_seed.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
 import '../features/workout/data/firestore_workout_repository.dart';
 import '../features/workout/data/firestore_workout_session_repository.dart';
@@ -223,9 +224,16 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreWorkoutPlanRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWorkoutPlanRepository();
 
+  // Dev-only: seeds a few completed sessions for the active plan's first day
+  // so the Analysis page (Phase 2) has real week-over-week data on an
+  // in-memory/offline run. Never reaches Firestore-backed (real user) data.
   WorkoutSessionRepository _defaultWorkoutSessions() => _useFirestore
       ? FirestoreWorkoutSessionRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryWorkoutSessionRepository();
+      : InMemoryWorkoutSessionRepository(
+          seed: _workoutPlans.activePlan == null
+              ? const []
+              : devAnalysisSeedSessions(_workoutPlans.activePlan!),
+        );
 
   UniversityRepository _defaultUniversity() => _useFirestore
       ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())

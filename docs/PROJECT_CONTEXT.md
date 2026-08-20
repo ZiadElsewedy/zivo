@@ -32,88 +32,54 @@
 
 ### Workout/Diet overhaul — CURRENT
 
-- **Status (as of 2026-08-19):** Three slices on `feature/workout-diet-v2` now — (1) Feature B
-  (progression verdict) + Feature C (animated stepper), **committed** `e8a4908`; (2) Home card +
-  confirm sheet + alive animation + warm-up ramp retirement, **committed** `3b39f43`; (3) two
-  rounds of course-correction on top — Home/Workout page were showing DIFFERENT days (see below),
-  now fixed and confirmed in sync — **built, tested, still UNCOMMITTED**, awaiting the owner's
-  go-ahead to commit. The owner paused the AI streaming/launch work (Phase 3.5,
-  `feature/ai-streaming-ux`, preserved further down this handoff) to build out training first.
-- **Slice 1/2 recap (both committed):** `compareToLastTime`/`ProgressVerdict`
-  (`domain/progress_comparison.dart`) render live via `_ProgressVerdictBadge`; reps/weight entry is
-  `_StepperField` (± buttons + haptic/spring punch on the same `TextField`, typing still works).
-  The per-exercise warm-up ramp (Phase 4, `SetType.warmup` auto-generation) is fully retired — both
-  generators gone, the mid-session "WARM-UP" UI deleted, `domain/warmup_policy.dart` + its test
-  deleted. `SetType.warmup` stays in the enum (hand-authored/legacy data only) but nothing live
-  produces it.
-- **Slice 3, round 1 (superseded within the same session — see round 2):** first attempt kept
-  `TrainingCard` (the reflective "what I logged today" card) and bolted a Start flow onto it,
-  matching a plan day to the logged workout by label. **Root cause found afterward:** the Workout
-  tab's own page (`workout_plan_page.dart`) always shows `plan.nextDay` (the rotation's current
-  day), while this round's Home card showed `todaysWorkout()` (the LOGGED workout) — two different
-  sources, so Home and Workout could show two different days ("Push" vs "Full Arm") whenever
-  they'd drifted. Owner wants them **guaranteed in sync**.
-- **Slice 3, round 2 — the actual fix, uncommitted:** Home's Training section now reads the exact
-  same source as the Workout page (`watchActivePlan()` → `plan.nextDay`) and **always** shows it —
-  no more branching on `todaysWorkout()` at all. Concretely:
-  - `TrainingCard` and its supporting `training_builder.dart` (`todaysWorkout()`) are **deleted
-    outright** — confirmed no other callers anywhere in the codebase before deleting. The reflective
-    "what I actually did" view stays reachable via Workout History; Home no longer duplicates it.
-  - `today_page.dart`'s `_TrainingSection` is now just `SectionHeader('Training')` +
-    `_TrainingUpNext` (renamed from `_UpNextOrEmpty` — that naming no longer fits now that it's
-    unconditional, not a fallback branch) — the plan's up-next day + Start/Resume CTA, or a plain
-    empty line when there's no active plan. Same repo stream as the Workout page → **can't drift**.
-  - New `lib/features/home/presentation/widgets/workout_start_sheet.dart` (kept from round 1, per
-    the owner's "don't fork a second copy") still holds the confirm sheet (`showStartConfirmSheet`),
-    `CardScale`, and `AliveColorDrift` — `up_next_workout_card.dart` is its only consumer now, but
-    the extraction stays as the reusable seam it was built as.
-  - **`AliveColorDrift` is now CONTINUOUS/always-on**, not gated to an active session — the owner's
-    explicit correction ("colors should continuously shift/move in a smooth way," and the
-    active-gated ticker meant he'd never actually seen it move). It moved from sitting *behind* a
-    conditionally-transparent card to living *inside* `ZCard`'s child, under the real content,
-    over the normal ember gradient fill — so the base card look is unchanged and the drift is a
-    subtle always-present layer through it. `CardScale`'s compact-while-active spring is
-    unchanged/still active-only — only the color motion became unconditional.
-  - **This broke `pumpAndSettle` in three test files** (worth knowing, not just "tests were
-    updated"): once there's an active plan (the default seed in every relevant fixture),
-    `UpNextWorkoutCard` now ALWAYS carries a live repeating ticker, so `pumpAndSettle` never
-    terminates. Fixed by switching every affected `pumpAndSettle()` to a bounded
-    `pump()`+`pump(fixed duration)` pattern — `test/home/today_page_test.dart` (all 17, via its
-    existing `_settle` helper), `test/widget_test.dart`, and `test/auth/auth_gate_test.dart` (the
-    2 tests that route to the home shell). Same convention already used for `LiveSessionPage`'s own
-    repeating tickers.
-  - New test added per the owner's explicit ask: Home shows the startable up-next card even when
-    `todaysWorkout` is non-null (a workout IS logged today) — proves the two surfaces can't drift.
-- **"Start Workout" semantics (from round 1, still applies to `UpNextWorkoutCard`):** begins a
-  fresh session for the plan's up-next day; "Resume" continues an active/paused session for it.
-- **Verification:** `flutter analyze` clean (whole repo). `flutter test` **438/438 pass**.
-- **Git state:** `feature/workout-diet-v2`, HEAD `3b39f43` (uncommitted on top): modified
-  `docs/PROJECT_CONTEXT.md`, `lib/features/home/presentation/pages/today_page.dart`,
-  `lib/features/home/presentation/widgets/up_next_workout_card.dart`, `test/auth/auth_gate_test.dart`,
-  `test/home/today_page_test.dart`, `test/widget_test.dart`; new
-  `lib/features/home/presentation/widgets/workout_start_sheet.dart`; **deleted**
-  `lib/features/home/presentation/widgets/training_card.dart`,
-  `lib/features/home/presentation/training_builder.dart`, `test/home/training_builder_test.dart`.
-  **Note (separate, not part of this slice):** a peer session added an untracked
-  `docs/WORKOUT_SYSTEM.md` for the next milestone — explicitly NOT to be swept into this commit;
-  stage this slice's files by name, never `git add -A`/`.`.
-- **Mid-session git collision (resolved earlier, no data lost) — worth knowing if it recurs:** a
-  concurrent `git checkout` in another terminal (Ziad, not a tool) hopped this shared working
-  directory across branches while edits were uncommitted, producing a real checkout-merge conflict.
-  Recovered via a verified scratchpad backup + `checkout --theirs` (no `--force`, no history
-  rewrite) — no work lost. Avoid `git checkout`/branch switches on this shared working directory
-  while another session has uncommitted changes in flight.
-- **Exact next action:** awaiting the owner's call on committing slice 3 (round 2 content —
-  round 1's `TrainingCard` enhancement was superseded and reverted within the same session, never
-  committed). Nothing is in-progress/half-finished on this branch — clean, fully-tested stopping
-  point.
-- **Do not redo:** don't re-derive `compareToLastTime`/`SetProgressComparison`/`ProgressVerdict`,
-  `_StepperField`/`_ProgressVerdictBadge`, the warm-up ramp removal, or
-  `workout_start_sheet.dart`'s confirm-sheet/`CardScale`/`AliveColorDrift` — all built, tested, and
-  (bar the commit) done. Don't reintroduce `TrainingCard`/`training_builder.dart`/`todaysWorkout()`
-  on Home, don't gate `AliveColorDrift` back to active-only, and don't reintroduce
-  `_ActualField`/`_ProgressionDelta`, the
-  per-exercise ramp warm-up, or a second/forked copy of the confirm-sheet chrome.
+- **Status (as of 2026-08-20):** `feature/workout-diet-v2`, HEAD `6f78302`, working tree **CLEAN**
+  (all committed). Since the last handoff snapshot (`3b39f43`, then an uncommitted Home/Workout
+  sync fix), the branch landed — in order — `9dfe432` (progressive-overload analysis page),
+  `245a051` (first-class splits data foundation: multi-split repo + migration), `e4c7601` (pinned
+  the exercise-identity invariant + `splitId` alias), `9253b2a` (split management: create/switch/
+  edit/delete), `dff3c4d` (scoped analysis + history to the active split), `33d0630` (AI PDF
+  import — extractor + review UI, **Phase 6**), `a9d3f5b` + `76c9fb0` (two code-review passes over
+  Phases 0–6), and `6f78302` (a further Phase 6 hardening pass: a reversed-rep-range crash fix +
+  `normalize()` numeric bounds). The Home/Workout sync fix from the prior handoff (deleting
+  `TrainingCard`/`training_builder.dart`, `AliveColorDrift` made continuous) is folded into this
+  history and done.
+- **Phase 6 (AI PDF import) is BUILT + TESTED + DEPLOYED (2026-08-20).** `aiImportWorkoutPlan` is
+  live (v2 callable, us-central1) in `zivo-63f15`, deployed via
+  `firebase deploy --only functions:aiImportWorkoutPlan` after a full green verification pass
+  (551 Flutter / 52 Node tests, analyze + eslint clean); it reuses the existing `ANTHROPIC_API_KEY`
+  secret already bound to `aiChat`. **Phase 7 (verify + handoff) is done.** The ONLY step still
+  open is the real-PDF-in-app end-to-end (import → review → confirm → see the new split) — needs
+  the running app + a real file, so it's the owner's manual verify.
+- **Verification bar:** `flutter analyze` clean; `flutter test` **551 passing**; functions
+  `node --test` **52 passing**; eslint clean.
+- **Do not redo / do not undo (compressed):**
+  - Don't re-derive the progression-analysis page, the first-class splits data foundation +
+    migration, the exercise-identity invariant/`splitId` alias, split management (create/switch/
+    edit/delete), or active-split scoping for analysis/history — all built, tested, committed.
+  - Don't re-derive the Phase 6 AI PDF import pipeline (server `aiImportWorkoutPlan` callable,
+    client import→review→save flow) or its hardening pass (the reversed-range fix in
+    `workoutPlanFromImport`, `normalize()`'s `MAX_SETS`/non-negative bounds in
+    `functions/ai/workout_import.js`).
+  - The splits migration's "oldest vs newest active split on a tie" fallback resolves to
+    oldest-by-`createdAt` — confirmed intentional, matches `deleteSplit()`'s own re-pointing
+    convention, not a bug; don't flip it.
+  - `WorkoutImportResult`/`ImportedDay`/`ImportedExercise` live in `lib/features/workout/domain/`
+    (moved off `lib/features/ai/domain/`) — don't move them back.
+  - Settled, deliberately-not-fixed (don't re-flag as bugs without surfacing first): a collapsed
+    day hiding its notes is Phase 1's intentional design, not a regression; the AI Cloud Function
+    callables' auth-boilerplate duplication and `analyzeDayProgress()`'s lack of memoization are
+    both real but deliberately deferred at this app's personal scale.
+  - From the earlier Home-card slice: don't reintroduce `TrainingCard`/`training_builder.dart`/
+    `todaysWorkout()` on Home (Home reads the same `watchActivePlan()` → `plan.nextDay` source as
+    the Workout page, guaranteed in sync); don't gate `AliveColorDrift` back to active-only — it's
+    deliberately continuous.
+  - **Shared working directory caution:** avoid `git checkout`/branch switches on this repo while
+    another session has uncommitted changes in flight; stage files by name, never
+    `git add -A`/`.`.
+- **Exact next action:** the milestone is code-complete, verified, and deployed. The ONLY step
+  left is the owner's manual **real-PDF-in-app end-to-end verify** (import an actual PDF → review →
+  confirm → see the new split) on the running app. Deploy is done (`aiImportWorkoutPlan` live,
+  2026-08-20); Phase 7 handoff docs are refreshed.
 
 ### AI streaming / launch (Phase 3.5) — paused, preserved for reference
 

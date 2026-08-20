@@ -83,9 +83,18 @@ class _DayDraft {
 /// the rotation cursor. Dark, matching the session/plan/history screens on
 /// the app-wide [AppColors] theme.
 class WorkoutPlanEditPage extends StatefulWidget {
-  const WorkoutPlanEditPage({super.key, this.initialPlan});
+  const WorkoutPlanEditPage({super.key, this.initialPlan, this.asSplit = false});
 
   final WorkoutPlan? initialPlan;
+
+  /// Reached from split management rather than the single-active-plan flow —
+  /// saves/deletes go through [WorkoutPlanRepository.saveSplit]/[deleteSplit]
+  /// instead of [savePlan]/[deletePlan], so creating or editing a split here
+  /// never silently steals the active pointer (`saveSplit` only activates
+  /// when nothing is active yet; `savePlan` always would). Everything else —
+  /// the day/exercise builder itself — is identical either way, per
+  /// WORKOUT_SYSTEM.md Phase 4's "reuse the plan editor."
+  final bool asSplit;
 
   @override
   State<WorkoutPlanEditPage> createState() => _WorkoutPlanEditPageState();
@@ -297,13 +306,21 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       id: _planId,
       name: _name.text.trim(),
       status: WorkoutPlanStatus.active,
-      source: WorkoutPlanSource.manual,
+      // Preserves an imported draft's `pdf` marker through the mandatory
+      // review step (WORKOUT_SYSTEM.md §3.4) — only a genuinely new plan
+      // (no initialPlan) defaults to `manual`.
+      source: widget.initialPlan?.source ?? WorkoutPlanSource.manual,
       createdAt: _createdAt,
       updatedAt: now,
       cycleCursor: days.isEmpty ? 0 : (cursorIndex >= 0 ? cursorIndex : 0),
       days: days,
     );
-    await AppScope.of(context).workoutPlans.savePlan(plan);
+    final plans = AppScope.of(context).workoutPlans;
+    if (widget.asSplit) {
+      await plans.saveSplit(plan);
+    } else {
+      await plans.savePlan(plan);
+    }
     if (mounted) Navigator.of(context).pop(plan);
   }
 
@@ -311,11 +328,12 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     final plan = widget.initialPlan;
     if (plan == null) return;
     final plans = AppScope.of(context).workoutPlans;
+    final noun = widget.asSplit ? 'split' : 'plan';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: Text('Delete this plan?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        title: Text('Delete this $noun?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
         content: Text(
           'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
           style: AppText.body.copyWith(color: AppColors.ink2),
@@ -333,7 +351,11 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       ),
     );
     if (confirmed != true) return;
-    await plans.deletePlan(plan.id);
+    if (widget.asSplit) {
+      await plans.deleteSplit(plan.id);
+    } else {
+      await plans.deletePlan(plan.id);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -346,7 +368,9 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: _editing ? 'Edit workout plan' : 'New workout plan',
+              title: _editing
+                  ? (widget.asSplit ? 'Edit split' : 'Edit workout plan')
+                  : (widget.asSplit ? 'New split' : 'New workout plan'),
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: AppColors.ink2,
               iconColor: AppColors.ink2,
@@ -356,7 +380,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                       key: const Key('workout-plan-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete plan',
+                      semanticLabel: widget.asSplit ? 'Delete split' : 'Delete plan',
                       iconColor: AppColors.flare,
                       chipColor: AppColors.surfaceRaised,
                     )

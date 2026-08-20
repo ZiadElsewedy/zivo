@@ -28,6 +28,7 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_session_repository.dart';
 import '../widgets/staggered_reveal.dart';
+import '../widgets/verdict_style.dart';
 
 /// The premium guided workout player (M1b) — walks the user set-by-set through
 /// the day's exercises around the editable [LiveSession] model (M1a),
@@ -216,7 +217,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _pastSessionsSub = _sessionsRepo.watchAll().listen((sessions) {
       if (!mounted) return;
       setState(() {
-        _pastSessions = sessions.where((s) => s.id != _session.id).toList(growable: false);
+        // §3.2 invariant 4: a split's history is its own — scoped to THIS
+        // session's split (splitId == planId), never another split's, even
+        // when they happen to share an exerciseId (e.g. one is a duplicate
+        // of the other). Without the planId filter, "previous performance"
+        // could silently show a different split's numbers.
+        _pastSessions = sessions
+            .where((s) => s.id != _session.id && s.planId == _session.planId)
+            .toList(growable: false);
       });
       if (!_prefillRefreshedFromHistory) {
         _prefillRefreshedFromHistory = true;
@@ -1634,11 +1642,7 @@ class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
   @override
   Widget build(BuildContext context) {
     final comparison = widget.comparison;
-    final (icon, color, word) = switch (comparison.verdict) {
-      ProgressVerdict.progressing => (Icons.trending_up_rounded, AppColors.pulse, 'Progressing'),
-      ProgressVerdict.matched => (Icons.horizontal_rule_rounded, AppColors.ink3, 'Matched'),
-      ProgressVerdict.down => (Icons.trending_down_rounded, AppColors.flare, 'Down'),
-    };
+    final (icon, color, word) = verdictStyle(comparison.verdict);
     final pct = comparison.overallChangePercent.round();
     final label = comparison.verdict == ProgressVerdict.matched
         ? word

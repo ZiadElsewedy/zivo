@@ -36,6 +36,7 @@ const {
   cancelAction,
   GatewayError,
 } = require("./ai/gateway");
+const {extractWorkoutPlan} = require("./ai/workout_import");
 const {FirestoreStore} = require("./ai/store");
 
 initializeApp();
@@ -478,3 +479,60 @@ exports.aiCancelAction = onCall(
         throw toHttpsError(err);
       }
     });
+
+// --- aiImportWorkoutPlan (WORKOUT_SYSTEM.md §3.4, Phase 6) -----------------
+
+// ADR-002 guardrail: reject an oversized upload before it reaches the model.
+// Base64 runs ~4/3 the raw byte size, so this ~14M-char cap covers roughly a
+// 10.5MB raw PDF — well short of ADR-002's ~32MB ceiling (that number is
+// sized for messier scanned/multi-page documents; a 32MB cap here would need
+// ~43M base64 chars, which risks the callable transport's own payload
+// limit). Workout PDFs are typically a few pages, so this leaves generous
+// headroom for the real target while failing fast, with a clear message,
+// well before any transport-level rejection.
+const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
+
+/**
+ * Extracts a proposed workout split from an uploaded PDF (WORKOUT_SYSTEM.md
+ * §3.4): one Claude call, no Firestore write. The client reviews/edits the
+ * result (reusing `WorkoutPlanEditPage` in `asSplit` mode) and saves it
+ * itself via `saveSplit` — that review screen is the "human confirms before
+ * it becomes real" gate, so there is nothing here to confirm or cancel.
+ */
+exports.aiImportWorkoutPlan = onCall(
+    {
+      secrets: [ANTHROPIC_API_KEY],
+      region: "us-central1",
+      enforceAppCheck: true,
+      // A single Claude call reading a whole PDF (native document input,
+      // every page) can run well past the platform's 60s default — unlike
+      // aiChat's short per-turn tool calls, there's no streaming/chunking
+      // here to keep each round-trip small.
+      timeoutSeconds: 180,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError(
+            "unauthenticated", "Sign in to import a workout plan.");
+      }
+
+      const data = request.data || {};
+      const pdfBase64 = (data.pdfBase64 || "").toString();
+      if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
+        throw new HttpsError(
+            "invalid-argument", "That PDF is too large to import.");
+      }
+
+      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+
+      try {
+        return await extractWorkoutPlan({
+          callModel: (req) => anthropic.messages.create(req),
+          pdfBase64,
+        });
+      } catch (err) {
+        throw toHttpsError(err);
+      }
+    },
+);
