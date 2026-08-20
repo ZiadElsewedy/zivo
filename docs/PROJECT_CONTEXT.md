@@ -43,10 +43,13 @@
   `normalize()` numeric bounds). The Home/Workout sync fix from the prior handoff (deleting
   `TrainingCard`/`training_builder.dart`, `AliveColorDrift` made continuous) is folded into this
   history and done.
-- **Phase 6 (AI PDF import) is BUILT + TESTED, NOT DEPLOYED.** `firebase deploy --only functions`
-  is the owner's own manual step for every AI callable in this repo (unchanged policy) — the
-  real-PDF end-to-end verify (import → review → confirm → see the new split) depends on that
-  deploy happening first. **Phase 7 (verify + handoff)** follows once deploy + verify are done.
+- **Phase 6 (AI PDF import) is BUILT + TESTED + DEPLOYED (2026-08-20).** `aiImportWorkoutPlan` is
+  live (v2 callable, us-central1) in `zivo-63f15`, deployed via
+  `firebase deploy --only functions:aiImportWorkoutPlan` after a full green verification pass
+  (551 Flutter / 52 Node tests, analyze + eslint clean); it reuses the existing `ANTHROPIC_API_KEY`
+  secret already bound to `aiChat`. **Phase 7 (verify + handoff) is done.** The ONLY step still
+  open is the real-PDF-in-app end-to-end (import → review → confirm → see the new split) — needs
+  the running app + a real file, so it's the owner's manual verify.
 - **Verification bar:** `flutter analyze` clean; `flutter test` **551 passing**; functions
   `node --test` **52 passing**; eslint clean.
 - **Do not redo / do not undo (compressed):**
@@ -73,10 +76,10 @@
   - **Shared working directory caution:** avoid `git checkout`/branch switches on this repo while
     another session has uncommitted changes in flight; stage files by name, never
     `git add -A`/`.`.
-- **Exact next action:** owner-only — (1) `firebase deploy --only functions` to ship
-  `aiImportWorkoutPlan`; (2) real-PDF end-to-end verify (import → review → confirm → see the new
-  split); then (3) **Phase 7** — verify + handoff: update this doc's Status table and
-  `docs/WORKOUT_SYSTEM.md` once deploy/verify land.
+- **Exact next action:** the milestone is code-complete, verified, and deployed. The ONLY step
+  left is the owner's manual **real-PDF-in-app end-to-end verify** (import an actual PDF → review →
+  confirm → see the new split) on the running app. Deploy is done (`aiImportWorkoutPlan` live,
+  2026-08-20); Phase 7 handoff docs are refreshed.
 
 ### AI streaming / launch (Phase 3.5) — paused, preserved for reference
 

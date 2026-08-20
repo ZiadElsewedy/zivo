@@ -32,8 +32,8 @@ Keep work uncommitted until a phase is green (`flutter analyze` clean +
 | 3 | **Splits** data foundation (multi-split repo + migration + `splitId` on sessions) | ✅ done |
 | 4 | Split **management UX** (create / switch / edit / delete, isolated history) | ✅ done |
 | 5 | **Retrofit** analysis + history to be split-scoped | ✅ done |
-| 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | 🔄 built + tested, **not deployed** |
-| 7 | End-to-end verify + handoff doc refresh | 🔄 verification pass done; **live-PDF E2E owner-gated** (needs deploy) |
+| 6 | **AI PDF import** (Cloud Function extractor + review-and-confirm UI) | ✅ built + tested + **deployed** (2026-08-20) |
+| 7 | End-to-end verify + handoff doc refresh | ✅ verification pass done; deployed. **Only remaining:** real-PDF-in-app manual E2E (owner, needs running app) |
 
 **Phase 1 notes:** `_DayCard` (`workout_plan_edit_page.dart`) is now a
 collapsible tile — collapsed shows the header + exercise count only;
@@ -153,12 +153,16 @@ projection, not an analytical source, so it stays a cross-split activity
 feed rather than gaining a schema change out of this phase's stated scope.
 Committed (`refactor(workout): scope analysis + history to active split`).
 
-**Phase 6 notes:** built and offline-tested; **explicitly not deployed** —
-the owner directed skipping ADR-002's normal "Phase -1 UX approval before
-any code" gate for this slice (see Decisions log below), but deployment
-(`firebase deploy --only functions`) is still the owner's own manual step,
-same as every other AI callable in this codebase (ADR-003's Handoff: "owner
-deploys functions"). Nothing here is live until that happens.
+**Phase 6 notes:** built, offline-tested, and **deployed 2026-08-20** —
+`aiImportWorkoutPlan` is now live (v2 callable, us-central1) in project
+`zivo-63f15`, deployed via `firebase deploy --only functions:aiImportWorkoutPlan`
+after a full green verification pass (551 Flutter / 52 Node tests, analyze +
+eslint clean). It reuses the existing `ANTHROPIC_API_KEY` secret already bound
+to `aiChat`. The owner had directed skipping ADR-002's normal "Phase -1 UX
+approval before any code" gate for this slice (see Decisions log below). **The
+one step still open** is the real-PDF-in-app manual end-to-end (import an actual
+PDF, review, confirm, see the new split) — that needs the running app and is the
+owner's to do.
 
 - **Server** (`functions/ai/workout_import.js`, wired into `functions/index.js`
   as `aiImportWorkoutPlan`): one Claude call per import, PDF sent as a native
@@ -277,13 +281,12 @@ Firestore and in-memory repos), analysis + history scoped to the active split
 (`workout_analysis_page_test.dart`, `day_progress_analysis_test.dart`,
 `workout_plan_page_test.dart`), and the PDF-import **client** flow up to the
 callable boundary (`workout_pdf_import_page_test.dart`, against
-`FakeAiRepository`'s canned response) — all present and green. **The one flow
-this pass cannot close is the live PDF import end-to-end** (real PDF →
-`aiImportWorkoutPlan` → review → confirm → new split): it depends on
-`firebase deploy --only functions`, which stays the owner's manual step per
-every other AI callable in this repo. That step — deploy, then the real-PDF
-verify — is what's left before this milestone is fully done; it's marked
-owner-gated above, not done.
+`FakeAiRepository`'s canned response) — all present and green. The function was
+**deployed 2026-08-20** (`aiImportWorkoutPlan` live, v2 callable, us-central1).
+**The one flow still open is the real-PDF-in-app end-to-end** (real PDF →
+`aiImportWorkoutPlan` → review → confirm → new split): it needs the running app
+and a real file, so it's the owner's manual verify. Everything up to that line
+is done.
 
 ---
 
