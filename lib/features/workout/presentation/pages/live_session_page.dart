@@ -22,6 +22,7 @@ import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/rest_policy.dart';
 import '../../domain/session_exercise.dart';
+import '../../domain/set_outcome.dart';
 import '../../domain/set_type.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -1145,7 +1146,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   Widget _buildCompleted() {
     final elapsed = _session.elapsed;
-    final loggedExercises = _session.exercises.where((e) => e.doneSetCount > 0).toList();
+    // Every exercise with at least one resolved (done or skipped) set —
+    // deliberately not `doneSetCount > 0` any more, since an exercise whose
+    // only sets were skipped still needs to show up here to be reviewable.
+    final reviewedExercises = _session.exercises.where((e) => e.sets.any((s) => !s.pending)).toList();
     return ListView(
       key: const ValueKey('completed-list'),
       physics: const BouncingScrollPhysics(),
@@ -1169,23 +1173,25 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           style: AppText.meta.copyWith(color: AppColors.pulse),
         ),
         const SizedBox(height: 18),
-        for (final (i, exercise) in loggedExercises.indexed)
+        // Review — every resolved set, flagging skips. Tap any row to fix
+        // it before Finish commits: mark a skip actually-done with the real
+        // reps/weight, or correct a logged actual. Nothing here is final
+        // until Finish (§3.4 review-gate pattern, same idea as the AI
+        // import's mandatory review step).
+        for (final (i, exercise) in reviewedExercises.indexed)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 12),
             child: StaggeredReveal(
               index: i,
-              child: Text(
-                exercise.topWeightKg != null
-                    ? '${exercise.name} · ${exercise.doneSetCount} sets · '
-                          'top ${_trimWeight(exercise.topWeightKg!)}kg'
-                    : '${exercise.name} · ${exercise.doneSetCount} sets',
-                style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
+              child: _ReviewExerciseGroup(
+                exercise: exercise,
+                onEditSet: (set, position) => _reviewSet(exercise, set, position),
               ),
             ),
           ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 14),
         StaggeredReveal(
-          index: loggedExercises.length,
+          index: reviewedExercises.length,
           child: PillButton(
             label: 'Finish',
             icon: Icons.check_rounded,
@@ -1196,6 +1202,37 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
       ],
     );
+  }
+
+  /// Opens the review-edit sheet for one resolved set and applies the
+  /// result: marks a skip actually-done (or just corrects a completed set's
+  /// actuals) — either way the set's outcome ends up [SetOutcome.completed],
+  /// since reviewing a set IS performing it. `null` (sheet dismissed without
+  /// saving) leaves the set untouched.
+  Future<void> _reviewSet(SessionExercise exercise, LoggedSet set, int position) async {
+    final result = await showModalBottomSheet<(int?, double?)>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _SetReviewSheet(
+        title: '${exercise.name} · Set $position',
+        wasSkipped: set.skipped,
+        initialReps: set.actualReps,
+        initialWeight: set.actualWeightKg,
+      ),
+    );
+    if (result == null || !mounted) return;
+    final (reps, weight) = result;
+    setState(() {
+      _session = _session.updateSet(
+        exercise.id,
+        set.id,
+        actualReps: reps,
+        actualWeightKg: weight,
+        outcome: SetOutcome.completed,
+      );
+    });
+    unawaited(_sessionsRepo.saveSession(_session));
   }
 
   /// What the user will do when the current rest ends — the (already
@@ -1242,6 +1279,19 @@ String _formatLastTime(LoggedSet? previous) {
   return parts.isEmpty ? 'First time' : parts.join(' ');
 }
 
+/// "60kg × 8" for a set's OWN actuals — omits either half when unset, "—"
+/// when neither was recorded. Distinct from [_formatLastTime]'s "First
+/// time": that means "no prior performance to compare against"; this means
+/// "nothing was typed on this set itself" (the review list's skipped-with-
+/// nothing-typed case).
+String _formatSetActuals(LoggedSet set) {
+  final parts = <String>[
+    if (set.actualWeightKg != null) '${_trimWeight(set.actualWeightKg!)}kg',
+    if (set.actualReps != null) '× ${set.actualReps}',
+  ];
+  return parts.isEmpty ? '—' : parts.join(' ');
+}
+
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown
 /// never flashes "0" a moment before it's actually over; clamped at 0 for an
 /// already-elapsed duration.
@@ -1262,6 +1312,189 @@ List<BoxShadow> _cardGlow(Color color) => [
 ];
 
 // ---- Small building blocks ----------------------------------------------
+
+/// One exercise's card in the end-of-workout review — its name plus every
+/// resolved (done or skipped) set, each tappable to fix before Finish.
+class _ReviewExerciseGroup extends StatelessWidget {
+  const _ReviewExerciseGroup({required this.exercise, required this.onEditSet});
+
+  final SessionExercise exercise;
+  final void Function(LoggedSet set, int position) onEditSet;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = <(int, LoggedSet)>[];
+    for (final (i, set) in exercise.sets.indexed) {
+      if (!set.pending) resolved.add((i + 1, set));
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            exercise.name,
+            style: AppText.rowTitle.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+          ),
+          const SizedBox(height: 4),
+          for (final (position, set) in resolved)
+            _ReviewSetRow(position: position, set: set, onTap: () => onEditSet(set, position)),
+        ],
+      ),
+    );
+  }
+}
+
+/// One reviewable set row — flags a skip distinctly (muted dash icon, "Skipped"
+/// label) from a done set (Pulse check, its actual reps/weight). The whole row
+/// is the tap target, opening [_SetReviewSheet] either way.
+class _ReviewSetRow extends StatelessWidget {
+  const _ReviewSetRow({required this.position, required this.set, required this.onTap});
+
+  final int position;
+  final LoggedSet set;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skipped = set.skipped;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Icon(
+              skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+              size: 16,
+              color: skipped ? AppColors.ink3 : AppColors.pulse,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
+            ),
+            Text(
+              skipped ? 'Skipped' : _formatSetActuals(set),
+              style: AppText.meta.copyWith(
+                color: skipped ? AppColors.ink3 : AppColors.ink2,
+                fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The review-edit sheet: lets the reviewer type real reps/weight for a
+/// skipped set ("Mark done") or correct an already-logged one ("Save").
+/// Pops `(reps, weight)` on save, `null` on dismiss/cancel — mirrors the
+/// running screen's own reps/weight inputs ([_StepperField]) so editing here
+/// feels like the same control, not a different one.
+class _SetReviewSheet extends StatefulWidget {
+  const _SetReviewSheet({
+    required this.title,
+    required this.wasSkipped,
+    this.initialReps,
+    this.initialWeight,
+  });
+
+  final String title;
+  final bool wasSkipped;
+  final int? initialReps;
+  final double? initialWeight;
+
+  @override
+  State<_SetReviewSheet> createState() => _SetReviewSheetState();
+}
+
+class _SetReviewSheetState extends State<_SetReviewSheet> {
+  late final TextEditingController _reps = TextEditingController(
+    text: widget.initialReps?.toString() ?? '',
+  );
+  late final TextEditingController _weight = TextEditingController(
+    text: widget.initialWeight != null ? _trimWeight(widget.initialWeight!) : '',
+  );
+
+  @override
+  void dispose() {
+    _reps.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final reps = int.tryParse(_reps.text.trim());
+    final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    Navigator.of(context).pop((reps, weight));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(22, 12, 22, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(widget.title, style: AppText.cardTitle.copyWith(fontSize: 18, color: AppColors.ink)),
+          const SizedBox(height: 4),
+          Text(
+            widget.wasSkipped
+                ? 'Enter what you actually did to mark this done.'
+                : 'Correct the reps or weight actually logged.',
+            style: AppText.meta.copyWith(color: AppColors.ink3),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _StepperField(label: 'Reps', controller: _reps, step: 1, onChanged: () => setState(() {})),
+              const SizedBox(width: AppSpacing.m),
+              _StepperField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                step: 2.5,
+                hint: '—',
+                onChanged: () => setState(() {}),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          PillButton(
+            label: widget.wasSkipped ? 'Mark done' : 'Save',
+            icon: Icons.check_rounded,
+            enabled: true,
+            onTap: _save,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The in-session top bar as a translucent, blurred material rather than a
 /// flat opaque strip — chrome that reads as a physical layer over the

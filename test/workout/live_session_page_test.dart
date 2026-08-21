@@ -782,6 +782,131 @@ void main() {
     expect(find.text('Back'), findsNothing);
   });
 
+  testWidgets(
+    'end-of-workout review: shows an exercise whose only sets were skipped, flags them, and '
+    'marking one done there is what Finish actually commits',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // Skip both of Bench's sets — nothing completed at all.
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Skip'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Skip'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+
+      // Bench had ZERO completed sets — the old "doneSetCount > 0" filter
+      // would have hidden it entirely. It must still show, flagged.
+      expect(find.text('Finish'), findsOneWidget);
+      expect(find.text('Bench'), findsOneWidget);
+      expect(find.text('Set 1'), findsOneWidget);
+      expect(find.text('Set 2'), findsOneWidget);
+      expect(find.text('Skipped'), findsNWidgets(2));
+
+      // Mark set 1 done with real numbers via the review sheet.
+      await tester.tap(find.text('Set 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mark done'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).at(0), '5');
+      await tester.enterText(find.byType(TextField).at(1), '40');
+      await tester.tap(find.text('Mark done'));
+      await tester.pumpAndSettle();
+
+      // Reflected immediately in the review list.
+      expect(find.text('Skipped'), findsNWidgets(1)); // only set 2 now
+      expect(find.text('40kg × 5'), findsOneWidget);
+      expect(sessions.current.single.completedSetCount, 1);
+
+      // Finish commits from THIS reviewed state, not the pre-review one.
+      await tester.tap(find.text('Finish'));
+      await tester.pumpAndSettle();
+
+      expect(workouts.added, hasLength(1));
+      final logged = workouts.added.single;
+      expect(logged.exercises, hasLength(1)); // Bench — now has 1 done set
+      expect(logged.exercises.single.sets, 1);
+      expect(logged.exercises.single.reps, 5);
+      expect(logged.exercises.single.weightKg, 40);
+    },
+  );
+
+  testWidgets('end-of-workout review: correcting an already-done set\'s actuals sticks through Finish', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+
+    // Complete both sets normally.
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+    await tester.tap(find.text('Skip rest'));
+    await _settle(tester);
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+
+    expect(find.text('Finish'), findsOneWidget);
+    expect(find.text('Skipped'), findsNothing); // nothing was skipped
+
+    // Correct set 1's logged weight — tap opens "Save", not "Mark done".
+    await tester.tap(find.text('Set 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Mark done'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).at(1), '999');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('999kg × 5'), findsOneWidget);
+    expect(sessions.current.single.completedSetCount, 2); // still both done
+
+    await tester.tap(find.text('Finish'));
+    await tester.pumpAndSettle();
+
+    expect(workouts.added.single.exercises.single.weightKg, 999);
+  });
+
   testWidgets('the rest countdown auto-advances to the next set when it reaches zero', (
     tester,
   ) async {
