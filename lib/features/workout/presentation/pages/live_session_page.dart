@@ -805,7 +805,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     icon: Icons.delete_outline_rounded,
                     onTap: _onDiscard,
                     semanticLabel: 'Discard workout',
-                    iconColor: AppColors.flare,
+                    // Neutral, same weight as Close — a destructive action
+                    // still gated behind its own confirm dialog shouldn't
+                    // also be the loudest, most eye-catching thing in the
+                    // bar. Flare stays reserved for the confirm dialog's
+                    // actual "Discard" button, where committing to it is
+                    // the whole point.
+                    iconColor: AppColors.ink3,
                     chipColor: AppColors.surfaceRaised,
                   ),
                 ),
@@ -897,7 +903,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final workingIndex = workingSetIndexOf(exercise, set);
 
     return _runningScaffold(
-      content: [
+      top: [
         // Exercise header — consolidated: the name is the hero title, the
         // muscle group a quiet pill beside it. No standalone "Target: X"
         // line (that's now context inside the Goal card) and no separate
@@ -919,7 +925,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.l),
+      ],
+      hero: [
         // The hero: a lifted card carrying the computed goal, the point of
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
@@ -956,55 +963,29 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       ],
       done: StaggeredReveal(
         index: 4,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Only offered once there's something to walk back to — no dead
-            // control on the very first set of a fresh session.
-            if (_session.previousResolvedSet != null) ...[
-              _BackControl(onTap: _onBack),
-              const SizedBox(height: AppSpacing.s),
-            ],
-            Row(
-              children: [
-                // Deliberately smaller and visually muted next to Done — Skip
-                // is the exception path, Done is the expected one; an
-                // accidental tap should default toward the common case.
-                Expanded(
-                  child: PillButton(
-                    label: 'Skip',
-                    icon: Icons.skip_next_rounded,
-                    color: AppColors.surfaceRaised,
-                    textColor: AppColors.ink2,
-                    enabled: true,
-                    onTap: _onSetSkip,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.s),
-                Expanded(
-                  flex: 2,
-                  child: PillButton(
-                    label: 'Done',
-                    icon: Icons.check_rounded,
-                    enabled: true,
-                    onTap: _onSetDone,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        child: _ActionCluster(
+          onBack: _session.previousResolvedSet != null ? _onBack : null,
+          onSkip: _onSetSkip,
+          onDone: _onSetDone,
         ),
       ),
     );
   }
 
-  /// Shared shell for the running/warm-up-running screens: [content] groups
-  /// at the top with its own internal rhythm, [done] anchors to the bottom
-  /// via a flexible gap rather than sitting wherever the content happens to
-  /// end — no more dead void beneath it on tall screens. Still scrolls
-  /// gracefully (the flexible gap just collapses to 0) when content plus the
-  /// keyboard overflow a short screen.
-  Widget _runningScaffold({required List<Widget> content, required Widget done}) {
+  /// Shared shell for the running/warm-up-running screens. [top] (the
+  /// exercise header + set chips) and [done] (the action cluster) stay put;
+  /// [hero] (the Goal card + steppers) sits between two flexible gaps rather
+  /// than one dump zone below everything — on a tall screen that pulls the
+  /// hero cluster toward the middle of the available space instead of
+  /// leaving it stranded up top with a void beneath, while [done] keeps a
+  /// bit of breathing room above it instead of sitting flush on the last
+  /// gap. Both gaps collapse to 0 together when content plus the keyboard
+  /// overflow a short screen — same graceful-degradation contract as before.
+  Widget _runningScaffold({
+    required List<Widget> top,
+    required List<Widget> hero,
+    required Widget done,
+  }) {
     return LayoutBuilder(
       key: const ValueKey('running-list'),
       builder: (context, constraints) {
@@ -1021,7 +1002,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [...content, const Spacer(), done],
+                children: [
+                  ...top,
+                  const Spacer(flex: 3),
+                  ...hero,
+                  const Spacer(flex: 2),
+                  done,
+                ],
               ),
             ),
           ),
@@ -1814,6 +1801,55 @@ class _RestAdjustButton extends StatelessWidget {
   }
 }
 
+/// The bottom action zone as one coherent unit rather than floating
+/// buttons: a hairline top border separates it from the content above,
+/// [onBack] (only when there's something to walk back to) sits centered
+/// above the primary row, and Skip/Done keep their established hierarchy —
+/// Skip small and muted, Done unmistakably primary.
+class _ActionCluster extends StatelessWidget {
+  const _ActionCluster({required this.onSkip, required this.onDone, this.onBack});
+
+  final VoidCallback? onBack;
+  final VoidCallback onSkip;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.m),
+      decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.hairline2))),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onBack != null) ...[_BackControl(onTap: onBack!), const SizedBox(height: AppSpacing.s)],
+          Row(
+            children: [
+              // Deliberately smaller and visually muted next to Done — Skip
+              // is the exception path, Done is the expected one; an
+              // accidental tap should default toward the common case.
+              Expanded(
+                child: PillButton(
+                  label: 'Skip',
+                  icon: Icons.skip_next_rounded,
+                  color: AppColors.surfaceRaised,
+                  textColor: AppColors.ink2,
+                  enabled: true,
+                  onTap: onSkip,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                flex: 2,
+                child: PillButton(label: 'Done', icon: Icons.check_rounded, enabled: true, onTap: onDone),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The "walk back one set" control shown above Skip/Done once there's
 /// something to walk back to (see [LiveSession.previousResolvedSet]).
 /// Deliberately smaller and quieter than either — a rarely-needed recovery
@@ -1907,6 +1943,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    // One bordered pill housing minus/value/plus — a single tactile unit
+    // with hairline dividers marking its three regions, rather than three
+    // separate floating chips with gaps between them.
+    final radius = BorderRadius.circular(AppRadius.chip + 6);
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1916,48 +1956,52 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
             style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
-          Row(
-            children: [
-              _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: _punch,
-                  builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
-                  child: TextField(
-                    controller: widget.controller,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-                    cursorColor: AppColors.ember,
-                    style: AppText.rowTitle.copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                    onChanged: (_) => widget.onChanged(),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: widget.hint,
-                      hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                      filled: true,
-                      fillColor: AppColors.surfaceRaised,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                        borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: radius,
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Row(
+                children: [
+                  _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
+                  Container(width: 1, color: AppColors.hairline2),
+                  Expanded(
+                    child: AnimatedBuilder(
+                      animation: _punch,
+                      builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
+                      child: TextField(
+                        controller: widget.controller,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        cursorColor: AppColors.ember,
+                        style: AppText.rowTitle.copyWith(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                        onChanged: (_) => widget.onChanged(),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: widget.hint,
+                          hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Container(width: 1, color: AppColors.hairline2),
+                  _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
+                ],
               ),
-              const SizedBox(width: 6),
-              _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
-            ],
+            ),
           ),
         ],
       ),
@@ -1965,8 +2009,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
   }
 }
 
-/// A single ± tap target for [_StepperField] — a quiet outlined square
-/// beside the field, pressed feedback via the shared [PressableScale].
+/// One ± segment of a [_StepperField]'s pill — no background/border of its
+/// own (the pill's outer [Container] owns those; [ClipRRect] keeps the ink
+/// response inside the shared shape), just a clear tap target with an
+/// ember-tinted splash/highlight for a tactile press state.
 class _StepButton extends StatelessWidget {
   const _StepButton({required this.icon, required this.onTap});
 
@@ -1975,20 +2021,16 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-        child: Container(
-          width: 40,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-            border: Border.all(color: AppColors.hairline2),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.ink2),
+        splashColor: AppColors.ember.withValues(alpha: 0.18),
+        highlightColor: AppColors.ember.withValues(alpha: 0.10),
+        child: SizedBox(
+          width: 46,
+          height: 52,
+          child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
         ),
       ),
     );
