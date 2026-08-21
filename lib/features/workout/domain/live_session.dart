@@ -3,6 +3,7 @@ import 'planned_exercise.dart';
 import 'rep_target.dart';
 import 'session_exercise.dart';
 import 'session_status.dart';
+import 'set_outcome.dart';
 import 'set_type.dart';
 import 'workout_day.dart';
 
@@ -64,11 +65,14 @@ class LiveSession {
   int get totalSets => exercises.fold(0, (sum, e) => sum + e.sets.length);
   int get completedSetCount => allSets.where((s) => s.done).length;
 
-  /// Whether any not-done set carries typed-but-unsubmitted actuals — a
+  /// Whether any still-pending set carries typed-but-unsubmitted actuals — a
   /// draft the user entered but never tapped Done on. A session in this
-  /// state must never be silently discarded as "empty" on leave.
+  /// state must never be silently discarded as "empty" on leave. A skipped
+  /// set's leftover actuals are no longer a "draft" — they're already
+  /// committed as skipped — so this deliberately checks [LoggedSet.pending],
+  /// not just "not completed".
   bool get hasDraftActuals =>
-      allSets.any((s) => !s.done && (s.actualReps != null || s.actualWeightKg != null));
+      allSets.any((s) => s.pending && (s.actualReps != null || s.actualWeightKg != null));
 
   /// 0..1 progress across all sets (0 when the session has no sets).
   double get progress => totalSets == 0 ? 0 : completedSetCount / totalSets;
@@ -77,22 +81,46 @@ class LiveSession {
   bool get isComplete => status == SessionStatus.completed;
   bool get isPaused => pausedAt != null;
 
-  /// The exercise holding the first not-done set — what the user is on now.
+  /// The exercise holding the first still-pending set — what the user is on
+  /// now. A skipped set is resolved, not current — this is what lets a skip
+  /// advance the same way completing a set does.
   SessionExercise? get currentExercise {
     for (final e in exercises) {
-      if (e.sets.any((s) => !s.done)) return e;
+      if (e.sets.any((s) => s.pending)) return e;
     }
     return null;
   }
 
-  /// The first not-done set in order — the current target.
+  /// The first still-pending set in order — the current target.
   LoggedSet? get currentSet {
     for (final e in exercises) {
       for (final s in e.sets) {
-        if (!s.done) return s;
+        if (s.pending) return s;
       }
     }
     return null;
+  }
+
+  /// The set immediately before the current pointer, in the same
+  /// exercise-then-set order [currentSet] walks — the most recently
+  /// resolved set, and the target for the guided flow's "Back" control.
+  /// Resolution only ever advances the pointer forward (markSetDone/
+  /// markSetSkipped act on [currentSet] itself), so "immediately before
+  /// current in list order" and "most recently resolved" are the same set
+  /// as long as nothing has jumped around out of order. Null when there's
+  /// nothing before it yet (nothing resolved). Works the same once every
+  /// set is resolved and [currentSet] is null — it still finds the last one.
+  (String exerciseId, LoggedSet set)? get previousResolvedSet {
+    String? prevExerciseId;
+    LoggedSet? prev;
+    for (final e in exercises) {
+      for (final s in e.sets) {
+        if (s.pending) return prev == null ? null : (prevExerciseId!, prev);
+        prevExerciseId = e.id;
+        prev = s;
+      }
+    }
+    return prev == null ? null : (prevExerciseId!, prev);
   }
 
   Duration get pausedAccum => Duration(milliseconds: pausedAccumMs);
@@ -161,12 +189,26 @@ class LiveSession {
   }) => _mapSet(exerciseId, setId, (s) {
     final reps = actualReps ?? (s.target.kind == RepTargetKind.fixed ? s.target.min : null);
     return s.copyWith(
-      done: true,
+      outcome: SetOutcome.completed,
       actualReps: reps,
       actualWeightKg: actualWeightKg ?? s.actualWeightKg ?? s.targetWeightKg,
       rpe: rpe ?? s.rpe,
     );
   });
+
+  /// Marks [setId] deliberately passed over — it advances the cursor exactly
+  /// like [markSetDone] (see [currentSet]), but carries no logged volume:
+  /// [completedSetCount]/history exclude it. Any actuals already typed for it
+  /// (an abandoned draft) are preserved as-is, not cleared, so the end-of-
+  /// workout review can still show what was entered.
+  LiveSession markSetSkipped(String exerciseId, String setId) =>
+      _mapSet(exerciseId, setId, (s) => s.copyWith(outcome: SetOutcome.skipped));
+
+  /// Un-does a completed or skipped set back to [SetOutcome.pending], making
+  /// it the current set again — the Back/Undo primitive. Actuals are left
+  /// untouched (Undo restores "current", it doesn't erase what was typed).
+  LiveSession clearOutcome(String exerciseId, String setId) =>
+      _mapSet(exerciseId, setId, (s) => s.copyWith(outcome: SetOutcome.pending));
 
   /// Edits a set's fields in place. Pass an explicit `null` to clear a nullable
   /// (weight/reps/rpe); omit an argument to keep it.
@@ -176,7 +218,7 @@ class LiveSession {
     Object? actualReps = _keep,
     Object? actualWeightKg = _keep,
     Object? rpe = _keep,
-    bool? done,
+    SetOutcome? outcome,
     SetType? type,
   }) => _mapSet(exerciseId, setId, (s) => LoggedSet(
     id: s.id,
@@ -187,7 +229,7 @@ class LiveSession {
         actualWeightKg == _keep ? s.actualWeightKg : (actualWeightKg as num?)?.toDouble(),
     rpe: rpe == _keep ? s.rpe : (rpe as num?)?.toDouble(),
     type: type ?? s.type,
-    done: done ?? s.done,
+    outcome: outcome ?? s.outcome,
   ));
 
   /// Appends a set to [exerciseId], inheriting the last set's target/type/rest
@@ -241,6 +283,14 @@ class LiveSession {
   LiveSession abandon({required DateTime now}) {
     if (status != SessionStatus.active) return this;
     return copyWith(status: SessionStatus.abandoned, completedAt: now);
+  }
+
+  /// Undoes [complete] — back to active, [completedAt] cleared. A no-op
+  /// unless the session is actually complete. Used to walk back an
+  /// accidental Done/Skip that turned out to be the last pending set.
+  LiveSession reopen() {
+    if (status != SessionStatus.completed) return this;
+    return copyWith(status: SessionStatus.active, completedAt: null);
   }
 
   /// Pauses the timer — a no-op if already paused or not active. Model

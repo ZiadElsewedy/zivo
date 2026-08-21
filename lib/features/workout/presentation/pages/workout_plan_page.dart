@@ -5,7 +5,6 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
-import '../../data/ziad_workout_plan.dart';
 import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
@@ -161,9 +160,8 @@ class _PlanErrorState extends StatelessWidget {
   }
 }
 
-/// The empty state — no active plan yet. Offers a one-tap import of the owner's
-/// ingested split straight into storage (the FAB still opens the blank editor
-/// for building one from scratch).
+/// The empty state — no active plan yet. Building one is via the FAB (blank
+/// editor) or the AI PDF import, both reachable from elsewhere in the app.
 class _WorkoutPlanEmptyState extends StatelessWidget {
   const _WorkoutPlanEmptyState();
 
@@ -176,17 +174,6 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
           const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
           const SizedBox(height: 12),
           Text('No workout plan yet.', style: AppText.aside.copyWith(color: AppColors.ink2)),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: 220,
-            child: PillButton(
-              label: 'Import my split',
-              icon: Icons.download_rounded,
-              color: AppColors.pulse,
-              enabled: true,
-              onTap: () => AppScope.of(context).workoutPlans.savePlan(ziadWorkoutPlan()),
-            ),
-          ),
         ],
       ),
     );

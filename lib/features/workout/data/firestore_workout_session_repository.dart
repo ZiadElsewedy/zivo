@@ -8,6 +8,7 @@ import '../domain/logged_set.dart';
 import '../domain/rep_target.dart';
 import '../domain/session_exercise.dart';
 import '../domain/session_status.dart';
+import '../domain/set_outcome.dart';
 import '../domain/set_type.dart';
 import '../domain/workout_session_repository.dart';
 
@@ -155,7 +156,7 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     'actualWeightKg': set.actualWeightKg,
     'rpe': set.rpe,
     'type': set.type.name,
-    'done': set.done,
+    'outcome': set.outcome.name,
   };
 
   LiveSession _sessionFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -201,8 +202,20 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
       actualWeightKg: (map['actualWeightKg'] as num?)?.toDouble(),
       rpe: (map['rpe'] as num?)?.toDouble(),
       type: setTypeFromName(map['type'] as String?),
-      done: map['done'] as bool? ?? false,
+      outcome: _outcomeFromMap(map),
     );
+  }
+
+  /// Reads a set's outcome, migrating a doc written before this field
+  /// existed: when `outcome` is absent, fall back to the legacy `done` bool
+  /// — `true` becomes `completed`, anything else (including missing)
+  /// becomes `pending`. A doc that already has `outcome` always wins, since
+  /// every write from here on carries it.
+  SetOutcome _outcomeFromMap(Map<String, dynamic> map) {
+    final rawOutcome = map['outcome'] as String?;
+    if (rawOutcome != null) return setOutcomeFromName(rawOutcome);
+    final legacyDone = map['done'] as bool? ?? false;
+    return legacyDone ? SetOutcome.completed : SetOutcome.pending;
   }
 
   RepTarget _repTargetFromMap(Map<String, dynamic> map) {

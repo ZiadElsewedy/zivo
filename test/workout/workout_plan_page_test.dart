@@ -21,6 +21,7 @@ import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
@@ -247,25 +248,6 @@ void main() {
     expect(find.text('No workout plan yet.'), findsOneWidget);
   });
 
-  testWidgets('empty state offers a one-tap import of the ingested split', (tester) async {
-    final plans = _PendingWorkoutPlanRepository();
-    addTearDown(plans.dispose);
-
-    await tester.pumpWidget(_wrap(child: const WorkoutPlanPage(), plansOverride: plans));
-    plans.emit(null);
-    await tester.pump();
-
-    expect(find.text('Import my split'), findsOneWidget);
-    await tester.tap(find.text('Import my split'));
-    await tester.pump();
-
-    // The ingested plan was written to storage, and the page reflects it.
-    expect(plans.saved, hasLength(1));
-    expect(plans.saved.single.id, 'ziad-arnold-split');
-    expect(plans.saved.single.source, WorkoutPlanSource.pdf);
-    expect(find.text('Import my split'), findsNothing); // now showing the plan
-  });
-
   testWidgets('shows the error view when the plan stream errors', (tester) async {
     final plans = _PendingWorkoutPlanRepository();
     addTearDown(plans.dispose);
@@ -322,7 +304,7 @@ void main() {
               exerciseId: 'e1',
               name: 'Bench Press',
               restSeconds: 120,
-              sets: [LoggedSet(id: 'e1-s0', target: RepTarget.range(6, 8), done: true)],
+              sets: [LoggedSet(id: 'e1-s0', target: RepTarget.range(6, 8), outcome: SetOutcome.completed)],
             ),
           ],
         ),

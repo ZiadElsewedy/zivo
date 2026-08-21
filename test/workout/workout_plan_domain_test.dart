@@ -263,10 +263,11 @@ void main() {
       expect(plan.nextDay, dayB);
     });
 
-    test('null when no day has an order matching cycleCursor', () {
+    test('falls back to the first day by order when no day matches cycleCursor', () {
       final dayA = _day(id: 'a', slot: 'A', order: 0);
-      final plan = _plan(days: [dayA], cycleCursor: 5);
-      expect(plan.nextDay, isNull);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayB, dayA], cycleCursor: 5);
+      expect(plan.nextDay, dayA);
     });
 
     test('null when the plan has no days', () {

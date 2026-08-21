@@ -1,13 +1,14 @@
 import 'rep_target.dart';
+import 'set_outcome.dart';
 import 'set_type.dart';
 
 const Object _unset = Object();
 
 /// One set inside a live/completed session — the plan's prescription
 /// ([target] reps + [targetWeightKg]) alongside what was actually performed
-/// ([actualReps]/[actualWeightKg]/[rpe]) and whether it's [done]. Immutable;
-/// edits go through [copyWith], which can *clear* a nullable field back to null
-/// by passing an explicit `null`.
+/// ([actualReps]/[actualWeightKg]/[rpe]) and its [outcome]. Immutable; edits
+/// go through [copyWith], which can *clear* a nullable field back to null by
+/// passing an explicit `null`.
 ///
 /// [id] is a stable identity so sets survive reordering, insertion, and deletion
 /// while the UI keys off them.
@@ -20,7 +21,7 @@ class LoggedSet {
     this.actualWeightKg,
     this.rpe,
     this.type = SetType.working,
-    this.done = false,
+    this.outcome = SetOutcome.pending,
   });
 
   final String id;
@@ -38,7 +39,21 @@ class LoggedSet {
   /// and future AI can reason about effort.
   final double? rpe;
   final SetType type;
-  final bool done;
+
+  /// Never touched / actually performed / deliberately passed over. The
+  /// [LiveSession] cursor (`currentSet`) is derived from this — only
+  /// [SetOutcome.pending] sets are "not yet handled" — so a skip advances
+  /// past a set the same way completing one does.
+  final SetOutcome outcome;
+
+  /// True iff [outcome] is [SetOutcome.completed] — the set counts as
+  /// logged volume (history, `completedSetCount`, progress). A skipped set
+  /// is deliberately NOT "done": it must never be counted as performed.
+  bool get done => outcome == SetOutcome.completed;
+
+  bool get skipped => outcome == SetOutcome.skipped;
+
+  bool get pending => outcome == SetOutcome.pending;
 
   LoggedSet copyWith({
     RepTarget? target,
@@ -47,7 +62,7 @@ class LoggedSet {
     Object? actualWeightKg = _unset,
     Object? rpe = _unset,
     SetType? type,
-    bool? done,
+    SetOutcome? outcome,
   }) => LoggedSet(
     id: id,
     target: target ?? this.target,
@@ -57,7 +72,7 @@ class LoggedSet {
     actualWeightKg: actualWeightKg == _unset ? this.actualWeightKg : actualWeightKg as double?,
     rpe: rpe == _unset ? this.rpe : rpe as double?,
     type: type ?? this.type,
-    done: done ?? this.done,
+    outcome: outcome ?? this.outcome,
   );
 
   @override
@@ -70,9 +85,9 @@ class LoggedSet {
       other.actualWeightKg == actualWeightKg &&
       other.rpe == rpe &&
       other.type == type &&
-      other.done == done;
+      other.outcome == outcome;
 
   @override
   int get hashCode =>
-      Object.hash(id, target, targetWeightKg, actualReps, actualWeightKg, rpe, type, done);
+      Object.hash(id, target, targetWeightKg, actualReps, actualWeightKg, rpe, type, outcome);
 }

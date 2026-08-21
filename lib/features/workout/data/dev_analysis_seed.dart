@@ -3,6 +3,7 @@ import '../domain/logged_set.dart';
 import '../domain/planned_exercise.dart';
 import '../domain/session_exercise.dart';
 import '../domain/session_status.dart';
+import '../domain/set_outcome.dart';
 import '../domain/workout_day.dart';
 import '../domain/workout_plan.dart';
 
@@ -81,7 +82,7 @@ SessionExercise _sessionExercise(PlannedExercise e, {required int week, required
           targetWeightKg: e.sets[i].targetWeightKg,
           actualReps: repsFor(week),
           actualWeightKg: weightFor(week),
-          done: true,
+          outcome: SetOutcome.completed,
         ),
     ],
   );

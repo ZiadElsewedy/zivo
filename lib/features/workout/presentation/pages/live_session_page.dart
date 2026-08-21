@@ -22,6 +22,7 @@ import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/rest_policy.dart';
 import '../../domain/session_exercise.dart';
+import '../../domain/set_outcome.dart';
 import '../../domain/set_type.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -368,6 +369,39 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         actualReps: reps,
         actualWeightKg: weight,
       );
+    });
+    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set done');
+  }
+
+  /// The Skip affordance — advances past the current set exactly like Done,
+  /// but logs no volume (see [LiveSession.markSetSkipped]). Deliberately
+  /// preserves whatever's typed in the reps/weight fields on the set itself
+  /// (an abandoned draft the end-of-workout review can still surface) rather
+  /// than reading/clearing them the way Done does.
+  void _onSetSkip() {
+    final exercise = _session.currentExercise;
+    final set = _session.currentSet;
+    if (exercise == null || set == null) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _session = _session.markSetSkipped(exercise.id, set.id);
+    });
+    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set skipped');
+  }
+
+  /// Shared tail for [_onSetDone]/[_onSetSkip]: completes the session if
+  /// that was the last pending set (else starts rest), autosaves, refreshes
+  /// the input prefill for whatever's now current, and offers an Undo
+  /// snackbar targeting exactly the (exerciseId, setId) just resolved — not
+  /// "whatever's current now", since current has already moved on by the
+  /// time this shows.
+  void _afterResolvingCurrentSet(
+    String exerciseId,
+    String setId,
+    int restSeconds, {
+    required String undoMessage,
+  }) {
+    setState(() {
       if (_session.currentSet == null) {
         _session = _session.complete(now: widget.now());
       }
@@ -381,14 +415,75 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restEndsAt = null;
       _elapsedTimer?.cancel();
       setState(() {});
-      return;
+    } else {
+      // Rest is the plan's own value (Edit Workout's per-exercise rest, or
+      // its "Default rest" bulk value) — the session counts down what Ziad
+      // actually set, not a computed guess. `smartRestSeconds` stays as the
+      // *seed* default a freshly-added exercise starts at (see the add
+      // sheet), it just no longer overrides the plan at session time.
+      _startRest(restSeconds);
     }
-    // Rest is the plan's own value (Edit Workout's per-exercise rest, or its
-    // "Default rest" bulk value) — the session counts down what Ziad
-    // actually set, not a computed guess. `smartRestSeconds` stays as the
-    // *seed* default a freshly-added exercise starts at (see the add sheet),
-    // it just no longer overrides the plan at session time.
-    _startRest(exercise.restSeconds);
+    _showUndoSnackbar(undoMessage, exerciseId, setId);
+  }
+
+  /// Offers a brief window to reverse the Done/Skip that was just tapped.
+  /// Fires on BOTH outcomes, not just skip — an accidental advance can just
+  /// as easily be a wrong Done (Ziad's actual incident) as a wrong Skip.
+  void _showUndoSnackbar(String message, String exerciseId, String setId) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surfaceRaised,
+          content: Text(message, style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: AppColors.pulse,
+            onPressed: () => _undoOutcome(exerciseId, setId),
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+
+  /// The Back control — walks back exactly one set: whichever
+  /// [LiveSession.previousResolvedSet] currently is. Tapping repeatedly
+  /// walks back further, one set at a time; anything beyond that is the
+  /// end-of-workout review's job, not this control's.
+  void _onBack() {
+    final prev = _session.previousResolvedSet;
+    if (prev == null) return;
+    _undoOutcome(prev.$1, prev.$2.id);
+  }
+
+  /// The shared undo primitive behind both the Undo snackbar and the Back
+  /// control: clears [setId]'s outcome back to pending. If resolving that
+  /// set was what completed the session, un-completes it too (status back
+  /// to active, elapsed timer restarted) — an Undo/Back must be able to
+  /// reverse the very last set of a workout, not just ones mid-flow.
+  void _undoOutcome(String exerciseId, String setId) {
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    final wasComplete = _session.isComplete;
+    setState(() {
+      _session = _session.clearOutcome(exerciseId, setId);
+      if (wasComplete) _session = _session.reopen();
+    });
+    unawaited(_sessionsRepo.saveSession(_session));
+    // Whatever rest/warm-up phase the resolved action kicked off no longer
+    // applies to a set that's pending again — drop it and land back on the
+    // running screen for that set.
+    _restTicker?.dispose();
+    _restTicker = null;
+    _restTotalSeconds = null;
+    _restEndsAt = null;
+    _pausedRestRemaining = null;
+    if (wasComplete && !_session.isPaused) {
+      _elapsedTimer ??= Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+    }
+    _prefillInputs();
   }
 
   void _startRest(int seconds) {
@@ -625,6 +720,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// indistinguishable from never having started one, so it's discarded
   /// silently rather than left behind as a "Resume" with nothing in it — a
   /// typed-but-not-done draft, though, must never be discarded as "empty".
+  ///
+  /// `completedSetCount == 0` deliberately still reads as "empty" even when
+  /// some sets were skipped: `completedSetCount` never counts a skip (see
+  /// [LiveSession.completedSetCount]), so a session where the user skipped
+  /// several sets and completed none — nothing actually performed, no logged
+  /// volume — is genuinely empty by the same standard as one nothing was
+  /// touched on at all. A skip that also left a draft still isn't "empty"
+  /// either way, since [LiveSession.hasDraftActuals] already excludes
+  /// skipped sets from counting as a draft.
   void _onLeave() {
     if (_busy) return;
     _saveDraft();
@@ -701,7 +805,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     icon: Icons.delete_outline_rounded,
                     onTap: _onDiscard,
                     semanticLabel: 'Discard workout',
-                    iconColor: AppColors.flare,
+                    // Neutral, same weight as Close — a destructive action
+                    // still gated behind its own confirm dialog shouldn't
+                    // also be the loudest, most eye-catching thing in the
+                    // bar. Flare stays reserved for the confirm dialog's
+                    // actual "Discard" button, where committing to it is
+                    // the whole point.
+                    iconColor: AppColors.ink3,
                     chipColor: AppColors.surfaceRaised,
                   ),
                 ),
@@ -793,7 +903,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final workingIndex = workingSetIndexOf(exercise, set);
 
     return _runningScaffold(
-      content: [
+      top: [
         // Exercise header — consolidated: the name is the hero title, the
         // muscle group a quiet pill beside it. No standalone "Target: X"
         // line (that's now context inside the Goal card) and no separate
@@ -815,7 +925,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.l),
+      ],
+      hero: [
         // The hero: a lifted card carrying the computed goal, the point of
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
@@ -852,23 +963,29 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       ],
       done: StaggeredReveal(
         index: 4,
-        child: PillButton(
-          label: 'Done',
-          icon: Icons.check_rounded,
-          enabled: true,
-          onTap: _onSetDone,
+        child: _ActionCluster(
+          onBack: _session.previousResolvedSet != null ? _onBack : null,
+          onSkip: _onSetSkip,
+          onDone: _onSetDone,
         ),
       ),
     );
   }
 
-  /// Shared shell for the running/warm-up-running screens: [content] groups
-  /// at the top with its own internal rhythm, [done] anchors to the bottom
-  /// via a flexible gap rather than sitting wherever the content happens to
-  /// end — no more dead void beneath it on tall screens. Still scrolls
-  /// gracefully (the flexible gap just collapses to 0) when content plus the
-  /// keyboard overflow a short screen.
-  Widget _runningScaffold({required List<Widget> content, required Widget done}) {
+  /// Shared shell for the running/warm-up-running screens. [top] (the
+  /// exercise header + set chips) and [done] (the action cluster) stay put;
+  /// [hero] (the Goal card + steppers) sits between two flexible gaps rather
+  /// than one dump zone below everything — on a tall screen that pulls the
+  /// hero cluster toward the middle of the available space instead of
+  /// leaving it stranded up top with a void beneath, while [done] keeps a
+  /// bit of breathing room above it instead of sitting flush on the last
+  /// gap. Both gaps collapse to 0 together when content plus the keyboard
+  /// overflow a short screen — same graceful-degradation contract as before.
+  Widget _runningScaffold({
+    required List<Widget> top,
+    required List<Widget> hero,
+    required Widget done,
+  }) {
     return LayoutBuilder(
       key: const ValueKey('running-list'),
       builder: (context, constraints) {
@@ -885,7 +1002,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [...content, const Spacer(), done],
+                children: [
+                  ...top,
+                  const Spacer(flex: 3),
+                  ...hero,
+                  const Spacer(flex: 2),
+                  done,
+                ],
               ),
             ),
           ),
@@ -1010,7 +1133,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   Widget _buildCompleted() {
     final elapsed = _session.elapsed;
-    final loggedExercises = _session.exercises.where((e) => e.doneSetCount > 0).toList();
+    // Every exercise with at least one resolved (done or skipped) set —
+    // deliberately not `doneSetCount > 0` any more, since an exercise whose
+    // only sets were skipped still needs to show up here to be reviewable.
+    final reviewedExercises = _session.exercises.where((e) => e.sets.any((s) => !s.pending)).toList();
     return ListView(
       key: const ValueKey('completed-list'),
       physics: const BouncingScrollPhysics(),
@@ -1034,23 +1160,25 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           style: AppText.meta.copyWith(color: AppColors.pulse),
         ),
         const SizedBox(height: 18),
-        for (final (i, exercise) in loggedExercises.indexed)
+        // Review — every resolved set, flagging skips. Tap any row to fix
+        // it before Finish commits: mark a skip actually-done with the real
+        // reps/weight, or correct a logged actual. Nothing here is final
+        // until Finish (§3.4 review-gate pattern, same idea as the AI
+        // import's mandatory review step).
+        for (final (i, exercise) in reviewedExercises.indexed)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 12),
             child: StaggeredReveal(
               index: i,
-              child: Text(
-                exercise.topWeightKg != null
-                    ? '${exercise.name} · ${exercise.doneSetCount} sets · '
-                          'top ${_trimWeight(exercise.topWeightKg!)}kg'
-                    : '${exercise.name} · ${exercise.doneSetCount} sets',
-                style: AppText.body.copyWith(fontSize: 15, color: AppColors.ink2),
+              child: _ReviewExerciseGroup(
+                exercise: exercise,
+                onEditSet: (set, position) => _reviewSet(exercise, set, position),
               ),
             ),
           ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 14),
         StaggeredReveal(
-          index: loggedExercises.length,
+          index: reviewedExercises.length,
           child: PillButton(
             label: 'Finish',
             icon: Icons.check_rounded,
@@ -1061,6 +1189,37 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
       ],
     );
+  }
+
+  /// Opens the review-edit sheet for one resolved set and applies the
+  /// result: marks a skip actually-done (or just corrects a completed set's
+  /// actuals) — either way the set's outcome ends up [SetOutcome.completed],
+  /// since reviewing a set IS performing it. `null` (sheet dismissed without
+  /// saving) leaves the set untouched.
+  Future<void> _reviewSet(SessionExercise exercise, LoggedSet set, int position) async {
+    final result = await showModalBottomSheet<(int?, double?)>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _SetReviewSheet(
+        title: '${exercise.name} · Set $position',
+        wasSkipped: set.skipped,
+        initialReps: set.actualReps,
+        initialWeight: set.actualWeightKg,
+      ),
+    );
+    if (result == null || !mounted) return;
+    final (reps, weight) = result;
+    setState(() {
+      _session = _session.updateSet(
+        exercise.id,
+        set.id,
+        actualReps: reps,
+        actualWeightKg: weight,
+        outcome: SetOutcome.completed,
+      );
+    });
+    unawaited(_sessionsRepo.saveSession(_session));
   }
 
   /// What the user will do when the current rest ends — the (already
@@ -1107,6 +1266,19 @@ String _formatLastTime(LoggedSet? previous) {
   return parts.isEmpty ? 'First time' : parts.join(' ');
 }
 
+/// "60kg × 8" for a set's OWN actuals — omits either half when unset, "—"
+/// when neither was recorded. Distinct from [_formatLastTime]'s "First
+/// time": that means "no prior performance to compare against"; this means
+/// "nothing was typed on this set itself" (the review list's skipped-with-
+/// nothing-typed case).
+String _formatSetActuals(LoggedSet set) {
+  final parts = <String>[
+    if (set.actualWeightKg != null) '${_trimWeight(set.actualWeightKg!)}kg',
+    if (set.actualReps != null) '× ${set.actualReps}',
+  ];
+  return parts.isEmpty ? '—' : parts.join(' ');
+}
+
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown
 /// never flashes "0" a moment before it's actually over; clamped at 0 for an
 /// already-elapsed duration.
@@ -1127,6 +1299,189 @@ List<BoxShadow> _cardGlow(Color color) => [
 ];
 
 // ---- Small building blocks ----------------------------------------------
+
+/// One exercise's card in the end-of-workout review — its name plus every
+/// resolved (done or skipped) set, each tappable to fix before Finish.
+class _ReviewExerciseGroup extends StatelessWidget {
+  const _ReviewExerciseGroup({required this.exercise, required this.onEditSet});
+
+  final SessionExercise exercise;
+  final void Function(LoggedSet set, int position) onEditSet;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = <(int, LoggedSet)>[];
+    for (final (i, set) in exercise.sets.indexed) {
+      if (!set.pending) resolved.add((i + 1, set));
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            exercise.name,
+            style: AppText.rowTitle.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+          ),
+          const SizedBox(height: 4),
+          for (final (position, set) in resolved)
+            _ReviewSetRow(position: position, set: set, onTap: () => onEditSet(set, position)),
+        ],
+      ),
+    );
+  }
+}
+
+/// One reviewable set row — flags a skip distinctly (muted dash icon, "Skipped"
+/// label) from a done set (Pulse check, its actual reps/weight). The whole row
+/// is the tap target, opening [_SetReviewSheet] either way.
+class _ReviewSetRow extends StatelessWidget {
+  const _ReviewSetRow({required this.position, required this.set, required this.onTap});
+
+  final int position;
+  final LoggedSet set;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skipped = set.skipped;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Icon(
+              skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+              size: 16,
+              color: skipped ? AppColors.ink3 : AppColors.pulse,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
+            ),
+            Text(
+              skipped ? 'Skipped' : _formatSetActuals(set),
+              style: AppText.meta.copyWith(
+                color: skipped ? AppColors.ink3 : AppColors.ink2,
+                fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The review-edit sheet: lets the reviewer type real reps/weight for a
+/// skipped set ("Mark done") or correct an already-logged one ("Save").
+/// Pops `(reps, weight)` on save, `null` on dismiss/cancel — mirrors the
+/// running screen's own reps/weight inputs ([_StepperField]) so editing here
+/// feels like the same control, not a different one.
+class _SetReviewSheet extends StatefulWidget {
+  const _SetReviewSheet({
+    required this.title,
+    required this.wasSkipped,
+    this.initialReps,
+    this.initialWeight,
+  });
+
+  final String title;
+  final bool wasSkipped;
+  final int? initialReps;
+  final double? initialWeight;
+
+  @override
+  State<_SetReviewSheet> createState() => _SetReviewSheetState();
+}
+
+class _SetReviewSheetState extends State<_SetReviewSheet> {
+  late final TextEditingController _reps = TextEditingController(
+    text: widget.initialReps?.toString() ?? '',
+  );
+  late final TextEditingController _weight = TextEditingController(
+    text: widget.initialWeight != null ? _trimWeight(widget.initialWeight!) : '',
+  );
+
+  @override
+  void dispose() {
+    _reps.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final reps = int.tryParse(_reps.text.trim());
+    final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    Navigator.of(context).pop((reps, weight));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(22, 12, 22, MediaQuery.of(context).viewInsets.bottom + 24),
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(widget.title, style: AppText.cardTitle.copyWith(fontSize: 18, color: AppColors.ink)),
+          const SizedBox(height: 4),
+          Text(
+            widget.wasSkipped
+                ? 'Enter what you actually did to mark this done.'
+                : 'Correct the reps or weight actually logged.',
+            style: AppText.meta.copyWith(color: AppColors.ink3),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _StepperField(label: 'Reps', controller: _reps, step: 1, onChanged: () => setState(() {})),
+              const SizedBox(width: AppSpacing.m),
+              _StepperField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                step: 2.5,
+                hint: '—',
+                onChanged: () => setState(() {}),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          PillButton(
+            label: widget.wasSkipped ? 'Mark done' : 'Save',
+            icon: Icons.check_rounded,
+            enabled: true,
+            onTap: _save,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The in-session top bar as a translucent, blurred material rather than a
 /// flat opaque strip — chrome that reads as a physical layer over the
@@ -1446,6 +1801,86 @@ class _RestAdjustButton extends StatelessWidget {
   }
 }
 
+/// The bottom action zone as one coherent unit rather than floating
+/// buttons: a hairline top border separates it from the content above,
+/// [onBack] (only when there's something to walk back to) sits centered
+/// above the primary row, and Skip/Done keep their established hierarchy —
+/// Skip small and muted, Done unmistakably primary.
+class _ActionCluster extends StatelessWidget {
+  const _ActionCluster({required this.onSkip, required this.onDone, this.onBack});
+
+  final VoidCallback? onBack;
+  final VoidCallback onSkip;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.m),
+      decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.hairline2))),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onBack != null) ...[_BackControl(onTap: onBack!), const SizedBox(height: AppSpacing.s)],
+          Row(
+            children: [
+              // Deliberately smaller and visually muted next to Done — Skip
+              // is the exception path, Done is the expected one; an
+              // accidental tap should default toward the common case.
+              Expanded(
+                child: PillButton(
+                  label: 'Skip',
+                  icon: Icons.skip_next_rounded,
+                  color: AppColors.surfaceRaised,
+                  textColor: AppColors.ink2,
+                  enabled: true,
+                  onTap: onSkip,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                flex: 2,
+                child: PillButton(label: 'Done', icon: Icons.check_rounded, enabled: true, onTap: onDone),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The "walk back one set" control shown above Skip/Done once there's
+/// something to walk back to (see [LiveSession.previousResolvedSet]).
+/// Deliberately smaller and quieter than either — a rarely-needed recovery
+/// action, not a step in the normal flow — so it never competes with Done.
+class _BackControl extends StatelessWidget {
+  const _BackControl({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_back_rounded, size: 15, color: AppColors.ink3),
+              const SizedBox(width: 6),
+              Text('Back', style: AppText.meta.copyWith(color: AppColors.ink3)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A premium tap-to-step reps/weight input (Feature C) — the same
 /// [TextField] the plain field always used (typing directly into it, the
 /// fallback, still works exactly as before — nothing about that path
@@ -1508,6 +1943,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    // One bordered pill housing minus/value/plus — a single tactile unit
+    // with hairline dividers marking its three regions, rather than three
+    // separate floating chips with gaps between them.
+    final radius = BorderRadius.circular(AppRadius.chip + 6);
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1517,48 +1956,52 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
             style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
           ),
           const SizedBox(height: AppSpacing.s),
-          Row(
-            children: [
-              _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: _punch,
-                  builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
-                  child: TextField(
-                    controller: widget.controller,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-                    cursorColor: AppColors.ember,
-                    style: AppText.rowTitle.copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                    onChanged: (_) => widget.onChanged(),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: widget.hint,
-                      hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                      filled: true,
-                      fillColor: AppColors.surfaceRaised,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-                        borderSide: const BorderSide(color: AppColors.ember, width: 1.4),
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: radius,
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Row(
+                children: [
+                  _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
+                  Container(width: 1, color: AppColors.hairline2),
+                  Expanded(
+                    child: AnimatedBuilder(
+                      animation: _punch,
+                      builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
+                      child: TextField(
+                        controller: widget.controller,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        cursorColor: AppColors.ember,
+                        style: AppText.rowTitle.copyWith(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                        onChanged: (_) => widget.onChanged(),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: widget.hint,
+                          hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Container(width: 1, color: AppColors.hairline2),
+                  _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
+                ],
               ),
-              const SizedBox(width: 6),
-              _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
-            ],
+            ),
           ),
         ],
       ),
@@ -1566,8 +2009,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
   }
 }
 
-/// A single ± tap target for [_StepperField] — a quiet outlined square
-/// beside the field, pressed feedback via the shared [PressableScale].
+/// One ± segment of a [_StepperField]'s pill — no background/border of its
+/// own (the pill's outer [Container] owns those; [ClipRRect] keeps the ink
+/// response inside the shared shape), just a clear tap target with an
+/// ember-tinted splash/highlight for a tactile press state.
 class _StepButton extends StatelessWidget {
   const _StepButton({required this.icon, required this.onTap});
 
@@ -1576,20 +2021,16 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-        child: Container(
-          width: 40,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(AppRadius.chip + 4),
-            border: Border.all(color: AppColors.hairline2),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.ink2),
+        splashColor: AppColors.ember.withValues(alpha: 0.18),
+        highlightColor: AppColors.ember.withValues(alpha: 0.10),
+        child: SizedBox(
+          width: 46,
+          height: 52,
+          child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
         ),
       ),
     );

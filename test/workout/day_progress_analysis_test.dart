@@ -7,6 +7,7 @@ import 'package:zivo/features/workout/domain/progress_comparison.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
@@ -32,7 +33,7 @@ LoggedSet _set(String id, {int? reps, double? weight, bool done = true}) => Logg
   target: RepTarget.range(8, 10),
   actualReps: reps,
   actualWeightKg: weight,
-  done: done,
+  outcome: done ? SetOutcome.completed : SetOutcome.pending,
 );
 
 LiveSession _session({

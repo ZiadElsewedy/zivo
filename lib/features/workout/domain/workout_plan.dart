@@ -26,13 +26,18 @@ class WorkoutPlan {
   final List<WorkoutDay> days;
   final int cycleCursor;
 
-  /// The day whose `order` matches [cycleCursor]; null if [days] is empty or
-  /// no day has that order.
+  /// The day whose `order` matches [cycleCursor]; null only if [days] is
+  /// empty. Defensive fallback to the first day by `order` when no day
+  /// matches [cycleCursor] (e.g. a stale cursor from before this invariant
+  /// was enforced) — a plan with days should never read as "nothing up
+  /// next."
   WorkoutDay? get nextDay {
+    if (days.isEmpty) return null;
     for (final day in days) {
       if (day.order == cycleCursor) return day;
     }
-    return null;
+    final sorted = [...days]..sort((a, b) => a.order.compareTo(b.order));
+    return sorted.first;
   }
 
   /// A copy with [cycleCursor] advanced to the next day in the rotation,

@@ -20,6 +20,7 @@ import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
@@ -159,7 +160,13 @@ LiveSession _completedDayASession({required String id, required DateTime complet
           name: 'Bench Press',
           restSeconds: 90,
           sets: [
-            LoggedSet(id: 'e1-s0', target: RepTarget.range(8, 10), actualReps: 8, actualWeightKg: weight, done: true),
+            LoggedSet(
+              id: 'e1-s0',
+              target: RepTarget.range(8, 10),
+              actualReps: 8,
+              actualWeightKg: weight,
+              outcome: SetOutcome.completed,
+            ),
           ],
         ),
       ],
