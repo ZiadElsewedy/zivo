@@ -144,8 +144,8 @@ void main() {
     expect(find.text('Start Workout'), findsOneWidget);
 
     // Stats are all placeholders with nothing logged yet.
-    expect(find.text('0'), findsOneWidget); // sessions this week
-    expect(find.text('—'), findsWidgets); // streak / avg duration / avg start
+    expect(find.text('0'), findsNWidgets(2)); // sessions this week + day streak
+    expect(find.text('—'), findsWidgets); // avg duration / avg start
 
     expect(find.text('No weigh-ins logged yet.'), findsOneWidget);
     expect(find.text("You haven't logged a session yet."), findsOneWidget);
@@ -175,11 +175,83 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('1'), findsOneWidget); // sessions this week
+    expect(find.text('1'), findsNWidgets(2)); // sessions this week + day streak (trained today)
     expect(find.text('82.5 kg'), findsOneWidget);
     expect(find.textContaining('Push · 1'), findsOneWidget); // split breakdown chip
     // The recent-activity row for the completed session.
     expect(find.text('Completed'), findsOneWidget);
+  });
+
+  testWidgets('tapping the current split card opens Split Management (no Splits/History/Plan AppBar icons)', (
+    tester,
+  ) async {
+    _useTallViewport(tester);
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    await plans.savePlan(_plan());
+    final sessions = InMemoryWorkoutSessionRepository();
+    final bodyWeight = InMemoryBodyWeightRepository();
+    addTearDown(bodyWeight.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const WorkoutDashboardPage(), plans: plans, sessions: sessions, bodyWeight: bodyWeight),
+    );
+    await tester.pump();
+
+    // At most 1-2 top icons per the current design — only Analysis remains;
+    // Splits/History/Plan are reachable through the content instead.
+    expect(find.byTooltip('Splits'), findsNothing);
+    expect(find.byTooltip('History'), findsNothing);
+    expect(find.byTooltip('Plan'), findsNothing);
+
+    await tester.tap(find.text('Push Pull Legs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Splits'), findsOneWidget); // Split Management's own AppBar title
+  });
+
+  testWidgets('the AppBar Analysis icon opens WorkoutAnalysisPage', (tester) async {
+    _useTallViewport(tester);
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    await plans.savePlan(_plan());
+    final sessions = InMemoryWorkoutSessionRepository();
+    final bodyWeight = InMemoryBodyWeightRepository();
+    addTearDown(bodyWeight.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const WorkoutDashboardPage(), plans: plans, sessions: sessions, bodyWeight: bodyWeight),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Analysis'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350)); // let the push transition finish
+
+    expect(find.text('Analysis'), findsOneWidget); // WorkoutAnalysisPage's own AppBar title
+  });
+
+  testWidgets('tapping a recent session row opens its Session details', (tester) async {
+    _useTallViewport(tester);
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    await plans.savePlan(_plan());
+    final sessions = InMemoryWorkoutSessionRepository();
+    await sessions.saveSession(
+      _completedSession(id: 's1', startedAt: DateTime.now().subtract(const Duration(hours: 2))),
+    );
+    final bodyWeight = InMemoryBodyWeightRepository();
+    addTearDown(bodyWeight.dispose);
+
+    await tester.pumpWidget(
+      _wrap(child: const WorkoutDashboardPage(), plans: plans, sessions: sessions, bodyWeight: bodyWeight),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Completed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Session details'), findsOneWidget); // SessionDetailsPage's own AppBar title
   });
 
   testWidgets('logging a weight from the sheet persists it through the repository', (tester) async {

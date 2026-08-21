@@ -10,7 +10,9 @@ import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/body_weight_repository.dart';
+import '../../domain/day_progress_analysis.dart';
 import '../../domain/live_session.dart';
+import '../../domain/progress_comparison.dart';
 import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../../domain/up_next_selection.dart';
@@ -18,6 +20,8 @@ import '../../domain/weight_trend.dart';
 import '../../domain/workout_plan.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/up_next_workout_card.dart';
+import '../widgets/verdict_style.dart';
+import 'session_details_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
@@ -49,31 +53,10 @@ class WorkoutDashboardPage extends StatelessWidget {
         title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
         actions: [
           IconButton(
-            tooltip: 'Plan',
-            icon: const Icon(Icons.list_alt_rounded, color: AppColors.ink2),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const WorkoutPlanPage()),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Splits',
-            icon: const Icon(Icons.layers_rounded, color: AppColors.ink2),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SplitManagementPage()),
-            ),
-          ),
-          IconButton(
             tooltip: 'Analysis',
             icon: const Icon(Icons.trending_up_rounded, color: AppColors.ink2),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const WorkoutAnalysisPage()),
-            ),
-          ),
-          IconButton(
-            tooltip: 'History',
-            icon: const Icon(Icons.history_rounded, color: AppColors.ink2),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
             ),
           ),
         ],
@@ -97,6 +80,9 @@ class WorkoutDashboardPage extends StatelessWidget {
               final now = DateTime.now();
               final stats = computeTrainingDashboardStats(sessions: sessions, now: now);
               final selection = resolveUpNext(plan, _firstActive(sessions));
+              final analysis = selection.day == null
+                  ? null
+                  : analyzeDayProgress(day: selection.day!, planId: plan.id, allSessions: sessions);
 
               final bodyWeight = scope.bodyWeight;
               return StreamBuilder<List<BodyWeightEntry>>(
@@ -125,12 +111,28 @@ class WorkoutDashboardPage extends StatelessWidget {
                             ? null
                             : () => _showLogWeightSheet(context, bodyWeight),
                       ),
+                      if (analysis != null) ...[
+                        const SizedBox(height: 26),
+                        _SectionLabel('Progress'),
+                        const SizedBox(height: 10),
+                        _ProgressSummaryCard(analysis: analysis),
+                      ],
                       const SizedBox(height: 26),
                       _SectionLabel('Current split'),
                       const SizedBox(height: 10),
                       _SplitBreakdownCard(plan: plan, stats: stats),
                       const SizedBox(height: 26),
-                      _SectionLabel('Recent activity'),
+                      Row(
+                        children: [
+                          Expanded(child: _SectionLabel('Recent activity')),
+                          if (stats.recentSessions.isNotEmpty)
+                            _SeeAllLink(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 10),
                       if (stats.recentSessions.isEmpty)
                         _EmptyCard(label: "You haven't logged a session yet.")
@@ -138,7 +140,13 @@ class WorkoutDashboardPage extends StatelessWidget {
                         for (final session in stats.recentSessions)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _RecentSessionRow(session: session, now: now),
+                            child: _RecentSessionRow(
+                              session: session,
+                              now: now,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => SessionDetailsPage(session: session)),
+                              ),
+                            ),
                           ),
                     ],
                   );
@@ -255,10 +263,8 @@ class _StatsGrid extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _StatTile(
-                label: 'Streak',
-                value: stats.currentStreakWeeks == 0
-                    ? '—'
-                    : '${stats.currentStreakWeeks} wk${stats.currentStreakWeeks == 1 ? '' : 's'}',
+                label: 'Day streak',
+                value: '${stats.currentStreakDays}',
               ),
             ),
           ],
@@ -394,57 +400,233 @@ class _SplitBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final byDay = stats.sessionCountByDayLabel;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            plan.name,
-            style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SplitManagementPage()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.hairline2),
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
-          ),
-          if (byDay.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final entry in byDay.entries)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.pulse.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
                     child: Text(
-                      '${entry.key} · ${entry.value}',
-                      style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
+                      plan.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _PlanLinkButton(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const WorkoutPlanPage()),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.ink3, size: 20),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
+                style: AppText.meta.copyWith(color: AppColors.ink3),
+              ),
+              if (byDay.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final entry in byDay.entries)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.pulse.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          '${entry.key} · ${entry.value}',
+                          style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                  ],
+                ),
               ],
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small "Manage"-style header action reaching the full plan editor —
+/// kept as its own tappable chip (stopping tap propagation to the card's own
+/// tap-through-to-Splits) rather than a second full-card gesture.
+class _PlanLinkButton extends StatelessWidget {
+  const _PlanLinkButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            'Plan',
+            style: AppText.meta.copyWith(color: AppColors.ink2, fontWeight: FontWeight.w600, fontSize: 12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The dashboard's inline "how am I progressing" summary — the active
+/// up-next day's overall verdict, folded straight into the dashboard body
+/// (WORKOUT_SYSTEM.md polish pass) rather than requiring a separate tap to
+/// discover it exists. Tapping anywhere opens the full [WorkoutAnalysisPage]
+/// for the day-by-day, exercise-by-exercise breakdown.
+class _ProgressSummaryCard extends StatelessWidget {
+  const _ProgressSummaryCard({required this.analysis});
+
+  final DayProgressAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final overall = analysis.overallVerdict;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const WorkoutAnalysisPage()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.hairline2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      analysis.day.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                    ),
+                  ),
+                  if (overall != null) _AnalysisVerdictBadge(verdict: overall),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                overall == null
+                    ? (analysis.sessionCount == 0
+                          ? 'Log ${analysis.day.label} to start tracking progress.'
+                          : "Log ${analysis.day.label} once more to see how you're trending.")
+                    : '${analysis.improvedCount} improved · ${analysis.matchedCount} matched · '
+                          '${analysis.regressedCount} regressed',
+                style: AppText.meta.copyWith(color: AppColors.ink3),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'See full analysis',
+                    style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.pulse),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnalysisVerdictBadge extends StatelessWidget {
+  const _AnalysisVerdictBadge({required this.verdict});
+
+  final ProgressVerdict verdict;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color, label) = verdictStyle(verdict);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.pill)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
         ],
       ),
     );
   }
 }
 
+class _SeeAllLink extends StatelessWidget {
+  const _SeeAllLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('See all', style: AppText.meta.copyWith(color: AppColors.ink2, fontWeight: FontWeight.w600)),
+              const Icon(Icons.chevron_right_rounded, size: 15, color: AppColors.ink3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RecentSessionRow extends StatelessWidget {
-  const _RecentSessionRow({required this.session, required this.now});
+  const _RecentSessionRow({required this.session, required this.now, required this.onTap});
 
   final LiveSession session;
   final DateTime now;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -453,42 +635,51 @@ class _RecentSessionRow extends StatelessWidget {
       SessionStatus.active => ('In progress', AppColors.solar),
       SessionStatus.abandoned => ('Not completed', AppColors.ink3),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.hairline2),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.dayLabel,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  session.status == SessionStatus.completed
-                      ? '${timeAgo(session.startedAt, now)} ago · ${formatDurationShort(session.elapsed)}'
-                      : '${timeAgo(session.startedAt, now)} ago',
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
-                ),
-              ],
-            ),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.hairline2),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.dayLabel,
+                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      session.status == SessionStatus.completed
+                          ? '${timeAgo(session.startedAt, now)} ago · ${formatDurationShort(session.elapsed)}'
+                          : '${timeAgo(session.startedAt, now)} ago',
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.ink3, size: 18),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -302,6 +302,44 @@ test("extractWorkoutPlan: a callModel failure surfaces as a GatewayError, not a 
   );
 });
 
+test("extractWorkoutPlan: logEvent fires an 'accepted' event with stop reason and counts on a genuine extraction", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+  const events = [];
+  await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY=", logEvent: (e) => events.push(e)});
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].stage, "accepted");
+  assert.equal(events[0].stopReason, "tool_use");
+  assert.equal(events[0].toolCalled, TOOL_NAME);
+  assert.equal(events[0].dayCount, 1);
+  assert.equal(events[0].exerciseCount, 1);
+});
+
+test("extractWorkoutPlan: logEvent fires a 'rejected' event with the reject reason when the model declines", async () => {
+  const callModel = scriptedModel(
+      rejectResponse("This looks like a grocery receipt, not a workout plan."));
+  const events = [];
+  await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY=", logEvent: (e) => events.push(e)});
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].stage, "rejected");
+  assert.equal(events[0].toolCalled, REJECT_TOOL_NAME);
+  assert.equal(events[0].reason, "This looks like a grocery receipt, not a workout plan.");
+});
+
+test("extractWorkoutPlan: works with no logEvent provided (defaults to a no-op)", async () => {
+  const callModel = scriptedModel(toolResponse({planName: "PPL", days: [VALID_DAY]}));
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, true);
+});
+
+test("SYSTEM_PROMPT: biases toward extraction, treating reject as a last resort not a default", async () => {
+  const {SYSTEM_PROMPT} = require("./workout_import");
+  assert.match(SYSTEM_PROMPT, /default action is propose_workout_split/);
+  assert.match(SYSTEM_PROMPT, /Do NOT reject merely because/);
+});
+
 test("extractWorkoutPlan: rejects a missing/empty pdfBase64 before calling the model", async () => {
   const callModel = scriptedModel(toolResponse({planName: "x", days: [VALID_DAY]}));
   await assert.rejects(

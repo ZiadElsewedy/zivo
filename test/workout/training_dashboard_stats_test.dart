@@ -31,6 +31,7 @@ void main() {
       expect(stats.totalCompletedSessions, 0);
       expect(stats.sessionsThisWeek, 0);
       expect(stats.currentStreakWeeks, 0);
+      expect(stats.currentStreakDays, 0);
       expect(stats.averageSessionDuration, isNull);
       expect(stats.averageStartMinutesSinceMidnight, isNull);
       expect(stats.averageEndMinutesSinceMidnight, isNull);
@@ -89,6 +90,58 @@ void main() {
     test('currentStreakWeeks is 0 when nothing has ever been logged', () {
       final stats = computeTrainingDashboardStats(sessions: const [], now: _now);
       expect(stats.currentStreakWeeks, 0);
+    });
+
+    test('currentStreakDays counts consecutive trained calendar days back from today', () {
+      final sessions = [
+        _session(id: 'd0', startedAt: DateTime(2026, 8, 19, 6)), // today
+        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6)), // yesterday
+        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // day before
+        // A gap, then an isolated older day that must NOT extend the streak.
+        _session(id: 'd4', startedAt: DateTime(2026, 8, 10, 6)),
+      ];
+      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
+      expect(stats.currentStreakDays, 3);
+    });
+
+    test('currentStreakDays does not break when today has nothing logged yet', () {
+      final sessions = [
+        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6)), // yesterday
+        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // day before
+      ];
+      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
+      expect(stats.currentStreakDays, 2);
+    });
+
+    test('currentStreakDays is 0 once a day is missed (today and yesterday both empty)', () {
+      final sessions = [
+        _session(id: 'd2', startedAt: DateTime(2026, 8, 17, 6)), // two days ago
+      ];
+      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
+      expect(stats.currentStreakDays, 0);
+    });
+
+    test('currentStreakDays is 0 when nothing has ever been logged', () {
+      final stats = computeTrainingDashboardStats(sessions: const [], now: _now);
+      expect(stats.currentStreakDays, 0);
+    });
+
+    test('currentStreakDays only counts completed sessions, not active/abandoned ones', () {
+      final sessions = [
+        _session(id: 'd0', startedAt: DateTime(2026, 8, 19, 6), status: SessionStatus.active),
+        _session(id: 'd1', startedAt: DateTime(2026, 8, 18, 6), status: SessionStatus.abandoned),
+      ];
+      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
+      expect(stats.currentStreakDays, 0);
+    });
+
+    test('currentStreakDays counts multiple sessions on the same day once', () {
+      final sessions = [
+        _session(id: 'd0a', startedAt: DateTime(2026, 8, 19, 6)),
+        _session(id: 'd0b', startedAt: DateTime(2026, 8, 19, 18)),
+      ];
+      final stats = computeTrainingDashboardStats(sessions: sessions, now: _now);
+      expect(stats.currentStreakDays, 1);
     });
 
     test('sessionCountByDayLabel tallies completed sessions per split day', () {

@@ -12,8 +12,10 @@ import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
 import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/body_weight_entry.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
@@ -80,7 +82,11 @@ class _FixedWorkoutPlanRepository implements WorkoutPlanRepository {
   Future<void> deleteSplit(String id) => deletePlan(id);
 }
 
-Widget _wrap({required WorkoutPlan plan, required InMemoryWorkoutSessionRepository sessions}) {
+Widget _wrap({
+  required WorkoutPlan plan,
+  required InMemoryWorkoutSessionRepository sessions,
+  InMemoryBodyWeightRepository? bodyWeight,
+}) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
@@ -92,6 +98,7 @@ Widget _wrap({required WorkoutPlan plan, required InMemoryWorkoutSessionReposito
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: _FixedWorkoutPlanRepository(plan),
     workoutSessions: sessions,
+    bodyWeight: bodyWeight,
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -248,6 +255,52 @@ void main() {
     expect(find.text('Slipping'), findsOneWidget);
     final chart = tester.widget<TrendChart>(find.byType(TrendChart));
     expect(chart.color, AppColors.flare);
+  });
+
+  testWidgets('the consistency row reflects real training-dashboard stats, not placeholders', (tester) async {
+    final today = DateTime.now();
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [_completedDayASession(id: 's1', completedAt: today.subtract(const Duration(hours: 1)), weight: 40)],
+    );
+    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    await tester.pump();
+
+    // Sessions this week AND the day streak both read 1 — trained today.
+    expect(find.text('1'), findsNWidgets(2));
+    expect(find.text('This week'), findsOneWidget);
+    expect(find.text('Day streak'), findsOneWidget);
+    expect(find.text('Avg length'), findsOneWidget);
+  });
+
+  testWidgets('the bodyweight snapshot shows the latest entry and is omitted with nothing logged', (tester) async {
+    final sessions = InMemoryWorkoutSessionRepository();
+
+    // No bodyWeight repository at all — the snapshot row doesn't render.
+    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    await tester.pump();
+    expect(find.textContaining('kg'), findsNothing);
+
+    // A repository with one entry — the snapshot shows the latest weight.
+    final bodyWeight = InMemoryBodyWeightRepository(
+      seed: [BodyWeightEntry(id: 'w1', weightKg: 82.5, loggedAt: DateTime.now())],
+    );
+    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions, bodyWeight: bodyWeight));
+    await tester.pump();
+    expect(find.text('82.5 kg'), findsOneWidget);
+  });
+
+  testWidgets('the hero headline states the day verdict in plain language, backed by the counts', (tester) async {
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
+        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 45),
+      ],
+    );
+    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    await tester.pump();
+
+    expect(find.text('PUSH'), findsOneWidget); // uppercase day label above the headline
+    expect(find.textContaining('1 improved · 0 matched · 0 regressed'), findsOneWidget);
   });
 
   testWidgets('a Progressing verdict keeps the trend chart pulse-green', (tester) async {

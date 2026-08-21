@@ -18,6 +18,7 @@ class TrainingDashboardStats {
     required this.totalCompletedSessions,
     required this.sessionsThisWeek,
     required this.currentStreakWeeks,
+    required this.currentStreakDays,
     required this.averageSessionDuration,
     required this.averageStartMinutesSinceMidnight,
     required this.averageEndMinutesSinceMidnight,
@@ -33,6 +34,13 @@ class TrainingDashboardStats {
   /// still in progress with nothing logged yet doesn't break the streak
   /// until it actually ends.
   final int currentStreakWeeks;
+
+  /// Consecutive calendar days (local, today included) with at least one
+  /// completed session, counting back from the most recent trained day — a
+  /// day still in progress with nothing logged yet doesn't break the streak
+  /// until it actually ends. Opening the app never counts; only a completed
+  /// session does.
+  final int currentStreakDays;
 
   /// Null when there are no completed sessions to average.
   final Duration? averageSessionDuration;
@@ -73,6 +81,9 @@ TrainingDashboardStats computeTrainingDashboardStats({
   final weekStartsTrained = completed.map((s) => _weekStart(s.startedAt)).toSet();
   final streak = _currentStreakWeeks(weekStartsTrained, now);
 
+  final daysTrained = completed.map((s) => _dayStart(s.startedAt)).toSet();
+  final streakDays = _currentStreakDays(daysTrained, now);
+
   final durations = completed.map((s) => s.elapsed).toList();
   final avgDuration = durations.isEmpty ? null : _averageDuration(durations);
 
@@ -94,6 +105,7 @@ TrainingDashboardStats computeTrainingDashboardStats({
     totalCompletedSessions: completed.length,
     sessionsThisWeek: sessionsThisWeek,
     currentStreakWeeks: streak,
+    currentStreakDays: streakDays,
     averageSessionDuration: avgDuration,
     averageStartMinutesSinceMidnight: avgStart,
     averageEndMinutesSinceMidnight: avgEnd,
@@ -117,6 +129,22 @@ int _currentStreakWeeks(Set<DateTime> weekStartsTrained, DateTime now) {
   while (weekStartsTrained.contains(cursor)) {
     streak++;
     cursor = cursor.subtract(const Duration(days: 7));
+  }
+  return streak;
+}
+
+/// Midnight of [d]'s local calendar day.
+DateTime _dayStart(DateTime d) => DateTime(d.year, d.month, d.day);
+
+int _currentStreakDays(Set<DateTime> daysTrained, DateTime now) {
+  var cursor = _dayStart(now);
+  if (!daysTrained.contains(cursor)) {
+    cursor = cursor.subtract(const Duration(days: 1));
+  }
+  var streak = 0;
+  while (daysTrained.contains(cursor)) {
+    streak++;
+    cursor = cursor.subtract(const Duration(days: 1));
   }
   return streak;
 }

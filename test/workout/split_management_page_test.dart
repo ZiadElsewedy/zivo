@@ -276,6 +276,8 @@ void main() {
 
     await tester.tap(find.byTooltip('New split'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Create Manually'));
+    await tester.pumpAndSettle();
     expect(find.text('New split'), findsOneWidget); // the editor's own title
 
     await tester.enterText(find.byKey(const Key('plan-name-field')), 'Arnold Split');
@@ -294,6 +296,35 @@ void main() {
 
     expect(find.text('Arnold Split'), findsOneWidget);
     expect(plans.activeSplitId, 'a'); // the pre-existing active split is untouched
+  });
+
+  testWidgets('the FAB opens a sheet with exactly Create Manually and Import with AI (no AppBar PDF icon)', (tester) async {
+    final plans = _FakeSplitsRepository([_split('a', 'Push Pull Legs')]);
+    addTearDown(plans.dispose);
+    await tester.pumpWidget(_wrap(plans: plans));
+    await tester.pump();
+
+    expect(find.byTooltip('Import PDF'), findsNothing);
+
+    await tester.tap(find.byTooltip('New split'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create Manually'), findsOneWidget);
+    expect(find.text('Import with AI'), findsOneWidget);
+  });
+
+  testWidgets('Import with AI from the FAB sheet opens the PDF import flow', (tester) async {
+    final plans = _FakeSplitsRepository([_split('a', 'Push Pull Legs')]);
+    addTearDown(plans.dispose);
+    await tester.pumpWidget(_wrap(plans: plans));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('New split'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import with AI'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import PDF'), findsOneWidget);
   });
 
   testWidgets('switching the active split A → B → A never touches either split\'s sessions', (tester) async {

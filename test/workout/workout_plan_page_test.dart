@@ -275,9 +275,9 @@ void main() {
     await tester.tap(find.byTooltip('History'));
     await tester.pumpAndSettle();
 
-    // The history page ("what I did") opens — its "Log workout" FAB is unique to
-    // it and absent from the read-only plan view.
-    expect(find.byTooltip('Log workout'), findsOneWidget);
+    // The history page ("what I did") opens — its own AppBar title is
+    // unique to it and absent from the read-only plan view.
+    expect(find.text('History'), findsOneWidget);
   });
 
   testWidgets(
