@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
@@ -42,7 +43,7 @@ class FirebaseAiRepository implements AiRepository {
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
-    Future<WorkoutImportResult> Function(Uint8List pdfBytes)? invokeImport,
+    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? invokeImport,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
        _invokeChatStream =
@@ -58,7 +59,7 @@ class FirebaseAiRepository implements AiRepository {
       void Function(AiTurnEvent event) onEvent) _invokeChatStream;
   final Future<void> Function(String name, String conversationId,
       String actionId) _invokeAction;
-  final Future<WorkoutImportResult> Function(Uint8List pdfBytes) _invokeImport;
+  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _invokeImport;
 
   String? _cachedConversationId;
 
@@ -121,7 +122,7 @@ class FirebaseAiRepository implements AiRepository {
   /// with the PDF base64-encoded. Like [_defaultInvokeChat], resolves
   /// [FirebaseFunctions] lazily so the repo builds without a live Firebase
   /// app.
-  static Future<WorkoutImportResult> Function(Uint8List pdfBytes)
+  static Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)
   _defaultInvokeImport(FirebaseFunctions? functions) {
     return (pdfBytes) async {
       final f =
@@ -129,7 +130,7 @@ class FirebaseAiRepository implements AiRepository {
       final result = await f.httpsCallable('aiImportWorkoutPlan').call({
         'pdfBase64': base64Encode(pdfBytes),
       });
-      return _importResultFromJson(result.data);
+      return _importOutcomeFromJson(result.data);
     };
   }
 
@@ -217,7 +218,7 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
   @override
-  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
       _invokeImport(pdfBytes);
 
   Stream<String?> _uidWithInitial() async* {
@@ -291,18 +292,25 @@ class FirebaseAiRepository implements AiRepository {
 
 /// Maps `aiImportWorkoutPlan`'s raw callable result (a platform-channel
 /// `Map<Object?, Object?>`, not `Map<String, dynamic>`) into a
-/// [WorkoutImportResult]. Mirrors `functions/ai/workout_import.js`'s
-/// `normalize()` shape exactly — that function already guarantees every
-/// field is present and well-typed, so this only needs to cast, not
-/// re-validate.
-WorkoutImportResult _importResultFromJson(Object? data) {
+/// [WorkoutImportOutcome]. Mirrors `functions/ai/workout_import.js`'s return
+/// shape exactly (`{ok: true, planName, days}` or `{ok: false, reason}`) —
+/// that function already guarantees every field is present and well-typed
+/// for the `ok: true` case, so this only needs to cast, not re-validate. A
+/// missing/malformed `ok` field defaults to a rejection rather than risking
+/// an empty plan silently importing.
+WorkoutImportOutcome _importOutcomeFromJson(Object? data) {
   final map = data is Map ? data : const {};
+  if (map['ok'] != true) {
+    final reason = map['reason'] as String? ??
+        "This file doesn't contain enough valid workout data to create a training plan.";
+    return WorkoutImportRejected(reason);
+  }
   final planName = map['planName'] as String? ?? 'Imported Split';
   final rawDays = map['days'];
   final days = rawDays is List
       ? [for (final d in rawDays) _importedDayFromJson(d)]
       : const <ImportedDay>[];
-  return WorkoutImportResult(planName: planName, days: days);
+  return WorkoutImportAccepted(WorkoutImportResult(planName: planName, days: days));
 }
 
 ImportedDay _importedDayFromJson(Object? data) {

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../workout/domain/workout_import_result.dart';
+import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_message.dart';
 import 'ai_turn_event.dart';
 
@@ -49,5 +49,9 @@ abstract interface class AiRepository {
   /// callable — one Claude call, no Firestore write. The caller reviews/edits
   /// the result before saving it (via `WorkoutPlanRepository.saveSplit`);
   /// this method alone never creates a split.
-  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes});
+  ///
+  /// Resolves to [WorkoutImportRejected] (never throws) when the document
+  /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
+  /// for real technical failures (network, auth/App Check, server error).
+  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes});
 }

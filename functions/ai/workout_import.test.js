@@ -7,7 +7,12 @@
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 
-const {extractWorkoutPlan, TOOL_NAME} = require("./workout_import");
+const {
+  extractWorkoutPlan,
+  TOOL_NAME,
+  REJECT_TOOL_NAME,
+  DEFAULT_REJECTION_REASON,
+} = require("./workout_import");
 const {GatewayError} = require("./gateway");
 
 /**
@@ -38,21 +43,52 @@ function toolResponse(input) {
   };
 }
 
-test("extractWorkoutPlan: sends the PDF as a document block with a forced tool call", async () => {
+/**
+ * A `reject_import` tool-call response.
+ * @param {string} reason
+ * @return {!Object}
+ */
+function rejectResponse(reason) {
+  return {
+    stop_reason: "tool_use",
+    content: [
+      {type: "tool_use", id: "call-1", name: REJECT_TOOL_NAME, input: {reason}},
+    ],
+  };
+}
+
+const VALID_DAY = {
+  slot: "A",
+  label: "Push",
+  exercises: [
+    {
+      name: "Bench Press",
+      muscleGroup: "Chest",
+      sets: 3,
+      repsMin: 8,
+      repsMax: 12,
+      toFailure: false,
+      targetWeightKg: 60,
+      restSeconds: 90,
+    },
+  ],
+};
+
+test("extractWorkoutPlan: sends the PDF as a document block, offering both tools with tool_choice 'any'", async () => {
   const callModel = scriptedModel(
-      toolResponse({planName: "PPL", days: []}));
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
 
   await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
 
   const req = callModel.lastRequest;
-  assert.equal(req.tool_choice.type, "tool");
-  assert.equal(req.tool_choice.name, TOOL_NAME);
+  assert.equal(req.tool_choice.type, "any");
+  assert.deepEqual(req.tools.map((t) => t.name), [TOOL_NAME, REJECT_TOOL_NAME]);
   assert.equal(req.messages[0].content[0].type, "document");
   assert.equal(req.messages[0].content[0].source.media_type, "application/pdf");
   assert.equal(req.messages[0].content[0].source.data, "ZmFrZS1wZGY=");
 });
 
-test("extractWorkoutPlan: maps a well-formed extraction into the plan shape", async () => {
+test("extractWorkoutPlan: maps a well-formed extraction into an {ok: true} plan", async () => {
   const callModel = scriptedModel(toolResponse({
     planName: "Push Pull Legs",
     days: [
@@ -87,6 +123,7 @@ test("extractWorkoutPlan: maps a well-formed extraction into the plan shape", as
 
   const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
 
+  assert.equal(result.ok, true);
   assert.equal(result.planName, "Push Pull Legs");
   assert.equal(result.days.length, 1);
   const day = result.days[0];
@@ -131,6 +168,7 @@ test("extractWorkoutPlan: a malformed day/exercise is dropped, not thrown (parti
 
   const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
 
+  assert.equal(result.ok, true);
   assert.equal(result.days.length, 1);
   assert.equal(result.days[0].exercises.length, 1);
   assert.equal(result.days[0].exercises[0].name, "Bench Press");
@@ -150,6 +188,7 @@ test("extractWorkoutPlan: an absurd sets count is clamped, not passed through ra
 
   const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
 
+  assert.equal(result.ok, true);
   assert.equal(result.days[0].exercises[0].sets, 20);
 });
 
@@ -181,12 +220,51 @@ test("extractWorkoutPlan: negative or non-finite numeric fields fall back to nul
 });
 
 test("extractWorkoutPlan: missing planName falls back to a default", async () => {
-  const callModel = scriptedModel(toolResponse({days: []}));
+  const callModel = scriptedModel(toolResponse({days: [VALID_DAY]}));
   const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, true);
   assert.equal(result.planName, "Imported Split");
 });
 
-test("extractWorkoutPlan: a refusal stop reason surfaces as a GatewayError", async () => {
+test("extractWorkoutPlan: an empty days array normalizes to an honest rejection, not a hollow success", async () => {
+  const callModel = scriptedModel(toolResponse({planName: "PPL", days: []}));
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, DEFAULT_REJECTION_REASON);
+});
+
+test("extractWorkoutPlan: every day/exercise dropped during normalization is ALSO an honest rejection", async () => {
+  // Every day here fails normalize()'s own validity checks, so this is a
+  // `propose_workout_split` call that degrades to nothing usable.
+  const callModel = scriptedModel(toolResponse({
+    planName: "Not Really A Plan",
+    days: [
+      {slot: "A", label: "", exercises: []},
+      "garbage",
+      null,
+    ],
+  }));
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, DEFAULT_REJECTION_REASON);
+});
+
+test("extractWorkoutPlan: the model can explicitly decline via reject_import, with its own reason", async () => {
+  const callModel = scriptedModel(
+      rejectResponse("This looks like a grocery receipt, not a workout plan."));
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "This looks like a grocery receipt, not a workout plan.");
+});
+
+test("extractWorkoutPlan: a reject_import call with a blank reason falls back to the default message", async () => {
+  const callModel = scriptedModel(rejectResponse("   "));
+  const result = await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, DEFAULT_REJECTION_REASON);
+});
+
+test("extractWorkoutPlan: a refusal stop reason surfaces as a GatewayError (content-policy, not a rejection)", async () => {
   const callModel = scriptedModel({stop_reason: "refusal", content: []});
   await assert.rejects(
       () => extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="}),
@@ -198,7 +276,7 @@ test("extractWorkoutPlan: a refusal stop reason surfaces as a GatewayError", asy
   );
 });
 
-test("extractWorkoutPlan: no tool call in the response surfaces a GatewayError", async () => {
+test("extractWorkoutPlan: neither tool called in the response surfaces a GatewayError", async () => {
   const callModel = scriptedModel({stop_reason: "end_turn", content: [{type: "text", text: "hmm"}]});
   await assert.rejects(
       () => extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="}),
@@ -225,7 +303,7 @@ test("extractWorkoutPlan: a callModel failure surfaces as a GatewayError, not a 
 });
 
 test("extractWorkoutPlan: rejects a missing/empty pdfBase64 before calling the model", async () => {
-  const callModel = scriptedModel(toolResponse({planName: "x", days: []}));
+  const callModel = scriptedModel(toolResponse({planName: "x", days: [VALID_DAY]}));
   await assert.rejects(
       () => extractWorkoutPlan({callModel, pdfBase64: ""}),
       (err) => {

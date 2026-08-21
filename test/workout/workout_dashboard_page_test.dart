@@ -120,8 +120,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('No workout plan yet.'), findsOneWidget);
-    expect(find.text('Create a plan'), findsOneWidget);
+    expect(find.text('No workout plan yet'), findsOneWidget);
+    expect(find.text('Import from PDF'), findsOneWidget);
+    expect(find.text('Build manually instead'), findsOneWidget);
   });
 
   testWidgets('with a plan and no history, shows the Start card and empty stats', (tester) async {

@@ -21,6 +21,7 @@ import '../widgets/up_next_workout_card.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
+import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
 import 'workout_plan_page.dart';
 
@@ -571,25 +572,62 @@ class _NoPlanState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
-            const SizedBox(height: 12),
-            Text('No workout plan yet.', style: AppText.aside.copyWith(color: AppColors.ink2)),
-            const SizedBox(height: 16),
+            const _PhaseIconLike(icon: Icons.fitness_center_rounded, color: AppColors.pulse),
+            const SizedBox(height: 18),
+            Text(
+              'No workout plan yet',
+              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Import a PDF and I'll turn it into a real split, or build one from scratch.",
+              style: AppText.body.copyWith(color: AppColors.ink3),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
             SizedBox(
-              width: 200,
+              width: 220,
               child: PillButton(
-                label: 'Create a plan',
-                icon: Icons.add_rounded,
+                label: 'Import from PDF',
+                icon: Icons.upload_file_rounded,
                 color: AppColors.pulse,
                 enabled: true,
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(initialPlan: null)),
+                  MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
                 ),
               ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(initialPlan: null)),
+              ),
+              child: Text('Build manually instead', style: AppText.meta.copyWith(color: AppColors.ink2)),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The same tinted icon-chip language `workout_pdf_import_page.dart` uses for
+/// its own phase states — reused here so the empty state that leads INTO
+/// that flow already looks like part of the same product.
+class _PhaseIconLike extends StatelessWidget {
+  const _PhaseIconLike({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+      child: Icon(icon, size: 28, color: color),
     );
   }
 }
