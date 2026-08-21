@@ -4,16 +4,21 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
 
-/// Category chips — frequent-first, one tap. Selected chip fills Solar.
+/// Category chips — frequent-first, one tap. Selected chip fills Solar. A
+/// trailing dashed chip opens category creation.
 class CategoryChips extends StatelessWidget {
   const CategoryChips({
-    required this.selected,
+    required this.categories,
+    required this.selectedId,
     required this.onSelected,
+    required this.onAddCategory,
     super.key,
   });
 
-  final ExpenseCategory selected;
-  final ValueChanged<ExpenseCategory> onSelected;
+  final List<ExpenseCategory> categories;
+  final String selectedId;
+  final ValueChanged<String> onSelected;
+  final VoidCallback onAddCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -24,12 +29,13 @@ class CategoryChips extends StatelessWidget {
         runSpacing: 9,
         alignment: WrapAlignment.center,
         children: [
-          for (final c in ExpenseCategory.values)
+          for (final c in categories)
             _Chip(
               category: c,
-              selected: c == selected,
-              onTap: () => onSelected(c),
+              selected: c.id == selectedId,
+              onTap: () => onSelected(c.id),
             ),
+          _AddChip(onTap: onAddCategory),
         ],
       ),
     );
@@ -76,6 +82,43 @@ class _Chip extends StatelessWidget {
                 fontSize: 13.5,
                 color: selected ? const Color(0xFF2A2205) : AppColors.ink2,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddChip extends StatelessWidget {
+  const _AddChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: const Key('add-category-chip'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: AppColors.hairline2,
+            width: 1.4,
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_rounded, size: 15, color: AppColors.ink3),
+            const SizedBox(width: 5),
+            Text(
+              'Add',
+              style: AppText.button.copyWith(fontSize: 13.5, color: AppColors.ink3),
             ),
           ],
         ),

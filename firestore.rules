@@ -43,6 +43,25 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Wallet: a single running-balance doc per user (users/{userId}/wallet/main).
+    match /users/{userId}/wallet/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.balanceMinor is int
+        && request.resource.data.currency is string;
+    }
+
+    // Expense categories: the user's custom categories on top of the app's
+    // built-ins (which aren't stored — see kBuiltInCategories client-side).
+    match /users/{userId}/expenseCategories/{categoryId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.label is string
+        && request.resource.data.emoji is string
+        && request.resource.data.hue is string;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Schedule: each user reads/writes only their own events.
     // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
     match /users/{userId}/schedule/{eventId} {
@@ -210,8 +229,9 @@ service cloud.firestore {
     // (tasks, expenses, schedule, notes, workouts, moments, university, diet) are migrated,
     // plus the workout-plan store (workoutPlans — the "what I SHOULD do" template),
     // the workout-session store (workoutSessions — the guided execution record),
-    // and the AI conversation store (aiConversations client-writable; messages/aiUsage
-    // server-only).
+    // the AI conversation store (aiConversations client-writable; messages/aiUsage
+    // server-only), and the expenses wallet/expenseCategories subcollections
+    // (running balance + user-created categories on top of the built-in set).
     match /{document=**} {
       allow read, write: if false;
     }

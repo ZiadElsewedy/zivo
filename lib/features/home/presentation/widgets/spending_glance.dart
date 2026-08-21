@@ -13,6 +13,7 @@ class SpendingGlanceRow extends StatelessWidget {
     required this.todayMinor,
     required this.weekMinor,
     required this.currency,
+    this.walletMinor,
     super.key,
   });
 
@@ -20,8 +21,16 @@ class SpendingGlanceRow extends StatelessWidget {
   final int weekMinor;
   final String currency;
 
+  /// What's left in the wallet, if the user has set one up. When present,
+  /// this replaces the "this week" stat — the balance is the more actionable
+  /// glance-value once a wallet exists; the full week breakdown still lives
+  /// inside the Expenses tab.
+  final int? walletMinor;
+
   @override
   Widget build(BuildContext context) {
+    final wallet = walletMinor;
+    final negative = wallet != null && wallet < 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
       child: Row(
@@ -30,12 +39,21 @@ class SpendingGlanceRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.m - 1),
           _amount(formatAmount(todayMinor), '$currency today', AppColors.ink),
           Text('  ·  ', style: AppText.amount.copyWith(color: AppColors.ink3)),
-          _amount(
-            formatAmount(weekMinor),
-            '$currency this week',
-            AppColors.solarText,
-            unitColor: AppColors.solarText.withValues(alpha: 0.75),
-          ),
+          if (wallet != null)
+            _amount(
+              formatAmount(wallet),
+              '$currency left',
+              negative ? AppColors.flareText : AppColors.solarText,
+              unitColor: (negative ? AppColors.flareText : AppColors.solarText)
+                  .withValues(alpha: 0.75),
+            )
+          else
+            _amount(
+              formatAmount(weekMinor),
+              '$currency this week',
+              AppColors.solarText,
+              unitColor: AppColors.solarText.withValues(alpha: 0.75),
+            ),
           const Spacer(),
           const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
         ],

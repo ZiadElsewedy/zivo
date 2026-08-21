@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../domain/expense.dart';
-import '../domain/expense_category.dart';
 import '../domain/expense_repository.dart';
 
 /// Demo store: keeps expenses in memory and broadcasts changes. Seeded so
@@ -22,35 +21,35 @@ class InMemoryExpenseRepository implements ExpenseRepository {
         id: 'seed-1',
         amountMinor: 4500,
         currency: 'EGP',
-        category: ExpenseCategory.coffee,
+        categoryId: 'coffee',
         spentAt: now.subtract(const Duration(hours: 1)),
       ),
       Expense(
         id: 'seed-2',
         amountMinor: 12000,
         currency: 'EGP',
-        category: ExpenseCategory.groceries,
+        categoryId: 'groceries',
         spentAt: now.subtract(const Duration(days: 1)),
       ),
       Expense(
         id: 'seed-3',
         amountMinor: 9000,
         currency: 'EGP',
-        category: ExpenseCategory.transport,
+        categoryId: 'transport',
         spentAt: now.subtract(const Duration(days: 2)),
       ),
       Expense(
         id: 'seed-4',
         amountMinor: 22000,
         currency: 'EGP',
-        category: ExpenseCategory.food,
+        categoryId: 'food',
         spentAt: now.subtract(const Duration(days: 3)),
       ),
       Expense(
         id: 'seed-5',
         amountMinor: 21000,
         currency: 'EGP',
-        category: ExpenseCategory.food,
+        categoryId: 'food',
         spentAt: now.subtract(const Duration(days: 4)),
       ),
     ]);

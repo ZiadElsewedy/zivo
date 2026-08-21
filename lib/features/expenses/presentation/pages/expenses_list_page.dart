@@ -9,18 +9,37 @@ import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
 import '../../domain/expense_repository.dart';
+import '../../domain/wallet.dart';
+import '../widgets/category_hue_colors.dart';
+import '../widgets/wallet_balance_sheet.dart';
 import 'expense_capture_page.dart';
 
-/// The Expenses history — a summary of today/this-week spend followed by the
-/// full log, grouped by day (Today, Yesterday, then dated headers), each day
-/// carrying a subtotal. Newest first. The calm Solar sibling of the
-/// sub-5-second capture flow.
-class ExpensesListPage extends StatelessWidget {
+/// The Expenses history — a wallet balance up top (deducted automatically as
+/// expenses are logged), a this-week category breakdown, then the full log
+/// grouped by day (Today, Yesterday, then dated headers), each day carrying
+/// a subtotal. Newest first. The calm Solar sibling of the sub-5-second
+/// capture flow.
+class ExpensesListPage extends StatefulWidget {
   const ExpensesListPage({super.key});
 
   @override
+  State<ExpensesListPage> createState() => _ExpensesListPageState();
+}
+
+class _ExpensesListPageState extends State<ExpensesListPage> {
+  // Cached once per page lifetime — each repository's `watch*()` call
+  // returns a fresh Stream instance, so recomputing it inside a builder
+  // callback on every rebuild would make the nested StreamBuilders below
+  // unsubscribe and resubscribe on every emission instead of holding one
+  // stable subscription each.
+  late final _service = AppScope.of(context).expensesService;
+  late final _categoriesStream = _service.watchCategories();
+  late final _walletStream = _service.wallet.watch();
+  late final _expensesStream = _service.expenses.watchAll();
+
+  @override
   Widget build(BuildContext context) {
-    final expenses = AppScope.of(context).expenses;
+    final service = _service;
     return Scaffold(
       backgroundColor: AppColors.ground,
       appBar: AppBar(
@@ -30,6 +49,7 @@ class ExpensesListPage extends StatelessWidget {
         title: Text('Expenses', style: AppText.cardTitle),
       ),
       floatingActionButton: FloatingActionButton(
+        key: const Key('new-expense-fab'),
         backgroundColor: AppColors.solar,
         elevation: 2,
         tooltip: 'New expense',
@@ -38,45 +58,75 @@ class ExpensesListPage extends StatelessWidget {
         ),
         child: const Icon(Icons.add_rounded, color: Color(0xFF2A2205)),
       ),
-      body: StreamBuilder<List<Expense>>(
-        stream: expenses.watchAll(),
-        initialData: expenses.current,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const ErrorStateView();
-          }
-          final items = snapshot.data ?? const <Expense>[];
-          if (items.isEmpty &&
-              snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingStateView();
-          }
-          if (items.isEmpty) {
-            return const EmptyStateView('Nothing spent yet — a calm start.');
-          }
-          final now = DateTime.now();
-          final groups = _groupByDay(items);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
-            children: [
-              _SummaryHeader(
-                todayMinor: todayTotalMinor(items, now),
-                weekMinor: weekTotalMinor(items, now),
-                currency: items.first.currency,
-              ),
-              for (final group in groups) ...[
-                _DayHeader(
-                  label: _dayLabel(group.day, now),
-                  subtotalMinor: group.subtotalMinor,
-                  currency: group.expenses.first.currency,
-                ),
-                for (final expense in group.expenses)
-                  _ExpenseRow(
-                    expense,
-                    onTap: () => _openEdit(context, expense),
-                    onDelete: () => expenses.remove(expense.id),
-                  ),
-              ],
-            ],
+      body: StreamBuilder<List<ExpenseCategory>>(
+        stream: _categoriesStream,
+        initialData: service.allCategories(),
+        builder: (context, categorySnapshot) {
+          final categories = categorySnapshot.data ?? kBuiltInCategories;
+          return StreamBuilder<Wallet?>(
+            stream: _walletStream,
+            initialData: service.wallet.current,
+            builder: (context, walletSnapshot) {
+              final wallet = walletSnapshot.data;
+              return StreamBuilder<List<Expense>>(
+                stream: _expensesStream,
+                initialData: service.expenses.current,
+                builder: (context, expenseSnapshot) {
+                  if (expenseSnapshot.hasError) {
+                    return const ErrorStateView();
+                  }
+                  final items = expenseSnapshot.data ?? const <Expense>[];
+                  if (items.isEmpty &&
+                      expenseSnapshot.connectionState == ConnectionState.waiting) {
+                    return const LoadingStateView();
+                  }
+                  final now = DateTime.now();
+                  final currency = wallet?.currency ?? 'EGP';
+                  final todayMinor = todayTotalMinor(items, now);
+                  final weekMinor = weekTotalMinor(items, now);
+                  final byCategory = _byCategory(items, now, categories);
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
+                    children: [
+                      _WalletCard(
+                        wallet: wallet,
+                        todayMinor: todayMinor,
+                        currency: currency,
+                      ),
+                      if (byCategory.isNotEmpty) ...[
+                        const SizedBox(height: 22),
+                        _CategoryBreakdown(
+                          rows: byCategory,
+                          weekMinor: weekMinor,
+                          currency: currency,
+                        ),
+                      ],
+                      if (items.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 40),
+                          child: EmptyStateView('Nothing spent yet — a calm start.'),
+                        )
+                      else ...[
+                        for (final group in _groupByDay(items)) ...[
+                          _DayHeader(
+                            label: _dayLabel(group.day, now),
+                            subtotalMinor: group.subtotalMinor,
+                            currency: group.expenses.first.currency,
+                          ),
+                          for (final expense in group.expenses)
+                            _ExpenseRow(
+                              expense,
+                              category: resolveCategory(expense.categoryId, categories),
+                              onTap: () => _openEdit(context, expense),
+                              onDelete: () => service.removeExpense(expense),
+                            ),
+                        ],
+                      ],
+                    ],
+                  );
+                },
+              );
+            },
           );
         },
       ),
@@ -88,6 +138,30 @@ class ExpensesListPage extends StatelessWidget {
       MaterialPageRoute(builder: (_) => ExpenseCapturePage(initial: expense)),
     );
   }
+}
+
+class _CategorySpend {
+  _CategorySpend(this.category, this.minor);
+  final ExpenseCategory category;
+  final int minor;
+}
+
+List<_CategorySpend> _byCategory(
+  List<Expense> items,
+  DateTime now,
+  List<ExpenseCategory> categories,
+) {
+  final from = now.subtract(const Duration(days: 7));
+  final totals = <String, int>{};
+  for (final e in items) {
+    if (!e.spentAt.isAfter(from)) continue;
+    totals[e.categoryId] = (totals[e.categoryId] ?? 0) + e.amountMinor;
+  }
+  final rows = totals.entries
+      .map((e) => _CategorySpend(resolveCategory(e.key, categories), e.value))
+      .toList()
+    ..sort((a, b) => b.minor.compareTo(a.minor));
+  return rows.take(5).toList();
 }
 
 class _DayGroup {
@@ -128,21 +202,23 @@ String _dayLabel(DateTime day, DateTime now) {
   return '${weekdays[day.weekday - 1]} ${day.day} ${months[day.month - 1]}';
 }
 
-class _SummaryHeader extends StatelessWidget {
-  const _SummaryHeader({
+class _WalletCard extends StatelessWidget {
+  const _WalletCard({
+    required this.wallet,
     required this.todayMinor,
-    required this.weekMinor,
     required this.currency,
   });
 
+  final Wallet? wallet;
   final int todayMinor;
-  final int weekMinor;
   final String currency;
 
   @override
   Widget build(BuildContext context) {
+    final balance = wallet?.balanceMinor;
+    final negative = balance != null && balance < 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         color: AppColors.solarWash,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -156,25 +232,61 @@ class _SummaryHeader extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(child: _Stat(label: 'Today', minor: todayMinor, currency: currency)),
-          Container(width: 1, height: 36, color: AppColors.hairline2),
-          const SizedBox(width: 18),
-          Expanded(
-            child: _Stat(label: 'This week', minor: weekMinor, currency: currency),
-          ),
-        ],
-      ),
+      child: balance == null
+          ? _WalletSetupPrompt(currency: currency)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('WALLET', style: AppText.sectionLabel.copyWith(color: AppColors.solarText)),
+                    const Spacer(),
+                    _IconPill(
+                      icon: Icons.edit_rounded,
+                      onTap: () => WalletBalanceSheet.show(
+                        context,
+                        mode: WalletSheetMode.setBalance,
+                        prefillMinor: balance,
+                        currency: currency,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${formatAmount(balance)} $currency',
+                  style: AppText.heroNumber.copyWith(
+                    fontSize: 40,
+                    color: negative ? AppColors.flareText : AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${formatAmount(todayMinor)} $currency spent today',
+                        style: AppText.meta.copyWith(color: AppColors.solarText),
+                      ),
+                    ),
+                    _TopUpButton(
+                      onTap: () => WalletBalanceSheet.show(
+                        context,
+                        mode: WalletSheetMode.topUp,
+                        currency: currency,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.minor, required this.currency});
+class _WalletSetupPrompt extends StatelessWidget {
+  const _WalletSetupPrompt({required this.currency});
 
-  final String label;
-  final int minor;
   final String currency;
 
   @override
@@ -182,14 +294,182 @@ class _Stat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text('SET UP YOUR WALLET', style: AppText.sectionLabel.copyWith(color: AppColors.solarText)),
+        const SizedBox(height: 8),
         Text(
-          label.toUpperCase(),
-          style: AppText.sectionLabel.copyWith(color: AppColors.solarText),
+          'How much money do you have right now?',
+          style: AppText.cardTitle.copyWith(fontSize: 19),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
-          '${formatAmount(minor)} $currency',
-          style: AppText.cardTitle.copyWith(fontSize: 22),
+          'Every expense you log will deduct from it automatically.',
+          style: AppText.body,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: AppColors.solar,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => WalletBalanceSheet.show(
+                context,
+                mode: WalletSheetMode.setBalance,
+                currency: currency,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                child: Center(
+                  child: Text(
+                    'Set starting balance',
+                    style: AppText.button.copyWith(color: const Color(0xFF2A2205)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IconPill extends StatelessWidget {
+  const _IconPill({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceRaised,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 14, color: AppColors.ink2),
+      ),
+    );
+  }
+}
+
+class _TopUpButton extends StatelessWidget {
+  const _TopUpButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_rounded, size: 13, color: AppColors.ink),
+            const SizedBox(width: 3),
+            Text('Top up', style: AppText.button.copyWith(fontSize: 12, color: AppColors.ink)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryBreakdown extends StatelessWidget {
+  const _CategoryBreakdown({
+    required this.rows,
+    required this.weekMinor,
+    required this.currency,
+  });
+
+  final List<_CategorySpend> rows;
+  final int weekMinor;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxMinor = rows.map((r) => r.minor).fold(1, (a, b) => a > b ? a : b);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('THIS WEEK BY CATEGORY', style: AppText.sectionLabel),
+            const Spacer(),
+            Text(
+              '${formatAmount(weekMinor)} $currency',
+              style: AppText.sectionLabel.copyWith(color: AppColors.ink2),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        for (final row in rows) ...[
+          _CategoryBar(row: row, currency: currency, fraction: row.minor / maxMinor),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _CategoryBar extends StatelessWidget {
+  const _CategoryBar({required this.row, required this.currency, required this.fraction});
+
+  final _CategorySpend row;
+  final String currency;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = hueColor(row.category.hue);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (row.category.emoji.isNotEmpty) ...[
+              Text(row.category.emoji, style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: 6),
+            ],
+            Text(row.category.label, style: AppText.meta.copyWith(color: AppColors.ink2)),
+            const Spacer(),
+            Text(
+              '${formatAmount(row.minor)} $currency',
+              style: AppText.meta.copyWith(color: AppColors.ink),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  Container(height: 6, color: AppColors.hairline),
+                  Container(
+                    height: 6,
+                    width: constraints.maxWidth * fraction.clamp(0.03, 1.0),
+                    color: color,
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
@@ -237,11 +517,13 @@ class _DayHeader extends StatelessWidget {
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow(
     this.expense, {
+    required this.category,
     required this.onTap,
     required this.onDelete,
   });
 
   final Expense expense;
+  final ExpenseCategory category;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -272,7 +554,7 @@ class _ExpenseRow extends StatelessWidget {
                 SizedBox(
                   width: 30,
                   child: Text(
-                    expense.category.emoji.isEmpty ? '•' : expense.category.emoji,
+                    category.emoji.isEmpty ? '•' : category.emoji,
                     style: const TextStyle(fontSize: 17),
                   ),
                 ),
@@ -281,7 +563,7 @@ class _ExpenseRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        expense.category.label,
+                        category.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),

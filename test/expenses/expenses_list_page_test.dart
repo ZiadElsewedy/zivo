@@ -6,9 +6,10 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/firestore_expense_repository.dart';
+import 'package:zivo/features/expenses/data/in_memory_category_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
+import 'package:zivo/features/expenses/data/in_memory_wallet_repository.dart';
 import 'package:zivo/features/expenses/domain/expense.dart';
-import 'package:zivo/features/expenses/domain/expense_category.dart';
 import 'package:zivo/features/expenses/presentation/pages/expense_capture_page.dart';
 import 'package:zivo/features/expenses/presentation/pages/expenses_list_page.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -26,11 +27,15 @@ import '../support/fake_profile_repository.dart';
 Widget _wrap({
   required Widget child,
   required InMemoryExpenseRepository expensesOverride,
+  InMemoryWalletRepository? walletOverride,
+  InMemoryCategoryRepository? categoriesOverride,
 }) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: expensesOverride,
+    wallet: walletOverride ?? InMemoryWalletRepository(),
+    expenseCategories: categoriesOverride ?? InMemoryCategoryRepository(),
     tasks: InMemoryTaskRepository(),
     schedule: InMemoryScheduleRepository(),
     notes: InMemoryNoteRepository(),
@@ -49,6 +54,14 @@ void main() {
   testWidgets(
     'expenses render grouped by day, newest first, with a summary header',
     (tester) async {
+      // Taller than the default test surface: the wallet card, first-run
+      // prompt, and category breakdown push the day-grouped log down enough
+      // that the default viewport wouldn't build the later rows at all.
+      tester.view.physicalSize = const Size(1200, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final expenses = InMemoryExpenseRepository();
       addTearDown(expenses.dispose);
 
@@ -58,7 +71,7 @@ void main() {
           id: 'lunch',
           amountMinor: 5000,
           currency: 'EGP',
-          category: ExpenseCategory.food,
+          categoryId: 'food',
           spentAt: now,
           note: 'Team lunch',
         ),
@@ -68,7 +81,7 @@ void main() {
           id: 'coffee',
           amountMinor: 2500,
           currency: 'EGP',
-          category: ExpenseCategory.coffee,
+          categoryId: 'coffee',
           spentAt: now.subtract(const Duration(days: 1)),
           note: 'Espresso run',
         ),
@@ -109,7 +122,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.tap(find.byKey(const Key('new-expense-fab')));
     await tester.pumpAndSettle();
 
     expect(find.byType(ExpenseCapturePage), findsOneWidget);
@@ -127,7 +140,7 @@ void main() {
         id: 'groceries-run',
         amountMinor: 8000,
         currency: 'EGP',
-        category: ExpenseCategory.groceries,
+        categoryId: 'groceries',
         spentAt: DateTime.now(),
         note: 'Weekly shop',
       ),
@@ -156,7 +169,7 @@ void main() {
         id: 'to-delete',
         amountMinor: 1500,
         currency: 'EGP',
-        category: ExpenseCategory.transport,
+        categoryId: 'transport',
         spentAt: DateTime.now(),
         note: 'Uber',
       ),
@@ -192,6 +205,8 @@ void main() {
         auth: FakeAuthRepository(),
         profiles: FakeProfileRepository(),
         expenses: expenses,
+        wallet: InMemoryWalletRepository(),
+        expenseCategories: InMemoryCategoryRepository(),
         tasks: InMemoryTaskRepository(),
         schedule: InMemoryScheduleRepository(),
         notes: InMemoryNoteRepository(),
@@ -208,5 +223,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Nothing spent yet — a calm start.'), findsOneWidget);
+  });
+
+  testWidgets('setting a wallet balance then adding an expense deducts it', (
+    tester,
+  ) async {
+    final expenses = InMemoryExpenseRepository();
+    addTearDown(expenses.dispose);
+    final wallet = InMemoryWalletRepository();
+    addTearDown(wallet.dispose);
+
+    await tester.pumpWidget(
+      _wrap(
+        child: const ExpensesListPage(),
+        expensesOverride: expenses,
+        walletOverride: wallet,
+      ),
+    );
+    await tester.pump();
+
+    // First run: the setup prompt, not a balance.
+    expect(find.text('Set starting balance'), findsOneWidget);
+
+    await tester.tap(find.text('Set starting balance'));
+    await tester.pumpAndSettle();
+
+    for (final digit in ['1', '0', '0', '0']) {
+      await tester.tap(find.text(digit).last);
+      await tester.pump();
+    }
+    await tester.tap(find.text('Save balance'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1000 EGP'), findsOneWidget);
+
+    // Logging an expense through the real capture flow deducts it from the
+    // wallet automatically.
+    await tester.tap(find.byKey(const Key('new-expense-fab')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('4'));
+    await tester.tap(find.text('5'));
+    await tester.pump();
+    await tester.tap(find.text('Save · 45 EGP'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('955 EGP'), findsOneWidget);
   });
 }

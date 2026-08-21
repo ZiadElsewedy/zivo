@@ -33,9 +33,15 @@ import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
 import '../features/diet/data/in_memory_diet_repository.dart';
 import '../features/diet/domain/diet_repository.dart';
+import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
+import '../features/expenses/data/firestore_wallet_repository.dart';
+import '../features/expenses/data/in_memory_category_repository.dart';
 import '../features/expenses/data/in_memory_expense_repository.dart';
+import '../features/expenses/data/in_memory_wallet_repository.dart';
+import '../features/expenses/domain/category_repository.dart';
 import '../features/expenses/domain/expense_repository.dart';
+import '../features/expenses/domain/wallet_repository.dart';
 import '../features/moments/data/firestore_moment_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
@@ -82,6 +88,8 @@ class ZivoApp extends StatefulWidget {
     this.auth,
     this.profiles,
     this.expenses,
+    this.wallet,
+    this.expenseCategories,
     this.tasks,
     this.schedule,
     this.notes,
@@ -100,6 +108,8 @@ class ZivoApp extends StatefulWidget {
   final AuthRepository? auth;
   final ProfileRepository? profiles;
   final ExpenseRepository? expenses;
+  final WalletRepository? wallet;
+  final CategoryRepository? expenseCategories;
   final TaskRepository? tasks;
   final ScheduleRepository? schedule;
   final NoteRepository? notes;
@@ -123,6 +133,9 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.profiles ?? FirestoreProfileRepository();
   late final ExpenseRepository _expenses =
       widget.expenses ?? _defaultExpenses();
+  late final WalletRepository _wallet = widget.wallet ?? _defaultWallet();
+  late final CategoryRepository _categories =
+      widget.expenseCategories ?? _defaultCategories();
   late final TaskRepository _tasks = widget.tasks ?? _defaultTasks();
   late final ScheduleRepository _schedule =
       widget.schedule ?? _defaultSchedule();
@@ -204,6 +217,14 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryExpenseRepository();
 
+  WalletRepository _defaultWallet() => _useFirestore
+      ? FirestoreWalletRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWalletRepository();
+
+  CategoryRepository _defaultCategories() => _useFirestore
+      ? FirestoreCategoryRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryCategoryRepository();
+
   ScheduleRepository _defaultSchedule() => _useFirestore
       ? FirestoreScheduleRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryScheduleRepository();
@@ -253,6 +274,8 @@ class _ZivoAppState extends State<ZivoApp> {
       auth: _auth,
       profiles: _profiles,
       expenses: _expenses,
+      wallet: _wallet,
+      expenseCategories: _categories,
       tasks: _tasks,
       schedule: _schedule,
       notes: _notes,

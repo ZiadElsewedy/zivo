@@ -5,7 +5,10 @@ import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
 import '../../features/diet/domain/diet_repository.dart';
+import '../../features/expenses/domain/category_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
+import '../../features/expenses/domain/expenses_service.dart';
+import '../../features/expenses/domain/wallet_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
 import '../../features/notes/domain/note_repository.dart';
 import '../../features/schedule/domain/schedule_repository.dart';
@@ -24,6 +27,8 @@ class AppScope extends InheritedWidget {
     required this.auth,
     required this.profiles,
     required this.expenses,
+    this.wallet,
+    this.expenseCategories,
     required this.tasks,
     required this.schedule,
     required this.notes,
@@ -46,6 +51,15 @@ class AppScope extends InheritedWidget {
   /// Persists the signed-in user's [UserProfile] (`users/{uid}` in Firestore).
   final ProfileRepository profiles;
   final ExpenseRepository expenses;
+
+  /// The wallet balance, and the user's custom expense categories on top of
+  /// the app's built-in set. Optional for the same reason [media] is: many
+  /// widget tests build a scope without touching Expenses. Production and
+  /// the Expenses-page tests always provide both — read them through
+  /// [requireWallet] / [requireCategories], or via [expensesService].
+  final WalletRepository? wallet;
+  final CategoryRepository? expenseCategories;
+
   final TaskRepository tasks;
   final ScheduleRepository schedule;
   final NoteRepository notes;
@@ -79,6 +93,27 @@ class AppScope extends InheritedWidget {
     return media!;
   }
 
+  WalletRepository get requireWallet {
+    assert(wallet != null, 'AppScope.wallet was not provided to this scope');
+    return wallet!;
+  }
+
+  CategoryRepository get requireCategories {
+    assert(
+      expenseCategories != null,
+      'AppScope.expenseCategories was not provided to this scope',
+    );
+    return expenseCategories!;
+  }
+
+  /// The Expenses feature's composed seam (log + wallet + categories). Built
+  /// on demand — cheap, since it holds no state of its own.
+  ExpensesService get expensesService => ExpensesService(
+    expenses: expenses,
+    wallet: requireWallet,
+    categories: requireCategories,
+  );
+
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
     assert(scope != null, 'AppScope not found in the widget tree');
@@ -90,6 +125,8 @@ class AppScope extends InheritedWidget {
       auth != oldWidget.auth ||
       profiles != oldWidget.profiles ||
       expenses != oldWidget.expenses ||
+      wallet != oldWidget.wallet ||
+      expenseCategories != oldWidget.expenseCategories ||
       tasks != oldWidget.tasks ||
       schedule != oldWidget.schedule ||
       notes != oldWidget.notes ||

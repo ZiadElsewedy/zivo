@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/firebase/uid_source.dart';
 import 'package:zivo/features/expenses/data/firestore_expense_repository.dart';
 import 'package:zivo/features/expenses/domain/expense.dart';
-import 'package:zivo/features/expenses/domain/expense_category.dart';
 
 UidSource _signedInAs(String uid) =>
     UidSource(currentUid: () => uid, uidChanges: Stream.value(uid));
@@ -14,13 +13,13 @@ Expense _make(
   DateTime? spentAt,
   int amountMinor = 1000,
   String currency = 'EGP',
-  ExpenseCategory category = ExpenseCategory.food,
+  String categoryId = 'food',
   String? note,
 }) => Expense(
   id: id,
   amountMinor: amountMinor,
   currency: currency,
-  category: category,
+  categoryId: categoryId,
   spentAt: spentAt ?? DateTime(2026, 1, 1),
   note: note,
 );
@@ -43,7 +42,7 @@ void main() {
         final expense = _make(
           'e1',
           amountMinor: 4500,
-          category: ExpenseCategory.coffee,
+          categoryId: 'coffee',
           note: 'Latte',
         );
         await repo.add(expense);
@@ -73,7 +72,8 @@ void main() {
     );
 
     test(
-      'category round-trips, with a safe fallback for unknown values',
+      'category id round-trips verbatim — even an id no built-in or custom '
+      'category matches, since resolving display is a presentation concern',
       () async {
         final firestore = FakeFirebaseFirestore();
         final repo = FirestoreExpenseRepository(
@@ -81,7 +81,7 @@ void main() {
           uidSource: _signedInAs('test-uid'),
         );
 
-        await repo.add(_make('e1', category: ExpenseCategory.transport));
+        await repo.add(_make('e1', categoryId: 'transport'));
 
         await firestore
             .collection('users')
@@ -101,8 +101,8 @@ void main() {
 
         final expenses = await repo.watchAll().first;
         final byId = {for (final e in expenses) e.id: e};
-        expect(byId['e1']!.category, ExpenseCategory.transport);
-        expect(byId['e2']!.category, ExpenseCategory.other);
+        expect(byId['e1']!.categoryId, 'transport');
+        expect(byId['e2']!.categoryId, 'not-a-real-category');
       },
     );
 
@@ -168,7 +168,7 @@ void main() {
           _make(
             'e1',
             amountMinor: 1000,
-            category: ExpenseCategory.food,
+            categoryId: 'food',
             note: 'Lunch',
           ),
         );
@@ -181,7 +181,7 @@ void main() {
           _make(
             'e1',
             amountMinor: 2500,
-            category: ExpenseCategory.coffee,
+            categoryId: 'coffee',
             note: 'Latte',
             spentAt: DateTime(2026, 2, 2),
           ),
@@ -191,7 +191,7 @@ void main() {
         final updated = seen.last.single;
         expect(updated.id, 'e1');
         expect(updated.amountMinor, 2500);
-        expect(updated.category, ExpenseCategory.coffee);
+        expect(updated.categoryId, 'coffee');
         expect(updated.note, 'Latte');
         expect(updated.spentAt, DateTime(2026, 2, 2));
 

@@ -7,6 +7,7 @@ import '../../../../core/util/money.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
+import '../widgets/add_category_sheet.dart';
 import '../widgets/amount_keypad.dart';
 import '../widgets/category_chips.dart';
 
@@ -26,7 +27,7 @@ class ExpenseCapturePage extends StatefulWidget {
 class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
   String _digits = '';
   String _currency = 'EGP';
-  ExpenseCategory _category = ExpenseCategory.food;
+  String _categoryId = 'food';
   String? _note;
 
   bool get _editing => widget.initial != null;
@@ -41,7 +42,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
     if (initial != null) {
       _digits = formatAmount(initial.amountMinor);
       _currency = initial.currency;
-      _category = initial.category;
+      _categoryId = initial.categoryId;
       _note = initial.note;
     }
   }
@@ -127,20 +128,20 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
 
   Future<void> _save() async {
     if (!_canSave) return;
-    final expenses = AppScope.of(context).expenses;
+    final service = AppScope.of(context).expensesService;
     final initial = widget.initial;
     final expense = Expense(
       id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       amountMinor: _amountMinor,
       currency: _currency,
-      category: _category,
+      categoryId: _categoryId,
       spentAt: initial?.spentAt ?? DateTime.now(),
       note: _note,
     );
     if (initial == null) {
-      await expenses.add(expense);
+      await service.addExpense(expense);
     } else {
-      await expenses.update(expense);
+      await service.updateExpense(initial, expense);
     }
     if (mounted) Navigator.of(context).pop(expense);
   }
@@ -148,9 +149,14 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
   Future<void> _delete() async {
     final initial = widget.initial;
     if (initial == null) return;
-    final expenses = AppScope.of(context).expenses;
-    await expenses.remove(initial.id);
+    final service = AppScope.of(context).expensesService;
+    await service.removeExpense(initial);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _addCategory() async {
+    final newId = await AddCategorySheet.show(context);
+    if (newId != null && mounted) setState(() => _categoryId = newId);
   }
 
   @override
@@ -173,16 +179,31 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
                     )
                   : null,
             ),
-            const SizedBox(height: 20),
-            _AmountDisplay(digits: _digits, currency: _currency),
-            const SizedBox(height: 18),
-            CategoryChips(
-              selected: _category,
-              onSelected: (c) => setState(() => _category = c),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    _AmountDisplay(digits: _digits, currency: _currency),
+                    const SizedBox(height: 18),
+                    StreamBuilder<List<ExpenseCategory>>(
+                      stream: AppScope.of(context).expensesService.watchCategories(),
+                      initialData: AppScope.of(context).expensesService.allCategories(),
+                      builder: (context, snapshot) {
+                        return CategoryChips(
+                          categories: snapshot.data ?? kBuiltInCategories,
+                          selectedId: _categoryId,
+                          onSelected: (id) => setState(() => _categoryId = id),
+                          onAddCategory: _addCategory,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _MetaRow(note: _note, onEditNote: _editNote, dateLabel: _dateLabel),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 14),
-            _MetaRow(note: _note, onEditNote: _editNote, dateLabel: _dateLabel),
-            const Spacer(),
             AmountKeypad(onDigit: _onDigit, onKey: _onKey),
             const SizedBox(height: 12),
             Padding(

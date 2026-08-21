@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/firebase/uid_source.dart';
 import '../domain/expense.dart';
-import '../domain/expense_category.dart';
 import '../domain/expense_repository.dart';
 
 /// The real [ExpenseRepository], backed by Firestore's `users/{uid}/expenses`
@@ -92,7 +91,7 @@ class FirestoreExpenseRepository implements ExpenseRepository {
     return _expensesCollection(uid).doc(expense.id).set({
       'amountMinor': expense.amountMinor,
       'currency': expense.currency,
-      'category': expense.category.name,
+      'category': expense.categoryId,
       'spentAt': Timestamp.fromDate(expense.spentAt),
       'note': expense.note,
       'schemaVersion': 1,
@@ -107,7 +106,7 @@ class FirestoreExpenseRepository implements ExpenseRepository {
     return _expensesCollection(uid).doc(expense.id).update({
       'amountMinor': expense.amountMinor,
       'currency': expense.currency,
-      'category': expense.category.name,
+      'category': expense.categoryId,
       'spentAt': Timestamp.fromDate(expense.spentAt),
       'note': expense.note,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -140,10 +139,7 @@ class FirestoreExpenseRepository implements ExpenseRepository {
       id: doc.id,
       amountMinor: data['amountMinor'] as int? ?? 0,
       currency: data['currency'] as String? ?? '',
-      category: ExpenseCategory.values.firstWhere(
-        (c) => c.name == category,
-        orElse: () => ExpenseCategory.other,
-      ),
+      categoryId: category is String ? category : 'other',
       spentAt: spentAt is Timestamp ? spentAt.toDate() : DateTime.now(),
       note: note is String ? note : null,
     );

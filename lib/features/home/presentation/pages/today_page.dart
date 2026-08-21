@@ -13,6 +13,7 @@ import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
+import '../../../expenses/domain/wallet.dart';
 import '../../../schedule/domain/schedule_event.dart';
 import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
@@ -494,7 +495,9 @@ class _SpendingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expenses = AppScope.of(context).expenses;
+    final scope = AppScope.of(context);
+    final expenses = scope.expenses;
+    final wallet = scope.wallet;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -505,10 +508,26 @@ class _SpendingSection extends StatelessWidget {
           builder: (context, snapshot) {
             final items = snapshot.data ?? const <Expense>[];
             final now = DateTime.now();
-            return SpendingGlanceRow(
-              todayMinor: todayTotalMinor(items, now),
-              weekMinor: weekTotalMinor(items, now),
-              currency: 'EGP',
+            final todayMinor = todayTotalMinor(items, now);
+            final weekMinor = weekTotalMinor(items, now);
+            if (wallet == null) {
+              return SpendingGlanceRow(
+                todayMinor: todayMinor,
+                weekMinor: weekMinor,
+                currency: 'EGP',
+              );
+            }
+            return StreamBuilder<Wallet?>(
+              stream: wallet.watch(),
+              initialData: wallet.current,
+              builder: (context, walletSnapshot) {
+                return SpendingGlanceRow(
+                  todayMinor: todayMinor,
+                  weekMinor: weekMinor,
+                  currency: walletSnapshot.data?.currency ?? 'EGP',
+                  walletMinor: walletSnapshot.data?.balanceMinor,
+                );
+              },
             );
           },
         ),
