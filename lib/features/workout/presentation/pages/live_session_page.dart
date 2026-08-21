@@ -368,6 +368,39 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         actualReps: reps,
         actualWeightKg: weight,
       );
+    });
+    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set done');
+  }
+
+  /// The Skip affordance — advances past the current set exactly like Done,
+  /// but logs no volume (see [LiveSession.markSetSkipped]). Deliberately
+  /// preserves whatever's typed in the reps/weight fields on the set itself
+  /// (an abandoned draft the end-of-workout review can still surface) rather
+  /// than reading/clearing them the way Done does.
+  void _onSetSkip() {
+    final exercise = _session.currentExercise;
+    final set = _session.currentSet;
+    if (exercise == null || set == null) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _session = _session.markSetSkipped(exercise.id, set.id);
+    });
+    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set skipped');
+  }
+
+  /// Shared tail for [_onSetDone]/[_onSetSkip]: completes the session if
+  /// that was the last pending set (else starts rest), autosaves, refreshes
+  /// the input prefill for whatever's now current, and offers an Undo
+  /// snackbar targeting exactly the (exerciseId, setId) just resolved — not
+  /// "whatever's current now", since current has already moved on by the
+  /// time this shows.
+  void _afterResolvingCurrentSet(
+    String exerciseId,
+    String setId,
+    int restSeconds, {
+    required String undoMessage,
+  }) {
+    setState(() {
       if (_session.currentSet == null) {
         _session = _session.complete(now: widget.now());
       }
@@ -381,14 +414,75 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restEndsAt = null;
       _elapsedTimer?.cancel();
       setState(() {});
-      return;
+    } else {
+      // Rest is the plan's own value (Edit Workout's per-exercise rest, or
+      // its "Default rest" bulk value) — the session counts down what Ziad
+      // actually set, not a computed guess. `smartRestSeconds` stays as the
+      // *seed* default a freshly-added exercise starts at (see the add
+      // sheet), it just no longer overrides the plan at session time.
+      _startRest(restSeconds);
     }
-    // Rest is the plan's own value (Edit Workout's per-exercise rest, or its
-    // "Default rest" bulk value) — the session counts down what Ziad
-    // actually set, not a computed guess. `smartRestSeconds` stays as the
-    // *seed* default a freshly-added exercise starts at (see the add sheet),
-    // it just no longer overrides the plan at session time.
-    _startRest(exercise.restSeconds);
+    _showUndoSnackbar(undoMessage, exerciseId, setId);
+  }
+
+  /// Offers a brief window to reverse the Done/Skip that was just tapped.
+  /// Fires on BOTH outcomes, not just skip — an accidental advance can just
+  /// as easily be a wrong Done (Ziad's actual incident) as a wrong Skip.
+  void _showUndoSnackbar(String message, String exerciseId, String setId) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surfaceRaised,
+          content: Text(message, style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: AppColors.pulse,
+            onPressed: () => _undoOutcome(exerciseId, setId),
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+
+  /// The Back control — walks back exactly one set: whichever
+  /// [LiveSession.previousResolvedSet] currently is. Tapping repeatedly
+  /// walks back further, one set at a time; anything beyond that is the
+  /// end-of-workout review's job, not this control's.
+  void _onBack() {
+    final prev = _session.previousResolvedSet;
+    if (prev == null) return;
+    _undoOutcome(prev.$1, prev.$2.id);
+  }
+
+  /// The shared undo primitive behind both the Undo snackbar and the Back
+  /// control: clears [setId]'s outcome back to pending. If resolving that
+  /// set was what completed the session, un-completes it too (status back
+  /// to active, elapsed timer restarted) — an Undo/Back must be able to
+  /// reverse the very last set of a workout, not just ones mid-flow.
+  void _undoOutcome(String exerciseId, String setId) {
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    final wasComplete = _session.isComplete;
+    setState(() {
+      _session = _session.clearOutcome(exerciseId, setId);
+      if (wasComplete) _session = _session.reopen();
+    });
+    unawaited(_sessionsRepo.saveSession(_session));
+    // Whatever rest/warm-up phase the resolved action kicked off no longer
+    // applies to a set that's pending again — drop it and land back on the
+    // running screen for that set.
+    _restTicker?.dispose();
+    _restTicker = null;
+    _restTotalSeconds = null;
+    _restEndsAt = null;
+    _pausedRestRemaining = null;
+    if (wasComplete && !_session.isPaused) {
+      _elapsedTimer ??= Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+    }
+    _prefillInputs();
   }
 
   void _startRest(int seconds) {
@@ -625,6 +719,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// indistinguishable from never having started one, so it's discarded
   /// silently rather than left behind as a "Resume" with nothing in it — a
   /// typed-but-not-done draft, though, must never be discarded as "empty".
+  ///
+  /// `completedSetCount == 0` deliberately still reads as "empty" even when
+  /// some sets were skipped: `completedSetCount` never counts a skip (see
+  /// [LiveSession.completedSetCount]), so a session where the user skipped
+  /// several sets and completed none — nothing actually performed, no logged
+  /// volume — is genuinely empty by the same standard as one nothing was
+  /// touched on at all. A skip that also left a draft still isn't "empty"
+  /// either way, since [LiveSession.hasDraftActuals] already excludes
+  /// skipped sets from counting as a draft.
   void _onLeave() {
     if (_busy) return;
     _saveDraft();
@@ -852,11 +955,43 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       ],
       done: StaggeredReveal(
         index: 4,
-        child: PillButton(
-          label: 'Done',
-          icon: Icons.check_rounded,
-          enabled: true,
-          onTap: _onSetDone,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Only offered once there's something to walk back to — no dead
+            // control on the very first set of a fresh session.
+            if (_session.previousResolvedSet != null) ...[
+              _BackControl(onTap: _onBack),
+              const SizedBox(height: AppSpacing.s),
+            ],
+            Row(
+              children: [
+                // Deliberately smaller and visually muted next to Done — Skip
+                // is the exception path, Done is the expected one; an
+                // accidental tap should default toward the common case.
+                Expanded(
+                  child: PillButton(
+                    label: 'Skip',
+                    icon: Icons.skip_next_rounded,
+                    color: AppColors.surfaceRaised,
+                    textColor: AppColors.ink2,
+                    enabled: true,
+                    onTap: _onSetSkip,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.s),
+                Expanded(
+                  flex: 2,
+                  child: PillButton(
+                    label: 'Done',
+                    icon: Icons.check_rounded,
+                    enabled: true,
+                    onTap: _onSetDone,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1439,6 +1574,37 @@ class _RestAdjustButton extends StatelessWidget {
           child: Text(
             label,
             style: AppText.button.copyWith(fontSize: 15, color: AppColors.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The "walk back one set" control shown above Skip/Done once there's
+/// something to walk back to (see [LiveSession.previousResolvedSet]).
+/// Deliberately smaller and quieter than either — a rarely-needed recovery
+/// action, not a step in the normal flow — so it never competes with Done.
+class _BackControl extends StatelessWidget {
+  const _BackControl({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_back_rounded, size: 15, color: AppColors.ink3),
+              const SizedBox(width: 6),
+              Text('Back', style: AppText.meta.copyWith(color: AppColors.ink3)),
+            ],
           ),
         ),
       ),

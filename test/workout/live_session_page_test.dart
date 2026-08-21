@@ -279,6 +279,23 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+/// Dismisses the Undo snackbar (shown after every Done/Skip) and lets its
+/// exit animation finish — otherwise it sits over the next phase's bottom
+/// action button for its multi-second duration, exactly like it would for a
+/// real user who taps through it rather than waiting or tapping Undo. Only
+/// needed by tests that chain another tap onto the bottom action area right
+/// after a Done/Skip; everything else is unaffected by the snackbar existing.
+Future<void> _dismissUndoSnackbar(WidgetTester tester) async {
+  final messengers = find.byType(ScaffoldMessenger);
+  if (messengers.evaluate().isEmpty) return;
+  tester.state<ScaffoldMessengerState>(messengers.first).clearSnackBars();
+  // Empirically needs several discrete pumps, not one big time jump, to
+  // actually clear the SnackBar's hit-testable overlay entry.
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+}
+
 /// Taps 'go' and settles, then skips the pre-workout warm-up phase if it's
 /// showing — a genuinely fresh (non-resume, nothing-done) session always
 /// opens on it now, so every test below that isn't specifically about
@@ -377,6 +394,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
+      await _dismissUndoSnackbar(tester);
       expect(find.text('Skip rest'), findsOneWidget);
       expect(restWholeSeconds(tester), closeTo(90, 1));
       expect(find.text('REST'), findsOneWidget);
@@ -407,6 +425,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
+      await _dismissUndoSnackbar(tester);
       expect(find.text('Finish'), findsOneWidget);
       expect(find.textContaining('2 of 2 sets'), findsOneWidget);
 
@@ -548,6 +567,221 @@ void main() {
     expect(sessions.current, isEmpty);
   });
 
+  testWidgets(
+    'closing (X) after skipping every set (nothing completed) is ALSO a silent discard — '
+    'a deliberate call, not an accident of the guard: skips carry no logged volume',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // Bench has 2 sets — skip both, completing nothing.
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Skip'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Skip'));
+      await _settle(tester);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('go'), findsOneWidget); // popped
+      expect(find.text('Discard this workout?'), findsNothing);
+      expect(sessions.current, isEmpty); // discarded, same as never having started one
+    },
+  );
+
+  testWidgets('Skip shows an Undo snackbar; Undo restores the set to pending and current', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+    final skippedId = sessions.current.single.exercises.single.sets.first.id;
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Skip'));
+    await tester.pump();
+    // Let the snackbar's entrance animation finish (short of its dismiss
+    // duration) before inspecting/tapping it.
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Set skipped'), findsOneWidget);
+    expect(find.text('Undo'), findsOneWidget);
+    var afterSkip = sessions.current.single;
+    expect(afterSkip.exercises.single.sets.first.skipped, isTrue);
+    expect(afterSkip.currentSet?.id, isNot(skippedId)); // advanced to set 2
+
+    await tester.tap(find.text('Undo'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+
+    final afterUndo = sessions.current.single;
+    expect(afterUndo.exercises.single.sets.first.pending, isTrue);
+    expect(afterUndo.currentSet?.id, skippedId); // current again
+    expect(find.text('Set 1 of 2'), findsOneWidget);
+  });
+
+  testWidgets('Done shows an Undo snackbar; Undo restores the set to pending (Ziad\'s incident)', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Set done'), findsOneWidget);
+    expect(find.text('Undo'), findsOneWidget);
+    expect(sessions.current.single.completedSetCount, 1);
+
+    await tester.tap(find.text('Undo'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+
+    // Reversed, and no longer resting — back on the running screen for set 1.
+    expect(sessions.current.single.completedSetCount, 0);
+    expect(find.text('Set 1 of 2'), findsOneWidget);
+    expect(find.text('Skip rest'), findsNothing);
+  });
+
+  testWidgets('Undo reverses the LAST set of a workout, un-completing the session', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+    await tester.tap(find.text('Skip rest'));
+    await _settle(tester);
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done')); // the last set — completes the session
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Set done'), findsOneWidget);
+    expect(sessions.current.single.isComplete, isTrue);
+
+    await tester.tap(find.text('Undo'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+
+    final reopened = sessions.current.single;
+    expect(reopened.isComplete, isFalse);
+    expect(reopened.status, SessionStatus.active);
+    expect(find.text('Finish'), findsNothing);
+    expect(find.text('Set 2 of 2'), findsOneWidget); // back on the set just undone
+  });
+
+  testWidgets('the Back control walks back one set at a time and hides once nothing is resolved', (
+    tester,
+  ) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+
+    // Nothing resolved yet on set 1 — no Back control.
+    expect(find.text('Back'), findsNothing);
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+    await _dismissUndoSnackbar(tester);
+    await tester.tap(find.text('Skip rest'));
+    await _settle(tester);
+
+    // Set 1 is done — Back is offered on set 2's screen now.
+    expect(find.text('Set 2 of 2'), findsOneWidget);
+    expect(find.text('Back'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await _settle(tester);
+
+    // Back to set 1, pending again, and no longer counted as done.
+    expect(find.text('Set 1 of 2'), findsOneWidget);
+    expect(sessions.current.single.completedSetCount, 0);
+    // Nothing resolved any more — Back itself disappears.
+    expect(find.text('Back'), findsNothing);
+  });
+
   testWidgets('the rest countdown auto-advances to the next set when it reaches zero', (
     tester,
   ) async {
@@ -664,6 +898,7 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
       expect(elapsedText(tester), '0:50');
+      await _dismissUndoSnackbar(tester);
 
       // Finish the day (single-exercise, 2-set plan) → completes and freezes.
       await tester.tap(find.text('Skip rest'));
@@ -1019,12 +1254,14 @@ void main() {
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
+    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
+    await _dismissUndoSnackbar(tester);
     expect(find.text('Finish'), findsOneWidget);
 
     // Finish now pops synchronously (the write is fire-and-forget), so the
@@ -1064,12 +1301,14 @@ void main() {
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
+    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
+    await _dismissUndoSnackbar(tester);
     expect(find.text('Finish'), findsOneWidget);
 
     // `workouts.add` never resolves — if Finish awaited it, this would hang
@@ -1253,6 +1492,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
+      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
 

@@ -158,6 +158,73 @@ void main() {
     });
   });
 
+  group('previousResolvedSet', () {
+    test('null when nothing has been resolved yet', () {
+      expect(_fresh().previousResolvedSet, isNull);
+    });
+
+    test('the set immediately before the current pointer', () {
+      final s0 = _fresh();
+      final firstId = s0.exercises.first.sets.first.id;
+      final s1 = s0.markSetDone('ex1', firstId, actualWeightKg: 62.5);
+
+      final prev = s1.previousResolvedSet;
+      expect(prev, isNotNull);
+      expect(prev!.$1, 'ex1');
+      expect(prev.$2.id, firstId);
+    });
+
+    test('crosses an exercise boundary', () {
+      var s = _fresh();
+      final secondId = s.exercises.first.sets[1].id;
+      s = s.markSetDone('ex1', s.exercises.first.sets.first.id, actualWeightKg: 40);
+      s = s.markSetDone('ex1', secondId, actualWeightKg: 40);
+      // Current is now ex2's only set — previous is ex1's LAST set.
+      expect(s.currentExercise?.exerciseId, 'ex2');
+      final prev = s.previousResolvedSet;
+      expect(prev!.$1, 'ex1');
+      expect(prev.$2.id, secondId);
+    });
+
+    test('still resolves once everything is resolved (currentSet null)', () {
+      var s = _fresh();
+      for (final e in [...s.exercises]) {
+        for (final set in [...e.sets]) {
+          s = s.markSetDone(e.id, set.id);
+        }
+      }
+      expect(s.currentSet, isNull);
+      final lastExercise = s.exercises.last;
+      final prev = s.previousResolvedSet;
+      expect(prev!.$1, lastExercise.id);
+      expect(prev.$2.id, lastExercise.sets.last.id);
+    });
+  });
+
+  group('reopen', () {
+    test('undoes complete — back to active, completedAt cleared', () {
+      var s = _fresh();
+      for (final e in [...s.exercises]) {
+        for (final set in [...e.sets]) {
+          s = s.markSetDone(e.id, set.id);
+        }
+      }
+      s = s.complete(now: _t1);
+      expect(s.isComplete, isTrue);
+
+      final reopened = s.reopen();
+      expect(reopened.status, SessionStatus.active);
+      expect(reopened.completedAt, isNull);
+      // Every set's outcome survives untouched — reopen only flips status.
+      expect(reopened.completedSetCount, s.completedSetCount);
+    });
+
+    test('a no-op on a session that is not complete', () {
+      final s = _fresh();
+      expect(identical(s.reopen(), s), isTrue);
+    });
+  });
+
   group('set CRUD', () {
     test('addSet appends inheriting the last set target/weight', () {
       final s = _fresh().addSet('ex1', setId: 'new-set');

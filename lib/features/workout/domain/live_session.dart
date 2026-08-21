@@ -101,6 +101,28 @@ class LiveSession {
     return null;
   }
 
+  /// The set immediately before the current pointer, in the same
+  /// exercise-then-set order [currentSet] walks — the most recently
+  /// resolved set, and the target for the guided flow's "Back" control.
+  /// Resolution only ever advances the pointer forward (markSetDone/
+  /// markSetSkipped act on [currentSet] itself), so "immediately before
+  /// current in list order" and "most recently resolved" are the same set
+  /// as long as nothing has jumped around out of order. Null when there's
+  /// nothing before it yet (nothing resolved). Works the same once every
+  /// set is resolved and [currentSet] is null — it still finds the last one.
+  (String exerciseId, LoggedSet set)? get previousResolvedSet {
+    String? prevExerciseId;
+    LoggedSet? prev;
+    for (final e in exercises) {
+      for (final s in e.sets) {
+        if (s.pending) return prev == null ? null : (prevExerciseId!, prev);
+        prevExerciseId = e.id;
+        prev = s;
+      }
+    }
+    return prev == null ? null : (prevExerciseId!, prev);
+  }
+
   Duration get pausedAccum => Duration(milliseconds: pausedAccumMs);
 
   /// The session's final, official duration once it's [complete] — active
@@ -261,6 +283,14 @@ class LiveSession {
   LiveSession abandon({required DateTime now}) {
     if (status != SessionStatus.active) return this;
     return copyWith(status: SessionStatus.abandoned, completedAt: now);
+  }
+
+  /// Undoes [complete] — back to active, [completedAt] cleared. A no-op
+  /// unless the session is actually complete. Used to walk back an
+  /// accidental Done/Skip that turned out to be the last pending set.
+  LiveSession reopen() {
+    if (status != SessionStatus.completed) return this;
+    return copyWith(status: SessionStatus.active, completedAt: null);
   }
 
   /// Pauses the timer — a no-op if already paused or not active. Model
