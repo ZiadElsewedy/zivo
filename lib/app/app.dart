@@ -52,12 +52,15 @@ import '../features/university/data/firestore_university_repository.dart';
 import '../features/university/data/in_memory_university_repository.dart';
 import '../features/university/domain/university_repository.dart';
 import '../features/workout/data/dev_analysis_seed.dart';
+import '../features/workout/data/firestore_body_weight_repository.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
 import '../features/workout/data/firestore_workout_repository.dart';
 import '../features/workout/data/firestore_workout_session_repository.dart';
+import '../features/workout/data/in_memory_body_weight_repository.dart';
 import '../features/workout/data/in_memory_workout_plan_repository.dart';
 import '../features/workout/data/in_memory_workout_repository.dart';
 import '../features/workout/data/in_memory_workout_session_repository.dart';
+import '../features/workout/domain/body_weight_repository.dart';
 import '../features/workout/domain/workout_plan_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
 import '../features/workout/domain/workout_session_repository.dart';
@@ -89,6 +92,7 @@ class ZivoApp extends StatefulWidget {
     this.workouts,
     this.workoutPlans,
     this.workoutSessions,
+    this.bodyWeight,
     this.university,
     this.diet,
     this.ai,
@@ -107,6 +111,7 @@ class ZivoApp extends StatefulWidget {
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
+  final BodyWeightRepository? bodyWeight;
   final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
@@ -134,6 +139,8 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.workoutPlans ?? _defaultWorkoutPlans();
   late final WorkoutSessionRepository _workoutSessions =
       widget.workoutSessions ?? _defaultWorkoutSessions();
+  late final BodyWeightRepository _bodyWeight =
+      widget.bodyWeight ?? _defaultBodyWeight();
   late final UniversityRepository _university =
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -235,6 +242,10 @@ class _ZivoAppState extends State<ZivoApp> {
               : devAnalysisSeedSessions(_workoutPlans.activePlan!),
         );
 
+  BodyWeightRepository _defaultBodyWeight() => _useFirestore
+      ? FirestoreBodyWeightRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryBodyWeightRepository();
+
   UniversityRepository _defaultUniversity() => _useFirestore
       ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryUniversityRepository();
@@ -260,6 +271,7 @@ class _ZivoAppState extends State<ZivoApp> {
       workouts: _workouts,
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
+      bodyWeight: _bodyWeight,
       university: _university,
       diet: _diet,
       ai: _ai,

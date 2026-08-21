@@ -14,7 +14,7 @@ import '../../notes/presentation/pages/notes_list_page.dart';
 import '../../schedule/presentation/pages/schedule_list_page.dart';
 import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../university/presentation/pages/university_list_page.dart';
-import '../../workout/presentation/pages/workout_plan_page.dart';
+import '../../workout/presentation/pages/workout_dashboard_page.dart';
 
 /// The Hub — the OS-style launcher into each module's depth. A clean two-column
 /// grid of premium module cards, each with a tinted icon chip in its module
@@ -31,7 +31,7 @@ class HubPage extends StatelessWidget {
       _Module('Tasks', AppIcons.tasks, AppColors.pulse, AppColors.pulseWash,
           (c) => const TaskListPage()),
       _Module('Workout', AppIcons.workout, AppColors.pulse, AppColors.pulseWash,
-          (c) => const WorkoutPlanPage()),
+          (c) => const WorkoutDashboardPage()),
       _Module('Diet', AppIcons.diet, AppColors.solar, AppColors.solarWash,
           (c) => const DietPlanPage()),
       _Module('Expenses', AppIcons.expenses, AppColors.solar, AppColors.solarWash,
@@ -46,28 +46,37 @@ class HubPage extends StatelessWidget {
 
     return Container(
       color: AppColors.ground,
-      child: ListView(
+      // A fixed launcher grid, not a feed — it never scrolls (Today is the
+      // page that grows with content; this is a static "everything, one tap
+      // away" surface). Bottom clearance is the bottom nav bar's own opaque
+      // height (see `zivo_bottom_bar.dart`'s padding: 10 top + ~24 icon +
+      // ~5 gap + ~13 label) on top of the device's own safe-area inset,
+      // since `HomeShell`'s `extendBody: true` draws this page behind it.
+      child: Padding(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.screen,
           media.padding.top + 20,
           AppSpacing.screen,
-          media.padding.bottom + 120,
+          media.padding.bottom + 64,
         ),
-        children: [
-          Text('Hub', style: AppText.greeting),
-          const SizedBox(height: 4),
-          Text('Everything, one tap away.', style: AppText.aside),
-          const SizedBox(height: 26),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 1.32,
-            children: [for (final m in modules) _ModuleTile(m)],
-          ),
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Hub', style: AppText.greeting),
+            const SizedBox(height: 4),
+            Text('Everything, one tap away.', style: AppText.aside),
+            const SizedBox(height: 26),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 1.32,
+              children: [for (final m in modules) _ModuleTile(m)],
+            ),
+          ],
+        ),
       ),
     );
   }

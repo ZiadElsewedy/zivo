@@ -27,6 +27,7 @@ import '../../domain/set_type.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
+import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_session_repository.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
@@ -514,6 +515,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (remaining == null) return;
     if (remaining <= Duration.zero) {
       HapticFeedback.heavyImpact();
+      // A short built-in platform chime — audible completion feedback for a
+      // countdown the user may not be looking at, without pulling in an
+      // audio-player dependency for one system sound.
+      unawaited(SystemSound.play(SystemSoundType.alert));
       _endRest();
       return;
     }
@@ -706,9 +711,26 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final plans = AppScope.of(context).workoutPlans;
     final sessions = _sessionsRepo;
     unawaited(workouts.add(_session.toWorkoutLog()));
-    unawaited(plans.savePlan(widget.plan.advanceCursor()));
+    unawaited(plans.savePlan(_currentPlan(plans).advanceCursor()));
     unawaited(sessions.saveSession(_session));
     Navigator.of(context).pop();
+  }
+
+  /// The freshest known copy of [widget.plan], looked up by id from the
+  /// repository's live split cache rather than trusting the snapshot
+  /// captured when this page was pushed. That snapshot can go stale by the
+  /// time a workout finishes — the plan may have been edited, reordered, or
+  /// re-imported mid-session — and [WorkoutPlanRepository.savePlan] writes
+  /// the WHOLE `days` array back, so advancing the cursor on a stale
+  /// snapshot would silently revert any such concurrent edit and could
+  /// desync the cursor from the plan's actual day order. Falls back to
+  /// [widget.plan] itself if it's no longer among the saved splits (e.g.
+  /// deleted mid-session).
+  WorkoutPlan _currentPlan(WorkoutPlanRepository plans) {
+    for (final split in plans.splits) {
+      if (split.id == widget.plan.id) return split;
+    }
+    return widget.plan;
   }
 
   /// LEAVE: the close (X) button and the system/edge-swipe back gesture. The

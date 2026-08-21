@@ -1403,6 +1403,61 @@ void main() {
     expect(plans.saved.single.cycleCursor, 1);
   });
 
+  testWidgets(
+    'Finish advances the cursor on the LIVE plan, not the stale snapshot the page was '
+    'pushed with (regression: a mid-session plan edit used to get silently reverted)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      await plans.savePlan(plan); // seed the repo's live copy before the push
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan, // the snapshot captured at push time
+        ),
+      );
+      await _start(tester);
+
+      // A concurrent edit lands mid-session (e.g. from the plan editor or an
+      // AI re-import in another screen) — a third day is added.
+      final editedPlan = plan.copyWith(
+        days: [
+          ...plan.days,
+          const WorkoutDay(id: 'c', slot: 'C', label: 'Legs', order: 2, exercises: []),
+        ],
+      );
+      await plans.savePlan(editedPlan);
+      plans.saved.clear(); // isolate the assertions below to Finish's own write
+
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Finish'));
+      await tester.pumpAndSettle();
+
+      expect(plans.saved, hasLength(1));
+      // The mid-session edit (the third day) survives Finish's write...
+      expect(plans.saved.single.days.map((d) => d.id), containsAll(['a', 'b', 'c']));
+      // ...and the cursor advances off the live 3-day order, not the stale 2-day one.
+      expect(plans.saved.single.cycleCursor, 1);
+    },
+  );
+
   testWidgets('Finish pops immediately without waiting for the write to complete (offline-safe)', (
     tester,
   ) async {
