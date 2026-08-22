@@ -48,13 +48,23 @@ class WorkoutHistoryPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _SessionHistoryRow(
-              session: items[i],
-              now: now,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => SessionDetailsPage(session: items[i])),
-              ),
-            ),
+            itemBuilder: (context, i) {
+              final session = items[i];
+              return Dismissible(
+                key: ValueKey(session.id),
+                direction: DismissDirection.endToStart,
+                background: const _DeleteSwipeBackground(),
+                confirmDismiss: (_) => confirmDeleteSession(context, session.dayLabel),
+                onDismissed: (_) => sessions.deleteSession(session.id),
+                child: _SessionHistoryRow(
+                  session: session,
+                  now: now,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => SessionDetailsPage(session: session)),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -170,6 +180,25 @@ class _MetaChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(label, style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12)),
       ],
+    );
+  }
+}
+
+/// The red trailing reveal shown as a session row is swiped left to delete —
+/// the confirm dialog ([confirmDeleteSession]) still gates the actual delete.
+class _DeleteSwipeBackground extends StatelessWidget {
+  const _DeleteSwipeBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: AppColors.flare.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Icon(Icons.delete_outline_rounded, color: AppColors.flare),
     );
   }
 }

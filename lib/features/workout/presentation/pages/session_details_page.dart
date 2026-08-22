@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -34,6 +35,19 @@ class SessionDetailsPage extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.ink2),
         title: Text('Session details', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        actions: [
+          IconButton(
+            tooltip: 'Delete session',
+            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.ink2),
+            onPressed: () async {
+              final repo = AppScope.of(context).workoutSessions;
+              final confirmed = await confirmDeleteSession(context, session.dayLabel);
+              if (!confirmed || !context.mounted) return;
+              await repo.deleteSession(session.id);
+              if (context.mounted) Navigator.of(context).pop();
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
@@ -52,6 +66,36 @@ class SessionDetailsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Confirms deleting a logged session — destructive and irreversible, so it
+/// always asks first. Returns true only on an explicit Delete tap. Shared by
+/// [SessionDetailsPage]'s delete action and History's swipe-to-delete so both
+/// use the exact same wording and guard.
+Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppColors.card,
+      title: Text('Delete this session?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+      content: Text(
+        'This permanently removes your "$dayLabel" session and everything '
+        "logged in it. This can't be undone.",
+        style: AppText.body.copyWith(color: AppColors.ink2),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
 }
 
 class _SessionHeroHeader extends StatelessWidget {
