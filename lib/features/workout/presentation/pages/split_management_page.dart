@@ -33,23 +33,12 @@ class SplitManagementPage extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.ink2),
         title: Text('Splits', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Import PDF',
-            icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.ink2),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
-            ),
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.pulse,
         elevation: 2,
         tooltip: 'New split',
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(asSplit: true)),
-        ),
+        onPressed: () => _openNewSplitSheet(context),
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
       body: StreamBuilder<List<WorkoutPlan>>(
@@ -85,6 +74,81 @@ class SplitManagementPage extends StatelessWidget {
 }
 
 enum _SplitAction { setActive, edit, duplicate, delete }
+
+enum _NewSplitAction { manual, importAi }
+
+Future<void> _openNewSplitSheet(BuildContext context) async {
+  final action = await showModalBottomSheet<_NewSplitAction>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => const _NewSplitActionsSheet(),
+  );
+  if (action == null || !context.mounted) return;
+  switch (action) {
+    case _NewSplitAction.manual:
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(asSplit: true)),
+      );
+    case _NewSplitAction.importAi:
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
+      );
+  }
+}
+
+/// The FAB's "new split" sheet — exactly two ways in: build it by hand, or
+/// hand a PDF to AI. Matches [_SplitActionsSheet]'s styling.
+class _NewSplitActionsSheet extends StatelessWidget {
+  const _NewSplitActionsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      padding: EdgeInsets.only(top: 12, left: 8, right: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 38,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'New split',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _ActionRow(
+            icon: Icons.edit_outlined,
+            label: 'Create Manually',
+            color: AppColors.ink2,
+            onTap: () => Navigator.of(context).pop(_NewSplitAction.manual),
+          ),
+          _ActionRow(
+            icon: Icons.auto_awesome_rounded,
+            label: 'Import with AI',
+            color: AppColors.pulse,
+            onTap: () => Navigator.of(context).pop(_NewSplitAction.importAi),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// A fresh split from [original]'s content — new id/createdAt/updatedAt, name
 /// suffixed " copy". Reuses the SAME day/exercise ids as the original: safe,

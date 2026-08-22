@@ -19,7 +19,7 @@ import 'package:zivo/features/university/data/in_memory_university_repository.da
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
-import 'package:zivo/features/workout/domain/workout_import_result.dart';
+import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -66,7 +66,7 @@ class _GatedAi implements AiRepository {
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
-  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) =>
+  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
       _inner.importWorkoutPlan(pdfBytes: pdfBytes);
 }
 

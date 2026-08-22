@@ -678,7 +678,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Set done'), findsOneWidget);
+    // No weight was typed and the plan's Bench set has no target weight —
+    // the fixed(5) target's own reps fallback still gives a real summary
+    // rather than a generic "Set done".
+    expect(find.text('5 reps logged'), findsOneWidget);
     expect(find.text('Undo'), findsOneWidget);
     expect(sessions.current.single.completedSetCount, 1);
 
@@ -691,6 +694,85 @@ void main() {
     expect(find.text('Set 1 of 2'), findsOneWidget);
     expect(find.text('Skip rest'), findsNothing);
   });
+
+  testWidgets(
+    'the Goal card shows a live intra-session delta against THIS session\'s previous set '
+    '(distinct from the cross-session "Last time" comparison)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // Set 1: no history, so no intra-session delta yet — nothing before it.
+      expect(find.byKey(const Key('intra-session-delta')), findsNothing);
+
+      await tester.enterText(find.byType(TextField).at(0), '8');
+      await tester.enterText(find.byType(TextField).at(1), '60');
+      await tester.pump();
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+
+      // Set 2: bump the weight above set 1's 60kg — the live delta should
+      // read against set 1 (this session), not any cross-session history
+      // (there is none — this is a fresh session with no past sessions).
+      await tester.enterText(find.byType(TextField).at(0), '8');
+      await tester.enterText(find.byType(TextField).at(1), '65');
+      await tester.pump();
+
+      expect(find.text('+5kg from your previous set'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Done shows what was actually logged ("80kg × 8 logged"), not a generic "Set done"',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      await tester.enterText(find.byType(TextField).at(0), '8');
+      await tester.enterText(find.byType(TextField).at(1), '80');
+      await tester.pump();
+
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('80kg × 8 logged'), findsOneWidget);
+      expect(find.text('Set done'), findsNothing);
+    },
+  );
 
   testWidgets('Undo reverses the LAST set of a workout, un-completing the session', (
     tester,
@@ -724,7 +806,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Set done'), findsOneWidget);
+    // No weight was typed and the plan's Bench set has no target weight —
+    // the fixed(5) target's own reps fallback still gives a real summary
+    // rather than a generic "Set done".
+    expect(find.text('5 reps logged'), findsOneWidget);
     expect(sessions.current.single.isComplete, isTrue);
 
     await tester.tap(find.text('Undo'));
@@ -1402,6 +1487,61 @@ void main() {
     expect(plans.saved, hasLength(1));
     expect(plans.saved.single.cycleCursor, 1);
   });
+
+  testWidgets(
+    'Finish advances the cursor on the LIVE plan, not the stale snapshot the page was '
+    'pushed with (regression: a mid-session plan edit used to get silently reverted)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      await plans.savePlan(plan); // seed the repo's live copy before the push
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan, // the snapshot captured at push time
+        ),
+      );
+      await _start(tester);
+
+      // A concurrent edit lands mid-session (e.g. from the plan editor or an
+      // AI re-import in another screen) — a third day is added.
+      final editedPlan = plan.copyWith(
+        days: [
+          ...plan.days,
+          const WorkoutDay(id: 'c', slot: 'C', label: 'Legs', order: 2, exercises: []),
+        ],
+      );
+      await plans.savePlan(editedPlan);
+      plans.saved.clear(); // isolate the assertions below to Finish's own write
+
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Skip rest'));
+      await _settle(tester);
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      await _dismissUndoSnackbar(tester);
+      await tester.tap(find.text('Finish'));
+      await tester.pumpAndSettle();
+
+      expect(plans.saved, hasLength(1));
+      // The mid-session edit (the third day) survives Finish's write...
+      expect(plans.saved.single.days.map((d) => d.id), containsAll(['a', 'b', 'c']));
+      // ...and the cursor advances off the live 3-day order, not the stale 2-day one.
+      expect(plans.saved.single.cycleCursor, 1);
+    },
+  );
 
   testWidgets('Finish pops immediately without waiting for the write to complete (offline-safe)', (
     tester,

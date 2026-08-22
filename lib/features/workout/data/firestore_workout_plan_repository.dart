@@ -36,7 +36,20 @@ import '../domain/workout_set.dart';
 /// with the parent.
 class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
   FirestoreWorkoutPlanRepository({FirebaseFirestore? firestore, required this.uidSource})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance {
+    // Start listening immediately, independent of whether any widget is
+    // currently watching — see the class doc for why. Previously this only
+    // started on the first Flutter-side subscriber and stopped when the
+    // last one cancelled (`onListen`/`onCancel` below), which let the cache
+    // go stale behind a scrolled-off-screen or torn-down widget: a workout
+    // finished while nothing was subscribed wrote to Firestore, but nobody
+    // was listening to pick up the fresh snapshot, so the next subscriber
+    // replayed the STALE cached value first (the Home/Workout-tab drift
+    // this fixes). The repository is a singleton constructed once at app
+    // root, so an unconditional listener for its lifetime costs one
+    // Firestore stream per signed-in user, not per widget.
+    _start();
+  }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
@@ -57,7 +70,6 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
 
   StreamController<WorkoutPlan?>? _planController;
   StreamController<List<WorkoutPlan>>? _splitsController;
-  int _listenerCount = 0;
   StreamSubscription<String?>? _uidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _splitsSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _pointerSub;
@@ -69,17 +81,16 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
 
   @override
   Stream<WorkoutPlan?> watchActivePlan() async* {
-    _planController ??= StreamController<WorkoutPlan?>.broadcast(
-      onListen: _onListen,
-      onCancel: _onCancel,
-    );
+    _planController ??= StreamController<WorkoutPlan?>.broadcast();
     // A broadcast stream never replays its latest value to a *late* subscriber.
     // The Today dashboard subscribes first (it stays alive in the shell's
     // IndexedStack) and consumes the initial snapshot, so the Workout page
     // opened afterwards would otherwise sit on ConnectionState.waiting forever
     // whenever there is no active plan. Replay the cached plan on subscribe so
     // every listener sees the current value immediately — matching the
-    // in-memory repo contract the pages and tests rely on.
+    // in-memory repo contract the pages and tests rely on. Because the
+    // underlying Firestore listener runs for the repository's whole
+    // lifetime (see the constructor), this cached value is never stale.
     if (_hasSnapshot) yield _activePlan;
     yield* _planController!.stream;
   }
@@ -106,10 +117,7 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
 
   @override
   Stream<List<WorkoutPlan>> watchSplits() async* {
-    _splitsController ??= StreamController<List<WorkoutPlan>>.broadcast(
-      onListen: _onListen,
-      onCancel: _onCancel,
-    );
+    _splitsController ??= StreamController<List<WorkoutPlan>>.broadcast();
     if (_hasSnapshot) yield List<WorkoutPlan>.unmodifiable(_splitDocs);
     yield* _splitsController!.stream;
   }
@@ -141,19 +149,14 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
   Future<void> _saveSplit(String uid, WorkoutPlan normalized) async {
     // Only the first split ever saved (no active split yet) becomes active;
     // saving a second split must leave the current active pointer untouched.
-    // Prefer the already-live cache — kept fresh by an ACTIVE snapshot
-    // listener, the same one `activePlan`/`activeSplitId` already trust —
-    // over a fresh full-collection read; a listener is virtually always
-    // attached once the app is open (the plan/analysis/split-management
-    // pages all watch these streams), so this avoids re-reading every
-    // split's embedded days on every single save. Gated on [_listenerCount]
-    // (not just [_hasSplitsSnapshot], which stays true even after every
-    // listener has since detached) — no *live* listener means the cache
-    // could be stale, so those calls fall back to the server read, same as
-    // before this optimization.
-    final activeBefore = _listenerCount > 0 && _hasSplitsSnapshot
-        ? _resolveActive()?.id
-        : await _activeSplitIdFromServer(uid);
+    // Prefer the already-live cache — kept fresh by the repository's
+    // always-on Firestore listener (see the constructor), the same one
+    // `activePlan`/`activeSplitId` already trust — over a fresh
+    // full-collection read; this avoids re-reading every split's embedded
+    // days on every single save. Falls back to a server read only before
+    // the very first snapshot has arrived for this uid.
+    final activeBefore =
+        _hasSplitsSnapshot ? _resolveActive()?.id : await _activeSplitIdFromServer(uid);
     await _writeSplitDoc(uid, normalized);
     if (activeBefore == null) {
       await _writePointer(uid, normalized.id);
@@ -176,32 +179,21 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
     await _writePointer(uid, remaining.docs.isEmpty ? null : remaining.docs.first.id);
   }
 
-  // --- Stream lifecycle (shared by watchActivePlan + watchSplits) ---
-
-  void _onListen() {
-    _listenerCount++;
-    if (_listenerCount == 1) _start();
-  }
-
-  void _onCancel() {
-    _listenerCount--;
-    if (_listenerCount <= 0) {
-      _listenerCount = 0;
-      _stop();
-    }
-  }
+  // --- Stream lifecycle: always-on for the repository's lifetime ---
 
   void _start() {
     _uidSub = _uidWithInitial().listen(_onUidChanged);
   }
 
-  void _stop() {
+  /// Tears down the always-on listener — not called in production (the
+  /// repository lives for the app's process lifetime), only for explicit
+  /// teardown in tests.
+  void dispose() {
     _uidSub?.cancel();
-    _uidSub = null;
     _splitsSub?.cancel();
-    _splitsSub = null;
     _pointerSub?.cancel();
-    _pointerSub = null;
+    _planController?.close();
+    _splitsController?.close();
   }
 
   Stream<String?> _uidWithInitial() async* {

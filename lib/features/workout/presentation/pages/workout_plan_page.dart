@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
+import '../../domain/up_next_selection.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
@@ -187,32 +188,45 @@ class _PlanBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sessions = AppScope.of(context).workoutSessions;
     final days = [...plan.days]..sort((a, b) => a.order.compareTo(b.order));
-    final today = plan.nextDay;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
-      children: [
-        Text(plan.name, style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
-        const SizedBox(height: 18),
-        if (today == null)
-          Text('No day up next.', style: AppText.aside.copyWith(color: AppColors.ink2))
-        else
-          _TodaySection(day: today, plan: plan),
-        const SizedBox(height: 30),
-        Text(
-          'Full cycle',
-          style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 10),
-        for (final (i, day) in days.indexed)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: StaggeredReveal(
-              index: i,
-              child: _BrowseDayCard(day: day, isNext: day.id == today?.id),
+    final nextInRotation = plan.nextDay;
+    return StreamBuilder<LiveSession?>(
+      stream: sessions.watchActiveSession(),
+      initialData: sessions.activeSession,
+      builder: (context, sessionSnapshot) {
+        // Shared with the Home page's "up next" card (see
+        // `up_next_selection.dart`) so the two surfaces can't drift apart —
+        // a session running on a different day than the rotation's `nextDay`
+        // (e.g. the plan changed mid-session) shows its own day here too.
+        final selection = resolveUpNext(plan, sessionSnapshot.data);
+        final today = selection.day;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
+          children: [
+            Text(plan.name, style: AppText.rowTitle.copyWith(color: AppColors.ink2)),
+            const SizedBox(height: 18),
+            if (today == null)
+              Text('No day up next.', style: AppText.aside.copyWith(color: AppColors.ink2))
+            else
+              _TodaySection(day: today, plan: plan, resumable: selection.resumable),
+            const SizedBox(height: 30),
+            Text(
+              'Full cycle',
+              style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
             ),
-          ),
-      ],
+            const SizedBox(height: 10),
+            for (final (i, day) in days.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: StaggeredReveal(
+                  index: i,
+                  child: _BrowseDayCard(day: day, isNext: day.id == nextInRotation?.id),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -220,15 +234,17 @@ class _PlanBody extends StatelessWidget {
 /// The prominent "up next" block: an eyebrow, the day title, its meta, and each
 /// planned exercise with its sets.
 class _TodaySection extends StatelessWidget {
-  const _TodaySection({required this.day, required this.plan});
+  const _TodaySection({required this.day, required this.plan, required this.resumable});
 
   final WorkoutDay day;
   final WorkoutPlan plan;
 
+  /// A same plan/day active session to resume into, or null to start fresh.
+  final LiveSession? resumable;
+
   @override
   Widget build(BuildContext context) {
     final exercises = [...day.exercises]..sort((a, b) => a.order.compareTo(b.order));
-    final sessions = AppScope.of(context).workoutSessions;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 420),
@@ -278,30 +294,16 @@ class _TodaySection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
             const SizedBox(height: 18),
-            StreamBuilder<LiveSession?>(
-              stream: sessions.watchActiveSession(),
-              initialData: sessions.activeSession,
-              builder: (context, snapshot) {
-                final active = snapshot.data;
-                // Only resume the session this card is actually showing — an
-                // active session for a different plan/day (however that could
-                // happen) is left alone rather than seeding the wrong exercises.
-                final resumable =
-                    active != null && active.planId == plan.id && active.dayId == day.id
-                    ? active
-                    : null;
-                return PillButton(
-                  label: resumable == null ? 'Start workout' : 'Resume workout',
-                  icon: Icons.play_arrow_rounded,
-                  color: AppColors.pulse,
-                  enabled: true,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resumable),
-                    ),
-                  ),
-                );
-              },
+            PillButton(
+              label: resumable == null ? 'Start workout' : 'Resume workout',
+              icon: Icons.play_arrow_rounded,
+              color: AppColors.pulse,
+              enabled: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resumable),
+                ),
+              ),
             ),
             const SizedBox(height: 18),
             for (final (i, exercise) in exercises.indexed)

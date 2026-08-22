@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
@@ -22,6 +23,12 @@ const _conversationId = 'local';
 /// offline; every other message gets the honest canned reply. [proposeAction]
 /// lets tests drive a proposal of any kind directly.
 class FakeAiRepository implements AiRepository {
+  FakeAiRepository({
+    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? importWorkoutPlanImpl,
+  }) : _importWorkoutPlanImpl = importWorkoutPlanImpl ?? _defaultImportWorkoutPlan;
+
+  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _importWorkoutPlanImpl;
+
   final List<AiMessage> _messages = [];
   final StreamController<List<AiMessage>> _controller =
       StreamController<List<AiMessage>>.broadcast();
@@ -169,31 +176,41 @@ class FakeAiRepository implements AiRepository {
     _controller.add(List.unmodifiable(_messages));
   }
 
-  /// A canned, deterministic extraction — offline-testable stand-in for the
-  /// real `aiImportWorkoutPlan` callable. Ignores [pdfBytes] entirely (this
+  /// Offline-testable stand-in for the real `aiImportWorkoutPlan` callable —
+  /// delegates to [_importWorkoutPlanImpl], which defaults to
+  /// [_defaultImportWorkoutPlan] (a canned success, ignoring [pdfBytes]
+  /// entirely) but can be overridden at construction to script any outcome
+  /// (accepted, rejected, or a thrown technical error) for tests that need
+  /// to exercise those paths without a live backend.
+  @override
+  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
+      _importWorkoutPlanImpl(pdfBytes);
+
+  /// A canned, deterministic extraction. Ignores [pdfBytes] entirely (this
   /// fake never actually reads a PDF); a real upload always yields the same
   /// small two-day sample so the review screen is buildable/testable without
   /// Firebase.
-  @override
-  Future<WorkoutImportResult> importWorkoutPlan({required Uint8List pdfBytes}) async {
-    return const WorkoutImportResult(
-      planName: 'Imported Split',
-      days: [
-        ImportedDay(
-          slot: 'A',
-          label: 'Push',
-          exercises: [
-            ImportedExercise(name: 'Bench Press', muscleGroup: 'Chest', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
-          ],
-        ),
-        ImportedDay(
-          slot: 'B',
-          label: 'Pull',
-          exercises: [
-            ImportedExercise(name: 'Lat Pulldown', muscleGroup: 'Back', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
-          ],
-        ),
-      ],
+  static Future<WorkoutImportOutcome> _defaultImportWorkoutPlan(Uint8List pdfBytes) async {
+    return const WorkoutImportAccepted(
+      WorkoutImportResult(
+        planName: 'Imported Split',
+        days: [
+          ImportedDay(
+            slot: 'A',
+            label: 'Push',
+            exercises: [
+              ImportedExercise(name: 'Bench Press', muscleGroup: 'Chest', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+            ],
+          ),
+          ImportedDay(
+            slot: 'B',
+            label: 'Pull',
+            exercises: [
+              ImportedExercise(name: 'Lat Pulldown', muscleGroup: 'Back', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

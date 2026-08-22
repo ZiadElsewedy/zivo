@@ -4,19 +4,20 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
-import '../../../workout/domain/live_session.dart';
-import '../../../workout/domain/workout_day.dart';
-import '../../../workout/domain/workout_plan.dart';
-import '../../../workout/presentation/pages/live_session_page.dart';
-import 'common.dart';
-import 'hue.dart';
+import '../../../home/presentation/widgets/common.dart';
+import '../../../home/presentation/widgets/hue.dart';
+import '../../domain/live_session.dart';
+import '../../domain/workout_day.dart';
+import '../../domain/workout_plan.dart';
+import '../pages/live_session_page.dart';
 import 'workout_start_sheet.dart';
 
-/// The Today page's Training card — the day due next in the active plan's
+/// The "up next" training card — the day due next in the active plan's
 /// rotation, in the app's pulse (green/training) hue, with a prominent
 /// Start/Resume CTA that (after a confirming dark sheet, guarding against an
-/// accidental tap) drops straight into [LiveSessionPage], skipping
-/// Hub → Workout entirely.
+/// accidental tap) drops straight into [LiveSessionPage]. Shared by the Today
+/// page's Training card and the Workout Dashboard's "Today" section — the
+/// exact second use this widget was originally factored out for.
 ///
 /// Always carries a slow, continuous drifting pulse wash (see
 /// [AliveColorDrift]) as a visibly-moving premium ambient effect, and

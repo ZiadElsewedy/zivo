@@ -14,6 +14,7 @@ import '../../features/notes/domain/note_repository.dart';
 import '../../features/schedule/domain/schedule_repository.dart';
 import '../../features/tasks/domain/task_repository.dart';
 import '../../features/university/domain/university_repository.dart';
+import '../../features/workout/domain/body_weight_repository.dart';
 import '../../features/workout/domain/workout_plan_repository.dart';
 import '../../features/workout/domain/workout_repository.dart';
 import '../../features/workout/domain/workout_session_repository.dart';
@@ -36,6 +37,7 @@ class AppScope extends InheritedWidget {
     required this.workouts,
     required this.workoutPlans,
     required this.workoutSessions,
+    this.bodyWeight,
     required this.university,
     required this.diet,
     required this.ai,
@@ -67,6 +69,14 @@ class AppScope extends InheritedWidget {
   final WorkoutRepository workouts;
   final WorkoutPlanRepository workoutPlans;
   final WorkoutSessionRepository workoutSessions;
+
+  /// Logged bodyweight entries — the Workout Dashboard's weight-over-time
+  /// track, independent of any single training session.
+  ///
+  /// Optional so the many widget tests that don't exercise the dashboard can
+  /// keep constructing a scope without it; production and dashboard tests
+  /// always provide one. Read it through [requireBodyWeight].
+  final BodyWeightRepository? bodyWeight;
   final UniversityRepository university;
   final DietRepository diet;
 
@@ -114,6 +124,13 @@ class AppScope extends InheritedWidget {
     categories: requireCategories,
   );
 
+  /// The bodyweight repository, asserting it was provided. Use from the
+  /// Workout Dashboard — production always wires it.
+  BodyWeightRepository get requireBodyWeight {
+    assert(bodyWeight != null, 'AppScope.bodyWeight was not provided to this scope');
+    return bodyWeight!;
+  }
+
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
     assert(scope != null, 'AppScope not found in the widget tree');
@@ -134,6 +151,7 @@ class AppScope extends InheritedWidget {
       workouts != oldWidget.workouts ||
       workoutPlans != oldWidget.workoutPlans ||
       workoutSessions != oldWidget.workoutSessions ||
+      bodyWeight != oldWidget.bodyWeight ||
       university != oldWidget.university ||
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||

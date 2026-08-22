@@ -13,12 +13,13 @@ import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
 import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
 import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
-import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
-import 'package:zivo/features/workout/domain/exercise.dart';
-import 'package:zivo/features/workout/domain/workout.dart';
-import 'package:zivo/features/workout/domain/workout_repository.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_capture_page.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/live_session.dart';
+import 'package:zivo/features/workout/domain/session_exercise.dart';
+import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/workout_session_repository.dart';
+import 'package:zivo/features/workout/presentation/pages/session_details_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_history_page.dart';
 
 import 'support/fake_auth_repository.dart';
@@ -26,34 +27,33 @@ import 'support/fake_profile_repository.dart';
 
 /// A repository whose stream only emits when [emit] is called, so tests can
 /// assert on the in-between "waiting" state deterministically.
-class _PendingWorkoutRepository implements WorkoutRepository {
-  final StreamController<List<Workout>> _controller =
-      StreamController<List<Workout>>.broadcast();
+class _PendingSessionRepository implements WorkoutSessionRepository {
+  final StreamController<List<LiveSession>> _controller = StreamController<List<LiveSession>>.broadcast();
 
   @override
-  List<Workout> get current => const [];
+  List<LiveSession> get current => const [];
 
   @override
-  Stream<List<Workout>> watchAll() => _controller.stream;
+  Stream<List<LiveSession>> watchAll() => _controller.stream;
 
   @override
-  Future<void> add(Workout workout) async {}
+  LiveSession? get activeSession => null;
 
   @override
-  Future<void> update(Workout workout) async {}
+  Stream<LiveSession?> watchActiveSession() => const Stream.empty();
 
   @override
-  Future<void> remove(String id) async {}
+  Future<void> saveSession(LiveSession session) async {}
 
-  void emit(List<Workout> workouts) => _controller.add(workouts);
+  @override
+  Future<void> deleteSession(String id) async {}
+
+  void emit(List<LiveSession> sessions) => _controller.add(sessions);
 
   void dispose() => _controller.close();
 }
 
-Widget _wrap({
-  required Widget child,
-  required WorkoutRepository workoutsOverride,
-}) {
+Widget _wrap({required Widget child, required WorkoutSessionRepository sessionsOverride}) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
@@ -62,9 +62,9 @@ Widget _wrap({
     schedule: InMemoryScheduleRepository(),
     notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
-    workouts: workoutsOverride,
+    workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
-    workoutSessions: InMemoryWorkoutSessionRepository(),
+    workoutSessions: sessionsOverride,
     university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
@@ -72,121 +72,109 @@ Widget _wrap({
   );
 }
 
-void main() {
-  testWidgets('Workout history renders logged sessions from the repository', (
-    tester,
-  ) async {
-    final workouts = InMemoryWorkoutRepository();
-    addTearDown(workouts.dispose);
+LiveSession _session({
+  required String id,
+  required String dayLabel,
+  DateTime? startedAt,
+  Duration duration = const Duration(minutes: 50),
+  SessionStatus status = SessionStatus.completed,
+  List<SessionExercise> exercises = const [],
+}) {
+  final start = startedAt ?? DateTime(2026, 3, 1, 6);
+  return LiveSession(
+    id: id,
+    planId: 'p1',
+    dayId: 'day-a',
+    dayLabel: dayLabel,
+    startedAt: start,
+    completedAt: status == SessionStatus.active ? null : start.add(duration),
+    status: status,
+    exercises: exercises,
+  );
+}
 
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
+void main() {
+  testWidgets('renders logged sessions from the repository, richest fields first', (tester) async {
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        _session(
+          id: 's1',
+          dayLabel: 'Push',
+          exercises: const [
+            SessionExercise(id: 'e1', exerciseId: 'e1', name: 'Bench', restSeconds: 90, sets: []),
+          ],
+        ),
+      ],
     );
+
+    await tester.pumpWidget(_wrap(child: const WorkoutHistoryPage(), sessionsOverride: sessions));
     await tester.pump();
 
-    // Seeded session and its computed meta line render.
     expect(find.text('Push'), findsOneWidget);
-    expect(find.text('4 exercises · ~50 min'), findsOneWidget);
+    expect(find.text('Completed'), findsOneWidget);
+    expect(find.text('50m'), findsOneWidget);
+    expect(find.text('1 exercise'), findsOneWidget);
 
-    // A newly logged workout appears at the top reactively.
-    await workouts.add(
-      Workout(
-        id: 'new',
-        title: 'Legs',
-        performedAt: DateTime.now(),
-        exercises: const [Exercise(name: 'Squat', sets: 5, reps: 5)],
-      ),
-    );
+    // A newly logged session appears at the top reactively.
+    await sessions.saveSession(_session(id: 'new', dayLabel: 'Legs', startedAt: DateTime(2026, 3, 2, 6)));
     await tester.pump();
 
     expect(find.text('Legs'), findsOneWidget);
   });
 
-  testWidgets('shows a spinner while the stream is waiting, then the list', (
-    tester,
-  ) async {
-    final workouts = _PendingWorkoutRepository();
-    addTearDown(workouts.dispose);
+  testWidgets('shows a spinner while the stream is waiting, then the list', (tester) async {
+    final sessions = _PendingSessionRepository();
+    addTearDown(sessions.dispose);
 
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
-    );
+    await tester.pumpWidget(_wrap(child: const WorkoutHistoryPage(), sessionsOverride: sessions));
 
     expect(find.byType(Lottie), findsOneWidget);
-    expect(find.text('No workouts yet.'), findsNothing);
+    expect(find.text('No sessions logged yet.'), findsNothing);
 
-    workouts.emit([
-      Workout(
-        id: 'w1',
-        title: 'Push',
-        performedAt: DateTime.now(),
-        exercises: const [Exercise(name: 'Bench', sets: 3, reps: 10)],
-      ),
-    ]);
+    sessions.emit([_session(id: 's1', dayLabel: 'Push')]);
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
     expect(find.text('Push'), findsOneWidget);
   });
 
-  testWidgets('shows the empty state once the stream settles with no data', (
-    tester,
-  ) async {
-    final workouts = _PendingWorkoutRepository();
-    addTearDown(workouts.dispose);
+  testWidgets('shows the empty state once the stream settles with no data', (tester) async {
+    final sessions = _PendingSessionRepository();
+    addTearDown(sessions.dispose);
 
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
-    );
+    await tester.pumpWidget(_wrap(child: const WorkoutHistoryPage(), sessionsOverride: sessions));
 
-    workouts.emit(const []);
+    sessions.emit(const []);
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('No workouts yet.'), findsOneWidget);
+    expect(find.text('No sessions logged yet.'), findsOneWidget);
   });
 
-  testWidgets('tapping a card opens it for editing, prefilled', (
-    tester,
-  ) async {
-    final workouts = InMemoryWorkoutRepository();
-    addTearDown(workouts.dispose);
+  testWidgets('tapping a row opens SessionDetailsPage for that session', (tester) async {
+    final sessions = InMemoryWorkoutSessionRepository(seed: [_session(id: 's1', dayLabel: 'Push')]);
 
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
-    );
+    await tester.pumpWidget(_wrap(child: const WorkoutHistoryPage(), sessionsOverride: sessions));
     await tester.pump();
 
     await tester.tap(find.text('Push'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(WorkoutCapturePage), findsOneWidget);
-    expect(find.text('Edit workout'), findsOneWidget);
-    expect(find.text('Push'), findsOneWidget);
+    expect(find.byType(SessionDetailsPage), findsOneWidget);
+    expect(find.text('Session details'), findsOneWidget);
   });
 
-  testWidgets('swiping a card deletes it via the repository', (tester) async {
-    final workouts = InMemoryWorkoutRepository();
-    addTearDown(workouts.dispose);
-    await workouts.add(
-      Workout(
-        id: 'to-delete',
-        title: 'Legs',
-        performedAt: DateTime.now(),
-        exercises: const [Exercise(name: 'Squat', sets: 5, reps: 5)],
-      ),
+  testWidgets('an in-progress session shows "In progress" status, not "Completed"', (tester) async {
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        _session(id: 's1', dayLabel: 'Pull', status: SessionStatus.active, startedAt: DateTime.now()),
+      ],
     );
 
-    await tester.pumpWidget(
-      _wrap(child: const WorkoutHistoryPage(), workoutsOverride: workouts),
-    );
+    await tester.pumpWidget(_wrap(child: const WorkoutHistoryPage(), sessionsOverride: sessions));
     await tester.pump();
 
-    expect(workouts.current.any((w) => w.id == 'to-delete'), isTrue);
-
-    await tester.drag(find.text('Legs'), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-
-    expect(workouts.current.any((w) => w.id == 'to-delete'), isFalse);
+    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Completed'), findsNothing);
   });
 }

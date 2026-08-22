@@ -24,7 +24,14 @@ import '../domain/workout_session_repository.dart';
 /// [UidSource] rather than holding a `uid` of its own.
 class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
   FirestoreWorkoutSessionRepository({FirebaseFirestore? firestore, required this.uidSource})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance {
+    // Start listening immediately, independent of whether any widget is
+    // currently watching — see FirestoreWorkoutPlanRepository's constructor
+    // doc for the full rationale (this repo had the matching bug: finishing
+    // a session while nothing was subscribed left the cache stale for the
+    // next subscriber to replay).
+    _start();
+  }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
@@ -40,13 +47,12 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
 
   @override
   Stream<List<LiveSession>> watchAll() async* {
-    _controller ??= StreamController<List<LiveSession>>.broadcast(
-      onListen: _start,
-      onCancel: _stop,
-    );
+    _controller ??= StreamController<List<LiveSession>>.broadcast();
     // A broadcast stream never replays its latest value to a *late*
     // subscriber — replay the cached list on subscribe so every listener
     // sees the current value immediately, matching the in-memory contract.
+    // Because the underlying Firestore listener runs for the repository's
+    // whole lifetime (see the constructor), this cached value is never stale.
     if (_hasSnapshot) yield _sessions;
     yield* _controller!.stream;
   }
@@ -68,11 +74,13 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     _uidSub = _uidWithInitial().listen(_onUidChanged);
   }
 
-  void _stop() {
+  /// Tears down the always-on listener — not called in production (the
+  /// repository lives for the app's process lifetime), only for explicit
+  /// teardown in tests.
+  void dispose() {
     _uidSub?.cancel();
-    _uidSub = null;
     _querySub?.cancel();
-    _querySub = null;
+    _controller?.close();
   }
 
   Stream<String?> _uidWithInitial() async* {

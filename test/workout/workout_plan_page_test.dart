@@ -275,9 +275,9 @@ void main() {
     await tester.tap(find.byTooltip('History'));
     await tester.pumpAndSettle();
 
-    // The history page ("what I did") opens — its "Log workout" FAB is unique to
-    // it and absent from the read-only plan view.
-    expect(find.byTooltip('Log workout'), findsOneWidget);
+    // The history page ("what I did") opens — its own AppBar title is
+    // unique to it and absent from the read-only plan view.
+    expect(find.text('History'), findsOneWidget);
   });
 
   testWidgets(
@@ -326,6 +326,48 @@ void main() {
       final page = tester.widget<LiveSessionPage>(find.byType(LiveSessionPage));
       expect(page.resume?.id, 'active1');
       expect(sessions.current, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'shows Resume for the active session\'s own day even when it differs from the '
+    'rotation\'s next-due day (regression: Home and Workout tab used to drift apart here)',
+    (tester) async {
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      // Cursor still on Day A (order 0), but the running session is on Day C —
+      // e.g. the plan was reordered/edited after this session started.
+      final plan = _compactPlan();
+      await plans.savePlan(plan);
+
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(
+        LiveSession(
+          id: 'active-on-c',
+          planId: plan.id,
+          dayId: 'c',
+          dayLabel: 'Legs',
+          startedAt: DateTime(2026, 1, 1),
+          status: SessionStatus.active,
+          exercises: const [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(child: const WorkoutPlanPage(), plansOverride: plans, sessionsOverride: sessions),
+      );
+      await tester.pump();
+
+      // The prominent card mirrors the running session's actual day...
+      expect(find.text('Day C · Legs'), findsWidgets); // today header + browse card
+      expect(find.text('Resume workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsNothing);
+
+      // ...while the rotation's own "Next up" badge still marks Day A in the
+      // browse list below, since the cursor itself hasn't moved.
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
+      expect(find.text('Next up'), findsOneWidget);
     },
   );
 

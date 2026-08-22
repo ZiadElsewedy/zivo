@@ -19,7 +19,7 @@ import '../../../schedule/domain/schedule_repository.dart';
 import '../../../tasks/domain/task.dart';
 import '../../../university/domain/university_item.dart';
 import '../../../workout/domain/live_session.dart';
-import '../../../workout/domain/workout_day.dart';
+import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../focus_builder.dart';
 import '../header_builder.dart';
@@ -30,7 +30,8 @@ import '../widgets/diet_glance.dart';
 import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
-import '../widgets/up_next_workout_card.dart';
+import '../../../workout/presentation/widgets/up_next_workout_card.dart';
+import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -72,22 +73,25 @@ class TodayPage extends StatelessWidget {
                     AppSpacing.screen,
                     AppSpacing.s,
                     AppSpacing.screen,
-                    media.padding.bottom + 150,
+                    ZivoBottomBarMetrics.height(context) + AppSpacing.base,
                   ),
                   children: [
                     const RiseIn(delay: Duration.zero, child: _Header()),
+                    // Primary tier — the two time-relevant things, full-weight cards.
                     const RiseIn(
                       delay: Duration(milliseconds: 90),
                       child: _NowNextSection(),
                     ),
                     const RiseIn(
                       delay: Duration(milliseconds: 170),
-                      child: _FocusSection(),
-                    ), // live tasks merged with live university items
-                    const RiseIn(
-                      delay: Duration(milliseconds: 250),
                       child: _TrainingSection(),
                     ),
+                    // Secondary tier — today's tasks, neutral rows.
+                    const RiseIn(
+                      delay: Duration(milliseconds: 250),
+                      child: _FocusSection(),
+                    ), // live tasks merged with live university items
+                    // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                     const RiseIn(
                       delay: Duration(milliseconds: 330),
                       child: _SpendingSection(),
@@ -373,6 +377,8 @@ class _FocusSection extends StatelessWidget {
                   universitySnapshot.data ?? const <UniversityItem>[],
               now: DateTime.now(),
             );
+            // Secondary tier: silently hides when empty, unlike Now·Next and
+            // Training (primary tier, which may show a gentle empty state).
             if (items.isEmpty) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,10 +397,10 @@ class _FocusSection extends StatelessWidget {
   }
 }
 
-/// Always shows the active plan's up-next day — the SAME source
-/// (`watchActivePlan()` → `plan.nextDay`) the Workout tab's own page reads,
-/// so the two surfaces can't drift apart. Deliberately does NOT branch on
-/// whatever's been logged today (`todaysWorkout`) — that used to show a
+/// Always shows the active plan's up-next day, resolved by the SAME
+/// `resolveUpNext` (see `up_next_selection.dart`) the Workout tab's own page
+/// reads, so the two surfaces can't drift apart. Deliberately does NOT branch
+/// on whatever's been logged today (`todaysWorkout`) — that used to show a
 /// second, different card once anything was logged, which put Home and the
 /// Workout page out of sync (owner-reported, root-caused, fixed). The full
 /// history of what was actually done stays reachable via Workout History.
@@ -449,44 +455,25 @@ class _TrainingUpNext extends StatelessWidget {
           stream: scope.workoutSessions.watchActiveSession(),
           initialData: scope.workoutSessions.activeSession,
           builder: (context, sessionSnapshot) {
-            final active = sessionSnapshot.data;
-            // A session in progress for this plan wins: show its own day so the
-            // card mirrors what's actually running (Home stayed on `nextDay`
-            // before, so a session on any other day read as "not active"). The
-            // day must still exist in the plan — a session whose day was edited
-            // away falls back to the next-due day rather than showing nothing.
-            final activeForPlan =
-                active != null && active.planId == plan.id ? active : null;
-            final sessionDay = activeForPlan == null
-                ? null
-                : _dayById(plan, activeForPlan.dayId);
-            final day = sessionDay ?? plan.nextDay;
+            // Shared with the Workout tab's own "up next" card (see
+            // `up_next_selection.dart`) so the two surfaces can't drift apart.
+            final selection = resolveUpNext(plan, sessionSnapshot.data);
+            final day = selection.day;
             if (day == null) {
               return const _EmptyLine(
                 'No training logged yet today.',
                 icon: Icons.fitness_center_rounded,
               );
             }
-            // Resume only when the card is actually showing the running
-            // session's day; otherwise it's a fresh Start on the next-due day.
             return UpNextWorkoutCard(
               plan: plan,
               day: day,
-              resumable: sessionDay == null ? null : activeForPlan,
+              resumable: selection.resumable,
             );
           },
         );
       },
     );
-  }
-
-  /// The plan's day with [dayId], or null if none matches (e.g. it was edited
-  /// out from under a still-active session).
-  static WorkoutDay? _dayById(WorkoutPlan plan, String dayId) {
-    for (final day in plan.days) {
-      if (day.id == dayId) return day;
-    }
-    return null;
   }
 }
 
@@ -549,6 +536,7 @@ class _DietSection extends StatelessWidget {
         final plan = planSnapshot.data;
         final now = DateTime.now();
         final day = dayForDate(plan, now);
+        // Tertiary tier: silently hides when empty, same rule as Focus above.
         if (day == null) return const SizedBox.shrink();
         return StreamBuilder<Set<String>>(
           stream: diet.watchConsumed(now),

@@ -27,6 +27,7 @@ import '../../domain/set_type.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
+import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_session_repository.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
@@ -353,6 +354,20 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     return workingHistory[index];
   }
 
+  /// The most recently COMPLETED set before [set] within [exercise], THIS
+  /// session — distinct from [_previousSetFor], which reaches back to a
+  /// past session. Null for the exercise's first set, or when nothing
+  /// before it has been completed yet (a skip doesn't count: it carries no
+  /// actuals to compare against).
+  LoggedSet? _previousSetInSession(SessionExercise exercise, LoggedSet set) {
+    LoggedSet? prev;
+    for (final s in exercise.sets) {
+      if (s.id == set.id) break;
+      if (s.done) prev = s;
+    }
+    return prev;
+  }
+
   // ---- Transitions -----------------------------------------------------------
 
   void _onSetDone() {
@@ -370,7 +385,32 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         actualWeightKg: weight,
       );
     });
-    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set done');
+    // What actually got logged, not a generic "Set done" — the same
+    // formatting the end-of-workout review uses, so the confirmation and
+    // the review agree on exactly what was recorded.
+    final resolved = _setById(exercise.id, set.id);
+    final undoMessage = resolved == null ? 'Set logged' : _doneSnackbarSummary(resolved);
+    _afterResolvingCurrentSet(
+      exercise.id,
+      set.id,
+      exercise.restSeconds,
+      undoMessage: undoMessage,
+      undoIcon: Icons.check_circle_rounded,
+      undoIconColor: AppColors.pulse,
+    );
+  }
+
+  /// Looks up a set's current (post-resolution) state by id — used right
+  /// after [LiveSession.markSetDone] to read back the actuals it settled on
+  /// (typed value, or the fixed-target fallback) for the Undo snackbar.
+  LoggedSet? _setById(String exerciseId, String setId) {
+    for (final e in _session.exercises) {
+      if (e.id != exerciseId) continue;
+      for (final s in e.sets) {
+        if (s.id == setId) return s;
+      }
+    }
+    return null;
   }
 
   /// The Skip affordance — advances past the current set exactly like Done,
@@ -386,7 +426,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     setState(() {
       _session = _session.markSetSkipped(exercise.id, set.id);
     });
-    _afterResolvingCurrentSet(exercise.id, set.id, exercise.restSeconds, undoMessage: 'Set skipped');
+    _afterResolvingCurrentSet(
+      exercise.id,
+      set.id,
+      exercise.restSeconds,
+      undoMessage: 'Set skipped',
+      undoIcon: Icons.remove_circle_outline_rounded,
+      undoIconColor: AppColors.ink3,
+    );
   }
 
   /// Shared tail for [_onSetDone]/[_onSetSkip]: completes the session if
@@ -400,6 +447,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     String setId,
     int restSeconds, {
     required String undoMessage,
+    required IconData undoIcon,
+    required Color undoIconColor,
   }) {
     setState(() {
       if (_session.currentSet == null) {
@@ -423,13 +472,22 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       // sheet), it just no longer overrides the plan at session time.
       _startRest(restSeconds);
     }
-    _showUndoSnackbar(undoMessage, exerciseId, setId);
+    _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
   }
 
   /// Offers a brief window to reverse the Done/Skip that was just tapped.
   /// Fires on BOTH outcomes, not just skip — an accidental advance can just
-  /// as easily be a wrong Done (Ziad's actual incident) as a wrong Skip.
-  void _showUndoSnackbar(String message, String exerciseId, String setId) {
+  /// as easily be a wrong Done (Ziad's actual incident) as a wrong Skip. The
+  /// leading icon mirrors the same done/skipped language `_SetChip` and the
+  /// end-of-workout review already use, so the confirmation reads as the
+  /// same system rather than a generic system snackbar.
+  void _showUndoSnackbar(
+    String message,
+    String exerciseId,
+    String setId, {
+    required IconData icon,
+    required Color iconColor,
+  }) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -437,7 +495,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.surfaceRaised,
-          content: Text(message, style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
+          content: Row(
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(message, style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
+              ),
+            ],
+          ),
           action: SnackBarAction(
             label: 'Undo',
             textColor: AppColors.pulse,
@@ -514,6 +580,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (remaining == null) return;
     if (remaining <= Duration.zero) {
       HapticFeedback.heavyImpact();
+      // A short built-in platform chime — audible completion feedback for a
+      // countdown the user may not be looking at, without pulling in an
+      // audio-player dependency for one system sound.
+      unawaited(SystemSound.play(SystemSoundType.alert));
       _endRest();
       return;
     }
@@ -706,9 +776,26 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final plans = AppScope.of(context).workoutPlans;
     final sessions = _sessionsRepo;
     unawaited(workouts.add(_session.toWorkoutLog()));
-    unawaited(plans.savePlan(widget.plan.advanceCursor()));
+    unawaited(plans.savePlan(_currentPlan(plans).advanceCursor()));
     unawaited(sessions.saveSession(_session));
     Navigator.of(context).pop();
+  }
+
+  /// The freshest known copy of [widget.plan], looked up by id from the
+  /// repository's live split cache rather than trusting the snapshot
+  /// captured when this page was pushed. That snapshot can go stale by the
+  /// time a workout finishes — the plan may have been edited, reordered, or
+  /// re-imported mid-session — and [WorkoutPlanRepository.savePlan] writes
+  /// the WHOLE `days` array back, so advancing the cursor on a stale
+  /// snapshot would silently revert any such concurrent edit and could
+  /// desync the cursor from the plan's actual day order. Falls back to
+  /// [widget.plan] itself if it's no longer among the saved splits (e.g.
+  /// deleted mid-session).
+  WorkoutPlan _currentPlan(WorkoutPlanRepository plans) {
+    for (final split in plans.splits) {
+      if (split.id == widget.plan.id) return split;
+    }
+    return widget.plan;
   }
 
   /// LEAVE: the close (X) button and the system/edge-swipe back gesture. The
@@ -897,6 +984,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       actualReps: int.tryParse(_reps.text.trim()),
       actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
     );
+    final intraSessionDelta = _intraSessionDeltaLabel(
+      previous: _previousSetInSession(exercise, set),
+      actualReps: int.tryParse(_reps.text.trim()),
+      actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
+    );
     // Working-only position — warm-up ramp steps (if any) sit before this
     // in `exercise.sets` but aren't part of the numbered working sequence.
     final workingSetCount = exercise.sets.where((s) => s.type == SetType.working).length;
@@ -936,6 +1028,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             goal: goal,
             targetText: targetText,
             comparison: comparison,
+            intraSessionDeltaLabel: intraSessionDelta,
           ),
         ),
         const SizedBox(height: AppSpacing.l),
@@ -998,7 +1091,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             AppSpacing.l,
           ),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - AppSpacing.m - AppSpacing.l),
+            constraints: BoxConstraints(
+              minHeight: math.max(0, constraints.maxHeight - AppSpacing.m - AppSpacing.l),
+            ),
             child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1040,94 +1135,123 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// is the app's one warm-up (owner decision) — the old per-exercise ramp
   /// warm-up SETS have been retired.
   Widget _buildWarmup() {
-    return Padding(
+    // Same scroll-safe shell `_runningScaffold` uses (LayoutBuilder +
+    // SingleChildScrollView + IntrinsicHeight, `Spacer`s collapsing to 0
+    // when content doesn't fit) — this phase has no text input so a
+    // keyboard is never the trigger, but a very short device on its own
+    // could otherwise overflow a bare `Spacer`-filled Column with no
+    // fallback at all.
+    return LayoutBuilder(
       key: const ValueKey('warmup'),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 8),
-          Center(child: _Eyebrow('Pre-workout', color: AppColors.ember)),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              'Loosen up before your first set',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 44)),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 8),
+                  Center(child: _Eyebrow('Pre-workout', color: AppColors.ember)),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Loosen up before your first set',
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                    ),
+                  ),
+                  const Spacer(),
+                  Center(
+                    child: _RestRing(
+                      remaining: _warmupRemaining ?? Duration.zero,
+                      total: _warmupTotalSeconds ?? 1,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustWarmup(-15))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustWarmup(15))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  PillButton(
+                    label: 'Skip warm-up',
+                    icon: Icons.skip_next_rounded,
+                    color: AppColors.ember,
+                    enabled: true,
+                    onTap: _endWarmup,
+                  ),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
-          Center(
-            child: _RestRing(
-              remaining: _warmupRemaining ?? Duration.zero,
-              total: _warmupTotalSeconds ?? 1,
-            ),
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustWarmup(-15))),
-              const SizedBox(width: 12),
-              Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustWarmup(15))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          PillButton(
-            label: 'Skip warm-up',
-            icon: Icons.skip_next_rounded,
-            color: AppColors.ember,
-            enabled: true,
-            onTap: _endWarmup,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildResting() {
     final nextLabel = _nextUpLabel();
-    return Padding(
+    // Same scroll-safe shell as `_buildWarmup`/`_runningScaffold` — see
+    // `_buildWarmup`'s comment.
+    return LayoutBuilder(
       key: const ValueKey('resting'),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 8),
-          Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
-          // The ring is the centerpiece — split the space between the
-          // eyebrow and the bottom controls evenly around it, rather than
-          // letting it float high with all the slack dumped below "Next:".
-          const Spacer(),
-          Center(
-            child: _RestRing(
-              remaining: _restRemaining ?? Duration.zero,
-              total: _restTotalSeconds ?? 1,
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 44)),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 8),
+                  Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
+                  // The ring is the centerpiece — split the space between the
+                  // eyebrow and the bottom controls evenly around it, rather
+                  // than letting it float high with all the slack dumped
+                  // below "Next:".
+                  const Spacer(),
+                  Center(
+                    child: _RestRing(
+                      remaining: _restRemaining ?? Duration.zero,
+                      total: _restTotalSeconds ?? 1,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: Text(
+                      'Next: $nextLabel',
+                      style: AppText.rowTitle.copyWith(color: AppColors.ink2),
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustRest(-15))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustRest(15))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  PillButton(
+                    label: 'Skip rest',
+                    icon: Icons.skip_next_rounded,
+                    color: AppColors.pulse,
+                    enabled: true,
+                    onTap: _endRest,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 18),
-          Center(
-            child: Text(
-              'Next: $nextLabel',
-              style: AppText.rowTitle.copyWith(color: AppColors.ink2),
-            ),
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustRest(-15))),
-              const SizedBox(width: 12),
-              Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustRest(15))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          PillButton(
-            label: 'Skip rest',
-            icon: Icons.skip_next_rounded,
-            color: AppColors.pulse,
-            enabled: true,
-            onTap: _endRest,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1256,6 +1380,32 @@ String _formatElapsed(Duration d) {
   return '$minutes:$ss';
 }
 
+/// "+2.5kg from your previous set" / "+2 reps from your previous set" — a
+/// literal same-session delta against [previous] (the exercise's
+/// immediately-preceding COMPLETED set this session), distinct from the
+/// cross-session [SetProgressComparison] badge (which judges against last
+/// week). Weight wins when both changed — the more meaningful signal on a
+/// loaded exercise — reps only when weight didn't change or isn't tracked.
+/// Null when there's no previous set yet, or nothing actually changed.
+String? _intraSessionDeltaLabel({
+  required LoggedSet? previous,
+  required int? actualReps,
+  required double? actualWeightKg,
+}) {
+  if (previous == null) return null;
+  final prevWeight = previous.actualWeightKg;
+  if (prevWeight != null && actualWeightKg != null && actualWeightKg != prevWeight) {
+    final delta = actualWeightKg - prevWeight;
+    return '${delta > 0 ? '+' : ''}${_trimWeight(delta)}kg from your previous set';
+  }
+  final prevReps = previous.actualReps;
+  if (prevReps != null && actualReps != null && actualReps != prevReps) {
+    final delta = actualReps - prevReps;
+    return '${delta > 0 ? '+' : ''}$delta rep${delta.abs() == 1 ? '' : 's'} from your previous set';
+  }
+  return null;
+}
+
 /// "60kg × 8" — omits either half when unset; "First time" when there's no
 /// previous performance to show at all (never trained, or never logged).
 String _formatLastTime(LoggedSet? previous) {
@@ -1277,6 +1427,20 @@ String _formatSetActuals(LoggedSet set) {
     if (set.actualReps != null) '× ${set.actualReps}',
   ];
   return parts.isEmpty ? '—' : parts.join(' ');
+}
+
+/// The Undo snackbar's "what just got logged" line — reads naturally for
+/// every combination a set can actually have (weight+reps, reps-only for a
+/// bodyweight movement, or neither for a bare AMRAP tap), unlike
+/// [_formatSetActuals]'s table-cell "×"/"—" shorthand which the review list
+/// wants but a sentence doesn't.
+String _doneSnackbarSummary(LoggedSet set) {
+  final weight = set.actualWeightKg;
+  final reps = set.actualReps;
+  if (weight != null && reps != null) return '${_trimWeight(weight)}kg × $reps logged';
+  if (reps != null) return '$reps rep${reps == 1 ? '' : 's'} logged';
+  if (weight != null) return '${_trimWeight(weight)}kg logged';
+  return 'Set logged';
 }
 
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown
@@ -1679,6 +1843,7 @@ class _GoalBlock extends StatelessWidget {
     required this.goal,
     this.targetText,
     this.comparison,
+    this.intraSessionDeltaLabel,
   });
 
   final String lastTimeLabel;
@@ -1690,6 +1855,11 @@ class _GoalBlock extends StatelessWidget {
   /// yet (first time ever, or no rep count typed in), in which case no
   /// badge shows at all.
   final SetProgressComparison? comparison;
+
+  /// "+2.5kg from your previous set" — this session's own previous set in
+  /// the same exercise, distinct from [comparison]'s cross-session verdict.
+  /// Null when there's no previous set yet or nothing changed.
+  final String? intraSessionDeltaLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1735,6 +1905,21 @@ class _GoalBlock extends StatelessWidget {
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
           if (comparison != null) _ProgressVerdictBadge(comparison: comparison!),
+          if (intraSessionDeltaLabel != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.bolt_rounded, size: 13, color: AppColors.ember),
+                const SizedBox(width: 4),
+                Text(
+                  intraSessionDeltaLabel!,
+                  key: const Key('intra-session-delta'),
+                  style: AppText.meta.copyWith(color: AppColors.ember, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ],
           if (targetText != null) ...[
             const SizedBox(height: 2),
             Text(

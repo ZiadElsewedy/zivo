@@ -28,6 +28,7 @@ const {getFirestore, Timestamp} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
+const logger = require("firebase-functions/logger");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
 const {
@@ -526,13 +527,26 @@ exports.aiImportWorkoutPlan = onCall(
       }
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      // base64 runs ~4/3 the raw byte size — approximate, but enough to spot
+      // "why did this reject" patterns (e.g. a suspiciously tiny upload).
+      const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
       try {
-        return await extractWorkoutPlan({
+        const result = await extractWorkoutPlan({
           callModel: (req) => anthropic.messages.create(req),
           pdfBase64,
+          logEvent: (event) => logger.info("aiImportWorkoutPlan", {
+            approxPdfBytes,
+            ...event,
+          }),
         });
+        return result;
       } catch (err) {
+        logger.info("aiImportWorkoutPlan", {
+          approxPdfBytes,
+          stage: "error",
+          message: err && err.message,
+        });
         throw toHttpsError(err);
       }
     },
