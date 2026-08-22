@@ -8,6 +8,7 @@ import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
+import '../domain/stt_outcome.dart';
 
 /// The assistant isn't connected yet — an honest, canned reply. Never
 /// masquerades as real AI (ADR-001's client-seam-first requirement).
@@ -24,10 +25,26 @@ const _conversationId = 'local';
 /// lets tests drive a proposal of any kind directly.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
-    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? importWorkoutPlanImpl,
-  }) : _importWorkoutPlanImpl = importWorkoutPlanImpl ?? _defaultImportWorkoutPlan;
+    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)?
+    importWorkoutPlanImpl,
+    Future<SttOutcome> Function(
+      Uint8List audioBytes,
+      String mimeType,
+      String? languageHint,
+    )?
+    transcribeImpl,
+  }) : _importWorkoutPlanImpl =
+           importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
+       _transcribeImpl = transcribeImpl ?? _defaultTranscribe;
 
-  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _importWorkoutPlanImpl;
+  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)
+  _importWorkoutPlanImpl;
+  final Future<SttOutcome> Function(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  )
+  _transcribeImpl;
 
   final List<AiMessage> _messages = [];
   final StreamController<List<AiMessage>> _controller =
@@ -183,14 +200,40 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      _importWorkoutPlanImpl(pdfBytes);
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => _importWorkoutPlanImpl(pdfBytes);
+
+  /// Offline-testable stand-in for the real `aiTranscribe` callable —
+  /// delegates to [_transcribeImpl], which defaults to
+  /// [_defaultTranscribe] (a canned transcript, ignoring the audio entirely)
+  /// but can be overridden at construction to script any outcome (a
+  /// transcript or a typed failure) for tests that need to exercise those
+  /// paths without a live backend.
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => _transcribeImpl(audioBytes, mimeType, languageHint);
+
+  /// A canned, deterministic transcript. Ignores its arguments entirely
+  /// (this fake never actually transcribes audio).
+  static Future<SttOutcome> _defaultTranscribe(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  ) async {
+    return const SttTranscribed(text: "This is a placeholder transcript.");
+  }
 
   /// A canned, deterministic extraction. Ignores [pdfBytes] entirely (this
   /// fake never actually reads a PDF); a real upload always yields the same
   /// small two-day sample so the review screen is buildable/testable without
   /// Firebase.
-  static Future<WorkoutImportOutcome> _defaultImportWorkoutPlan(Uint8List pdfBytes) async {
+  static Future<WorkoutImportOutcome> _defaultImportWorkoutPlan(
+    Uint8List pdfBytes,
+  ) async {
     return const WorkoutImportAccepted(
       WorkoutImportResult(
         planName: 'Imported Split',
@@ -199,14 +242,28 @@ class FakeAiRepository implements AiRepository {
             slot: 'A',
             label: 'Push',
             exercises: [
-              ImportedExercise(name: 'Bench Press', muscleGroup: 'Chest', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+              ImportedExercise(
+                name: 'Bench Press',
+                muscleGroup: 'Chest',
+                sets: 3,
+                repsMin: 8,
+                repsMax: 12,
+                toFailure: false,
+              ),
             ],
           ),
           ImportedDay(
             slot: 'B',
             label: 'Pull',
             exercises: [
-              ImportedExercise(name: 'Lat Pulldown', muscleGroup: 'Back', sets: 3, repsMin: 8, repsMax: 12, toFailure: false),
+              ImportedExercise(
+                name: 'Lat Pulldown',
+                muscleGroup: 'Back',
+                sets: 3,
+                repsMin: 8,
+                repsMax: 12,
+                toFailure: false,
+              ),
             ],
           ),
         ],

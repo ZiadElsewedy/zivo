@@ -21,6 +21,7 @@ import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
+import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
@@ -104,6 +105,7 @@ class ZivoApp extends StatefulWidget {
     this.university,
     this.diet,
     this.ai,
+    this.recorder,
     this.media,
     this.mediaPreferences,
     super.key,
@@ -125,6 +127,7 @@ class ZivoApp extends StatefulWidget {
   final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
+  final AudioRecorderService? recorder;
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
 
@@ -158,6 +161,8 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
   late final AiRepository _ai = widget.ai ?? _defaultAi();
+  late final AudioRecorderService _recorder =
+      widget.recorder ?? RecordAudioRecorderService();
 
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
@@ -202,13 +207,13 @@ class _ZivoAppState extends State<ZivoApp> {
       : InMemoryMediaRegistry();
 
   MediaService _defaultMedia() => MediaService(
-        store: _mediaStore,
-        registry: _defaultMediaRegistry(),
-        preferences: _mediaPreferences,
-        galleryTarget: DeviceGalleryTarget(store: _mediaStore),
-        backup: _defaultBackupProvider(),
-        currentAccountId: () => _auth.currentUser?.uid,
-      );
+    store: _mediaStore,
+    registry: _defaultMediaRegistry(),
+    preferences: _mediaPreferences,
+    galleryTarget: DeviceGalleryTarget(store: _mediaStore),
+    backup: _defaultBackupProvider(),
+    currentAccountId: () => _auth.currentUser?.uid,
+  );
 
   /// Real Google Drive backup provider when running against the real backend;
   /// null in offline/dev runs (no OAuth), where cloud backup is simply absent.
@@ -298,6 +303,7 @@ class _ZivoAppState extends State<ZivoApp> {
       university: _university,
       diet: _diet,
       ai: _ai,
+      recorder: _recorder,
       media: _media,
       child: MaterialApp(
         title: 'ZIVO',

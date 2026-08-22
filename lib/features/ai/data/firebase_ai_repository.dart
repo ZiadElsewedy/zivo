@@ -13,6 +13,8 @@ import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
+import '../domain/stt_error.dart';
+import '../domain/stt_outcome.dart';
 
 /// The real [AiRepository], backed by Firestore's
 /// `users/{uid}/aiConversations` (+ nested `messages`) and the `aiChat`
@@ -36,30 +38,54 @@ class FirebaseAiRepository implements AiRepository {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
     required this.uidSource,
-    Future<void> Function(String conversationId, String message)?
-    invokeChat,
-    Future<void> Function(String conversationId, String message,
-        void Function(AiTurnEvent event) onEvent)?
+    Future<void> Function(String conversationId, String message)? invokeChat,
+    Future<void> Function(
+      String conversationId,
+      String message,
+      void Function(AiTurnEvent event) onEvent,
+    )?
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? invokeImport,
+    Future<SttOutcome> Function(
+      Uint8List audioBytes,
+      String mimeType,
+      String? languageHint,
+    )?
+    invokeTranscribe,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
        _invokeChatStream =
            invokeChatStream ?? _defaultInvokeChatStream(functions),
        _invokeAction = invokeAction ?? _defaultInvokeAction(functions),
-       _invokeImport = invokeImport ?? _defaultInvokeImport(functions);
+       _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
+       _invokeTranscribe =
+           invokeTranscribe ?? _defaultInvokeTranscribe(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
   final Future<void> Function(String conversationId, String message)
   _invokeChat;
-  final Future<void> Function(String conversationId, String message,
-      void Function(AiTurnEvent event) onEvent) _invokeChatStream;
-  final Future<void> Function(String name, String conversationId,
-      String actionId) _invokeAction;
+  final Future<void> Function(
+    String conversationId,
+    String message,
+    void Function(AiTurnEvent event) onEvent,
+  )
+  _invokeChatStream;
+  final Future<void> Function(
+    String name,
+    String conversationId,
+    String actionId,
+  )
+  _invokeAction;
   final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _invokeImport;
+  final Future<SttOutcome> Function(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  )
+  _invokeTranscribe;
 
   String? _cachedConversationId;
 
@@ -83,10 +109,12 @@ class FirebaseAiRepository implements AiRepository {
   /// [onEvent]. The terminating `Result` is ignored — the durable user and
   /// assistant messages arrive via [watchMessages], same as the buffered path.
   /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily.
-  static Future<void> Function(String conversationId, String message,
-      void Function(AiTurnEvent event) onEvent) _defaultInvokeChatStream(
-    FirebaseFunctions? functions,
-  ) {
+  static Future<void> Function(
+    String conversationId,
+    String message,
+    void Function(AiTurnEvent event) onEvent,
+  )
+  _defaultInvokeChatStream(FirebaseFunctions? functions) {
     return (conversationId, message, onEvent) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
@@ -106,8 +134,12 @@ class FirebaseAiRepository implements AiRepository {
   /// The default confirm/cancel invoker — calls `aiConfirmAction` or
   /// `aiCancelAction`. Like [_defaultInvokeChat], resolves [FirebaseFunctions]
   /// lazily so the repo builds without a live Firebase app.
-  static Future<void> Function(String name, String conversationId,
-      String actionId) _defaultInvokeAction(FirebaseFunctions? functions) {
+  static Future<void> Function(
+    String name,
+    String conversationId,
+    String actionId,
+  )
+  _defaultInvokeAction(FirebaseFunctions? functions) {
     return (name, conversationId, actionId) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
@@ -131,6 +163,40 @@ class FirebaseAiRepository implements AiRepository {
         'pdfBase64': base64Encode(pdfBytes),
       });
       return _importOutcomeFromJson(result.data);
+    };
+  }
+
+  /// The default `transcribe` invoker — calls `aiTranscribe`
+  /// (`functions/ai/speech/gateway.js`) with the audio base64-encoded. Like
+  /// [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the repo
+  /// builds without a live Firebase app. Never throws: every failure —
+  /// technical or a typed `SpeechError` from the server — maps to
+  /// [SttFailed], mirroring [_importOutcomeFromJson]'s never-throws contract
+  /// for the analogous `aiImportWorkoutPlan` seam.
+  static Future<SttOutcome> Function(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  )
+  _defaultInvokeTranscribe(FirebaseFunctions? functions) {
+    return (audioBytes, mimeType, languageHint) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      try {
+        final result = await f.httpsCallable('aiTranscribe').call({
+          'audioBase64': base64Encode(audioBytes),
+          'mimeType': mimeType,
+          'languageHint': ?languageHint,
+        });
+        return _sttOutcomeFromJson(result.data);
+      } on FirebaseFunctionsException catch (e) {
+        return SttFailed(
+          _sttErrorFromException(e),
+          e.message ?? _genericSttFailureMessage,
+        );
+      } catch (_) {
+        return const SttFailed(SttError.unknown, _genericSttFailureMessage);
+      }
     };
   }
 
@@ -218,8 +284,16 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      _invokeImport(pdfBytes);
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => _invokeImport(pdfBytes);
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => _invokeTranscribe(audioBytes, mimeType, languageHint);
 
   Stream<String?> _uidWithInitial() async* {
     yield uidSource.currentUid();
@@ -273,7 +347,8 @@ class FirebaseAiRepository implements AiRepository {
     final stored = aiActionStatusFromName(data['status'] as String?);
     final expiresAtRaw = data['expiresAt'];
     final expiresAt = expiresAtRaw is Timestamp ? expiresAtRaw.toDate() : null;
-    final status = stored == AiActionStatus.pending &&
+    final status =
+        stored == AiActionStatus.pending &&
             expiresAt != null &&
             expiresAt.isBefore(DateTime.now())
         ? AiActionStatus.expired
@@ -301,7 +376,8 @@ class FirebaseAiRepository implements AiRepository {
 WorkoutImportOutcome _importOutcomeFromJson(Object? data) {
   final map = data is Map ? data : const {};
   if (map['ok'] != true) {
-    final reason = map['reason'] as String? ??
+    final reason =
+        map['reason'] as String? ??
         "This file doesn't contain enough valid workout data to create a training plan.";
     return WorkoutImportRejected(reason);
   }
@@ -310,7 +386,9 @@ WorkoutImportOutcome _importOutcomeFromJson(Object? data) {
   final days = rawDays is List
       ? [for (final d in rawDays) _importedDayFromJson(d)]
       : const <ImportedDay>[];
-  return WorkoutImportAccepted(WorkoutImportResult(planName: planName, days: days));
+  return WorkoutImportAccepted(
+    WorkoutImportResult(planName: planName, days: days),
+  );
 }
 
 ImportedDay _importedDayFromJson(Object? data) {
@@ -338,4 +416,55 @@ ImportedExercise _importedExerciseFromJson(Object? data) {
     targetWeightKg: (map['targetWeightKg'] as num?)?.toDouble(),
     restSeconds: (map['restSeconds'] as num?)?.toInt(),
   );
+}
+
+/// Shown when a transcription attempt fails for a reason with no
+/// server-provided message (a bare network/platform exception, never a
+/// `SpeechError` — those always carry their own user-presentable message).
+const _genericSttFailureMessage =
+    "Couldn't transcribe that — check your connection and try again.";
+
+/// Maps `aiTranscribe`'s raw callable result (a platform-channel
+/// `Map<Object?, Object?>`) into an [SttTranscribed]. Only reached on
+/// success — `functions/ai/speech/gateway.js` never returns an `ok: false`
+/// shape the way `aiImportWorkoutPlan` does; every failure there throws
+/// instead, mapped by [_sttErrorFromException].
+SttOutcome _sttOutcomeFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  return SttTranscribed(
+    text: map['text'] as String? ?? '',
+    detectedLanguage: map['detectedLanguage'] as String?,
+    durationMs: (map['durationMs'] as num?)?.toInt(),
+  );
+}
+
+/// Maps `aiTranscribe`'s thrown `HttpsError` into an [SttError]. The server
+/// (`functions/index.js`'s `toSpeechHttpsError`) carries its precise
+/// `SpeechError` code in `details.sttCode` — that's read first, since the
+/// gRPC `code` alone is a coarser bucket (e.g. both `audio_too_large` and
+/// `unsupported_audio_format` map to the wire code `invalid-argument`).
+SttError _sttErrorFromException(FirebaseFunctionsException e) {
+  final details = e.details;
+  final sttCode = details is Map ? details['sttCode'] as String? : null;
+  switch (sttCode) {
+    case 'unsupported_audio_format':
+      return SttError.unsupportedAudioFormat;
+    case 'audio_too_large':
+      return SttError.audioTooLarge;
+    case 'transcription_failed':
+      return SttError.transcriptionFailed;
+    case 'provider_unavailable':
+      return SttError.providerUnavailable;
+    case 'timeout':
+      return SttError.timeout;
+  }
+  // No (or an unrecognized) sttCode — fall back to the gRPC code.
+  switch (e.code) {
+    case 'unavailable':
+      return SttError.providerUnavailable;
+    case 'deadline-exceeded':
+      return SttError.timeout;
+    default:
+      return SttError.unknown;
+  }
 }

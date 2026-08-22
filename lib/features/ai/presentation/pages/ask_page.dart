@@ -8,10 +8,14 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/widgets/zivo_toast.dart';
+import '../../data/audio_recorder.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_role.dart';
 import '../../domain/ai_turn_event.dart';
+import '../../domain/stt_error.dart';
+import '../../domain/stt_outcome.dart';
 
 /// The "Ask" chat surface: an iris-themed message list over a pinned
 /// composer. Talks only to `AppScope.of(context).ai` — Firebase-free.
@@ -23,7 +27,9 @@ class AskPage extends StatefulWidget {
 }
 
 class _AskPageState extends State<AskPage> {
-  late final Future<String> _conversationId = AppScope.of(context).ai.ensureConversation();
+  late final Future<String> _conversationId = AppScope.of(
+    context,
+  ).ai.ensureConversation();
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
   bool _canSend = false;
@@ -53,6 +59,13 @@ class _AskPageState extends State<AskPage> {
   /// Optimistic client-side resolution of proposal cards, keyed by actionId,
   /// so a card collapses the instant the user taps (before the stream echoes).
   final Map<String, AiActionStatus> _resolved = {};
+
+  /// True while a voice note is being recorded (mic tapped, not yet stopped).
+  bool _recording = false;
+
+  /// True while a just-stopped recording is being transcribed — disables the
+  /// composer briefly so the user isn't left tapping into a stale input.
+  bool _transcribing = false;
 
   @override
   void initState() {
@@ -131,7 +144,10 @@ class _AskPageState extends State<AskPage> {
     final ai = AppScope.of(context).ai;
     setState(() => _resolved[actionId] = AiActionStatus.applied);
     try {
-      await ai.confirmAction(conversationId: conversationId, actionId: actionId);
+      await ai.confirmAction(
+        conversationId: conversationId,
+        actionId: actionId,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _resolved.remove(actionId));
@@ -153,9 +169,78 @@ class _AskPageState extends State<AskPage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Tap-to-toggle: not recording → request permission and start; recording
+  /// → stop and transcribe. A denied permission or a recorder failure shows
+  /// a toast and leaves the composer untouched — never a thrown error.
+  Future<void> _toggleMic() async {
+    final recorder = AppScope.of(context).requireRecorder;
+    if (_recording) {
+      setState(() => _recording = false);
+      final audio = await recorder.stop();
+      if (audio == null) {
+        _handleSttOutcome(
+          const SttFailed(
+            SttError.recordingFailed,
+            "Didn't catch that — try recording again.",
+          ),
+        );
+        return;
+      }
+      await _transcribe(audio);
+      return;
+    }
+
+    final granted = await recorder.ensurePermission();
+    if (!mounted) return;
+    if (!granted) {
+      _handleSttOutcome(
+        const SttFailed(
+          SttError.microphonePermissionDenied,
+          'Turn on microphone access to use voice input.',
+        ),
+      );
+      return;
+    }
+    await recorder.start();
+    if (!mounted) return;
+    setState(() => _recording = true);
+  }
+
+  /// Discards the in-progress recording without transcribing it.
+  Future<void> _cancelRecording() async {
+    final recorder = AppScope.of(context).requireRecorder;
+    setState(() => _recording = false);
+    await recorder.cancel();
+  }
+
+  /// Sends [audio] to `ai.transcribe` and, on success, drops the transcript
+  /// into the composer for the user to edit/send — never auto-sent.
+  Future<void> _transcribe(RecordedAudio audio) async {
+    final ai = AppScope.of(context).ai;
+    setState(() => _transcribing = true);
+    final outcome = await ai.transcribe(
+      audioBytes: audio.bytes,
+      mimeType: audio.mimeType,
     );
+    if (!mounted) return;
+    setState(() => _transcribing = false);
+    _handleSttOutcome(outcome);
+  }
+
+  void _handleSttOutcome(SttOutcome outcome) {
+    switch (outcome) {
+      case SttTranscribed(:final text):
+        _input.text = text;
+        _input.selection = TextSelection.collapsed(offset: text.length);
+      case SttFailed(:final message):
+        if (!mounted) return;
+        showZivoToast(context, message, kind: ToastKind.error);
+    }
   }
 
   /// The rail label for the current authoritative phase; a calm "Thinking…"
@@ -197,8 +282,12 @@ class _AskPageState extends State<AskPage> {
                     stream: ai.watchMessages(conversationId),
                     builder: (context, snapshot) {
                       final messages = snapshot.data ?? const <AiMessage>[];
-                      if (messages.isEmpty && !_sending) return const _EmptyAsk();
-                      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                      if (messages.isEmpty && !_sending) {
+                        return const _EmptyAsk();
+                      }
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _scrollToBottom(),
+                      );
                       return ListView.builder(
                         controller: _scroll,
                         padding: const EdgeInsets.fromLTRB(
@@ -225,7 +314,9 @@ class _AskPageState extends State<AskPage> {
                                 ),
                               );
                             }
-                            return RiseIn(child: _ThinkingRail(label: _railLabel()));
+                            return RiseIn(
+                              child: _ThinkingRail(label: _railLabel()),
+                            );
                           }
                           final message = messages[i];
                           final isLast = i == messages.length - 1;
@@ -275,11 +366,18 @@ class _AskPageState extends State<AskPage> {
             _Composer(
               controller: _input,
               enabled: _canSend,
-              bottomInset: math.max(media.viewInsets.bottom, media.padding.bottom),
+              bottomInset: math.max(
+                media.viewInsets.bottom,
+                media.padding.bottom,
+              ),
               onSend: () async {
                 final conversationId = await _conversationId;
                 await _send(conversationId);
               },
+              isRecording: _recording,
+              transcribing: _transcribing,
+              onMicTap: _toggleMic,
+              onCancelRecording: _cancelRecording,
             ),
           ],
         ),
@@ -316,9 +414,17 @@ class _EmptyAsk extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_awesome_rounded, size: 30, color: AppColors.iris),
+            const Icon(
+              Icons.auto_awesome_rounded,
+              size: 30,
+              color: AppColors.iris,
+            ),
             const SizedBox(height: 14),
-            Text('Ask about your day.', style: AppText.aside, textAlign: TextAlign.center),
+            Text(
+              'Ask about your day.',
+              style: AppText.aside,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(
               'Try "what\'s due this week?" or "summarise my week."',
@@ -349,7 +455,9 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           Flexible(
             child: Container(
@@ -460,11 +568,9 @@ class _ThinkingRailState extends State<_ThinkingRail>
             child: still
                 ? const _IrisDot(0.9)
                 : FadeTransition(
-                    opacity: Tween<double>(begin: 0.35, end: 1)
-                        .animate(CurvedAnimation(
-                          parent: _c,
-                          curve: Curves.easeInOut,
-                        )),
+                    opacity: Tween<double>(begin: 0.35, end: 1).animate(
+                      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+                    ),
                     child: const _IrisDot(1),
                   ),
           ),
@@ -606,7 +712,10 @@ class _ProposalCard extends StatelessWidget {
               onTap: onCancel,
               borderRadius: BorderRadius.circular(999),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
                 child: Text(
                   'Cancel',
                   style: AppText.button.copyWith(color: AppColors.ink2),
@@ -678,12 +787,14 @@ class _ProposalCard extends StatelessWidget {
           chips.add(_chip(Icons.calendar_today_rounded, _date(f['due'])));
         }
         if (f['priority'] == 'High') {
-          chips.add(_chip(
-            Icons.flag_rounded,
-            'High',
-            bg: AppColors.flareWash,
-            fg: AppColors.flareText,
-          ));
+          chips.add(
+            _chip(
+              Icons.flag_rounded,
+              'High',
+              bg: AppColors.flareWash,
+              fg: AppColors.flareText,
+            ),
+          );
         }
       case 'create_expense':
         if (f['category'] != null) {
@@ -715,7 +826,10 @@ class _ProposalCard extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: fg ?? AppColors.ink2),
           const SizedBox(width: 5),
-          Text(label, style: AppText.meta.copyWith(color: fg ?? AppColors.ink2)),
+          Text(
+            label,
+            style: AppText.meta.copyWith(color: fg ?? AppColors.ink2),
+          ),
         ],
       ),
     );
@@ -773,6 +887,10 @@ class _Composer extends StatelessWidget {
     required this.enabled,
     required this.bottomInset,
     required this.onSend,
+    required this.isRecording,
+    required this.transcribing,
+    required this.onMicTap,
+    required this.onCancelRecording,
   });
 
   final TextEditingController controller;
@@ -780,8 +898,20 @@ class _Composer extends StatelessWidget {
   final double bottomInset;
   final VoidCallback onSend;
 
+  /// True while a voice note is being recorded — the mic button becomes a
+  /// stop button, a cancel button appears, and the text field is replaced by
+  /// a "Recording…" indicator.
+  final bool isRecording;
+
+  /// True while a just-stopped recording is being transcribed — disables the
+  /// mic/send buttons briefly.
+  final bool transcribing;
+  final VoidCallback onMicTap;
+  final VoidCallback onCancelRecording;
+
   @override
   Widget build(BuildContext context) {
+    final canSend = enabled && !isRecording && !transcribing;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.base,
@@ -797,28 +927,62 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: TextField(
-                  controller: controller,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
-                  cursorColor: AppColors.iris,
-                  style: AppText.rowTitle,
-                  decoration: const InputDecoration(
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                    hintText: 'Ask ZIVO…',
-                  ),
-                ),
+            if (isRecording)
+              IconButton(
+                onPressed: onCancelRecording,
+                icon: const Icon(Icons.close_rounded, color: AppColors.ink3),
+                tooltip: 'Cancel recording',
               ),
+            Expanded(
+              child: isRecording
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.fiber_manual_record_rounded,
+                            size: 12,
+                            color: AppColors.flare,
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Recording…', style: AppText.rowTitle),
+                        ],
+                      ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: TextField(
+                        controller: controller,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) {
+                          if (canSend) onSend();
+                        },
+                        enabled: !transcribing,
+                        cursorColor: AppColors.iris,
+                        style: AppText.rowTitle,
+                        decoration: const InputDecoration(
+                          isCollapsed: true,
+                          border: InputBorder.none,
+                          hintText: 'Ask ZIVO…',
+                        ),
+                      ),
+                    ),
             ),
             IconButton(
-              onPressed: enabled ? onSend : null,
+              onPressed: transcribing ? null : onMicTap,
+              icon: Icon(
+                isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                color: transcribing
+                    ? AppColors.ink3
+                    : (isRecording ? AppColors.flare : AppColors.iris),
+              ),
+              tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
+            ),
+            IconButton(
+              onPressed: canSend ? onSend : null,
               icon: Icon(
                 Icons.arrow_upward_rounded,
-                color: enabled ? AppColors.iris : AppColors.ink3,
+                color: canSend ? AppColors.iris : AppColors.ink3,
               ),
               tooltip: 'Send',
             ),

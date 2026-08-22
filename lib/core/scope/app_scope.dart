@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../media/media_service.dart';
+import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
@@ -41,6 +42,7 @@ class AppScope extends InheritedWidget {
     required this.university,
     required this.diet,
     required this.ai,
+    this.recorder,
     this.media,
     required super.child,
     super.key,
@@ -85,6 +87,23 @@ class AppScope extends InheritedWidget {
   /// once the server half is built and deployed.
   final AiRepository ai;
 
+  /// The composer's voice-note recorder — `record`-backed in production.
+  ///
+  /// Optional so the many widget tests that don't exercise the mic button can
+  /// keep constructing a scope without it; production and Ask-page mic tests
+  /// always provide one. Read it through [requireRecorder].
+  final AudioRecorderService? recorder;
+
+  /// The composer's voice-note recorder, asserting it was provided. Use from
+  /// the Ask page's mic button — production always wires it.
+  AudioRecorderService get requireRecorder {
+    assert(
+      recorder != null,
+      'AppScope.recorder was not provided to this scope',
+    );
+    return recorder!;
+  }
+
   /// The media pipeline: durable local storage of captured photos, per-account
   /// backup fan-out (Photos now, Drive next), read-side resolution, and — via
   /// [MediaService.preferences] — the account's storage choices surfaced in
@@ -127,7 +146,10 @@ class AppScope extends InheritedWidget {
   /// The bodyweight repository, asserting it was provided. Use from the
   /// Workout Dashboard — production always wires it.
   BodyWeightRepository get requireBodyWeight {
-    assert(bodyWeight != null, 'AppScope.bodyWeight was not provided to this scope');
+    assert(
+      bodyWeight != null,
+      'AppScope.bodyWeight was not provided to this scope',
+    );
     return bodyWeight!;
   }
 
@@ -155,5 +177,6 @@ class AppScope extends InheritedWidget {
       university != oldWidget.university ||
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||
+      recorder != oldWidget.recorder ||
       media != oldWidget.media;
 }

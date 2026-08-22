@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -57,7 +58,8 @@ class _GatedAi implements AiRepository {
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.confirmAction(conversationId: conversationId, actionId: actionId);
+  }) =>
+      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
@@ -66,8 +68,20 @@ class _GatedAi implements AiRepository {
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => _inner.transcribe(
+    audioBytes: audioBytes,
+    mimeType: mimeType,
+    languageHint: languageHint,
+  );
 }
 
 Widget _host(AiRepository ai) => AppScope(

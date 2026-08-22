@@ -46,6 +46,8 @@
 	<string>ZIVO needs access to your photos so you can attach one to a moment.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>ZIVO saves photos you capture in the app to your Photos library when you turn on Save to Photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ZIVO uses the microphone so Ask can transcribe a voice note you record.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

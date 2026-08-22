@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -51,12 +52,14 @@ class _StreamingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
   }) async {
-    _messages.add(AiMessage(
-      id: 'u',
-      role: AiRole.user,
-      content: text,
-      createdAt: DateTime.now(),
-    ));
+    _messages.add(
+      AiMessage(
+        id: 'u',
+        role: AiRole.user,
+        content: text,
+        createdAt: DateTime.now(),
+      ),
+    );
     _controller.add(List.unmodifiable(_messages));
 
     onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
@@ -67,12 +70,14 @@ class _StreamingAi implements AiRepository {
     onEvent?.call(const AiDeltaEvent('world'));
     await releaseDone.future;
 
-    _messages.add(AiMessage(
-      id: 'a',
-      role: AiRole.assistant,
-      content: 'Hello world',
-      createdAt: DateTime.now(),
-    ));
+    _messages.add(
+      AiMessage(
+        id: 'a',
+        role: AiRole.assistant,
+        content: 'Hello world',
+        createdAt: DateTime.now(),
+      ),
+    );
     _controller.add(List.unmodifiable(_messages));
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }
@@ -90,8 +95,16 @@ class _StreamingAi implements AiRepository {
   }) async {}
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      throw UnimplementedError('not exercised by this test');
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => throw UnimplementedError('not exercised by this test');
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => throw UnimplementedError('not exercised by this test');
 
   void dispose() => _controller.close();
 }

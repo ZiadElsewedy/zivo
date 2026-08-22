@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_message.dart';
 import 'ai_turn_event.dart';
+import 'stt_outcome.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
 /// so both today's in-memory [FakeAiRepository] and the future
@@ -54,4 +55,22 @@ abstract interface class AiRepository {
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
   Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes});
+
+  /// Transcribes a recorded voice note via the `aiTranscribe` callable
+  /// (`functions/ai/speech/gateway.js`) — input only: this never calls the
+  /// LLM and never speaks text back. The caller (the composer's mic button)
+  /// places the returned text in the input field for the user to edit/send
+  /// via [send]; nothing here sends anything itself.
+  ///
+  /// [languageHint] should be omitted by default so code-switched Arabic/
+  /// English speech transcribes verbatim rather than being forced into one
+  /// language — only pass it when the caller genuinely knows the language.
+  ///
+  /// Resolves to [SttFailed] (never throws) for any failure, technical or
+  /// otherwise — the caller always has an outcome to switch on.
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  });
 }

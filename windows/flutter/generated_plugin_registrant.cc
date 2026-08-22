@@ -12,6 +12,7 @@
 #include <firebase_auth/firebase_auth_plugin_c_api.h>
 #include <firebase_core/firebase_core_plugin_c_api.h>
 #include <gal/gal_plugin_c_api.h>
+#include <record_windows/record_windows_plugin_c_api.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   CloudFirestorePluginCApiRegisterWithRegistrar(
@@ -26,4 +27,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FirebaseCorePluginCApi"));
   GalPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("GalPluginCApi"));
+  RecordWindowsPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("RecordWindowsPluginCApi"));
 }

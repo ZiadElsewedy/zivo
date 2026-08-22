@@ -16,6 +16,7 @@ import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -62,12 +63,14 @@ class DemoAi implements AiRepository {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    _messages.add(AiMessage(
-      id: _id(),
-      role: AiRole.user,
-      content: trimmed,
-      createdAt: DateTime.now(),
-    ));
+    _messages.add(
+      AiMessage(
+        id: _id(),
+        role: AiRole.user,
+        content: trimmed,
+        createdAt: DateTime.now(),
+      ),
+    );
     _emit();
 
     onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
@@ -77,19 +80,21 @@ class DemoAi implements AiRepository {
       onEvent?.call(const AiPhaseEvent(AiPhase.preparingChange));
       await Future<void>.delayed(const Duration(milliseconds: 800));
       final title = trimmed.substring('add task '.length).trim();
-      _messages.add(AiMessage(
-        id: _id(),
-        role: AiRole.assistant,
-        content: 'Add task "$title"',
-        createdAt: DateTime.now(),
-        pendingAction: AiPendingAction(
-          actionId: _id(),
-          kind: 'create_task',
-          summary: 'Add task "$title"',
-          fields: {'title': title, 'due': null, 'priority': 'Normal'},
-          status: AiActionStatus.pending,
+      _messages.add(
+        AiMessage(
+          id: _id(),
+          role: AiRole.assistant,
+          content: 'Add task "$title"',
+          createdAt: DateTime.now(),
+          pendingAction: AiPendingAction(
+            actionId: _id(),
+            kind: 'create_task',
+            summary: 'Add task "$title"',
+            fields: {'title': title, 'due': null, 'priority': 'Normal'},
+            status: AiActionStatus.pending,
+          ),
         ),
-      ));
+      );
       _emit();
       onEvent?.call(const AiPhaseEvent(AiPhase.done));
       return;
@@ -111,12 +116,14 @@ class DemoAi implements AiRepository {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
 
-    _messages.add(AiMessage(
-      id: _id(),
-      role: AiRole.assistant,
-      content: reply,
-      createdAt: DateTime.now(),
-    ));
+    _messages.add(
+      AiMessage(
+        id: _id(),
+        role: AiRole.assistant,
+        content: reply,
+        createdAt: DateTime.now(),
+      ),
+    );
     _emit();
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }
@@ -134,8 +141,16 @@ class DemoAi implements AiRepository {
   }) async {}
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      throw UnimplementedError('not exercised by this manual demo');
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => throw UnimplementedError('not exercised by this manual demo');
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => throw UnimplementedError('not exercised by this manual demo');
 }
 
 class _AskDemoRoot extends StatefulWidget {

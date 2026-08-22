@@ -42,6 +42,10 @@ const {FirestoreStore} = require("./ai/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
 const router = require("./ai/routing/router");
+const {OpenAI, toFile} = require("openai");
+const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
+const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_provider");
+const speechRouter = require("./ai/speech/routing/speech_router");
 
 initializeApp();
 const db = getFirestore();
@@ -56,6 +60,11 @@ const OTP_PEPPER = defineSecret("OTP_PEPPER");
 // The Anthropic API key backing the `aiChat` gateway (ADR-001). Read only
 // via `.value()` inside the handler below — never hardcoded or logged.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+// The OpenAI API key backing the `aiTranscribe` speech-to-text callable.
+// Read only via `.value()` inside the handler below — never hardcoded or
+// logged. Speech-to-text is a separate capability from the Anthropic-backed
+// chat/workout-import gateways above — see `functions/ai/speech/`.
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 // --- Tunables ---------------------------------------------------------------
 const OTP_TTL_MINUTES = 10;
@@ -568,6 +577,144 @@ exports.aiImportWorkoutPlan = onCall(
           message: err && err.message,
         });
         throw toHttpsError(err);
+      }
+    },
+);
+
+// --- aiTranscribe (speech-to-text, input only) ------------------------------
+
+// A SEPARATE capability from the Anthropic-backed gateways above — never
+// routed through `./ai/providers/`/`./ai/routing/router.js`. This only
+// returns TEXT for the client to place in the chat composer; it never calls
+// the LLM and never speaks text back.
+
+/**
+ * Builds a `ProviderRegistry` backed by the real OpenAI client, the one real
+ * `SpeechToTextProvider` today
+ * (`./ai/speech/providers/openai_speech_provider.js`).
+ * A second real STT provider is a new adapter file plus one more
+ * `.register()` call here — `./ai/speech/routing/speech_router.js`'s
+ * capability table is the only other place that needs to know about it.
+ * @param {!OpenAI} openai
+ * @return {!ProviderRegistry}
+ */
+function buildSpeechRegistry(openai) {
+  return new ProviderRegistry().register("openai", new OpenAiSpeechProvider({
+    transcribe: async ({buffer, filename, mimeType, model, language}) => {
+      const file = await toFile(buffer, filename, {type: mimeType});
+      const params = {file, model, response_format: "json"};
+      if (language) params.language = language;
+      const result = await openai.audio.transcriptions.create(params);
+      return {
+        text: result.text,
+        language: result.language,
+        duration: result.duration,
+      };
+    },
+  }));
+}
+
+/**
+ * A `SpeechToTextProvider`-shaped object whose `transcribe` resolves
+ * `capability` via `./ai/speech/routing/speech_router.js` on every call —
+ * including its fallback-on-error policy, transparently to
+ * `./ai/speech/gateway.js`, which only ever sees a single
+ * `provider.transcribe`.
+ * @param {!ProviderRegistry} registry
+ * @param {string} capability
+ * @return {!Object}
+ */
+function speechProviderForCapability(registry, capability) {
+  return {
+    transcribe: (normalizedRequest) =>
+      speechRouter.transcribe(registry, capability, normalizedRequest),
+  };
+}
+
+/**
+ * `SpeechError` codes are ZIVO-specific, not gRPC codes — map each to the
+ * nearest valid `HttpsError` code for the wire, while carrying the exact
+ * code in `details.sttCode` so the client can reconstruct the precise
+ * failure reason (`FirebaseAiRepository.transcribe` reads it) rather than
+ * inferring from the coarser gRPC bucket.
+ * @const {!Object<string, string>}
+ */
+const SPEECH_ERROR_TO_HTTPS_CODE = {
+  "invalid-argument": "invalid-argument",
+  "unsupported_audio_format": "invalid-argument",
+  "audio_too_large": "invalid-argument",
+  "transcription_failed": "internal",
+  "provider_unavailable": "unavailable",
+  "timeout": "deadline-exceeded",
+};
+
+/**
+ * @param {!Error} err
+ * @return {!HttpsError}
+ */
+const toSpeechHttpsError = (err) => {
+  if (err instanceof SpeechError) {
+    const grpcCode = SPEECH_ERROR_TO_HTTPS_CODE[err.code] || "internal";
+    return new HttpsError(grpcCode, err.message, {sttCode: err.code});
+  }
+  console.error("aiTranscribe: unhandled error", err);
+  return new HttpsError(
+      "internal", "Couldn't transcribe that audio. Please try again.",
+      {sttCode: "transcription_failed"});
+};
+
+/**
+ * Speech-to-text for the chat composer's mic button: one audio clip in, one
+ * transcript out — no Firestore write, no LLM call, no text-to-speech. The
+ * client puts the returned text in the composer for the user to edit/send
+ * via the existing `aiChat` path. All orchestration (validation, provider
+ * selection, error translation) lives in `./ai/speech/gateway.js` so it is
+ * unit-testable without the network; this handler only wires the real
+ * OpenAI client and maps errors.
+ */
+exports.aiTranscribe = onCall(
+    {
+      secrets: [OPENAI_API_KEY],
+      region: "us-central1",
+      enforceAppCheck: true,
+      // A single transcription call for a short voice note; generous
+      // headroom over the platform default without inviting long-poll abuse.
+      timeoutSeconds: 120,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+      }
+
+      const data = request.data || {};
+      const audioBase64 = (data.audioBase64 || "").toString();
+      const mimeType = (data.mimeType || "").toString();
+      const languageHint = typeof data.languageHint === "string" ?
+        data.languageHint : undefined;
+
+      const openai = new OpenAI({apiKey: OPENAI_API_KEY.value()});
+      const registry = buildSpeechRegistry(openai);
+      const route = speechRouter.resolve("speech_to_text");
+
+      try {
+        return await transcribeAudio({
+          provider: speechProviderForCapability(registry, "speech_to_text"),
+          audioBase64,
+          mimeType,
+          languageHint,
+          // Never carries raw audio or the transcript itself — only its
+          // length would even be safe to add, and `./ai/speech/gateway.js`
+          // doesn't include it.
+          logEvent: (event) => logger.info("aiTranscribe", {
+            capability: "speech_to_text",
+            provider: route.provider,
+            model: route.model,
+            ...event,
+          }),
+        });
+      } catch (err) {
+        throw toSpeechHttpsError(err);
       }
     },
 );

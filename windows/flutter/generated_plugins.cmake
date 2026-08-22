@@ -9,6 +9,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   gal
+  record_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
