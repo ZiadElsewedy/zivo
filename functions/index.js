@@ -39,6 +39,9 @@ const {
 } = require("./ai/gateway");
 const {extractWorkoutPlan} = require("./ai/workout_import");
 const {FirestoreStore} = require("./ai/store");
+const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
+const {ProviderRegistry} = require("./ai/providers/registry");
+const router = require("./ai/routing/router");
 
 initializeApp();
 const db = getFirestore();
@@ -348,12 +351,42 @@ const toHttpsError = (err) => {
 };
 
 /**
+ * Builds a `ProviderRegistry` backed by the real Anthropic client, the one
+ * real `AiProvider` today (`./ai/providers/anthropic_provider.js`). A second
+ * real provider is a new adapter file plus one more `.register()` call here —
+ * `./ai/routing/router.js`'s capability table is the only other place that
+ * needs to know about it.
+ * @param {!Anthropic} anthropic
+ * @return {!ProviderRegistry}
+ */
+function buildProviderRegistry(anthropic) {
+  return new ProviderRegistry().register("anthropic", new AnthropicProvider(anthropic));
+}
+
+/**
+ * An `AiProvider`-shaped object whose `generate` resolves `capability` via
+ * `./ai/routing/router.js` on every call — including the router's
+ * fallback-on-error policy, transparently to `./ai/gateway.js`/
+ * `./ai/workout_import.js`, which only ever see a single `provider.generate`.
+ * @param {!ProviderRegistry} registry
+ * @param {string} capability
+ * @return {!Object}
+ */
+function providerForCapability(registry, capability) {
+  return {
+    generate: (normalizedRequest, opts) =>
+      router.generate(registry, capability, normalizedRequest, opts),
+  };
+}
+
+/**
  * The "Ask" AI assistant gateway (ADR-001): a read-only, tool-mediated
  * Claude conversation over the user's own ZIVO data. All orchestration
  * (history windowing, the tool loop, cost/iteration ceilings, usage
  * logging) lives in `./ai/gateway.js`/`./ai/tools.js` so it is unit-testable
  * without the network or the emulator; this handler only wires the real
- * Anthropic client and Firestore store and maps errors.
+ * Anthropic client, provider/routing seam, and Firestore store, and maps
+ * errors.
  */
 exports.aiChat = onCall(
     {
@@ -376,6 +409,7 @@ exports.aiChat = onCall(
       const message = (data.message || "").toString();
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
       const store = new FirestoreStore(db);
 
       // When the client opts into streaming (`httpsCallable.stream()`), forward
@@ -388,10 +422,9 @@ exports.aiChat = onCall(
       try {
         return await runAiTurn({
           store,
-          callModel: (req) => anthropic.messages.create(req),
-          streamModel: streaming ?
-            (req, onText) => streamModelCall(anthropic, req, onText) :
-            undefined,
+          provider: providerForCapability(registry, "chat"),
+          model: router.resolve("chat").model,
+          stream: streaming,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,
@@ -403,21 +436,6 @@ exports.aiChat = onCall(
       }
     },
 );
-
-/**
- * The `streamModel` seam for `runAiTurn`: streams one Anthropic call,
- * forwarding each text delta to `onText`, and resolves to the final message
- * (the same shape `messages.create` returns) so the loop is unchanged.
- * @param {!Anthropic} anthropic
- * @param {!Object} req
- * @param {function(string): void} onText
- * @return {!Promise<!Object>}
- */
-async function streamModelCall(anthropic, req, onText) {
-  const stream = anthropic.messages.stream(req);
-  stream.on("text", (delta) => onText(delta));
-  return stream.finalMessage();
-}
 
 // --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
 
@@ -527,13 +545,15 @@ exports.aiImportWorkoutPlan = onCall(
       }
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
       // base64 runs ~4/3 the raw byte size — approximate, but enough to spot
       // "why did this reject" patterns (e.g. a suspiciously tiny upload).
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
       try {
         const result = await extractWorkoutPlan({
-          callModel: (req) => anthropic.messages.create(req),
+          provider: providerForCapability(registry, "workout_import"),
+          model: router.resolve("workout_import").model,
           pdfBase64,
           logEvent: (event) => logger.info("aiImportWorkoutPlan", {
             approxPdfBytes,
