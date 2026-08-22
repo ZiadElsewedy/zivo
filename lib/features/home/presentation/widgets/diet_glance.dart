@@ -25,7 +25,7 @@ class DietGlanceRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
       child: Row(
         children: [
-          const HueDot(ZHue.pulse),
+          const HueDot(ZHue.neutral),
           const SizedBox(width: AppSpacing.m - 1),
           Expanded(
             child: Text.rich(
@@ -38,7 +38,7 @@ class DietGlanceRow extends StatelessWidget {
                     style: AppText.body.copyWith(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.pulseText,
+                      color: AppColors.ink3,
                     ),
                   ),
                 ],

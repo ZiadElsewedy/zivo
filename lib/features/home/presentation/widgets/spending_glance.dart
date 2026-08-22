@@ -26,15 +26,15 @@ class SpendingGlanceRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
       child: Row(
         children: [
-          const HueDot(ZHue.solar),
+          const HueDot(ZHue.neutral),
           const SizedBox(width: AppSpacing.m - 1),
           _amount(formatAmount(todayMinor), '$currency today', AppColors.ink),
           Text('  ·  ', style: AppText.amount.copyWith(color: AppColors.ink3)),
           _amount(
             formatAmount(weekMinor),
             '$currency this week',
-            AppColors.solarText,
-            unitColor: AppColors.solarText.withValues(alpha: 0.75),
+            AppColors.ink2,
+            unitColor: AppColors.ink3,
           ),
           const Spacer(),
           const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),

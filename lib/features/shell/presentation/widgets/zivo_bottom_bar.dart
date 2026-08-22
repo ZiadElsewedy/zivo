@@ -6,6 +6,24 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 
+/// Shared sizing so callers needing clearance above [ZivoBottomBar] (e.g. a
+/// page's scroll padding) can derive it exactly instead of guessing a magic
+/// number — keeps that clearance from drifting out of sync with the bar's
+/// actual layout.
+abstract final class ZivoBottomBarMetrics {
+  /// The bar's device-independent content height: outer top inset (10) +
+  /// inner tab padding (4 + 4) + icon (24) + icon-label gap (5) + label
+  /// line height (~14 at 9.5sp).
+  static const double contentHeight = 61;
+
+  /// Total rendered height of [ZivoBottomBar] for the current context,
+  /// including whatever bottom safe-area inset it applies.
+  static double height(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return contentHeight + (bottomInset > 0 ? bottomInset : 12);
+  }
+}
+
 /// The four-tab command bar: Today · Hub · Ask · You (decision D-1).
 class ZivoBottomBar extends StatelessWidget {
   const ZivoBottomBar({

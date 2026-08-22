@@ -19,15 +19,16 @@ import '../widgets/verdict_style.dart';
 
 /// The progressive-overload Analysis page (WORKOUT_SYSTEM.md §3.3, Phase 2).
 ///
-/// Redesigned as one continuous "how am I progressing" picture rather than a
-/// pile of same-weight boxes: a hero headline states the selected day's
-/// verdict in plain language first (the thing the reader actually came to
-/// know), a slim consistency strip and bodyweight snapshot give the
-/// day-independent training picture underneath, and every exercise for the
-/// selected day lives as a row in a single sectioned list instead of its own
-/// bordered card. Everything here reads from real data — [analyzeDayProgress],
-/// [computeTrainingDashboardStats], and [computeWeightTrend] — nothing is a
-/// placeholder.
+/// Reads as one continuous "how am I progressing" picture rather than a pile
+/// of same-weight boxes: wrapping day chips pick the day, a hero headline
+/// states that day's verdict in plain language, a [_BasisNote] spells out what
+/// the comparison actually is (this day's last session vs the one before —
+/// owner-reported confusion, so it's stated outright, not implied), then a
+/// slim consistency strip and bodyweight snapshot give the day-INdependent
+/// picture, and every exercise for the day lives as a row in a single
+/// sectioned list. Nothing scrolls horizontally. Everything reads from real
+/// data — [analyzeDayProgress], [computeTrainingDashboardStats], and
+/// [computeWeightTrend] — nothing is a placeholder.
 ///
 /// Dark, immersive body — matching the plan/live-session pages on the
 /// app-wide [AppColors] theme.
@@ -88,34 +89,42 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
                     entries: weightSnap.data ?? const <BodyWeightEntry>[],
                     now: now,
                   );
-                  return Column(
+                  // One single scroll, no horizontal scrolling anywhere: the
+                  // day chips wrap onto as many lines as they need.
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 4, 22, 48),
                     children: [
-                      _DayPicker(
+                      _DayChips(
                         days: days,
                         selectedId: selected.id,
                         onSelect: (id) => setState(() => _selectedDayId = id),
                       ),
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
-                          children: [
-                            _ProgressHero(analysis: analysis),
-                            const SizedBox(height: 24),
-                            _ConsistencyRow(stats: stats),
-                            if (weightTrend.latest != null) ...[
-                              const SizedBox(height: 12),
-                              _WeightSnapshotRow(trend: weightTrend),
-                            ],
-                            const SizedBox(height: 28),
-                            _SectionLabel('${selected.label} exercises'),
-                            const SizedBox(height: 10),
-                            if (analysis.sessionCount == 0)
-                              _DayEmptyState(dayLabel: selected.label)
-                            else
-                              _ExerciseListCard(exercises: analysis.exercises),
-                          ],
-                        ),
+                      const SizedBox(height: 30),
+                      _ProgressHero(analysis: analysis),
+                      const SizedBox(height: 20),
+                      _BasisNote(dayLabel: selected.label),
+                      const SizedBox(height: 36),
+                      _SectionLabel('Consistency'),
+                      const SizedBox(height: 5),
+                      // Called out because, unlike everything above, these
+                      // three are day-independent — they span every session.
+                      Text(
+                        'Across all your training, not just ${selected.label}.',
+                        style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
                       ),
+                      const SizedBox(height: 12),
+                      _ConsistencyRow(stats: stats),
+                      if (weightTrend.latest != null) ...[
+                        const SizedBox(height: 14),
+                        _WeightSnapshotRow(trend: weightTrend),
+                      ],
+                      const SizedBox(height: 40),
+                      _SectionLabel('${selected.label} exercises'),
+                      const SizedBox(height: 12),
+                      if (analysis.sessionCount == 0)
+                        _DayEmptyState(dayLabel: selected.label)
+                      else
+                        _ExerciseListCard(exercises: analysis.exercises),
                     ],
                   );
                 },
@@ -138,10 +147,14 @@ class _SectionLabel extends StatelessWidget {
       Text(label.toUpperCase(), style: AppText.sectionLabel.copyWith(color: AppColors.ink3, letterSpacing: 0.8));
 }
 
-/// A horizontal row of day pills — "Day A · Push" etc — the selected one
-/// filled pulse, the rest a quiet outline.
-class _DayPicker extends StatelessWidget {
-  const _DayPicker({required this.days, required this.selectedId, required this.onSelect});
+/// The day selector as a [Wrap] of chips — deliberately NOT a horizontal
+/// scroller (owner-reported: the sideways scroll was disliked, and it hid days
+/// off-screen edge). Wrapping shows every day at once and stays clean from 3
+/// to 6+ days, at the cost of a second line on long labels — the right trade
+/// when the whole page is about the day you pick. Labels are just the slot +
+/// label with no "Day " prefix, so the chips stay narrow.
+class _DayChips extends StatelessWidget {
+  const _DayChips({required this.days, required this.selectedId, required this.onSelect});
 
   final List<WorkoutDay> days;
   final String selectedId;
@@ -149,43 +162,103 @@ class _DayPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 54,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        // Horizontal padding only — a vertical component here shrinks the
-        // cross-axis space every pill gets *before* its own padding applies,
-        // which was squeezing the text box tight enough to clip the 'y'
-        // descender in "Day".
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        itemCount: days.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final day = days[i];
-          final active = day.id == selectedId;
-          return Material(
-            color: active ? AppColors.pulse : AppColors.card,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final day in days)
+          _DayChip(
+            label: '${day.slot} · ${day.label}',
+            active: day.id == selectedId,
+            onTap: () => onSelect(day.id),
+          ),
+      ],
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  const _DayChip({required this.label, required this.active, required this.onTap});
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? AppColors.pulse : AppColors.card,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: InkWell(
-              onTap: () => onSelect(day.id),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: active ? Colors.transparent : AppColors.hairline2),
-                ),
-                child: Text(
-                  'Day ${day.slot} · ${day.label}',
-                  style: AppText.meta.copyWith(
-                    color: active ? Colors.white : AppColors.ink2,
-                    fontWeight: FontWeight.w700,
+            border: Border.all(color: active ? Colors.transparent : AppColors.hairline2),
+          ),
+          child: Text(
+            label,
+            style: AppText.meta.copyWith(
+              color: active ? Colors.white : AppColors.ink2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// States, in plain words, exactly what the numbers above compare — the
+/// owner couldn't tell whether this page was per-day or per-week, so it says
+/// so outright instead of leaving it to a small grey footnote. The basis is
+/// real: [analyzeDayProgress] compares an exercise's two most recent
+/// COMPLETED appearances on this day, index-aligning sets.
+class _BasisNote extends StatelessWidget {
+  const _BasisNote({required this.dayLabel});
+
+  final String dayLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 17, color: AppColors.ink3),
+          const SizedBox(width: AppSpacing.m),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 13.5, height: 1.45),
+                children: [
+                  const TextSpan(text: 'Your '),
+                  TextSpan(
+                    text: 'last $dayLabel',
+                    style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
                   ),
-                ),
+                  const TextSpan(text: ' vs the '),
+                  TextSpan(
+                    text: 'one before it',
+                    style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+                  ),
+                  const TextSpan(
+                    text: ' — exercise by exercise, comparing reps, top-set weight, '
+                        'and volume (reps × weight). Not weekly, and not all workouts mixed together.',
+                  ),
+                ],
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -224,17 +297,6 @@ class _ProgressHero extends StatelessWidget {
         Text(headline, style: AppText.cardTitle.copyWith(fontSize: 32, color: AppColors.ink)),
         const SizedBox(height: 10),
         Text(detail, style: AppText.aside.copyWith(fontSize: 17, color: AppColors.ink2)),
-        if (overall != null) ...[
-          const SizedBox(height: 6),
-          // Plain-language footnote for "improved/matched/regressed" and
-          // "volume" below — every verdict on this page is judged on real
-          // numbers from your logged sets, not a black box.
-          Text(
-            'Judged against your last ${analysis.day.label} session — reps, weight, and '
-            'volume (reps × weight) per exercise.',
-            style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
-          ),
-        ],
       ],
     );
   }
@@ -397,7 +459,7 @@ class _ExerciseRow extends StatelessWidget {
     final showChart = exercise.appearances >= 2 && series.length >= 2;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       child: Row(
         children: [
           Expanded(
@@ -421,7 +483,7 @@ class _ExerciseRow extends StatelessWidget {
                       _NeutralTag(label: exercise.appearances == 0 ? 'Not logged' : 'First time'),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 7),
                 Text(
                   _subtitle(exercise),
                   maxLines: 1,

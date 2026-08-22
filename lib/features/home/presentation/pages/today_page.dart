@@ -30,6 +30,7 @@ import '../widgets/focus_list.dart';
 import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
+import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -71,22 +72,25 @@ class TodayPage extends StatelessWidget {
                     AppSpacing.screen,
                     AppSpacing.s,
                     AppSpacing.screen,
-                    media.padding.bottom + 150,
+                    ZivoBottomBarMetrics.height(context) + AppSpacing.base,
                   ),
                   children: [
                     const RiseIn(delay: Duration.zero, child: _Header()),
+                    // Primary tier — the two time-relevant things, full-weight cards.
                     const RiseIn(
                       delay: Duration(milliseconds: 90),
                       child: _NowNextSection(),
                     ),
                     const RiseIn(
                       delay: Duration(milliseconds: 170),
-                      child: _FocusSection(),
-                    ), // live tasks merged with live university items
-                    const RiseIn(
-                      delay: Duration(milliseconds: 250),
                       child: _TrainingSection(),
                     ),
+                    // Secondary tier — today's tasks, neutral rows.
+                    const RiseIn(
+                      delay: Duration(milliseconds: 250),
+                      child: _FocusSection(),
+                    ), // live tasks merged with live university items
+                    // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                     const RiseIn(
                       delay: Duration(milliseconds: 330),
                       child: _SpendingSection(),
@@ -372,6 +376,8 @@ class _FocusSection extends StatelessWidget {
                   universitySnapshot.data ?? const <UniversityItem>[],
               now: DateTime.now(),
             );
+            // Secondary tier: silently hides when empty, unlike Now·Next and
+            // Training (primary tier, which may show a gentle empty state).
             if (items.isEmpty) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,6 +517,7 @@ class _DietSection extends StatelessWidget {
         final plan = planSnapshot.data;
         final now = DateTime.now();
         final day = dayForDate(plan, now);
+        // Tertiary tier: silently hides when empty, same rule as Focus above.
         if (day == null) return const SizedBox.shrink();
         return StreamBuilder<Set<String>>(
           stream: diet.watchConsumed(now),

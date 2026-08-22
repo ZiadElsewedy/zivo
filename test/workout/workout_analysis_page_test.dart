@@ -151,6 +151,17 @@ WorkoutPlan _plan() => WorkoutPlan(
   ],
 );
 
+/// The analysis page is a tall multi-section ListView (day chips, hero, basis
+/// note, consistency row, weight snapshot, exercise list) — same trick
+/// `workout_dashboard_page_test.dart` uses: a tall viewport so every section
+/// actually gets built and is findable instead of staying off-screen.
+void _useTallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1200, 3200);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 LiveSession _completedDayASession({required String id, required DateTime completedAt, required double weight}) =>
     LiveSession(
       id: id,
@@ -181,6 +192,7 @@ LiveSession _completedDayASession({required String id, required DateTime complet
 
 void main() {
   testWidgets('no completed sessions → the day-empty state', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(
       _wrap(plan: _plan(), sessions: InMemoryWorkoutSessionRepository()),
     );
@@ -190,6 +202,7 @@ void main() {
   });
 
   testWidgets('exactly one completed session → first-time nudge, no verdict yet', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [_completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40)],
     );
@@ -202,6 +215,7 @@ void main() {
   });
 
   testWidgets('two completed sessions with weight increase → Progressing verdict shown', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
@@ -218,6 +232,7 @@ void main() {
   });
 
   testWidgets('switching the day picker re-scopes the analysis', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
@@ -230,7 +245,7 @@ void main() {
     // Starts on Day A (the cursor's next day) with real progression data.
     expect(find.textContaining('improved'), findsOneWidget);
 
-    await tester.tap(find.text('Day B · Pull'));
+    await tester.tap(find.text('B · Pull'));
     await tester.pump();
 
     // Day B has no logged sessions at all.
@@ -258,6 +273,7 @@ void main() {
   });
 
   testWidgets('the consistency row reflects real training-dashboard stats, not placeholders', (tester) async {
+    _useTallViewport(tester);
     final today = DateTime.now();
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [_completedDayASession(id: 's1', completedAt: today.subtract(const Duration(hours: 1)), weight: 40)],
@@ -273,6 +289,7 @@ void main() {
   });
 
   testWidgets('the bodyweight snapshot shows the latest entry and is omitted with nothing logged', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository();
 
     // No bodyWeight repository at all — the snapshot row doesn't render.
@@ -290,6 +307,7 @@ void main() {
   });
 
   testWidgets('the hero headline states the day verdict in plain language, backed by the counts', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
@@ -304,6 +322,7 @@ void main() {
   });
 
   testWidgets('a Progressing verdict keeps the trend chart pulse-green', (tester) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
