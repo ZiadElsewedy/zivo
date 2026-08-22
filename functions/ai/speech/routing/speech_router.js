@@ -6,9 +6,10 @@
  * Both routers share the generic `../../providers/registry.js`
  * `ProviderRegistry`.
  *
- * OpenAI is the only real STT provider today, so the one capability's list
- * has exactly one entry — adding a second provider is a new
- * `speech/providers/*.js` adapter plus one more entry below.
+ * Gemini is the default STT provider; OpenAI is the fallback tried on error
+ * (the order of a capability's list IS the try order — see `transcribe`).
+ * Both are real adapters under `speech/providers/`; adding a third provider is
+ * a new `speech/providers/*.js` adapter plus one more entry below.
  */
 
 /**
@@ -19,7 +20,10 @@
 
 /** @const {!Object<string, !Array<!SpeechCapabilityRoute>>} */
 const SPEECH_ROUTES = {
-  speech_to_text: [{provider: "openai", model: "gpt-4o-mini-transcribe"}],
+  speech_to_text: [
+    {provider: "gemini", model: "gemini-2.5-flash"},
+    {provider: "openai", model: "gpt-4o-mini-transcribe"},
+  ],
 };
 
 /**

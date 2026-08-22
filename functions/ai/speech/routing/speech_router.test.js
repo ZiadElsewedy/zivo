@@ -6,7 +6,7 @@
 const assert = require("node:assert/strict");
 const {test} = require("node:test");
 
-const {resolve, transcribe, SPEECH_ROUTES} = require("./speech_router");
+const {resolve, transcribe} = require("./speech_router");
 const {ProviderRegistry} = require("../../providers/registry");
 
 /**
@@ -28,26 +28,26 @@ function fakeProvider({response, fail} = {}) {
   };
 }
 
-test("resolve returns the primary provider/model for speech_to_text", () => {
+test("resolve returns the primary provider/model for speech_to_text (Gemini is the default)", () => {
   const route = resolve("speech_to_text");
-  assert.equal(route.provider, "openai");
-  assert.equal(route.model, "gpt-4o-mini-transcribe");
+  assert.equal(route.provider, "gemini");
+  assert.equal(route.model, "gemini-2.5-flash");
 });
 
 test("resolve throws for an unknown capability", () => {
   assert.throws(() => resolve("not_a_real_capability"));
 });
 
-test("transcribe resolves the capability's provider and stamps the route's model onto the request", async () => {
+test("transcribe resolves the capability's primary provider and stamps the route's model onto the request", async () => {
   const registry = new ProviderRegistry();
-  const openai = fakeProvider({response: {text: "hello"}});
-  registry.register("openai", openai);
+  const gemini = fakeProvider({response: {text: "hello"}});
+  registry.register("gemini", gemini);
 
   const resp = await transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"});
 
   assert.equal(resp.text, "hello");
-  assert.equal(openai.calls[0].model, "gpt-4o-mini-transcribe");
-  assert.equal(openai.calls[0].mimeType, "audio/m4a");
+  assert.equal(gemini.calls[0].model, "gemini-2.5-flash");
+  assert.equal(gemini.calls[0].mimeType, "audio/m4a");
 });
 
 test("transcribe throws for an unknown capability without touching the registry", async () => {
@@ -55,42 +55,29 @@ test("transcribe throws for an unknown capability without touching the registry"
   await assert.rejects(() => transcribe(registry, "unknown", {audio: Buffer.from("x"), mimeType: "audio/m4a"}));
 });
 
-test("transcribe falls back to the next route when the primary provider rejects", async () => {
-  const original = SPEECH_ROUTES.speech_to_text.slice();
-  SPEECH_ROUTES.speech_to_text.push({provider: "backup", model: "backup-model"});
-  try {
-    const registry = new ProviderRegistry();
-    const primary = fakeProvider({fail: "primary down"});
-    const backup = fakeProvider({response: {text: "hello"}});
-    registry.register("openai", primary);
-    registry.register("backup", backup);
+test("transcribe falls back from Gemini to OpenAI when the default provider rejects", async () => {
+  const registry = new ProviderRegistry();
+  const gemini = fakeProvider({fail: "gemini down"});
+  const openai = fakeProvider({response: {text: "hello"}});
+  registry.register("gemini", gemini);
+  registry.register("openai", openai);
 
-    const resp = await transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"});
+  const resp = await transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"});
 
-    assert.equal(resp.text, "hello");
-    assert.equal(primary.calls.length, 1);
-    assert.equal(backup.calls.length, 1);
-    assert.equal(backup.calls[0].model, "backup-model");
-  } finally {
-    SPEECH_ROUTES.speech_to_text.length = 0;
-    SPEECH_ROUTES.speech_to_text.push(...original);
-  }
+  assert.equal(resp.text, "hello");
+  assert.equal(gemini.calls.length, 1);
+  assert.equal(openai.calls.length, 1);
+  // The fallback route stamps OpenAI's own model, not Gemini's.
+  assert.equal(openai.calls[0].model, "gpt-4o-mini-transcribe");
 });
 
 test("transcribe rethrows the last route's error once every route has failed", async () => {
-  const original = SPEECH_ROUTES.speech_to_text.slice();
-  SPEECH_ROUTES.speech_to_text.push({provider: "backup", model: "backup-model"});
-  try {
-    const registry = new ProviderRegistry();
-    registry.register("openai", fakeProvider({fail: "primary down"}));
-    registry.register("backup", fakeProvider({fail: "backup down too"}));
+  const registry = new ProviderRegistry();
+  registry.register("gemini", fakeProvider({fail: "gemini down"}));
+  registry.register("openai", fakeProvider({fail: "openai down too"}));
 
-    await assert.rejects(
-        () => transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"}),
-        (err) => err.message === "backup down too",
-    );
-  } finally {
-    SPEECH_ROUTES.speech_to_text.length = 0;
-    SPEECH_ROUTES.speech_to_text.push(...original);
-  }
+  await assert.rejects(
+      () => transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"}),
+      (err) => err.message === "openai down too",
+  );
 });

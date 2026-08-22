@@ -43,7 +43,9 @@ const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
 const router = require("./ai/routing/router");
 const {OpenAI, toFile} = require("openai");
+const {GoogleGenAI} = require("@google/genai");
 const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
+const {GeminiSpeechProvider} = require("./ai/speech/providers/gemini_speech_provider");
 const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_provider");
 const speechRouter = require("./ai/speech/routing/speech_router");
 
@@ -60,10 +62,15 @@ const OTP_PEPPER = defineSecret("OTP_PEPPER");
 // The Anthropic API key backing the `aiChat` gateway (ADR-001). Read only
 // via `.value()` inside the handler below — never hardcoded or logged.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-// The OpenAI API key backing the `aiTranscribe` speech-to-text callable.
+// The Google Gemini API key backing the DEFAULT `aiTranscribe` STT route.
 // Read only via `.value()` inside the handler below — never hardcoded or
 // logged. Speech-to-text is a separate capability from the Anthropic-backed
 // chat/workout-import gateways above — see `functions/ai/speech/`.
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+// The OpenAI API key backing the `aiTranscribe` STT FALLBACK route, tried
+// only when the Gemini route errors (see `speech/routing/speech_router.js`).
+// Read only via `.value()` inside the handler below — never hardcoded or
+// logged.
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 // --- Tunables ---------------------------------------------------------------
@@ -589,29 +596,52 @@ exports.aiImportWorkoutPlan = onCall(
 // the LLM and never speaks text back.
 
 /**
- * Builds a `ProviderRegistry` backed by the real OpenAI client, the one real
- * `SpeechToTextProvider` today
- * (`./ai/speech/providers/openai_speech_provider.js`).
- * A second real STT provider is a new adapter file plus one more
- * `.register()` call here — `./ai/speech/routing/speech_router.js`'s
- * capability table is the only other place that needs to know about it.
+ * Builds a `ProviderRegistry` backed by the two real `SpeechToTextProvider`
+ * adapters: Gemini (`./ai/speech/providers/gemini_speech_provider.js`, the
+ * default route) and OpenAI (`./ai/speech/providers/openai_speech_provider.js`,
+ * the fallback). Which one runs — and in what order — is decided entirely by
+ * `./ai/speech/routing/speech_router.js`'s capability table, not here; this
+ * only supplies the real network seams. A third STT provider is a new adapter
+ * file plus one more `.register()` call here.
+ * @param {!GoogleGenAI} genai
  * @param {!OpenAI} openai
  * @return {!ProviderRegistry}
  */
-function buildSpeechRegistry(openai) {
-  return new ProviderRegistry().register("openai", new OpenAiSpeechProvider({
-    transcribe: async ({buffer, filename, mimeType, model, language}) => {
-      const file = await toFile(buffer, filename, {type: mimeType});
-      const params = {file, model, response_format: "json"};
-      if (language) params.language = language;
-      const result = await openai.audio.transcriptions.create(params);
-      return {
-        text: result.text,
-        language: result.language,
-        duration: result.duration,
-      };
-    },
-  }));
+function buildSpeechRegistry(genai, openai) {
+  return new ProviderRegistry()
+      .register("gemini", new GeminiSpeechProvider({
+        transcribe: async ({buffer, mimeType, model, prompt}) => {
+          // Gemini transcribes via a multimodal `generateContent` call: the
+          // audio rides inline as base64, alongside the adapter's verbatim
+          // transcription prompt. Thinking is disabled and temperature pinned
+          // to 0 — transcription is deterministic, not a reasoning task.
+          const response = await genai.models.generateContent({
+            model,
+            contents: [{
+              role: "user",
+              parts: [
+                {inlineData: {mimeType, data: buffer.toString("base64")}},
+                {text: prompt},
+              ],
+            }],
+            config: {temperature: 0, thinkingConfig: {thinkingBudget: 0}},
+          });
+          return {text: response.text};
+        },
+      }))
+      .register("openai", new OpenAiSpeechProvider({
+        transcribe: async ({buffer, filename, mimeType, model, language}) => {
+          const file = await toFile(buffer, filename, {type: mimeType});
+          const params = {file, model, response_format: "json"};
+          if (language) params.language = language;
+          const result = await openai.audio.transcriptions.create(params);
+          return {
+            text: result.text,
+            language: result.language,
+            duration: result.duration,
+          };
+        },
+      }));
 }
 
 /**
@@ -674,7 +704,8 @@ const toSpeechHttpsError = (err) => {
  */
 exports.aiTranscribe = onCall(
     {
-      secrets: [OPENAI_API_KEY],
+      // Both STT keys: Gemini backs the default route, OpenAI the fallback.
+      secrets: [GEMINI_API_KEY, OPENAI_API_KEY],
       region: "us-central1",
       enforceAppCheck: true,
       // A single transcription call for a short voice note; generous
@@ -693,8 +724,9 @@ exports.aiTranscribe = onCall(
       const languageHint = typeof data.languageHint === "string" ?
         data.languageHint : undefined;
 
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       const openai = new OpenAI({apiKey: OPENAI_API_KEY.value()});
-      const registry = buildSpeechRegistry(openai);
+      const registry = buildSpeechRegistry(genai, openai);
       const route = speechRouter.resolve("speech_to_text");
 
       try {
