@@ -13,6 +13,7 @@ import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../notes/presentation/pages/notes_list_page.dart';
 import '../../schedule/presentation/pages/schedule_list_page.dart';
 import '../../tasks/presentation/pages/task_list_page.dart';
+import '../../shell/presentation/widgets/zivo_bottom_bar.dart';
 import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 
@@ -46,23 +47,26 @@ class HubPage extends StatelessWidget {
 
     return Container(
       color: AppColors.ground,
-      // A genuinely scrollable grid: on a short device, or with a large
-      // system text size, 8 modules at the premium tile ratio can exceed
-      // the space above the bottom nav — scrolling is what guarantees no
-      // tile ever clips or overflows, regardless of module count or device
-      // height, rather than trying to shrink tiles to fit a computed space
-      // (which still failed on a short-enough device). Bottom clearance is
-      // generous on purpose: the bottom nav bar's own opaque content height
-      // (`zivo_bottom_bar.dart`: 10 top pad + 8 vertical pad + ~24 icon +
-      // ~5 gap + ~13 label, plus margin for a larger label at accessibility
-      // text sizes) on top of the device's own safe-area inset, since
-      // `HomeShell`'s `extendBody: true` draws this page behind it.
-      child: Padding(
+      // The page is a single top-aligned scroll view: header, then the grid
+      // directly beneath it. The grid is shrink-wrapped (`shrinkWrap: true`
+      // + `NeverScrollableScrollPhysics`) so it sizes to its own content —
+      // GridView.count derives row height from tile width alone, so left in
+      // an `Expanded` its scroll viewport stretched taller than its content
+      // and left a large dead band above the nav; shrink-wrapping removes
+      // that. The outer `SingleChildScrollView` is the only scroller, so on
+      // a short device (or a large text scale) the whole thing scrolls
+      // naturally with nothing clipped. The bottom nav lives in
+      // `HomeShell`'s Scaffold, independent of this content; because
+      // `extendBody: true` draws the page behind it, the bottom scroll
+      // padding reserves the nav bar's own exact rendered height
+      // (`ZivoBottomBarMetrics.height`, safe-area inset included) so the
+      // last row always clears it with a small, consistent breathing room.
+      child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.screen,
           media.padding.top + 20,
           AppSpacing.screen,
-          media.padding.bottom + 80,
+          ZivoBottomBarMetrics.height(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,14 +75,14 @@ class HubPage extends StatelessWidget {
             const SizedBox(height: 4),
             Text('Everything, one tap away.', style: AppText.aside),
             const SizedBox(height: 26),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.32,
-                children: [for (final m in modules) _ModuleTile(m)],
-              ),
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 1.32,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [for (final m in modules) _ModuleTile(m)],
             ),
           ],
         ),
