@@ -46,13 +46,20 @@ Future<void> main() async {
   // which fail loudly on their own.
   final useDebugAppCheck =
       AppEnvironment.appCheckMode == AppCheckMode.debug;
+  // A fixed debug token (from `--dart-define=APP_CHECK_DEBUG_TOKEN`) keeps the
+  // debug attestation STABLE across reinstalls, so it only has to be registered
+  // in the Console once. Null → the SDK generates+logs a per-install token (the
+  // prior behaviour). Only ever consulted on the debug-provider path.
+  final debugToken = AppEnvironment.appCheckDebugToken.isEmpty
+      ? null
+      : AppEnvironment.appCheckDebugToken;
   unawaited(
     FirebaseAppCheck.instance.activate(
       providerAndroid: useDebugAppCheck
-          ? const AndroidDebugProvider()
+          ? AndroidDebugProvider(debugToken: debugToken)
           : const AndroidPlayIntegrityProvider(),
       providerApple: useDebugAppCheck
-          ? const AppleDebugProvider()
+          ? AppleDebugProvider(debugToken: debugToken)
           : const AppleAppAttestProvider(),
     ).catchError((_) {}),
   );

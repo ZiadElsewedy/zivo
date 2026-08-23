@@ -74,6 +74,22 @@ class AppEnvironment {
     defaultValue: false,
   );
 
+  /// A FIXED App Check **debug** token for local development, injected at build
+  /// time via `--dart-define=APP_CHECK_DEBUG_TOKEN=<uuid>` (the dev launch
+  /// config loads it from the untracked `config/local.json`). When non-empty,
+  /// the debug providers ([AppCheckMode.debug]) use it verbatim instead of the
+  /// per-install token the SDK would otherwise generate and log — so the token
+  /// stays STABLE across reinstalls/uninstalls and needs registering in the
+  /// Firebase Console (App Check → Manage debug tokens) only once. Empty by
+  /// default → the SDK falls back to a generated per-install token (the prior
+  /// behaviour). A debug-only attestation aid, never used in profile/release
+  /// (which attest for real); keep the value OUT of committed config — see
+  /// `config/README.md`.
+  static const String appCheckDebugToken = String.fromEnvironment(
+    'APP_CHECK_DEBUG_TOKEN',
+    defaultValue: '',
+  );
+
   /// App Check attestation mode. Development uses debug providers; Profile and
   /// Release attest for real, so a Profile build behaves like production (which
   /// is what M7 measures). Behaviourally identical to the previous

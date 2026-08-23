@@ -90,7 +90,17 @@ class WorkoutDashboardPage extends StatelessWidget {
                   // lives on `WorkoutProgressPage` (the AppBar's Progress
                   // action) so this landing stays calm and scannable.
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
+                    // This page is pushed (its own AppBar, no bottom nav), so
+                    // the bottom padding only needs to clear the home indicator
+                    // plus a small margin — not the ~110 nav-bar clearance a
+                    // tab page would reserve, which here left a large dead band
+                    // of blank space under the last card.
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      8,
+                      22,
+                      MediaQuery.of(context).padding.bottom + 24,
+                    ),
                     children: [
                       if (selection.day != null)
                         UpNextWorkoutCard(plan: plan, day: selection.day!, resumable: selection.resumable),
