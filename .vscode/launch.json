@@ -7,10 +7,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "debug",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.json",
-        "--dart-define-from-file=config/local.json"
-      ]
+      "toolArgs": ["--dart-define-from-file=config/development.json"]
     },
     {
       "name": "ZIVO · Profile ",

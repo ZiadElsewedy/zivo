@@ -412,11 +412,6 @@ exports.aiChat = onCall(
     {
       secrets: [ANTHROPIC_API_KEY],
       region: "us-central1",
-      // M9 Phase 4: attest that calls come from a genuine app instance (the
-      // client activates App Check in `lib/main.dart`). MUST NOT be deployed
-      // until App Check providers are registered in the Firebase Console for
-      // this project, or the owner's own device is locked out of Ask.
-      enforceAppCheck: true,
     },
     async (request, response) => {
       const auth = request.auth;
@@ -459,11 +454,9 @@ exports.aiChat = onCall(
 
 // --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
 
-// These WRITE user data, so — like `aiChat` — they enforce App Check
-// (`enforceAppCheck: true`). CRITICAL DEPLOY ORDERING: register App Check
-// providers in the Firebase Console for this project FIRST, then deploy the
-// functions. Deploying enforcement before the Console providers exist locks the
-// owner's own device out of all three AI callables.
+// These WRITE user data. Access is gated by Firebase Auth (`request.auth`)
+// below and by owner-only Firestore rules; the confirm/cancel logic only ever
+// touches the signed-in user's own pending actions.
 
 /**
  * Executes a user-confirmed pending action (ADR-003): performs the proposed
@@ -472,7 +465,7 @@ exports.aiChat = onCall(
  * the store and maps errors.
  */
 exports.aiConfirmAction = onCall(
-    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+    {region: "us-central1"}, async (request) => {
       const auth = request.auth;
       if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
@@ -498,7 +491,7 @@ exports.aiConfirmAction = onCall(
  * Never writes an entity.
  */
 exports.aiCancelAction = onCall(
-    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+    {region: "us-central1"}, async (request) => {
       const auth = request.auth;
       if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
@@ -538,18 +531,16 @@ const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
  * itself via `saveSplit` — that review screen is the "human confirms before
  * it becomes real" gate, so there is nothing here to confirm or cancel.
  *
- * Deliberately UNauthenticated: this call reads and extracts a PDF, nothing
- * more — it never touches Firestore, so there's no user data to protect at
- * this step. `enforceAppCheck` is the abuse control here (blocks scripted
- * callers, not signed-out humans); auth is required later, at save time
- * (`saveSplit`/`savePlan`, gated client-side and by Firestore's owner-only
- * rules), where a workout plan actually gets written to an account.
+ * Requires a signed-in Firebase user: this is an expensive Claude call (a
+ * whole-PDF extraction), so it must not be callable anonymously. It writes no
+ * Firestore data itself — the extracted split is reviewed and saved later
+ * (`saveSplit`/`savePlan`, gated by Firestore's owner-only rules) — but the
+ * `request.auth` gate here keeps the paid endpoint behind authentication.
  */
 exports.aiImportWorkoutPlan = onCall(
     {
       secrets: [ANTHROPIC_API_KEY],
       region: "us-central1",
-      enforceAppCheck: true,
       // A single Claude call reading a whole PDF (native document input,
       // every page) can run well past the platform's 60s default — unlike
       // aiChat's short per-turn tool calls, there's no streaming/chunking
@@ -557,6 +548,11 @@ exports.aiImportWorkoutPlan = onCall(
       timeoutSeconds: 180,
     },
     async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to import a plan.");
+      }
+
       const data = request.data || {};
       const pdfBase64 = (data.pdfBase64 || "").toString();
       if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
@@ -718,7 +714,6 @@ exports.aiTranscribe = onCall(
       // enable it; omitted so the function deploys Gemini-only by default.
       secrets: [GEMINI_API_KEY],
       region: "us-central1",
-      enforceAppCheck: true,
       // A single transcription call for a short voice note; generous
       // headroom over the platform default without inviting long-poll abuse.
       timeoutSeconds: 120,

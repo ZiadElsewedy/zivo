@@ -54,7 +54,6 @@ dependencies:
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
-  firebase_app_check: ^0.4.6
   lottie: ^3.5.1
   # Premium, consistent line-icon set used app-wide via core/theme/app_icons.
   # (Lucide — Phosphor's package can't compile on this Flutter: it subclasses

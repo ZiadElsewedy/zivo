@@ -1,8 +1,3 @@
-# Local, per-developer dart-defines — holds the App Check debug token and any
-# other machine-local values. NEVER commit (see config/README.md); copy
-# config/local.example.json to config/local.json and fill it in.
-config/local.json
-
 # Miscellaneous
 *.class
 *.log

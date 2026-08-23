@@ -15,10 +15,6 @@ void main() {
       expect(AppEnvironment.name, 'Development');
     });
 
-    test('Development uses App Check debug providers', () {
-      expect(AppEnvironment.appCheckMode, AppCheckMode.debug);
-    });
-
     test('defaults: Firestore on, public client id present', () {
       expect(AppEnvironment.useFirestore, isTrue);
       expect(
