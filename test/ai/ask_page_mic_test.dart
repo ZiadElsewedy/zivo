@@ -107,7 +107,7 @@ void main() {
       expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
       expect(find.text('What is due this week?'), findsOneWidget);
       // The transcript is in the composer for editing — not sent yet.
-      expect(find.text('Ask about your day.'), findsOneWidget);
+      expect(find.text("Hey, I'm ZIVO."), findsOneWidget);
     },
   );
 

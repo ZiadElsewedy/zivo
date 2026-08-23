@@ -67,12 +67,39 @@ class _AskPageState extends State<AskPage> {
   /// composer briefly so the user isn't left tapping into a stale input.
   bool _transcribing = false;
 
+  /// The user's just-sent text while a turn is in flight or has failed —
+  /// rendered as an optimistic bubble until the durable message lands.
+  String? _pendingText;
+
+  /// True when the most recent send attempt threw — shows the retry rail.
+  bool _sendFailed = false;
+
+  /// Persisted user-message count captured right before a send starts, so
+  /// reconciliation can tell the optimistic message landed without
+  /// comparing text.
+  int _baselineUserCount = 0;
+
+  /// The latest snapshot from `watchMessages`, kept for reconciliation.
+  List<AiMessage> _lastPersisted = const [];
+
+  /// True while the list is pinned to the bottom; goes false the moment the
+  /// user scrolls up, so incoming messages don't yank them back down.
+  bool _autoFollow = true;
+
+  Stream<List<AiMessage>>? _messagesStream;
+  String? _streamConversationId;
+
   @override
   void initState() {
     super.initState();
     _input.addListener(() {
       final canSend = _input.text.trim().isNotEmpty;
       if (canSend != _canSend) setState(() => _canSend = canSend);
+    });
+    _scroll.addListener(() {
+      if (!_scroll.hasClients) return;
+      final p = _scroll.position;
+      _autoFollow = p.pixels >= p.maxScrollExtent - 120;
     });
   }
 
@@ -84,17 +111,48 @@ class _AskPageState extends State<AskPage> {
   }
 
   Future<void> _send(String conversationId) async {
+    if (_sending) return;
     if (!_canSend) return;
-    final ai = AppScope.of(context).ai;
     final text = _input.text;
     _input.clear();
+    setState(() {
+      _pendingText = text;
+      _sendFailed = false;
+      _baselineUserCount = _lastPersisted
+          .where((m) => m.role == AiRole.user)
+          .length;
+    });
+    await _runSend(conversationId, text);
+  }
+
+  /// Re-sends the last failed text. The server persisted nothing on a
+  /// network failure, so the baseline user count from the original attempt
+  /// is still correct — no duplicate optimistic bubble.
+  Future<void> _retry(String conversationId) async {
+    if (_pendingText == null) return;
+    await _runSend(conversationId, _pendingText!);
+  }
+
+  /// Fills the composer with an empty-state suggestion and sends it —
+  /// setting the controller text fires the existing listener synchronously,
+  /// so `_canSend` is already true by the time `_send`'s guard runs.
+  void _sendSuggestion(String conversationId, String text) {
+    _input.text = text;
+    _send(conversationId);
+  }
+
+  Future<void> _runSend(String conversationId, String text) async {
+    final ai = AppScope.of(context).ai;
     setState(() {
       _sending = true;
       _expectReveal = true;
       _phase = null;
       _liveText = '';
       _streamed = false;
+      _sendFailed = false;
+      _autoFollow = true;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     try {
       await ai.send(
         conversationId: conversationId,
@@ -105,12 +163,11 @@ class _AskPageState extends State<AskPage> {
       if (mounted) {
         setState(() {
           _sending = false;
-          _expectReveal = false;
+          _sendFailed = true;
           _phase = null;
           _liveText = '';
         });
       }
-      _showError("Couldn't reach Ask. Check your connection and try again.");
       return;
     }
     if (!mounted) return;
@@ -122,7 +179,9 @@ class _AskPageState extends State<AskPage> {
       _phase = null;
       _liveText = '';
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // _pendingText is intentionally left set here — the StreamBuilder
+    // reconciliation below clears it once the persisted message actually
+    // lands, so the optimistic bubble never gaps or duplicates the real one.
   }
 
   /// Applies one live turn event from the gateway: phases drive the rail,
@@ -137,6 +196,9 @@ class _AskPageState extends State<AskPage> {
           _streamed = true;
           _liveText += text;
         });
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _maybeAutoScroll(),
+        );
     }
   }
 
@@ -248,7 +310,7 @@ class _AskPageState extends State<AskPage> {
   String _railLabel() => switch (_phase) {
     AiPhase.understanding => 'Understanding…',
     AiPhase.working => 'Working…',
-    AiPhase.preparingChange => 'Preparing change…',
+    AiPhase.preparingChange => 'Preparing your change…',
     _ => 'Thinking…',
   };
 
@@ -259,6 +321,13 @@ class _AskPageState extends State<AskPage> {
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
     );
+  }
+
+  /// Follows new content to the bottom only if the user hasn't scrolled
+  /// away — never yanks them down mid-read, and resumes following once
+  /// they scroll back near the bottom themselves.
+  void _maybeAutoScroll() {
+    if (_autoFollow) _scrollToBottom();
   }
 
   @override
@@ -278,15 +347,58 @@ class _AskPageState extends State<AskPage> {
                   final conversationId = idSnapshot.data;
                   if (conversationId == null) return const SizedBox.shrink();
                   final ai = AppScope.of(context).ai;
+                  if (_messagesStream == null ||
+                      _streamConversationId != conversationId) {
+                    _streamConversationId = conversationId;
+                    _messagesStream = ai.watchMessages(conversationId);
+                  }
                   return StreamBuilder<List<AiMessage>>(
-                    stream: ai.watchMessages(conversationId),
+                    stream: _messagesStream,
                     builder: (context, snapshot) {
-                      final messages = snapshot.data ?? const <AiMessage>[];
-                      if (messages.isEmpty && !_sending) {
-                        return const _EmptyAsk();
+                      _lastPersisted = snapshot.data ?? const <AiMessage>[];
+                      final persistedUserCount = _lastPersisted
+                          .where((m) => m.role == AiRole.user)
+                          .length;
+                      // The optimistic bubble "lands" the moment the server
+                      // has persisted a new user message — state-based, not
+                      // a text/id compare, so it can't mismatch or double up.
+                      final landed =
+                          _pendingText != null &&
+                          persistedUserCount > _baselineUserCount;
+                      if (landed) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted &&
+                              _pendingText != null &&
+                              _lastPersisted
+                                      .where((m) => m.role == AiRole.user)
+                                      .length >
+                                  _baselineUserCount) {
+                            setState(() {
+                              _pendingText = null;
+                              _sendFailed = false;
+                            });
+                          }
+                        });
+                      }
+                      final displayed = <AiMessage>[..._lastPersisted];
+                      if (_pendingText != null && !landed) {
+                        displayed.add(
+                          AiMessage(
+                            id: '_pending',
+                            role: AiRole.user,
+                            content: _pendingText!,
+                            createdAt: DateTime.now(),
+                          ),
+                        );
+                      }
+                      if (displayed.isEmpty && !_sending && !_sendFailed) {
+                        return _EmptyAsk(
+                          onSuggestion: (t) =>
+                              _sendSuggestion(conversationId, t),
+                        );
                       }
                       WidgetsBinding.instance.addPostFrameCallback(
-                        (_) => _scrollToBottom(),
+                        (_) => _maybeAutoScroll(),
                       );
                       return ListView.builder(
                         controller: _scroll,
@@ -297,29 +409,45 @@ class _AskPageState extends State<AskPage> {
                           AppSpacing.base,
                         ),
                         // A trailing slot holds the in-flight state: the live
-                        // reply once text starts streaming, otherwise the phase
-                        // rail.
-                        itemCount: messages.length + (_sending ? 1 : 0),
+                        // reply once text starts streaming, the phase rail, or
+                        // a retry prompt after a failed send.
+                        itemCount:
+                            displayed.length +
+                            ((_sending || _sendFailed) ? 1 : 0),
                         itemBuilder: (context, i) {
-                          if (i >= messages.length) {
-                            if (_liveText.isNotEmpty) {
-                              return RiseIn(
-                                child: _MessageBubble(
-                                  AiMessage(
-                                    id: '_live',
-                                    role: AiRole.assistant,
-                                    content: _liveText,
-                                    createdAt: DateTime.now(),
-                                  ),
+                          if (i >= displayed.length) {
+                            // Grouped under the ZIVO label right after a user
+                            // send — mirrors the runStart check below.
+                            final showIdentity =
+                                displayed.isEmpty ||
+                                displayed.last.role != AiRole.assistant;
+                            Widget trailing;
+                            if (_sending && _liveText.isNotEmpty) {
+                              trailing = _MessageBubble(
+                                AiMessage(
+                                  id: '_live',
+                                  role: AiRole.assistant,
+                                  content: _liveText,
+                                  createdAt: DateTime.now(),
                                 ),
                               );
+                            } else if (_sending) {
+                              trailing = _ThinkingRail(label: _railLabel());
+                            } else {
+                              trailing = _ErrorRetry(
+                                onRetry: () => _retry(conversationId),
+                              );
                             }
-                            return RiseIn(
-                              child: _ThinkingRail(label: _railLabel()),
-                            );
+                            if (showIdentity) {
+                              trailing = Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [const _ZivoIdentity(), trailing],
+                              );
+                            }
+                            return RiseIn(child: trailing);
                           }
-                          final message = messages[i];
-                          final isLast = i == messages.length - 1;
+                          final message = displayed[i];
+                          final isLast = i == displayed.length - 1;
                           // Consume the reveal token on the first render of the
                           // turn's last message; only a fresh text reply types.
                           var animateReply = false;
@@ -330,31 +458,44 @@ class _AskPageState extends State<AskPage> {
                             }
                             _expectReveal = false;
                           }
+                          // Groups consecutive assistant messages (a bubble
+                          // followed by its proposal card, say) under one
+                          // ZIVO label instead of repeating it per message.
+                          final runStart =
+                              message.role == AiRole.assistant &&
+                              (i == 0 ||
+                                  displayed[i - 1].role != AiRole.assistant);
                           final action = message.pendingAction;
+                          Widget content;
                           if (action == null) {
-                            return RiseIn(
-                              key: ValueKey(message.id),
-                              child: _MessageBubble(
-                                message,
-                                animate: animateReply,
-                              ),
+                            content = _MessageBubble(
+                              message,
+                              animate: animateReply,
                             );
-                          }
-                          final effective =
-                              action.status != AiActionStatus.pending
-                              ? action.status
-                              : (_resolved[action.actionId] ??
-                                    AiActionStatus.pending);
-                          return RiseIn(
-                            key: ValueKey(message.id),
-                            child: _ProposalCard(
+                          } else {
+                            final effective =
+                                action.status != AiActionStatus.pending
+                                ? action.status
+                                : (_resolved[action.actionId] ??
+                                      AiActionStatus.pending);
+                            content = _ProposalCard(
                               action: action,
                               status: effective,
                               onConfirm: () =>
                                   _confirm(conversationId, action.actionId),
                               onCancel: () =>
                                   _cancel(conversationId, action.actionId),
-                            ),
+                            );
+                          }
+                          if (runStart) {
+                            content = Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [const _ZivoIdentity(), content],
+                            );
+                          }
+                          return RiseIn(
+                            key: ValueKey(message.id),
+                            child: content,
                           );
                         },
                       );
@@ -376,6 +517,7 @@ class _AskPageState extends State<AskPage> {
               },
               isRecording: _recording,
               transcribing: _transcribing,
+              sending: _sending,
               onMicTap: _toggleMic,
               onCancelRecording: _cancelRecording,
             ),
@@ -403,8 +545,49 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// The small "✦ ZIVO" label grouping consecutive assistant content — shown
+/// once above a run of assistant bubbles/proposal cards, not per-message.
+class _ZivoIdentity extends StatelessWidget {
+  const _ZivoIdentity();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.auto_awesome_rounded,
+            size: 13,
+            color: AppColors.iris,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            'ZIVO',
+            style: AppText.meta.copyWith(
+              color: AppColors.irisText,
+              fontWeight: FontWeight.w700,
+              letterSpacing: .5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyAsk extends StatelessWidget {
-  const _EmptyAsk();
+  const _EmptyAsk({required this.onSuggestion});
+
+  final void Function(String prompt) onSuggestion;
+
+  static const _suggestions = [
+    "What's on my schedule?",
+    "What's due this week?",
+    'What did I spend this week?',
+    'Summarise my week',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -421,17 +604,59 @@ class _EmptyAsk extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              'Ask about your day.',
-              style: AppText.aside,
+              "Hey, I'm ZIVO.",
+              style: AppText.cardTitle,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Try "what\'s due this week?" or "summarise my week."',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              'Ask about your schedule, tasks, spending, and more — or I '
+              'can add things for you.',
+              style: AppText.aside.copyWith(color: AppColors.ink2),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 18),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final prompt in _suggestions)
+                  _SuggestionChip(
+                    label: prompt,
+                    onTap: () => onSuggestion(prompt),
+                  ),
+              ],
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A tappable suggestion pill in the empty state — a tap sends the prompt
+/// immediately, the same as typing it and hitting send.
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            label,
+            style: AppText.meta.copyWith(color: AppColors.ink2),
+          ),
         ),
       ),
     );
@@ -451,6 +676,7 @@ class _MessageBubble extends StatelessWidget {
     final isUser = message.role == AiRole.user;
     final style = AppText.body.copyWith(
       color: isUser ? Colors.white : AppColors.ink,
+      height: isUser ? null : 1.4,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -461,12 +687,16 @@ class _MessageBubble extends StatelessWidget {
         children: [
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser ? AppColors.iris : AppColors.card,
-                borderRadius: BorderRadius.circular(18),
-                border: isUser ? null : Border.all(color: AppColors.hairline),
+              padding: EdgeInsets.symmetric(
+                horizontal: isUser ? 16 : 2,
+                vertical: isUser ? 12 : 2,
               ),
+              decoration: isUser
+                  ? BoxDecoration(
+                      color: AppColors.iris,
+                      borderRadius: BorderRadius.circular(18),
+                    )
+                  : null,
               child: animate
                   ? _TypewriterText(message.content, style: style)
                   : Text(message.content, style: style),
@@ -600,6 +830,46 @@ class _IrisDot extends StatelessWidget {
       shape: BoxShape.circle,
     ),
   );
+}
+
+/// Shown in the trailing slot after a failed send: the user's text stays in
+/// its optimistic bubble (never lost) and this offers a one-tap retry
+/// instead of a SnackBar that vanishes.
+class _ErrorRetry extends StatelessWidget {
+  const _ErrorRetry({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+      child: Row(
+        children: [
+          Text(
+            'Something went wrong.',
+            style: AppText.meta.copyWith(color: AppColors.ink3),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Retry',
+              style: AppText.meta.copyWith(
+                color: AppColors.ink2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The ADR-003 confirmation card: an assistant proposal the user confirms or
@@ -889,6 +1159,7 @@ class _Composer extends StatelessWidget {
     required this.onSend,
     required this.isRecording,
     required this.transcribing,
+    required this.sending,
     required this.onMicTap,
     required this.onCancelRecording,
   });
@@ -906,12 +1177,16 @@ class _Composer extends StatelessWidget {
   /// True while a just-stopped recording is being transcribed — disables the
   /// mic/send buttons briefly.
   final bool transcribing;
+
+  /// True while a turn is in flight — dims the send button and blocks the
+  /// mic so the user can't start a conflicting action mid-turn.
+  final bool sending;
   final VoidCallback onMicTap;
   final VoidCallback onCancelRecording;
 
   @override
   Widget build(BuildContext context) {
-    final canSend = enabled && !isRecording && !transcribing;
+    final canSend = enabled && !isRecording && !transcribing && !sending;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.base,
@@ -949,6 +1224,21 @@ class _Composer extends StatelessWidget {
                         ],
                       ),
                     )
+                  : transcribing
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.graphic_eq_rounded,
+                            size: 14,
+                            color: AppColors.iris,
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Transcribing…', style: AppText.rowTitle),
+                        ],
+                      ),
+                    )
                   : Padding(
                       padding: const EdgeInsets.only(left: 16),
                       child: TextField(
@@ -969,10 +1259,10 @@ class _Composer extends StatelessWidget {
                     ),
             ),
             IconButton(
-              onPressed: transcribing ? null : onMicTap,
+              onPressed: (transcribing || sending) ? null : onMicTap,
               icon: Icon(
                 isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
-                color: transcribing
+                color: (transcribing || sending)
                     ? AppColors.ink3
                     : (isRecording ? AppColors.flare : AppColors.iris),
               ),
