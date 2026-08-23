@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
@@ -35,6 +36,17 @@ class _GatedAi implements AiRepository {
 
   @override
   Future<String> ensureConversation() => _inner.ensureConversation();
+
+  @override
+  Future<String> createConversation() => _inner.createConversation();
+
+  @override
+  Future<void> renameConversation(String id, String title) =>
+      _inner.renameConversation(id, title);
+
+  @override
+  Stream<List<AiConversation>> watchConversations() =>
+      _inner.watchConversations();
 
   @override
   Stream<List<AiMessage>> watchMessages(String conversationId) =>

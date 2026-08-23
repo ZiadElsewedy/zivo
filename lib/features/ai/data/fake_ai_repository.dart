@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
+import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
@@ -16,13 +17,31 @@ const kFakeAiReply =
     "The assistant isn't connected yet — this is a placeholder reply. "
     "Once the gateway is deployed I'll answer using your real ZIVO data.";
 
-const _conversationId = 'local';
+/// One in-memory conversation: its messages plus a broadcast stream of them.
+class _FakeConversation {
+  _FakeConversation({
+    required this.id,
+    required this.title,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  String title;
+  DateTime createdAt;
+  DateTime updatedAt;
+  final List<AiMessage> messages = [];
+  final StreamController<List<AiMessage>> controller =
+      StreamController<List<AiMessage>>.broadcast();
+}
 
 /// Pure in-memory `AiRepository`: no Firestore, no network. Appends the user's
 /// message then an assistant reply, broadcasting both. Understands one local
 /// "add task <title>" shortcut so the ADR-003 confirmation flow can be tried
 /// offline; every other message gets the honest canned reply. [proposeAction]
-/// lets tests drive a proposal of any kind directly.
+/// lets tests drive a proposal of any kind directly. Keeps an in-memory list
+/// of conversations, each with its own message list, so multi-session UI
+/// (new chat / switch / sessions list) is testable without a backend.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)?
@@ -46,10 +65,16 @@ class FakeAiRepository implements AiRepository {
   )
   _transcribeImpl;
 
-  final List<AiMessage> _messages = [];
-  final StreamController<List<AiMessage>> _controller =
-      StreamController<List<AiMessage>>.broadcast();
+  final Map<String, _FakeConversation> _conversations = {};
+  final StreamController<List<AiConversation>> _conversationsController =
+      StreamController<List<AiConversation>>.broadcast();
+
+  /// The conversation [ensureConversation] returns — created lazily on first
+  /// call, then reused, mirroring the real repo's single-cached-id behavior.
+  String? _defaultConversationId;
+
   int _sequence = 0;
+  int _conversationSequence = 0;
 
   /// A strictly increasing (id, createdAt) pair, even across calls made in
   /// the same microsecond.
@@ -59,13 +84,84 @@ class FakeAiRepository implements AiRepository {
     return (now.microsecondsSinceEpoch.toString(), now);
   }
 
+  _FakeConversation _createConversation({required String title}) {
+    final now = DateTime.now().add(
+      Duration(microseconds: _sequence + _conversationSequence),
+    );
+    final id = 'conv-${_conversationSequence++}';
+    final convo = _FakeConversation(
+      id: id,
+      title: title,
+      createdAt: now,
+      updatedAt: now,
+    );
+    _conversations[id] = convo;
+    _emitConversations();
+    return convo;
+  }
+
+  void _emitConversations() {
+    final list = _conversations.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    _conversationsController.add([
+      for (final c in list)
+        AiConversation(
+          id: c.id,
+          title: c.title,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        ),
+    ]);
+  }
+
   @override
-  Future<String> ensureConversation() async => _conversationId;
+  Future<String> ensureConversation() async {
+    final existing = _defaultConversationId;
+    if (existing != null && _conversations.containsKey(existing)) {
+      return existing;
+    }
+    final convo = _createConversation(title: 'Ask');
+    _defaultConversationId = convo.id;
+    return convo.id;
+  }
+
+  @override
+  Future<String> createConversation() async =>
+      _createConversation(title: 'New chat').id;
+
+  @override
+  Future<void> renameConversation(String id, String title) async {
+    final convo = _conversations[id];
+    if (convo == null) return;
+    convo.title = title;
+    _emitConversations();
+  }
+
+  @override
+  Stream<List<AiConversation>> watchConversations() async* {
+    final list = _conversations.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    yield [
+      for (final c in list)
+        AiConversation(
+          id: c.id,
+          title: c.title,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+        ),
+    ];
+    yield* _conversationsController.stream;
+  }
 
   @override
   Stream<List<AiMessage>> watchMessages(String conversationId) async* {
-    yield List.unmodifiable(_messages);
-    yield* _controller.stream;
+    final convo = _conversations[conversationId];
+    if (convo == null) {
+      yield const [];
+      return;
+    }
+    yield List.unmodifiable(convo.messages);
+    yield* convo.controller.stream;
   }
 
   @override
@@ -76,11 +172,13 @@ class FakeAiRepository implements AiRepository {
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    final convo = _conversations[conversationId];
+    if (convo == null) return;
 
     onEvent?.call(const AiPhaseEvent(AiPhase.understanding));
 
     final (userId, userCreatedAt) = _next();
-    _messages.add(
+    convo.messages.add(
       AiMessage(
         id: userId,
         role: AiRole.user,
@@ -97,6 +195,7 @@ class FakeAiRepository implements AiRepository {
       if (title.isNotEmpty) {
         onEvent?.call(const AiPhaseEvent(AiPhase.preparingChange));
         proposeAction(
+          conversationId: conversationId,
           kind: 'create_task',
           summary: 'Add task "$title"',
           fields: {'title': title, 'due': null, 'priority': 'Normal'},
@@ -118,7 +217,7 @@ class FakeAiRepository implements AiRepository {
     }
 
     final (assistantId, assistantCreatedAt) = _next();
-    _messages.add(
+    convo.messages.add(
       AiMessage(
         id: assistantId,
         role: AiRole.assistant,
@@ -126,18 +225,25 @@ class FakeAiRepository implements AiRepository {
         createdAt: assistantCreatedAt,
       ),
     );
-    _controller.add(List.unmodifiable(_messages));
+    convo.updatedAt = assistantCreatedAt;
+    _emitConversations();
+    convo.controller.add(List.unmodifiable(convo.messages));
     onEvent?.call(const AiPhaseEvent(AiPhase.done));
   }
 
-  /// Appends an assistant proposal (confirmation card). Test/offline-demo hook.
+  /// Appends an assistant proposal (confirmation card) to [conversationId]
+  /// (defaulting to the conversation [ensureConversation] created). Test/
+  /// offline-demo hook.
   void proposeAction({
+    String? conversationId,
     required String kind,
     required String summary,
     required Map<String, dynamic> fields,
   }) {
+    final convo = _conversations[conversationId ?? _defaultConversationId];
+    if (convo == null) return;
     final (id, createdAt) = _next();
-    _messages.add(
+    convo.messages.add(
       AiMessage(
         id: id,
         role: AiRole.assistant,
@@ -152,7 +258,9 @@ class FakeAiRepository implements AiRepository {
         ),
       ),
     );
-    _controller.add(List.unmodifiable(_messages));
+    convo.updatedAt = createdAt;
+    _emitConversations();
+    convo.controller.add(List.unmodifiable(convo.messages));
   }
 
   @override
@@ -160,10 +268,12 @@ class FakeAiRepository implements AiRepository {
     required String conversationId,
     required String actionId,
   }) async {
-    final action = _resolve(actionId, AiActionStatus.applied);
+    final convo = _conversations[conversationId];
+    if (convo == null) return;
+    final action = _resolve(convo, actionId, AiActionStatus.applied);
     if (action == null) return;
     final (id, createdAt) = _next();
-    _messages.add(
+    convo.messages.add(
       AiMessage(
         id: id,
         role: AiRole.assistant,
@@ -171,7 +281,9 @@ class FakeAiRepository implements AiRepository {
         createdAt: createdAt,
       ),
     );
-    _controller.add(List.unmodifiable(_messages));
+    convo.updatedAt = createdAt;
+    _emitConversations();
+    convo.controller.add(List.unmodifiable(convo.messages));
   }
 
   @override
@@ -179,10 +291,12 @@ class FakeAiRepository implements AiRepository {
     required String conversationId,
     required String actionId,
   }) async {
-    final action = _resolve(actionId, AiActionStatus.cancelled);
+    final convo = _conversations[conversationId];
+    if (convo == null) return;
+    final action = _resolve(convo, actionId, AiActionStatus.cancelled);
     if (action == null) return;
     final (id, createdAt) = _next();
-    _messages.add(
+    convo.messages.add(
       AiMessage(
         id: id,
         role: AiRole.assistant,
@@ -190,7 +304,9 @@ class FakeAiRepository implements AiRepository {
         createdAt: createdAt,
       ),
     );
-    _controller.add(List.unmodifiable(_messages));
+    convo.updatedAt = createdAt;
+    _emitConversations();
+    convo.controller.add(List.unmodifiable(convo.messages));
   }
 
   /// Offline-testable stand-in for the real `aiImportWorkoutPlan` callable —
@@ -273,14 +389,18 @@ class FakeAiRepository implements AiRepository {
 
   /// Flips a still-pending action to [status] in place; returns it, or null if
   /// missing or already resolved (idempotent).
-  AiPendingAction? _resolve(String actionId, AiActionStatus status) {
-    final i = _messages.indexWhere(
+  AiPendingAction? _resolve(
+    _FakeConversation convo,
+    String actionId,
+    AiActionStatus status,
+  ) {
+    final i = convo.messages.indexWhere(
       (m) => m.pendingAction?.actionId == actionId,
     );
     if (i == -1) return null;
-    final action = _messages[i].pendingAction!;
+    final action = convo.messages[i].pendingAction!;
     if (!action.isPending) return null;
-    _messages[i] = _messages[i].copyWith(
+    convo.messages[i] = convo.messages[i].copyWith(
       pendingAction: action.copyWith(status: status),
     );
     return action;
@@ -299,5 +419,10 @@ class FakeAiRepository implements AiRepository {
     }
   }
 
-  void dispose() => _controller.close();
+  void dispose() {
+    for (final convo in _conversations.values) {
+      convo.controller.close();
+    }
+    _conversationsController.close();
+  }
 }

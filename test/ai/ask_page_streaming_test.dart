@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
@@ -39,6 +40,15 @@ class _StreamingAi implements AiRepository {
 
   @override
   Future<String> ensureConversation() async => 'c';
+
+  @override
+  Future<String> createConversation() async => 'c2';
+
+  @override
+  Future<void> renameConversation(String id, String title) async {}
+
+  @override
+  Stream<List<AiConversation>> watchConversations() => Stream.value(const []);
 
   @override
   Stream<List<AiMessage>> watchMessages(String conversationId) async* {

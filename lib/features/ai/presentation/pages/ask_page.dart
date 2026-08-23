@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,9 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../data/audio_recorder.dart';
+import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_role.dart';
@@ -27,9 +30,19 @@ class AskPage extends StatefulWidget {
 }
 
 class _AskPageState extends State<AskPage> {
-  late final Future<String> _conversationId = AppScope.of(
+  /// Resolves the initial conversation once at startup. Once the user starts
+  /// a new chat or switches sessions, [_activeConversationId] (set via
+  /// [_switchTo]) takes over as the source of truth.
+  late final Future<String> _initialConversationId = AppScope.of(
     context,
   ).ai.ensureConversation();
+  String? _activeConversationId;
+
+  /// True while the active conversation is still titled 'New chat' — drives
+  /// the auto-title-from-first-message behavior in [_send]. A conversation
+  /// resolved via [_initialConversationId] (title 'Ask') is never untitled.
+  bool _activeIsUntitled = false;
+
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
   bool _canSend = false;
@@ -115,14 +128,88 @@ class _AskPageState extends State<AskPage> {
     if (!_canSend) return;
     final text = _input.text;
     _input.clear();
+    final baselineUserCount = _lastPersisted
+        .where((m) => m.role == AiRole.user)
+        .length;
+    // The first user message in a still-'New chat' conversation earns an
+    // auto-title — fired alongside the send, not blocking it.
+    if (baselineUserCount == 0 && _activeIsUntitled) {
+      _activeIsUntitled = false;
+      unawaited(_autoTitle(conversationId, text));
+    }
     setState(() {
       _pendingText = text;
       _sendFailed = false;
-      _baselineUserCount = _lastPersisted
-          .where((m) => m.role == AiRole.user)
-          .length;
+      _baselineUserCount = baselineUserCount;
     });
     await _runSend(conversationId, text);
+  }
+
+  /// Best-effort: a failed rename just leaves the conversation titled
+  /// 'New chat' in the sessions list — never surfaced as a user-facing error.
+  Future<void> _autoTitle(String conversationId, String firstMessage) async {
+    final ai = AppScope.of(context).ai;
+    final trimmed = firstMessage.trim();
+    final title = trimmed.length > 40
+        ? '${trimmed.substring(0, 40).trimRight()}…'
+        : trimmed;
+    try {
+      await ai.renameConversation(conversationId, title);
+    } catch (_) {
+      // Best-effort — see doc comment.
+    }
+  }
+
+  /// Switches the active conversation — clears all optimistic/in-flight
+  /// state from the previous one so it can't bleed into the new thread.
+  void _switchTo(String conversationId, {required bool isUntitled}) {
+    setState(() {
+      _activeConversationId = conversationId;
+      _activeIsUntitled = isUntitled;
+      _pendingText = null;
+      _sendFailed = false;
+      _sending = false;
+      _phase = null;
+      _liveText = '';
+      _streamed = false;
+      _expectReveal = false;
+      _resolved.clear();
+      _baselineUserCount = 0;
+      _lastPersisted = const [];
+      _autoFollow = true;
+    });
+  }
+
+  Future<void> _newChat() async {
+    final ai = AppScope.of(context).ai;
+    final id = await ai.createConversation();
+    if (!mounted) return;
+    _switchTo(id, isUntitled: true);
+  }
+
+  Future<void> _openSessions(String activeConversationId) async {
+    final result = await showModalBottomSheet<_SessionsSelection>(
+      context: context,
+      backgroundColor: AppColors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) =>
+          _SessionsSheet(activeConversationId: activeConversationId),
+    );
+    if (!mounted || result == null) return;
+    switch (result) {
+      case _NewChatSelected():
+        await _newChat();
+      case _ConversationSelected(:final conversation):
+        if (conversation.id != activeConversationId) {
+          _switchTo(
+            conversation.id,
+            isUntitled: conversation.title == 'New chat',
+          );
+        }
+    }
   }
 
   /// Re-sends the last failed text. The server persisted nothing on a
@@ -330,6 +417,11 @@ class _AskPageState extends State<AskPage> {
     if (_autoFollow) _scrollToBottom();
   }
 
+  /// The conversation any new action (send, sessions) should target: the
+  /// active one once set, otherwise the initial conversation once resolved.
+  Future<String> _resolveConversationId() async =>
+      _activeConversationId ?? await _initialConversationId;
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -339,12 +431,25 @@ class _AskPageState extends State<AskPage> {
         bottom: false,
         child: Column(
           children: [
-            const _Header(),
+            _Header(
+              onNewChat: _sending
+                  ? null
+                  : () async {
+                      await _newChat();
+                    },
+              onSessions: _sending
+                  ? null
+                  : () async {
+                      final conversationId = await _resolveConversationId();
+                      if (mounted) await _openSessions(conversationId);
+                    },
+            ),
             Expanded(
               child: FutureBuilder<String>(
-                future: _conversationId,
+                future: _initialConversationId,
                 builder: (context, idSnapshot) {
-                  final conversationId = idSnapshot.data;
+                  final conversationId =
+                      _activeConversationId ?? idSnapshot.data;
                   if (conversationId == null) return const SizedBox.shrink();
                   final ai = AppScope.of(context).ai;
                   if (_messagesStream == null ||
@@ -512,7 +617,7 @@ class _AskPageState extends State<AskPage> {
                 media.padding.bottom,
               ),
               onSend: () async {
-                final conversationId = await _conversationId;
+                final conversationId = await _resolveConversationId();
                 await _send(conversationId);
               },
               isRecording: _recording,
@@ -529,7 +634,14 @@ class _AskPageState extends State<AskPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.onNewChat, required this.onSessions});
+
+  /// Starts a new chat session. Null (disabled) while a turn is in flight.
+  final VoidCallback? onNewChat;
+
+  /// Opens the sessions bottom sheet. Null (disabled) while a turn is in
+  /// flight.
+  final VoidCallback? onSessions;
 
   @override
   Widget build(BuildContext context) {
@@ -537,10 +649,26 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         AppSpacing.base,
-        AppSpacing.screen,
+        AppSpacing.s,
         AppSpacing.s,
       ),
-      child: Text('Ask', style: AppText.cardTitle),
+      child: Row(
+        children: [
+          Expanded(child: Text('Ask', style: AppText.cardTitle)),
+          IconButton(
+            onPressed: onSessions,
+            icon: const Icon(Icons.history_rounded),
+            color: onSessions == null ? AppColors.ink3 : AppColors.ink2,
+            tooltip: 'Chat history',
+          ),
+          IconButton(
+            onPressed: onNewChat,
+            icon: const Icon(Icons.add_comment_outlined),
+            color: onNewChat == null ? AppColors.ink3 : AppColors.ink2,
+            tooltip: 'New chat',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1320,6 +1448,222 @@ class _TranscribingRowState extends State<_TranscribingRow>
         const SizedBox(width: 8),
         Text('Transcribing…', style: AppText.rowTitle),
       ],
+    );
+  }
+}
+
+/// What the sessions sheet was dismissed with — a "New chat" tap, or a tap on
+/// an existing conversation row.
+sealed class _SessionsSelection {}
+
+final class _NewChatSelected extends _SessionsSelection {}
+
+final class _ConversationSelected extends _SessionsSelection {
+  _ConversationSelected(this.conversation);
+
+  final AiConversation conversation;
+}
+
+/// The ChatGPT-style history sheet: a "New chat" row pinned above a live list
+/// of the user's conversations, newest first, with the active one
+/// highlighted. Tapping either pops the sheet with the corresponding
+/// [_SessionsSelection] for [_AskPageState._openSessions] to act on.
+class _SessionsSheet extends StatefulWidget {
+  const _SessionsSheet({required this.activeConversationId});
+
+  final String activeConversationId;
+
+  @override
+  State<_SessionsSheet> createState() => _SessionsSheetState();
+}
+
+class _SessionsSheetState extends State<_SessionsSheet> {
+  late final Stream<List<AiConversation>> _conversations = AppScope.of(
+    context,
+  ).ai.watchConversations();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 14),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screen,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Chats',
+                      style: AppText.cardTitle.copyWith(fontSize: 19),
+                    ),
+                  ),
+                  _NewChatPill(
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(_NewChatSelected()),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Flexible(
+              child: StreamBuilder<List<AiConversation>>(
+                stream: _conversations,
+                builder: (context, snapshot) {
+                  final conversations =
+                      snapshot.data ?? const <AiConversation>[];
+                  if (conversations.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screen,
+                        8,
+                        AppSpacing.screen,
+                        28,
+                      ),
+                      child: Text(
+                        'No chats yet.',
+                        style: AppText.aside.copyWith(color: AppColors.ink2),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s,
+                      vertical: 4,
+                    ),
+                    itemCount: conversations.length,
+                    itemBuilder: (context, i) {
+                      final conversation = conversations[i];
+                      return _SessionRow(
+                        conversation: conversation,
+                        isActive:
+                            conversation.id == widget.activeConversationId,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pop(_ConversationSelected(conversation)),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NewChatPill extends StatelessWidget {
+  const _NewChatPill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.irisWash,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.add_comment_outlined,
+                size: 15,
+                color: AppColors.iris,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'New chat',
+                style: AppText.meta.copyWith(
+                  color: AppColors.irisText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionRow extends StatelessWidget {
+  const _SessionRow({
+    required this.conversation,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final AiConversation conversation;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isActive ? AppColors.surfaceRaised : Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  conversation.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.rowTitle.copyWith(
+                    color: isActive ? AppColors.ink : AppColors.ink2,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                timeAgo(conversation.updatedAt, DateTime.now()),
+                style: AppText.meta.copyWith(color: AppColors.ink3),
+              ),
+              if (isActive) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: AppColors.iris,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
