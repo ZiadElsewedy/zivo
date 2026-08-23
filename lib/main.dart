@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -33,15 +35,26 @@ Future<void> main() async {
   // providers (register the token the app prints in Firebase Console → App
   // Check → Debug tokens); Profile and Release attest for real — Play Integrity
   // on Android, App Attest on Apple — so a Profile build behaves like production.
+  //
+  // Deliberately NOT awaited: `activate` does a network round-trip (token
+  // exchange / Play Integrity), but the token is only needed at the first
+  // backend call, not to render the first frame. Awaiting it here just delays
+  // startup; the SDK gates outbound calls on the token internally, so starting
+  // activation and letting it resolve in the background is safe. Errors are
+  // swallowed so a rejected/unregistered debug token can't surface as an
+  // unhandled async error — a failed attestation only affects backend calls,
+  // which fail loudly on their own.
   final useDebugAppCheck =
       AppEnvironment.appCheckMode == AppCheckMode.debug;
-  await FirebaseAppCheck.instance.activate(
-    providerAndroid: useDebugAppCheck
-        ? const AndroidDebugProvider()
-        : const AndroidPlayIntegrityProvider(),
-    providerApple: useDebugAppCheck
-        ? const AppleDebugProvider()
-        : const AppleAppAttestProvider(),
+  unawaited(
+    FirebaseAppCheck.instance.activate(
+      providerAndroid: useDebugAppCheck
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: useDebugAppCheck
+          ? const AppleDebugProvider()
+          : const AppleAppAttestProvider(),
+    ).catchError((_) {}),
   );
 
   runApp(const ZivoApp());
