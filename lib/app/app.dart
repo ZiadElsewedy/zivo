@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
-import '../core/env/env_banner.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
@@ -312,11 +311,9 @@ class _ZivoAppState extends State<ZivoApp> {
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
-        // Names the active build configuration in Development/Profile; compiled
-        // out of Release so production UX is untouched.
         builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light,
-          child: EnvBanner(child: child ?? const SizedBox.shrink()),
+          child: child ?? const SizedBox.shrink(),
         ),
         home: const AuthGate(),
       ),

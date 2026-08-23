@@ -50,13 +50,6 @@ class AppEnvironment {
     AppConfig.release => 'Release',
   };
 
-  /// Compact label for the on-screen badge.
-  static String get shortName => switch (config) {
-    AppConfig.development => 'DEV',
-    AppConfig.profile => 'PROFILE',
-    AppConfig.release => 'REL',
-  };
-
   /// Whether to persist to Firestore. On by default; opt out for offline/dev
   /// runs with `--dart-define=USE_FIRESTORE=false`.
   static const bool useFirestore = bool.fromEnvironment(
@@ -89,7 +82,4 @@ class AppEnvironment {
     if (isDevelopment || _forceAppCheckDebug) return AppCheckMode.debug;
     return AppCheckMode.attest;
   }
-
-  /// Show the environment badge in every non-production build. Never in Release.
-  static bool get showBadge => !isRelease;
 }
