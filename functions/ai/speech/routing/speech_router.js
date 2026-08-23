@@ -58,7 +58,14 @@ async function transcribe(registry, capability, normalizedRequest) {
     throw new Error(`No STT route configured for capability: ${capability}`);
   }
   let lastError;
+  let attempted = false;
   for (const route of routes) {
+    // Skip a route whose provider isn't registered — e.g. the optional OpenAI
+    // fallback when no OpenAI key is configured. A skipped route is a no-op,
+    // not a failure, so a Gemini-only deployment surfaces Gemini's own error
+    // rather than an "unknown provider" one.
+    if (!registry.has(route.provider)) continue;
+    attempted = true;
     const provider = registry.get(route.provider);
     try {
       return await provider.transcribe(
@@ -66,6 +73,10 @@ async function transcribe(registry, capability, normalizedRequest) {
     } catch (err) {
       lastError = err;
     }
+  }
+  if (!attempted) {
+    throw new Error(
+        `No registered STT provider for capability: ${capability}`);
   }
   throw lastError;
 }

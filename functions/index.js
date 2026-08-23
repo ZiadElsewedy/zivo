@@ -67,11 +67,15 @@ const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // logged. Speech-to-text is a separate capability from the Anthropic-backed
 // chat/workout-import gateways above — see `functions/ai/speech/`.
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-// The OpenAI API key backing the `aiTranscribe` STT FALLBACK route, tried
-// only when the Gemini route errors (see `speech/routing/speech_router.js`).
-// Read only via `.value()` inside the handler below — never hardcoded or
-// logged.
-const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+// The OpenAI API key backing the OPTIONAL `aiTranscribe` STT fallback route,
+// tried only when the Gemini route errors (see
+// `speech/routing/speech_router.js`). Optional so the function can deploy
+// Gemini-only without an OpenAI key: it is NOT listed in `aiTranscribe`'s
+// `secrets` array below, so it isn't required at deploy time and the handler
+// detects its presence at runtime via `process.env`. To ENABLE the fallback:
+// (1) `firebase functions:secrets:set OPENAI_API_KEY`, then (2) add
+// `OPENAI_API_KEY` to that `secrets` array and redeploy — the handler then
+// wires the OpenAI provider automatically.
 
 // --- Tunables ---------------------------------------------------------------
 const OTP_TTL_MINUTES = 10;
@@ -604,11 +608,13 @@ exports.aiImportWorkoutPlan = onCall(
  * only supplies the real network seams. A third STT provider is a new adapter
  * file plus one more `.register()` call here.
  * @param {!GoogleGenAI} genai
- * @param {!OpenAI} openai
+ * @param {?OpenAI} openai The OpenAI client, or null when the optional
+ *   fallback key isn't configured — then only Gemini is registered and the
+ *   router skips the (unregistered) OpenAI route.
  * @return {!ProviderRegistry}
  */
 function buildSpeechRegistry(genai, openai) {
-  return new ProviderRegistry()
+  const registry = new ProviderRegistry()
       .register("gemini", new GeminiSpeechProvider({
         transcribe: async ({buffer, mimeType, model, prompt}) => {
           // Gemini transcribes via a multimodal `generateContent` call: the
@@ -628,20 +634,23 @@ function buildSpeechRegistry(genai, openai) {
           });
           return {text: response.text};
         },
-      }))
-      .register("openai", new OpenAiSpeechProvider({
-        transcribe: async ({buffer, filename, mimeType, model, language}) => {
-          const file = await toFile(buffer, filename, {type: mimeType});
-          const params = {file, model, response_format: "json"};
-          if (language) params.language = language;
-          const result = await openai.audio.transcriptions.create(params);
-          return {
-            text: result.text,
-            language: result.language,
-            duration: result.duration,
-          };
-        },
       }));
+  if (openai) {
+    registry.register("openai", new OpenAiSpeechProvider({
+      transcribe: async ({buffer, filename, mimeType, model, language}) => {
+        const file = await toFile(buffer, filename, {type: mimeType});
+        const params = {file, model, response_format: "json"};
+        if (language) params.language = language;
+        const result = await openai.audio.transcriptions.create(params);
+        return {
+          text: result.text,
+          language: result.language,
+          duration: result.duration,
+        };
+      },
+    }));
+  }
+  return registry;
 }
 
 /**
@@ -704,8 +713,10 @@ const toSpeechHttpsError = (err) => {
  */
 exports.aiTranscribe = onCall(
     {
-      // Both STT keys: Gemini backs the default route, OpenAI the fallback.
-      secrets: [GEMINI_API_KEY, OPENAI_API_KEY],
+      // Gemini backs the default route and is required. OpenAI is the
+      // OPTIONAL fallback — add OPENAI_API_KEY here (and set the secret) to
+      // enable it; omitted so the function deploys Gemini-only by default.
+      secrets: [GEMINI_API_KEY],
       region: "us-central1",
       enforceAppCheck: true,
       // A single transcription call for a short voice note; generous
@@ -725,7 +736,12 @@ exports.aiTranscribe = onCall(
         data.languageHint : undefined;
 
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
-      const openai = new OpenAI({apiKey: OPENAI_API_KEY.value()});
+      // OpenAI fallback is wired only when its key is bound at runtime — i.e.
+      // OPENAI_API_KEY was set AND listed in this function's `secrets` array
+      // (Firebase populates `process.env` only for bound secrets). Otherwise
+      // it's null and the router runs Gemini-only, skipping the OpenAI route.
+      const openaiKey = process.env.OPENAI_API_KEY;
+      const openai = openaiKey ? new OpenAI({apiKey: openaiKey}) : null;
       const registry = buildSpeechRegistry(genai, openai);
       const route = speechRouter.resolve("speech_to_text");
 
