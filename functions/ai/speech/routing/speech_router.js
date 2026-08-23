@@ -21,7 +21,11 @@
 /** @const {!Object<string, !Array<!SpeechCapabilityRoute>>} */
 const SPEECH_ROUTES = {
   speech_to_text: [
-    {provider: "gemini", model: "gemini-2.5-flash"},
+    // `gemini-flash-latest` is a rolling alias for the current stable Flash
+    // model — pinned point versions (e.g. gemini-2.5-flash) get retired for
+    // new projects over time, which breaks transcription; the alias tracks
+    // whatever Flash is current so the route doesn't rot.
+    {provider: "gemini", model: "gemini-flash-latest"},
     {provider: "openai", model: "gpt-4o-mini-transcribe"},
   ],
 };

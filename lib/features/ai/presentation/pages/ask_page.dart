@@ -1225,19 +1225,9 @@ class _Composer extends StatelessWidget {
                       ),
                     )
                   : transcribing
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.graphic_eq_rounded,
-                            size: 14,
-                            color: AppColors.iris,
-                          ),
-                          const SizedBox(width: 8),
-                          Text('Transcribing…', style: AppText.rowTitle),
-                        ],
-                      ),
+                  ? const Padding(
+                      padding: EdgeInsets.only(left: 16),
+                      child: _TranscribingRow(),
                     )
                   : Padding(
                       padding: const EdgeInsets.only(left: 16),
@@ -1279,6 +1269,57 @@ class _Composer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The "Transcribing…" row shown while a just-stopped recording is being
+/// converted to text — an animated pulse on the icon reads as active
+/// processing rather than a static, possibly-stuck state.
+class _TranscribingRow extends StatefulWidget {
+  const _TranscribingRow();
+
+  @override
+  State<_TranscribingRow> createState() => _TranscribingRowState();
+}
+
+class _TranscribingRowState extends State<_TranscribingRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.of(context).disableAnimations;
+    return Row(
+      children: [
+        still
+            ? const Icon(
+                Icons.graphic_eq_rounded,
+                size: 14,
+                color: AppColors.iris,
+              )
+            : FadeTransition(
+                opacity: Tween<double>(begin: 0.35, end: 1).animate(
+                  CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+                ),
+                child: const Icon(
+                  Icons.graphic_eq_rounded,
+                  size: 14,
+                  color: AppColors.iris,
+                ),
+              ),
+        const SizedBox(width: 8),
+        Text('Transcribing…', style: AppText.rowTitle),
+      ],
     );
   }
 }

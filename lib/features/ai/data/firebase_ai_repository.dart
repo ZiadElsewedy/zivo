@@ -8,6 +8,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../../core/firebase/uid_source.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
+import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
@@ -225,6 +226,59 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   @override
+  Future<String> createConversation() async {
+    final uid = _requireUid();
+    final now = Timestamp.fromDate(DateTime.now());
+    final ref = await _conversationsCollection(uid).add({
+      'title': 'New chat',
+      'createdAt': now,
+      'updatedAt': now,
+      'schemaVersion': 1,
+    });
+    return ref.id;
+  }
+
+  @override
+  Future<void> renameConversation(String id, String title) async {
+    final uid = _requireUid();
+    await _conversationsCollection(uid).doc(id).update({'title': title});
+  }
+
+  @override
+  Stream<List<AiConversation>> watchConversations() {
+    late final StreamController<List<AiConversation>> controller;
+    StreamSubscription<String?>? uidSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? querySub;
+
+    void onUidChanged(String? uid) {
+      querySub?.cancel();
+      if (uid == null) {
+        controller.add(const []);
+        return;
+      }
+      querySub = _conversationsCollection(uid)
+          .orderBy('updatedAt', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+            controller.add(
+              snapshot.docs.map(_conversationFromDoc).toList(growable: false),
+            );
+          }, onError: (e, s) => controller.addError(e, s));
+    }
+
+    controller = StreamController<List<AiConversation>>.broadcast(
+      onListen: () => uidSub = _uidWithInitial().listen(onUidChanged),
+      onCancel: () {
+        uidSub?.cancel();
+        uidSub = null;
+        querySub?.cancel();
+        querySub = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
   Stream<List<AiMessage>> watchMessages(String conversationId) {
     late final StreamController<List<AiMessage>> controller;
     StreamSubscription<String?>? uidSub;
@@ -316,6 +370,20 @@ class FirebaseAiRepository implements AiRepository {
     String uid,
     String conversationId,
   ) => _conversationsCollection(uid).doc(conversationId).collection('messages');
+
+  AiConversation _conversationFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final createdAt = data['createdAt'];
+    final updatedAt = data['updatedAt'];
+    return AiConversation(
+      id: doc.id,
+      title: data['title'] as String? ?? 'New chat',
+      createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+      updatedAt: updatedAt is Timestamp ? updatedAt.toDate() : DateTime.now(),
+    );
+  }
 
   AiMessage _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();

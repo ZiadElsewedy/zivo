@@ -147,6 +147,10 @@ async function transcribeAudio({
       latencyMs: Date.now() - startedAt,
       success: false,
       code,
+      // The provider's own error text (never audio or a transcript) — the one
+      // thing that says *why* a provider rejected the clip, e.g. an
+      // unsupported mime type or a bad key. Safe to log.
+      errorMessage: (err && err.message) || undefined,
     });
     throw new SpeechError(
         code,

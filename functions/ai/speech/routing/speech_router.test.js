@@ -31,7 +31,7 @@ function fakeProvider({response, fail} = {}) {
 test("resolve returns the primary provider/model for speech_to_text (Gemini is the default)", () => {
   const route = resolve("speech_to_text");
   assert.equal(route.provider, "gemini");
-  assert.equal(route.model, "gemini-2.5-flash");
+  assert.equal(route.model, "gemini-flash-latest");
 });
 
 test("resolve throws for an unknown capability", () => {
@@ -46,7 +46,7 @@ test("transcribe resolves the capability's primary provider and stamps the route
   const resp = await transcribe(registry, "speech_to_text", {audio: Buffer.from("x"), mimeType: "audio/m4a"});
 
   assert.equal(resp.text, "hello");
-  assert.equal(gemini.calls[0].model, "gemini-2.5-flash");
+  assert.equal(gemini.calls[0].model, "gemini-flash-latest");
   assert.equal(gemini.calls[0].mimeType, "audio/m4a");
 });
 

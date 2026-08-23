@@ -25,8 +25,12 @@
 
 const {SpeechToTextProvider} = require("./speech_provider");
 
-/** @const {string} */
-const DEFAULT_MODEL = "gemini-2.5-flash";
+/**
+ * @const {string} A rolling alias for the current stable Flash model, so a
+ * retired point version can't break transcription (the route in
+ * `../routing/speech_router.js` normally overrides this per request).
+ */
+const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
  * The base transcription instruction. Verbatim, language-preserving, and

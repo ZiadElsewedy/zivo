@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../workout/domain/workout_import_outcome.dart';
+import 'ai_conversation.dart';
 import 'ai_message.dart';
 import 'ai_turn_event.dart';
 import 'stt_outcome.dart';
@@ -10,8 +11,19 @@ import 'stt_outcome.dart';
 /// `FirebaseAiRepository` (Firestore reads + the `aiChat` callable) fit.
 abstract interface class AiRepository {
   /// Ensures there is an active conversation and returns its id (creating one
-  /// on first use). V1 keeps a single active conversation.
+  /// on first use). Kept for the app's initial/default conversation; callers
+  /// that manage multiple sessions also use [createConversation].
   Future<String> ensureConversation();
+
+  /// The user's conversations, newest-`updatedAt` first, as a live stream.
+  Stream<List<AiConversation>> watchConversations();
+
+  /// Creates a new, empty conversation (title 'New chat') and returns its id.
+  Future<String> createConversation();
+
+  /// Renames [id]'s conversation to [title] — used for the auto-title applied
+  /// after the first user message in a still-untitled ('New chat') session.
+  Future<void> renameConversation(String id, String title);
 
   /// The messages in [conversationId], oldest first, as a live stream.
   Stream<List<AiMessage>> watchMessages(String conversationId);
