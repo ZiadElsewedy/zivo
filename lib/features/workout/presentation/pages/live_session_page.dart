@@ -29,11 +29,6 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_session_repository.dart';
-import '../../../music/domain/music_connection.dart';
-import '../../../music/domain/music_controller.dart';
-import '../../../music/domain/now_playing.dart';
-import '../../../music/music_config.dart';
-import '../../../music/presentation/music_artwork.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
 
@@ -1033,19 +1028,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
     return _runningScaffold(
       top: [
-        // The workout's now-playing companion — absent (SizedBox.shrink)
-        // whenever music is off/disconnected/nothing loaded, so this costs
-        // nothing when there's no track; see `_SessionNowPlaying`. Index 0
-        // is reserved for it unconditionally (rather than only when it will
-        // actually render something) so the indices below never have to
-        // branch on `kMusicEnabled` — an empty stagger slot is invisible.
-        if (kMusicEnabled) ...[
-          StaggeredReveal(
-            index: 0,
-            child: _SessionNowPlaying(controller: AppScope.of(context).requireMusic),
-          ),
-          const SizedBox(height: AppSpacing.m),
-        ],
         // Exercise header — consolidated: the name is the hero title, the
         // muscle group a quiet pill beside it. No standalone "Target: X"
         // line (that's now context inside the Goal card) and no separate
@@ -1267,17 +1249,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                   // than letting it float high with all the slack dumped
                   // below "Next:".
                   const Spacer(),
-                  // Song-on-top-of-ring when music is connected + playing —
-                  // one cohesive unit, not two stacked cards (see
-                  // `_RestPhase`'s doc comment). Byte-identical to the plain
-                  // `Center(child: _RestRing(...))` this replaces whenever
-                  // there's nothing to show above it — no music, no gap.
-                  _RestPhase(
-                    ring: _RestRing(
+                  Center(
+                    child: _RestRing(
                       remaining: _restRemaining ?? Duration.zero,
                       total: _restTotalSeconds ?? 1,
                     ),
-                    controller: kMusicEnabled ? AppScope.of(context).requireMusic : null,
                   ),
                   const SizedBox(height: 18),
                   Center(
@@ -2010,194 +1986,6 @@ class _MuscleGroupPill extends StatelessWidget {
       child: Text(
         label,
         style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
-      ),
-    );
-  }
-}
-
-/// The workout's compact now-playing companion — a small card (artwork,
-/// title/artist, prev/play-pause/next) shown wherever the session wants to
-/// surface it (the top of the running screen; composed with the rest ring
-/// by [_RestPhase]). Deliberately NOT shown during the brief pre-workout
-/// warm-up — that phase's Column is already tightly space-budgeted (its own
-/// comment: `Spacer`s collapsing to 0 on a short screen), and warm-up is
-/// over almost as soon as it starts; the running/resting phases are where a
-/// glance at "what's playing" actually earns its place. Absent
-/// (`SizedBox.shrink`) whenever music isn't connected or nothing's loaded —
-/// no placeholder, no "nothing playing" state here, since the mini-bar/full
-/// player (`home_shell.dart`/`MusicPlayerPage`) already own that job
-/// app-wide; this is purely a glanceable companion for a session already in
-/// progress.
-///
-/// "Change the song" here is next/previous only (`MusicController.next`/
-/// `previous`, wired to App Remote's `skipNext`/`skipPrevious`) — there's no
-/// browse/search picker. Spotify's App Remote doesn't expose one either
-/// without building real Web API search UI, which is a materially bigger
-/// feature than this pass.
-///
-/// No lyrics, deliberately: Spotify's lyrics are Musixmatch-licensed and
-/// surfaced only inside Spotify's own client — neither App Remote nor the
-/// public Web API exposes them to third-party apps. There is no legitimate
-/// way to show them here short of scraping, which this app doesn't do.
-class _SessionNowPlaying extends StatelessWidget {
-  const _SessionNowPlaying({required this.controller});
-
-  final MusicController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<MusicConnection>(
-      stream: controller.connection,
-      initialData: controller.currentConnection,
-      builder: (context, connSnap) {
-        if (connSnap.data != MusicConnection.connected) return const SizedBox.shrink();
-        return StreamBuilder<NowPlaying?>(
-          stream: controller.nowPlaying,
-          initialData: controller.currentNowPlaying,
-          builder: (context, nowSnap) {
-            final playing = nowSnap.data;
-            if (playing == null) return const SizedBox.shrink();
-            return _NowPlayingCard(controller: controller, playing: playing);
-          },
-        );
-      },
-    );
-  }
-}
-
-/// Composes [ring] with [_SessionNowPlaying] as one cohesive unit — song on
-/// top, rest ring below — whenever [controller] is connected and something's
-/// loaded. Falls back to exactly `Center(child: ring)` otherwise (no
-/// controller, disconnected, or nothing playing), so a rest phase with no
-/// music present is pixel-identical to before this existed — never an empty
-/// gap where the song card would have been.
-class _RestPhase extends StatelessWidget {
-  const _RestPhase({required this.ring, required this.controller});
-
-  final Widget ring;
-  final MusicController? controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final music = controller;
-    if (music == null) return Center(child: ring);
-    return StreamBuilder<MusicConnection>(
-      stream: music.connection,
-      initialData: music.currentConnection,
-      builder: (context, connSnap) {
-        if (connSnap.data != MusicConnection.connected) return Center(child: ring);
-        return StreamBuilder<NowPlaying?>(
-          stream: music.nowPlaying,
-          initialData: music.currentNowPlaying,
-          builder: (context, nowSnap) {
-            final playing = nowSnap.data;
-            if (playing == null) return Center(child: ring);
-            return Column(
-              children: [
-                _NowPlayingCard(controller: music, playing: playing),
-                const SizedBox(height: 16),
-                Center(child: ring),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-/// The actual now-playing card — shared by [_SessionNowPlaying] (standalone,
-/// top of the running screen) and [_RestPhase] (composed above the rest
-/// ring).
-/// Pulse-accented (this file's training hue) rather than the generic
-/// mini-bar's ember, so it reads as part of the workout, not a system
-/// overlay.
-class _NowPlayingCard extends StatelessWidget {
-  const _NowPlayingCard({required this.controller, required this.playing});
-
-  final MusicController controller;
-  final NowPlaying playing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.pulse.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          MusicArtwork(
-            bytes: playing.artworkBytes,
-            url: playing.artworkUrl,
-            size: 40,
-            iconSize: 18,
-            borderRadius: 10,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  playing.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-                Text(
-                  playing.artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.meta.copyWith(fontSize: 11.5, color: AppColors.ink3),
-                ),
-              ],
-            ),
-          ),
-          _MusicIconButton(icon: Icons.skip_previous_rounded, onTap: controller.previous),
-          _MusicIconButton(
-            icon: playing.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-            onTap: () => playing.isPaused ? controller.play() : controller.pause(),
-            primary: true,
-          ),
-          _MusicIconButton(icon: Icons.skip_next_rounded, onTap: controller.next),
-        ],
-      ),
-    );
-  }
-}
-
-/// One prev/play-pause/next control in [_NowPlayingCard] — deliberately
-/// small (this card is a companion, not the primary content) but still a
-/// real tap target via [IconButton]'s built-in min-size.
-class _MusicIconButton extends StatelessWidget {
-  const _MusicIconButton({required this.icon, required this.onTap, this.primary = false});
-
-  final IconData icon;
-  final Future<void> Function() onTap;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: IconButton(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        icon: Icon(icon, size: primary ? 22 : 18),
-        color: primary ? AppColors.pulse : AppColors.ink2,
-        splashRadius: 18,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       ),
     );
   }

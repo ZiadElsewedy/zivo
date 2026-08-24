@@ -12,18 +12,12 @@ import 'package:zivo/features/auth/domain/profile_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/music/domain/music_controller.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_profile_repository.dart';
-import 'inert_music_controller.dart';
 
 /// Wraps [child] in an [AppScope] (fake auth + fresh in-memory repos) and a
 /// [MaterialApp], for widget tests that need the full DI seam.
@@ -43,30 +37,18 @@ Widget wrapWithScope(
   AuthRepository? auth,
   ProfileRepository? profiles,
   MediaService? media,
-  MusicController? music,
 }) {
   return AppScope(
     media: media ?? testMediaService(),
     auth: auth ?? FakeAuthRepository(),
     profiles: profiles ?? FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
-    tasks: InMemoryTaskRepository(),
-    schedule: InMemoryScheduleRepository(),
-    notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
     workoutSessions: InMemoryWorkoutSessionRepository(),
-    university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
-    // An inert stub, not the real Spotify controller or the ticking
-    // `FakeMusicController` — see `InertMusicController`'s doc comment for
-    // why. Tests never want a platform-channel call regardless of what
-    // `music_config.dart`'s flag says, and `_HomeShellState.build`'s
-    // `requireMusic` / `profile_page.dart`'s Connect Spotify row both now
-    // unconditionally need SOME controller present.
-    music: music ?? InertMusicController(),
     child: MaterialApp(home: child),
   );
 }

@@ -12,11 +12,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
-import '../../../music/domain/music_connection.dart';
-import '../../../music/domain/music_controller.dart';
-import '../../../music/domain/now_playing.dart';
-import '../../../music/music_config.dart';
-import '../../../music/presentation/music_player_page.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -268,20 +263,6 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // The whole feature is compile-time-hidden — see
-                  // `music_config.dart` — so with it off this collection-if
-                  // contributes nothing, same as `home_shell.dart`'s mini
-                  // bar. Unlike the mini bar (only visible once already
-                  // playing), `_MusicSection` stays present in every
-                  // connection state — it's the one always-reachable way
-                  // into the player, connected or not.
-                  if (kMusicEnabled) ...[
-                    const SizedBox(height: 20),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 210),
-                      child: _MusicSection(controller: scope.requireMusic),
-                    ),
-                  ],
                 ],
               ),
             );
@@ -318,66 +299,6 @@ class ProfilePage extends StatelessWidget {
 }
 
 enum _PhotoAction { choose, remove }
-
-/// The Profile tab's ALWAYS-present entry point into the music feature —
-/// unlike `NowPlayingBar` (`home_shell.dart`'s mini bar, only mounted once
-/// already connected+playing), this row is visible in every connection
-/// state, since before connecting the mini bar doesn't exist yet and there
-/// would otherwise be no visible way in at all. Tapping always opens
-/// [MusicPlayerPage] — the connect/retry affordance and per-state copy live
-/// there (`_ConnectionState`), not duplicated here; this row is purely a
-/// destination link, its trailing value just previewing current status.
-class _MusicSection extends StatelessWidget {
-  const _MusicSection({required this.controller});
-
-  final MusicController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<MusicConnection>(
-      stream: controller.connection,
-      initialData: controller.currentConnection,
-      builder: (context, connSnap) {
-        final state = connSnap.data ?? MusicConnection.disconnected;
-        return StreamBuilder<NowPlaying?>(
-          stream: controller.nowPlaying,
-          initialData: controller.currentNowPlaying,
-          builder: (context, nowSnap) {
-            final playing = nowSnap.data;
-            final value = switch (state) {
-              MusicConnection.connected => playing != null ? 'Playing' : 'Connected',
-              MusicConnection.connecting => 'Connecting…',
-              MusicConnection.authFailed => "Couldn't connect",
-              MusicConnection.needsPremium => 'Premium required',
-              MusicConnection.noSpotifyApp => 'Not installed',
-              MusicConnection.disconnected => 'Not connected',
-            };
-            return SettingsSectionCard(
-              label: 'MUSIC',
-              children: [
-                SettingsRow(
-                  icon: Icons.music_note_rounded,
-                  title: 'Spotify',
-                  value: value,
-                  last: true,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MusicPlayerPage(controller: controller),
-                        fullscreenDialog: true,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
 
 /// A small circular icon button — the same 34px chip language as
 /// `CaptureIconButton`, kept local since this page's chip is neutral

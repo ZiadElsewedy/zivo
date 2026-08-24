@@ -11,11 +11,6 @@ import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/expenses/domain/expenses_service.dart';
 import '../../features/expenses/domain/wallet_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
-import '../../features/music/domain/music_controller.dart';
-import '../../features/notes/domain/note_repository.dart';
-import '../../features/schedule/domain/schedule_repository.dart';
-import '../../features/tasks/domain/task_repository.dart';
-import '../../features/university/domain/university_repository.dart';
 import '../../features/workout/domain/body_weight_repository.dart';
 import '../../features/workout/domain/workout_plan_repository.dart';
 import '../../features/workout/domain/workout_repository.dart';
@@ -32,20 +27,15 @@ class AppScope extends InheritedWidget {
     required this.expenses,
     this.wallet,
     this.expenseCategories,
-    required this.tasks,
-    required this.schedule,
-    required this.notes,
     required this.moments,
     required this.workouts,
     required this.workoutPlans,
     required this.workoutSessions,
     this.bodyWeight,
-    required this.university,
     required this.diet,
     required this.ai,
     this.recorder,
     this.media,
-    this.music,
     required super.child,
     super.key,
   });
@@ -66,9 +56,6 @@ class AppScope extends InheritedWidget {
   final WalletRepository? wallet;
   final CategoryRepository? expenseCategories;
 
-  final TaskRepository tasks;
-  final ScheduleRepository schedule;
-  final NoteRepository notes;
   final MomentRepository moments;
   final WorkoutRepository workouts;
   final WorkoutPlanRepository workoutPlans;
@@ -81,7 +68,6 @@ class AppScope extends InheritedWidget {
   /// keep constructing a scope without it; production and dashboard tests
   /// always provide one. Read it through [requireBodyWeight].
   final BodyWeightRepository? bodyWeight;
-  final UniversityRepository university;
   final DietRepository diet;
 
   /// The AI assistant ("Ask") seam. Today's default is a pure in-memory
@@ -122,25 +108,6 @@ class AppScope extends InheritedWidget {
   MediaService get requireMedia {
     assert(media != null, 'AppScope.media was not provided to this scope');
     return media!;
-  }
-
-  /// The music/now-playing seam — a `FakeMusicController` by default, a real
-  /// `SpotifyMusicController` only once `music_config.dart`'s
-  /// `kMusicEnabled`/`spotifyClientId` are set (see `app.dart`). Bound
-  /// unconditionally in production, independent of `kMusicEnabled` — that
-  /// flag only gates whether the music UI *mounts* (see `home_shell.dart`),
-  /// not whether the controller exists.
-  ///
-  /// Optional for the same reason [media]/[bodyWeight] are: many widget
-  /// tests never touch music and shouldn't have to construct a scope with
-  /// one. Read it through [requireMusic] from music-bearing widgets.
-  final MusicController? music;
-
-  /// The music controller, asserting it was provided. Use from
-  /// `NowPlayingBar`/`MusicPlayerPage` — production always wires it.
-  MusicController get requireMusic {
-    assert(music != null, 'AppScope.music was not provided to this scope');
-    return music!;
   }
 
   WalletRepository get requireWallet {
@@ -187,18 +154,13 @@ class AppScope extends InheritedWidget {
       expenses != oldWidget.expenses ||
       wallet != oldWidget.wallet ||
       expenseCategories != oldWidget.expenseCategories ||
-      tasks != oldWidget.tasks ||
-      schedule != oldWidget.schedule ||
-      notes != oldWidget.notes ||
       moments != oldWidget.moments ||
       workouts != oldWidget.workouts ||
       workoutPlans != oldWidget.workoutPlans ||
       workoutSessions != oldWidget.workoutSessions ||
       bodyWeight != oldWidget.bodyWeight ||
-      university != oldWidget.university ||
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
-      media != oldWidget.media ||
-      music != oldWidget.music;
+      media != oldWidget.media;
 }

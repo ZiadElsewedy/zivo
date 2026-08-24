@@ -45,22 +45,6 @@ import '../features/expenses/domain/wallet_repository.dart';
 import '../features/moments/data/firestore_moment_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
-import '../features/music/data/fake_music_controller.dart';
-import '../features/music/data/spotify_music_controller.dart';
-import '../features/music/domain/music_controller.dart';
-import '../features/music/music_config.dart';
-import '../features/notes/data/firestore_note_repository.dart';
-import '../features/notes/data/in_memory_note_repository.dart';
-import '../features/notes/domain/note_repository.dart';
-import '../features/schedule/data/firestore_schedule_repository.dart';
-import '../features/schedule/data/in_memory_schedule_repository.dart';
-import '../features/schedule/domain/schedule_repository.dart';
-import '../features/tasks/data/firestore_task_repository.dart';
-import '../features/tasks/data/in_memory_task_repository.dart';
-import '../features/tasks/domain/task_repository.dart';
-import '../features/university/data/firestore_university_repository.dart';
-import '../features/university/data/in_memory_university_repository.dart';
-import '../features/university/domain/university_repository.dart';
 import '../features/workout/data/dev_analysis_seed.dart';
 import '../features/workout/data/firestore_body_weight_repository.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
@@ -83,9 +67,9 @@ const bool _useFirestore = AppEnvironment.useFirestore;
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
-/// and all eight feature repositories (expenses, tasks, schedule, notes,
-/// moments, workouts, university, diet) are Firebase-backed. [ai] is
-/// Firebase-backed too (Firestore reads + the `aiChat` callable).
+/// and the feature repositories (expenses, moments, workouts, diet) are
+/// Firebase-backed. [ai] is Firebase-backed too (Firestore reads + the
+/// `aiChat` callable).
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -97,21 +81,16 @@ class ZivoApp extends StatefulWidget {
     this.expenses,
     this.wallet,
     this.expenseCategories,
-    this.tasks,
-    this.schedule,
-    this.notes,
     this.moments,
     this.workouts,
     this.workoutPlans,
     this.workoutSessions,
     this.bodyWeight,
-    this.university,
     this.diet,
     this.ai,
     this.recorder,
     this.media,
     this.mediaPreferences,
-    this.music,
     super.key,
   });
 
@@ -120,21 +99,16 @@ class ZivoApp extends StatefulWidget {
   final ExpenseRepository? expenses;
   final WalletRepository? wallet;
   final CategoryRepository? expenseCategories;
-  final TaskRepository? tasks;
-  final ScheduleRepository? schedule;
-  final NoteRepository? notes;
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
   final BodyWeightRepository? bodyWeight;
-  final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
-  final MusicController? music;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -149,10 +123,6 @@ class _ZivoAppState extends State<ZivoApp> {
   late final WalletRepository _wallet = widget.wallet ?? _defaultWallet();
   late final CategoryRepository _categories =
       widget.expenseCategories ?? _defaultCategories();
-  late final TaskRepository _tasks = widget.tasks ?? _defaultTasks();
-  late final ScheduleRepository _schedule =
-      widget.schedule ?? _defaultSchedule();
-  late final NoteRepository _notes = widget.notes ?? _defaultNotes();
   late final MomentRepository _moments = widget.moments ?? _defaultMoments();
   late final WorkoutRepository _workouts =
       widget.workouts ?? _defaultWorkouts();
@@ -162,8 +132,6 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.workoutSessions ?? _defaultWorkoutSessions();
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
-  late final UniversityRepository _university =
-      widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
   late final AiRepository _ai = widget.ai ?? _defaultAi();
   late final AudioRecorderService _recorder =
@@ -176,11 +144,6 @@ class _ZivoAppState extends State<ZivoApp> {
   late final MediaPreferencesRepository _mediaPreferences =
       widget.mediaPreferences ?? _defaultMediaPreferences();
   late final MediaService _media = widget.media ?? _defaultMedia();
-
-  // Always bound, independent of `kMusicEnabled` — that flag only gates the
-  // UI's mounting (see `home_shell.dart`); the controller itself is cheap
-  // to construct and harmless to leave running unused.
-  late final MusicController _music = widget.music ?? _defaultMusic();
 
   /// Watches the signed-in account and clears the device-local backup
   /// connection when it changes away from a signed-in account (sign-out or
@@ -205,9 +168,6 @@ class _ZivoAppState extends State<ZivoApp> {
   @override
   void dispose() {
     _authSub?.cancel();
-    // Only when we own it (the default) — a caller-supplied controller
-    // (a test passing its own fake) stays theirs to dispose.
-    if (widget.music == null) _music.dispose();
     super.dispose();
   }
 
@@ -234,10 +194,6 @@ class _ZivoAppState extends State<ZivoApp> {
   MediaBackupProvider? _defaultBackupProvider() =>
       _useFirestore ? GoogleDriveBackupClient() : null;
 
-  TaskRepository _defaultTasks() => _useFirestore
-      ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryTaskRepository();
-
   ExpenseRepository _defaultExpenses() => _useFirestore
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryExpenseRepository();
@@ -249,14 +205,6 @@ class _ZivoAppState extends State<ZivoApp> {
   CategoryRepository _defaultCategories() => _useFirestore
       ? FirestoreCategoryRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryCategoryRepository();
-
-  ScheduleRepository _defaultSchedule() => _useFirestore
-      ? FirestoreScheduleRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryScheduleRepository();
-
-  NoteRepository _defaultNotes() => _useFirestore
-      ? FirestoreNoteRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryNoteRepository();
 
   MomentRepository _defaultMoments() => _useFirestore
       ? FirestoreMomentRepository(uidSource: UidSource.firebaseAuth())
@@ -285,10 +233,6 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreBodyWeightRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryBodyWeightRepository();
 
-  UniversityRepository _defaultUniversity() => _useFirestore
-      ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryUniversityRepository();
-
   DietRepository _defaultDiet() => _useFirestore
       ? FirestoreDietRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryDietRepository();
@@ -296,14 +240,6 @@ class _ZivoAppState extends State<ZivoApp> {
   AiRepository _defaultAi() => _useFirestore
       ? FirebaseAiRepository(uidSource: UidSource.firebaseAuth())
       : FakeAiRepository();
-
-  // The real controller only swaps in once BOTH the feature is meant to be
-  // live AND there's actually a Client ID to authenticate with — either one
-  // missing falls back to the fake, same "never half-wire a real backend"
-  // rule every other `_defaultX` here follows.
-  MusicController _defaultMusic() => (kMusicEnabled && spotifyClientId.isNotEmpty)
-      ? SpotifyMusicController()
-      : FakeMusicController();
 
   @override
   Widget build(BuildContext context) {
@@ -313,20 +249,15 @@ class _ZivoAppState extends State<ZivoApp> {
       expenses: _expenses,
       wallet: _wallet,
       expenseCategories: _categories,
-      tasks: _tasks,
-      schedule: _schedule,
-      notes: _notes,
       moments: _moments,
       workouts: _workouts,
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
       bodyWeight: _bodyWeight,
-      university: _university,
       diet: _diet,
       ai: _ai,
       recorder: _recorder,
       media: _media,
-      music: _music,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,

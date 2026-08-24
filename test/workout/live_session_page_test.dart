@@ -7,13 +7,6 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/music/data/fake_music_controller.dart';
-import 'package:zivo/features/music/domain/music_controller.dart';
-import 'package:zivo/features/music/presentation/music_artwork.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
@@ -36,7 +29,6 @@ import 'package:zivo/features/workout/presentation/pages/live_session_page.dart'
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
-import '../support/inert_music_controller.dart';
 
 /// Records what the player writes, so tests can assert the completion path
 /// persists and the discard path writes nothing. [add] resolves after a
@@ -239,23 +231,17 @@ Widget _wrap({
   required WorkoutPlan plan,
   LiveSession? resume,
   DateTime Function()? now,
-  MusicController? music,
 }) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
-    tasks: InMemoryTaskRepository(),
-    schedule: InMemoryScheduleRepository(),
-    notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
     workouts: workouts,
     workoutPlans: workoutPlans,
     workoutSessions: workoutSessions,
-    university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
-    music: music ?? InertMusicController(),
     child: MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -1042,80 +1028,6 @@ void main() {
     await tester.pump(const Duration(seconds: 91));
     expect(find.text('Set 2 of 2'), findsOneWidget);
   });
-
-  testWidgets(
-    'resting with no music connected shows the plain rest ring — no now-playing card',
-    (tester) async {
-      final workouts = _RecordingWorkoutRepository();
-      final plans = _RecordingWorkoutPlanRepository();
-      final sessions = InMemoryWorkoutSessionRepository();
-      final plan = _plan();
-
-      await tester.pumpWidget(
-        // Default `_wrap` music (`InertMusicController`) — never connects,
-        // so this is the "no music" case `_RestPhase` must render exactly
-        // as the plain `Center(child: ring)` it falls back to.
-        _wrap(
-          workouts: workouts,
-          workoutPlans: plans,
-          workoutSessions: sessions,
-          day: plan.days.first,
-          plan: plan,
-        ),
-      );
-      await _start(tester);
-
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-
-      expect(find.text('REST'), findsOneWidget);
-      expect(find.byType(MusicArtwork), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'resting with music connected + playing composes the now-playing card above the rest ring',
-    (tester) async {
-      final workouts = _RecordingWorkoutRepository();
-      final plans = _RecordingWorkoutPlanRepository();
-      final sessions = InMemoryWorkoutSessionRepository();
-      final plan = _plan();
-      final music = FakeMusicController();
-
-      await tester.pumpWidget(
-        _wrap(
-          workouts: workouts,
-          workoutPlans: plans,
-          workoutSessions: sessions,
-          day: plan.days.first,
-          plan: plan,
-          music: music,
-        ),
-      );
-      await _start(tester);
-
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-
-      expect(find.text('REST'), findsOneWidget);
-      // FakeMusicController starts already connected and playing its first
-      // demo track (see its own doc comment) — composed above the ring as
-      // one unit, not a separate floating card (see `_RestPhase`).
-      expect(find.byType(MusicArtwork), findsOneWidget);
-      expect(find.text('Fixture Track One'), findsOneWidget);
-      expect(find.text('Sample Artist'), findsOneWidget);
-
-      // Disposed directly (not via `addTearDown`): its ticker is a real
-      // Timer.periodic, and `addTearDown` callbacks run AFTER this test
-      // body returns — too late for flutter_test's own "no pending timers"
-      // invariant check, which runs synchronously as this function ends.
-      music.dispose();
-    },
-  );
 
   testWidgets(
     'the rest countdown resyncs from wall-clock time on app resume, surviving '
