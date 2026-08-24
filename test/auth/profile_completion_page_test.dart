@@ -19,16 +19,15 @@ void main() {
 
   bool submitEnabled(WidgetTester tester) => submitOpacity(tester).opacity == 1;
 
-  /// Opens the DOB picker and confirms the pre-selected `initialDate`
-  /// (today minus 13 years, matching the page's own bounds) via the default
-  /// "OK" action — deterministic without needing to tap a specific calendar
-  /// cell.
+  /// Opens the shared DOB wheel and confirms its default selection via the
+  /// sheet's 'Save' action — deterministic without scrolling a wheel. With no
+  /// prior date the wheel opens at 1 January of (now − 25y) (the shared DOB
+  /// sheet's mid-range default), so that's what a straight Save commits.
   Future<DateTime> pickDob(WidgetTester tester) async {
     await tester.tap(find.byIcon(Icons.cake_outlined));
     await tester.pumpAndSettle();
-    final today = DateTime.now();
-    final expected = DateTime(today.year - 13, today.month, today.day);
-    await tester.tap(find.text('OK'));
+    final expected = DateTime(DateTime.now().year - 25, 1, 1);
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     return expected;
   }

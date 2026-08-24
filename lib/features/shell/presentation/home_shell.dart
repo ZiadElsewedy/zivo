@@ -30,13 +30,6 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _tabs = [
-    TodayPage(),
-    HubPage(),
-    AskPage(),
-    ProfilePage(),
-  ];
-
   Future<void> _openCapture() async {
     final choice = await showQuickCaptureSheet(context);
     if (choice == null || !mounted) return;
@@ -83,9 +76,18 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Built per-frame (not a static const list) so Today can be handed a
+    // live callback to switch tabs itself — needed for the pull-to-ask
+    // gesture, since HomeShell is the only thing that owns `_index`.
+    final tabs = [
+      TodayPage(onOpenAsk: () => setState(() => _index = 2)),
+      const HubPage(),
+      const AskPage(),
+      const ProfilePage(),
+    ];
     return Scaffold(
       extendBody: true,
-      body: _TabSwitcher(index: _index, children: _tabs),
+      body: _TabSwitcher(index: _index, children: tabs),
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
@@ -117,7 +119,10 @@ class _TabSwitcher extends StatefulWidget {
 
 class _TabSwitcherState extends State<_TabSwitcher>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, value: 1);
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    value: 1,
+  );
 
   @override
   void didUpdateWidget(covariant _TabSwitcher old) {

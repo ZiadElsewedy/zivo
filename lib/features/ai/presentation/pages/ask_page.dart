@@ -853,9 +853,9 @@ class _EmptyAsk extends StatelessWidget {
   final void Function(String prompt) onSuggestion;
 
   static const _suggestions = [
-    "What's on my schedule?",
-    "What's due this week?",
     'What did I spend this week?',
+    'How is my training going?',
+    "What's left on my diet today?",
     'Summarise my week',
   ];
 
@@ -880,8 +880,8 @@ class _EmptyAsk extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ask about your schedule, tasks, spending, and more — or I '
-              'can add things for you.',
+              'Ask about your training, diet, and spending — or I can add '
+              'an expense for you.',
               style: AppText.aside.copyWith(color: AppColors.ink2),
               textAlign: TextAlign.center,
             ),

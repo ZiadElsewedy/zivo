@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../auth/domain/user_profile.dart';
 import '../../../diet/domain/diet_plan.dart';
@@ -15,9 +18,11 @@ import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
 import '../../../expenses/domain/wallet.dart';
+import '../../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_plan.dart';
+import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
@@ -27,8 +32,43 @@ import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
-class TodayPage extends StatelessWidget {
-  const TodayPage({super.key});
+class TodayPage extends StatefulWidget {
+  const TodayPage({super.key, this.onOpenAsk});
+
+  /// Opens the Ask tab — Today can't switch tabs itself (HomeShell owns the
+  /// tab index), so this is how the pull/tap gesture below reaches it.
+  final VoidCallback? onOpenAsk;
+
+  @override
+  State<TodayPage> createState() => _TodayPageState();
+}
+
+/// How far (in logical pixels) the list must be pulled below its top —
+/// i.e. how negative [ScrollMetrics.pixels] must go under the app-wide
+/// bouncing overscroll (see `ZivoScrollBehavior`, applied on every platform)
+/// — before a pull-down is treated as "open Ask" rather than an incidental
+/// rubber-band wobble.
+const double _kAskPullThreshold = 80;
+
+class _TodayPageState extends State<TodayPage> {
+  bool _askTriggered = false;
+
+  bool _handleScroll(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) {
+      _askTriggered = false;
+    } else if (!_askTriggered &&
+        notification.metrics.pixels <= -_kAskPullThreshold) {
+      _askTriggered = true;
+      _openAsk();
+    }
+    return false;
+  }
+
+  void _openAsk() {
+    if (widget.onOpenAsk == null) return;
+    HapticFeedback.selectionClick();
+    widget.onOpenAsk!();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,32 +98,35 @@ class TodayPage extends StatelessWidget {
           Column(
             children: [
               SizedBox(height: media.padding.top + 6),
-              const _AskHint(),
+              _AskHint(onTap: _openAsk),
               Expanded(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    AppSpacing.s,
-                    AppSpacing.screen,
-                    ZivoBottomBarMetrics.height(context) + AppSpacing.base,
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _handleScroll,
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screen,
+                      AppSpacing.s,
+                      AppSpacing.screen,
+                      ZivoBottomBarMetrics.height(context) + AppSpacing.base,
+                    ),
+                    children: [
+                      const RiseIn(delay: Duration.zero, child: _Header()),
+                      // Primary tier — the day's training, full-weight card.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 90),
+                        child: _TrainingSection(),
+                      ),
+                      // Tertiary tier — quiet glances, muted ink tones (no bright hues).
+                      const RiseIn(
+                        delay: Duration(milliseconds: 170),
+                        child: _SpendingSection(),
+                      ),
+                      const RiseIn(
+                        delay: Duration(milliseconds: 250),
+                        child: _DietSection(),
+                      ),
+                    ],
                   ),
-                  children: [
-                    const RiseIn(delay: Duration.zero, child: _Header()),
-                    // Primary tier — the day's training, full-weight card.
-                    const RiseIn(
-                      delay: Duration(milliseconds: 90),
-                      child: _TrainingSection(),
-                    ),
-                    // Tertiary tier — quiet glances, muted ink tones (no bright hues).
-                    const RiseIn(
-                      delay: Duration(milliseconds: 170),
-                      child: _SpendingSection(),
-                    ),
-                    const RiseIn(
-                      delay: Duration(milliseconds: 250),
-                      child: _DietSection(),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -120,31 +163,40 @@ class _AuraBlob extends StatelessWidget {
   }
 }
 
+/// The pull-to-ask handle — also the discoverable, tappable fallback for
+/// anyone who doesn't try the drag (see [_TodayPageState._handleScroll] for
+/// the gesture itself).
 class _AskHint extends StatelessWidget {
-  const _AskHint();
+  const _AskHint({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 34,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.hairline2,
-            borderRadius: BorderRadius.circular(999),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 34,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.hairline2,
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'PULL TO ASK',
-          style: AppText.tabLabel.copyWith(
-            color: AppColors.ink3,
-            letterSpacing: 1.9,
+          const SizedBox(height: 4),
+          Text(
+            'PULL TO ASK',
+            style: AppText.tabLabel.copyWith(
+              color: AppColors.ink3,
+              letterSpacing: 1.9,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-      ],
+          const SizedBox(height: 6),
+        ],
+      ),
     );
   }
 }
@@ -193,9 +245,13 @@ class _LiveTimeState extends State<_LiveTime> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    final nextMinute =
-        DateTime(now.year, now.month, now.day, now.hour, now.minute)
-            .add(const Duration(minutes: 1));
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(minutes: 1));
     _timer = Timer(nextMinute.difference(now), () {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
@@ -222,10 +278,7 @@ class _LiveTimeState extends State<_LiveTime> {
       children: [
         Text(
           '$h12:$minute',
-          style: AppText.heroNumber.copyWith(
-            fontSize: 58,
-            letterSpacing: -1.6,
-          ),
+          style: AppText.heroNumber.copyWith(fontSize: 58, letterSpacing: -1.6),
         ),
         const SizedBox(width: 9),
         Padding(
@@ -388,10 +441,7 @@ class _TrainingUpNext extends StatelessWidget {
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
         if (plan == null) {
-          return const _EmptyLine(
-            'No training logged yet today.',
-            icon: Icons.fitness_center_rounded,
-          );
+          return const _TrainingEmptyFallback();
         }
         // Nested under the plan so the session stream — the source of truth for
         // a running workout — drives the card. Kept inside (not merged with the
@@ -406,10 +456,7 @@ class _TrainingUpNext extends StatelessWidget {
             final selection = resolveUpNext(plan, sessionSnapshot.data);
             final day = selection.day;
             if (day == null) {
-              return const _EmptyLine(
-                'No training logged yet today.',
-                icon: Icons.fitness_center_rounded,
-              );
+              return const _TrainingEmptyFallback();
             }
             return UpNextWorkoutCard(
               plan: plan,
@@ -419,6 +466,160 @@ class _TrainingUpNext extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// What Training shows when it has nothing to offer: the plain empty line
+/// for a user who already has *some* real data elsewhere (a diet plan or a
+/// logged expense), or — for a genuinely brand-new user with none of the
+/// three (workout/diet/expenses) — the actionable [_GetStartedCard] instead.
+/// Reactive: as soon as a diet plan or an expense shows up, this collapses
+/// back to the plain line on its own (and disappears entirely once a
+/// workout plan exists, since the outer [_TrainingUpNext] stops reaching
+/// this branch at all).
+class _TrainingEmptyFallback extends StatelessWidget {
+  const _TrainingEmptyFallback();
+
+  static const _emptyLine = _EmptyLine(
+    'No training logged yet today.',
+    icon: Icons.fitness_center_rounded,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<DietPlan?>(
+      stream: scope.diet.watchActivePlan(),
+      initialData: scope.diet.activePlan,
+      builder: (context, dietSnapshot) {
+        if (dietSnapshot.data != null) return _emptyLine;
+        return StreamBuilder<List<Expense>>(
+          stream: scope.expenses.watchAll(),
+          initialData: scope.expenses.current,
+          builder: (context, expenseSnapshot) {
+            final expenses = expenseSnapshot.data ?? const <Expense>[];
+            if (expenses.isNotEmpty) return _emptyLine;
+            return const _GetStartedCard();
+          },
+        );
+      },
+    );
+  }
+}
+
+/// A brand-new signed-in user's first Today: one calm, actionable card
+/// instead of a bare empty line — two taps to real data, not a wizard.
+class _GetStartedCard extends StatelessWidget {
+  const _GetStartedCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return RiseIn(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Get started',
+              style: AppText.rowTitle.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Import a plan or log a spend — Zivo builds Today from there.",
+              style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _GetStartedAction(
+                    icon: Icons.upload_file_rounded,
+                    label: 'Import a\nworkout plan',
+                    color: AppColors.pulse,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const WorkoutPdfImportPage(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _GetStartedAction(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Add an\nexpense',
+                    color: AppColors.solar,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ExpenseCapturePage(),
+                        fullscreenDialog: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GetStartedAction extends StatelessWidget {
+  const _GetStartedAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // GestureDetector, not InkWell — Today has no Scaffold of its own (it's
+    // embedded in HomeShell's), so an InkWell here would depend on that
+    // ambient Material ancestor rather than working standalone.
+    return PressableScale(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadius.chip * 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: AppText.meta.copyWith(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_user.dart';
 import '../widgets/auth_action_button.dart';
+import '../widgets/dob_picker_sheet.dart';
 
 /// Collects the missing Name / Date of birth for a signed-in user with an
 /// incomplete profile.
@@ -61,17 +62,10 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
 
   Future<void> _pickDob() async {
     if (_saving) return;
-    final today = DateTime.now();
-    // A DOB can't be in the future, and must belong to someone at least 13.
-    final lastDate = DateTime(today.year - 13, today.month, today.day);
-    final firstDate = DateTime(today.year - 120, today.month, today.day);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dob ?? lastDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
-      helpText: 'Date of birth',
-    );
+    // The shared wheel enforces the same 13+ / 120-year bounds this screen
+    // used to set on the stock `showDatePicker`, so onboarding and profile-edit
+    // present the identical ZIVO picker.
+    final picked = await showDobPicker(context, initial: _dob);
     if (picked == null) return;
     setState(() {
       _dob = picked;

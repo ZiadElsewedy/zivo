@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,8 +10,13 @@ import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/diet/data/firestore_diet_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
+import 'package:zivo/features/diet/domain/diet_plan.dart';
+import 'package:zivo/features/diet/domain/diet_plan_status.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
+import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
+import 'package:zivo/features/expenses/domain/expense.dart';
+import 'package:zivo/features/expenses/domain/expense_repository.dart';
 import 'package:zivo/features/home/presentation/header_builder.dart';
 import 'package:zivo/features/home/presentation/pages/today_page.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -41,13 +48,14 @@ Widget _wrap({
   WorkoutRepository? workouts,
   WorkoutPlanRepository? workoutPlans,
   WorkoutSessionRepository? workoutSessions,
+  ExpenseRepository? expenses,
 }) {
   return AppScope(
     auth: FakeAuthRepository(
       initial: const Authenticated(AuthUser(uid: 'test-uid')),
     ),
     profiles: FakeProfileRepository(),
-    expenses: InMemoryExpenseRepository(),
+    expenses: expenses ?? InMemoryExpenseRepository(),
     moments: InMemoryMomentRepository(),
     workouts: workouts ?? InMemoryWorkoutRepository(),
     workoutPlans: workoutPlans ?? InMemoryWorkoutPlanRepository(),
@@ -141,9 +149,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('header shows the profile name and a real date', (
-    tester,
-  ) async {
+  testWidgets('header shows the profile name and a real date', (tester) async {
     await tallView(tester);
 
     await tester.pumpWidget(
@@ -291,7 +297,10 @@ void main() {
       expect(find.text('Ready to start Full Arm?'), findsOneWidget);
 
       // Well past the 120px dismiss threshold — same exit as Cancel.
-      await tester.drag(find.text('Ready to start Full Arm?'), const Offset(0, 300));
+      await tester.drag(
+        find.text('Ready to start Full Arm?'),
+        const Offset(0, 300),
+      );
       await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsNothing);
@@ -318,7 +327,10 @@ void main() {
       await _settle(tester);
 
       // A short drag, well under the 120px dismiss threshold.
-      await tester.drag(find.text('Ready to start Full Arm?'), const Offset(0, 30));
+      await tester.drag(
+        find.text('Ready to start Full Arm?'),
+        const Offset(0, 30),
+      );
       await _settle(tester);
 
       // Still open — sprang back rather than dismissing.
@@ -408,7 +420,8 @@ void main() {
     'source-of-truth fix, so Home never reads "not active" while a workout runs',
     (tester) async {
       await tallView(tester);
-      final plan = _planWithTwoDays(); // next-due is "Full Arm"; session is "Legs"
+      final plan =
+          _planWithTwoDays(); // next-due is "Full Arm"; session is "Legs"
       final sessions = InMemoryWorkoutSessionRepository();
       await sessions.saveSession(
         LiveSession.start(
@@ -506,6 +519,98 @@ void main() {
     expect(find.text('DIET'), findsNothing);
     expect(find.textContaining('meals eaten'), findsNothing);
   });
+
+  testWidgets(
+    'Training shows a Get Started card when there is no workout plan, diet plan, or expenses',
+    (tester) async {
+      await tallView(tester);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: _TestDietRepository(),
+          workoutPlans: _NoActivePlanRepository(),
+          expenses: _TestExpenseRepository(),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Get started'), findsOneWidget);
+      expect(find.text('Import a\nworkout plan'), findsOneWidget);
+      expect(find.text('Add an\nexpense'), findsOneWidget);
+      expect(find.text('No training logged yet today.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the Get Started card collapses to the plain empty line once a diet plan arrives',
+    (tester) async {
+      await tallView(tester);
+      final diet = _TestDietRepository();
+      addTearDown(diet.dispose);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: diet,
+          workoutPlans: _NoActivePlanRepository(),
+          expenses: _TestExpenseRepository(),
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('Get started'), findsOneWidget);
+
+      await diet.savePlan(
+        DietPlan(
+          id: 'p1',
+          name: 'Test Plan',
+          status: DietPlanStatus.active,
+          source: DietSource.manual,
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          days: const [],
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Get started'), findsNothing);
+      expect(find.text('No training logged yet today.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the Get Started card collapses to the plain empty line once an expense is logged',
+    (tester) async {
+      await tallView(tester);
+      final expenses = _TestExpenseRepository();
+      addTearDown(expenses.dispose);
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: _TestDietRepository(),
+          workoutPlans: _NoActivePlanRepository(),
+          expenses: expenses,
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('Get started'), findsOneWidget);
+
+      await expenses.add(
+        Expense(
+          id: 'e1',
+          amountMinor: 500,
+          currency: 'EGP',
+          categoryId: 'coffee',
+          spentAt: DateTime.now(),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Get started'), findsNothing);
+      expect(find.text('No training logged yet today.'), findsOneWidget);
+    },
+  );
 }
 
 /// Used everywhere in this file instead of `pumpAndSettle` — the up-next
@@ -525,6 +630,87 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 1000));
   await tester.pump();
+}
+
+/// A [DietRepository] that starts with (or without) a plan and rebroadcasts
+/// reactively on [savePlan]/[deletePlan] — used to prove the Get Started
+/// card collapses the moment a diet plan shows up.
+class _TestDietRepository implements DietRepository {
+  _TestDietRepository([DietPlan? initial]) : _plan = initial;
+
+  DietPlan? _plan;
+  final StreamController<DietPlan?> _controller =
+      StreamController<DietPlan?>.broadcast();
+
+  @override
+  DietPlan? get activePlan => _plan;
+
+  @override
+  Stream<DietPlan?> watchActivePlan() => _controller.stream;
+
+  @override
+  Future<void> savePlan(DietPlan plan) async {
+    _plan = plan;
+    _controller.add(_plan);
+  }
+
+  @override
+  Future<void> deletePlan(String id) async {
+    _plan = null;
+    _controller.add(_plan);
+  }
+
+  @override
+  Stream<Set<String>> watchConsumed(DateTime day) =>
+      Stream.value(const <String>{});
+
+  @override
+  Future<void> setMealEaten({
+    required String mealId,
+    required DateTime day,
+    required bool eaten,
+  }) async {}
+
+  void dispose() => _controller.close();
+}
+
+/// An [ExpenseRepository] that starts with (or without) items and
+/// rebroadcasts reactively on [add] — used to prove the Get Started card
+/// collapses the moment an expense is logged.
+class _TestExpenseRepository implements ExpenseRepository {
+  _TestExpenseRepository([List<Expense>? initial])
+    : _items = List.of(initial ?? const <Expense>[]);
+
+  final List<Expense> _items;
+  final StreamController<List<Expense>> _controller =
+      StreamController<List<Expense>>.broadcast();
+
+  @override
+  List<Expense> get current => List.unmodifiable(_items);
+
+  @override
+  Stream<List<Expense>> watchAll() => _controller.stream;
+
+  @override
+  Future<void> add(Expense expense) async {
+    _items.add(expense);
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> update(Expense expense) async {
+    final i = _items.indexWhere((e) => e.id == expense.id);
+    if (i != -1) _items[i] = expense;
+    _controller.add(current);
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _items.removeWhere((e) => e.id == id);
+    _controller.add(current);
+  }
+
+  void dispose() => _controller.close();
 }
 
 class _NoActivePlanRepository implements WorkoutPlanRepository {
