@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/scope/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,12 +8,15 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
+import '../../../core/util/time_ago.dart';
 import '../../../core/widgets/pressable_scale.dart';
+import '../../../core/widgets/rise_in.dart';
 import '../../diet/domain/diet_plan.dart';
 import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../diet/presentation/today_diet.dart';
 import '../../expenses/domain/expense.dart';
+import '../../expenses/domain/expense_category.dart';
 import '../../expenses/domain/expense_repository.dart';
 import '../../expenses/domain/wallet.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
@@ -20,6 +24,7 @@ import '../../moments/domain/moment.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../shell/presentation/widgets/zivo_bottom_bar.dart';
 import '../../workout/domain/live_session.dart';
+import '../../workout/domain/session_status.dart';
 import '../../workout/domain/up_next_selection.dart';
 import '../../workout/domain/workout_plan.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
@@ -83,6 +88,7 @@ class HubPage extends StatelessWidget {
                 _MomentsTile(),
               ],
             ),
+            const _RecentSection(),
           ],
         ),
       ),
@@ -305,7 +311,10 @@ class _ModuleTileShell extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -362,6 +371,246 @@ class _ModuleTileShell extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One thing that happened, from any module — the shared shape [_mergeRecent]
+/// folds Workout/Expenses/Moments into before sorting.
+class _RecentItem {
+  const _RecentItem({
+    required this.at,
+    required this.icon,
+    required this.color,
+    required this.text,
+    required this.onTap,
+  });
+
+  final DateTime at;
+  final IconData icon;
+  final Color color;
+  final String text;
+  final VoidCallback onTap;
+}
+
+/// "Recent" — the last few things that happened across Workout, Expenses,
+/// and Moments, newest first. Diet is deliberately excluded: `watchConsumed`
+/// carries no order/timestamp, and a real cross-day "recently eaten" query
+/// would need a new Firestore composite index — real infra, not a
+/// client-only add, so it waits for whenever Diet next touches the backend
+/// rather than being faked here.
+///
+/// Three streams the tiles above already pay for, merged client-side (same
+/// nested-`StreamBuilder` idiom used everywhere else in this codebase) —
+/// nothing renders at all when every source is empty, matching how the rest
+/// of the app degrades (Today's own "Get started" card already carries that
+/// message; Hub doesn't need to repeat it).
+class _RecentSection extends StatelessWidget {
+  const _RecentSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<List<LiveSession>>(
+      stream: scope.workoutSessions.watchAll(),
+      initialData: scope.workoutSessions.current,
+      builder: (context, sessionsSnapshot) {
+        return StreamBuilder<List<Expense>>(
+          stream: scope.expenses.watchAll(),
+          initialData: scope.expenses.current,
+          builder: (context, expensesSnapshot) {
+            return StreamBuilder<List<Moment>>(
+              stream: scope.moments.watchAll(),
+              initialData: scope.moments.current,
+              builder: (context, momentsSnapshot) {
+                final items = _mergeRecent(
+                  context,
+                  sessions: sessionsSnapshot.data ?? const <LiveSession>[],
+                  expenses: expensesSnapshot.data ?? const <Expense>[],
+                  moments: momentsSnapshot.data ?? const <Moment>[],
+                );
+                if (items.isEmpty) return const SizedBox.shrink();
+                return RiseIn(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 30),
+                      Text(
+                        'RECENT',
+                        style: AppText.meta.copyWith(
+                          color: AppColors.ink3,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Material(
+                        // The rows' own InkWell needs a Material ancestor —
+                        // Hub has no Scaffold of its own (only HomeShell's,
+                        // in production), same reasoning as `_ModuleTileShell`
+                        // above.
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppRadius.card),
+                            boxShadow: AppShadows.card,
+                          ),
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < items.length; i++)
+                                _RecentRow(
+                                  item: items[i],
+                                  last: i == items.length - 1,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Folds the three modules' already-loaded lists into one time-sorted,
+/// capped list. Pure function of the snapshots (no I/O) so it's cheap to
+/// recompute on every rebuild.
+List<_RecentItem> _mergeRecent(
+  BuildContext context, {
+  required List<LiveSession> sessions,
+  required List<Expense> expenses,
+  required List<Moment> moments,
+}) {
+  final items = <_RecentItem>[];
+
+  for (final s in sessions) {
+    // Only completed sessions read as "activity" — an abandoned one wasn't
+    // really a workout, and an active one is already the Workout tile's job.
+    final completedAt = s.completedAt;
+    if (s.status != SessionStatus.completed || completedAt == null) continue;
+    items.add(
+      _RecentItem(
+        at: completedAt,
+        icon: AppIcons.workout,
+        color: AppColors.pulse,
+        text: 'Completed ${s.dayLabel}',
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const WorkoutDashboardPage())),
+      ),
+    );
+  }
+
+  for (final e in expenses) {
+    items.add(
+      _RecentItem(
+        at: e.spentAt,
+        icon: AppIcons.expenses,
+        color: AppColors.solar,
+        text:
+            '${formatAmount(e.amountMinor)} ${e.currency} on '
+            '${_expenseCategoryLabel(e.categoryId)}',
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ExpensesListPage())),
+      ),
+    );
+  }
+
+  for (final m in moments) {
+    final caption = m.caption.trim();
+    items.add(
+      _RecentItem(
+        at: m.takenAt,
+        icon: AppIcons.moments,
+        color: AppColors.ember,
+        text: caption.isEmpty
+            ? 'Added a moment'
+            : (caption.length > 40 ? '${caption.substring(0, 40)}…' : caption),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const MomentsTimelinePage())),
+      ),
+    );
+  }
+
+  items.sort((a, b) => b.at.compareTo(a.at));
+  return items.take(5).toList(growable: false);
+}
+
+/// Maps a stored expense `categoryId` to a display label — built-ins only.
+/// A custom category's id is an opaque `microsecondsSinceEpoch` string (see
+/// `add_category_sheet.dart`), never a readable slug, so anything not in
+/// [kBuiltInCategories] degrades to a generic label rather than leaking a
+/// raw id into the row. Deliberately skips `resolveCategory` (which would
+/// need the nullable `CategoryRepository` as a 4th stream just to prettify
+/// one label in a small activity row).
+String _expenseCategoryLabel(String categoryId) {
+  for (final category in kBuiltInCategories) {
+    if (category.id == categoryId) return category.label;
+  }
+  return 'Expense';
+}
+
+class _RecentRow extends StatelessWidget {
+  const _RecentRow({required this.item, required this.last});
+
+  final _RecentItem item;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        item.onTap();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          border: last
+              ? null
+              : const Border(bottom: BorderSide(color: AppColors.hairline)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(item.icon, size: 15, color: item.color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(
+                  fontSize: 14,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              timeAgo(item.at, DateTime.now()),
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+            ),
+          ],
         ),
       ),
     );
