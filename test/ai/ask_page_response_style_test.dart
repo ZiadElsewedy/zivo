@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -27,13 +26,13 @@ import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
-/// Wraps [FakeAiRepository] but holds `send` open on [gate], so a test can
-/// observe the in-flight "thinking" state before the reply lands.
-class _GatedAi implements AiRepository {
-  _GatedAi(this._inner);
+/// Wraps [FakeAiRepository] to record the `responseStyle` AskPage forwards
+/// on every [send] call, so the test can assert on it directly.
+class _RecordingAi implements AiRepository {
+  _RecordingAi(this._inner);
 
   final FakeAiRepository _inner;
-  final Completer<void> gate = Completer<void>();
+  final List<String> sentStyles = [];
 
   @override
   Future<String> ensureConversation() => _inner.ensureConversation();
@@ -46,8 +45,7 @@ class _GatedAi implements AiRepository {
       _inner.renameConversation(id, title);
 
   @override
-  Future<void> deleteConversation(String id) =>
-      _inner.deleteConversation(id);
+  Future<void> deleteConversation(String id) => _inner.deleteConversation(id);
 
   @override
   Stream<List<AiConversation>> watchConversations() =>
@@ -66,9 +64,9 @@ class _GatedAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
-  }) async {
-    await gate.future;
-    await _inner.send(
+  }) {
+    sentStyles.add(responseStyle);
+    return _inner.send(
       conversationId: conversationId,
       text: text,
       onEvent: onEvent,
@@ -77,18 +75,10 @@ class _GatedAi implements AiRepository {
   }
 
   @override
-  Future<String> getResponseStyle() => _inner.getResponseStyle();
-
-  @override
-  Future<void> setResponseStyle(String style) =>
-      _inner.setResponseStyle(style);
-
-  @override
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) =>
-      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
+  }) => _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
@@ -111,6 +101,12 @@ class _GatedAi implements AiRepository {
     mimeType: mimeType,
     languageHint: languageHint,
   );
+
+  @override
+  Future<String> getResponseStyle() => _inner.getResponseStyle();
+
+  @override
+  Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
 }
 
 Widget _host(AiRepository ai) => AppScope(
@@ -127,34 +123,55 @@ Widget _host(AiRepository ai) => AppScope(
   university: InMemoryUniversityRepository(),
   diet: InMemoryDietRepository(),
   ai: ai,
-  child: const MaterialApp(home: AskPage()),
+  child: MaterialApp(home: const AskPage()),
 );
 
 void main() {
-  testWidgets('the thinking rail shows while a turn is in flight and clears '
-      'when the reply arrives', (tester) async {
+  testWidgets('defaults to Balanced, and a picked style persists and is '
+      "forwarded on the next send", (tester) async {
     final inner = FakeAiRepository();
     addTearDown(inner.dispose);
-    final ai = _GatedAi(inner);
+    final ai = _RecordingAi(inner);
 
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'what is due this week?');
-    await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-    // Let the send lifecycle mark the turn in flight (send is gated open).
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('Thinking…'), findsOneWidget);
-    expect(find.text(kFakeAiReply), findsNothing);
-
-    // Release the gated reply; the rail clears and the answer types in.
-    ai.gate.complete();
+    await tester.tap(find.byIcon(Icons.tune_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.text('Thinking…'), findsNothing);
-    expect(find.text(kFakeAiReply), findsOneWidget);
+    expect(find.text('Concise'), findsOneWidget);
+    expect(find.text('Balanced'), findsOneWidget);
+    expect(find.text('Detailed'), findsOneWidget);
+    // 'Balanced' is checked by default.
+    expect(
+      find.descendant(
+        of: find.widgetWithText(Row, 'Balanced'),
+        matching: find.byIcon(Icons.check_circle_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Concise'));
+    await tester.pumpAndSettle();
+
+    expect(await inner.getResponseStyle(), 'concise');
+
+    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(ai.sentStyles, ['concise']);
+
+    // Reopening the menu now shows Concise checked instead.
+    await tester.tap(find.byIcon(Icons.tune_rounded));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.widgetWithText(Row, 'Concise'),
+        matching: find.byIcon(Icons.check_circle_rounded),
+      ),
+      findsOneWidget,
+    );
   });
 }

@@ -15,6 +15,7 @@ import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
@@ -54,7 +55,19 @@ class DemoAi implements AiRepository {
   Future<void> renameConversation(String id, String title) async {}
 
   @override
+  Future<void> deleteConversation(String id) async {}
+
+  @override
+  Future<String> getResponseStyle() async => kDefaultResponseStyle;
+
+  @override
+  Future<void> setResponseStyle(String style) async {}
+
+  @override
   Stream<List<AiConversation>> watchConversations() => Stream.value(const []);
+
+  @override
+  Future<AiConversation?> latestConversation() async => null;
 
   @override
   Stream<List<AiMessage>> watchMessages(String conversationId) async* {
@@ -69,6 +82,7 @@ class DemoAi implements AiRepository {
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

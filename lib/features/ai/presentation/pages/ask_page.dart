@@ -15,6 +15,7 @@ import '../../data/audio_recorder.dart';
 import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
+import '../../domain/ai_response_style.dart';
 import '../../domain/ai_role.dart';
 import '../../domain/ai_turn_event.dart';
 import '../../domain/stt_error.dart';
@@ -30,18 +31,50 @@ class AskPage extends StatefulWidget {
 }
 
 class _AskPageState extends State<AskPage> {
-  /// Resolves the initial conversation once at startup. Once the user starts
-  /// a new chat or switches sessions, [_activeConversationId] (set via
-  /// [_switchTo]) takes over as the source of truth.
-  late final Future<String> _initialConversationId = AppScope.of(
-    context,
-  ).ai.ensureConversation();
+  /// Resolves the initial active conversation once at startup, from the
+  /// user's most-recently-updated existing conversation — never creates one.
+  /// If there are none, [_activeConversationId] stays null (an unsaved "New
+  /// chat": see [_send]). Once the user starts a new chat or switches
+  /// sessions, [_switchTo] takes over as the source of truth.
+  late final Future<void> _initialLoad = _resolveInitialConversation();
+
+  /// Null while still loading, OR while sitting in an unsaved "New chat"
+  /// that hasn't sent its first message yet — see [_activeResolved].
   String? _activeConversationId;
 
+  /// True once [_activeConversationId] reflects a real decision (loaded from
+  /// Firestore, or explicitly set by [_switchTo]) — distinguishes "still
+  /// loading" from "resolved to no conversation" (both read as a null
+  /// [_activeConversationId]).
+  bool _activeResolved = false;
+
   /// True while the active conversation is still titled 'New chat' — drives
-  /// the auto-title-from-first-message behavior in [_send]. A conversation
-  /// resolved via [_initialConversationId] (title 'Ask') is never untitled.
+  /// the auto-title-from-first-message behavior in [_send].
   bool _activeIsUntitled = false;
+
+  /// The user's saved reply-length preference, forwarded on every [_send].
+  /// Loaded alongside the initial conversation; changed via the header's
+  /// style picker ([_setResponseStyle]).
+  String _responseStyle = kDefaultResponseStyle;
+
+  Future<void> _resolveInitialConversation() async {
+    final ai = AppScope.of(context).ai;
+    // A one-shot query, not `watchConversations().first` — that stream's
+    // first emission can be a stale/empty local-cache snapshot that resolves
+    // before Firestore's server data arrives, which would wrongly land on
+    // the empty "New chat" state even when a conversation exists.
+    final latestFuture = ai.latestConversation();
+    final responseStyleFuture = ai.getResponseStyle();
+    final latest = await latestFuture;
+    final responseStyle = await responseStyleFuture;
+    if (!mounted || _activeResolved) return;
+    setState(() {
+      _activeConversationId = latest?.id;
+      _activeIsUntitled = latest?.title == 'New chat';
+      _activeResolved = true;
+      _responseStyle = validResponseStyle(responseStyle);
+    });
+  }
 
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -123,11 +156,24 @@ class _AskPageState extends State<AskPage> {
     super.dispose();
   }
 
-  Future<void> _send(String conversationId) async {
+  /// Sends the composer's text — lazily creating the active conversation
+  /// first if this is an unsaved "New chat" (ChatGPT behavior: nothing is
+  /// persisted in Firestore until the first message actually goes out).
+  Future<void> _send() async {
+    if (!_activeResolved) return;
     if (_sending) return;
     if (!_canSend) return;
     final text = _input.text;
     _input.clear();
+
+    var conversationId = _activeConversationId;
+    if (conversationId == null) {
+      final ai = AppScope.of(context).ai;
+      conversationId = await ai.createConversation();
+      if (!mounted) return;
+      _activeIsUntitled = true;
+    }
+
     final baselineUserCount = _lastPersisted
         .where((m) => m.role == AiRole.user)
         .length;
@@ -138,6 +184,8 @@ class _AskPageState extends State<AskPage> {
       unawaited(_autoTitle(conversationId, text));
     }
     setState(() {
+      _activeConversationId = conversationId;
+      _activeResolved = true;
       _pendingText = text;
       _sendFailed = false;
       _baselineUserCount = baselineUserCount;
@@ -162,9 +210,12 @@ class _AskPageState extends State<AskPage> {
 
   /// Switches the active conversation — clears all optimistic/in-flight
   /// state from the previous one so it can't bleed into the new thread.
-  void _switchTo(String conversationId, {required bool isUntitled}) {
+  /// [conversationId] is null for an unsaved "New chat" (nothing persisted
+  /// yet — see [_send]).
+  void _switchTo(String? conversationId, {required bool isUntitled}) {
     setState(() {
       _activeConversationId = conversationId;
+      _activeResolved = true;
       _activeIsUntitled = isUntitled;
       _pendingText = null;
       _sendFailed = false;
@@ -180,14 +231,11 @@ class _AskPageState extends State<AskPage> {
     });
   }
 
-  Future<void> _newChat() async {
-    final ai = AppScope.of(context).ai;
-    final id = await ai.createConversation();
-    if (!mounted) return;
-    _switchTo(id, isUntitled: true);
-  }
+  /// Starts a new, unsaved chat — no Firestore write until [_send] actually
+  /// fires the first message.
+  void _newChat() => _switchTo(null, isUntitled: true);
 
-  Future<void> _openSessions(String activeConversationId) async {
+  Future<void> _openSessions(String? activeConversationId) async {
     final result = await showModalBottomSheet<_SessionsSelection>(
       context: context,
       backgroundColor: AppColors.card,
@@ -195,13 +243,15 @@ class _AskPageState extends State<AskPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) =>
-          _SessionsSheet(activeConversationId: activeConversationId),
+      builder: (_) => _SessionsSheet(
+        activeConversationId: activeConversationId,
+        onDeleted: _handleConversationDeleted,
+      ),
     );
     if (!mounted || result == null) return;
     switch (result) {
       case _NewChatSelected():
-        await _newChat();
+        _newChat();
       case _ConversationSelected(:final conversation):
         if (conversation.id != activeConversationId) {
           _switchTo(
@@ -209,6 +259,41 @@ class _AskPageState extends State<AskPage> {
             isUntitled: conversation.title == 'New chat',
           );
         }
+    }
+  }
+
+  /// A conversation was deleted from the sessions sheet (which stays open —
+  /// this only reacts if the ACTIVE conversation was the one removed):
+  /// switches to the most-recently-updated remaining one, or to the unsaved
+  /// "New chat" state if none remain.
+  Future<void> _handleConversationDeleted(String deletedId) async {
+    if (deletedId != _activeConversationId) return;
+    final ai = AppScope.of(context).ai;
+    // A one-shot query, not `watchConversations().first` — same staleness
+    // risk as `_resolveInitialConversation` (a fresh subscription's first
+    // emission can precede Firestore's post-delete server data).
+    final remaining = await ai.latestConversation();
+    if (!mounted) return;
+    if (remaining == null) {
+      _newChat();
+    } else {
+      _switchTo(remaining.id, isUntitled: remaining.title == 'New chat');
+    }
+  }
+
+  /// Picks a new reply-length style — applied optimistically (future sends
+  /// use it immediately) and persisted in the background; rolled back with a
+  /// toast if the save fails.
+  Future<void> _setResponseStyle(String style) async {
+    final previous = _responseStyle;
+    if (style == previous) return;
+    setState(() => _responseStyle = style);
+    try {
+      await AppScope.of(context).ai.setResponseStyle(style);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _responseStyle = previous);
+      _showError("Couldn't save that — try again.");
     }
   }
 
@@ -223,9 +308,9 @@ class _AskPageState extends State<AskPage> {
   /// Fills the composer with an empty-state suggestion and sends it —
   /// setting the controller text fires the existing listener synchronously,
   /// so `_canSend` is already true by the time `_send`'s guard runs.
-  void _sendSuggestion(String conversationId, String text) {
+  void _sendSuggestion(String text) {
     _input.text = text;
-    _send(conversationId);
+    _send();
   }
 
   Future<void> _runSend(String conversationId, String text) async {
@@ -245,6 +330,7 @@ class _AskPageState extends State<AskPage> {
         conversationId: conversationId,
         text: text,
         onEvent: _onTurnEvent,
+        responseStyle: _responseStyle,
       );
     } catch (_) {
       if (mounted) {
@@ -417,11 +503,6 @@ class _AskPageState extends State<AskPage> {
     if (_autoFollow) _scrollToBottom();
   }
 
-  /// The conversation any new action (send, sessions) should target: the
-  /// active one once set, otherwise the initial conversation once resolved.
-  Future<String> _resolveConversationId() async =>
-      _activeConversationId ?? await _initialConversationId;
-
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -432,25 +513,24 @@ class _AskPageState extends State<AskPage> {
         child: Column(
           children: [
             _Header(
-              onNewChat: _sending
+              onNewChat: (!_activeResolved || _sending) ? null : _newChat,
+              onSessions: (!_activeResolved || _sending)
                   ? null
-                  : () async {
-                      await _newChat();
-                    },
-              onSessions: _sending
-                  ? null
-                  : () async {
-                      final conversationId = await _resolveConversationId();
-                      if (mounted) await _openSessions(conversationId);
-                    },
+                  : () => _openSessions(_activeConversationId),
+              responseStyle: _responseStyle,
+              onSelectStyle: _setResponseStyle,
             ),
             Expanded(
-              child: FutureBuilder<String>(
-                future: _initialConversationId,
-                builder: (context, idSnapshot) {
-                  final conversationId =
-                      _activeConversationId ?? idSnapshot.data;
-                  if (conversationId == null) return const SizedBox.shrink();
+              child: FutureBuilder<void>(
+                future: _initialLoad,
+                builder: (context, _) {
+                  if (!_activeResolved) return const SizedBox.shrink();
+                  final conversationId = _activeConversationId;
+                  if (conversationId == null) {
+                    // An unsaved "New chat" — nothing persisted yet, so
+                    // there's no message stream to watch.
+                    return _EmptyAsk(onSuggestion: _sendSuggestion);
+                  }
                   final ai = AppScope.of(context).ai;
                   if (_messagesStream == null ||
                       _streamConversationId != conversationId) {
@@ -497,10 +577,7 @@ class _AskPageState extends State<AskPage> {
                         );
                       }
                       if (displayed.isEmpty && !_sending && !_sendFailed) {
-                        return _EmptyAsk(
-                          onSuggestion: (t) =>
-                              _sendSuggestion(conversationId, t),
-                        );
+                        return _EmptyAsk(onSuggestion: _sendSuggestion);
                       }
                       WidgetsBinding.instance.addPostFrameCallback(
                         (_) => _maybeAutoScroll(),
@@ -616,10 +693,7 @@ class _AskPageState extends State<AskPage> {
                 media.viewInsets.bottom,
                 media.padding.bottom,
               ),
-              onSend: () async {
-                final conversationId = await _resolveConversationId();
-                await _send(conversationId);
-              },
+              onSend: _send,
               isRecording: _recording,
               transcribing: _transcribing,
               sending: _sending,
@@ -634,7 +708,12 @@ class _AskPageState extends State<AskPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onNewChat, required this.onSessions});
+  const _Header({
+    required this.onNewChat,
+    required this.onSessions,
+    required this.responseStyle,
+    required this.onSelectStyle,
+  });
 
   /// Starts a new chat session. Null (disabled) while a turn is in flight.
   final VoidCallback? onNewChat;
@@ -642,6 +721,12 @@ class _Header extends StatelessWidget {
   /// Opens the sessions bottom sheet. Null (disabled) while a turn is in
   /// flight.
   final VoidCallback? onSessions;
+
+  /// The current reply-length preference, for the style picker's checkmark.
+  final String responseStyle;
+
+  /// Persists a newly-picked reply-length preference.
+  final void Function(String style) onSelectStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -655,6 +740,10 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text('Ask', style: AppText.cardTitle)),
+          _ResponseStyleMenu(
+            responseStyle: responseStyle,
+            onSelect: onSelectStyle,
+          ),
           IconButton(
             onPressed: onSessions,
             icon: const Icon(Icons.history_rounded),
@@ -669,6 +758,55 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A compact "tune" icon opening a small ZIVO-styled menu to pick how ZIVO
+/// replies — Concise / Balanced / Detailed, persisted via [onSelect].
+class _ResponseStyleMenu extends StatelessWidget {
+  const _ResponseStyleMenu({required this.responseStyle, required this.onSelect});
+
+  final String responseStyle;
+  final void Function(String style) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.tune_rounded),
+      color: AppColors.card,
+      iconColor: AppColors.ink2,
+      tooltip: 'Reply style',
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.hairline),
+      ),
+      onSelected: onSelect,
+      itemBuilder: (context) => [
+        for (final style in kResponseStyles)
+          PopupMenuItem<String>(
+            value: style,
+            child: Row(
+              children: [
+                Icon(
+                  style == responseStyle
+                      ? Icons.check_circle_rounded
+                      : Icons.circle_outlined,
+                  size: 16,
+                  color: style == responseStyle
+                      ? AppColors.iris
+                      : AppColors.ink3,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  responseStyleLabel(style),
+                  style: AppText.rowTitle.copyWith(color: AppColors.ink),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1469,9 +1607,16 @@ final class _ConversationSelected extends _SessionsSelection {
 /// highlighted. Tapping either pops the sheet with the corresponding
 /// [_SessionsSelection] for [_AskPageState._openSessions] to act on.
 class _SessionsSheet extends StatefulWidget {
-  const _SessionsSheet({required this.activeConversationId});
+  const _SessionsSheet({
+    required this.activeConversationId,
+    required this.onDeleted,
+  });
 
-  final String activeConversationId;
+  final String? activeConversationId;
+
+  /// Called with a conversation's id right after it's actually deleted —
+  /// the sheet stays open; the caller reacts if it was the active one.
+  final void Function(String conversationId) onDeleted;
 
   @override
   State<_SessionsSheet> createState() => _SessionsSheetState();
@@ -1481,6 +1626,11 @@ class _SessionsSheetState extends State<_SessionsSheet> {
   late final Stream<List<AiConversation>> _conversations = AppScope.of(
     context,
   ).ai.watchConversations();
+
+  Future<void> _performDelete(AiConversation conversation) async {
+    await AppScope.of(context).ai.deleteConversation(conversation.id);
+    widget.onDeleted(conversation.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1553,13 +1703,24 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                     itemCount: conversations.length,
                     itemBuilder: (context, i) {
                       final conversation = conversations[i];
-                      return _SessionRow(
-                        conversation: conversation,
-                        isActive:
-                            conversation.id == widget.activeConversationId,
-                        onTap: () => Navigator.of(
-                          context,
-                        ).pop(_ConversationSelected(conversation)),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Dismissible(
+                          key: ValueKey(conversation.id),
+                          direction: DismissDirection.endToStart,
+                          background: const _DeleteChatSwipeBackground(),
+                          confirmDismiss: (_) =>
+                              _confirmDeleteChat(context, conversation.title),
+                          onDismissed: (_) => _performDelete(conversation),
+                          child: _SessionRow(
+                            conversation: conversation,
+                            isActive:
+                                conversation.id == widget.activeConversationId,
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pop(_ConversationSelected(conversation)),
+                          ),
+                        ),
                       );
                     },
                   );
@@ -1570,6 +1731,63 @@ class _SessionsSheetState extends State<_SessionsSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Confirms deleting a chat — destructive and irreversible (it cascades to
+/// every message in it), so it always asks first. Returns true only on an
+/// explicit Delete tap.
+Future<bool> _confirmDeleteChat(BuildContext context, String title) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppColors.card,
+      title: Text(
+        'Delete this chat?',
+        style: AppText.cardTitle.copyWith(color: AppColors.ink),
+      ),
+      content: Text(
+        'This permanently removes "$title" and everything in it. '
+        "This can't be undone.",
+        style: AppText.body.copyWith(color: AppColors.ink2),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: AppText.button.copyWith(color: AppColors.ink3),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(
+            'Delete',
+            style: AppText.button.copyWith(color: AppColors.flare),
+          ),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
+/// The red trailing reveal shown as a chat row is swiped left to delete —
+/// the confirm dialog ([_confirmDeleteChat]) still gates the actual delete.
+class _DeleteChatSwipeBackground extends StatelessWidget {
+  const _DeleteChatSwipeBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.flare.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(Icons.delete_outline_rounded, color: AppColors.flare),
     );
   }
 }

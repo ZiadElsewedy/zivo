@@ -422,6 +422,7 @@ exports.aiChat = onCall(
       const data = request.data || {};
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
+      const responseStyle = (data.responseStyle || "").toString();
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -444,6 +445,7 @@ exports.aiChat = onCall(
           uid: auth.uid,
           conversationId,
           message,
+          responseStyle,
           now: () => new Date(),
         });
       } catch (err) {
@@ -510,6 +512,40 @@ exports.aiCancelAction = onCall(
       } catch (err) {
         throw toHttpsError(err);
       }
+    });
+
+// --- aiDeleteConversation ----------------------------------------------
+
+/**
+ * Permanently deletes a conversation and everything under it (messages,
+ * pendingActions) via `recursiveDelete`. Functions-only: `firestore.rules`
+ * lets the client create/rename its own conversations but never delete one
+ * (a client delete would orphan the server-written `messages` subcollection
+ * it has no permission to remove) — the Admin SDK bypasses rules entirely,
+ * which is exactly why this needs its own callable.
+ */
+exports.aiDeleteConversation = onCall(
+    {region: "us-central1"}, async (request) => {
+      const auth = request.auth;
+      if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+      const conversationId = (
+        (request.data && request.data.conversationId) || ""
+      ).toString();
+      if (!conversationId) {
+        throw new HttpsError(
+            "invalid-argument", "conversationId is required.",
+        );
+      }
+
+      const ref = db
+          .collection("users")
+          .doc(auth.uid)
+          .collection("aiConversations")
+          .doc(conversationId);
+
+      await db.recursiveDelete(ref);
+      return {ok: true};
     });
 
 // --- aiImportWorkoutPlan (WORKOUT_SYSTEM.md §3.4, Phase 6) -----------------

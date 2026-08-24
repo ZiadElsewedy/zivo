@@ -27,6 +27,17 @@ const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 
 const DEFAULT_CONVERSATION_TITLE = "Ask";
 
+// The user's reply-length/style preference (`users/{uid}/settings/ai`,
+// plumbed through `aiChat`'s `responseStyle` field). 'balanced' adds no
+// directive at all — the SYSTEM_PROMPT's own tone guidance already covers it.
+// An unrecognized value (never trust client input) falls back to 'balanced'.
+const RESPONSE_STYLE_DIRECTIVES = {
+  concise:
+    "Keep replies short and to the point — a sentence or two when you can.",
+  detailed:
+    "Give thorough, well-structured replies with useful depth.",
+};
+
 const DEFAULT_CONFIG = {
   // Max model↔tool round-trips per turn before aborting cleanly.
   maxIterations: 5,
@@ -237,6 +248,9 @@ function capToolResult(content, maxChars) {
  * @param {string} args.uid
  * @param {string} args.conversationId
  * @param {string} args.message
+ * @param {string=} args.responseStyle The user's saved reply-length
+ *   preference ('concise'|'balanced'|'detailed'). Anything else (including
+ *   omitted) is treated as 'balanced' — never trust client input directly.
  * @param {(function(): !Date)|undefined} args.now Injectable clock.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @return {!Promise<{status: string, assistantText: string, usage: ?Object}>}
@@ -252,6 +266,7 @@ async function runAiTurn({
   uid,
   conversationId,
   message,
+  responseStyle,
   now,
   config,
 }) {
@@ -323,7 +338,15 @@ async function runAiTurn({
   // tools → system → messages, so a single cache breakpoint on the system
   // block caches the tool schemas too — the whole static prefix reads back at
   // ~0.1x after the first call instead of full price. (ADR-003 Phase 3.5.)
-  const cachedSystem = [{text: SYSTEM_PROMPT, cache: "ephemeral"}];
+  //
+  // The style directive (if any) is appended as an UNCACHED second block —
+  // it's short, per-user, and would otherwise invalidate the cache breakpoint
+  // on element 0 every time a user's preference differs from the last cached
+  // one. Element 0 (SYSTEM_PROMPT, cache: 'ephemeral') never changes here.
+  const styleDirective = RESPONSE_STYLE_DIRECTIVES[responseStyle];
+  const systemBlocks = styleDirective ?
+    [{text: SYSTEM_PROMPT, cache: "ephemeral"}, {text: styleDirective}] :
+    [{text: SYSTEM_PROMPT, cache: "ephemeral"}];
 
   let uncachedTokensIn = 0;
   let cacheReadTokens = 0;
@@ -349,7 +372,7 @@ async function runAiTurn({
     const normalizedRequest = {
       model: activeModel,
       maxTokens: cfg.maxTokens,
-      system: cachedSystem,
+      system: systemBlocks,
       tools: normalizedTools,
       messages,
     };

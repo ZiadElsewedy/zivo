@@ -121,21 +121,29 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('send calls the injected invokeChat with the conversation id and '
-        'trimmed text', () async {
+    test('send calls the injected invokeChat with the conversation id, '
+        'trimmed text, and responseStyle (defaulting to balanced)', () async {
       final firestore = FakeFirebaseFirestore();
-      final calls = <(String, String)>[];
+      final calls = <(String, String, String)>[];
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message) async {
-          calls.add((conversationId, message));
+        invokeChat: (conversationId, message, responseStyle) async {
+          calls.add((conversationId, message, responseStyle));
         },
       );
 
       await repo.send(conversationId: 'conv-1', text: '  hello there  ');
+      await repo.send(
+        conversationId: 'conv-1',
+        text: 'again',
+        responseStyle: 'concise',
+      );
 
-      expect(calls, [('conv-1', 'hello there')]);
+      expect(calls, [
+        ('conv-1', 'hello there', 'balanced'),
+        ('conv-1', 'again', 'concise'),
+      ]);
     });
 
     test('send is a no-op for empty or whitespace-only text', () async {
@@ -144,7 +152,7 @@ void main() {
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message) async {
+        invokeChat: (conversationId, message, responseStyle) async {
           callCount++;
         },
       );
@@ -153,6 +161,236 @@ void main() {
       await repo.send(conversationId: 'conv-1', text: '   ');
 
       expect(callCount, 0);
+    });
+
+    test(
+      "createConversation writes a fresh doc titled 'New chat', distinct "
+      'from ensureConversation\'s default',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final id = await repo.createConversation();
+
+        final doc = await firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations')
+            .doc(id)
+            .get();
+        final data = doc.data()!;
+        expect(data['title'], 'New chat');
+        expect(data['createdAt'], isA<Timestamp>());
+        expect(data['updatedAt'], isA<Timestamp>());
+        expect(data['schemaVersion'], 1);
+      },
+    );
+
+    test(
+      'renameConversation updates only the title, leaving schemaVersion '
+      'and timestamps untouched',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final doc = firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations')
+            .doc('conv-1');
+        final createdAt = Timestamp.fromDate(DateTime(2026, 1, 1));
+        await doc.set({
+          'title': 'New chat',
+          'createdAt': createdAt,
+          'updatedAt': createdAt,
+          'schemaVersion': 1,
+        });
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.renameConversation('conv-1', 'Trip planning');
+
+        final data = (await doc.get()).data()!;
+        expect(data['title'], 'Trip planning');
+        expect(data['schemaVersion'], 1);
+        expect(data['createdAt'], createdAt);
+      },
+    );
+
+    test(
+      'watchConversations emits docs newest-updatedAt first, uid-scoped',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final conversations = firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations');
+        await conversations.doc('older').set({
+          'title': 'Older chat',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'updatedAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'schemaVersion': 1,
+        });
+        await conversations.doc('newer').set({
+          'title': 'Newer chat',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 2)),
+          'updatedAt': Timestamp.fromDate(DateTime(2026, 1, 2)),
+          'schemaVersion': 1,
+        });
+
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final result = await repo.watchConversations().first;
+        expect(result.map((c) => c.id).toList(), ['newer', 'older']);
+      },
+    );
+
+    test('watchConversations emits an empty list when signed out', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: UidSource(
+          currentUid: () => null,
+          uidChanges: Stream.value(null),
+        ),
+      );
+
+      final result = await repo.watchConversations().first;
+      expect(result, isEmpty);
+    });
+
+    test(
+      'latestConversation is a one-shot query for the newest-updatedAt doc '
+      '(regression: AskPage used to resolve its initial conversation via '
+      "watchConversations().first, whose FIRST emission can race Firestore's "
+      'cache-then-server delivery and wrongly resolve to "no conversations")',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final conversations = firestore
+            .collection('users')
+            .doc('test-uid')
+            .collection('aiConversations');
+        await conversations.doc('older').set({
+          'title': 'Older chat',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'updatedAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'schemaVersion': 1,
+        });
+        await conversations.doc('newer').set({
+          'title': 'Newer chat',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 2)),
+          'updatedAt': Timestamp.fromDate(DateTime(2026, 1, 2)),
+          'schemaVersion': 1,
+        });
+
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        final latest = await repo.latestConversation();
+        expect(latest?.id, 'newer');
+        expect(latest?.title, 'Newer chat');
+      },
+    );
+
+    test('latestConversation returns null when there are no conversations, '
+        'or when signed out', () async {
+      final firestore = FakeFirebaseFirestore();
+      expect(
+        await FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        ).latestConversation(),
+        isNull,
+      );
+      expect(
+        await FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: UidSource(
+            currentUid: () => null,
+            uidChanges: Stream.value(null),
+          ),
+        ).latestConversation(),
+        isNull,
+      );
+    });
+
+    test(
+      'deleteConversation calls the injected invokeDelete with the '
+      'conversation id',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final calls = <String>[];
+        final repo = FirebaseAiRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+          invokeDelete: (conversationId) async {
+            calls.add(conversationId);
+          },
+        );
+
+        await repo.deleteConversation('conv-1');
+
+        expect(calls, ['conv-1']);
+      },
+    );
+
+    test("getResponseStyle defaults to 'balanced' when unset", () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      expect(await repo.getResponseStyle(), 'balanced');
+    });
+
+    test("getResponseStyle reads back a saved value, and ignores garbage",
+        () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.setResponseStyle('detailed');
+      expect(await repo.getResponseStyle(), 'detailed');
+
+      await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai')
+          .set({'responseStyle': 'nonsense'});
+      expect(await repo.getResponseStyle(), 'balanced');
+    });
+
+    test('setResponseStyle writes to users/{uid}/settings/ai without '
+        'clobbering other fields there', () async {
+      final firestore = FakeFirebaseFirestore();
+      final doc = firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('settings')
+          .doc('ai');
+      await doc.set({'unrelatedField': 'keep-me'});
+      final repo = FirebaseAiRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.setResponseStyle('concise');
+
+      final data = (await doc.get()).data()!;
+      expect(data['responseStyle'], 'concise');
+      expect(data['unrelatedField'], 'keep-me');
     });
 
     test(

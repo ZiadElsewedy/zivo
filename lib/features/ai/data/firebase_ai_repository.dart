@@ -12,6 +12,7 @@ import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
 import '../domain/stt_error.dart';
@@ -39,10 +40,12 @@ class FirebaseAiRepository implements AiRepository {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
     required this.uidSource,
-    Future<void> Function(String conversationId, String message)? invokeChat,
+    Future<void> Function(String conversationId, String message, String responseStyle)?
+    invokeChat,
     Future<void> Function(
       String conversationId,
       String message,
+      String responseStyle,
       void Function(AiTurnEvent event) onEvent,
     )?
     invokeChatStream,
@@ -55,6 +58,7 @@ class FirebaseAiRepository implements AiRepository {
       String? languageHint,
     )?
     invokeTranscribe,
+    Future<void> Function(String conversationId)? invokeDelete,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
        _invokeChatStream =
@@ -62,15 +66,21 @@ class FirebaseAiRepository implements AiRepository {
        _invokeAction = invokeAction ?? _defaultInvokeAction(functions),
        _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
        _invokeTranscribe =
-           invokeTranscribe ?? _defaultInvokeTranscribe(functions);
+           invokeTranscribe ?? _defaultInvokeTranscribe(functions),
+       _invokeDelete = invokeDelete ?? _defaultInvokeDelete(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
-  final Future<void> Function(String conversationId, String message)
+  final Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+  )
   _invokeChat;
   final Future<void> Function(
     String conversationId,
     String message,
+    String responseStyle,
     void Function(AiTurnEvent event) onEvent,
   )
   _invokeChatStream;
@@ -87,20 +97,26 @@ class FirebaseAiRepository implements AiRepository {
     String? languageHint,
   )
   _invokeTranscribe;
+  final Future<void> Function(String conversationId) _invokeDelete;
 
   String? _cachedConversationId;
 
   /// The default `send` invoker. Resolves [FirebaseFunctions] **lazily inside
   /// the returned closure** (never at construction), so the repo can be built
   /// — and unit-tested with a fake Firestore — without a live Firebase app.
-  static Future<void> Function(String conversationId, String message)
+  static Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+  )
   _defaultInvokeChat(FirebaseFunctions? functions) {
-    return (conversationId, message) async {
+    return (conversationId, message, responseStyle) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
+        'responseStyle': responseStyle,
       });
     };
   }
@@ -113,15 +129,17 @@ class FirebaseAiRepository implements AiRepository {
   static Future<void> Function(
     String conversationId,
     String message,
+    String responseStyle,
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
-    return (conversationId, message, onEvent) async {
+    return (conversationId, message, responseStyle, onEvent) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final stream = f.httpsCallable('aiChat').stream({
         'conversationId': conversationId,
         'message': message,
+        'responseStyle': responseStyle,
       });
       await for (final response in stream) {
         if (response is Chunk) {
@@ -147,6 +165,21 @@ class FirebaseAiRepository implements AiRepository {
       await f.httpsCallable(name).call({
         'conversationId': conversationId,
         'actionId': actionId,
+      });
+    };
+  }
+
+  /// The default `deleteConversation` invoker — calls `aiDeleteConversation`.
+  /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the
+  /// repo builds without a live Firebase app.
+  static Future<void> Function(String conversationId) _defaultInvokeDelete(
+    FirebaseFunctions? functions,
+  ) {
+    return (conversationId) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      await f.httpsCallable('aiDeleteConversation').call({
+        'conversationId': conversationId,
       });
     };
   }
@@ -245,6 +278,9 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   @override
+  Future<void> deleteConversation(String id) => _invokeDelete(id);
+
+  @override
   Stream<List<AiConversation>> watchConversations() {
     late final StreamController<List<AiConversation>> controller;
     StreamSubscription<String?>? uidSub;
@@ -276,6 +312,17 @@ class FirebaseAiRepository implements AiRepository {
       },
     );
     return controller.stream;
+  }
+
+  @override
+  Future<AiConversation?> latestConversation() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return null;
+    final snapshot = await _conversationsCollection(
+      uid,
+    ).orderBy('updatedAt', descending: true).limit(1).get();
+    if (snapshot.docs.isEmpty) return null;
+    return _conversationFromDoc(snapshot.docs.first);
   }
 
   @override
@@ -315,14 +362,31 @@ class FirebaseAiRepository implements AiRepository {
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
     // Stream only when the caller wants live events; otherwise the plain
     // `.call()` path keeps the buffered behavior (and its cheaper transport).
     return onEvent == null
-        ? _invokeChat(conversationId, trimmed)
-        : _invokeChatStream(conversationId, trimmed, onEvent);
+        ? _invokeChat(conversationId, trimmed, responseStyle)
+        : _invokeChatStream(conversationId, trimmed, responseStyle, onEvent);
+  }
+
+  @override
+  Future<String> getResponseStyle() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return kDefaultResponseStyle;
+    final doc = await _aiSettingsDoc(uid).get();
+    return validResponseStyle(doc.data()?['responseStyle'] as String?);
+  }
+
+  @override
+  Future<void> setResponseStyle(String style) async {
+    final uid = _requireUid();
+    await _aiSettingsDoc(
+      uid,
+    ).set({'responseStyle': style}, SetOptions(merge: true));
   }
 
   @override
@@ -370,6 +434,9 @@ class FirebaseAiRepository implements AiRepository {
     String uid,
     String conversationId,
   ) => _conversationsCollection(uid).doc(conversationId).collection('messages');
+
+  DocumentReference<Map<String, dynamic>> _aiSettingsDoc(String uid) =>
+      _firestore.collection('users').doc(uid).collection('settings').doc('ai');
 
   AiConversation _conversationFromDoc(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,

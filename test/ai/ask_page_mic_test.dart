@@ -226,8 +226,11 @@ void main() {
       await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
       await tester.pumpAndSettle();
 
+      // The send lazily created the conversation (Phase A: nothing persists
+      // until the first real message goes out) — there's exactly one.
+      final conversations = await ai.watchConversations().first;
       final messages = await ai
-          .watchMessages(await ai.ensureConversation())
+          .watchMessages(conversations.single.id)
           .first;
       sentTexts.addAll(messages.map((m) => m.content));
       expect(sentTexts, contains('log 12 EGP for coffee'));

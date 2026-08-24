@@ -7,6 +7,7 @@ import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
 import '../domain/stt_outcome.dart';
@@ -73,6 +74,8 @@ class FakeAiRepository implements AiRepository {
   /// call, then reused, mirroring the real repo's single-cached-id behavior.
   String? _defaultConversationId;
 
+  String _responseStyle = kDefaultResponseStyle;
+
   int _sequence = 0;
   int _conversationSequence = 0;
 
@@ -138,6 +141,22 @@ class FakeAiRepository implements AiRepository {
   }
 
   @override
+  Future<void> deleteConversation(String id) async {
+    final convo = _conversations.remove(id);
+    if (convo == null) return;
+    convo.controller.close();
+    if (_defaultConversationId == id) _defaultConversationId = null;
+    _emitConversations();
+  }
+
+  @override
+  Future<String> getResponseStyle() async => _responseStyle;
+
+  @override
+  Future<void> setResponseStyle(String style) async =>
+      _responseStyle = validResponseStyle(style);
+
+  @override
   Stream<List<AiConversation>> watchConversations() async* {
     final list = _conversations.values.toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -151,6 +170,20 @@ class FakeAiRepository implements AiRepository {
         ),
     ];
     yield* _conversationsController.stream;
+  }
+
+  @override
+  Future<AiConversation?> latestConversation() async {
+    if (_conversations.isEmpty) return null;
+    final c = _conversations.values.reduce(
+      (a, b) => b.updatedAt.isAfter(a.updatedAt) ? b : a,
+    );
+    return AiConversation(
+      id: c.id,
+      title: c.title,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    );
   }
 
   @override
@@ -169,6 +202,7 @@ class FakeAiRepository implements AiRepository {
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

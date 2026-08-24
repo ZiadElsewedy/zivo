@@ -100,10 +100,18 @@ void main() {
   testWidgets('an expense proposal renders the money card', (tester) async {
     final ai = FakeAiRepository();
     addTearDown(ai.dispose);
+    // A conversation must already exist for the AskPage to open into — a
+    // brand-new app has no conversations at all, and `proposeAction`'s
+    // default-conversation shortcut only applies to one created via
+    // `ensureConversation`, not the lazy "New chat" state AskPage now starts
+    // in (Phase A: conversations aren't persisted until a real message
+    // sends).
+    final conversationId = await ai.createConversation();
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
     ai.proposeAction(
+      conversationId: conversationId,
       kind: 'create_expense',
       summary: 'Log 12.00 EGP on coffee',
       fields: {'amount': '12.00', 'currency': 'EGP', 'category': 'coffee'},
