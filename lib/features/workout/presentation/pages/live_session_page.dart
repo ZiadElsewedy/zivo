@@ -29,6 +29,11 @@ import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../../domain/workout_session_repository.dart';
+import '../../../music/domain/music_connection.dart';
+import '../../../music/domain/music_controller.dart';
+import '../../../music/domain/now_playing.dart';
+import '../../../music/music_config.dart';
+import '../../../music/presentation/music_artwork.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
 
@@ -156,6 +161,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// async and otherwise callable again (double-tap, or Finish racing the
   /// close button) before the first call's writes/pop land.
   bool _busy = false;
+
+  /// True for the brief "completion beat" hold in [_afterResolvingCurrentSet]
+  /// — long enough for the just-resolved set's chip to visibly spring into
+  /// its done/checkmark state before the screen advances to rest/the next
+  /// phase (see that method's doc comment). The Done/Skip/Back controls stay
+  /// on-screen through the hold (nothing else to show yet), so this guards
+  /// them against a tap landing in that window and resolving a set that's
+  /// already mid-resolution.
+  bool _resolvingSet = false;
 
   /// The live rest-countdown value, read fresh every frame — frozen at
   /// [_pausedRestRemaining] while paused, otherwise the wall-clock gap to
@@ -371,6 +385,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   // ---- Transitions -----------------------------------------------------------
 
   void _onSetDone() {
+    if (_resolvingSet) return;
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
@@ -419,6 +434,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// (an abandoned draft the end-of-workout review can still surface) rather
   /// than reading/clearing them the way Done does.
   void _onSetSkip() {
+    if (_resolvingSet) return;
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
@@ -442,6 +458,18 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// snackbar targeting exactly the (exerciseId, setId) just resolved — not
   /// "whatever's current now", since current has already moved on by the
   /// time this shows.
+  ///
+  /// The actual advance is held behind a brief beat (see [_resolvingSet]):
+  /// [_session] has already updated by the time this runs (the caller's own
+  /// `setState` in [_onSetDone]/[_onSetSkip] already committed it), so
+  /// `_SetChipRow` is already re-rendering the just-resolved chip in its
+  /// done/checkmark state on this very frame — but without a hold, the phase
+  /// advance below (`_startRest`/`complete`, which flips [_phaseKey]) would
+  /// fire in that SAME frame too, and the whole running screen — chip
+  /// included — would already be cross-fading away before the chip's own
+  /// [AppSprings.bounce] spring has had any time to actually register. This
+  /// hold is what turns "instant swap" into "see it complete, then advance."
+  /// Skipped under reduced motion, where there's no spring to wait for.
   void _afterResolvingCurrentSet(
     String exerciseId,
     String setId,
@@ -450,29 +478,35 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required IconData undoIcon,
     required Color undoIconColor,
   }) {
-    setState(() {
-      if (_session.currentSet == null) {
-        _session = _session.complete(now: widget.now());
+    _resolvingSet = true;
+    final hold = reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 260);
+    Future<void>.delayed(hold, () {
+      _resolvingSet = false;
+      if (!mounted) return;
+      setState(() {
+        if (_session.currentSet == null) {
+          _session = _session.complete(now: widget.now());
+        }
+      });
+      unawaited(_sessionsRepo.saveSession(_session));
+      _prefillInputs();
+      if (_session.isComplete) {
+        _restTicker?.dispose();
+        _restTicker = null;
+        _restTotalSeconds = null;
+        _restEndsAt = null;
+        _elapsedTimer?.cancel();
+        setState(() {});
+      } else {
+        // Rest is the plan's own value (Edit Workout's per-exercise rest, or
+        // its "Default rest" bulk value) — the session counts down what Ziad
+        // actually set, not a computed guess. `smartRestSeconds` stays as the
+        // *seed* default a freshly-added exercise starts at (see the add
+        // sheet), it just no longer overrides the plan at session time.
+        _startRest(restSeconds);
       }
+      _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
     });
-    unawaited(_sessionsRepo.saveSession(_session));
-    _prefillInputs();
-    if (_session.isComplete) {
-      _restTicker?.dispose();
-      _restTicker = null;
-      _restTotalSeconds = null;
-      _restEndsAt = null;
-      _elapsedTimer?.cancel();
-      setState(() {});
-    } else {
-      // Rest is the plan's own value (Edit Workout's per-exercise rest, or
-      // its "Default rest" bulk value) — the session counts down what Ziad
-      // actually set, not a computed guess. `smartRestSeconds` stays as the
-      // *seed* default a freshly-added exercise starts at (see the add
-      // sheet), it just no longer overrides the plan at session time.
-      _startRest(restSeconds);
-    }
-    _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
   }
 
   /// Offers a brief window to reverse the Done/Skip that was just tapped.
@@ -519,6 +553,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// walks back further, one set at a time; anything beyond that is the
   /// end-of-workout review's job, not this control's.
   void _onBack() {
+    // Guards against racing the pending delayed callback in
+    // `_afterResolvingCurrentSet` — see `_resolvingSet`.
+    if (_resolvingSet) return;
     final prev = _session.previousResolvedSet;
     if (prev == null) return;
     _undoOutcome(prev.$1, prev.$2.id);
@@ -996,15 +1033,28 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
     return _runningScaffold(
       top: [
+        // The workout's now-playing companion — absent (SizedBox.shrink)
+        // whenever music is off/disconnected/nothing loaded, so this costs
+        // nothing when there's no track; see `_SessionNowPlaying`. Index 0
+        // is reserved for it unconditionally (rather than only when it will
+        // actually render something) so the indices below never have to
+        // branch on `kMusicEnabled` — an empty stagger slot is invisible.
+        if (kMusicEnabled) ...[
+          StaggeredReveal(
+            index: 0,
+            child: _SessionNowPlaying(controller: AppScope.of(context).requireMusic),
+          ),
+          const SizedBox(height: AppSpacing.m),
+        ],
         // Exercise header — consolidated: the name is the hero title, the
         // muscle group a quiet pill beside it. No standalone "Target: X"
         // line (that's now context inside the Goal card) and no separate
         // "SET N OF M" eyebrow (the chip row below is the one set-position
         // indicator).
-        StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
+        StaggeredReveal(index: 1, child: _exerciseHeader(exercise)),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
-          index: 1,
+          index: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1022,7 +1072,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // The hero: a lifted card carrying the computed goal, the point of
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
-          index: 2,
+          index: 3,
           child: _GoalBlock(
             lastTimeLabel: lastTimeLabel,
             goal: goal,
@@ -1033,7 +1083,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
-          index: 3,
+          index: 4,
           child: Row(
             children: [
               _StepperField(
@@ -1055,7 +1105,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
       ],
       done: StaggeredReveal(
-        index: 4,
+        index: 5,
         child: _ActionCluster(
           onBack: _session.previousResolvedSet != null ? _onBack : null,
           onSkip: _onSetSkip,
@@ -1217,11 +1267,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                   // than letting it float high with all the slack dumped
                   // below "Next:".
                   const Spacer(),
-                  Center(
-                    child: _RestRing(
+                  // Song-on-top-of-ring when music is connected + playing —
+                  // one cohesive unit, not two stacked cards (see
+                  // `_RestPhase`'s doc comment). Byte-identical to the plain
+                  // `Center(child: _RestRing(...))` this replaces whenever
+                  // there's nothing to show above it — no music, no gap.
+                  _RestPhase(
+                    ring: _RestRing(
                       remaining: _restRemaining ?? Duration.zero,
                       total: _restTotalSeconds ?? 1,
                     ),
+                    controller: kMusicEnabled ? AppScope.of(context).requireMusic : null,
                   ),
                   const SizedBox(height: 18),
                   Center(
@@ -1954,6 +2010,194 @@ class _MuscleGroupPill extends StatelessWidget {
       child: Text(
         label,
         style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
+      ),
+    );
+  }
+}
+
+/// The workout's compact now-playing companion — a small card (artwork,
+/// title/artist, prev/play-pause/next) shown wherever the session wants to
+/// surface it (the top of the running screen; composed with the rest ring
+/// by [_RestPhase]). Deliberately NOT shown during the brief pre-workout
+/// warm-up — that phase's Column is already tightly space-budgeted (its own
+/// comment: `Spacer`s collapsing to 0 on a short screen), and warm-up is
+/// over almost as soon as it starts; the running/resting phases are where a
+/// glance at "what's playing" actually earns its place. Absent
+/// (`SizedBox.shrink`) whenever music isn't connected or nothing's loaded —
+/// no placeholder, no "nothing playing" state here, since the mini-bar/full
+/// player (`home_shell.dart`/`MusicPlayerPage`) already own that job
+/// app-wide; this is purely a glanceable companion for a session already in
+/// progress.
+///
+/// "Change the song" here is next/previous only (`MusicController.next`/
+/// `previous`, wired to App Remote's `skipNext`/`skipPrevious`) — there's no
+/// browse/search picker. Spotify's App Remote doesn't expose one either
+/// without building real Web API search UI, which is a materially bigger
+/// feature than this pass.
+///
+/// No lyrics, deliberately: Spotify's lyrics are Musixmatch-licensed and
+/// surfaced only inside Spotify's own client — neither App Remote nor the
+/// public Web API exposes them to third-party apps. There is no legitimate
+/// way to show them here short of scraping, which this app doesn't do.
+class _SessionNowPlaying extends StatelessWidget {
+  const _SessionNowPlaying({required this.controller});
+
+  final MusicController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<MusicConnection>(
+      stream: controller.connection,
+      initialData: controller.currentConnection,
+      builder: (context, connSnap) {
+        if (connSnap.data != MusicConnection.connected) return const SizedBox.shrink();
+        return StreamBuilder<NowPlaying?>(
+          stream: controller.nowPlaying,
+          initialData: controller.currentNowPlaying,
+          builder: (context, nowSnap) {
+            final playing = nowSnap.data;
+            if (playing == null) return const SizedBox.shrink();
+            return _NowPlayingCard(controller: controller, playing: playing);
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Composes [ring] with [_SessionNowPlaying] as one cohesive unit — song on
+/// top, rest ring below — whenever [controller] is connected and something's
+/// loaded. Falls back to exactly `Center(child: ring)` otherwise (no
+/// controller, disconnected, or nothing playing), so a rest phase with no
+/// music present is pixel-identical to before this existed — never an empty
+/// gap where the song card would have been.
+class _RestPhase extends StatelessWidget {
+  const _RestPhase({required this.ring, required this.controller});
+
+  final Widget ring;
+  final MusicController? controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final music = controller;
+    if (music == null) return Center(child: ring);
+    return StreamBuilder<MusicConnection>(
+      stream: music.connection,
+      initialData: music.currentConnection,
+      builder: (context, connSnap) {
+        if (connSnap.data != MusicConnection.connected) return Center(child: ring);
+        return StreamBuilder<NowPlaying?>(
+          stream: music.nowPlaying,
+          initialData: music.currentNowPlaying,
+          builder: (context, nowSnap) {
+            final playing = nowSnap.data;
+            if (playing == null) return Center(child: ring);
+            return Column(
+              children: [
+                _NowPlayingCard(controller: music, playing: playing),
+                const SizedBox(height: 16),
+                Center(child: ring),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// The actual now-playing card — shared by [_SessionNowPlaying] (standalone,
+/// top of the running screen) and [_RestPhase] (composed above the rest
+/// ring).
+/// Pulse-accented (this file's training hue) rather than the generic
+/// mini-bar's ember, so it reads as part of the workout, not a system
+/// overlay.
+class _NowPlayingCard extends StatelessWidget {
+  const _NowPlayingCard({required this.controller, required this.playing});
+
+  final MusicController controller;
+  final NowPlaying playing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.pulse.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          MusicArtwork(
+            bytes: playing.artworkBytes,
+            url: playing.artworkUrl,
+            size: 40,
+            iconSize: 18,
+            borderRadius: 10,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  playing.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.rowTitle.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(
+                  playing.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(fontSize: 11.5, color: AppColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          _MusicIconButton(icon: Icons.skip_previous_rounded, onTap: controller.previous),
+          _MusicIconButton(
+            icon: playing.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            onTap: () => playing.isPaused ? controller.play() : controller.pause(),
+            primary: true,
+          ),
+          _MusicIconButton(icon: Icons.skip_next_rounded, onTap: controller.next),
+        ],
+      ),
+    );
+  }
+}
+
+/// One prev/play-pause/next control in [_NowPlayingCard] — deliberately
+/// small (this card is a companion, not the primary content) but still a
+/// real tap target via [IconButton]'s built-in min-size.
+class _MusicIconButton extends StatelessWidget {
+  const _MusicIconButton({required this.icon, required this.onTap, this.primary = false});
+
+  final IconData icon;
+  final Future<void> Function() onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: IconButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        icon: Icon(icon, size: primary ? 22 : 18),
+        color: primary ? AppColors.pulse : AppColors.ink2,
+        splashRadius: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       ),
     );
   }

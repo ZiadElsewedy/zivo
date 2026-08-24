@@ -217,6 +217,17 @@ describe('tasks update path (mirrors setDone)', () => {
   });
 });
 
+// Regression test for a real bug: `allow write` combined with field
+// validation denies every delete, since `request.resource.data` is null on
+// delete (see firestore.rules' comment on this collection).
+describe('tasks delete path', () => {
+  it('owner can delete their own task; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'tasks'), valid.tasks);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'tasks'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'tasks'))));
+  });
+});
+
 describe('schedule delete path', () => {
   it('owner can delete their own event; non-owner cannot', async () => {
     await seed(collPath(OWNER, 'schedule'), valid.schedule);

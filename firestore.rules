@@ -20,13 +20,22 @@ service cloud.firestore {
     // Tasks: each user reads/writes only their own tasks. Owner is the {userId}
     // path segment. Basic field validation on create/update. Rules do not
     // cascade from the parent /users/{userId} match, so this must be explicit.
+    // `allow delete` is split out from create/update: on a delete there is no
+    // `request.resource.data` (it's null), so the field checks below always
+    // evaluate false — a combined `allow write` with those checks silently
+    // denies every delete (this was live-tested: the client's
+    // `.doc(id).delete()` failed server-side while the Dismissible removed
+    // the row optimistically, so the row just reappeared on the next
+    // snapshot). See the same split already used by expenses/schedule/notes/
+    // workouts/etc. below.
     match /users/{userId}/tasks/{taskId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.title is string
         && request.resource.data.done is bool
         && request.resource.data.priority is bool
         && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Expenses: each user reads/writes only their own expenses (append-only log).
