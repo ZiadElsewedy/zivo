@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/zivo_toast.dart';
+import '../../../workout/presentation/widgets/staggered_reveal.dart';
 import '../../data/audio_recorder.dart';
 import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
@@ -1514,25 +1518,90 @@ class _Composer extends StatelessWidget {
                       ),
                     ),
             ),
-            IconButton(
-              onPressed: (transcribing || sending) ? null : onMicTap,
-              icon: Icon(
-                isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
-                color: (transcribing || sending)
-                    ? AppColors.ink3
-                    : (isRecording ? AppColors.flare : AppColors.iris),
+            PressableScale(
+              child: IconButton(
+                onPressed: (transcribing || sending) ? null : onMicTap,
+                icon: Icon(
+                  isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                  color: (transcribing || sending)
+                      ? AppColors.ink3
+                      : (isRecording ? AppColors.flare : AppColors.iris),
+                ),
+                tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
               ),
-              tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
             ),
-            IconButton(
-              onPressed: canSend ? onSend : null,
-              icon: Icon(
-                Icons.arrow_upward_rounded,
-                color: canSend ? AppColors.iris : AppColors.ink3,
-              ),
-              tooltip: 'Send',
-            ),
+            _SendButton(canSend: canSend, onSend: onSend),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The composer's send button — springs itself in (opacity + scale) the
+/// moment [canSend] flips false→true (the user typed something) rather than
+/// just going from a dim, unpressable icon to an enabled one with no visual
+/// event; also carries its own [PressableScale] and fires a light haptic on
+/// an actual send.
+class _SendButton extends StatefulWidget {
+  const _SendButton({required this.canSend, required this.onSend});
+
+  final bool canSend;
+  final VoidCallback onSend;
+
+  @override
+  State<_SendButton> createState() => _SendButtonState();
+}
+
+class _SendButtonState extends State<_SendButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    value: widget.canSend ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(covariant _SendButton old) {
+    super.didUpdateWidget(old);
+    if (widget.canSend != old.canSend) {
+      if (reducedMotion(context)) {
+        _reveal.value = widget.canSend ? 1 : 0;
+      } else {
+        _reveal.springTo(widget.canSend ? 1 : 0, spring: AppSprings.standard);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
+
+  void _handleSend() {
+    HapticFeedback.lightImpact();
+    widget.onSend();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _reveal,
+      builder: (context, child) {
+        final t = _reveal.value.clamp(0.0, 1.0);
+        return Opacity(
+          opacity: 0.55 + 0.45 * t,
+          child: Transform.scale(scale: 0.88 + 0.12 * t, child: child),
+        );
+      },
+      child: PressableScale(
+        child: IconButton(
+          onPressed: widget.canSend ? _handleSend : null,
+          icon: Icon(
+            Icons.arrow_upward_rounded,
+            color: widget.canSend ? AppColors.iris : AppColors.ink3,
+          ),
+          tooltip: 'Send',
         ),
       ),
     );
@@ -1703,22 +1772,34 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                     itemCount: conversations.length,
                     itemBuilder: (context, i) {
                       final conversation = conversations[i];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Dismissible(
-                          key: ValueKey(conversation.id),
-                          direction: DismissDirection.endToStart,
-                          background: const _DeleteChatSwipeBackground(),
-                          confirmDismiss: (_) =>
-                              _confirmDeleteChat(context, conversation.title),
-                          onDismissed: (_) => _performDelete(conversation),
-                          child: _SessionRow(
-                            conversation: conversation,
-                            isActive:
-                                conversation.id == widget.activeConversationId,
-                            onTap: () => Navigator.of(
-                              context,
-                            ).pop(_ConversationSelected(conversation)),
+                      return StaggeredReveal(
+                        index: i,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Dismissible(
+                            key: ValueKey(conversation.id),
+                            direction: DismissDirection.endToStart,
+                            background: const _DeleteChatSwipeBackground(),
+                            onUpdate: (details) {
+                              // Fires once, right as the swipe crosses the
+                              // dismiss threshold — a felt "point of no
+                              // return" before the confirm sheet even opens.
+                              if (details.reached && !details.previousReached) {
+                                HapticFeedback.mediumImpact();
+                              }
+                            },
+                            confirmDismiss: (_) =>
+                                _confirmDeleteChat(context, conversation.title),
+                            onDismissed: (_) => _performDelete(conversation),
+                            child: _SessionRow(
+                              conversation: conversation,
+                              isActive:
+                                  conversation.id ==
+                                  widget.activeConversationId,
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pop(_ConversationSelected(conversation)),
+                            ),
                           ),
                         ),
                       );
@@ -1737,40 +1818,112 @@ class _SessionsSheetState extends State<_SessionsSheet> {
 
 /// Confirms deleting a chat — destructive and irreversible (it cascades to
 /// every message in it), so it always asks first. Returns true only on an
-/// explicit Delete tap.
+/// explicit Delete tap. A bottom sheet (not a centered dialog) so the
+/// destructive action sits right under the thumb that just swiped it.
 Future<bool> _confirmDeleteChat(BuildContext context, String title) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showModalBottomSheet<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppColors.card,
-      title: Text(
-        'Delete this chat?',
-        style: AppText.cardTitle.copyWith(color: AppColors.ink),
-      ),
-      content: Text(
-        'This permanently removes "$title" and everything in it. '
-        "This can't be undone.",
-        style: AppText.body.copyWith(color: AppColors.ink2),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(
-            'Cancel',
-            style: AppText.button.copyWith(color: AppColors.ink3),
-          ),
+    backgroundColor: AppColors.card,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          14,
+          AppSpacing.screen,
+          8,
         ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(
-            'Delete',
-            style: AppText.button.copyWith(color: AppColors.flare),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Delete this chat?',
+              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This permanently removes "$title" and everything in it. '
+              "This can't be undone.",
+              textAlign: TextAlign.center,
+              style: AppText.body.copyWith(color: AppColors.ink2),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: _SheetAction(
+                label: 'Delete chat',
+                color: AppColors.flare,
+                background: AppColors.flareWash,
+                onTap: () => Navigator.pop(context, true),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: _SheetAction(
+                label: 'Cancel',
+                color: AppColors.ink2,
+                background: Colors.transparent,
+                onTap: () => Navigator.pop(context, false),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
   return confirmed ?? false;
+}
+
+/// One full-width row in [_confirmDeleteChat]'s action sheet.
+class _SheetAction extends StatelessWidget {
+  const _SheetAction({
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Center(
+            child: Text(
+              label,
+              style: AppText.button.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The red trailing reveal shown as a chat row is swiped left to delete —
@@ -1799,31 +1952,36 @@ class _NewChatPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.irisWash,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
+    return PressableScale(
+      child: Material(
+        color: AppColors.irisWash,
         borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.add_comment_outlined,
-                size: 15,
-                color: AppColors.iris,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'New chat',
-                style: AppText.meta.copyWith(
-                  color: AppColors.irisText,
-                  fontWeight: FontWeight.w600,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.add_comment_outlined,
+                  size: 15,
+                  color: AppColors.iris,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  'New chat',
+                  style: AppText.meta.copyWith(
+                    color: AppColors.irisText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

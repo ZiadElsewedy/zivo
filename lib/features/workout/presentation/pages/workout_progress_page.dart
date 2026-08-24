@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/day_progress_analysis.dart';
 import '../../domain/live_session.dart';
 import '../../domain/progress_comparison.dart';
@@ -12,6 +14,8 @@ import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/workout_plan.dart';
+import '../widgets/animated_stat_value.dart';
+import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
 import '../widgets/workout_section_label.dart';
 import 'session_details_page.dart';

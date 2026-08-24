@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -93,7 +94,7 @@ class ZivoBottomBar extends StatelessWidget {
   }
 }
 
-class _Tab extends StatelessWidget {
+class _Tab extends StatefulWidget {
   const _Tab({
     required this.index,
     required this.label,
@@ -113,23 +114,96 @@ class _Tab extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   @override
+  State<_Tab> createState() => _TabState();
+}
+
+class _TabState extends State<_Tab> with SingleTickerProviderStateMixin {
+  bool get _active => widget.index == widget.currentIndex;
+
+  /// 0 = inactive, 1 = active — drives both the icon's spring-in scale and
+  /// the outline↔fill glyph cross-fade below.
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    value: _active ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(covariant _Tab old) {
+    super.didUpdateWidget(old);
+    final wasActive = old.index == old.currentIndex;
+    if (_active != wasActive) {
+      if (reducedMotion(context)) {
+        _c.value = _active ? 1 : 0;
+      } else {
+        // A momentum moment the tap itself earned — the only place overshoot
+        // belongs (see AppSprings.bounce doc).
+        _c.springTo(_active ? 1 : 0, spring: AppSprings.bounce);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final active = index == currentIndex;
-    final color = active ? AppColors.ember : AppColors.tabInactive;
+    final color = _active ? AppColors.ember : AppColors.tabInactive;
     return Expanded(
       child: InkWell(
-        onTap: () => onTap(index),
+        onTap: () => widget.onTap(widget.index),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(active ? (activeIcon ?? icon) : icon, size: 24, color: color),
+              AnimatedBuilder(
+                animation: _c,
+                builder: (context, _) {
+                  final t = _c.value.clamp(0.0, 1.0);
+                  return Transform.scale(
+                    scale: 1.0 + 0.12 * t,
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Opacity(
+                            opacity: 1 - t,
+                            child: Icon(
+                              widget.icon,
+                              size: 24,
+                              color: AppColors.tabInactive,
+                            ),
+                          ),
+                          Opacity(
+                            opacity: t,
+                            child: Icon(
+                              widget.activeIcon ?? widget.icon,
+                              size: 24,
+                              color: AppColors.ember,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 5),
-              Text(
-                label.toUpperCase(),
+              // Color here is semantic state (active/inactive), not
+              // decoration — an implicit tween is cheap and idiomatic in
+              // Flutter, so it's allowed to cross-fade alongside the icon
+              // rather than snapping.
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
                 style: AppText.tabLabel.copyWith(color: color),
+                child: Text(widget.label.toUpperCase()),
               ),
             ],
           ),
