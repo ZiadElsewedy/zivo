@@ -23,11 +23,19 @@ android {
         applicationId = "com.ziadelsewedy.zivo"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // firebase_auth requires a minimum of API 23.
+        // firebase_auth requires a minimum of API 23. spotify_sdk's own
+        // plugin (android/build.gradle) only requires 21, already covered.
         minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Required by com.spotify.android:auth (spotify_sdk's dependency)
+        // for its internal redirect activity — see spotify_sdk's CHANGELOG
+        // (3.0.0-dev.1) and lib/features/music/data/spotify_music_controller.dart.
+        // Unrelated to our own zivo:// redirect scheme (Info.plist / this
+        // app's own manifest below) — these are the library's fixed values.
+        manifestPlaceholders["redirectSchemeName"] = "spotify-sdk"
+        manifestPlaceholders["redirectHostName"] = "auth"
     }
 
     buildTypes {

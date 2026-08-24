@@ -11,6 +11,7 @@ import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/expenses/domain/expenses_service.dart';
 import '../../features/expenses/domain/wallet_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
+import '../../features/music/domain/music_controller.dart';
 import '../../features/notes/domain/note_repository.dart';
 import '../../features/schedule/domain/schedule_repository.dart';
 import '../../features/tasks/domain/task_repository.dart';
@@ -44,6 +45,7 @@ class AppScope extends InheritedWidget {
     required this.ai,
     this.recorder,
     this.media,
+    this.music,
     required super.child,
     super.key,
   });
@@ -122,6 +124,25 @@ class AppScope extends InheritedWidget {
     return media!;
   }
 
+  /// The music/now-playing seam — a `FakeMusicController` by default, a real
+  /// `SpotifyMusicController` only once `music_config.dart`'s
+  /// `kMusicEnabled`/`spotifyClientId` are set (see `app.dart`). Bound
+  /// unconditionally in production, independent of `kMusicEnabled` — that
+  /// flag only gates whether the music UI *mounts* (see `home_shell.dart`),
+  /// not whether the controller exists.
+  ///
+  /// Optional for the same reason [media]/[bodyWeight] are: many widget
+  /// tests never touch music and shouldn't have to construct a scope with
+  /// one. Read it through [requireMusic] from music-bearing widgets.
+  final MusicController? music;
+
+  /// The music controller, asserting it was provided. Use from
+  /// `NowPlayingBar`/`MusicPlayerPage` — production always wires it.
+  MusicController get requireMusic {
+    assert(music != null, 'AppScope.music was not provided to this scope');
+    return music!;
+  }
+
   WalletRepository get requireWallet {
     assert(wallet != null, 'AppScope.wallet was not provided to this scope');
     return wallet!;
@@ -178,5 +199,6 @@ class AppScope extends InheritedWidget {
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
-      media != oldWidget.media;
+      media != oldWidget.media ||
+      music != oldWidget.music;
 }

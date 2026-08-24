@@ -25,3 +25,8 @@ plugins {
 }
 
 include(":app")
+
+// Locally-vendored Spotify App Remote AAR — spotify_sdk's own
+// android/build.gradle depends on this module by name (see
+// android/spotify-app-remote/build.gradle).
+include(":spotify-app-remote")

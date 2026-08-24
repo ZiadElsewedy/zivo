@@ -12,6 +12,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../music/domain/music_connection.dart';
+import '../../../music/domain/music_controller.dart';
+import '../../../music/music_config.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -263,6 +266,18 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // The whole feature is compile-time-hidden — see
+                  // `music_config.dart` — so with it off this collection-if
+                  // contributes nothing, same as `home_shell.dart`'s mini
+                  // bar. `_MusicSection` itself further hides once
+                  // connected (the mini bar is the entry point from there).
+                  if (kMusicEnabled) ...[
+                    const SizedBox(height: 20),
+                    RiseIn(
+                      delay: const Duration(milliseconds: 210),
+                      child: _MusicSection(controller: scope.requireMusic),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -299,6 +314,69 @@ class ProfilePage extends StatelessWidget {
 }
 
 enum _PhotoAction { choose, remove }
+
+/// The Profile tab's entry point into the music feature — the ONLY way in
+/// before a connection exists, since `NowPlayingBar` (the other entry
+/// point, `home_shell.dart`) only mounts once already connected. Hides
+/// itself entirely once connected, same reasoning: from there on, the mini
+/// bar is the way back in, not this row.
+class _MusicSection extends StatelessWidget {
+  const _MusicSection({required this.controller});
+
+  final MusicController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<MusicConnection>(
+      stream: controller.connection,
+      initialData: controller.currentConnection,
+      builder: (context, snap) {
+        final state = snap.data ?? MusicConnection.disconnected;
+        if (state == MusicConnection.connected) return const SizedBox.shrink();
+        final (value, caption) = switch (state) {
+          MusicConnection.connecting => ('Connecting…', null),
+          MusicConnection.needsPremium => (
+            'Premium required',
+            'Spotify Premium is required to control playback here.',
+          ),
+          MusicConnection.noSpotifyApp => (
+            'Not installed',
+            'Install Spotify to connect.',
+          ),
+          MusicConnection.disconnected || MusicConnection.connected => ('Not connected', null),
+        };
+        return SettingsSectionCard(
+          label: 'MUSIC',
+          children: [
+            SettingsRow(
+              icon: Icons.music_note_rounded,
+              title: 'Spotify',
+              value: value,
+              last: true,
+              // Tapping while any fallback state is showing retries the
+              // connection — the same action, since `connect()` is what
+              // surfaces whichever of those states is actually true.
+              onTap: state == MusicConnection.connecting
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      controller.connect();
+                    },
+            ),
+            if (caption != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 13),
+                child: Text(
+                  caption,
+                  style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
 
 /// A small circular icon button — the same 34px chip language as
 /// `CaptureIconButton`, kept local since this page's chip is neutral

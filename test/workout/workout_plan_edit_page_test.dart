@@ -364,6 +364,11 @@ void main() {
       await tester.enterText(find.byKey(const Key('exercise-name-field')), 'Bench Press');
       await tester.pump();
 
+      // Reset — "Add day" above now fires its own lightImpact haptic (see
+      // `_WorkoutPlanEditPageState._addDay`), unrelated to what this test
+      // actually checks: only the wheel-drag's own per-tick haptics below.
+      hapticCalls.clear();
+
       // Default rest is 90s. Drag the wheel up by 3 items (15s each tick's
       // worth of 5s steps) to land on 90 + 3*5 = 105s ("1:45").
       await tester.drag(find.byKey(const Key('rest-picker')), const Offset(0, -34 * 3));

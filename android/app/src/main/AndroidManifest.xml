@@ -33,6 +33,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Spotify redirect URI (lib/features/music) — App Remote's
+                 actual Android auth flow is Activity-result based (handled
+                 by spotify_sdk's plugin itself, no intent-filter needed for
+                 that), but this is registered for parity with iOS and any
+                 browser-based OAuth fallback that does deep-link back in. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="zivo" android:host="spotify-callback"/>
+            </intent-filter>
         </activity>
         <!-- image_cropper (uCrop) — the native Android crop/rotate activity. -->
         <activity

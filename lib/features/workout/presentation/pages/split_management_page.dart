@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../widgets/staggered_reveal.dart';
@@ -85,6 +87,7 @@ Future<void> _openNewSplitSheet(BuildContext context) async {
     builder: (_) => const _NewSplitActionsSheet(),
   );
   if (action == null || !context.mounted) return;
+  HapticFeedback.selectionClick();
   switch (action) {
     case _NewSplitAction.manual:
       await Navigator.of(context).push(
@@ -180,48 +183,50 @@ class _SplitTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dayCount = split.days.length;
     final exerciseCount = split.days.fold<int>(0, (sum, d) => sum + d.exercises.length);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openActions(context),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: isActive ? AppColors.pulse.withValues(alpha: 0.5) : AppColors.hairline2),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            split.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openActions(context),
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: isActive ? AppColors.pulse.withValues(alpha: 0.5) : AppColors.hairline2),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              split.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                            ),
                           ),
-                        ),
-                        if (isActive) ...[const SizedBox(width: 8), const _ActiveBadge()],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$dayCount day${dayCount == 1 ? '' : 's'} · $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}',
-                      style: AppText.meta.copyWith(color: AppColors.ink3),
-                    ),
-                  ],
+                          if (isActive) ...[const SizedBox(width: 8), const _ActiveBadge()],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$dayCount day${dayCount == 1 ? '' : 's'} · $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}',
+                        style: AppText.meta.copyWith(color: AppColors.ink3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.more_vert_rounded, color: AppColors.ink3),
-            ],
+                const SizedBox(width: 8),
+                const Icon(Icons.more_vert_rounded, color: AppColors.ink3),
+              ],
+            ),
           ),
         ),
       ),
@@ -236,16 +241,24 @@ class _SplitTile extends StatelessWidget {
       builder: (_) => _SplitActionsSheet(splitName: split.name, isActive: isActive),
     );
     if (action == null || !context.mounted) return;
+    // Haptic fires per-resolved-action (not on opening the sheet) — each
+    // case below picks the feel that matches what it actually does.
     switch (action) {
       case _SplitAction.setActive:
+        HapticFeedback.selectionClick();
         await plans.setActiveSplit(split.id);
       case _SplitAction.edit:
+        HapticFeedback.selectionClick();
         await Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => WorkoutPlanEditPage(initialPlan: split, asSplit: true)),
         );
       case _SplitAction.duplicate:
+        HapticFeedback.lightImpact();
         await plans.saveSplit(_duplicateOf(split));
       case _SplitAction.delete:
+        // mediumImpact fires inside _confirmDelete, right at the actual
+        // commit — the dialog's Delete tap is this flow's "point of no
+        // return", same role the chat-delete swipe threshold plays.
         await _confirmDelete(context);
     }
   }
@@ -267,7 +280,10 @@ class _SplitTile extends StatelessWidget {
             child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.pop(context, true);
+            },
             child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
           ),
         ],
@@ -377,19 +393,21 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 14),
-              Text(label, style: AppText.body.copyWith(fontSize: 15, color: color, fontWeight: FontWeight.w500)),
-            ],
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 14),
+                Text(label, style: AppText.body.copyWith(fontSize: 15, color: color, fontWeight: FontWeight.w500)),
+              ],
+            ),
           ),
         ),
       ),

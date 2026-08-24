@@ -1514,32 +1514,34 @@ class _ReviewSetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skipped = set.skipped;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          children: [
-            Icon(
-              skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
-              size: 16,
-              color: skipped ? AppColors.ink3 : AppColors.pulse,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
-            ),
-            Text(
-              skipped ? 'Skipped' : _formatSetActuals(set),
-              style: AppText.meta.copyWith(
-                color: skipped ? AppColors.ink3 : AppColors.ink2,
-                fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            children: [
+              Icon(
+                skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+                size: 16,
+                color: skipped ? AppColors.ink3 : AppColors.pulse,
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
+              ),
+              Text(
+                skipped ? 'Skipped' : _formatSetActuals(set),
+                style: AppText.meta.copyWith(
+                  color: skipped ? AppColors.ink3 : AppColors.ink2,
+                  fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -2206,16 +2208,18 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: AppColors.ember.withValues(alpha: 0.18),
-        highlightColor: AppColors.ember.withValues(alpha: 0.10),
-        child: SizedBox(
-          width: 46,
-          height: 52,
-          child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: AppColors.ember.withValues(alpha: 0.18),
+          highlightColor: AppColors.ember.withValues(alpha: 0.10),
+          child: SizedBox(
+            width: 46,
+            height: 52,
+            child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+          ),
         ),
       ),
     );

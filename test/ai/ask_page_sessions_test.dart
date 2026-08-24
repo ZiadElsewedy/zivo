@@ -111,7 +111,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete this chat?'), findsOneWidget);
-      await tester.tap(find.text('Delete'));
+      await tester.tap(find.text('Delete chat'));
       await tester.pumpAndSettle();
 
       // The sheet stays open, now showing the empty list.

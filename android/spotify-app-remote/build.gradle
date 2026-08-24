@@ -1,0 +1,6 @@
+// Wraps the locally-vendored Spotify App Remote AAR as a Gradle module —
+// spotify_sdk's own android/build.gradle depends on `project(':spotify-app-remote')`
+// directly (the SDK isn't published to Maven Central, unlike spotify-auth).
+// See lib/features/music/data/spotify_music_controller.dart's doc comment.
+configurations.maybeCreate("default")
+artifacts.add("default", file('spotify-app-remote-release-0.8.0.aar'))
