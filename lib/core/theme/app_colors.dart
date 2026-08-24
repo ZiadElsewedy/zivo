@@ -36,7 +36,7 @@ abstract final class AppColors {
   static const solarText = solar;
   static const solarWash = Color(0x24F6B300);
 
-  static const iris = Color(0xFF6E5BFF); // university / study / focus
+  static const iris = Color(0xFF6E5BFF); // Ask AI
   static const irisText = iris;
   static const irisWash = Color(0x246E5BFF);
 

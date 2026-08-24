@@ -1,37 +1,40 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/scope/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/util/money.dart';
 import '../../../core/widgets/pressable_scale.dart';
-import '../../../core/widgets/zivo_toast.dart';
+import '../../diet/domain/diet_plan.dart';
+import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
+import '../../diet/presentation/today_diet.dart';
+import '../../expenses/domain/expense.dart';
+import '../../expenses/domain/expense_repository.dart';
+import '../../expenses/domain/wallet.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
+import '../../moments/domain/moment.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../shell/presentation/widgets/zivo_bottom_bar.dart';
+import '../../workout/domain/live_session.dart';
+import '../../workout/domain/up_next_selection.dart';
+import '../../workout/domain/workout_plan.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 
-/// The Hub — the OS-style launcher into each module's depth. A clean two-column
-/// grid of premium module cards, each with a tinted icon chip in its module
-/// colour. Modules open as they are built; the rest show a "soon" chip.
+/// The Hub — a light dashboard into each module's depth. A two-column grid
+/// of premium module cards, each with a tinted icon chip in its module
+/// colour and a live stat line reading straight from that module's own
+/// repository (see each `_XTile`) — a snapshot of "what's happening in each
+/// area of my life right now", not just a launcher.
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final modules = <_Module>[
-      _Module('Workout', AppIcons.workout, AppColors.pulse, AppColors.pulseWash,
-          (c) => const WorkoutDashboardPage()),
-      _Module('Diet', AppIcons.diet, AppColors.solar, AppColors.solarWash,
-          (c) => const DietPlanPage()),
-      _Module('Expenses', AppIcons.expenses, AppColors.solar, AppColors.solarWash,
-          (c) => const ExpensesListPage()),
-      _Module('Moments', AppIcons.moments, AppColors.ember, AppColors.emberWash,
-          (c) => const MomentsTimelinePage()),
-    ];
 
     return Container(
       color: AppColors.ground,
@@ -67,10 +70,18 @@ class HubPage extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 14,
               crossAxisSpacing: 14,
-              childAspectRatio: 1.32,
+              // Taller than the icon+label-only ratio (was 1.32) — the extra
+              // height is what carries each tile's live stat line without
+              // cramping it against the label.
+              childAspectRatio: 1.05,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              children: [for (final m in modules) _ModuleTile(m)],
+              children: const [
+                _WorkoutTile(),
+                _DietTile(),
+                _ExpensesTile(),
+                _MomentsTile(),
+              ],
             ),
           ],
         ),
@@ -79,37 +90,222 @@ class HubPage extends StatelessWidget {
   }
 }
 
-class _Module {
-  const _Module(this.label, this.icon, this.color, this.wash, this.builder);
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Color wash;
-  final WidgetBuilder? builder;
-}
-
-class _ModuleTile extends StatelessWidget {
-  const _ModuleTile(this.module);
-
-  final _Module module;
+/// Workout's tile: the same up-next day + resume/start signal as Today's own
+/// Training card (`resolveUpNext`), so Hub can't drift from it.
+class _WorkoutTile extends StatelessWidget {
+  const _WorkoutTile();
 
   @override
   Widget build(BuildContext context) {
-    final live = module.builder != null;
+    final scope = AppScope.of(context);
+    return StreamBuilder<WorkoutPlan?>(
+      stream: scope.workoutPlans.watchActivePlan(),
+      initialData: scope.workoutPlans.activePlan,
+      builder: (context, planSnapshot) {
+        final plan = planSnapshot.data;
+        if (plan == null) return _shell(context, stat: 'No plan yet');
+        return StreamBuilder<LiveSession?>(
+          stream: scope.workoutSessions.watchActiveSession(),
+          initialData: scope.workoutSessions.activeSession,
+          builder: (context, sessionSnapshot) {
+            final selection = resolveUpNext(plan, sessionSnapshot.data);
+            final day = selection.day;
+            final stat = day == null
+                ? 'No plan yet'
+                : selection.resumable != null
+                ? '${day.label} · resume'
+                : '${day.label} · up next';
+            return _shell(context, stat: stat);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _shell(BuildContext context, {required String stat}) {
+    return _ModuleTileShell(
+      icon: AppIcons.workout,
+      color: AppColors.pulse,
+      wash: AppColors.pulseWash,
+      label: 'Workout',
+      stat: stat,
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const WorkoutDashboardPage())),
+    );
+  }
+}
+
+/// Diet's tile: today's eaten/kcal-left summary, same `dietDaySummary` the
+/// Diet page's own hero and Today's glance row read.
+class _DietTile extends StatelessWidget {
+  const _DietTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<DietPlan?>(
+      stream: scope.diet.watchActivePlan(),
+      initialData: scope.diet.activePlan,
+      builder: (context, planSnapshot) {
+        final now = DateTime.now();
+        final day = dayForDate(planSnapshot.data, now);
+        if (day == null) return _shell(context, stat: 'No plan yet');
+        return StreamBuilder<Set<String>>(
+          stream: scope.diet.watchConsumed(now),
+          initialData: const <String>{},
+          builder: (context, consumedSnapshot) {
+            final summary = dietDaySummary(
+              day,
+              consumedSnapshot.data ?? const <String>{},
+            );
+            return _shell(
+              context,
+              stat:
+                  // "meals" and "left" dropped — the tile is already
+                  // labelled "Diet", so "X of Y" reads unambiguously
+                  // without the former, and the latter is what actually
+                  // pushed this to a 3rd line at a standard phone width
+                  // (measured in hub_page_test.dart) — "of 3" vs "3/3"
+                  // barely moved the needle, "left" alone was the
+                  // difference between fitting in 2 lines and not.
+                  '${summary.eaten} of ${summary.total} · ${summary.kcalLeft} kcal',
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _shell(BuildContext context, {required String stat}) {
+    return _ModuleTileShell(
+      icon: AppIcons.diet,
+      color: AppColors.pulse,
+      wash: AppColors.pulseWash,
+      label: 'Diet',
+      stat: stat,
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DietPlanPage())),
+    );
+  }
+}
+
+/// Expenses' tile: this week's spend, same `weekTotalMinor` + wallet
+/// currency Today's Spending glance reads. Always shows a real number — a
+/// week with nothing spent is still a fact, not a "no data yet" case.
+class _ExpensesTile extends StatelessWidget {
+  const _ExpensesTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final expenses = scope.expenses;
+    final wallet = scope.wallet;
+    return StreamBuilder<List<Expense>>(
+      stream: expenses.watchAll(),
+      initialData: expenses.current,
+      builder: (context, snapshot) {
+        final weekMinor = weekTotalMinor(
+          snapshot.data ?? const <Expense>[],
+          DateTime.now(),
+        );
+        if (wallet == null) {
+          return _shell(
+            context,
+            stat: 'EGP ${formatAmount(weekMinor)} this week',
+          );
+        }
+        return StreamBuilder<Wallet?>(
+          stream: wallet.watch(),
+          initialData: wallet.current,
+          builder: (context, walletSnapshot) {
+            final currency = walletSnapshot.data?.currency ?? 'EGP';
+            return _shell(
+              context,
+              stat: '$currency ${formatAmount(weekMinor)} this week',
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _shell(BuildContext context, {required String stat}) {
+    return _ModuleTileShell(
+      icon: AppIcons.expenses,
+      color: AppColors.solar,
+      wash: AppColors.solarWash,
+      label: 'Expenses',
+      stat: stat,
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const ExpensesListPage())),
+    );
+  }
+}
+
+/// Moments' tile: a simple honest count — no fabricated "last added X ago"
+/// beyond what's actually there.
+class _MomentsTile extends StatelessWidget {
+  const _MomentsTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<List<Moment>>(
+      stream: scope.moments.watchAll(),
+      initialData: scope.moments.current,
+      builder: (context, snapshot) {
+        final count = (snapshot.data ?? const <Moment>[]).length;
+        final stat = count == 0
+            ? 'No moments yet'
+            : '$count moment${count == 1 ? '' : 's'}';
+        return _ModuleTileShell(
+          icon: AppIcons.moments,
+          color: AppColors.ember,
+          wash: AppColors.emberWash,
+          label: 'Moments',
+          stat: stat,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MomentsTimelinePage()),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The shared visual shell for a Hub tile: a tinted icon chip, the module
+/// label, and a live stat line underneath. Data-fetching lives entirely in
+/// each concrete `_XTile` above — this is presentation only, reused so every
+/// tile shares one exact card language.
+class _ModuleTileShell extends StatelessWidget {
+  const _ModuleTileShell({
+    required this.icon,
+    required this.color,
+    required this.wash,
+    required this.label,
+    required this.stat,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final Color wash;
+  final String label;
+  final String stat;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          onTap: () {
-            if (live) {
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: module.builder!));
-            } else {
-              showZivoToast(context, '${module.label} — coming next.');
-            }
-          },
+          onTap: onTap,
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -126,37 +322,41 @@ class _ModuleTile extends StatelessWidget {
                   height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: module.wash,
+                    color: wash,
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: Icon(module.icon, size: 23, color: module.color),
+                  child: Icon(icon, size: 23, color: color),
                 ),
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        module.label,
-                        style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textScaler: MediaQuery.textScalerOf(context)
-                            .clamp(maxScaleFactor: 1.3),
+                    Text(
+                      label,
+                      style: AppText.rowTitle.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: MediaQuery.textScalerOf(
+                        context,
+                      ).clamp(maxScaleFactor: 1.3),
                     ),
-                    if (!live) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceRaised,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Text(
-                          'soon',
-                          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 10),
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      stat,
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                      // 2 lines, not 1 — a couple of stats (Diet's "X of Y
+                      // meals · N kcal left") run long enough to ellipsize
+                      // the unit off the end at default text scale on a
+                      // standard phone width. The taller 1.05-ratio tile has
+                      // the headroom, and the other tiles' shorter stats
+                      // just naturally sit on one line.
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: MediaQuery.textScalerOf(
+                        context,
+                      ).clamp(maxScaleFactor: 1.3),
+                    ),
                   ],
                 ),
               ],
