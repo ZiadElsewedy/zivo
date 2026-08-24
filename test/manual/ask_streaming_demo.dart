@@ -26,6 +26,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -164,6 +165,10 @@ class DemoAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List pdfBytes,
   }) => throw UnimplementedError('not exercised by this manual demo');
+
+  @override
+  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+      throw UnimplementedError('not exercised by this manual demo');
 
   @override
   Future<SttOutcome> transcribe({

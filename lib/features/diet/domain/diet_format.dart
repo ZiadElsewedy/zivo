@@ -6,11 +6,14 @@ import 'meal.dart';
 String _trimQty(double v) =>
     v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
-/// "150 g" or "150 g · 210 kcal" when the item has calories.
+/// "150 g" or "150 g · 210 kcal" when the item has calories — the calorie
+/// figure gets a "~" prefix when [FoodItem.estimated] (AI-filled at import
+/// time, not stated in the source).
 String foodQtyLabel(FoodItem item) {
   final base = '${_trimQty(item.quantity)} ${item.unit}';
   if (item.calories == null) return base;
-  return '$base · ${item.calories} kcal';
+  final tilde = item.estimated ? '~' : '';
+  return '$base · $tilde${item.calories} kcal';
 }
 
 /// "P 40 · C 45 · F 8" (grams, trimmed) — null when the item carries no macro.

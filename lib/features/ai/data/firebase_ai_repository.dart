@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../../diet/domain/diet_import_outcome.dart';
+import '../../diet/domain/diet_import_result.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
@@ -40,7 +42,11 @@ class FirebaseAiRepository implements AiRepository {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
     required this.uidSource,
-    Future<void> Function(String conversationId, String message, String responseStyle)?
+    Future<void> Function(
+      String conversationId,
+      String message,
+      String responseStyle,
+    )?
     invokeChat,
     Future<void> Function(
       String conversationId,
@@ -52,6 +58,7 @@ class FirebaseAiRepository implements AiRepository {
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? invokeImport,
+    Future<DietImportOutcome> Function(Uint8List pdfBytes)? invokeDietImport,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -65,6 +72,8 @@ class FirebaseAiRepository implements AiRepository {
            invokeChatStream ?? _defaultInvokeChatStream(functions),
        _invokeAction = invokeAction ?? _defaultInvokeAction(functions),
        _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
+       _invokeDietImport =
+           invokeDietImport ?? _defaultInvokeDietImport(functions),
        _invokeTranscribe =
            invokeTranscribe ?? _defaultInvokeTranscribe(functions),
        _invokeDelete = invokeDelete ?? _defaultInvokeDelete(functions);
@@ -91,6 +100,8 @@ class FirebaseAiRepository implements AiRepository {
   )
   _invokeAction;
   final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _invokeImport;
+  final Future<DietImportOutcome> Function(Uint8List pdfBytes)
+  _invokeDietImport;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
     String mimeType,
@@ -197,6 +208,20 @@ class FirebaseAiRepository implements AiRepository {
         'pdfBase64': base64Encode(pdfBytes),
       });
       return _importOutcomeFromJson(result.data);
+    };
+  }
+
+  /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
+  /// the PDF base64-encoded. Mirrors [_defaultInvokeImport] exactly.
+  static Future<DietImportOutcome> Function(Uint8List pdfBytes)
+  _defaultInvokeDietImport(FirebaseFunctions? functions) {
+    return (pdfBytes) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final result = await f.httpsCallable('aiImportDietPlan').call({
+        'pdfBase64': base64Encode(pdfBytes),
+      });
+      return _dietImportOutcomeFromJson(result.data);
     };
   }
 
@@ -407,6 +432,10 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeImport(pdfBytes);
 
   @override
+  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+      _invokeDietImport(pdfBytes);
+
+  @override
   Future<SttOutcome> transcribe({
     required Uint8List audioBytes,
     required String mimeType,
@@ -550,6 +579,64 @@ ImportedExercise _importedExerciseFromJson(Object? data) {
     toFailure: map['toFailure'] == true,
     targetWeightKg: (map['targetWeightKg'] as num?)?.toDouble(),
     restSeconds: (map['restSeconds'] as num?)?.toInt(),
+  );
+}
+
+/// Maps `aiImportDietPlan`'s raw callable result (a platform-channel
+/// `Map<Object?, Object?>`, not `Map<String, dynamic>`) into a
+/// [DietImportOutcome]. Mirrors `_importOutcomeFromJson` exactly — see that
+/// function's doc for the shared reasoning (the server already guarantees
+/// every field is present and well-typed for the `ok: true` case, so this
+/// only needs to cast, not re-validate).
+DietImportOutcome _dietImportOutcomeFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  if (map['ok'] != true) {
+    final reason =
+        map['reason'] as String? ??
+        "This file doesn't contain enough valid diet data to create a plan.";
+    return DietImportRejected(reason);
+  }
+  final planName = map['planName'] as String? ?? 'Imported Plan';
+  final rawDays = map['days'];
+  final days = rawDays is List
+      ? [for (final d in rawDays) _importedDietDayFromJson(d)]
+      : const <ImportedDietDay>[];
+  return DietImportAccepted(DietImportResult(planName: planName, days: days));
+}
+
+ImportedDietDay _importedDietDayFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  final rawMeals = map['meals'];
+  final meals = rawMeals is List
+      ? [for (final m in rawMeals) _importedMealFromJson(m)]
+      : const <ImportedMeal>[];
+  return ImportedDietDay(
+    weekday: (map['weekday'] as num?)?.toInt(),
+    label: map['label'] as String? ?? '',
+    meals: meals,
+  );
+}
+
+ImportedMeal _importedMealFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  final rawItems = map['items'];
+  final items = rawItems is List
+      ? [for (final i in rawItems) _importedFoodItemFromJson(i)]
+      : const <ImportedFoodItem>[];
+  return ImportedMeal(label: map['label'] as String? ?? '', items: items);
+}
+
+ImportedFoodItem _importedFoodItemFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  return ImportedFoodItem(
+    name: map['name'] as String? ?? '',
+    quantity: (map['quantity'] as num?)?.toDouble() ?? 0,
+    unit: map['unit'] as String? ?? '',
+    calories: (map['calories'] as num?)?.toInt(),
+    proteinG: (map['proteinG'] as num?)?.toDouble(),
+    carbsG: (map['carbsG'] as num?)?.toDouble(),
+    fatG: (map['fatG'] as num?)?.toDouble(),
+    estimated: map['estimated'] == true,
   );
 }
 

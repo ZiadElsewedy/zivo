@@ -17,6 +17,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -74,7 +75,8 @@ class _RecordingAi implements AiRepository {
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.confirmAction(conversationId: conversationId, actionId: actionId);
+  }) =>
+      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
@@ -86,6 +88,10 @@ class _RecordingAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List pdfBytes,
   }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+
+  @override
+  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+      _inner.importDietPlan(pdfBytes: pdfBytes);
 
   @override
   Future<SttOutcome> transcribe({

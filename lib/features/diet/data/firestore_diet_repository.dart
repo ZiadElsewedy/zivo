@@ -222,6 +222,7 @@ class FirestoreDietRepository implements DietRepository {
     'proteinG': item.proteinG,
     'carbsG': item.carbsG,
     'fatG': item.fatG,
+    'estimated': item.estimated,
   };
 
   DietPlan _planFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -271,6 +272,7 @@ class FirestoreDietRepository implements DietRepository {
       proteinG: (map['proteinG'] as num?)?.toDouble(),
       carbsG: (map['carbsG'] as num?)?.toDouble(),
       fatG: (map['fatG'] as num?)?.toDouble(),
+      estimated: map['estimated'] == true,
     );
   }
 }

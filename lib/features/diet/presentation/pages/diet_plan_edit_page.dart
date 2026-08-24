@@ -158,7 +158,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
       id: _planId,
       name: _name.text.trim(),
       status: DietPlanStatus.active,
-      source: DietSource.manual,
+      source: widget.initialPlan?.source ?? DietSource.manual,
       createdAt: _createdAt,
       updatedAt: now,
       days: _days

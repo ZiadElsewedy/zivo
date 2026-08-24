@@ -20,6 +20,7 @@
 const CAPABILITY_ROUTES = {
   chat: [{provider: "anthropic", model: "claude-sonnet-5"}],
   workout_import: [{provider: "anthropic", model: "claude-sonnet-5"}],
+  diet_import: [{provider: "anthropic", model: "claude-sonnet-5"}],
 };
 
 /**

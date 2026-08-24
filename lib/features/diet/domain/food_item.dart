@@ -1,6 +1,5 @@
 /// A single food item within a [Meal] — a quantity of a named food, with
-/// optional calories and macros (all nullable: a manual entry may skip them,
-/// and a future PDF extractor may not recover every value either).
+/// optional calories and macros (all nullable: a manual entry may skip them).
 class FoodItem {
   const FoodItem({
     required this.name,
@@ -10,6 +9,7 @@ class FoodItem {
     this.proteinG,
     this.carbsG,
     this.fatG,
+    this.estimated = false,
   });
 
   final String name;
@@ -19,4 +19,11 @@ class FoodItem {
   final double? proteinG;
   final double? carbsG;
   final double? fatG;
+
+  /// True when calories/macros were AI-estimated at PDF import time rather
+  /// than stated in the source document — never true for a manually-added
+  /// item (the add-item sheet never sets it). Purely a display hint ("~" on
+  /// the calorie figure); the values themselves are used identically either
+  /// way.
+  final bool estimated;
 }

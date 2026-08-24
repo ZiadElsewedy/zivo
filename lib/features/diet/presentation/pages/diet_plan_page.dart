@@ -18,6 +18,7 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
 import '../today_diet.dart';
+import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
 
 /// The Diet Plan page — today's meals as tactile completion cards under a
@@ -64,6 +65,11 @@ class DietPlanPage extends StatelessWidget {
               ? const LoadingStateView()
               : plan == null
               ? _EmptyState(
+                  onImport: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const DietPdfImportPage(),
+                    ),
+                  ),
                   onCreate: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const DietPlanEditPage()),
                   ),
@@ -76,31 +82,62 @@ class DietPlanPage extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreate});
+  const _EmptyState({required this.onImport, required this.onCreate});
 
+  final VoidCallback onImport;
   final VoidCallback onCreate;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.restaurant_rounded, size: 30, color: AppColors.ink3),
-          const SizedBox(height: 12),
-          Text('No diet plan yet.', style: AppText.aside),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: 200,
-            child: PillButton(
-              label: 'Create plan',
-              icon: Icons.add_rounded,
-              color: AppColors.pulseText,
-              enabled: true,
-              onTap: onCreate,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.restaurant_rounded,
+              size: 30,
+              color: AppColors.ink3,
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text('No diet plan yet.', style: AppText.aside),
+            const SizedBox(height: 6),
+            Text(
+              "Import a PDF and I'll estimate calories and macros for you, "
+              'or build one from scratch.',
+              style: AppText.meta.copyWith(color: AppColors.ink3),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: 220,
+              child: PillButton(
+                label: 'Import from PDF',
+                icon: Icons.upload_file_rounded,
+                color: AppColors.pulseText,
+                enabled: true,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onImport();
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            PressableScale(
+              child: TextButton(
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  onCreate();
+                },
+                child: Text(
+                  'Create plan manually instead',
+                  style: AppText.meta.copyWith(color: AppColors.ink2),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -453,6 +490,10 @@ class _MealCardState extends State<_MealCard>
     final meal = widget.meal;
     final kcal = mealCalories(meal);
     final macros = kcal == null ? null : macroTotals(meal.items);
+    // AI-imported items that weren't in the source's stated numbers carry a
+    // "~" onto the meal's total — the whole point of estimation is visible
+    // here, not buried in the edit screen only.
+    final hasEstimate = meal.items.any((i) => i.estimated);
     return PressableScale(
       child: AnimatedBuilder(
         animation: _t,
@@ -514,7 +555,7 @@ class _MealCardState extends State<_MealCard>
                                     if (kcal != null) ...[
                                       const SizedBox(width: 8),
                                       Text(
-                                        '$kcal kcal',
+                                        '${hasEstimate ? '~' : ''}$kcal kcal',
                                         style: AppText.meta.copyWith(
                                           color: AppColors.pulseText,
                                         ),

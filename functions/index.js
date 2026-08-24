@@ -38,6 +38,7 @@ const {
   GatewayError,
 } = require("./ai/gateway");
 const {extractWorkoutPlan} = require("./ai/workout_import");
+const {extractDietPlan} = require("./ai/diet_import");
 const {FirestoreStore} = require("./ai/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
@@ -615,6 +616,66 @@ exports.aiImportWorkoutPlan = onCall(
         return result;
       } catch (err) {
         logger.info("aiImportWorkoutPlan", {
+          approxPdfBytes,
+          stage: "error",
+          message: err && err.message,
+        });
+        throw toHttpsError(err);
+      }
+    },
+);
+
+// --- aiImportDietPlan --------------------------------------------------------
+
+/**
+ * Extracts a proposed diet plan from an uploaded PDF, mirroring
+ * `aiImportWorkoutPlan` exactly: one Claude call, no Firestore write. The
+ * client reviews/edits the result (`DietPlanEditPage`) and saves it itself
+ * via `savePlan` — that review screen is the "human confirms before it
+ * becomes real" gate, so there is nothing here to confirm or cancel.
+ *
+ * Requires a signed-in Firebase user for the same reason as
+ * `aiImportWorkoutPlan` (an expensive whole-PDF Claude call must not be
+ * callable anonymously); it writes no Firestore data itself.
+ */
+exports.aiImportDietPlan = onCall(
+    {
+      secrets: [ANTHROPIC_API_KEY],
+      region: "us-central1",
+      // Same reasoning as aiImportWorkoutPlan: a single whole-PDF read can
+      // run well past the platform's 60s default.
+      timeoutSeconds: 180,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to import a plan.");
+      }
+
+      const data = request.data || {};
+      const pdfBase64 = (data.pdfBase64 || "").toString();
+      if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
+        throw new HttpsError(
+            "invalid-argument", "That PDF is too large to import.");
+      }
+
+      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
+      const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
+
+      try {
+        const result = await extractDietPlan({
+          provider: providerForCapability(registry, "diet_import"),
+          model: router.resolve("diet_import").model,
+          pdfBase64,
+          logEvent: (event) => logger.info("aiImportDietPlan", {
+            approxPdfBytes,
+            ...event,
+          }),
+        });
+        return result;
+      } catch (err) {
+        logger.info("aiImportDietPlan", {
           approxPdfBytes,
           stage: "error",
           message: err && err.message,

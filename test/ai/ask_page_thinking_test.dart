@@ -18,6 +18,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -42,8 +43,7 @@ class _GatedAi implements AiRepository {
       _inner.renameConversation(id, title);
 
   @override
-  Future<void> deleteConversation(String id) =>
-      _inner.deleteConversation(id);
+  Future<void> deleteConversation(String id) => _inner.deleteConversation(id);
 
   @override
   Stream<List<AiConversation>> watchConversations() =>
@@ -76,8 +76,7 @@ class _GatedAi implements AiRepository {
   Future<String> getResponseStyle() => _inner.getResponseStyle();
 
   @override
-  Future<void> setResponseStyle(String style) =>
-      _inner.setResponseStyle(style);
+  Future<void> setResponseStyle(String style) => _inner.setResponseStyle(style);
 
   @override
   Future<void> confirmAction({
@@ -96,6 +95,10 @@ class _GatedAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List pdfBytes,
   }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+
+  @override
+  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+      _inner.importDietPlan(pdfBytes: pdfBytes);
 
   @override
   Future<SttOutcome> transcribe({

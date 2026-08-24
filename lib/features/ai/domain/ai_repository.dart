@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../diet/domain/diet_import_outcome.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_conversation.dart';
 import 'ai_message.dart';
@@ -95,6 +96,16 @@ abstract interface class AiRepository {
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
   Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes});
+
+  /// Extracts a proposed diet plan from a PDF's raw bytes (Chunk B+C) via
+  /// the `aiImportDietPlan` callable — one Claude call, no Firestore write.
+  /// The caller reviews/edits the result before saving it (via
+  /// `DietRepository.savePlan`); this method alone never creates a plan.
+  ///
+  /// Resolves to [DietImportRejected] (never throws) when the document
+  /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
+  /// for real technical failures (network, auth/App Check, server error).
+  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes});
 
   /// Transcribes a recorded voice note via the `aiTranscribe` callable
   /// (`functions/ai/speech/gateway.js`) — input only: this never calls the

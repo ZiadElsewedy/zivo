@@ -37,9 +37,10 @@ test("resolve throws for an unknown capability", () => {
   assert.throws(() => resolve("not_a_real_capability"));
 });
 
-test("both chat and workout_import route to anthropic today", () => {
+test("chat, workout_import, and diet_import all route to anthropic today", () => {
   assert.equal(resolve("chat").provider, "anthropic");
   assert.equal(resolve("workout_import").provider, "anthropic");
+  assert.equal(resolve("diet_import").provider, "anthropic");
 });
 
 test("generate resolves the capability's provider and stamps the route's model onto the request", async () => {
