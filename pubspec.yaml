@@ -76,7 +76,6 @@ dependencies:
   # permission prompt itself) for speech-to-text via the `aiTranscribe`
   # callable — see lib/features/ai/data/audio_recorder.dart.
   record: ^7.1.1
-  spotify_sdk: ^3.0.2
 
 dev_dependencies:
   flutter_test:
