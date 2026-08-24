@@ -7,10 +7,6 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
@@ -240,14 +236,10 @@ Widget _wrap({
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
-    tasks: InMemoryTaskRepository(),
-    schedule: InMemoryScheduleRepository(),
-    notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
     workouts: workouts,
     workoutPlans: workoutPlans,
     workoutSessions: workoutSessions,
-    university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     child: MaterialApp(
@@ -274,9 +266,21 @@ Widget _wrap({
 /// animation controllers (the ember pulse, the rest ring's stroke glow) that
 /// never settle on their own — `pumpAndSettle` would hang while either view
 /// is on screen, so every step advances by a fixed, generous duration instead.
+///
+/// Several discrete pumps, not one big jump — same reason
+/// [_dismissUndoSnackbar] does: a single large `pump(duration)` doesn't
+/// reliably carry the SnackBar overlay's own entrance transition to a
+/// genuinely hit-testable state, even once the widget itself is found by a
+/// text finder. ~700ms total, not the old 350ms: a Done/Skip now holds on
+/// the running screen for a ~260ms "completion beat" (see
+/// `_afterResolvingCurrentSet`) before the phase actually advances and the
+/// Undo snackbar appears — its own ~250ms entrance still has to run and
+/// settle AFTER that, so this has to clear both back to back.
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 350));
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 175));
+  }
 }
 
 /// Dismisses the Undo snackbar (shown after every Done/Skip) and lets its
@@ -632,10 +636,10 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
     await tester.tap(find.text('Skip'));
-    await tester.pump();
-    // Let the snackbar's entrance animation finish (short of its dismiss
-    // duration) before inspecting/tapping it.
-    await tester.pump(const Duration(milliseconds: 300));
+    // Waits out both the completion-beat hold and the snackbar's entrance
+    // transition (short of its dismiss duration) before inspecting/tapping
+    // it — see `_settle`'s doc comment.
+    await _settle(tester);
 
     expect(find.text('Set skipped'), findsOneWidget);
     expect(find.text('Undo'), findsOneWidget);
@@ -675,8 +679,7 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
     await tester.tap(find.text('Done'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _settle(tester);
 
     // No weight was typed and the plan's Bench set has no target weight —
     // the fixed(5) target's own reps fallback still gives a real summary
@@ -766,8 +769,7 @@ void main() {
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _settle(tester);
 
       expect(find.text('80kg × 8 logged'), findsOneWidget);
       expect(find.text('Set done'), findsNothing);
@@ -803,8 +805,7 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
     await tester.tap(find.text('Done')); // the last set — completes the session
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _settle(tester);
 
     // No weight was typed and the plan's Bench set has no target weight —
     // the fixed(5) target's own reps fallback still gives a real summary
@@ -1016,7 +1017,9 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
-    await tester.pump();
+    // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so the
+    // phase has actually advanced to resting.
+    await tester.pump(const Duration(milliseconds: 300));
     expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
 
     // Let the countdown run out (driven by wall-clock elapsed time, not tick
@@ -1051,7 +1054,9 @@ void main() {
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
-      await tester.pump();
+      // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so
+      // the phase has actually advanced to resting.
+      await tester.pump(const Duration(milliseconds: 300));
       expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
 
       // Simulate the OS suspending the app's Ticker for 40s while backgrounded
@@ -1299,7 +1304,9 @@ void main() {
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
-      await tester.pump();
+      // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so
+      // the phase has actually advanced to resting.
+      await tester.pump(const Duration(milliseconds: 300));
       expect(elapsedText(tester), '0:30');
       expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest, running
 

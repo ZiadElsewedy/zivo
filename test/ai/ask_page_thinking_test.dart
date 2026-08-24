@@ -5,17 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -36,6 +35,24 @@ class _GatedAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
+  Future<String> createConversation() => _inner.createConversation();
+
+  @override
+  Future<void> renameConversation(String id, String title) =>
+      _inner.renameConversation(id, title);
+
+  @override
+  Future<void> deleteConversation(String id) =>
+      _inner.deleteConversation(id);
+
+  @override
+  Stream<List<AiConversation>> watchConversations() =>
+      _inner.watchConversations();
+
+  @override
+  Future<AiConversation?> latestConversation() => _inner.latestConversation();
+
+  @override
   Stream<List<AiMessage>> watchMessages(String conversationId) =>
       _inner.watchMessages(conversationId);
 
@@ -44,20 +61,30 @@ class _GatedAi implements AiRepository {
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   }) async {
     await gate.future;
     await _inner.send(
       conversationId: conversationId,
       text: text,
       onEvent: onEvent,
+      responseStyle: responseStyle,
     );
   }
+
+  @override
+  Future<String> getResponseStyle() => _inner.getResponseStyle();
+
+  @override
+  Future<void> setResponseStyle(String style) =>
+      _inner.setResponseStyle(style);
 
   @override
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.confirmAction(conversationId: conversationId, actionId: actionId);
+  }) =>
+      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
@@ -66,22 +93,30 @@ class _GatedAi implements AiRepository {
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => _inner.transcribe(
+    audioBytes: audioBytes,
+    mimeType: mimeType,
+    languageHint: languageHint,
+  );
 }
 
 Widget _host(AiRepository ai) => AppScope(
   auth: FakeAuthRepository(),
   profiles: FakeProfileRepository(),
   expenses: InMemoryExpenseRepository(),
-  tasks: InMemoryTaskRepository(),
-  schedule: InMemoryScheduleRepository(),
-  notes: InMemoryNoteRepository(),
   moments: InMemoryMomentRepository(),
   workouts: InMemoryWorkoutRepository(),
   workoutPlans: InMemoryWorkoutPlanRepository(),
   workoutSessions: InMemoryWorkoutSessionRepository(),
-  university: InMemoryUniversityRepository(),
   diet: InMemoryDietRepository(),
   ai: ai,
   child: const MaterialApp(home: AskPage()),

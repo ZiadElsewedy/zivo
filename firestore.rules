@@ -17,20 +17,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Tasks: each user reads/writes only their own tasks. Owner is the {userId}
-    // path segment. Basic field validation on create/update. Rules do not
-    // cascade from the parent /users/{userId} match, so this must be explicit.
-    match /users/{userId}/tasks/{taskId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.title is string
-        && request.resource.data.done is bool
-        && request.resource.data.priority is bool
-        && request.resource.data.schemaVersion is int;
-    }
-
     // Expenses: each user reads/writes only their own expenses (append-only log).
-    // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
+    // Rules do not cascade from the parent /users/{userId} match, so this is
+    // explicit. `allow delete` is split out from create/update: on a delete
+    // there is no `request.resource.data` (it's null), so the field checks
+    // below always evaluate false — a combined `allow write` with those
+    // checks silently denies every delete (this was live-tested: the
+    // client's `.doc(id).delete()` failed server-side while the Dismissible
+    // removed the row optimistically, so the row just reappeared on the next
+    // snapshot). See the same split used by workouts/moments/etc. below.
     match /users/{userId}/expenses/{expenseId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
@@ -59,28 +54,6 @@ service cloud.firestore {
         && request.resource.data.label is string
         && request.resource.data.emoji is string
         && request.resource.data.hue is string;
-      allow delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Schedule: each user reads/writes only their own events.
-    // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
-    match /users/{userId}/schedule/{eventId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.title is string
-        && request.resource.data.start is timestamp
-        && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Notes: each user reads/writes only their own notes.
-    // Rules do not cascade from the parent /users/{userId} match, so this is explicit.
-    match /users/{userId}/notes/{noteId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.body is string
-        && request.resource.data.updatedAt is timestamp
-        && request.resource.data.schemaVersion is int;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -155,18 +128,6 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // University: each user reads/writes only their own assignments/exams.
-    // Rules do not cascade from the parent /users/{userId} match, so explicit.
-    match /users/{userId}/universityItems/{itemId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.title is string
-        && request.resource.data.type is string
-        && request.resource.data.done is bool
-        && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
-    }
-
     // Diet plans: each user reads/writes only their own plan(s) (days/meals/items
     // embedded, like Workout's exercises). Rules do not cascade from the parent
     // /users/{userId} match, so this is explicit.
@@ -225,11 +186,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Nothing else is exposed to clients. All eight feature repositories
-    // (tasks, expenses, schedule, notes, workouts, moments, university, diet) are migrated,
-    // plus the workout-plan store (workoutPlans — the "what I SHOULD do" template),
-    // the workout-session store (workoutSessions — the guided execution record),
-    // the AI conversation store (aiConversations client-writable; messages/aiUsage
+    // Nothing else is exposed to clients. The feature repositories (expenses,
+    // workouts, moments, diet) are migrated, plus the workout-plan store
+    // (workoutPlans — the "what I SHOULD do" template), the workout-session
+    // store (workoutSessions — the guided execution record), the AI
+    // conversation store (aiConversations client-writable; messages/aiUsage
     // server-only), and the expenses wallet/expenseCategories subcollections
     // (running balance + user-created categories on top of the built-in set).
     match /{document=**} {

@@ -6,10 +6,6 @@ import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -21,14 +17,10 @@ Widget _host(FakeAiRepository ai) => AppScope(
   auth: FakeAuthRepository(),
   profiles: FakeProfileRepository(),
   expenses: InMemoryExpenseRepository(),
-  tasks: InMemoryTaskRepository(),
-  schedule: InMemoryScheduleRepository(),
-  notes: InMemoryNoteRepository(),
   moments: InMemoryMomentRepository(),
   workouts: InMemoryWorkoutRepository(),
   workoutPlans: InMemoryWorkoutPlanRepository(),
   workoutSessions: InMemoryWorkoutSessionRepository(),
-  university: InMemoryUniversityRepository(),
   diet: InMemoryDietRepository(),
   ai: ai,
   child: MaterialApp(home: const AskPage()),
@@ -100,10 +92,18 @@ void main() {
   testWidgets('an expense proposal renders the money card', (tester) async {
     final ai = FakeAiRepository();
     addTearDown(ai.dispose);
+    // A conversation must already exist for the AskPage to open into — a
+    // brand-new app has no conversations at all, and `proposeAction`'s
+    // default-conversation shortcut only applies to one created via
+    // `ensureConversation`, not the lazy "New chat" state AskPage now starts
+    // in (Phase A: conversations aren't persisted until a real message
+    // sends).
+    final conversationId = await ai.createConversation();
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
     ai.proposeAction(
+      conversationId: conversationId,
       kind: 'create_expense',
       summary: 'Log 12.00 EGP on coffee',
       fields: {'amount': '12.00', 'currency': 'EGP', 'category': 'coffee'},

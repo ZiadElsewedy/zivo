@@ -21,6 +21,8 @@
  */
 
 const {GatewayError} = require("./gateway");
+const {AnthropicProvider} = require("./providers/anthropic_provider");
+const {legacyAnthropicClient} = require("./providers/legacy_client");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
@@ -120,7 +122,7 @@ const IMPORT_TOOL = {
     "can fix anything before it's saved. Only call this when the document " +
     `genuinely is a workout/training plan with real, usable data — otherwise call ${REJECT_TOOL_NAME}.`,
   strict: true,
-  input_schema: WORKOUT_IMPORT_SCHEMA,
+  inputSchema: WORKOUT_IMPORT_SCHEMA,
 };
 
 const REJECT_TOOL = {
@@ -132,7 +134,7 @@ const REJECT_TOOL = {
     "or has a structure you can't reliably map to one. Never guess or " +
     "fabricate a plan to avoid calling this.",
   strict: true,
-  input_schema: REJECT_SCHEMA,
+  inputSchema: REJECT_SCHEMA,
 };
 
 // Untrusted content (ADR-002 guardrail): the PDF is the user's own document,
@@ -206,8 +208,14 @@ const DEFAULT_REJECTION_REASON =
  * content-policy refusal, an unparseable response).
  *
  * @param {!Object} args
- * @param {function(!Object): !Promise<!Object>} args.callModel One Anthropic
- *   `messages.create` call (the same seam shape `./gateway.js` uses).
+ * @param {(!Object)=} args.provider An `AiProvider`-shaped instance
+ *   (`./providers/provider.js`). This is the real seam production wiring
+ *   (`functions/index.js`) injects. When absent, `callModel` (below) is
+ *   wrapped into an `AnthropicProvider` instead — the legacy seam this
+ *   module's own tests (and any caller not yet updated) still use.
+ * @param {string=} args.model Provider-native model id. Defaults to `MODEL`.
+ * @param {function(!Object): !Promise<!Object>=} args.callModel Legacy seam:
+ *   one Anthropic `messages.create` call. Ignored when `provider` is given.
  * @param {string} args.pdfBase64 The PDF's bytes, base64-encoded, no
  *   newlines.
  * @param {function(!Object): void} [args.logEvent] Optional diagnostic
@@ -218,29 +226,30 @@ const DEFAULT_REJECTION_REASON =
  * @return {!Promise<{ok: true, planName: string, days: !Array<!Object>}|
  *   {ok: false, reason: string}>}
  */
-async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
+async function extractWorkoutPlan({
+  provider, model, callModel, pdfBase64, logEvent = () => {},
+}) {
   if (typeof pdfBase64 !== "string" || pdfBase64.trim() === "") {
     throw new GatewayError("invalid-argument", "A PDF is required.");
   }
 
-  const request = {
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
+  const activeProvider = provider ||
+    new AnthropicProvider(legacyAnthropicClient(callModel));
+  const normalizedRequest = {
+    model: model || MODEL,
+    maxTokens: MAX_TOKENS,
+    system: [{text: SYSTEM_PROMPT}],
     tools: [IMPORT_TOOL, REJECT_TOOL],
     // `any`, not a forced single tool: the model must call ONE of the two
     // tools (always structured output, never a free-text non-answer), but
     // gets to choose which — the whole point being it can genuinely decline
     // via `reject_import` instead of being forced into fabricating a plan.
-    tool_choice: {type: "any"},
+    toolChoice: "any",
     messages: [
       {
         role: "user",
         content: [
-          {
-            type: "document",
-            source: {type: "base64", media_type: "application/pdf", data: pdfBase64},
-          },
+          {type: "document", mediaType: "application/pdf", dataBase64: pdfBase64},
           {type: "text", text: "Extract the workout split from this document."},
         ],
       },
@@ -249,14 +258,14 @@ async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
 
   let response;
   try {
-    response = await callModel(request);
+    response = await activeProvider.generate(normalizedRequest);
   } catch (err) {
     throw new GatewayError(
         "internal", err.message || "Couldn't read that PDF. Please try again.");
   }
 
-  if (response.stop_reason === "refusal") {
-    logEvent({stage: "refusal", stopReason: response.stop_reason});
+  if (response.stopReason === "refusal") {
+    logEvent({stage: "refusal", stopReason: response.stopReason});
     throw new GatewayError(
         "failed-precondition", "That document couldn't be processed.");
   }
@@ -270,7 +279,7 @@ async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
       rejectCall.input.reason.trim() : DEFAULT_REJECTION_REASON;
     logEvent({
       stage: "rejected",
-      stopReason: response.stop_reason,
+      stopReason: response.stopReason,
       toolCalled: REJECT_TOOL_NAME,
       reason,
     });
@@ -282,7 +291,7 @@ async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
   if (!call) {
     logEvent({
       stage: "no_tool_call",
-      stopReason: response.stop_reason,
+      stopReason: response.stopReason,
       blockTypes: blocks.map((b) => b && b.type),
     });
     throw new GatewayError(
@@ -300,7 +309,7 @@ async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
   if (normalized.days.length === 0) {
     logEvent({
       stage: "rejected_empty_after_normalize",
-      stopReason: response.stop_reason,
+      stopReason: response.stopReason,
       toolCalled: TOOL_NAME,
       rawDayCount: Array.isArray(call.input && call.input.days) ?
         call.input.days.length : 0,
@@ -309,7 +318,7 @@ async function extractWorkoutPlan({callModel, pdfBase64, logEvent = () => {}}) {
   }
   logEvent({
     stage: "accepted",
-    stopReason: response.stop_reason,
+    stopReason: response.stopReason,
     toolCalled: TOOL_NAME,
     dayCount: normalized.days.length,
     exerciseCount: normalized.days.reduce((n, d) => n + d.exercises.length, 0),

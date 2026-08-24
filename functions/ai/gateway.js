@@ -16,6 +16,8 @@ const {randomUUID} = require("node:crypto");
 const {dayKeyFor} = require("./dates");
 const {tools} = require("./tools");
 const {mutatingTools, mutatingToolsByName} = require("./mutations");
+const {AnthropicProvider} = require("./providers/anthropic_provider");
+const {legacyAnthropicClient} = require("./providers/legacy_client");
 
 const MODEL = "claude-sonnet-5";
 
@@ -24,6 +26,17 @@ const allTools = tools.concat(mutatingTools);
 const allToolsByName = new Map(allTools.map((t) => [t.name, t]));
 
 const DEFAULT_CONVERSATION_TITLE = "Ask";
+
+// The user's reply-length/style preference (`users/{uid}/settings/ai`,
+// plumbed through `aiChat`'s `responseStyle` field). 'balanced' adds no
+// directive at all — the SYSTEM_PROMPT's own tone guidance already covers it.
+// An unrecognized value (never trust client input) falls back to 'balanced'.
+const RESPONSE_STYLE_DIRECTIVES = {
+  concise:
+    "Keep replies short and to the point — a sentence or two when you can.",
+  detailed:
+    "Give thorough, well-structured replies with useful depth.",
+};
 
 const DEFAULT_CONFIG = {
   // Max model↔tool round-trips per turn before aborting cleanly.
@@ -83,11 +96,15 @@ const PENDING_ACTION_MESSAGE =
 // Prompt-injection defense: tool output is the user's own stored data, never
 // instructions. This fence is load-bearing — do not remove it when editing
 // the rest of the prompt.
-const SYSTEM_PROMPT = `You are Ask, the built-in assistant inside ZIVO, a
-private single-user life-organizer app (tasks, schedule, expenses,
-university, workouts, diet, notes). You answer the user's questions using the
-tools provided, which read the user's own stored ZIVO data. You have no other
-source of truth and no memory beyond this conversation.
+const SYSTEM_PROMPT = `You are ZIVO, a warm, capable personal assistant.
+Answer ANY question the user asks using your own general knowledge, like a
+top-tier AI assistant — you are not limited to ZIVO topics. You ALSO have
+tools that read and act on the user's own data inside ZIVO, a private
+single-user life-organizer app (tasks, schedule, expenses, university,
+workouts, diet, notes). Use those tools only when the user asks about their
+own data or life, or wants to create something in ZIVO. For general
+questions, just answer directly and naturally — don't force ZIVO into the
+conversation. You have no memory beyond this conversation.
 
 You can help the user CREATE three kinds of thing — a task (create_task), an
 expense (create_expense), or a schedule event (create_event). These do NOT take
@@ -174,12 +191,12 @@ function stripEmptyThinking(content) {
 }
 
 /**
- * A persisted `{role, content, createdAt}` message mapped to the Anthropic
- * Messages API shape.
+ * A persisted `{role, content, createdAt}` message mapped to a
+ * `NormalizedMessage` (a plain-string message needs no further translation).
  * @param {{role: string, content: string}} message
  * @return {{role: string, content: string}}
  */
-function toAnthropicMessage(message) {
+function toNormalizedMessage(message) {
   return {role: message.role, content: message.content};
 }
 
@@ -205,13 +222,25 @@ function capToolResult(content, maxChars) {
  *
  * @param {!Object} args
  * @param {!Object} args.store The `FirestoreStore`-shaped read/write seam.
- * @param {function(!Object): !Promise<!Object>} args.callModel One
- *   Anthropic `messages.create` call.
+ * @param {(!Object)=} args.provider An `AiProvider`-shaped instance
+ *   (`./providers/provider.js`) — `{generate(normalizedRequest, {onText})}`.
+ *   This is the real seam production wiring (`functions/index.js`) injects.
+ *   When absent, `callModel`/`streamModel` (below) are wrapped into an
+ *   `AnthropicProvider` instead — the legacy seam this module's own tests
+ *   (and any caller not yet updated) still use.
+ * @param {string=} args.model Provider-native model id for this turn.
+ *   Defaults to `MODEL`. Ignored when a route with its own model resolves
+ *   `provider` (e.g. a router-backed provider from `functions/index.js`).
+ * @param {function(!Object): !Promise<!Object>=} args.callModel Legacy seam:
+ *   one Anthropic `messages.create` call. Ignored when `provider` is given.
  * @param {(function(!Object, function(string): void): !Promise<!Object>)=}
- *   args.streamModel Optional streaming seam: given the same request plus an
+ *   args.streamModel Legacy streaming seam: given the same request plus an
  *   `onText(delta)` callback, streams the model and resolves to the final
- *   message (same shape `callModel` returns). When absent, `callModel` is used
- *   and no text deltas are emitted — behavior is identical to a buffered turn.
+ *   message (same shape `callModel` returns). Ignored when `provider` is
+ *   given — pass `args.stream: true` instead to request streaming from it.
+ * @param {boolean=} args.stream Requests streaming from `provider`. Only
+ *   meaningful together with `provider`; with the legacy seam, streaming is
+ *   requested by passing `streamModel` instead.
  * @param {(function(!Object): void)=} args.onEvent Optional sink for live turn
  *   events — `{type:'phase', phase}` and `{type:'delta', text}`. Phases are
  *   derived from the loop's real state (never the model's reasoning). When
@@ -219,21 +248,32 @@ function capToolResult(content, maxChars) {
  * @param {string} args.uid
  * @param {string} args.conversationId
  * @param {string} args.message
+ * @param {string=} args.responseStyle The user's saved reply-length
+ *   preference ('concise'|'balanced'|'detailed'). Anything else (including
+ *   omitted) is treated as 'balanced' — never trust client input directly.
  * @param {(function(): !Date)|undefined} args.now Injectable clock.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
  * @return {!Promise<{status: string, assistantText: string, usage: ?Object}>}
  */
 async function runAiTurn({
   store,
+  provider,
+  model,
   callModel,
   streamModel,
+  stream,
   onEvent,
   uid,
   conversationId,
   message,
+  responseStyle,
   now,
   config,
 }) {
+  const activeProvider = provider ||
+    new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
+  const activeModel = model || MODEL;
+  const wantsStream = provider ? stream === true : typeof streamModel === "function";
   // A no-op sink keeps the streaming path off the hot path when unused.
   const emit = typeof onEvent === "function" ? onEvent : () => {};
   const emitPhase = (phase) => emit({type: "phase", phase});
@@ -284,13 +324,13 @@ async function runAiTurn({
 
   const history = await store.getRecentMessages(
       uid, conversationId, cfg.historyWindow);
-  const messages = history.map(toAnthropicMessage);
+  const messages = history.map(toNormalizedMessage);
   messages.push({role: "user", content: trimmed});
 
-  const toolSchemas = allTools.map((t) => ({
+  const normalizedTools = allTools.map((t) => ({
     name: t.name,
     description: t.description,
-    input_schema: t.inputSchema,
+    inputSchema: t.inputSchema,
   }));
 
   // The tool schemas + system prompt are a fixed, deterministically-ordered
@@ -298,11 +338,15 @@ async function runAiTurn({
   // tools → system → messages, so a single cache breakpoint on the system
   // block caches the tool schemas too — the whole static prefix reads back at
   // ~0.1x after the first call instead of full price. (ADR-003 Phase 3.5.)
-  const cachedSystem = [{
-    type: "text",
-    text: SYSTEM_PROMPT,
-    cache_control: {type: "ephemeral"},
-  }];
+  //
+  // The style directive (if any) is appended as an UNCACHED second block —
+  // it's short, per-user, and would otherwise invalidate the cache breakpoint
+  // on element 0 every time a user's preference differs from the last cached
+  // one. Element 0 (SYSTEM_PROMPT, cache: 'ephemeral') never changes here.
+  const styleDirective = RESPONSE_STYLE_DIRECTIVES[responseStyle];
+  const systemBlocks = styleDirective ?
+    [{text: SYSTEM_PROMPT, cache: "ephemeral"}, {text: styleDirective}] :
+    [{text: SYSTEM_PROMPT, cache: "ephemeral"}];
 
   let uncachedTokensIn = 0;
   let cacheReadTokens = 0;
@@ -325,34 +369,40 @@ async function runAiTurn({
 
   for (let i = 0; i < cfg.maxIterations; i++) {
     iterations = i + 1;
-    const req = {
-      model: MODEL,
-      max_tokens: cfg.maxTokens,
-      system: cachedSystem,
-      tools: toolSchemas,
+    const normalizedRequest = {
+      model: activeModel,
+      maxTokens: cfg.maxTokens,
+      system: systemBlocks,
+      tools: normalizedTools,
       messages,
     };
-    const resp = streamModel ?
-      await streamModel(req, (text) => emit({type: "delta", text})) :
-      await callModel(req);
+    const resp = await activeProvider.generate(normalizedRequest, wantsStream ?
+      {onText: (text) => emit({type: "delta", text})} : undefined);
 
     const usage = resp.usage || {};
-    uncachedTokensIn += usage.input_tokens || 0;
-    cacheReadTokens += usage.cache_read_input_tokens || 0;
-    cacheWriteTokens += usage.cache_creation_input_tokens || 0;
-    tokensOut += usage.output_tokens || 0;
+    uncachedTokensIn += usage.inputTokens || 0;
+    cacheReadTokens += usage.cacheReadTokens || 0;
+    cacheWriteTokens += usage.cacheWriteTokens || 0;
+    tokensOut += usage.outputTokens || 0;
 
-    if (resp.stop_reason === "refusal") {
+    if (resp.stopReason === "refusal") {
       refusal = true;
       break;
     }
 
-    if (resp.stop_reason !== "tool_use") {
+    if (resp.stopReason !== "tool_use") {
       finalText = extractText(resp.content);
       break;
     }
 
-    messages.push({role: "assistant", content: stripEmptyThinking(resp.content)});
+    // Round-trips the assistant turn verbatim (a signed `thinking` block's
+    // signature included) by carrying each block's provider-native `raw`
+    // through a `NormalizedRawPart` rather than reconstructing it from the
+    // normalized convenience fields.
+    messages.push({
+      role: "assistant",
+      content: stripEmptyThinking(resp.content).map((b) => ({type: "raw", raw: b.raw})),
+    });
 
     const toolResults = [];
     let proposal = null;
@@ -371,9 +421,9 @@ async function runAiTurn({
         } catch (err) {
           toolResults.push({
             type: "tool_result",
-            tool_use_id: block.id,
+            toolUseId: block.id,
             content: JSON.stringify({error: err.message || "Invalid input."}),
-            is_error: true,
+            isError: true,
           });
         }
         continue;
@@ -401,11 +451,11 @@ async function runAiTurn({
       }
       const toolResult = {
         type: "tool_result",
-        tool_use_id: block.id,
+        toolUseId: block.id,
         content: capToolResult(
             JSON.stringify(resultPayload), cfg.maxToolResultChars),
       };
-      if (isError) toolResult.is_error = true;
+      if (isError) toolResult.isError = true;
       toolResults.push(toolResult);
     }
 
@@ -500,7 +550,7 @@ async function runAiTurn({
     tools: toolCalls,
     iterations,
     latencyMs: finishedAt.getTime() - turnNow.getTime(),
-    model: MODEL,
+    model: activeModel,
     createdAt: finishedAt,
     schemaVersion: 2,
   };

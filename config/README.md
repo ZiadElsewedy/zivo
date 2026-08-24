@@ -15,7 +15,6 @@ These JSON files hold **non-secret** environment values, passed at build time vi
 | Key | Type | Meaning |
 |-----|------|---------|
 | `USE_FIRESTORE` | bool | Persist to Firestore (`false` = in-memory/offline dev). |
-| `FORCE_APP_CHECK_DEBUG` | bool | **Diagnostic only** — force App Check debug providers even in Profile. Leave `false` for real M7 runs so attestation stays production-like. |
 
 ## No secrets here
 

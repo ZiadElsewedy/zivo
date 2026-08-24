@@ -5,6 +5,7 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../domain/body_weight_entry.dart';
@@ -15,6 +16,8 @@ import '../../domain/training_dashboard_stats.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/weight_trend.dart';
 import '../../domain/workout_plan.dart';
+import '../widgets/animated_stat_value.dart';
+import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/up_next_workout_card.dart';
 import '../widgets/workout_section_label.dart';
@@ -47,11 +50,16 @@ class WorkoutDashboardPage extends StatelessWidget {
         iconTheme: const IconThemeData(color: AppColors.ink2),
         title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
         actions: [
-          IconButton(
-            tooltip: 'Progress',
-            icon: const Icon(Icons.insights_rounded, color: AppColors.ink2),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const WorkoutProgressPage()),
+          PressableScale(
+            child: IconButton(
+              tooltip: 'Progress',
+              icon: const Icon(Icons.insights_rounded, color: AppColors.ink2),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutProgressPage()),
+                );
+              },
             ),
           ),
         ],
@@ -90,22 +98,60 @@ class WorkoutDashboardPage extends StatelessWidget {
                   // lives on `WorkoutProgressPage` (the AppBar's Progress
                   // action) so this landing stays calm and scannable.
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
+                    // This page is pushed (its own AppBar, no bottom nav), so
+                    // the bottom padding only needs to clear the home indicator
+                    // plus a small margin — not the ~110 nav-bar clearance a
+                    // tab page would reserve, which here left a large dead band
+                    // of blank space under the last card.
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      8,
+                      22,
+                      MediaQuery.of(context).padding.bottom + 24,
+                    ),
+                    // Each block staggers in as its own step (see
+                    // StaggeredReveal) rather than the page popping in all at
+                    // once — the spacers between them are left unwrapped so
+                    // the layout rhythm doesn't shift.
                     children: [
-                      if (selection.day != null)
-                        UpNextWorkoutCard(plan: plan, day: selection.day!, resumable: selection.resumable),
+                      if (selection.day != null) ...[
+                        StaggeredReveal(
+                          index: 0,
+                          child: UpNextWorkoutCard(
+                            plan: plan,
+                            day: selection.day!,
+                            resumable: selection.resumable,
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                      ],
+                      StaggeredReveal(
+                        index: selection.day != null ? 1 : 0,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const WorkoutSectionLabel('This week'),
+                            const SizedBox(height: 10),
+                            _StatsGrid(stats: stats),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 30),
-                      const WorkoutSectionLabel('This week'),
-                      const SizedBox(height: 10),
-                      _StatsGrid(stats: stats),
-                      const SizedBox(height: 30),
-                      const WorkoutSectionLabel('Bodyweight'),
-                      const SizedBox(height: 10),
-                      _WeightCard(
-                        trend: weightTrend,
-                        onLogWeight: bodyWeight == null
-                            ? null
-                            : () => _showLogWeightSheet(context, bodyWeight),
+                      StaggeredReveal(
+                        index: selection.day != null ? 2 : 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const WorkoutSectionLabel('Bodyweight'),
+                            const SizedBox(height: 10),
+                            _WeightCard(
+                              trend: weightTrend,
+                              onLogWeight: bodyWeight == null
+                                  ? null
+                                  : () => _showLogWeightSheet(context, bodyWeight),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   );
@@ -175,6 +221,7 @@ Future<void> _showLogWeightSheet(BuildContext context, BodyWeightRepository body
               onTap: () {
                 final value = double.tryParse(controller.text);
                 if (value == null || value <= 0) return;
+                HapticFeedback.lightImpact();
                 bodyWeight.save(
                   BodyWeightEntry(
                     id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -263,7 +310,7 @@ class _StatTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: AppText.heroNumber.copyWith(fontSize: 24, color: AppColors.ink)),
+          AnimatedStatValue(value: value, style: AppText.heroNumber.copyWith(fontSize: 24, color: AppColors.ink)),
           const SizedBox(height: 2),
           Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
         ],
@@ -295,16 +342,20 @@ class _WeightCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                latest == null ? '—' : '${_trimNumber(latest.weightKg)} kg',
+              AnimatedStatValue(
+                value: latest == null ? '—' : '${_trimNumber(latest.weightKg)} kg',
                 style: AppText.heroNumber.copyWith(fontSize: 28, color: AppColors.ink),
               ),
               if (change != null) ...[
                 const SizedBox(width: 10),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 5),
-                  child: Text(
-                    '${change > 0 ? '+' : ''}${_trimNumber(change)}kg / 30d',
+                  // Color here is semantic (gaining vs. losing) — an implicit
+                  // tween is fine per the motion guardrails, folded into the
+                  // same fade+slide via AnimatedSwitcher rather than a bare
+                  // color snap.
+                  child: AnimatedStatValue(
+                    value: '${change > 0 ? '+' : ''}${_trimNumber(change)}kg / 30d',
                     style: AppText.meta.copyWith(
                       color: change > 0 ? AppColors.flare : AppColors.pulse,
                       fontWeight: FontWeight.w600,
@@ -419,17 +470,25 @@ class _NoPlanState extends StatelessWidget {
                 icon: Icons.upload_file_rounded,
                 color: AppColors.pulse,
                 enabled: true,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
-                ),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(initialPlan: null)),
+            PressableScale(
+              child: TextButton(
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(initialPlan: null)),
+                  );
+                },
+                child: Text('Build manually instead', style: AppText.meta.copyWith(color: AppColors.ink2)),
               ),
-              child: Text('Build manually instead', style: AppText.meta.copyWith(color: AppColors.ink2)),
             ),
           ],
         ),

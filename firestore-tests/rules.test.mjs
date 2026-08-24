@@ -6,11 +6,11 @@
 //
 // Covers PLAN §10/§20/§28: deny-by-default, per-user ownership isolation,
 // per-collection field validation, and the Functions-only emailOtps lockout —
-// for all twelve persisted collections (across eight feature repositories, plus the
-// workout-plan template store and the workout-session execution-record store)
-// plus the user profile doc, plus the AI conversation
-// store (ADR-001): client-writable
-// `aiConversations`, and server-only `messages`/`aiUsage`.
+// for each persisted collection (across the expenses/workouts/moments/diet
+// feature repositories, plus the workout-plan template store and the
+// workout-session execution-record store) plus the user profile doc, plus
+// the AI conversation store (ADR-001): client-writable `aiConversations`,
+// and server-only `messages`/`aiUsage`.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -32,13 +32,9 @@ const ts = () => Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
 
 // Valid payloads that satisfy each collection's field validation.
 const valid = {
-  tasks: { title: 'T', done: false, priority: false, schemaVersion: 1 },
   expenses: { amountMinor: 100, currency: 'EGP', category: 'food', spentAt: ts(), schemaVersion: 1 },
-  schedule: { title: 'E', start: ts(), schemaVersion: 1 },
-  notes: { body: 'B', updatedAt: ts(), schemaVersion: 1 },
   workouts: { title: 'W', performedAt: ts(), exercises: [], schemaVersion: 1 },
   moments: { caption: 'M', takenAt: ts(), schemaVersion: 1 },
-  universityItems: { title: 'U', type: 'assignment', done: false, schemaVersion: 1 },
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
   workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
@@ -48,13 +44,9 @@ const valid = {
 
 // Each violates exactly one validation clause of its collection's write rule.
 const invalid = {
-  tasks: { title: 'T', done: false, priority: false }, // missing schemaVersion
   expenses: { amountMinor: -5, currency: 'EGP', category: 'food', spentAt: ts(), schemaVersion: 1 }, // amount < 0
-  schedule: { title: 123, start: ts(), schemaVersion: 1 }, // title not a string
-  notes: { body: 'B', updatedAt: 'not-a-timestamp', schemaVersion: 1 }, // updatedAt not a timestamp
   workouts: { title: 'W', performedAt: ts(), exercises: 'nope', schemaVersion: 1 }, // exercises not a list
   moments: { caption: 'M', takenAt: ts() }, // missing schemaVersion
-  universityItems: { title: 'U', type: 'assignment', done: 'yes', schemaVersion: 1 }, // done not a bool
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
   workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
@@ -95,7 +87,7 @@ describe('deny-by-default', () => {
   });
 
   it('unauthenticated cannot write feature data', async () => {
-    await assertFails(setDoc(doc(anonDb(), collPath(OWNER, 'tasks')), valid.tasks));
+    await assertFails(setDoc(doc(anonDb(), collPath(OWNER, 'expenses')), valid.expenses));
   });
 
   it('authenticated user cannot touch an unknown top-level collection (catch-all)', async () => {
@@ -209,30 +201,9 @@ describe('aiUsage is Functions-only (owner may read, no client may write)', () =
   });
 });
 
-describe('tasks update path (mirrors setDone)', () => {
-  it('owner can flip done on an existing valid doc; non-owner cannot', async () => {
-    await seed(collPath(OWNER, 'tasks'), valid.tasks);
-    await assertSucceeds(updateDoc(doc(ownerDb(), collPath(OWNER, 'tasks')), { done: true }));
-    await assertFails(updateDoc(doc(otherDb(), collPath(OWNER, 'tasks')), { done: true }));
-  });
-});
-
-describe('schedule delete path', () => {
-  it('owner can delete their own event; non-owner cannot', async () => {
-    await seed(collPath(OWNER, 'schedule'), valid.schedule);
-    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'schedule'))));
-    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'schedule'))));
-  });
-});
-
-describe('notes delete path', () => {
-  it('owner can delete their own note; non-owner cannot', async () => {
-    await seed(collPath(OWNER, 'notes'), valid.notes);
-    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'notes'))));
-    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'notes'))));
-  });
-});
-
+// Regression test for a real bug: `allow write` combined with field
+// validation denies every delete, since `request.resource.data` is null on
+// delete (see firestore.rules' comment on this collection).
 describe('expenses delete path', () => {
   it('owner can delete their own expense; non-owner cannot', async () => {
     await seed(collPath(OWNER, 'expenses'), valid.expenses);
@@ -273,10 +244,3 @@ describe('workoutSessions delete path', () => {
   });
 });
 
-describe('universityItems delete path', () => {
-  it('owner can delete their own item; non-owner cannot', async () => {
-    await seed(collPath(OWNER, 'universityItems'), valid.universityItems);
-    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'universityItems'))));
-    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'universityItems'))));
-  });
-});

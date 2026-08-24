@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
+import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -177,7 +179,7 @@ class _DayChips extends StatelessWidget {
   }
 }
 
-class _DayChip extends StatelessWidget {
+class _DayChip extends StatefulWidget {
   const _DayChip({required this.label, required this.active, required this.onTap});
 
   final String label;
@@ -185,24 +187,66 @@ class _DayChip extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_DayChip> createState() => _DayChipState();
+}
+
+class _DayChipState extends State<_DayChip> with SingleTickerProviderStateMixin {
+  /// Rest value is always 1.0 — becoming active doesn't leave the chip
+  /// permanently bigger, it just "twangs" the spring with a velocity kick
+  /// (no target displacement), so the underdamped [AppSprings.bounce] briefly
+  /// overshoots past 1.0 and eases back, reading as a tap-earned pop.
+  late final AnimationController _pop = AnimationController(vsync: this, value: 1);
+
+  @override
+  void didUpdateWidget(covariant _DayChip old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active && !reducedMotion(context)) {
+      _pop.springTo(1, spring: AppSprings.bounce, velocity: 6);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pop.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (!widget.active) HapticFeedback.selectionClick();
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: active ? AppColors.pulse : AppColors.card,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-          decoration: BoxDecoration(
+    return AnimatedBuilder(
+      animation: _pop,
+      builder: (context, child) => Transform.scale(scale: _pop.value, child: child),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: widget.active ? AppColors.pulse : AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: widget.active ? Colors.transparent : AppColors.hairline2),
+        ),
+        child: Material(
+          // Transparent — the fill above already carries the animated
+          // color; this only exists so InkWell's splash has a Material
+          // ancestor, and it paints on top of that fill, not under it.
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: InkWell(
+            onTap: _handleTap,
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: active ? Colors.transparent : AppColors.hairline2),
-          ),
-          child: Text(
-            label,
-            style: AppText.meta.copyWith(
-              color: active ? Colors.white : AppColors.ink2,
-              fontWeight: FontWeight.w700,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+              child: Text(
+                widget.label,
+                style: AppText.meta.copyWith(
+                  color: widget.active ? Colors.white : AppColors.ink2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ),
@@ -289,15 +333,38 @@ class _ProgressHero extends StatelessWidget {
         : '${analysis.improvedCount} improved · ${analysis.matchedCount} matched · '
               '${analysis.regressedCount} regressed';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(analysis.day.label.toUpperCase(), style: AppText.sectionLabel.copyWith(color: color)),
-        const SizedBox(height: 6),
-        Text(headline, style: AppText.cardTitle.copyWith(fontSize: 32, color: AppColors.ink)),
-        const SizedBox(height: 10),
-        Text(detail, style: AppText.aside.copyWith(fontSize: 17, color: AppColors.ink2)),
-      ],
+    // Keyed by day + verdict (not just day) so a same-day re-analysis whose
+    // verdict actually changed (e.g. a new session lands mid-view) still
+    // reads as a change, not a silent text swap — and the label's verdict
+    // color, switched in as part of the same subtree, rides along with it
+    // instead of snapping ahead of the text.
+    return AnimatedSwitcher(
+      duration: reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 240),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        // Transform.translate (pixels), not SlideTransition (fractional of
+        // the child's own size) — a fixed ~6px reads the same regardless of
+        // how tall the headline/detail text wraps to.
+        child: AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) =>
+              Transform.translate(offset: Offset(0, (1 - animation.value) * 6), child: child),
+          child: child,
+        ),
+      ),
+      child: Column(
+        key: ValueKey('${analysis.day.id}_$overall'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(analysis.day.label.toUpperCase(), style: AppText.sectionLabel.copyWith(color: color)),
+          const SizedBox(height: 6),
+          Text(headline, style: AppText.cardTitle.copyWith(fontSize: 32, color: AppColors.ink)),
+          const SizedBox(height: 10),
+          Text(detail, style: AppText.aside.copyWith(fontSize: 17, color: AppColors.ink2)),
+        ],
+      ),
     );
   }
 }

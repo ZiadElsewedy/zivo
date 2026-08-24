@@ -6,10 +6,6 @@ import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -27,14 +23,10 @@ void main() {
         auth: FakeAuthRepository(),
         profiles: FakeProfileRepository(),
         expenses: InMemoryExpenseRepository(),
-        tasks: InMemoryTaskRepository(),
-        schedule: InMemoryScheduleRepository(),
-        notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
-        university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: ai,
         child: const MaterialApp(home: AskPage()),
@@ -42,7 +34,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ask about your day.'), findsOneWidget);
+    expect(find.text("Hey, I'm ZIVO."), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'What is due this week?');
     await tester.pump();
@@ -63,14 +55,10 @@ void main() {
         auth: FakeAuthRepository(),
         profiles: FakeProfileRepository(),
         expenses: InMemoryExpenseRepository(),
-        tasks: InMemoryTaskRepository(),
-        schedule: InMemoryScheduleRepository(),
-        notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
-        university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: ai,
         child: MediaQuery(

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../media/media_service.dart';
+import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
@@ -10,10 +11,6 @@ import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/expenses/domain/expenses_service.dart';
 import '../../features/expenses/domain/wallet_repository.dart';
 import '../../features/moments/domain/moment_repository.dart';
-import '../../features/notes/domain/note_repository.dart';
-import '../../features/schedule/domain/schedule_repository.dart';
-import '../../features/tasks/domain/task_repository.dart';
-import '../../features/university/domain/university_repository.dart';
 import '../../features/workout/domain/body_weight_repository.dart';
 import '../../features/workout/domain/workout_plan_repository.dart';
 import '../../features/workout/domain/workout_repository.dart';
@@ -30,17 +27,14 @@ class AppScope extends InheritedWidget {
     required this.expenses,
     this.wallet,
     this.expenseCategories,
-    required this.tasks,
-    required this.schedule,
-    required this.notes,
     required this.moments,
     required this.workouts,
     required this.workoutPlans,
     required this.workoutSessions,
     this.bodyWeight,
-    required this.university,
     required this.diet,
     required this.ai,
+    this.recorder,
     this.media,
     required super.child,
     super.key,
@@ -62,9 +56,6 @@ class AppScope extends InheritedWidget {
   final WalletRepository? wallet;
   final CategoryRepository? expenseCategories;
 
-  final TaskRepository tasks;
-  final ScheduleRepository schedule;
-  final NoteRepository notes;
   final MomentRepository moments;
   final WorkoutRepository workouts;
   final WorkoutPlanRepository workoutPlans;
@@ -77,13 +68,29 @@ class AppScope extends InheritedWidget {
   /// keep constructing a scope without it; production and dashboard tests
   /// always provide one. Read it through [requireBodyWeight].
   final BodyWeightRepository? bodyWeight;
-  final UniversityRepository university;
   final DietRepository diet;
 
   /// The AI assistant ("Ask") seam. Today's default is a pure in-memory
   /// `FakeAiRepository`; the real Firestore + `aiChat` gateway impl arrives
   /// once the server half is built and deployed.
   final AiRepository ai;
+
+  /// The composer's voice-note recorder — `record`-backed in production.
+  ///
+  /// Optional so the many widget tests that don't exercise the mic button can
+  /// keep constructing a scope without it; production and Ask-page mic tests
+  /// always provide one. Read it through [requireRecorder].
+  final AudioRecorderService? recorder;
+
+  /// The composer's voice-note recorder, asserting it was provided. Use from
+  /// the Ask page's mic button — production always wires it.
+  AudioRecorderService get requireRecorder {
+    assert(
+      recorder != null,
+      'AppScope.recorder was not provided to this scope',
+    );
+    return recorder!;
+  }
 
   /// The media pipeline: durable local storage of captured photos, per-account
   /// backup fan-out (Photos now, Drive next), read-side resolution, and — via
@@ -127,7 +134,10 @@ class AppScope extends InheritedWidget {
   /// The bodyweight repository, asserting it was provided. Use from the
   /// Workout Dashboard — production always wires it.
   BodyWeightRepository get requireBodyWeight {
-    assert(bodyWeight != null, 'AppScope.bodyWeight was not provided to this scope');
+    assert(
+      bodyWeight != null,
+      'AppScope.bodyWeight was not provided to this scope',
+    );
     return bodyWeight!;
   }
 
@@ -144,16 +154,13 @@ class AppScope extends InheritedWidget {
       expenses != oldWidget.expenses ||
       wallet != oldWidget.wallet ||
       expenseCategories != oldWidget.expenseCategories ||
-      tasks != oldWidget.tasks ||
-      schedule != oldWidget.schedule ||
-      notes != oldWidget.notes ||
       moments != oldWidget.moments ||
       workouts != oldWidget.workouts ||
       workoutPlans != oldWidget.workoutPlans ||
       workoutSessions != oldWidget.workoutSessions ||
       bodyWeight != oldWidget.bodyWeight ||
-      university != oldWidget.university ||
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||
+      recorder != oldWidget.recorder ||
       media != oldWidget.media;
 }

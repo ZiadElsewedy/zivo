@@ -35,6 +35,27 @@
 				<string>com.googleusercontent.apps.317167114617-0121shq836kobi92npegqpu6vv9m3p3q</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Spotify App Remote (spotify_sdk / lib/features/music):
+				     must exactly match spotifyRedirectUri's scheme in
+				     music_config.dart ('zivo://spotify-callback') and the
+				     Redirect URI registered for this app's Client ID on the
+				     Spotify Developer Dashboard. -->
+				<string>zivo</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- Spotify App Remote needs this to detect/launch the Spotify app
+		     (SpotifyMusicController maps a missing entry here to the
+		     noSpotifyApp connection state either way, but without it the
+		     detection itself can misfire). -->
+		<string>spotify</string>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
@@ -46,6 +67,8 @@
 	<string>ZIVO needs access to your photos so you can attach one to a moment.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>ZIVO saves photos you capture in the app to your Photos library when you turn on Save to Photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ZIVO uses the microphone so Ask can transcribe a voice note you record.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

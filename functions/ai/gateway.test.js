@@ -464,6 +464,69 @@ test("the tool schemas + system prompt are sent as a cached prefix", async () =>
   assert.deepEqual(req.system[0].cache_control, {type: "ephemeral"});
 });
 
+test("responseStyle 'balanced' (and an omitted/unrecognized value) adds " +
+    "no second system block", async () => {
+  for (const responseStyle of [undefined, "balanced", "garbage"]) {
+    const store = makeStore();
+    const callModel = scriptedModel([
+      {
+        stop_reason: "end_turn",
+        content: [{type: "text", text: "hi"}],
+        usage: {input_tokens: 5, output_tokens: 2},
+      },
+    ]);
+
+    await runAiTurn({
+      store,
+      callModel,
+      uid: UID,
+      conversationId: CONVERSATION_ID,
+      message: "hello",
+      responseStyle,
+      now: makeClock(0),
+    });
+
+    const req = callModel.requests[0];
+    assert.equal(req.system.length, 1);
+    assert.equal(req.system[0].text, SYSTEM_PROMPT);
+  }
+});
+
+test("responseStyle 'concise'/'detailed' append an UNCACHED second system " +
+    "block after SYSTEM_PROMPT — the cache breakpoint on element 0 is " +
+    "untouched", async () => {
+  for (const responseStyle of ["concise", "detailed"]) {
+    const store = makeStore();
+    const callModel = scriptedModel([
+      {
+        stop_reason: "end_turn",
+        content: [{type: "text", text: "hi"}],
+        usage: {input_tokens: 5, output_tokens: 2},
+      },
+    ]);
+
+    await runAiTurn({
+      store,
+      callModel,
+      uid: UID,
+      conversationId: CONVERSATION_ID,
+      message: "hello",
+      responseStyle,
+      now: makeClock(0),
+    });
+
+    const req = callModel.requests[0];
+    assert.equal(req.system.length, 2);
+    assert.equal(req.system[0].text, SYSTEM_PROMPT);
+    assert.deepEqual(req.system[0].cache_control, {type: "ephemeral"});
+    assert.equal(req.system[1].cache_control, undefined);
+    assert.match(
+        req.system[1].text,
+        responseStyle === "concise" ? /short/i : /thorough/i,
+    );
+  }
+});
+
 test("cache read/write tokens are logged and priced at their discounts",
     async () => {
       const store = makeStore();

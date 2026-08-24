@@ -10,10 +10,6 @@ import 'package:zivo/features/expenses/data/in_memory_category_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_wallet_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -31,8 +27,7 @@ void main() {
   ) async {
     // Today is a lazy ListView, so give the test a tall viewport to ensure
     // every section (through the Training card near the bottom) is built and
-    // findable — the seeded focus list can otherwise push lower sections out
-    // of the default 800x600 surface's build region.
+    // findable within the default 800x600 surface's build region.
     tester.view.physicalSize = const Size(1200, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -41,9 +36,9 @@ void main() {
     // Boot the app with a pre-authenticated fake so the gate shows the shell
     // (Today) rather than the auth screen, and Firebase is never touched. A
     // fake profile repo (complete by default) keeps Firestore out of the test,
-    // and in-memory tasks/expenses/schedule/notes/moments/workouts/university
-    // repos override the Firestore-backed defaults so Today's sections render
-    // without a live backend. A workout is logged today too ("Pull") — the
+    // and in-memory expenses/moments/workouts repos override the
+    // Firestore-backed defaults so Today's sections render without a live
+    // backend. A workout is logged today too ("Pull") — the
     // Training card must show the active plan's up-next day ("Push", from
     // the default `InMemoryWorkoutPlanRepository` seed, cycleCursor 0) NOT
     // roll back to reflect what was just logged, so the workout repo here
@@ -67,18 +62,14 @@ void main() {
           initial: const Authenticated(AuthUser(uid: 'test-uid')),
         ),
         profiles: FakeProfileRepository(),
-        tasks: InMemoryTaskRepository(),
         expenses: InMemoryExpenseRepository(),
         wallet: InMemoryWalletRepository(),
         expenseCategories: InMemoryCategoryRepository(),
-        schedule: InMemoryScheduleRepository(),
-        notes: InMemoryNoteRepository(),
         moments: InMemoryMomentRepository(),
         workouts: workouts,
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
         bodyWeight: InMemoryBodyWeightRepository(),
-        university: InMemoryUniversityRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),
         media: testMediaService(),
@@ -94,13 +85,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.textContaining('Ziad'), findsOneWidget); // greeting
-    expect(find.text('Data Structures'), findsOneWidget);
     // The plan's up-next day ("Push", order 0) — not "Pull", the workout
     // logged today (see the seeding comment above for why that matters).
     expect(find.text('Push'), findsOneWidget);
     expect(find.text('Start Workout'), findsOneWidget);
     expect(find.text('Pull'), findsNothing);
     expect(find.text('Bench Press'), findsNothing);
-    expect(find.text('TODAY'), findsWidgets); // section label + tab
+    expect(find.text('TODAY'), findsWidgets); // bottom tab label
   });
 }

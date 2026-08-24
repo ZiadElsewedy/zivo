@@ -8,11 +8,15 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../../core/firebase/uid_source.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
+import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
+import '../domain/stt_error.dart';
+import '../domain/stt_outcome.dart';
 
 /// The real [AiRepository], backed by Firestore's
 /// `users/{uid}/aiConversations` (+ nested `messages`) and the `aiChat`
@@ -36,44 +40,83 @@ class FirebaseAiRepository implements AiRepository {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
     required this.uidSource,
-    Future<void> Function(String conversationId, String message)?
+    Future<void> Function(String conversationId, String message, String responseStyle)?
     invokeChat,
-    Future<void> Function(String conversationId, String message,
-        void Function(AiTurnEvent event) onEvent)?
+    Future<void> Function(
+      String conversationId,
+      String message,
+      String responseStyle,
+      void Function(AiTurnEvent event) onEvent,
+    )?
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? invokeImport,
+    Future<SttOutcome> Function(
+      Uint8List audioBytes,
+      String mimeType,
+      String? languageHint,
+    )?
+    invokeTranscribe,
+    Future<void> Function(String conversationId)? invokeDelete,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _invokeChat = invokeChat ?? _defaultInvokeChat(functions),
        _invokeChatStream =
            invokeChatStream ?? _defaultInvokeChatStream(functions),
        _invokeAction = invokeAction ?? _defaultInvokeAction(functions),
-       _invokeImport = invokeImport ?? _defaultInvokeImport(functions);
+       _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
+       _invokeTranscribe =
+           invokeTranscribe ?? _defaultInvokeTranscribe(functions),
+       _invokeDelete = invokeDelete ?? _defaultInvokeDelete(functions);
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
-  final Future<void> Function(String conversationId, String message)
+  final Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+  )
   _invokeChat;
-  final Future<void> Function(String conversationId, String message,
-      void Function(AiTurnEvent event) onEvent) _invokeChatStream;
-  final Future<void> Function(String name, String conversationId,
-      String actionId) _invokeAction;
+  final Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+    void Function(AiTurnEvent event) onEvent,
+  )
+  _invokeChatStream;
+  final Future<void> Function(
+    String name,
+    String conversationId,
+    String actionId,
+  )
+  _invokeAction;
   final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _invokeImport;
+  final Future<SttOutcome> Function(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  )
+  _invokeTranscribe;
+  final Future<void> Function(String conversationId) _invokeDelete;
 
   String? _cachedConversationId;
 
   /// The default `send` invoker. Resolves [FirebaseFunctions] **lazily inside
   /// the returned closure** (never at construction), so the repo can be built
   /// — and unit-tested with a fake Firestore — without a live Firebase app.
-  static Future<void> Function(String conversationId, String message)
+  static Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+  )
   _defaultInvokeChat(FirebaseFunctions? functions) {
-    return (conversationId, message) async {
+    return (conversationId, message, responseStyle) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
+        'responseStyle': responseStyle,
       });
     };
   }
@@ -83,16 +126,20 @@ class FirebaseAiRepository implements AiRepository {
   /// [onEvent]. The terminating `Result` is ignored — the durable user and
   /// assistant messages arrive via [watchMessages], same as the buffered path.
   /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily.
-  static Future<void> Function(String conversationId, String message,
-      void Function(AiTurnEvent event) onEvent) _defaultInvokeChatStream(
-    FirebaseFunctions? functions,
-  ) {
-    return (conversationId, message, onEvent) async {
+  static Future<void> Function(
+    String conversationId,
+    String message,
+    String responseStyle,
+    void Function(AiTurnEvent event) onEvent,
+  )
+  _defaultInvokeChatStream(FirebaseFunctions? functions) {
+    return (conversationId, message, responseStyle, onEvent) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final stream = f.httpsCallable('aiChat').stream({
         'conversationId': conversationId,
         'message': message,
+        'responseStyle': responseStyle,
       });
       await for (final response in stream) {
         if (response is Chunk) {
@@ -106,14 +153,33 @@ class FirebaseAiRepository implements AiRepository {
   /// The default confirm/cancel invoker — calls `aiConfirmAction` or
   /// `aiCancelAction`. Like [_defaultInvokeChat], resolves [FirebaseFunctions]
   /// lazily so the repo builds without a live Firebase app.
-  static Future<void> Function(String name, String conversationId,
-      String actionId) _defaultInvokeAction(FirebaseFunctions? functions) {
+  static Future<void> Function(
+    String name,
+    String conversationId,
+    String actionId,
+  )
+  _defaultInvokeAction(FirebaseFunctions? functions) {
     return (name, conversationId, actionId) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f.httpsCallable(name).call({
         'conversationId': conversationId,
         'actionId': actionId,
+      });
+    };
+  }
+
+  /// The default `deleteConversation` invoker — calls `aiDeleteConversation`.
+  /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the
+  /// repo builds without a live Firebase app.
+  static Future<void> Function(String conversationId) _defaultInvokeDelete(
+    FirebaseFunctions? functions,
+  ) {
+    return (conversationId) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      await f.httpsCallable('aiDeleteConversation').call({
+        'conversationId': conversationId,
       });
     };
   }
@@ -131,6 +197,40 @@ class FirebaseAiRepository implements AiRepository {
         'pdfBase64': base64Encode(pdfBytes),
       });
       return _importOutcomeFromJson(result.data);
+    };
+  }
+
+  /// The default `transcribe` invoker — calls `aiTranscribe`
+  /// (`functions/ai/speech/gateway.js`) with the audio base64-encoded. Like
+  /// [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the repo
+  /// builds without a live Firebase app. Never throws: every failure —
+  /// technical or a typed `SpeechError` from the server — maps to
+  /// [SttFailed], mirroring [_importOutcomeFromJson]'s never-throws contract
+  /// for the analogous `aiImportWorkoutPlan` seam.
+  static Future<SttOutcome> Function(
+    Uint8List audioBytes,
+    String mimeType,
+    String? languageHint,
+  )
+  _defaultInvokeTranscribe(FirebaseFunctions? functions) {
+    return (audioBytes, mimeType, languageHint) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      try {
+        final result = await f.httpsCallable('aiTranscribe').call({
+          'audioBase64': base64Encode(audioBytes),
+          'mimeType': mimeType,
+          'languageHint': ?languageHint,
+        });
+        return _sttOutcomeFromJson(result.data);
+      } on FirebaseFunctionsException catch (e) {
+        return SttFailed(
+          _sttErrorFromException(e),
+          e.message ?? _genericSttFailureMessage,
+        );
+      } catch (_) {
+        return const SttFailed(SttError.unknown, _genericSttFailureMessage);
+      }
     };
   }
 
@@ -156,6 +256,73 @@ class FirebaseAiRepository implements AiRepository {
     });
     _cachedConversationId = ref.id;
     return ref.id;
+  }
+
+  @override
+  Future<String> createConversation() async {
+    final uid = _requireUid();
+    final now = Timestamp.fromDate(DateTime.now());
+    final ref = await _conversationsCollection(uid).add({
+      'title': 'New chat',
+      'createdAt': now,
+      'updatedAt': now,
+      'schemaVersion': 1,
+    });
+    return ref.id;
+  }
+
+  @override
+  Future<void> renameConversation(String id, String title) async {
+    final uid = _requireUid();
+    await _conversationsCollection(uid).doc(id).update({'title': title});
+  }
+
+  @override
+  Future<void> deleteConversation(String id) => _invokeDelete(id);
+
+  @override
+  Stream<List<AiConversation>> watchConversations() {
+    late final StreamController<List<AiConversation>> controller;
+    StreamSubscription<String?>? uidSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? querySub;
+
+    void onUidChanged(String? uid) {
+      querySub?.cancel();
+      if (uid == null) {
+        controller.add(const []);
+        return;
+      }
+      querySub = _conversationsCollection(uid)
+          .orderBy('updatedAt', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+            controller.add(
+              snapshot.docs.map(_conversationFromDoc).toList(growable: false),
+            );
+          }, onError: (e, s) => controller.addError(e, s));
+    }
+
+    controller = StreamController<List<AiConversation>>.broadcast(
+      onListen: () => uidSub = _uidWithInitial().listen(onUidChanged),
+      onCancel: () {
+        uidSub?.cancel();
+        uidSub = null;
+        querySub?.cancel();
+        querySub = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
+  Future<AiConversation?> latestConversation() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return null;
+    final snapshot = await _conversationsCollection(
+      uid,
+    ).orderBy('updatedAt', descending: true).limit(1).get();
+    if (snapshot.docs.isEmpty) return null;
+    return _conversationFromDoc(snapshot.docs.first);
   }
 
   @override
@@ -195,14 +362,31 @@ class FirebaseAiRepository implements AiRepository {
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
     // Stream only when the caller wants live events; otherwise the plain
     // `.call()` path keeps the buffered behavior (and its cheaper transport).
     return onEvent == null
-        ? _invokeChat(conversationId, trimmed)
-        : _invokeChatStream(conversationId, trimmed, onEvent);
+        ? _invokeChat(conversationId, trimmed, responseStyle)
+        : _invokeChatStream(conversationId, trimmed, responseStyle, onEvent);
+  }
+
+  @override
+  Future<String> getResponseStyle() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return kDefaultResponseStyle;
+    final doc = await _aiSettingsDoc(uid).get();
+    return validResponseStyle(doc.data()?['responseStyle'] as String?);
+  }
+
+  @override
+  Future<void> setResponseStyle(String style) async {
+    final uid = _requireUid();
+    await _aiSettingsDoc(
+      uid,
+    ).set({'responseStyle': style}, SetOptions(merge: true));
   }
 
   @override
@@ -218,8 +402,16 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) =>
-      _invokeImport(pdfBytes);
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List pdfBytes,
+  }) => _invokeImport(pdfBytes);
+
+  @override
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  }) => _invokeTranscribe(audioBytes, mimeType, languageHint);
 
   Stream<String?> _uidWithInitial() async* {
     yield uidSource.currentUid();
@@ -242,6 +434,23 @@ class FirebaseAiRepository implements AiRepository {
     String uid,
     String conversationId,
   ) => _conversationsCollection(uid).doc(conversationId).collection('messages');
+
+  DocumentReference<Map<String, dynamic>> _aiSettingsDoc(String uid) =>
+      _firestore.collection('users').doc(uid).collection('settings').doc('ai');
+
+  AiConversation _conversationFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final createdAt = data['createdAt'];
+    final updatedAt = data['updatedAt'];
+    return AiConversation(
+      id: doc.id,
+      title: data['title'] as String? ?? 'New chat',
+      createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+      updatedAt: updatedAt is Timestamp ? updatedAt.toDate() : DateTime.now(),
+    );
+  }
 
   AiMessage _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
@@ -273,7 +482,8 @@ class FirebaseAiRepository implements AiRepository {
     final stored = aiActionStatusFromName(data['status'] as String?);
     final expiresAtRaw = data['expiresAt'];
     final expiresAt = expiresAtRaw is Timestamp ? expiresAtRaw.toDate() : null;
-    final status = stored == AiActionStatus.pending &&
+    final status =
+        stored == AiActionStatus.pending &&
             expiresAt != null &&
             expiresAt.isBefore(DateTime.now())
         ? AiActionStatus.expired
@@ -301,7 +511,8 @@ class FirebaseAiRepository implements AiRepository {
 WorkoutImportOutcome _importOutcomeFromJson(Object? data) {
   final map = data is Map ? data : const {};
   if (map['ok'] != true) {
-    final reason = map['reason'] as String? ??
+    final reason =
+        map['reason'] as String? ??
         "This file doesn't contain enough valid workout data to create a training plan.";
     return WorkoutImportRejected(reason);
   }
@@ -310,7 +521,9 @@ WorkoutImportOutcome _importOutcomeFromJson(Object? data) {
   final days = rawDays is List
       ? [for (final d in rawDays) _importedDayFromJson(d)]
       : const <ImportedDay>[];
-  return WorkoutImportAccepted(WorkoutImportResult(planName: planName, days: days));
+  return WorkoutImportAccepted(
+    WorkoutImportResult(planName: planName, days: days),
+  );
 }
 
 ImportedDay _importedDayFromJson(Object? data) {
@@ -338,4 +551,55 @@ ImportedExercise _importedExerciseFromJson(Object? data) {
     targetWeightKg: (map['targetWeightKg'] as num?)?.toDouble(),
     restSeconds: (map['restSeconds'] as num?)?.toInt(),
   );
+}
+
+/// Shown when a transcription attempt fails for a reason with no
+/// server-provided message (a bare network/platform exception, never a
+/// `SpeechError` — those always carry their own user-presentable message).
+const _genericSttFailureMessage =
+    "Couldn't transcribe that — check your connection and try again.";
+
+/// Maps `aiTranscribe`'s raw callable result (a platform-channel
+/// `Map<Object?, Object?>`) into an [SttTranscribed]. Only reached on
+/// success — `functions/ai/speech/gateway.js` never returns an `ok: false`
+/// shape the way `aiImportWorkoutPlan` does; every failure there throws
+/// instead, mapped by [_sttErrorFromException].
+SttOutcome _sttOutcomeFromJson(Object? data) {
+  final map = data is Map ? data : const {};
+  return SttTranscribed(
+    text: map['text'] as String? ?? '',
+    detectedLanguage: map['detectedLanguage'] as String?,
+    durationMs: (map['durationMs'] as num?)?.toInt(),
+  );
+}
+
+/// Maps `aiTranscribe`'s thrown `HttpsError` into an [SttError]. The server
+/// (`functions/index.js`'s `toSpeechHttpsError`) carries its precise
+/// `SpeechError` code in `details.sttCode` — that's read first, since the
+/// gRPC `code` alone is a coarser bucket (e.g. both `audio_too_large` and
+/// `unsupported_audio_format` map to the wire code `invalid-argument`).
+SttError _sttErrorFromException(FirebaseFunctionsException e) {
+  final details = e.details;
+  final sttCode = details is Map ? details['sttCode'] as String? : null;
+  switch (sttCode) {
+    case 'unsupported_audio_format':
+      return SttError.unsupportedAudioFormat;
+    case 'audio_too_large':
+      return SttError.audioTooLarge;
+    case 'transcription_failed':
+      return SttError.transcriptionFailed;
+    case 'provider_unavailable':
+      return SttError.providerUnavailable;
+    case 'timeout':
+      return SttError.timeout;
+  }
+  // No (or an unrecognized) sttCode — fall back to the gRPC code.
+  switch (e.code) {
+    case 'unavailable':
+      return SttError.providerUnavailable;
+    case 'deadline-exceeded':
+      return SttError.timeout;
+    default:
+      return SttError.unknown;
+  }
 }

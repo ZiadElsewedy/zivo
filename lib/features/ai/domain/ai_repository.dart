@@ -1,16 +1,52 @@
 import 'dart:typed_data';
 
 import '../../workout/domain/workout_import_outcome.dart';
+import 'ai_conversation.dart';
 import 'ai_message.dart';
+import 'ai_response_style.dart';
 import 'ai_turn_event.dart';
+import 'stt_outcome.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
 /// so both today's in-memory [FakeAiRepository] and the future
 /// `FirebaseAiRepository` (Firestore reads + the `aiChat` callable) fit.
 abstract interface class AiRepository {
   /// Ensures there is an active conversation and returns its id (creating one
-  /// on first use). V1 keeps a single active conversation.
+  /// on first use). Kept for the app's initial/default conversation; callers
+  /// that manage multiple sessions also use [createConversation].
   Future<String> ensureConversation();
+
+  /// The user's conversations, newest-`updatedAt` first, as a live stream.
+  Stream<List<AiConversation>> watchConversations();
+
+  /// A one-shot read of the single most-recently-updated conversation, or
+  /// null if the user has none. Used to resume the last conversation on
+  /// launch (and to pick a new active one after deleting the current) —
+  /// deliberately NOT `watchConversations().first`, whose first emission can
+  /// be a stale/empty local-cache snapshot that resolves before Firestore's
+  /// server data arrives (the resume-most-recent bug this method fixes).
+  Future<AiConversation?> latestConversation();
+
+  /// Creates a new, empty conversation (title 'New chat') and returns its id.
+  Future<String> createConversation();
+
+  /// Renames [id]'s conversation to [title] — used for the auto-title applied
+  /// after the first user message in a still-untitled ('New chat') session.
+  Future<void> renameConversation(String id, String title);
+
+  /// Permanently deletes [id]'s conversation and every message under it, via
+  /// the `aiDeleteConversation` callable (Admin SDK `recursiveDelete` —
+  /// clients can't delete a conversation directly, since Firestore rules
+  /// forbid removing the server-written `messages` subcollection).
+  Future<void> deleteConversation(String id);
+
+  /// The user's saved reply-length preference (one of [kResponseStyles]),
+  /// persisted at `users/{uid}/settings/ai`. Defaults to
+  /// [kDefaultResponseStyle] when never set.
+  Future<String> getResponseStyle();
+
+  /// Persists the user's reply-length preference.
+  Future<void> setResponseStyle(String style);
 
   /// The messages in [conversationId], oldest first, as a live stream.
   Stream<List<AiMessage>> watchMessages(String conversationId);
@@ -25,10 +61,15 @@ abstract interface class AiRepository {
   /// that can't stream simply never call it — the reply still surfaces via
   /// [watchMessages], and the caller falls back to a buffered reveal. The
   /// returned future completes when the turn's durable record is written.
+  ///
+  /// [responseStyle] is the caller's current [getResponseStyle] value
+  /// (defaulting to [kDefaultResponseStyle]) — forwarded to the gateway so it
+  /// can adjust reply length/depth.
   Future<void> send({
     required String conversationId,
     required String text,
     void Function(AiTurnEvent event)? onEvent,
+    String responseStyle = kDefaultResponseStyle,
   });
 
   /// Confirms a proposed action (ADR-003), executing its write server-side via
@@ -54,4 +95,22 @@ abstract interface class AiRepository {
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
   Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes});
+
+  /// Transcribes a recorded voice note via the `aiTranscribe` callable
+  /// (`functions/ai/speech/gateway.js`) — input only: this never calls the
+  /// LLM and never speaks text back. The caller (the composer's mic button)
+  /// places the returned text in the input field for the user to edit/send
+  /// via [send]; nothing here sends anything itself.
+  ///
+  /// [languageHint] should be omitted by default so code-switched Arabic/
+  /// English speech transcribes verbatim rather than being forced into one
+  /// language — only pass it when the caller genuinely knows the language.
+  ///
+  /// Resolves to [SttFailed] (never throws) for any failure, technical or
+  /// otherwise — the caller always has an outcome to switch on.
+  Future<SttOutcome> transcribe({
+    required Uint8List audioBytes,
+    required String mimeType,
+    String? languageHint,
+  });
 }

@@ -5,10 +5,6 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
-import 'package:zivo/features/notes/data/in_memory_note_repository.dart';
-import 'package:zivo/features/schedule/data/in_memory_schedule_repository.dart';
-import 'package:zivo/features/tasks/data/in_memory_task_repository.dart';
-import 'package:zivo/features/university/data/in_memory_university_repository.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
@@ -128,14 +124,10 @@ Widget _wrap({
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
-    tasks: InMemoryTaskRepository(),
-    schedule: InMemoryScheduleRepository(),
-    notes: InMemoryNoteRepository(),
     moments: InMemoryMomentRepository(),
     workouts: workouts,
     workoutPlans: workoutPlans,
     workoutSessions: InMemoryWorkoutSessionRepository(),
-    university: InMemoryUniversityRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     child: MaterialApp(

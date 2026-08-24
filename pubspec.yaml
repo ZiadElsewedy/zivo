@@ -54,7 +54,6 @@ dependencies:
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
-  firebase_app_check: ^0.4.6
   lottie: ^3.5.1
   # Premium, consistent line-icon set used app-wide via core/theme/app_icons.
   # (Lucide — Phosphor's package can't compile on this Flutter: it subclasses
@@ -73,6 +72,10 @@ dependencies:
   # Picks an arbitrary file (a workout PDF) from device storage — image_picker
   # above is camera/gallery-only, not general file access.
   file_picker: ^8.1.6
+  # Ask's mic button: records a voice note (and owns the microphone
+  # permission prompt itself) for speech-to-text via the `aiTranscribe`
+  # callable — see lib/features/ai/data/audio_recorder.dart.
+  record: ^7.1.1
 
 dev_dependencies:
   flutter_test:

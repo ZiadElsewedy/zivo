@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
-import '../core/env/env_banner.dart';
 import '../core/firebase/uid_source.dart';
 import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
@@ -21,6 +20,7 @@ import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
+import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
@@ -45,18 +45,6 @@ import '../features/expenses/domain/wallet_repository.dart';
 import '../features/moments/data/firestore_moment_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
-import '../features/notes/data/firestore_note_repository.dart';
-import '../features/notes/data/in_memory_note_repository.dart';
-import '../features/notes/domain/note_repository.dart';
-import '../features/schedule/data/firestore_schedule_repository.dart';
-import '../features/schedule/data/in_memory_schedule_repository.dart';
-import '../features/schedule/domain/schedule_repository.dart';
-import '../features/tasks/data/firestore_task_repository.dart';
-import '../features/tasks/data/in_memory_task_repository.dart';
-import '../features/tasks/domain/task_repository.dart';
-import '../features/university/data/firestore_university_repository.dart';
-import '../features/university/data/in_memory_university_repository.dart';
-import '../features/university/domain/university_repository.dart';
 import '../features/workout/data/dev_analysis_seed.dart';
 import '../features/workout/data/firestore_body_weight_repository.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
@@ -79,9 +67,9 @@ const bool _useFirestore = AppEnvironment.useFirestore;
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,
-/// and all eight feature repositories (expenses, tasks, schedule, notes,
-/// moments, workouts, university, diet) are Firebase-backed. [ai] is
-/// Firebase-backed too (Firestore reads + the `aiChat` callable).
+/// and the feature repositories (expenses, moments, workouts, diet) are
+/// Firebase-backed. [ai] is Firebase-backed too (Firestore reads + the
+/// `aiChat` callable).
 ///
 /// Repositories are injectable (defaulting to the real implementations) so
 /// tests can supply fakes — e.g. a pre-authenticated auth repo to exercise the
@@ -93,17 +81,14 @@ class ZivoApp extends StatefulWidget {
     this.expenses,
     this.wallet,
     this.expenseCategories,
-    this.tasks,
-    this.schedule,
-    this.notes,
     this.moments,
     this.workouts,
     this.workoutPlans,
     this.workoutSessions,
     this.bodyWeight,
-    this.university,
     this.diet,
     this.ai,
+    this.recorder,
     this.media,
     this.mediaPreferences,
     super.key,
@@ -114,17 +99,14 @@ class ZivoApp extends StatefulWidget {
   final ExpenseRepository? expenses;
   final WalletRepository? wallet;
   final CategoryRepository? expenseCategories;
-  final TaskRepository? tasks;
-  final ScheduleRepository? schedule;
-  final NoteRepository? notes;
   final MomentRepository? moments;
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
   final BodyWeightRepository? bodyWeight;
-  final UniversityRepository? university;
   final DietRepository? diet;
   final AiRepository? ai;
+  final AudioRecorderService? recorder;
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
 
@@ -141,10 +123,6 @@ class _ZivoAppState extends State<ZivoApp> {
   late final WalletRepository _wallet = widget.wallet ?? _defaultWallet();
   late final CategoryRepository _categories =
       widget.expenseCategories ?? _defaultCategories();
-  late final TaskRepository _tasks = widget.tasks ?? _defaultTasks();
-  late final ScheduleRepository _schedule =
-      widget.schedule ?? _defaultSchedule();
-  late final NoteRepository _notes = widget.notes ?? _defaultNotes();
   late final MomentRepository _moments = widget.moments ?? _defaultMoments();
   late final WorkoutRepository _workouts =
       widget.workouts ?? _defaultWorkouts();
@@ -154,10 +132,10 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.workoutSessions ?? _defaultWorkoutSessions();
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
-  late final UniversityRepository _university =
-      widget.university ?? _defaultUniversity();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
   late final AiRepository _ai = widget.ai ?? _defaultAi();
+  late final AudioRecorderService _recorder =
+      widget.recorder ?? RecordAudioRecorderService();
 
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
@@ -202,23 +180,19 @@ class _ZivoAppState extends State<ZivoApp> {
       : InMemoryMediaRegistry();
 
   MediaService _defaultMedia() => MediaService(
-        store: _mediaStore,
-        registry: _defaultMediaRegistry(),
-        preferences: _mediaPreferences,
-        galleryTarget: DeviceGalleryTarget(store: _mediaStore),
-        backup: _defaultBackupProvider(),
-        currentAccountId: () => _auth.currentUser?.uid,
-      );
+    store: _mediaStore,
+    registry: _defaultMediaRegistry(),
+    preferences: _mediaPreferences,
+    galleryTarget: DeviceGalleryTarget(store: _mediaStore),
+    backup: _defaultBackupProvider(),
+    currentAccountId: () => _auth.currentUser?.uid,
+  );
 
   /// Real Google Drive backup provider when running against the real backend;
   /// null in offline/dev runs (no OAuth), where cloud backup is simply absent.
   /// Swapping providers is a one-line change here — nothing else moves.
   MediaBackupProvider? _defaultBackupProvider() =>
       _useFirestore ? GoogleDriveBackupClient() : null;
-
-  TaskRepository _defaultTasks() => _useFirestore
-      ? FirestoreTaskRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryTaskRepository();
 
   ExpenseRepository _defaultExpenses() => _useFirestore
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
@@ -231,14 +205,6 @@ class _ZivoAppState extends State<ZivoApp> {
   CategoryRepository _defaultCategories() => _useFirestore
       ? FirestoreCategoryRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryCategoryRepository();
-
-  ScheduleRepository _defaultSchedule() => _useFirestore
-      ? FirestoreScheduleRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryScheduleRepository();
-
-  NoteRepository _defaultNotes() => _useFirestore
-      ? FirestoreNoteRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryNoteRepository();
 
   MomentRepository _defaultMoments() => _useFirestore
       ? FirestoreMomentRepository(uidSource: UidSource.firebaseAuth())
@@ -267,10 +233,6 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirestoreBodyWeightRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryBodyWeightRepository();
 
-  UniversityRepository _defaultUniversity() => _useFirestore
-      ? FirestoreUniversityRepository(uidSource: UidSource.firebaseAuth())
-      : InMemoryUniversityRepository();
-
   DietRepository _defaultDiet() => _useFirestore
       ? FirestoreDietRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryDietRepository();
@@ -287,17 +249,14 @@ class _ZivoAppState extends State<ZivoApp> {
       expenses: _expenses,
       wallet: _wallet,
       expenseCategories: _categories,
-      tasks: _tasks,
-      schedule: _schedule,
-      notes: _notes,
       moments: _moments,
       workouts: _workouts,
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
       bodyWeight: _bodyWeight,
-      university: _university,
       diet: _diet,
       ai: _ai,
+      recorder: _recorder,
       media: _media,
       child: MaterialApp(
         title: 'ZIVO',
@@ -306,11 +265,9 @@ class _ZivoAppState extends State<ZivoApp> {
         theme: AppTheme.dark,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.dark,
-        // Names the active build configuration in Development/Profile; compiled
-        // out of Release so production UX is untouched.
         builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light,
-          child: EnvBanner(child: child ?? const SizedBox.shrink()),
+          child: child ?? const SizedBox.shrink(),
         ),
         home: const AuthGate(),
       ),

@@ -19,6 +19,7 @@ import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_plan_source.dart';
 import '../../domain/workout_plan_status.dart';
 import '../../domain/workout_set.dart';
+import '../widgets/staggered_reveal.dart';
 
 /// The next cycle slot letter for a plan that already has [count] days: A, B,
 /// C… (falls back to a number past Z).
@@ -117,6 +118,13 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   final List<_DayDraft> _days = [];
   bool _canSave = false;
 
+  /// Day/exercise ids mid-way through their remove animation — still present
+  /// in [_days] (so [_recompute]/save stay correct if the removal is somehow
+  /// interrupted) but rendered as collapsing/fading rather than gone
+  /// instantly. See [_removeDay]/[_removeExercise].
+  final Set<String> _removingDayIds = {};
+  final Set<String> _removingExerciseIds = {};
+
   /// Days added during this editing session — they start expanded (see
   /// `_DayCard.initiallyExpanded`), since adding a day is immediately
   /// followed by adding exercises to it. Days loaded from an existing plan
@@ -175,13 +183,32 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       builder: (_) => _DaySheet(suggestedSlot: _slotForIndex(_days.length)),
     );
     if (result == null) return;
+    HapticFeedback.lightImpact();
     _autoExpandDayIds.add(result.id);
     setState(() => _days.add(result));
     _recompute();
   }
 
-  void _removeDay(int index) {
-    setState(() => _days.removeAt(index));
+  /// Plays a brief collapse/fade (see the day row's `AnimatedSize` +
+  /// `AnimatedOpacity` in `build`) before actually removing the day, so it
+  /// reads as a row shrinking away rather than an instant pop — a
+  /// destructive action, hence `mediumImpact` (mirrors the chat-delete swipe
+  /// threshold's role: the moment commitment becomes certain).
+  Future<void> _removeDay(int index) async {
+    final day = _days[index];
+    HapticFeedback.mediumImpact();
+    if (reducedMotion(context)) {
+      setState(() => _days.removeWhere((d) => d.id == day.id));
+      _recompute();
+      return;
+    }
+    setState(() => _removingDayIds.add(day.id));
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    setState(() {
+      _removingDayIds.remove(day.id);
+      _days.removeWhere((d) => d.id == day.id);
+    });
     _recompute();
   }
 
@@ -206,6 +233,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
       builder: (_) => const _ExerciseSheet(),
     );
     if (exercise == null) return;
+    HapticFeedback.lightImpact();
     setState(() => _days[dayIndex].exercises.add(exercise));
   }
 
@@ -225,8 +253,23 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     setState(() => _days[dayIndex].exercises[exerciseIndex] = exercise);
   }
 
-  void _removeExercise(int dayIndex, int exerciseIndex) {
-    setState(() => _days[dayIndex].exercises.removeAt(exerciseIndex));
+  /// Same collapse-before-remove treatment as [_removeDay], scoped to one
+  /// exercise row within a day.
+  Future<void> _removeExercise(int dayIndex, int exerciseIndex) async {
+    final day = _days[dayIndex];
+    final exercise = day.exercises[exerciseIndex];
+    HapticFeedback.mediumImpact();
+    if (reducedMotion(context)) {
+      setState(() => day.exercises.removeWhere((e) => e.id == exercise.id));
+      return;
+    }
+    setState(() => _removingExerciseIds.add(exercise.id));
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    setState(() {
+      _removingExerciseIds.remove(exercise.id);
+      day.exercises.removeWhere((e) => e.id == exercise.id);
+    });
   }
 
   /// Long-press-drag reorder for exercises within one day — same
@@ -278,6 +321,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
 
   Future<void> _save() async {
     if (!_canSave) return;
+    HapticFeedback.lightImpact();
     final now = DateTime.now();
     final days = <WorkoutDay>[];
     for (var i = 0; i < _days.length; i++) {
@@ -344,7 +388,10 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
             child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.pop(context, true);
+            },
             child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
           ),
         ],
@@ -443,6 +490,8 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                           );
                         }
                         final day = _days[i];
+                        final removing = _removingDayIds.contains(day.id);
+                        final reduced = reducedMotion(context);
                         return Padding(
                           // Keyed on the day's stable id so both its expand
                           // state (owned by _DayCardState) and its
@@ -451,16 +500,37 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                           // recreated fresh (and re-collapsed) every time.
                           key: ValueKey(day.id),
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: ReorderableDelayedDragStartListener(
-                            index: i,
-                            child: _DayCard(
-                              day: day,
-                              onRemoveDay: () => _removeDay(i),
-                              onAddExercise: () => _addExercise(i),
-                              onEditExercise: (ei) => _editExercise(i, ei),
-                              onRemoveExercise: (ei) => _removeExercise(i, ei),
-                              onReorderExercise: (oi, ni) => _reorderExercises(i, oi, ni),
-                              initiallyExpanded: _autoExpandDayIds.contains(day.id),
+                          // Collapse-before-remove (see _removeDay) — the
+                          // AnimatedSize/AnimatedOpacity pair the removal
+                          // itself is timed against. StaggeredReveal handles
+                          // the opposite edge (a freshly-added day easing in
+                          // rather than popping), reusing the same widget
+                          // every other list on this feature already uses.
+                          child: AnimatedSize(
+                            duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                            curve: Curves.easeIn,
+                            alignment: Alignment.topCenter,
+                            child: AnimatedOpacity(
+                              opacity: removing ? 0 : 1,
+                              duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                              child: removing
+                                  ? const SizedBox(width: double.infinity)
+                                  : StaggeredReveal(
+                                      index: i,
+                                      child: ReorderableDelayedDragStartListener(
+                                        index: i,
+                                        child: _DayCard(
+                                          day: day,
+                                          onRemoveDay: () => _removeDay(i),
+                                          onAddExercise: () => _addExercise(i),
+                                          onEditExercise: (ei) => _editExercise(i, ei),
+                                          onRemoveExercise: (ei) => _removeExercise(i, ei),
+                                          onReorderExercise: (oi, ni) => _reorderExercises(i, oi, ni),
+                                          removingExerciseIds: _removingExerciseIds,
+                                          initiallyExpanded: _autoExpandDayIds.contains(day.id),
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ),
                         );
@@ -663,6 +733,7 @@ class _DayCard extends StatefulWidget {
     required this.onEditExercise,
     required this.onRemoveExercise,
     required this.onReorderExercise,
+    required this.removingExerciseIds,
     this.initiallyExpanded = false,
   });
 
@@ -672,6 +743,9 @@ class _DayCard extends StatefulWidget {
   final void Function(int exerciseIndex) onEditExercise;
   final void Function(int exerciseIndex) onRemoveExercise;
   final void Function(int oldIndex, int newIndex) onReorderExercise;
+
+  /// Exercise ids mid-collapse — see [_WorkoutPlanEditPageState._removeExercise].
+  final Set<String> removingExerciseIds;
 
   /// Only meaningful the first time this State is created for a given key —
   /// a day the caller just added (see `_WorkoutPlanEditPageState._addDay`)
@@ -819,15 +893,33 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                     itemCount: day.exercises.length,
                     itemBuilder: (context, ei) {
                       final exercise = day.exercises[ei];
+                      final removing = widget.removingExerciseIds.contains(exercise.id);
+                      final reduced = reducedMotion(context);
                       return Padding(
                         key: ValueKey(exercise.id),
                         padding: const EdgeInsets.only(top: 10),
-                        child: ReorderableDelayedDragStartListener(
-                          index: ei,
-                          child: _ExerciseRow(
-                            exercise: exercise,
-                            onEdit: () => widget.onEditExercise(ei),
-                            onRemove: () => widget.onRemoveExercise(ei),
+                        // Same collapse-before-remove / stagger-in pair as
+                        // the day list above (see its comment).
+                        child: AnimatedSize(
+                          duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                          curve: Curves.easeIn,
+                          alignment: Alignment.topCenter,
+                          child: AnimatedOpacity(
+                            opacity: removing ? 0 : 1,
+                            duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                            child: removing
+                                ? const SizedBox(width: double.infinity)
+                                : StaggeredReveal(
+                                    index: ei,
+                                    child: ReorderableDelayedDragStartListener(
+                                      index: ei,
+                                      child: _ExerciseRow(
+                                        exercise: exercise,
+                                        onEdit: () => widget.onEditExercise(ei),
+                                        onRemove: () => widget.onRemoveExercise(ei),
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
                       );
@@ -1154,21 +1246,40 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
+                    // SelectChip is a shared capture-widgets component (also
+                    // used by diet/schedule, outside this batch's scope) with
+                    // no press feedback of its own — wrapped locally here
+                    // rather than editing the shared widget.
                     children: [
-                      SelectChip(
-                        label: 'Fixed',
-                        selected: _mode == _RepMode.fixed,
-                        onTap: () => setState(() => _mode = _RepMode.fixed),
+                      PressableScale(
+                        child: SelectChip(
+                          label: 'Fixed',
+                          selected: _mode == _RepMode.fixed,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _mode = _RepMode.fixed);
+                          },
+                        ),
                       ),
-                      SelectChip(
-                        label: 'Range',
-                        selected: _mode == _RepMode.range,
-                        onTap: () => setState(() => _mode = _RepMode.range),
+                      PressableScale(
+                        child: SelectChip(
+                          label: 'Range',
+                          selected: _mode == _RepMode.range,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _mode = _RepMode.range);
+                          },
+                        ),
                       ),
-                      SelectChip(
-                        label: 'To failure',
-                        selected: _mode == _RepMode.toFailure,
-                        onTap: () => setState(() => _mode = _RepMode.toFailure),
+                      PressableScale(
+                        child: SelectChip(
+                          label: 'To failure',
+                          selected: _mode == _RepMode.toFailure,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _mode = _RepMode.toFailure);
+                          },
+                        ),
                       ),
                     ],
                   ),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
@@ -47,25 +49,40 @@ class WorkoutPlanPage extends StatelessWidget {
             iconTheme: const IconThemeData(color: AppColors.ink2),
             title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
             actions: [
-              IconButton(
-                tooltip: 'Splits',
-                icon: const Icon(Icons.layers_rounded, color: AppColors.ink2),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SplitManagementPage()),
+              PressableScale(
+                child: IconButton(
+                  tooltip: 'Splits',
+                  icon: const Icon(Icons.layers_rounded, color: AppColors.ink2),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SplitManagementPage()),
+                    );
+                  },
                 ),
               ),
-              IconButton(
-                tooltip: 'Analysis',
-                icon: const Icon(Icons.trending_up_rounded, color: AppColors.ink2),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutAnalysisPage()),
+              PressableScale(
+                child: IconButton(
+                  tooltip: 'Analysis',
+                  icon: const Icon(Icons.trending_up_rounded, color: AppColors.ink2),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const WorkoutAnalysisPage()),
+                    );
+                  },
                 ),
               ),
-              IconButton(
-                tooltip: 'History',
-                icon: const Icon(Icons.history_rounded, color: AppColors.ink2),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
+              PressableScale(
+                child: IconButton(
+                  tooltip: 'History',
+                  icon: const Icon(Icons.history_rounded, color: AppColors.ink2),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const WorkoutHistoryPage()),
+                    );
+                  },
                 ),
               ),
             ],
@@ -420,92 +437,97 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
   Widget build(BuildContext context) {
     final day = widget.day;
     final exercises = [...day.exercises]..sort((a, b) => a.order.compareTo(b.order));
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => setState(() => _expanded = !_expanded),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline2),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _dayTitle(day),
-                      style: AppText.rowTitle.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                  if (widget.isNext) ...[
-                    const _NextUpBadge(),
-                    const SizedBox(width: 10),
-                  ],
-                  Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
-                  const SizedBox(width: 6),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 240),
-                    curve: Curves.easeOutCubic,
-                    child: const Icon(
-                      Icons.expand_more_rounded,
-                      size: 20,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: !_expanded
-                    ? const SizedBox(width: double.infinity)
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (final exercise in exercises)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        exercise.name,
-                                        style: AppText.body.copyWith(
-                                          fontSize: 14,
-                                          color: AppColors.ink2,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      plannedExerciseMeta(exercise),
-                                      style: AppText.meta.copyWith(
-                                        color: AppColors.ink3,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() => _expanded = !_expanded);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _dayTitle(day),
+                        style: AppText.rowTitle.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
                         ),
                       ),
-              ),
-            ],
+                    ),
+                    if (widget.isNext) ...[
+                      const _NextUpBadge(),
+                      const SizedBox(width: 10),
+                    ],
+                    Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
+                    const SizedBox(width: 6),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOutCubic,
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 20,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                  ],
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: !_expanded
+                      ? const SizedBox(width: double.infinity)
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final exercise in exercises)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          exercise.name,
+                                          style: AppText.body.copyWith(
+                                            fontSize: 14,
+                                            color: AppColors.ink2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        plannedExerciseMeta(exercise),
+                                        style: AppText.meta.copyWith(
+                                          color: AppColors.ink3,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

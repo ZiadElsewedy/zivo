@@ -20,13 +20,9 @@ class AppIcons {
   static const youFill = LucideIcons.user;
 
   // Hub modules.
-  static const schedule = LucideIcons.calendarDays;
-  static const tasks = LucideIcons.circleCheck;
   static const workout = LucideIcons.dumbbell;
   static const diet = LucideIcons.utensilsCrossed;
   static const expenses = LucideIcons.wallet;
-  static const university = LucideIcons.graduationCap;
-  static const notes = LucideIcons.notebookPen;
   static const moments = LucideIcons.images;
 
   // Common actions / affordances.

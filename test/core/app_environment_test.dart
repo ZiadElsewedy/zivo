@@ -13,15 +13,6 @@ void main() {
       expect(AppEnvironment.isProfile, isFalse);
       expect(AppEnvironment.isRelease, isFalse);
       expect(AppEnvironment.name, 'Development');
-      expect(AppEnvironment.shortName, 'DEV');
-    });
-
-    test('Development uses App Check debug providers', () {
-      expect(AppEnvironment.appCheckMode, AppCheckMode.debug);
-    });
-
-    test('shows the env badge when not a release build', () {
-      expect(AppEnvironment.showBadge, isTrue);
     });
 
     test('defaults: Firestore on, public client id present', () {

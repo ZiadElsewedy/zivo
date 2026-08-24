@@ -157,6 +157,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// close button) before the first call's writes/pop land.
   bool _busy = false;
 
+  /// True for the brief "completion beat" hold in [_afterResolvingCurrentSet]
+  /// — long enough for the just-resolved set's chip to visibly spring into
+  /// its done/checkmark state before the screen advances to rest/the next
+  /// phase (see that method's doc comment). The Done/Skip/Back controls stay
+  /// on-screen through the hold (nothing else to show yet), so this guards
+  /// them against a tap landing in that window and resolving a set that's
+  /// already mid-resolution.
+  bool _resolvingSet = false;
+
   /// The live rest-countdown value, read fresh every frame — frozen at
   /// [_pausedRestRemaining] while paused, otherwise the wall-clock gap to
   /// [_restEndsAt] (never negative). Null whenever no rest is running, which
@@ -371,6 +380,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   // ---- Transitions -----------------------------------------------------------
 
   void _onSetDone() {
+    if (_resolvingSet) return;
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
@@ -419,6 +429,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// (an abandoned draft the end-of-workout review can still surface) rather
   /// than reading/clearing them the way Done does.
   void _onSetSkip() {
+    if (_resolvingSet) return;
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
@@ -442,6 +453,18 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// snackbar targeting exactly the (exerciseId, setId) just resolved — not
   /// "whatever's current now", since current has already moved on by the
   /// time this shows.
+  ///
+  /// The actual advance is held behind a brief beat (see [_resolvingSet]):
+  /// [_session] has already updated by the time this runs (the caller's own
+  /// `setState` in [_onSetDone]/[_onSetSkip] already committed it), so
+  /// `_SetChipRow` is already re-rendering the just-resolved chip in its
+  /// done/checkmark state on this very frame — but without a hold, the phase
+  /// advance below (`_startRest`/`complete`, which flips [_phaseKey]) would
+  /// fire in that SAME frame too, and the whole running screen — chip
+  /// included — would already be cross-fading away before the chip's own
+  /// [AppSprings.bounce] spring has had any time to actually register. This
+  /// hold is what turns "instant swap" into "see it complete, then advance."
+  /// Skipped under reduced motion, where there's no spring to wait for.
   void _afterResolvingCurrentSet(
     String exerciseId,
     String setId,
@@ -450,29 +473,35 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required IconData undoIcon,
     required Color undoIconColor,
   }) {
-    setState(() {
-      if (_session.currentSet == null) {
-        _session = _session.complete(now: widget.now());
+    _resolvingSet = true;
+    final hold = reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 260);
+    Future<void>.delayed(hold, () {
+      _resolvingSet = false;
+      if (!mounted) return;
+      setState(() {
+        if (_session.currentSet == null) {
+          _session = _session.complete(now: widget.now());
+        }
+      });
+      unawaited(_sessionsRepo.saveSession(_session));
+      _prefillInputs();
+      if (_session.isComplete) {
+        _restTicker?.dispose();
+        _restTicker = null;
+        _restTotalSeconds = null;
+        _restEndsAt = null;
+        _elapsedTimer?.cancel();
+        setState(() {});
+      } else {
+        // Rest is the plan's own value (Edit Workout's per-exercise rest, or
+        // its "Default rest" bulk value) — the session counts down what Ziad
+        // actually set, not a computed guess. `smartRestSeconds` stays as the
+        // *seed* default a freshly-added exercise starts at (see the add
+        // sheet), it just no longer overrides the plan at session time.
+        _startRest(restSeconds);
       }
+      _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
     });
-    unawaited(_sessionsRepo.saveSession(_session));
-    _prefillInputs();
-    if (_session.isComplete) {
-      _restTicker?.dispose();
-      _restTicker = null;
-      _restTotalSeconds = null;
-      _restEndsAt = null;
-      _elapsedTimer?.cancel();
-      setState(() {});
-    } else {
-      // Rest is the plan's own value (Edit Workout's per-exercise rest, or
-      // its "Default rest" bulk value) — the session counts down what Ziad
-      // actually set, not a computed guess. `smartRestSeconds` stays as the
-      // *seed* default a freshly-added exercise starts at (see the add
-      // sheet), it just no longer overrides the plan at session time.
-      _startRest(restSeconds);
-    }
-    _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
   }
 
   /// Offers a brief window to reverse the Done/Skip that was just tapped.
@@ -519,6 +548,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// walks back further, one set at a time; anything beyond that is the
   /// end-of-workout review's job, not this control's.
   void _onBack() {
+    // Guards against racing the pending delayed callback in
+    // `_afterResolvingCurrentSet` — see `_resolvingSet`.
+    if (_resolvingSet) return;
     final prev = _session.previousResolvedSet;
     if (prev == null) return;
     _undoOutcome(prev.$1, prev.$2.id);
@@ -1001,10 +1033,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // line (that's now context inside the Goal card) and no separate
         // "SET N OF M" eyebrow (the chip row below is the one set-position
         // indicator).
-        StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
+        StaggeredReveal(index: 1, child: _exerciseHeader(exercise)),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
-          index: 1,
+          index: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1022,7 +1054,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // The hero: a lifted card carrying the computed goal, the point of
         // this whole screen — everything above just orients the user to it.
         StaggeredReveal(
-          index: 2,
+          index: 3,
           child: _GoalBlock(
             lastTimeLabel: lastTimeLabel,
             goal: goal,
@@ -1033,7 +1065,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
-          index: 3,
+          index: 4,
           child: Row(
             children: [
               _StepperField(
@@ -1055,7 +1087,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
       ],
       done: StaggeredReveal(
-        index: 4,
+        index: 5,
         child: _ActionCluster(
           onBack: _session.previousResolvedSet != null ? _onBack : null,
           onSkip: _onSetSkip,
@@ -1514,32 +1546,34 @@ class _ReviewSetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skipped = set.skipped;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          children: [
-            Icon(
-              skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
-              size: 16,
-              color: skipped ? AppColors.ink3 : AppColors.pulse,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
-            ),
-            Text(
-              skipped ? 'Skipped' : _formatSetActuals(set),
-              style: AppText.meta.copyWith(
-                color: skipped ? AppColors.ink3 : AppColors.ink2,
-                fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            children: [
+              Icon(
+                skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+                size: 16,
+                color: skipped ? AppColors.ink3 : AppColors.pulse,
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
+              ),
+              Text(
+                skipped ? 'Skipped' : _formatSetActuals(set),
+                style: AppText.meta.copyWith(
+                  color: skipped ? AppColors.ink3 : AppColors.ink2,
+                  fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -2206,16 +2240,18 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: AppColors.ember.withValues(alpha: 0.18),
-        highlightColor: AppColors.ember.withValues(alpha: 0.10),
-        child: SizedBox(
-          width: 46,
-          height: 52,
-          child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: AppColors.ember.withValues(alpha: 0.18),
+          highlightColor: AppColors.ember.withValues(alpha: 0.10),
+          child: SizedBox(
+            width: 46,
+            height: 52,
+            child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+          ),
         ),
       ),
     );

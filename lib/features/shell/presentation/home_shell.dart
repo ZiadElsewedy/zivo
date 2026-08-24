@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/motion/springs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
@@ -11,10 +13,6 @@ import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
 import '../../hub/presentation/hub_page.dart';
 import '../../moments/presentation/pages/moment_capture_page.dart';
-import '../../notes/presentation/pages/note_capture_page.dart';
-import '../../schedule/presentation/pages/event_capture_page.dart';
-import '../../tasks/presentation/pages/task_capture_page.dart';
-import '../../university/presentation/pages/university_capture_page.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -51,18 +49,6 @@ class _HomeShellState extends State<HomeShell> {
             'Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}',
           );
         }
-      case CaptureChoice.task:
-        final saved = await _push<Object>(const TaskCapturePage());
-        if (saved != null) _toast('Task added');
-      case CaptureChoice.event:
-        final saved = await _push<Object>(const EventCapturePage());
-        if (saved != null) _toast('Event added');
-      case CaptureChoice.university:
-        final saved = await _push<Object>(const UniversityCapturePage());
-        if (saved != null) _toast('Added to University');
-      case CaptureChoice.note:
-        final saved = await _push<Object>(const NoteCapturePage());
-        if (saved != null) _toast('Note saved');
       case CaptureChoice.moment:
         final saved = await _push<Object>(const MomentCapturePage());
         if (saved != null) _toast('Moment saved');
@@ -99,14 +85,73 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(index: _index, children: _tabs),
+      body: _TabSwitcher(index: _index, children: _tabs),
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
       bottomNavigationBar: ZivoBottomBar(
         currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
+        onTap: (i) {
+          if (i == _index) return;
+          HapticFeedback.selectionClick();
+          setState(() => _index = i);
+        },
       ),
+    );
+  }
+}
+
+/// Wraps the tab body so switching reads as a fast, premium cross-fade
+/// (~180ms) with a subtle scale-in on the incoming tab, rather than
+/// [IndexedStack]'s instant hard cut — while still using [IndexedStack]
+/// underneath so every tab's scroll position/state survives the switch.
+class _TabSwitcher extends StatefulWidget {
+  const _TabSwitcher({required this.index, required this.children});
+
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<_TabSwitcher> createState() => _TabSwitcherState();
+}
+
+class _TabSwitcherState extends State<_TabSwitcher>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, value: 1);
+
+  @override
+  void didUpdateWidget(covariant _TabSwitcher old) {
+    super.didUpdateWidget(old);
+    if (widget.index != old.index) {
+      if (reducedMotion(context)) {
+        _c.value = 1;
+      } else {
+        // Restart from 0 on every switch — an interrupted mid-flight switch
+        // (rapid tab taps) just retargets rather than jumping.
+        _c.value = 0;
+        _c.springTo(1, spring: AppSprings.standard);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = _c.value.clamp(0.0, 1.0);
+        return Opacity(
+          opacity: t,
+          child: Transform.scale(scale: 0.985 + 0.015 * t, child: child),
+        );
+      },
+      child: IndexedStack(index: widget.index, children: widget.children),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -14,21 +15,12 @@ import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/domain/expense_repository.dart';
 import '../../../expenses/domain/wallet.dart';
-import '../../../schedule/domain/schedule_event.dart';
-import '../../../schedule/domain/schedule_repository.dart';
-import '../../../tasks/domain/task.dart';
-import '../../../university/domain/university_item.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_plan.dart';
-import '../focus_builder.dart';
 import '../header_builder.dart';
-import '../now_next_builder.dart';
 import '../widgets/common.dart';
-import '../widgets/day_progress_ring.dart';
 import '../widgets/diet_glance.dart';
-import '../widgets/focus_list.dart';
-import '../widgets/now_next_card.dart';
 import '../widgets/spending_glance.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
@@ -77,27 +69,18 @@ class TodayPage extends StatelessWidget {
                   ),
                   children: [
                     const RiseIn(delay: Duration.zero, child: _Header()),
-                    // Primary tier — the two time-relevant things, full-weight cards.
+                    // Primary tier — the day's training, full-weight card.
                     const RiseIn(
                       delay: Duration(milliseconds: 90),
-                      child: _NowNextSection(),
-                    ),
-                    const RiseIn(
-                      delay: Duration(milliseconds: 170),
                       child: _TrainingSection(),
                     ),
-                    // Secondary tier — today's tasks, neutral rows.
-                    const RiseIn(
-                      delay: Duration(milliseconds: 250),
-                      child: _FocusSection(),
-                    ), // live tasks merged with live university items
                     // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                     const RiseIn(
-                      delay: Duration(milliseconds: 330),
+                      delay: Duration(milliseconds: 170),
                       child: _SpendingSection(),
                     ),
                     const RiseIn(
-                      delay: Duration(milliseconds: 400),
+                      delay: Duration(milliseconds: 250),
                       child: _DietSection(),
                     ),
                   ],
@@ -177,11 +160,129 @@ class _Header extends StatelessWidget {
       children: [
         const SizedBox(height: 8),
         Text(formatTodayDate(now).toUpperCase(), style: AppText.dateLabel),
+        const SizedBox(height: 6),
+        // The live clock is the header's anchor — the biggest thing on the
+        // screen, so a glance answers "what time is it" before anything else.
+        const _LiveTime(),
         const SizedBox(height: 10),
         _GreetingRow(now: now),
-        const SizedBox(height: 11),
-        _AsideLine(now: now),
       ],
+    );
+  }
+}
+
+/// A live wall clock (`H:MM` + AM/PM), the Today header's visual anchor.
+///
+/// Ticks on each minute boundary rather than every second — a calm, premium
+/// cadence that still stays exactly accurate (the first timer is aligned to
+/// the next whole minute, then it repeats every minute). Tabular figures
+/// (inherited from [AppText.heroNumber]) keep the digits from shifting width
+/// as the time changes, so the clock never jitters.
+class _LiveTime extends StatefulWidget {
+  const _LiveTime();
+
+  @override
+  State<_LiveTime> createState() => _LiveTimeState();
+}
+
+class _LiveTimeState extends State<_LiveTime> {
+  DateTime _now = DateTime.now();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final nextMinute =
+        DateTime(now.year, now.month, now.day, now.hour, now.minute)
+            .add(const Duration(minutes: 1));
+    _timer = Timer(nextMinute.difference(now), () {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (mounted) setState(() => _now = DateTime.now());
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hour = _now.hour;
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    final minute = _now.minute.toString().padLeft(2, '0');
+    final period = hour < 12 ? 'AM' : 'PM';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '$h12:$minute',
+          style: AppText.heroNumber.copyWith(
+            fontSize: 58,
+            letterSpacing: -1.6,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 11),
+          child: Text(
+            period,
+            style: AppText.meta.copyWith(
+              fontSize: 17,
+              color: AppColors.ink3,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: _TimeOfDayOrb(now: _now),
+        ),
+      ],
+    );
+  }
+}
+
+/// The soft glowing orb beside the clock — sun by day, twilight at dusk, moon
+/// at night — so the header carries the feel of the actual hour, not a fixed
+/// icon. Purely atmospheric.
+class _TimeOfDayOrb extends StatelessWidget {
+  const _TimeOfDayOrb({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final h = now.hour;
+    final IconData icon;
+    final Color color;
+    if (h >= 6 && h < 18) {
+      icon = Icons.wb_sunny_rounded;
+      color = AppColors.ember;
+    } else if (h >= 18 && h < 22) {
+      icon = Icons.wb_twilight_rounded;
+      color = AppColors.solar;
+    } else {
+      icon = Icons.nightlight_round;
+      color = AppColors.iris;
+    }
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [color.withValues(alpha: 0.24), color.withValues(alpha: 0)],
+        ),
+      ),
+      child: Icon(icon, color: color, size: 26),
     );
   }
 }
@@ -198,123 +299,9 @@ class _GreetingRow extends StatelessWidget {
     return StreamBuilder<UserProfile?>(
       stream: uid == null ? null : scope.profiles.watchProfile(uid),
       builder: (context, snapshot) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                greetingFor(now, snapshot.data?.name),
-                style: AppText.greeting,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              width: 38,
-              height: 38,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [Color(0x33FF5A1F), Color(0x00FF5A1F)],
-                ),
-              ),
-              child: const Icon(
-                Icons.wb_sunny_rounded,
-                color: AppColors.ember,
-                size: 25,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Composes the aside line live from the day's focus list + next event.
-class _AsideLine extends StatelessWidget {
-  const _AsideLine({required this.now});
-
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    return StreamBuilder<List<Task>>(
-      stream: scope.tasks.watchAll(),
-      initialData: scope.tasks.current,
-      builder: (context, taskSnapshot) {
-        return StreamBuilder<List<UniversityItem>>(
-          stream: scope.university.watchAll(),
-          initialData: scope.university.current,
-          builder: (context, universitySnapshot) {
-            return StreamBuilder<List<ScheduleEvent>>(
-              stream: scope.schedule.watchAll(),
-              initialData: scope.schedule.current,
-              builder: (context, scheduleSnapshot) {
-                final focus = buildFocus(
-                  tasks: taskSnapshot.data ?? const <Task>[],
-                  universityItems:
-                      universitySnapshot.data ?? const <UniversityItem>[],
-                  now: now,
-                );
-                final event = nextRelevant(
-                  scheduleSnapshot.data ?? const <ScheduleEvent>[],
-                  now,
-                );
-                final next = event == null
-                    ? null
-                    : nowNextFromEvent(event, now);
-                final asideText = Text(
-                  buildAside(focus: focus, next: next),
-                  style: AppText.aside,
-                );
-                if (focus.isEmpty) return asideText;
-                final done = focus.where((f) => f.done).length;
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    DayProgressRing(progress: done / focus.length),
-                    const SizedBox(width: 14),
-                    Expanded(child: asideText),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _NowNextSection extends StatelessWidget {
-  const _NowNextSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final schedule = AppScope.of(context).schedule;
-    return StreamBuilder<List<ScheduleEvent>>(
-      stream: schedule.watchAll(),
-      initialData: schedule.current,
-      builder: (context, snapshot) {
-        final now = DateTime.now();
-        final event = nextRelevant(
-          snapshot.data ?? const <ScheduleEvent>[],
-          now,
-        );
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader('Now · Next', top: AppSpacing.section - 4),
-            if (event == null)
-              const _EmptyLine(
-                'No events today.',
-                icon: Icons.event_available_rounded,
-              )
-            else
-              NowNextCard(nowNextFromEvent(event, now)),
-          ],
+        return Text(
+          greetingFor(now, snapshot.data?.name),
+          style: AppText.greeting,
         );
       },
     );
@@ -352,47 +339,6 @@ class _EmptyLine extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FocusSection extends StatelessWidget {
-  const _FocusSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final tasks = AppScope.of(context).tasks;
-    final university = AppScope.of(context).university;
-    return StreamBuilder<List<Task>>(
-      stream: tasks.watchAll(),
-      initialData: tasks.current,
-      builder: (context, taskSnapshot) {
-        return StreamBuilder<List<UniversityItem>>(
-          stream: university.watchAll(),
-          initialData: university.current,
-          builder: (context, universitySnapshot) {
-            final items = buildFocus(
-              tasks: taskSnapshot.data ?? const <Task>[],
-              universityItems:
-                  universitySnapshot.data ?? const <UniversityItem>[],
-              now: DateTime.now(),
-            );
-            // Secondary tier: silently hides when empty, unlike Now·Next and
-            // Training (primary tier, which may show a gentle empty state).
-            if (items.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader('Today'),
-                FocusList(
-                  items,
-                  onToggle: (id, done) => tasks.setDone(id, done),
-                ),
-              ],
-            );
-          },
-        );
-      },
     );
   }
 }

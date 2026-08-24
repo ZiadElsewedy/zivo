@@ -39,6 +39,15 @@ const {
 } = require("./ai/gateway");
 const {extractWorkoutPlan} = require("./ai/workout_import");
 const {FirestoreStore} = require("./ai/store");
+const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
+const {ProviderRegistry} = require("./ai/providers/registry");
+const router = require("./ai/routing/router");
+const {OpenAI, toFile} = require("openai");
+const {GoogleGenAI} = require("@google/genai");
+const {transcribeAudio, SpeechError} = require("./ai/speech/gateway");
+const {GeminiSpeechProvider} = require("./ai/speech/providers/gemini_speech_provider");
+const {OpenAiSpeechProvider} = require("./ai/speech/providers/openai_speech_provider");
+const speechRouter = require("./ai/speech/routing/speech_router");
 
 initializeApp();
 const db = getFirestore();
@@ -53,6 +62,20 @@ const OTP_PEPPER = defineSecret("OTP_PEPPER");
 // The Anthropic API key backing the `aiChat` gateway (ADR-001). Read only
 // via `.value()` inside the handler below — never hardcoded or logged.
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+// The Google Gemini API key backing the DEFAULT `aiTranscribe` STT route.
+// Read only via `.value()` inside the handler below — never hardcoded or
+// logged. Speech-to-text is a separate capability from the Anthropic-backed
+// chat/workout-import gateways above — see `functions/ai/speech/`.
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+// The OpenAI API key backing the OPTIONAL `aiTranscribe` STT fallback route,
+// tried only when the Gemini route errors (see
+// `speech/routing/speech_router.js`). Optional so the function can deploy
+// Gemini-only without an OpenAI key: it is NOT listed in `aiTranscribe`'s
+// `secrets` array below, so it isn't required at deploy time and the handler
+// detects its presence at runtime via `process.env`. To ENABLE the fallback:
+// (1) `firebase functions:secrets:set OPENAI_API_KEY`, then (2) add
+// `OPENAI_API_KEY` to that `secrets` array and redeploy — the handler then
+// wires the OpenAI provider automatically.
 
 // --- Tunables ---------------------------------------------------------------
 const OTP_TTL_MINUTES = 10;
@@ -348,22 +371,47 @@ const toHttpsError = (err) => {
 };
 
 /**
+ * Builds a `ProviderRegistry` backed by the real Anthropic client, the one
+ * real `AiProvider` today (`./ai/providers/anthropic_provider.js`). A second
+ * real provider is a new adapter file plus one more `.register()` call here —
+ * `./ai/routing/router.js`'s capability table is the only other place that
+ * needs to know about it.
+ * @param {!Anthropic} anthropic
+ * @return {!ProviderRegistry}
+ */
+function buildProviderRegistry(anthropic) {
+  return new ProviderRegistry().register("anthropic", new AnthropicProvider(anthropic));
+}
+
+/**
+ * An `AiProvider`-shaped object whose `generate` resolves `capability` via
+ * `./ai/routing/router.js` on every call — including the router's
+ * fallback-on-error policy, transparently to `./ai/gateway.js`/
+ * `./ai/workout_import.js`, which only ever see a single `provider.generate`.
+ * @param {!ProviderRegistry} registry
+ * @param {string} capability
+ * @return {!Object}
+ */
+function providerForCapability(registry, capability) {
+  return {
+    generate: (normalizedRequest, opts) =>
+      router.generate(registry, capability, normalizedRequest, opts),
+  };
+}
+
+/**
  * The "Ask" AI assistant gateway (ADR-001): a read-only, tool-mediated
  * Claude conversation over the user's own ZIVO data. All orchestration
  * (history windowing, the tool loop, cost/iteration ceilings, usage
  * logging) lives in `./ai/gateway.js`/`./ai/tools.js` so it is unit-testable
  * without the network or the emulator; this handler only wires the real
- * Anthropic client and Firestore store and maps errors.
+ * Anthropic client, provider/routing seam, and Firestore store, and maps
+ * errors.
  */
 exports.aiChat = onCall(
     {
       secrets: [ANTHROPIC_API_KEY],
       region: "us-central1",
-      // M9 Phase 4: attest that calls come from a genuine app instance (the
-      // client activates App Check in `lib/main.dart`). MUST NOT be deployed
-      // until App Check providers are registered in the Firebase Console for
-      // this project, or the owner's own device is locked out of Ask.
-      enforceAppCheck: true,
     },
     async (request, response) => {
       const auth = request.auth;
@@ -374,8 +422,10 @@ exports.aiChat = onCall(
       const data = request.data || {};
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
+      const responseStyle = (data.responseStyle || "").toString();
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
       const store = new FirestoreStore(db);
 
       // When the client opts into streaming (`httpsCallable.stream()`), forward
@@ -388,14 +438,14 @@ exports.aiChat = onCall(
       try {
         return await runAiTurn({
           store,
-          callModel: (req) => anthropic.messages.create(req),
-          streamModel: streaming ?
-            (req, onText) => streamModelCall(anthropic, req, onText) :
-            undefined,
+          provider: providerForCapability(registry, "chat"),
+          model: router.resolve("chat").model,
+          stream: streaming,
           onEvent: streaming ? (event) => response.sendChunk(event) : undefined,
           uid: auth.uid,
           conversationId,
           message,
+          responseStyle,
           now: () => new Date(),
         });
       } catch (err) {
@@ -404,28 +454,11 @@ exports.aiChat = onCall(
     },
 );
 
-/**
- * The `streamModel` seam for `runAiTurn`: streams one Anthropic call,
- * forwarding each text delta to `onText`, and resolves to the final message
- * (the same shape `messages.create` returns) so the loop is unchanged.
- * @param {!Anthropic} anthropic
- * @param {!Object} req
- * @param {function(string): void} onText
- * @return {!Promise<!Object>}
- */
-async function streamModelCall(anthropic, req, onText) {
-  const stream = anthropic.messages.stream(req);
-  stream.on("text", (delta) => onText(delta));
-  return stream.finalMessage();
-}
-
 // --- aiConfirmAction / aiCancelAction (ADR-003 V2) -------------------------
 
-// These WRITE user data, so — like `aiChat` — they enforce App Check
-// (`enforceAppCheck: true`). CRITICAL DEPLOY ORDERING: register App Check
-// providers in the Firebase Console for this project FIRST, then deploy the
-// functions. Deploying enforcement before the Console providers exist locks the
-// owner's own device out of all three AI callables.
+// These WRITE user data. Access is gated by Firebase Auth (`request.auth`)
+// below and by owner-only Firestore rules; the confirm/cancel logic only ever
+// touches the signed-in user's own pending actions.
 
 /**
  * Executes a user-confirmed pending action (ADR-003): performs the proposed
@@ -434,7 +467,7 @@ async function streamModelCall(anthropic, req, onText) {
  * the store and maps errors.
  */
 exports.aiConfirmAction = onCall(
-    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+    {region: "us-central1"}, async (request) => {
       const auth = request.auth;
       if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
@@ -460,7 +493,7 @@ exports.aiConfirmAction = onCall(
  * Never writes an entity.
  */
 exports.aiCancelAction = onCall(
-    {region: "us-central1", enforceAppCheck: true}, async (request) => {
+    {region: "us-central1"}, async (request) => {
       const auth = request.auth;
       if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
 
@@ -479,6 +512,40 @@ exports.aiCancelAction = onCall(
       } catch (err) {
         throw toHttpsError(err);
       }
+    });
+
+// --- aiDeleteConversation ----------------------------------------------
+
+/**
+ * Permanently deletes a conversation and everything under it (messages,
+ * pendingActions) via `recursiveDelete`. Functions-only: `firestore.rules`
+ * lets the client create/rename its own conversations but never delete one
+ * (a client delete would orphan the server-written `messages` subcollection
+ * it has no permission to remove) — the Admin SDK bypasses rules entirely,
+ * which is exactly why this needs its own callable.
+ */
+exports.aiDeleteConversation = onCall(
+    {region: "us-central1"}, async (request) => {
+      const auth = request.auth;
+      if (!auth) throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+
+      const conversationId = (
+        (request.data && request.data.conversationId) || ""
+      ).toString();
+      if (!conversationId) {
+        throw new HttpsError(
+            "invalid-argument", "conversationId is required.",
+        );
+      }
+
+      const ref = db
+          .collection("users")
+          .doc(auth.uid)
+          .collection("aiConversations")
+          .doc(conversationId);
+
+      await db.recursiveDelete(ref);
+      return {ok: true};
     });
 
 // --- aiImportWorkoutPlan (WORKOUT_SYSTEM.md §3.4, Phase 6) -----------------
@@ -500,18 +567,16 @@ const MAX_PDF_BASE64_CHARS = 14 * 1024 * 1024;
  * itself via `saveSplit` — that review screen is the "human confirms before
  * it becomes real" gate, so there is nothing here to confirm or cancel.
  *
- * Deliberately UNauthenticated: this call reads and extracts a PDF, nothing
- * more — it never touches Firestore, so there's no user data to protect at
- * this step. `enforceAppCheck` is the abuse control here (blocks scripted
- * callers, not signed-out humans); auth is required later, at save time
- * (`saveSplit`/`savePlan`, gated client-side and by Firestore's owner-only
- * rules), where a workout plan actually gets written to an account.
+ * Requires a signed-in Firebase user: this is an expensive Claude call (a
+ * whole-PDF extraction), so it must not be callable anonymously. It writes no
+ * Firestore data itself — the extracted split is reviewed and saved later
+ * (`saveSplit`/`savePlan`, gated by Firestore's owner-only rules) — but the
+ * `request.auth` gate here keeps the paid endpoint behind authentication.
  */
 exports.aiImportWorkoutPlan = onCall(
     {
       secrets: [ANTHROPIC_API_KEY],
       region: "us-central1",
-      enforceAppCheck: true,
       // A single Claude call reading a whole PDF (native document input,
       // every page) can run well past the platform's 60s default — unlike
       // aiChat's short per-turn tool calls, there's no streaming/chunking
@@ -519,6 +584,11 @@ exports.aiImportWorkoutPlan = onCall(
       timeoutSeconds: 180,
     },
     async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to import a plan.");
+      }
+
       const data = request.data || {};
       const pdfBase64 = (data.pdfBase64 || "").toString();
       if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
@@ -527,13 +597,15 @@ exports.aiImportWorkoutPlan = onCall(
       }
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
       // base64 runs ~4/3 the raw byte size — approximate, but enough to spot
       // "why did this reject" patterns (e.g. a suspiciously tiny upload).
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
       try {
         const result = await extractWorkoutPlan({
-          callModel: (req) => anthropic.messages.create(req),
+          provider: providerForCapability(registry, "workout_import"),
+          model: router.resolve("workout_import").model,
           pdfBase64,
           logEvent: (event) => logger.info("aiImportWorkoutPlan", {
             approxPdfBytes,
@@ -548,6 +620,180 @@ exports.aiImportWorkoutPlan = onCall(
           message: err && err.message,
         });
         throw toHttpsError(err);
+      }
+    },
+);
+
+// --- aiTranscribe (speech-to-text, input only) ------------------------------
+
+// A SEPARATE capability from the Anthropic-backed gateways above — never
+// routed through `./ai/providers/`/`./ai/routing/router.js`. This only
+// returns TEXT for the client to place in the chat composer; it never calls
+// the LLM and never speaks text back.
+
+/**
+ * Builds a `ProviderRegistry` backed by the two real `SpeechToTextProvider`
+ * adapters: Gemini (`./ai/speech/providers/gemini_speech_provider.js`, the
+ * default route) and OpenAI (`./ai/speech/providers/openai_speech_provider.js`,
+ * the fallback). Which one runs — and in what order — is decided entirely by
+ * `./ai/speech/routing/speech_router.js`'s capability table, not here; this
+ * only supplies the real network seams. A third STT provider is a new adapter
+ * file plus one more `.register()` call here.
+ * @param {!GoogleGenAI} genai
+ * @param {?OpenAI} openai The OpenAI client, or null when the optional
+ *   fallback key isn't configured — then only Gemini is registered and the
+ *   router skips the (unregistered) OpenAI route.
+ * @return {!ProviderRegistry}
+ */
+function buildSpeechRegistry(genai, openai) {
+  const registry = new ProviderRegistry()
+      .register("gemini", new GeminiSpeechProvider({
+        transcribe: async ({buffer, mimeType, model, prompt}) => {
+          // Gemini transcribes via a multimodal `generateContent` call: the
+          // audio rides inline as base64, alongside the adapter's verbatim
+          // transcription prompt. Thinking is disabled and temperature pinned
+          // to 0 — transcription is deterministic, not a reasoning task.
+          const response = await genai.models.generateContent({
+            model,
+            contents: [{
+              role: "user",
+              parts: [
+                {inlineData: {mimeType, data: buffer.toString("base64")}},
+                {text: prompt},
+              ],
+            }],
+            config: {temperature: 0, thinkingConfig: {thinkingBudget: 0}},
+          });
+          return {text: response.text};
+        },
+      }));
+  if (openai) {
+    registry.register("openai", new OpenAiSpeechProvider({
+      transcribe: async ({buffer, filename, mimeType, model, language}) => {
+        const file = await toFile(buffer, filename, {type: mimeType});
+        const params = {file, model, response_format: "json"};
+        if (language) params.language = language;
+        const result = await openai.audio.transcriptions.create(params);
+        return {
+          text: result.text,
+          language: result.language,
+          duration: result.duration,
+        };
+      },
+    }));
+  }
+  return registry;
+}
+
+/**
+ * A `SpeechToTextProvider`-shaped object whose `transcribe` resolves
+ * `capability` via `./ai/speech/routing/speech_router.js` on every call —
+ * including its fallback-on-error policy, transparently to
+ * `./ai/speech/gateway.js`, which only ever sees a single
+ * `provider.transcribe`.
+ * @param {!ProviderRegistry} registry
+ * @param {string} capability
+ * @return {!Object}
+ */
+function speechProviderForCapability(registry, capability) {
+  return {
+    transcribe: (normalizedRequest) =>
+      speechRouter.transcribe(registry, capability, normalizedRequest),
+  };
+}
+
+/**
+ * `SpeechError` codes are ZIVO-specific, not gRPC codes — map each to the
+ * nearest valid `HttpsError` code for the wire, while carrying the exact
+ * code in `details.sttCode` so the client can reconstruct the precise
+ * failure reason (`FirebaseAiRepository.transcribe` reads it) rather than
+ * inferring from the coarser gRPC bucket.
+ * @const {!Object<string, string>}
+ */
+const SPEECH_ERROR_TO_HTTPS_CODE = {
+  "invalid-argument": "invalid-argument",
+  "unsupported_audio_format": "invalid-argument",
+  "audio_too_large": "invalid-argument",
+  "transcription_failed": "internal",
+  "provider_unavailable": "unavailable",
+  "timeout": "deadline-exceeded",
+};
+
+/**
+ * @param {!Error} err
+ * @return {!HttpsError}
+ */
+const toSpeechHttpsError = (err) => {
+  if (err instanceof SpeechError) {
+    const grpcCode = SPEECH_ERROR_TO_HTTPS_CODE[err.code] || "internal";
+    return new HttpsError(grpcCode, err.message, {sttCode: err.code});
+  }
+  console.error("aiTranscribe: unhandled error", err);
+  return new HttpsError(
+      "internal", "Couldn't transcribe that audio. Please try again.",
+      {sttCode: "transcription_failed"});
+};
+
+/**
+ * Speech-to-text for the chat composer's mic button: one audio clip in, one
+ * transcript out — no Firestore write, no LLM call, no text-to-speech. The
+ * client puts the returned text in the composer for the user to edit/send
+ * via the existing `aiChat` path. All orchestration (validation, provider
+ * selection, error translation) lives in `./ai/speech/gateway.js` so it is
+ * unit-testable without the network; this handler only wires the real
+ * OpenAI client and maps errors.
+ */
+exports.aiTranscribe = onCall(
+    {
+      // Gemini backs the default route and is required. OpenAI is the
+      // OPTIONAL fallback — add OPENAI_API_KEY here (and set the secret) to
+      // enable it; omitted so the function deploys Gemini-only by default.
+      secrets: [GEMINI_API_KEY],
+      region: "us-central1",
+      // A single transcription call for a short voice note; generous
+      // headroom over the platform default without inviting long-poll abuse.
+      timeoutSeconds: 120,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to use Ask.");
+      }
+
+      const data = request.data || {};
+      const audioBase64 = (data.audioBase64 || "").toString();
+      const mimeType = (data.mimeType || "").toString();
+      const languageHint = typeof data.languageHint === "string" ?
+        data.languageHint : undefined;
+
+      const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
+      // OpenAI fallback is wired only when its key is bound at runtime — i.e.
+      // OPENAI_API_KEY was set AND listed in this function's `secrets` array
+      // (Firebase populates `process.env` only for bound secrets). Otherwise
+      // it's null and the router runs Gemini-only, skipping the OpenAI route.
+      const openaiKey = process.env.OPENAI_API_KEY;
+      const openai = openaiKey ? new OpenAI({apiKey: openaiKey}) : null;
+      const registry = buildSpeechRegistry(genai, openai);
+      const route = speechRouter.resolve("speech_to_text");
+
+      try {
+        return await transcribeAudio({
+          provider: speechProviderForCapability(registry, "speech_to_text"),
+          audioBase64,
+          mimeType,
+          languageHint,
+          // Never carries raw audio or the transcript itself — only its
+          // length would even be safe to add, and `./ai/speech/gateway.js`
+          // doesn't include it.
+          logEvent: (event) => logger.info("aiTranscribe", {
+            capability: "speech_to_text",
+            provider: route.provider,
+            model: route.model,
+            ...event,
+          }),
+        });
+      } catch (err) {
+        throw toSpeechHttpsError(err);
       }
     },
 );

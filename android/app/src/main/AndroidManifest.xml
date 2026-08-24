@@ -5,6 +5,9 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- Ask's mic button — recording a voice note for speech-to-text
+         (`record` package, `lib/features/ai/data/audio_recorder.dart`). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="zivo"
         android:name="${applicationName}"
@@ -29,6 +32,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Spotify redirect URI (lib/features/music) — App Remote's
+                 actual Android auth flow is Activity-result based (handled
+                 by spotify_sdk's plugin itself, no intent-filter needed for
+                 that), but this is registered for parity with iOS and any
+                 browser-based OAuth fallback that does deep-link back in. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="zivo" android:host="spotify-callback"/>
             </intent-filter>
         </activity>
         <!-- image_cropper (uCrop) — the native Android crop/rotate activity. -->
