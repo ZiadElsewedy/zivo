@@ -8,4 +8,5 @@ abstract interface class TaskRepository {
   Future<void> add(Task task);
   Future<void> update(Task task);
   Future<void> setDone(String id, bool done);
+  Future<void> delete(String id);
 }

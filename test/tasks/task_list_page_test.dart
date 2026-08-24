@@ -129,6 +129,58 @@ void main() {
     expect(find.text('Renew gym membership'), findsOneWidget);
   });
 
+  testWidgets(
+    'swiping a task left, confirming, deletes it via the repository',
+    (tester) async {
+      final tasks = InMemoryTaskRepository();
+      addTearDown(tasks.dispose);
+
+      await tester.pumpWidget(
+        _wrap(child: const TaskListPage(), tasksOverride: tasks),
+      );
+      await tester.pump();
+
+      expect(tasks.current.any((t) => t.id == 'seed-t2'), isTrue);
+
+      await tester.drag(
+        find.byKey(const ValueKey('seed-t2')),
+        const Offset(-1000, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete this task?'), findsOneWidget);
+      await tester.tap(find.text('Delete task'));
+      await tester.pumpAndSettle();
+
+      expect(tasks.current.any((t) => t.id == 'seed-t2'), isFalse);
+    },
+  );
+
+  testWidgets(
+    'swiping a task left then cancelling keeps it',
+    (tester) async {
+      final tasks = InMemoryTaskRepository();
+      addTearDown(tasks.dispose);
+
+      await tester.pumpWidget(
+        _wrap(child: const TaskListPage(), tasksOverride: tasks),
+      );
+      await tester.pump();
+
+      await tester.drag(
+        find.byKey(const ValueKey('seed-t2')),
+        const Offset(-1000, 0),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(tasks.current.any((t) => t.id == 'seed-t2'), isTrue);
+      expect(find.text('Renew gym membership'), findsOneWidget);
+    },
+  );
+
   testWidgets('shows the empty state when there are no tasks', (
     tester,
   ) async {
@@ -161,6 +213,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Nothing to do — enjoy the quiet.'), findsOneWidget);
+    expect(find.text('Nothing to do'), findsOneWidget);
   });
 }

@@ -234,19 +234,22 @@ class SpotifyMusicController implements MusicController {
   /// `spotify_sdk`'s Android plugin source — there's no public error-code
   /// list in its docs).
   ///
-  /// The SDK doesn't expose a dedicated "not Premium" code. App Remote's own
-  /// behavior for a signed-in, non-Premium account is to fail authorization
-  /// rather than connect read-only, which surfaces as
-  /// `UserNotAuthorizedException` on Android — the best available signal,
-  /// and unverified against a real non-Premium account (best-effort until
-  /// someone actually tests with one).
+  /// `UserNotAuthorizedException` used to map to [MusicConnection.needsPremium]
+  /// — that was wrong. It means the app/account wasn't AUTHORIZED (in
+  /// Developer Dashboard "Development mode," the usual cause is the account
+  /// not being under User Management; it can also mean a declined or failed
+  /// authorization), not that the account lacks Premium. The SDK has no
+  /// dedicated "not Premium" code at all — see [MusicConnection.needsPremium]'s
+  /// doc — so nothing here maps to it.
   MusicConnection _mapErrorCode(String? code) {
     switch (code) {
       case 'CouldNotFindSpotifyApp':
       case 'spotifyNotInstalled':
         return MusicConnection.noSpotifyApp;
       case 'UserNotAuthorizedException':
-        return MusicConnection.needsPremium;
+      case 'AuthenticationFailedException':
+      case 'NotLoggedInException':
+        return MusicConnection.authFailed;
       default:
         return MusicConnection.disconnected;
     }

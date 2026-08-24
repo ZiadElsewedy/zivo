@@ -43,6 +43,14 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Flutter's release build type minifies/shrinks by default (R8) —
+            // debug builds never exercise this, which is why the Spotify App
+            // Remote AAR's missing-class references (proguard-rules.pro) only
+            // broke `flutter build apk --release`, not the debug build.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

@@ -256,8 +256,13 @@ class _PlayPauseControl extends StatelessWidget {
   }
 }
 
-/// The three non-`connected` states — each with copy specific to what's
-/// actually wrong, rather than one generic "can't connect" message.
+/// The non-`connected` states — each with copy specific to what's actually
+/// wrong, rather than one generic "can't connect" message. This is the
+/// music feature's only always-reachable surface (the Profile tab's Music
+/// row opens straight here regardless of connection state — see
+/// `profile_page.dart`), so it has to carry every state on its own; the
+/// mini bar (`NowPlayingBar`) is purely a shortcut back in once already
+/// playing, never the only way to see what's wrong.
 class _ConnectionState extends StatelessWidget {
   const _ConnectionState({required this.state, required this.onConnect});
 
@@ -266,23 +271,32 @@ class _ConnectionState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, message, showConnect) = switch (state) {
+    final (icon, message, connectLabel) = switch (state) {
+      // Generic and non-misleading on purpose — see
+      // MusicConnection.authFailed's doc comment for why this doesn't name
+      // a specific cause (the same code covers more than one).
+      MusicConnection.authFailed => (
+        Icons.error_outline_rounded,
+        "Couldn't connect to Spotify. Make sure the Spotify app is open "
+            "and you're signed in, then try again.",
+        'Try again',
+      ),
       MusicConnection.needsPremium => (
         Icons.workspace_premium_outlined,
         'Spotify Premium is required to control playback here.',
-        false,
+        null,
       ),
       MusicConnection.noSpotifyApp => (
         Icons.error_outline_rounded,
         'Install Spotify to connect.',
-        false,
+        null,
       ),
-      MusicConnection.connecting => (Icons.sync_rounded, 'Connecting…', false),
+      MusicConnection.connecting => (Icons.sync_rounded, 'Connecting…', null),
       MusicConnection.disconnected ||
       MusicConnection.connected => (
         Icons.music_note_rounded,
         "Connect Spotify to see what's playing.",
-        true,
+        'Connect Spotify',
       ),
     };
     return Center(
@@ -298,12 +312,12 @@ class _ConnectionState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: AppText.aside.copyWith(color: AppColors.ink2),
             ),
-            if (showConnect) ...[
+            if (connectLabel != null) ...[
               const SizedBox(height: 20),
               SizedBox(
                 width: 200,
                 child: PillButton(
-                  label: 'Connect Spotify',
+                  label: connectLabel,
                   icon: Icons.link_rounded,
                   color: AppColors.pulse,
                   enabled: true,

@@ -118,6 +118,12 @@ class FirestoreTaskRepository implements TaskRepository {
     ).doc(id).update({'done': done, 'updatedAt': FieldValue.serverTimestamp()});
   }
 
+  @override
+  Future<void> delete(String id) {
+    final uid = _requireUid();
+    return _tasksCollection(uid).doc(id).delete();
+  }
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {

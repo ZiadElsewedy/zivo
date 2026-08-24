@@ -14,7 +14,9 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../music/domain/music_connection.dart';
 import '../../../music/domain/music_controller.dart';
+import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
+import '../../../music/presentation/music_player_page.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -269,8 +271,10 @@ class ProfilePage extends StatelessWidget {
                   // The whole feature is compile-time-hidden — see
                   // `music_config.dart` — so with it off this collection-if
                   // contributes nothing, same as `home_shell.dart`'s mini
-                  // bar. `_MusicSection` itself further hides once
-                  // connected (the mini bar is the entry point from there).
+                  // bar. Unlike the mini bar (only visible once already
+                  // playing), `_MusicSection` stays present in every
+                  // connection state — it's the one always-reachable way
+                  // into the player, connected or not.
                   if (kMusicEnabled) ...[
                     const SizedBox(height: 20),
                     RiseIn(
@@ -315,11 +319,14 @@ class ProfilePage extends StatelessWidget {
 
 enum _PhotoAction { choose, remove }
 
-/// The Profile tab's entry point into the music feature — the ONLY way in
-/// before a connection exists, since `NowPlayingBar` (the other entry
-/// point, `home_shell.dart`) only mounts once already connected. Hides
-/// itself entirely once connected, same reasoning: from there on, the mini
-/// bar is the way back in, not this row.
+/// The Profile tab's ALWAYS-present entry point into the music feature —
+/// unlike `NowPlayingBar` (`home_shell.dart`'s mini bar, only mounted once
+/// already connected+playing), this row is visible in every connection
+/// state, since before connecting the mini bar doesn't exist yet and there
+/// would otherwise be no visible way in at all. Tapping always opens
+/// [MusicPlayerPage] — the connect/retry affordance and per-state copy live
+/// there (`_ConnectionState`), not duplicated here; this row is purely a
+/// destination link, its trailing value just previewing current status.
 class _MusicSection extends StatelessWidget {
   const _MusicSection({required this.controller});
 
@@ -330,48 +337,42 @@ class _MusicSection extends StatelessWidget {
     return StreamBuilder<MusicConnection>(
       stream: controller.connection,
       initialData: controller.currentConnection,
-      builder: (context, snap) {
-        final state = snap.data ?? MusicConnection.disconnected;
-        if (state == MusicConnection.connected) return const SizedBox.shrink();
-        final (value, caption) = switch (state) {
-          MusicConnection.connecting => ('Connecting…', null),
-          MusicConnection.needsPremium => (
-            'Premium required',
-            'Spotify Premium is required to control playback here.',
-          ),
-          MusicConnection.noSpotifyApp => (
-            'Not installed',
-            'Install Spotify to connect.',
-          ),
-          MusicConnection.disconnected || MusicConnection.connected => ('Not connected', null),
-        };
-        return SettingsSectionCard(
-          label: 'MUSIC',
-          children: [
-            SettingsRow(
-              icon: Icons.music_note_rounded,
-              title: 'Spotify',
-              value: value,
-              last: true,
-              // Tapping while any fallback state is showing retries the
-              // connection — the same action, since `connect()` is what
-              // surfaces whichever of those states is actually true.
-              onTap: state == MusicConnection.connecting
-                  ? null
-                  : () {
-                      HapticFeedback.selectionClick();
-                      controller.connect();
-                    },
-            ),
-            if (caption != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 13),
-                child: Text(
-                  caption,
-                  style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+      builder: (context, connSnap) {
+        final state = connSnap.data ?? MusicConnection.disconnected;
+        return StreamBuilder<NowPlaying?>(
+          stream: controller.nowPlaying,
+          initialData: controller.currentNowPlaying,
+          builder: (context, nowSnap) {
+            final playing = nowSnap.data;
+            final value = switch (state) {
+              MusicConnection.connected => playing != null ? 'Playing' : 'Connected',
+              MusicConnection.connecting => 'Connecting…',
+              MusicConnection.authFailed => "Couldn't connect",
+              MusicConnection.needsPremium => 'Premium required',
+              MusicConnection.noSpotifyApp => 'Not installed',
+              MusicConnection.disconnected => 'Not connected',
+            };
+            return SettingsSectionCard(
+              label: 'MUSIC',
+              children: [
+                SettingsRow(
+                  icon: Icons.music_note_rounded,
+                  title: 'Spotify',
+                  value: value,
+                  last: true,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MusicPlayerPage(controller: controller),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                  },
                 ),
-              ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

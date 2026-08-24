@@ -63,5 +63,11 @@ class InMemoryTaskRepository implements TaskRepository {
     _controller.add(current);
   }
 
+  @override
+  Future<void> delete(String id) async {
+    _items.removeWhere((t) => t.id == id);
+    _controller.add(current);
+  }
+
   void dispose() => _controller.close();
 }

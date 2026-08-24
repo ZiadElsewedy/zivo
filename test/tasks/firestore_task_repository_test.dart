@@ -176,5 +176,35 @@ void main() {
       final tasks = await repo.watchAll().first;
       expect(tasks.single.due, isNull);
     });
+
+    test('delete removes the doc and is observed on the stream', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreTaskRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+
+      await repo.add(_make('t1'));
+      await repo.add(_make('t2'));
+
+      final seen = <List<Task>>[];
+      final sub = repo.watchAll().listen(seen.add);
+      await Future<void>.delayed(Duration.zero);
+
+      await repo.delete('t1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen.last.map((t) => t.id), ['t2']);
+
+      final doc = await firestore
+          .collection('users')
+          .doc('test-uid')
+          .collection('tasks')
+          .doc('t1')
+          .get();
+      expect(doc.exists, isFalse);
+
+      await sub.cancel();
+    });
   });
 }

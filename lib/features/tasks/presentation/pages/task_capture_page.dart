@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/task.dart';
 
 enum _Due { none, today, tomorrow, custom }
@@ -76,6 +79,11 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
     };
   }
 
+  void _selectDue(_Due due) {
+    HapticFeedback.selectionClick();
+    setState(() => _due = due);
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -85,6 +93,7 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
       lastDate: now.add(const Duration(days: 365 * 3)),
     );
     if (picked != null) {
+      HapticFeedback.selectionClick();
       setState(() {
         _customDate = picked;
         _due = _Due.custom;
@@ -92,8 +101,14 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
     }
   }
 
+  void _togglePriority() {
+    HapticFeedback.selectionClick();
+    setState(() => _priority = !_priority);
+  }
+
   Future<void> _save() async {
     if (!_canAdd) return;
+    HapticFeedback.lightImpact();
     final tasks = AppScope.of(context).tasks;
     final initial = widget.initial;
     final due = _resolveDue();
@@ -128,9 +143,12 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _TopBar(
-              editing: _editing,
+            CaptureTopBar(
+              title: _editing ? 'Edit task' : 'New task',
               onClose: () => Navigator.of(context).maybePop(),
+              titleColor: AppColors.ink2,
+              iconColor: AppColors.ink2,
+              chipColor: AppColors.surfaceRaised,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),
@@ -156,35 +174,45 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
                 spacing: 9,
                 runSpacing: 9,
                 children: [
-                  _Chip(
-                    label: 'No date',
-                    selected: _due == _Due.none,
-                    onTap: () => setState(() => _due = _Due.none),
+                  PressableScale(
+                    child: SelectChip(
+                      label: 'No date',
+                      selected: _due == _Due.none,
+                      onTap: () => _selectDue(_Due.none),
+                    ),
                   ),
-                  _Chip(
-                    label: 'Today',
-                    selected: _due == _Due.today,
-                    onTap: () => setState(() => _due = _Due.today),
+                  PressableScale(
+                    child: SelectChip(
+                      label: 'Today',
+                      selected: _due == _Due.today,
+                      onTap: () => _selectDue(_Due.today),
+                    ),
                   ),
-                  _Chip(
-                    label: 'Tomorrow',
-                    selected: _due == _Due.tomorrow,
-                    onTap: () => setState(() => _due = _Due.tomorrow),
+                  PressableScale(
+                    child: SelectChip(
+                      label: 'Tomorrow',
+                      selected: _due == _Due.tomorrow,
+                      onTap: () => _selectDue(_Due.tomorrow),
+                    ),
                   ),
-                  _Chip(
-                    label: _due == _Due.custom && _customDate != null
-                        ? _formatDate(_customDate!)
-                        : 'Date',
-                    icon: Icons.calendar_today_rounded,
-                    selected: _due == _Due.custom,
-                    onTap: _pickDate,
+                  PressableScale(
+                    child: SelectChip(
+                      label: _due == _Due.custom && _customDate != null
+                          ? _formatDate(_customDate!)
+                          : 'Date',
+                      icon: Icons.calendar_today_rounded,
+                      selected: _due == _Due.custom,
+                      onTap: _pickDate,
+                    ),
                   ),
-                  _Chip(
-                    label: 'Priority',
-                    icon: Icons.priority_high_rounded,
-                    selected: _priority,
-                    tone: _ChipTone.flare,
-                    onTap: () => setState(() => _priority = !_priority),
+                  PressableScale(
+                    child: SelectChip(
+                      label: 'Priority',
+                      icon: Icons.priority_high_rounded,
+                      selected: _priority,
+                      tone: ChipTone.flare,
+                      onTap: _togglePriority,
+                    ),
                   ),
                 ],
               ),
@@ -197,9 +225,11 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
                 18,
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
-              child: _AddButton(
+              child: PillButton(
+                label: _editing ? 'Save task' : 'Add task',
+                icon: _editing ? Icons.check_rounded : Icons.add_rounded,
+                color: AppColors.ember,
                 enabled: _canAdd,
-                editing: _editing,
                 onTap: _save,
               ),
             ),
@@ -215,155 +245,5 @@ class _TaskCapturePageState extends State<TaskCapturePage> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose, required this.editing});
-
-  final VoidCallback onClose;
-  final bool editing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: onClose,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceRaised,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink2),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Text(editing ? 'Edit task' : 'New task',
-                  style: AppText.button.copyWith(color: AppColors.ink2)),
-            ),
-          ),
-          const SizedBox(width: 34),
-        ],
-      ),
-    );
-  }
-}
-
-enum _ChipTone { neutral, flare }
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.icon,
-    this.tone = _ChipTone.neutral,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final _ChipTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color bg;
-    final Color fg;
-    final Color border;
-    if (selected && tone == _ChipTone.flare) {
-      bg = AppColors.flare;
-      fg = AppColors.ground;
-      border = AppColors.flare;
-    } else if (selected) {
-      bg = AppColors.ink;
-      fg = AppColors.ground;
-      border = AppColors.ink;
-    } else {
-      bg = Colors.transparent;
-      fg = tone == _ChipTone.flare ? AppColors.flareText : AppColors.ink2;
-      border = tone == _ChipTone.flare
-          ? const Color(0x59FF3D6E)
-          : AppColors.hairline2;
-    }
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: border, width: 1.4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 13, color: fg),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: AppText.button.copyWith(fontSize: 13.5, color: fg),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({
-    required this.enabled,
-    required this.onTap,
-    this.editing = false,
-  });
-
-  final bool enabled;
-  final VoidCallback onTap;
-  final bool editing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: Material(
-        color: AppColors.ember,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  editing ? Icons.check_rounded : Icons.add_rounded,
-                  size: 18,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  editing ? 'Save task' : 'Add task',
-                  style: AppText.button.copyWith(fontSize: 16, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
