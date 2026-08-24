@@ -1,12 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/media/domain/media_kind.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -14,6 +14,7 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_user.dart';
 import '../../domain/user_profile.dart';
+import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 import 'settings_page.dart';
 
@@ -40,12 +41,12 @@ class ProfilePage extends StatelessWidget {
     );
     if (name == null || !context.mounted) return;
     await AppScope.of(context).profiles.saveProfile(
-          uid: profile.uid,
-          name: name,
-          dateOfBirth: profile.dateOfBirth,
-          photoPath: profile.photoPath,
-          bio: profile.bio,
-        );
+      uid: profile.uid,
+      name: name,
+      dateOfBirth: profile.dateOfBirth,
+      photoPath: profile.photoPath,
+      bio: profile.bio,
+    );
   }
 
   Future<void> _editBio(BuildContext context, UserProfile profile) async {
@@ -63,29 +64,24 @@ class ProfilePage extends StatelessWidget {
     );
     if (bio == null || !context.mounted) return;
     await AppScope.of(context).profiles.saveProfile(
-          uid: profile.uid,
-          name: profile.name,
-          dateOfBirth: profile.dateOfBirth,
-          photoPath: profile.photoPath,
-          bio: bio.isEmpty ? null : bio,
-        );
+      uid: profile.uid,
+      name: profile.name,
+      dateOfBirth: profile.dateOfBirth,
+      photoPath: profile.photoPath,
+      bio: bio.isEmpty ? null : bio,
+    );
   }
 
   Future<void> _editDob(BuildContext context, UserProfile profile) async {
-    final picked = await showModalBottomSheet<DateTime>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _DobPickerSheet(initial: profile.dateOfBirth),
-    );
+    final picked = await showDobPicker(context, initial: profile.dateOfBirth);
     if (picked == null || !context.mounted) return;
     await AppScope.of(context).profiles.saveProfile(
-          uid: profile.uid,
-          name: profile.name,
-          dateOfBirth: picked,
-          photoPath: profile.photoPath,
-          bio: profile.bio,
-        );
+      uid: profile.uid,
+      name: profile.name,
+      dateOfBirth: picked,
+      photoPath: profile.photoPath,
+      bio: profile.bio,
+    );
   }
 
   Future<void> _changePhoto(BuildContext context, UserProfile profile) async {
@@ -134,22 +130,22 @@ class ProfilePage extends StatelessWidget {
       );
       if (!context.mounted) return;
       await AppScope.of(context).profiles.saveProfile(
-            uid: profile.uid,
-            name: profile.name,
-            dateOfBirth: profile.dateOfBirth,
-            photoPath: savedPath,
-            bio: profile.bio,
-          );
+        uid: profile.uid,
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth,
+        photoPath: savedPath,
+        bio: profile.bio,
+      );
     } else {
       final scope = AppScope.of(context);
       final oldPath = profile.photoPath;
       await scope.profiles.saveProfile(
-            uid: profile.uid,
-            name: profile.name,
-            dateOfBirth: profile.dateOfBirth,
-            photoPath: null,
-            bio: profile.bio,
-          );
+        uid: profile.uid,
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth,
+        photoPath: null,
+        bio: profile.bio,
+      );
       if (oldPath != null) {
         // Best-effort: remove the local file and its registry entry.
         await scope.requireMedia.deleteMedia(id: profile.uid, ref: oldPath);
@@ -182,10 +178,12 @@ class ProfilePage extends StatelessWidget {
                         Text('You', style: AppText.greeting),
                         const Spacer(),
                         _IconButton(
-                          icon: Icons.settings_outlined,
+                          icon: AppIcons.settings,
                           semanticLabel: 'Settings',
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SettingsPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsPage(),
+                            ),
                           ),
                         ),
                       ],
@@ -197,7 +195,9 @@ class ProfilePage extends StatelessWidget {
                     child: _ProfileHeader(
                       user: user,
                       profile: profile,
-                      onTapAvatar: profile == null ? null : () => _changePhoto(context, profile),
+                      onTapAvatar: profile == null
+                          ? null
+                          : () => _changePhoto(context, profile),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -205,7 +205,9 @@ class ProfilePage extends StatelessWidget {
                     delay: const Duration(milliseconds: 90),
                     child: _AboutCard(
                       bio: profile?.bio,
-                      onTap: profile == null ? null : () => _editBio(context, profile),
+                      onTap: profile == null
+                          ? null
+                          : () => _editBio(context, profile),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -215,27 +217,41 @@ class ProfilePage extends StatelessWidget {
                       label: 'ACCOUNT',
                       children: [
                         SettingsRow(
-                          icon: Icons.badge_outlined,
+                          icon: AppIcons.idCard,
                           title: 'Name',
                           value: profile?.name ?? '—',
-                          onTap: profile == null ? null : () => _editName(context, profile),
+                          onTap: profile == null
+                              ? null
+                              : () => _editName(context, profile),
                         ),
                         SettingsRow(
-                          icon: Icons.cake_outlined,
+                          icon: AppIcons.cake,
                           title: 'Date of birth',
-                          value: profile == null ? '—' : _formatDob(profile.dateOfBirth),
-                          onTap: profile == null ? null : () => _editDob(context, profile),
+                          value: profile == null
+                              ? '—'
+                              : _formatDob(profile.dateOfBirth),
+                          onTap: profile == null
+                              ? null
+                              : () => _editDob(context, profile),
                         ),
                         SettingsRow(
-                          icon: Icons.mail_outline_rounded,
+                          icon: AppIcons.mail,
                           title: 'Email',
                           value: user.email ?? 'Hidden by provider',
                           last: true,
                           trailing: user.email == null
                               ? null
                               : (user.isEmailVerified
-                                  ? const Icon(Icons.verified_rounded, size: 17, color: AppColors.pulse)
-                                  : const Icon(Icons.error_outline_rounded, size: 17, color: AppColors.solar)),
+                                    ? const Icon(
+                                        AppIcons.success,
+                                        size: 17,
+                                        color: AppColors.pulse,
+                                      )
+                                    : const Icon(
+                                        AppIcons.warning,
+                                        size: 17,
+                                        color: AppColors.solar,
+                                      )),
                         ),
                       ],
                     ),
@@ -255,7 +271,7 @@ class ProfilePage extends StatelessWidget {
                           ),
                         if (user.providerIds.isEmpty)
                           const SettingsRow(
-                            icon: Icons.password_rounded,
+                            icon: AppIcons.key,
                             title: 'Email',
                             value: 'Connected',
                             last: true,
@@ -273,23 +289,36 @@ class ProfilePage extends StatelessWidget {
   }
 
   static String _providerLabel(String id) => switch (id) {
-        'password' => 'Email & password',
-        'google.com' => 'Google',
-        'apple.com' => 'Apple',
-        _ => id,
-      };
+    'password' => 'Email & password',
+    'google.com' => 'Google',
+    'apple.com' => 'Apple',
+    _ => id,
+  };
 
   static IconData _providerIcon(String id) => switch (id) {
-        'password' => Icons.password_rounded,
-        'google.com' => Icons.g_mobiledata_rounded,
-        'apple.com' => Icons.apple_rounded,
-        _ => Icons.link_rounded,
-      };
+    'password' => AppIcons.key,
+    // No Lucide glyph represents Google's mark — Material's
+    // g_mobiledata is the one deliberate AppIcons exception here (same
+    // class of call as leaving the Today time-of-day orb on Material).
+    'google.com' => Icons.g_mobiledata_rounded,
+    'apple.com' => AppIcons.apple,
+    _ => AppIcons.link,
+  };
 
   static String _formatDob(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final now = DateTime.now();
     var age = now.year - d.year;
@@ -304,7 +333,11 @@ enum _PhotoAction { choose, remove }
 /// `CaptureIconButton`, kept local since this page's chip is neutral
 /// (surfaceRaised) rather than capture-flow-branded.
 class _IconButton extends StatelessWidget {
-  const _IconButton({required this.icon, required this.semanticLabel, required this.onTap});
+  const _IconButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String semanticLabel;
@@ -322,7 +355,10 @@ class _IconButton extends StatelessWidget {
             width: 38,
             height: 38,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceRaised,
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, size: 19, color: AppColors.ink2),
           ),
         ),
@@ -334,7 +370,11 @@ class _IconButton extends StatelessWidget {
 /// Avatar + name + verified email — the identity summary above the account
 /// details.
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.user, required this.profile, required this.onTapAvatar});
+  const _ProfileHeader({
+    required this.user,
+    required this.profile,
+    required this.onTapAvatar,
+  });
 
   final AuthUser user;
   final UserProfile? profile;
@@ -352,9 +392,18 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _Avatar(seed: user.uid, name: _name, photoPath: profile?.photoPath, onTap: onTapAvatar),
+        _Avatar(
+          seed: user.uid,
+          name: _name,
+          photoPath: profile?.photoPath,
+          onTap: onTapAvatar,
+        ),
         const SizedBox(height: 16),
-        Text(_name, style: AppText.cardTitle.copyWith(fontSize: 22), textAlign: TextAlign.center),
+        Text(
+          _name,
+          style: AppText.cardTitle.copyWith(fontSize: 22),
+          textAlign: TextAlign.center,
+        ),
         if (user.email != null) ...[
           const SizedBox(height: 5),
           Text(user.email!, style: AppText.body, textAlign: TextAlign.center),
@@ -369,21 +418,37 @@ class _ProfileHeader extends StatelessWidget {
 /// sessions and distinct enough between accounts to feel personal). A small
 /// camera badge signals it's tappable — standard iOS "edit photo" affordance.
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.seed, required this.name, required this.photoPath, required this.onTap});
+  const _Avatar({
+    required this.seed,
+    required this.name,
+    required this.photoPath,
+    required this.onTap,
+  });
 
   final String seed;
   final String name;
   final String? photoPath;
   final VoidCallback? onTap;
 
-  static const _hues = [AppColors.ember, AppColors.pulse, AppColors.iris, AppColors.flare, AppColors.solar];
+  static const _hues = [
+    AppColors.ember,
+    AppColors.pulse,
+    AppColors.iris,
+    AppColors.flare,
+    AppColors.solar,
+  ];
   static const double _size = 92;
 
   String get _initials {
-    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
     if (words.isEmpty) return '?';
     if (words.length == 1) return words.first.substring(0, 1).toUpperCase();
-    return (words.first.substring(0, 1) + words.last.substring(0, 1)).toUpperCase();
+    return (words.first.substring(0, 1) + words.last.substring(0, 1))
+        .toUpperCase();
   }
 
   @override
@@ -396,7 +461,10 @@ class _Avatar extends StatelessWidget {
     // the circle. Resolution is async (the media store maps the ref to a file),
     // so we can't decide sync — the gradient stays behind and the photo, when
     // present, paints over it. A missing/stale ref falls back to the monogram.
-    final monogram = Text(_initials, style: AppText.cardTitle.copyWith(fontSize: 30, color: fg));
+    final monogram = Text(
+      _initials,
+      style: AppText.cardTitle.copyWith(fontSize: 30, color: fg),
+    );
     final circle = Container(
       width: _size,
       height: _size,
@@ -410,7 +478,12 @@ class _Avatar extends StatelessWidget {
           colors: [hue, hue.withValues(alpha: 0.75)],
         ),
         boxShadow: [
-          BoxShadow(color: hue.withValues(alpha: 0.35), blurRadius: 28, spreadRadius: -6, offset: const Offset(0, 12)),
+          BoxShadow(
+            color: hue.withValues(alpha: 0.35),
+            blurRadius: 28,
+            spreadRadius: -6,
+            offset: const Offset(0, 12),
+          ),
         ],
       ),
       child: path == null
@@ -448,7 +521,11 @@ class _Avatar extends StatelessWidget {
                     color: AppColors.ember,
                     border: Border.all(color: AppColors.ground, width: 3),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                  child: const Icon(
+                    AppIcons.camera,
+                    size: 14,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
@@ -486,20 +563,31 @@ class _AboutCard extends StatelessWidget {
               Text('ABOUT', style: AppText.sectionLabel),
               const Spacer(),
               if (onTap != null)
-                Icon(hasBio ? Icons.edit_outlined : Icons.add_rounded, size: 16, color: AppColors.ink3),
+                Icon(
+                  hasBio ? AppIcons.edit : AppIcons.add,
+                  size: 16,
+                  color: AppColors.ink3,
+                ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             hasBio ? trimmed : 'Add a few words about yourself.',
-            style: AppText.body.copyWith(color: hasBio ? AppColors.ink2 : AppColors.ink3, fontSize: 14.5),
+            style: AppText.body.copyWith(
+              color: hasBio ? AppColors.ink2 : AppColors.ink3,
+              fontSize: 14.5,
+            ),
           ),
         ],
       ),
     );
     if (onTap == null) return card;
     return PressableScale(
-      child: InkWell(borderRadius: BorderRadius.circular(AppRadius.card), onTap: onTap, child: card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        onTap: onTap,
+        child: card,
+      ),
     );
   }
 }
@@ -530,7 +618,9 @@ class _EditTextSheet extends StatefulWidget {
 }
 
 class _EditTextSheetState extends State<_EditTextSheet> {
-  late final TextEditingController _text = TextEditingController(text: widget.initial);
+  late final TextEditingController _text = TextEditingController(
+    text: widget.initial,
+  );
 
   bool get _canSave => widget.multiline ? true : _text.text.trim().isNotEmpty;
 
@@ -566,7 +656,10 @@ class _EditTextSheetState extends State<_EditTextSheet> {
             child: Container(
               width: 38,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -580,19 +673,34 @@ class _EditTextSheetState extends State<_EditTextSheet> {
             maxLength: widget.maxLength,
             maxLines: widget.multiline ? 4 : 1,
             minLines: widget.multiline ? 3 : 1,
-            textCapitalization: widget.capitalizeWords ? TextCapitalization.words : TextCapitalization.sentences,
-            textInputAction: widget.multiline ? TextInputAction.newline : TextInputAction.done,
+            textCapitalization: widget.capitalizeWords
+                ? TextCapitalization.words
+                : TextCapitalization.sentences,
+            textInputAction: widget.multiline
+                ? TextInputAction.newline
+                : TextInputAction.done,
             onSubmitted: widget.multiline ? null : (_) => _submit(),
             onChanged: (_) => setState(() {}),
             cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600),
+            style: AppText.rowTitle.copyWith(
+              fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600,
+            ),
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              counterStyle: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
-              border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
-              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
-              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.ember, width: 1.6)),
+              counterStyle: AppText.meta.copyWith(
+                color: AppColors.ink3,
+                fontSize: 11,
+              ),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.hairline),
+              ),
+              enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.hairline),
+              ),
+              focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.ember, width: 1.6),
+              ),
               hintText: widget.hint,
               hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
             ),
@@ -613,9 +721,15 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                      const Icon(AppIcons.check, size: 18, color: Colors.white),
                       const SizedBox(width: 8),
-                      Text('Save', style: AppText.button.copyWith(fontSize: 16, color: Colors.white)),
+                      Text(
+                        'Save',
+                        style: AppText.button.copyWith(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -628,187 +742,6 @@ class _EditTextSheetState extends State<_EditTextSheet> {
   }
 }
 
-/// A native-feeling wheel date picker for date of birth — three synced
-/// scrolling columns (month / day / year), matching the workout plan
-/// editor's rest-duration wheel: dark [AppColors.surfaceRaised] track, a
-/// hairline selection band, and a scroll-tick haptic on every settled value.
-/// Changing month or year clamps an out-of-range day (e.g. leaving 31 when
-/// moving off a 31-day month) rather than allowing an invalid date.
-class _DobPickerSheet extends StatefulWidget {
-  const _DobPickerSheet({required this.initial});
-
-  final DateTime initial;
-
-  @override
-  State<_DobPickerSheet> createState() => _DobPickerSheetState();
-}
-
-class _DobPickerSheetState extends State<_DobPickerSheet> {
-  static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
-  late final int _minYear = DateTime.now().year - 120;
-  late final int _maxYear = DateTime.now().year - 13;
-
-  late int _year = widget.initial.year.clamp(_minYear, _maxYear);
-  late int _month = widget.initial.month;
-  late int _day = widget.initial.day;
-
-  late final _dayController = FixedExtentScrollController(initialItem: _day - 1);
-
-  int get _daysInMonth => DateTime(_year, _month + 1, 0).day;
-
-  void _tick() => HapticFeedback.selectionClick();
-
-  void _clampDay() {
-    final max = _daysInMonth;
-    if (_day > max) {
-      _day = max;
-      _dayController.jumpToItem(_day - 1);
-    }
-  }
-
-  @override
-  void dispose() {
-    _dayController.dispose();
-    super.dispose();
-  }
-
-  void _submit() => Navigator.of(context).pop(DateTime(_year, _month, _day));
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      padding: EdgeInsets.only(top: 12, left: 22, right: 22, bottom: MediaQuery.of(context).padding.bottom + 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Date of birth', style: AppText.cardTitle),
-          ),
-          Container(
-            height: 190,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: CupertinoPicker(
-                    key: const Key('dob-picker-month'),
-                    scrollController: FixedExtentScrollController(initialItem: _month - 1),
-                    itemExtent: 40,
-                    diameterRatio: 1.3,
-                    backgroundColor: Colors.transparent,
-                    selectionOverlay: _selectionBand(edge: false),
-                    onSelectedItemChanged: (index) {
-                      _tick();
-                      setState(() {
-                        _month = index + 1;
-                        _clampDay();
-                      });
-                    },
-                    children: [
-                      for (final m in _months)
-                        Center(child: Text(m, style: AppText.rowTitle.copyWith(color: AppColors.ink, fontSize: 16))),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: CupertinoPicker(
-                    key: const Key('dob-picker-day'),
-                    scrollController: _dayController,
-                    itemExtent: 40,
-                    diameterRatio: 1.3,
-                    backgroundColor: Colors.transparent,
-                    selectionOverlay: _selectionBand(edge: false),
-                    onSelectedItemChanged: (index) {
-                      _tick();
-                      setState(() => _day = index + 1);
-                    },
-                    children: [
-                      for (var d = 1; d <= 31; d++)
-                        Center(child: Text('$d', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 4,
-                  child: CupertinoPicker(
-                    key: const Key('dob-picker-year'),
-                    scrollController: FixedExtentScrollController(initialItem: _year - _minYear),
-                    itemExtent: 40,
-                    diameterRatio: 1.3,
-                    backgroundColor: Colors.transparent,
-                    selectionOverlay: _selectionBand(edge: true),
-                    onSelectedItemChanged: (index) {
-                      _tick();
-                      setState(() {
-                        _year = _minYear + index;
-                        _clampDay();
-                      });
-                    },
-                    children: [
-                      for (var y = _minYear; y <= _maxYear; y++)
-                        Center(child: Text('$y', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          Material(
-            color: AppColors.ember,
-            borderRadius: BorderRadius.circular(999),
-            child: InkWell(
-              onTap: _submit,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.check_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text('Save', style: AppText.button.copyWith(fontSize: 16, color: Colors.white)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// The dark, rounded "current selection" band, right-inset on the last
-  /// (rightmost) column so it doesn't visually bleed past the sheet's edge.
-  Widget _selectionBand({required bool edge}) {
-    return Container(
-      margin: EdgeInsets.only(left: 2, right: edge ? 6 : 2),
-      decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(10)),
-    );
-  }
-}
+// The date-of-birth wheel now lives in the shared `DobPickerSheet`
+// (widgets/dob_picker_sheet.dart) so first-run onboarding and this edit
+// surface present the identical picker — see `_editDob`.

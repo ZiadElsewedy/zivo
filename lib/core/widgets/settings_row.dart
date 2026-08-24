@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_icons.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -10,7 +12,11 @@ import 'pressable_scale.dart';
 /// [label] — the iOS Settings "inset grouped" pattern, in ZIVO's dark
 /// material. Shared by the Profile and Settings pages.
 class SettingsSectionCard extends StatelessWidget {
-  const SettingsSectionCard({required this.label, required this.children, super.key});
+  const SettingsSectionCard({
+    required this.label,
+    required this.children,
+    super.key,
+  });
 
   final String label;
   final List<Widget> children;
@@ -70,7 +76,9 @@ class SettingsRow extends StatelessWidget {
     final editable = onTap != null;
     final row = Container(
       decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.hairline)),
+        border: last
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
       child: Row(
@@ -106,14 +114,20 @@ class SettingsRow extends StatelessWidget {
             trailing!,
           ] else if (editable) ...[
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
+            const Icon(AppIcons.chevron, size: 18, color: AppColors.ink3),
           ],
         ],
       ),
     );
     if (!editable) return row;
     return PressableScale(
-      child: InkWell(onTap: onTap, child: row),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap!();
+        },
+        child: row,
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../widgets/media_backup_section.dart';
 import '../../../../core/widgets/settings_row.dart';
 
@@ -57,7 +58,10 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: AppColors.ground,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text('Settings', style: AppText.cardTitle.copyWith(fontSize: 20)),
+        title: Text(
+          'Settings',
+          style: AppText.cardTitle.copyWith(fontSize: 20),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -65,45 +69,49 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SettingsSectionCard(
-                label: 'APPEARANCE',
-                children: [
-                  SettingsRow(
-                    icon: AppIcons.theme,
-                    title: 'Theme',
-                    value: 'Dark',
-                    last: true,
-                  ),
-                ],
-              ),
+              const RiseIn(child: MediaBackupSection()),
               const SizedBox(height: 20),
-              const MediaBackupSection(),
-              const SizedBox(height: 20),
-              SettingsSectionCard(
-                label: 'ABOUT',
-                children: [
-                  SettingsRow(
-                    icon: AppIcons.version,
-                    title: 'Version',
-                    value: info == null ? '…' : '${info.version} (${info.buildNumber})',
-                    last: AppEnvironment.isRelease,
-                  ),
-                  if (!AppEnvironment.isRelease)
-                    SettingsRow(
-                      icon: AppIcons.build,
-                      title: 'Build',
-                      value: AppEnvironment.name,
-                      last: true,
+              RiseIn(
+                delay: const Duration(milliseconds: 50),
+                child: SettingsSectionCard(
+                  label: 'ABOUT',
+                  children: [
+                    const SettingsRow(
+                      icon: AppIcons.theme,
+                      title: 'Theme',
+                      value: 'Dark',
                     ),
-                ],
+                    SettingsRow(
+                      icon: AppIcons.version,
+                      title: 'Version',
+                      value: info == null
+                          ? '…'
+                          : '${info.version} (${info.buildNumber})',
+                      last: AppEnvironment.isRelease,
+                    ),
+                    if (!AppEnvironment.isRelease)
+                      SettingsRow(
+                        icon: AppIcons.build,
+                        title: 'Build',
+                        value: AppEnvironment.name,
+                        last: true,
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 30),
-              _SignOutButton(loading: _signingOut, onTap: _signOut),
+              RiseIn(
+                delay: const Duration(milliseconds: 100),
+                child: _SignOutButton(loading: _signingOut, onTap: _signOut),
+              ),
               const SizedBox(height: 44),
-              _BrandFooter(
-                version: info == null
-                    ? null
-                    : 'Version ${info.version} (${info.buildNumber})',
+              RiseIn(
+                delay: const Duration(milliseconds: 150),
+                child: _BrandFooter(
+                  version: info == null
+                      ? null
+                      : 'Version ${info.version} (${info.buildNumber})',
+                ),
               ),
               const SizedBox(height: 12),
             ],
@@ -183,14 +191,27 @@ class _SignOutButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.flareText),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.flareText,
+                    ),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(AppIcons.signOut, size: 18, color: AppColors.flareText),
+                      const Icon(
+                        AppIcons.signOut,
+                        size: 18,
+                        color: AppColors.flareText,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Sign out', style: AppText.button.copyWith(fontSize: 15, color: AppColors.flareText)),
+                      Text(
+                        'Sign out',
+                        style: AppText.button.copyWith(
+                          fontSize: 15,
+                          color: AppColors.flareText,
+                        ),
+                      ),
                     ],
                   ),
           ),

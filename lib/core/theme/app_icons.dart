@@ -42,6 +42,15 @@ class AppIcons {
   static const location = LucideIcons.mapPin;
   static const caption = LucideIcons.type;
 
+  // Profile & account.
+  static const settings = LucideIcons.settings;
+  static const idCard = LucideIcons.idCard;
+  static const cake = LucideIcons.cake;
+  static const mail = LucideIcons.mail;
+  static const key = LucideIcons.keyRound;
+  static const apple = LucideIcons.apple;
+  static const link = LucideIcons.link;
+
   // Settings · media & backup.
   static const theme = LucideIcons.moon;
   static const photos = LucideIcons.images;
