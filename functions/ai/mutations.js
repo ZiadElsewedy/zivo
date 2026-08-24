@@ -13,13 +13,13 @@
  * rules and the manual capture forms exactly (see `firestore.rules` and the
  * Firestore repository write shapes under lib/features).
  *
- * First slice (owner-approved 2026-08-16): create-only for tasks, expenses,
- * and schedule events. No edits or deletes.
+ * Create-only, expenses only (2026: create_task/create_event were removed
+ * along with the Schedule/Tasks features they backed — see the Gym+Diet
+ * specialization). No edits or deletes.
  */
 
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
 const DEFAULT_CURRENCY = "EGP";
-const MAX_TITLE_CHARS = 200;
 const MAX_NOTE_CHARS = 500;
 
 /** Thrown by `validate` when a proposed input can't be turned into a write. */
@@ -69,59 +69,6 @@ function optionalIso(value, label) {
   if (value == null || value === "") return null;
   return requireIso(value, label);
 }
-
-const CREATE_TASK = {
-  name: "create_task",
-  mutating: true,
-  kind: "create_task",
-  description:
-    "Propose creating a new task (does not save until the user confirms). " +
-    "Requires a title. Optional: due (ISO 8601 date/time) and priority " +
-    "('high' or 'normal', default 'normal').",
-  inputSchema: {
-    type: "object",
-    properties: {
-      title: {type: "string"},
-      due: {type: "string", description: "ISO 8601 date/time, optional"},
-      priority: {type: "string", enum: ["high", "normal"]},
-    },
-    required: ["title"],
-  },
-  /**
-   * @param {!Object} input
-   * @return {{title: string, dueIso: ?string, priority: boolean}}
-   */
-  validate(input) {
-    return {
-      title: requireText(input.title, "task title", MAX_TITLE_CHARS),
-      dueIso: optionalIso(input.due, "due date"),
-      priority: input.priority === "high",
-    };
-  },
-  /**
-   * @param {!Object} v A validated payload.
-   * @return {!Object} Card fields (JSON-safe).
-   */
-  fields(v) {
-    return {title: v.title, due: v.dueIso, priority: v.priority ? "High" : "Normal"};
-  },
-  /**
-   * @param {!Object} v A validated payload.
-   * @return {string} Human proposal line.
-   */
-  summarize(v) {
-    return `Add task "${v.title}"` +
-      (v.dueIso ? ` due ${v.dueIso.slice(0, 10)}` : "") +
-      (v.priority ? " (high priority)" : "");
-  },
-  /**
-   * @param {!Object} v A validated payload.
-   * @return {string} Deterministic confirmed-result line.
-   */
-  result(v) {
-    return `Added to Tasks · ${v.title}`;
-  },
-};
 
 const CREATE_EXPENSE = {
   name: "create_expense",
@@ -186,50 +133,7 @@ const CREATE_EXPENSE = {
   },
 };
 
-const CREATE_EVENT = {
-  name: "create_event",
-  mutating: true,
-  kind: "create_event",
-  description:
-    "Propose adding a schedule event (does not save until the user confirms). " +
-    "Requires title and start (ISO 8601 date/time). Optional: end (ISO 8601) " +
-    "and location.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      title: {type: "string"},
-      start: {type: "string", description: "ISO 8601 date/time"},
-      end: {type: "string", description: "ISO 8601 date/time, optional"},
-      location: {type: "string"},
-    },
-    required: ["title", "start"],
-  },
-  validate(input) {
-    const title = requireText(input.title, "event title", MAX_TITLE_CHARS);
-    const startIso = requireIso(input.start, "start time");
-    const endIso = optionalIso(input.end, "end time");
-    if (endIso && new Date(endIso).getTime() < new Date(startIso).getTime()) {
-      throw new ValidationError("The end time can't be before the start time.");
-    }
-    const location = input.location == null || String(input.location).trim() === "" ?
-      null : requireText(input.location, "location", MAX_TITLE_CHARS);
-    return {title, startIso, endIso, location};
-  },
-  fields(v) {
-    return {
-      title: v.title, start: v.startIso, end: v.endIso, location: v.location,
-    };
-  },
-  summarize(v) {
-    return `Add "${v.title}" to your schedule at ${v.startIso.slice(0, 16).replace("T", " ")}` +
-      (v.location ? ` (${v.location})` : "");
-  },
-  result(v) {
-    return `Added to Schedule · ${v.title}`;
-  },
-};
-
-const mutatingTools = [CREATE_TASK, CREATE_EXPENSE, CREATE_EVENT];
+const mutatingTools = [CREATE_EXPENSE];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 
 module.exports = {

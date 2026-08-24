@@ -37,7 +37,7 @@ function makeClock(startMs) {
 function makeStore(overrides) {
   const messages = [];
   const pendingActions = new Map();
-  const writes = {tasks: [], expenses: [], events: []};
+  const writes = {expenses: []};
 
   const store = {
     messages,
@@ -78,9 +78,7 @@ function makeStore(overrides) {
           (x) => x.kind === "action_proposal" && x.actionId === actionId);
       if (m) m.status = status;
     },
-    createTask: async (uid, t) => writes.tasks.push(t),
     createExpense: async (uid, e) => writes.expenses.push(e),
-    createEvent: async (uid, ev) => writes.events.push(ev),
   };
   return Object.assign(store, overrides || {});
 }
@@ -132,13 +130,13 @@ function textResponse(text) {
 test("a valid mutating call proposes (no write) and ends the turn", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
-    toolUse("create_task", {title: "Submit report", priority: "high"}),
+    toolUse("create_expense", {amountMinor: 1200, category: "coffee"}),
     textResponse("should not be reached"),
   ]);
 
   const result = await runAiTurn({
     store, callModel, uid: UID, conversationId: CONVERSATION_ID,
-    message: "add a task to submit the report", now: makeClock(1000),
+    message: "log 12 EGP on coffee", now: makeClock(1000),
   });
 
   assert.equal(result.status, "proposed");
@@ -148,12 +146,12 @@ test("a valid mutating call proposes (no write) and ends the turn", async () => 
   // Exactly one pending action, still pending, and NO entity write happened.
   assert.equal(store.pendingActions.size, 1);
   assert.equal(store.pendingActions.get(result.actionId).status, "pending");
-  assert.equal(store.writes.tasks.length, 0);
+  assert.equal(store.writes.expenses.length, 0);
   // An action_proposal message was appended (plus the user message), carrying
   // the pending status the client renders the card from.
   const proposal = store.messages.find((m) => m.kind === "action_proposal");
   assert.ok(proposal);
-  assert.equal(proposal.actionKind, "create_task");
+  assert.equal(proposal.actionKind, "create_expense");
   assert.equal(proposal.actionId, result.actionId);
   assert.equal(proposal.status, "pending");
   // Carries the TTL so the client can render the card expired once it lapses.
@@ -163,21 +161,23 @@ test("a valid mutating call proposes (no write) and ends the turn", async () => 
 test("a second proposal is blocked while one is already pending (no duplicate)", async () => {
   const store = makeStore();
 
-  // Turn 1: propose a task — one pending action, one card.
+  // Turn 1: propose an expense — one pending action, one card.
   const first = await runAiTurn({
     store,
-    callModel: scriptedModel([toolUse("create_task", {title: "Random task"})]),
+    callModel: scriptedModel(
+        [toolUse("create_expense", {amountMinor: 500, category: "other"})]),
     uid: UID, conversationId: CONVERSATION_ID,
-    message: "add a task called Random task", now: makeClock(1000),
+    message: "log 5 EGP", now: makeClock(1000),
   });
   assert.equal(first.status, "proposed");
   assert.equal(store.pendingActions.size, 1);
 
-  // Turn 2: the user types "confirm"; the model re-proposes the same task. The
-  // gateway must suppress it — no second pending action, no second card.
+  // Turn 2: the user types "confirm"; the model re-proposes the same expense.
+  // The gateway must suppress it — no second pending action, no second card.
   const second = await runAiTurn({
     store,
-    callModel: scriptedModel([toolUse("create_task", {title: "Random task"})]),
+    callModel: scriptedModel(
+        [toolUse("create_expense", {amountMinor: 500, category: "other"})]),
     uid: UID, conversationId: CONVERSATION_ID,
     message: "confirm", now: makeClock(2000),
   });
@@ -191,12 +191,12 @@ test("a second proposal is blocked while one is already pending (no duplicate)",
   const lastAssistant = store.messages.filter((m) => m.role === "assistant").pop();
   assert.match(lastAssistant.content, /already got a suggestion waiting/);
 
-  // Confirming the one action writes exactly one task — no duplicate.
+  // Confirming the one action writes exactly one expense — no duplicate.
   await confirmAction({
     store, uid: UID, conversationId: CONVERSATION_ID,
     actionId: first.actionId, now: makeClock(3000),
   });
-  assert.equal(store.writes.tasks.length, 1);
+  assert.equal(store.writes.expenses.length, 1);
 });
 
 test("confirm/cancel flip the action_proposal message status (survives reopen)", async () => {
@@ -204,9 +204,10 @@ test("confirm/cancel flip the action_proposal message status (survives reopen)",
   const applied = makeStore();
   const confirmTurn = await runAiTurn({
     store: applied,
-    callModel: scriptedModel([toolUse("create_task", {title: "Ship it"})]),
+    callModel: scriptedModel(
+        [toolUse("create_expense", {amountMinor: 1200, category: "food"})]),
     uid: UID, conversationId: CONVERSATION_ID,
-    message: "add task", now: makeClock(1000),
+    message: "log an expense", now: makeClock(1000),
   });
   await confirmAction({
     store: applied, uid: UID, conversationId: CONVERSATION_ID,
@@ -219,9 +220,10 @@ test("confirm/cancel flip the action_proposal message status (survives reopen)",
   const cancelled = makeStore();
   const cancelTurn = await runAiTurn({
     store: cancelled,
-    callModel: scriptedModel([toolUse("create_task", {title: "Never mind"})]),
+    callModel: scriptedModel(
+        [toolUse("create_expense", {amountMinor: 1200, category: "food"})]),
     uid: UID, conversationId: CONVERSATION_ID,
-    message: "add task", now: makeClock(1000),
+    message: "log an expense", now: makeClock(1000),
   });
   await cancelAction({
     store: cancelled, uid: UID, conversationId: CONVERSATION_ID,
@@ -260,11 +262,11 @@ test("invalid mutating input is fed back so the model can self-correct", async (
 test("confirmAction performs the write and is idempotent", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
-    toolUse("create_task", {title: "Submit report"}),
+    toolUse("create_expense", {amountMinor: 1200, category: "coffee"}),
   ]);
   const {actionId} = await runAiTurn({
     store, callModel, uid: UID, conversationId: CONVERSATION_ID,
-    message: "add task", now: makeClock(1000),
+    message: "log 12 EGP on coffee", now: makeClock(1000),
   });
 
   const confirmed = await confirmAction({
@@ -272,11 +274,11 @@ test("confirmAction performs the write and is idempotent", async () => {
     now: makeClock(2000),
   });
   assert.equal(confirmed.status, "applied");
-  assert.equal(store.writes.tasks.length, 1);
-  assert.equal(store.writes.tasks[0].id, actionId);
-  assert.equal(store.writes.tasks[0].title, "Submit report");
+  assert.equal(store.writes.expenses.length, 1);
+  assert.equal(store.writes.expenses[0].id, actionId);
+  assert.equal(store.writes.expenses[0].amountMinor, 1200);
   assert.equal(store.pendingActions.get(actionId).status, "applied");
-  assert.match(confirmed.assistantText, /Added to Tasks/);
+  assert.match(confirmed.assistantText, /Logged expense/);
 
   // Re-confirm: idempotent — no second write.
   const again = await confirmAction({
@@ -284,17 +286,17 @@ test("confirmAction performs the write and is idempotent", async () => {
     now: makeClock(3000),
   });
   assert.equal(again.status, "already-applied");
-  assert.equal(store.writes.tasks.length, 1);
+  assert.equal(store.writes.expenses.length, 1);
 });
 
 test("confirmAction on an expired action refuses and writes nothing", async () => {
   const store = makeStore();
   const callModel = scriptedModel([
-    toolUse("create_task", {title: "Stale"}),
+    toolUse("create_expense", {amountMinor: 700, category: "other"}),
   ]);
   const {actionId} = await runAiTurn({
     store, callModel, uid: UID, conversationId: CONVERSATION_ID,
-    message: "add task", now: makeClock(0),
+    message: "log 7 EGP", now: makeClock(0),
     // 1ms TTL so it's already expired at confirm time.
     config: {pendingActionTtlMs: 1},
   });
@@ -310,7 +312,7 @@ test("confirmAction on an expired action refuses and writes nothing", async () =
         return true;
       },
   );
-  assert.equal(store.writes.tasks.length, 0);
+  assert.equal(store.writes.expenses.length, 0);
   assert.equal(store.pendingActions.get(actionId).status, "expired");
 });
 

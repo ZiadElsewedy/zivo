@@ -27,26 +27,27 @@ Widget _host(FakeAiRepository ai) => AppScope(
 );
 
 void main() {
-  testWidgets('"add task ..." renders a confirmation card, not a plain reply', (
-    tester,
-  ) async {
-    final ai = FakeAiRepository();
-    addTearDown(ai.dispose);
-    await tester.pumpWidget(_host(ai));
-    await tester.pumpAndSettle();
+  testWidgets(
+    '"add expense ..." renders a confirmation card, not a plain reply',
+    (tester) async {
+      final ai = FakeAiRepository();
+      addTearDown(ai.dispose);
+      await tester.pumpWidget(_host(ai));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'add task Submit report');
-    await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'add expense 12 coffee');
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pumpAndSettle();
 
-    // The card shows, with its Confirm/Cancel affordances — and no canned reply.
-    expect(find.text('New task'), findsOneWidget);
-    expect(find.text('Submit report'), findsOneWidget);
-    expect(find.byKey(const Key('proposal-confirm')), findsOneWidget);
-    expect(find.byKey(const Key('proposal-cancel')), findsOneWidget);
-    expect(find.text(kFakeAiReply), findsNothing);
-  });
+      // The card shows, with its Confirm/Cancel affordances — and no canned reply.
+      expect(find.text('New expense'), findsOneWidget);
+      expect(find.text('12.00 EGP'), findsOneWidget);
+      expect(find.byKey(const Key('proposal-confirm')), findsOneWidget);
+      expect(find.byKey(const Key('proposal-cancel')), findsOneWidget);
+      expect(find.text(kFakeAiReply), findsNothing);
+    },
+  );
 
   testWidgets('Confirm collapses the card and appends the result line', (
     tester,
@@ -56,7 +57,7 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'add task Submit report');
+    await tester.enterText(find.byType(TextField), 'add expense 12 coffee');
     await tester.pump();
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pumpAndSettle();
@@ -67,7 +68,7 @@ void main() {
     // Card collapsed (buttons gone), and the durable result line appended.
     expect(find.byKey(const Key('proposal-confirm')), findsNothing);
     expect(find.text('Confirmed'), findsOneWidget);
-    expect(find.text('Added to Tasks · Submit report'), findsOneWidget);
+    expect(find.text('Logged expense · 12.00 EGP · coffee'), findsOneWidget);
   });
 
   testWidgets('Cancel collapses the card and writes nothing', (tester) async {
@@ -76,7 +77,7 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'add task Temp');
+    await tester.enterText(find.byType(TextField), 'add expense 5 other');
     await tester.pump();
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pumpAndSettle();

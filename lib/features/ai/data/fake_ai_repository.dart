@@ -38,8 +38,9 @@ class _FakeConversation {
 
 /// Pure in-memory `AiRepository`: no Firestore, no network. Appends the user's
 /// message then an assistant reply, broadcasting both. Understands one local
-/// "add task <title>" shortcut so the ADR-003 confirmation flow can be tried
-/// offline; every other message gets the honest canned reply. [proposeAction]
+/// "add expense `<amount>` `<category>`" shortcut so the ADR-003
+/// confirmation flow can be tried offline; every other message gets the
+/// honest canned reply. [proposeAction]
 /// lets tests drive a proposal of any kind directly. Keeps an in-memory list
 /// of conversations, each with its own message list, so multi-session UI
 /// (new chat / switch / sessions list) is testable without a backend.
@@ -221,18 +222,28 @@ class FakeAiRepository implements AiRepository {
       ),
     );
 
-    // A single local shortcut so the propose→confirm card can be tried offline.
-    const prefix = 'add task ';
+    // A single local shortcut so the propose→confirm card can be tried
+    // offline: "add expense <amount> <category>", e.g. "add expense 12 coffee".
+    const prefix = 'add expense ';
     if (trimmed.toLowerCase().startsWith(prefix) &&
         trimmed.length > prefix.length) {
-      final title = trimmed.substring(prefix.length).trim();
-      if (title.isNotEmpty) {
+      final rest = trimmed.substring(prefix.length).trim();
+      final parts = rest.split(RegExp(r'\s+'));
+      final amount = double.tryParse(parts.first);
+      if (amount != null) {
+        final category = parts.length > 1
+            ? parts.sublist(1).join(' ')
+            : 'other';
         onEvent?.call(const AiPhaseEvent(AiPhase.preparingChange));
         proposeAction(
           conversationId: conversationId,
-          kind: 'create_task',
-          summary: 'Add task "$title"',
-          fields: {'title': title, 'due': null, 'priority': 'Normal'},
+          kind: 'create_expense',
+          summary: 'Log ${amount.toStringAsFixed(2)} EGP on $category',
+          fields: {
+            'amount': amount.toStringAsFixed(2),
+            'currency': 'EGP',
+            'category': category,
+          },
         );
         onEvent?.call(const AiPhaseEvent(AiPhase.done));
         return;
@@ -442,12 +453,9 @@ class FakeAiRepository implements AiRepository {
 
   String _resultLine(AiPendingAction a) {
     switch (a.kind) {
-      case 'create_task':
-        return 'Added to Tasks · ${a.fields['title']}';
       case 'create_expense':
-        return 'Logged expense · ${a.fields['amount']} ${a.fields['currency']}';
-      case 'create_event':
-        return 'Added to Schedule · ${a.fields['title']}';
+        return 'Logged expense · ${a.fields['amount']} ${a.fields['currency']} · '
+            '${a.fields['category']}';
       default:
         return 'Done.';
     }

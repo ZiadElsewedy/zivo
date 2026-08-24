@@ -373,9 +373,7 @@ class _AskPageState extends State<AskPage> {
           _streamed = true;
           _liveText += text;
         });
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _maybeAutoScroll(),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoScroll());
     }
   }
 
@@ -769,7 +767,10 @@ class _Header extends StatelessWidget {
 /// A compact "tune" icon opening a small ZIVO-styled menu to pick how ZIVO
 /// replies — Concise / Balanced / Detailed, persisted via [onSelect].
 class _ResponseStyleMenu extends StatelessWidget {
-  const _ResponseStyleMenu({required this.responseStyle, required this.onSelect});
+  const _ResponseStyleMenu({
+    required this.responseStyle,
+    required this.onSelect,
+  });
 
   final String responseStyle;
   final void Function(String style) onSelect;
@@ -1310,9 +1311,6 @@ class _ProposalCard extends StatelessWidget {
     switch (action.kind) {
       case 'create_expense':
         return '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim();
-      case 'create_task':
-      case 'create_event':
-        return (f['title'] ?? action.summary).toString();
       default:
         return action.summary;
     }
@@ -1322,33 +1320,12 @@ class _ProposalCard extends StatelessWidget {
     final f = action.fields;
     final chips = <Widget>[];
     switch (action.kind) {
-      case 'create_task':
-        if (f['due'] != null) {
-          chips.add(_chip(Icons.calendar_today_rounded, _date(f['due'])));
-        }
-        if (f['priority'] == 'High') {
-          chips.add(
-            _chip(
-              Icons.flag_rounded,
-              'High',
-              bg: AppColors.flareWash,
-              fg: AppColors.flareText,
-            ),
-          );
-        }
       case 'create_expense':
         if (f['category'] != null) {
           chips.add(_chip(Icons.sell_outlined, f['category'].toString()));
         }
         if (f['note'] != null) {
           chips.add(_chip(Icons.notes_rounded, f['note'].toString()));
-        }
-      case 'create_event':
-        if (f['start'] != null) {
-          chips.add(_chip(Icons.schedule_rounded, _dateTime(f['start'])));
-        }
-        if (f['location'] != null) {
-          chips.add(_chip(Icons.place_outlined, f['location'].toString()));
         }
     }
     return chips;
@@ -1375,16 +1352,6 @@ class _ProposalCard extends StatelessWidget {
     );
   }
 
-  static String _date(Object? iso) {
-    final s = iso.toString();
-    return s.length >= 10 ? s.substring(0, 10) : s;
-  }
-
-  static String _dateTime(Object? iso) {
-    final s = iso.toString();
-    return s.length >= 16 ? s.substring(0, 16).replaceFirst('T', ' ') : s;
-  }
-
   ({IconData icon, String label, Color tintBg, Color tintFg}) _kindMeta(
     String kind,
   ) {
@@ -1395,20 +1362,6 @@ class _ProposalCard extends StatelessWidget {
           label: 'New expense',
           tintBg: AppColors.solarWash,
           tintFg: AppColors.solarText,
-        );
-      case 'create_event':
-        return (
-          icon: Icons.event_rounded,
-          label: 'New event',
-          tintBg: AppColors.irisWash,
-          tintFg: AppColors.irisText,
-        );
-      case 'create_task':
-        return (
-          icon: Icons.add_task_rounded,
-          label: 'New task',
-          tintBg: AppColors.irisWash,
-          tintFg: AppColors.irisText,
         );
       default:
         return (
@@ -1643,9 +1596,10 @@ class _TranscribingRowState extends State<_TranscribingRow>
                 color: AppColors.iris,
               )
             : FadeTransition(
-                opacity: Tween<double>(begin: 0.35, end: 1).animate(
-                  CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-                ),
+                opacity: Tween<double>(
+                  begin: 0.35,
+                  end: 1,
+                ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
                 child: const Icon(
                   Icons.graphic_eq_rounded,
                   size: 14,
@@ -1735,9 +1689,7 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                     ),
                   ),
                   _NewChatPill(
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(_NewChatSelected()),
+                    onTap: () => Navigator.of(context).pop(_NewChatSelected()),
                   ),
                 ],
               ),

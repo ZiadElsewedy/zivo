@@ -653,8 +653,8 @@ test("a mutation turn emits a preparing_change phase before done", async () => {
       content: [{
         type: "tool_use",
         id: "call-1",
-        name: "create_task",
-        input: {title: "Submit report"},
+        name: "create_expense",
+        input: {amountMinor: 1200, category: "coffee"},
       }],
       usage: {input_tokens: 8, output_tokens: 4},
     },
@@ -666,7 +666,7 @@ test("a mutation turn emits a preparing_change phase before done", async () => {
     onEvent: (e) => events.push(e),
     uid: UID,
     conversationId: CONVERSATION_ID,
-    message: "add task Submit report",
+    message: "log 12 EGP on coffee",
     now: makeClock(0),
   });
   assert.equal(result.status, "proposed");

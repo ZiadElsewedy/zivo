@@ -459,26 +459,6 @@ class FirestoreStore {
   }
 
   /**
-   * Writes a confirmed task. Doc id = `task.id` (the action id), so a
-   * re-confirm overwrites identically (idempotent). Field shape mirrors
-   * `FirestoreTaskRepository.add`.
-   * @param {string} uid
-   * @param {{id: string, title: string, dueIso: ?string, priority: boolean}} t
-   * @return {!Promise<void>}
-   */
-  async createTask(uid, t) {
-    await this._user(uid).collection("tasks").doc(t.id).set({
-      title: t.title,
-      due: t.dueIso ? Timestamp.fromDate(new Date(t.dueIso)) : null,
-      priority: !!t.priority,
-      done: false,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
-
-  /**
    * Writes a confirmed expense (idempotent by `e.id`). Mirrors
    * `FirestoreExpenseRepository.add`.
    * @param {string} uid
@@ -494,26 +474,6 @@ class FirestoreStore {
         Timestamp.fromDate(new Date(e.spentAtIso)) :
         FieldValue.serverTimestamp(),
       note: e.note || null,
-      schemaVersion: 1,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
-
-  /**
-   * Writes a confirmed schedule event (idempotent by `ev.id`). Mirrors
-   * `FirestoreScheduleRepository.add`.
-   * @param {string} uid
-   * @param {!Object} ev
-   * @return {!Promise<void>}
-   */
-  async createEvent(uid, ev) {
-    await this._user(uid).collection("schedule").doc(ev.id).set({
-      title: ev.title,
-      start: Timestamp.fromDate(new Date(ev.startIso)),
-      end: ev.endIso ? Timestamp.fromDate(new Date(ev.endIso)) : null,
-      location: ev.location || null,
-      label: null,
       schemaVersion: 1,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

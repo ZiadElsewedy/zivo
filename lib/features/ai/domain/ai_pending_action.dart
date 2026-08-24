@@ -1,11 +1,8 @@
 /// The lifecycle of a proposed change (ADR-003).
 enum AiActionStatus { pending, applied, cancelled, expired }
 
-AiActionStatus aiActionStatusFromName(String? name) =>
-    AiActionStatus.values.firstWhere(
-      (s) => s.name == name,
-      orElse: () => AiActionStatus.pending,
-    );
+AiActionStatus aiActionStatusFromName(String? name) => AiActionStatus.values
+    .firstWhere((s) => s.name == name, orElse: () => AiActionStatus.pending);
 
 /// A change the assistant wants to make but has NOT made — rendered as a
 /// confirmation card in the chat. Nothing is written until the user confirms
@@ -22,7 +19,7 @@ class AiPendingAction {
   /// The server pending-action id; the key used to confirm or cancel.
   final String actionId;
 
-  /// 'create_task' | 'create_expense' | 'create_event'.
+  /// 'create_expense' — the only kind the assistant can currently propose.
   final String kind;
 
   /// A human one-line description (fallback text).
