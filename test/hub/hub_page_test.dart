@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/hub/presentation/hub_page.dart';
 
 /// Regression coverage for the Hub grid clipping/overflowing on a short
-/// device with 8 modules at the premium tile ratio — R2's fix drops
+/// device with the premium tile ratio — R2's fix drops
 /// `NeverScrollableScrollPhysics` in favor of a genuinely scrollable grid,
 /// so no device height or text scale can ever produce a layout overflow.
 void main() {
@@ -21,10 +21,10 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('a short device (iPhone SE-class) shows all 8 modules with no overflow error', (tester) async {
+  testWidgets('a short device (iPhone SE-class) shows all modules with no overflow error', (tester) async {
     await pumpAt(tester, const Size(750, 1334)); // iPhone SE logical size at 1x
     expect(tester.takeException(), isNull);
-    expect(find.text('Schedule'), findsOneWidget);
+    expect(find.text('Workout'), findsOneWidget);
     expect(find.text('Moments'), findsOneWidget);
   });
 

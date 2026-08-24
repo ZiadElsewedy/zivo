@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
-import '../../../core/scope/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
@@ -14,12 +13,6 @@ import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
 import '../../hub/presentation/hub_page.dart';
 import '../../moments/presentation/pages/moment_capture_page.dart';
-import '../../music/music_config.dart';
-import '../../music/presentation/now_playing_bar.dart';
-import '../../notes/presentation/pages/note_capture_page.dart';
-import '../../schedule/presentation/pages/event_capture_page.dart';
-import '../../tasks/presentation/pages/task_capture_page.dart';
-import '../../university/presentation/pages/university_capture_page.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -56,18 +49,6 @@ class _HomeShellState extends State<HomeShell> {
             'Saved · ${formatAmount(saved.amountMinor)} ${saved.currency}',
           );
         }
-      case CaptureChoice.task:
-        final saved = await _push<Object>(const TaskCapturePage());
-        if (saved != null) _toast('Task added');
-      case CaptureChoice.event:
-        final saved = await _push<Object>(const EventCapturePage());
-        if (saved != null) _toast('Event added');
-      case CaptureChoice.university:
-        final saved = await _push<Object>(const UniversityCapturePage());
-        if (saved != null) _toast('Added to University');
-      case CaptureChoice.note:
-        final saved = await _push<Object>(const NoteCapturePage());
-        if (saved != null) _toast('Note saved');
       case CaptureChoice.moment:
         final saved = await _push<Object>(const MomentCapturePage());
         if (saved != null) _toast('Moment saved');
@@ -108,25 +89,13 @@ class _HomeShellState extends State<HomeShell> {
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Gated on the compile-time flag, not just the controller's own
-          // state — with it false this whole branch is dead code, so the
-          // shell is byte-for-byte its pre-music behavior (see
-          // `music_config.dart`'s doc comment). `NowPlayingBar` itself
-          // still separately renders nothing until there's actually
-          // something playing.
-          if (kMusicEnabled) NowPlayingBar(controller: AppScope.of(context).requireMusic),
-          ZivoBottomBar(
-            currentIndex: _index,
-            onTap: (i) {
-              if (i == _index) return;
-              HapticFeedback.selectionClick();
-              setState(() => _index = i);
-            },
-          ),
-        ],
+      bottomNavigationBar: ZivoBottomBar(
+        currentIndex: _index,
+        onTap: (i) {
+          if (i == _index) return;
+          HapticFeedback.selectionClick();
+          setState(() => _index = i);
+        },
       ),
     );
   }

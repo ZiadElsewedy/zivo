@@ -31,8 +31,7 @@ void main() {
   ) async {
     // Today is a lazy ListView, so give the test a tall viewport to ensure
     // every section (through the Training card near the bottom) is built and
-    // findable — the seeded focus list can otherwise push lower sections out
-    // of the default 800x600 surface's build region.
+    // findable within the default 800x600 surface's build region.
     tester.view.physicalSize = const Size(1200, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -94,13 +93,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(find.textContaining('Ziad'), findsOneWidget); // greeting
-    expect(find.text('Data Structures'), findsOneWidget);
     // The plan's up-next day ("Push", order 0) — not "Pull", the workout
     // logged today (see the seeding comment above for why that matters).
     expect(find.text('Push'), findsOneWidget);
     expect(find.text('Start Workout'), findsOneWidget);
     expect(find.text('Pull'), findsNothing);
     expect(find.text('Bench Press'), findsNothing);
-    expect(find.text('TODAY'), findsWidgets); // section label + tab
+    expect(find.text('TODAY'), findsWidgets); // bottom tab label
   });
 }

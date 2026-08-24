@@ -10,11 +10,7 @@ import '../../../core/widgets/zivo_toast.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
-import '../../notes/presentation/pages/notes_list_page.dart';
-import '../../schedule/presentation/pages/schedule_list_page.dart';
-import '../../tasks/presentation/pages/task_list_page.dart';
 import '../../shell/presentation/widgets/zivo_bottom_bar.dart';
-import '../../university/presentation/pages/university_list_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 
 /// The Hub — the OS-style launcher into each module's depth. A clean two-column
@@ -27,20 +23,12 @@ class HubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final modules = <_Module>[
-      _Module('Schedule', AppIcons.schedule, AppColors.ember, AppColors.emberWash,
-          (c) => const ScheduleListPage()),
-      _Module('Tasks', AppIcons.tasks, AppColors.pulse, AppColors.pulseWash,
-          (c) => const TaskListPage()),
       _Module('Workout', AppIcons.workout, AppColors.pulse, AppColors.pulseWash,
           (c) => const WorkoutDashboardPage()),
       _Module('Diet', AppIcons.diet, AppColors.solar, AppColors.solarWash,
           (c) => const DietPlanPage()),
       _Module('Expenses', AppIcons.expenses, AppColors.solar, AppColors.solarWash,
           (c) => const ExpensesListPage()),
-      _Module('University', AppIcons.university, AppColors.iris, AppColors.irisWash,
-          (c) => const UniversityListPage()),
-      _Module('Notes', AppIcons.notes, AppColors.iris, AppColors.irisWash,
-          (c) => const NotesListPage()),
       _Module('Moments', AppIcons.moments, AppColors.ember, AppColors.emberWash,
           (c) => const MomentsTimelinePage()),
     ];

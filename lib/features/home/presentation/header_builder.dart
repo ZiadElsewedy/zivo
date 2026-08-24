@@ -1,5 +1,3 @@
-import '../domain/today_snapshot.dart';
-
 const _weekdays = [
   'Monday',
   'Tuesday',
@@ -48,27 +46,4 @@ String? _firstName(String? name) {
   if (trimmed == null || trimmed.isEmpty) return null;
   final words = trimmed.split(RegExp(r'\s+'));
   return words.length > 1 ? words.first : trimmed;
-}
-
-/// A short, warm line about the day, composed from the live [focus] list and
-/// the [next] upcoming event. Falls back to a calm line on a clear day.
-String buildAside({required List<FocusItem> focus, required NowNext? next}) {
-  final pending = focus.where((f) => !f.done).length;
-
-  final focusPhrase = switch (pending) {
-    0 => null,
-    1 => 'One thing on your list today',
-    _ => '$pending things on your list today',
-  };
-
-  final nextPhrase = next == null ? null : 'next up: ${next.title}';
-
-  if (focusPhrase == null && nextPhrase == null) {
-    return 'A clear day — nothing pressing.';
-  }
-  if (focusPhrase != null && nextPhrase != null) {
-    return '$focusPhrase, and $nextPhrase.';
-  }
-  final only = focusPhrase ?? nextPhrase!;
-  return '${only[0].toUpperCase()}${only.substring(1)}.';
 }
