@@ -45,6 +45,10 @@ import '../features/expenses/domain/wallet_repository.dart';
 import '../features/moments/data/firestore_moment_repository.dart';
 import '../features/moments/data/in_memory_moment_repository.dart';
 import '../features/moments/domain/moment_repository.dart';
+import '../features/music/data/fake_music_controller.dart';
+import '../features/music/data/spotify_music_controller.dart';
+import '../features/music/domain/music_controller.dart';
+import '../features/music/music_config.dart';
 import '../features/workout/data/dev_analysis_seed.dart';
 import '../features/workout/data/firestore_body_weight_repository.dart';
 import '../features/workout/data/firestore_workout_plan_repository.dart';
@@ -91,6 +95,7 @@ class ZivoApp extends StatefulWidget {
     this.recorder,
     this.media,
     this.mediaPreferences,
+    this.music,
     super.key,
   });
 
@@ -109,6 +114,7 @@ class ZivoApp extends StatefulWidget {
   final AudioRecorderService? recorder;
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
+  final MusicController? music;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -145,6 +151,11 @@ class _ZivoAppState extends State<ZivoApp> {
       widget.mediaPreferences ?? _defaultMediaPreferences();
   late final MediaService _media = widget.media ?? _defaultMedia();
 
+  // Always bound, independent of `kMusicEnabled` — that flag only gates the
+  // UI's mounting (see `home_shell.dart`); the controller itself is cheap
+  // to construct and harmless to leave running unused.
+  late final MusicController _music = widget.music ?? _defaultMusic();
+
   /// Watches the signed-in account and clears the device-local backup
   /// connection when it changes away from a signed-in account (sign-out or
   /// account switch), so account A's backup connection can never leak into
@@ -168,6 +179,9 @@ class _ZivoAppState extends State<ZivoApp> {
   @override
   void dispose() {
     _authSub?.cancel();
+    // Only when we own it (the default) — a caller-supplied controller
+    // (a test passing its own fake) stays theirs to dispose.
+    if (widget.music == null) _music.dispose();
     super.dispose();
   }
 
@@ -241,6 +255,11 @@ class _ZivoAppState extends State<ZivoApp> {
       ? FirebaseAiRepository(uidSource: UidSource.firebaseAuth())
       : FakeAiRepository();
 
+  MusicController _defaultMusic() =>
+      (kMusicEnabled && spotifyClientId.isNotEmpty)
+      ? SpotifyMusicController()
+      : FakeMusicController();
+
   @override
   Widget build(BuildContext context) {
     return AppScope(
@@ -258,6 +277,7 @@ class _ZivoAppState extends State<ZivoApp> {
       ai: _ai,
       recorder: _recorder,
       media: _media,
+      music: _music,
       child: MaterialApp(
         title: 'ZIVO',
         debugShowCheckedModeBanner: false,

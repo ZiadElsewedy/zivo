@@ -5,6 +5,7 @@ import '../../../core/motion/springs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
+import '../../../core/scope/app_scope.dart';
 import '../../ai/presentation/pages/ask_page.dart';
 import '../../auth/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
@@ -13,6 +14,8 @@ import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
 import '../../hub/presentation/hub_page.dart';
 import '../../moments/presentation/pages/moment_capture_page.dart';
+import '../../music/music_config.dart';
+import '../../music/presentation/now_playing_bar.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -91,13 +94,25 @@ class _HomeShellState extends State<HomeShell> {
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
-      bottomNavigationBar: ZivoBottomBar(
-        currentIndex: _index,
-        onTap: (i) {
-          if (i == _index) return;
-          HapticFeedback.selectionClick();
-          setState(() => _index = i);
-        },
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // TEMPORARY placement (S1) — re-anchored to the workout/live-session
+          // surface in S2. Gated on the compile-time flag, not just the
+          // controller's own state — with it false this whole branch is dead
+          // code. `NowPlayingBar` itself still separately renders nothing
+          // until there's actually something playing.
+          if (kMusicEnabled)
+            NowPlayingBar(controller: AppScope.of(context).requireMusic),
+          ZivoBottomBar(
+            currentIndex: _index,
+            onTap: (i) {
+              if (i == _index) return;
+              HapticFeedback.selectionClick();
+              setState(() => _index = i);
+            },
+          ),
+        ],
       ),
     );
   }
