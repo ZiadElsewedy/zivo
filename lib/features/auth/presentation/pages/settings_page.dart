@@ -303,13 +303,12 @@ class _MusicSection extends StatelessWidget {
               children: [
                 SettingsRow(
                   icon: AppIcons.music,
-                  accent: AppColors.pulse,
-                  // TODO(spotify-icon): this is a neutral placeholder swatch
-                  // (flat color, no mark) at assets/spotify/spotify-icon.png
-                  // — swap in the official Spotify logo once sourced. Do
-                  // NOT recreate/recolor the mark; follow Spotify's brand
-                  // guidelines. Referenced here and nowhere else in the
-                  // app — the in-session card/chip stay logo-free.
+                  // The official Spotify mark (sourced from Spotify's brand
+                  // assets, official #1DB954 green — never recreated or
+                  // recolored; see Spotify's brand guidelines) on the neutral
+                  // chip, so the brand's own green is what carries the row.
+                  // Referenced here and nowhere else in the app — the
+                  // in-session card/chip stay logo-free.
                   iconWidget: ClipRRect(
                     borderRadius: BorderRadius.circular(7),
                     child: Image.asset(

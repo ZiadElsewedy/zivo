@@ -25,6 +25,21 @@ class AppIcons {
   static const expenses = LucideIcons.wallet;
   static const moments = LucideIcons.images;
 
+  // Training analytics & sessions.
+  static const analysis = LucideIcons.chartNoAxesCombined;
+  static const trendUp = LucideIcons.trendingUp;
+  static const trendDown = LucideIcons.trendingDown;
+  static const history = LucideIcons.history;
+  static const splits = LucideIcons.layers2;
+  static const streak = LucideIcons.flame;
+  static const timer = LucideIcons.timer;
+  static const clock = LucideIcons.clock;
+  static const scale = LucideIcons.scale;
+  static const planDoc = LucideIcons.clipboardList;
+  static const sessions = LucideIcons.activity;
+  static const minus = LucideIcons.minus;
+  static const calendarClock = LucideIcons.calendarClock;
+
   // Common actions / affordances.
   static const add = LucideIcons.plus;
   static const camera = LucideIcons.camera;

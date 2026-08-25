@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../scope/app_scope.dart';
@@ -8,6 +10,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/google_drive_mark.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/rise_in.dart';
 import '../../widgets/settings_row.dart';
 import '../../widgets/zivo_toast.dart';
 import '../domain/media_object.dart';
@@ -18,6 +21,10 @@ import '../media_service.dart';
 /// always on this device, and optionally backed up to a Google Drive account
 /// you connect **on this device**. Connecting is explicit here and nowhere
 /// else, so opening Moments or taking a photo never triggers a sign-in.
+///
+/// Presented in the house dashboard language — atmospheric backdrop, editorial
+/// title, staggered entrance — so a pushed detail page still feels native to
+/// the app rather than a settings afterthought.
 class StorageSyncPage extends StatefulWidget {
   const StorageSyncPage({super.key});
 
@@ -139,73 +146,180 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     final prefsRepo = _media.preferences;
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Storage & Sync',
-          style: AppText.cardTitle.copyWith(fontSize: 20),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 40),
+        child: Stack(
           children: [
-            _DeviceCard(total: _total),
-            const SizedBox(height: 22),
-            Text('BACKUP & SYNC', style: AppText.sectionLabel),
-            const SizedBox(height: 8),
-            _DriveCard(
-              supported: _media.supportsBackup,
-              connected: _connected,
-              email: _email,
-              total: _total,
-              backedUp: _backedUp,
-              op: _op,
-              opDone: _opDone,
-              opTotal: _opTotal,
-              onConnect: _connect,
-              onDisconnect: _disconnect,
-              onBackupNow: _backupNow,
-              onSync: _syncFromDrive,
+            const Positioned(
+              top: -60,
+              right: -70,
+              child: _AuraBlob(color: AppColors.pulse, size: 200),
             ),
-            const SizedBox(height: 22),
-            StreamBuilder<MediaStoragePreferences>(
-              stream: prefsRepo.watch(),
-              initialData: MediaStoragePreferences.defaults,
-              builder: (context, snapshot) {
-                final prefs = snapshot.data ?? MediaStoragePreferences.defaults;
-                return SettingsSectionCard(
-                  label: 'DEVICE PHOTOS',
-                  children: [
-                    SettingsRow(
-                      icon: AppIcons.photos,
-                      title: 'Save to Photos',
-                      value: prefs.saveToPhotos ? 'On' : 'Off',
-                      accent: AppColors.ember,
-                      last: true,
-                      trailing: Switch.adaptive(
-                        value: prefs.saveToPhotos,
-                        activeThumbColor: AppColors.ember,
-                        onChanged: _busy
-                            ? null
-                            : (v) => prefsRepo.save(
-                                prefs.copyWith(saveToPhotos: v),
+            SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
+                children: [
+                  RiseIn(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _BackButton(),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Storage & Sync',
+                          style: AppText.greeting.copyWith(fontSize: 30),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 50),
+                    child: _DeviceCard(total: _total),
+                  ),
+                  const SizedBox(height: 22),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 90),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6, bottom: 9),
+                          child: Text(
+                            'BACKUP & SYNC',
+                            style: AppText.sectionLabel,
+                          ),
+                        ),
+
+                        _DriveCard(
+                          supported: _media.supportsBackup,
+                          connected: _connected,
+                          email: _email,
+                          total: _total,
+                          backedUp: _backedUp,
+                          op: _op,
+                          opDone: _opDone,
+                          opTotal: _opTotal,
+                          onConnect: _connect,
+                          onDisconnect: _disconnect,
+                          onBackupNow: _backupNow,
+                          onSync: _syncFromDrive,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 130),
+                    child: StreamBuilder<MediaStoragePreferences>(
+                      stream: prefsRepo.watch(),
+                      initialData: MediaStoragePreferences.defaults,
+                      builder: (context, snapshot) {
+                        final prefs =
+                            snapshot.data ?? MediaStoragePreferences.defaults;
+                        return SettingsSectionCard(
+                          label: 'DEVICE PHOTOS',
+                          children: [
+                            SettingsRow(
+                              icon: AppIcons.photos,
+                              title: 'Save to Photos',
+                              value: prefs.saveToPhotos ? 'On' : 'Off',
+                              accent: AppColors.ember,
+                              last: true,
+                              trailing: Switch.adaptive(
+                                value: prefs.saveToPhotos,
+                                activeThumbColor: AppColors.ember,
+                                onChanged: _busy
+                                    ? null
+                                    : (v) => prefsRepo.save(
+                                        prefs.copyWith(saveToPhotos: v),
+                                      ),
                               ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 170),
+                    child: Text(
+                      'Each ZIVO account keeps its own photos in its own Drive folder, so '
+                      'accounts never mix — even if they use the same Google Drive.',
+                      style: AppText.meta.copyWith(
+                        color: AppColors.ink3,
+                        height: 1.4,
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Each ZIVO account keeps its own photos in its own Drive folder, so '
-              'accounts never mix — even if they use the same Google Drive.',
-              style: AppText.meta.copyWith(color: AppColors.ink3, height: 1.4),
+                  ),
+                ],
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared across the app's surfaces. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pushed-page back affordance — the same 38px chip language as the
+/// Settings header.
+class _BackButton extends StatelessWidget {
+  const _BackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Tooltip(
+        message: 'Back',
+        child: InkWell(
+          onTap: () => Navigator.of(context).maybePop(),
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
+          ),
         ),
       ),
     );
@@ -223,6 +337,7 @@ class _DeviceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
         boxShadow: AppShadows.card,
       ),
       child: Row(
@@ -232,8 +347,26 @@ class _DeviceCard extends StatelessWidget {
             height: 46,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.pulseWash,
-              borderRadius: BorderRadius.circular(13),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.pulse.withValues(alpha: 0.30),
+                  AppColors.pulse.withValues(alpha: 0.10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.pulse.withValues(alpha: 0.18),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pulse.withValues(alpha: 0.30),
+                  blurRadius: 22,
+                  spreadRadius: -6,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: const Icon(AppIcons.check, size: 22, color: AppColors.pulse),
           ),
@@ -300,6 +433,7 @@ class _DriveCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -586,32 +720,43 @@ class _PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       enabled: !loading,
-      child: GestureDetector(
-        onTap: loading ? null : onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
           decoration: BoxDecoration(
-            color: AppColors.ember,
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFF7038), AppColors.ember],
+            ),
             borderRadius: BorderRadius.circular(AppRadius.pill),
+            boxShadow: AppShadows.ember,
           ),
-          child: loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: AppText.button.copyWith(
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
-                ),
+          child: InkWell(
+            onTap: loading ? null : onTap,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              alignment: Alignment.center,
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      label,
+                      style: AppText.button.copyWith(
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                    ),
+            ),
+          ),
         ),
       ),
     );
