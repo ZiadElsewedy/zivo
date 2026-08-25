@@ -42,6 +42,7 @@ const valid = {
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
   workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
+  bodyWeightEntries: { weightKg: 82.5, loggedAt: ts(), schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
 };
 
@@ -54,6 +55,7 @@ const invalid = {
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
   workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
   workoutSessions: { dayLabel: 'Push', status: 'paused', startedAt: ts(), exercises: [], schemaVersion: 1 }, // status not in enum
+  bodyWeightEntries: { weightKg: -1, loggedAt: ts(), schemaVersion: 1 }, // weight not > 0
   aiConversations: { title: 123, schemaVersion: 1 }, // title not a string
 };
 
@@ -244,6 +246,14 @@ describe('workoutSessions delete path', () => {
     await seed(collPath(OWNER, 'workoutSessions'), valid.workoutSessions);
     await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'workoutSessions'))));
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workoutSessions'))));
+  });
+});
+
+describe('bodyWeightEntries delete path', () => {
+  it('owner can delete their own weigh-in; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'bodyWeightEntries'), valid.bodyWeightEntries);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'bodyWeightEntries'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'bodyWeightEntries'))));
   });
 });
 

@@ -203,7 +203,7 @@ void main() {
       expect(find.text('Start Workout'), findsOneWidget);
       expect(find.text('Pull'), findsNothing);
       expect(find.text('Lat Pulldown'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
@@ -225,7 +225,7 @@ void main() {
       );
       await _settle(tester);
 
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 
@@ -246,7 +246,7 @@ void main() {
       expect(find.text('Full Arm'), findsOneWidget);
       expect(find.text('1 exercise'), findsOneWidget);
       expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
@@ -451,7 +451,7 @@ void main() {
       expect(find.text('Get started'), findsOneWidget);
       expect(find.text('Import a\nworkout plan'), findsOneWidget);
       expect(find.text('Add an\nexpense'), findsOneWidget);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
@@ -487,7 +487,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Get started'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 
@@ -521,7 +521,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Get started'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 }

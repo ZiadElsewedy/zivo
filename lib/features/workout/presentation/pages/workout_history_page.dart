@@ -93,30 +93,19 @@ class WorkoutHistoryPage extends StatelessWidget {
         );
         final weekStart = _startOfWeek(now);
 
-        final groups = <_WeekGroup>[];
+        // Group by calendar week, newest first. Every week gets its own
+        // dated header (e.g. "AUG 18 – AUG 24") instead of the old three
+        // buckets that collapsed everything past last week into one opaque
+        // "EARLIER" pile — which made a long history read like it was
+        // missing workouts even though the count above was correct.
+        final byWeek = <DateTime, List<LiveSession>>{};
         for (final session in items) {
-          final ws = _startOfWeek(session.startedAt);
-          final index = ws == weekStart
-              ? 0
-              : ws == weekStart.subtract(const Duration(days: 7))
-              ? 1
-              : 2;
-          // Buckets can be sparse — e.g. every session is over two weeks old
-          // (a returning user) lands in bucket 2 with nothing in 0/1. Grow
-          // densely and drop empties below; indexing straight into a sparse
-          // list crashed here (RangeError) whenever the newest session wasn't
-          // THIS week.
-          while (groups.length <= index) {
-            groups.add(_WeekGroup(groups.length, []));
-          }
-          // Sessions arrive newest-first; each bucket keeps that order.
-          if (groups[index].sessions.isEmpty) {
-            groups[index].weekStart = ws;
-          }
-          groups[index].sessions.add(session);
+          byWeek.putIfAbsent(_startOfWeek(session.startedAt), () => []).add(
+            session,
+          );
         }
-        final visibleGroups =
-            groups.where((g) => g.sessions.isNotEmpty).toList();
+        final weekStarts = byWeek.keys.toList()
+          ..sort((a, b) => b.compareTo(a));
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
@@ -132,16 +121,18 @@ class WorkoutHistoryPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            for (final group in visibleGroups) ...[
-              _WeekHeader(group.label(context)),
-              for (final (i, session) in group.sessions.indexed)
+            for (final ws in weekStarts) ...[
+              _WeekHeader(
+                _WeekGroup(ws, byWeek[ws]!).label(weekStart),
+              ),
+              for (final (i, session) in byWeek[ws]!.indexed)
                 RiseIn(
                   delay: Duration(
                     milliseconds: (90 + i * 40).clamp(0, 320),
                   ),
                   child: Padding(
                     padding: EdgeInsets.only(
-                      bottom: i == group.sessions.length - 1 ? 0 : 10,
+                      bottom: i == byWeek[ws]!.length - 1 ? 0 : 10,
                     ),
                     child: Dismissible(
                       key: ValueKey(session.id),
@@ -256,19 +247,28 @@ class _HistoryHeader extends StatelessWidget {
   }
 }
 
-/// One week's worth of sessions, in list order.
+/// One calendar week's sessions, newest first — the unit the list groups by.
 class _WeekGroup {
-  _WeekGroup(this.bucket, this.sessions);
+  _WeekGroup(this.weekStart, this.sessions);
 
-  final int bucket; // 0 this week · 1 last week · 2 earlier
+  /// Midnight of this group's Monday.
+  final DateTime weekStart;
   final List<LiveSession> sessions;
-  DateTime? weekStart;
 
-  String label(BuildContext context) => switch (bucket) {
-    0 => 'THIS WEEK',
-    1 => 'LAST WEEK',
-    _ => 'EARLIER',
-  };
+  DateTime get weekEnd => weekStart.add(const Duration(days: 6));
+
+  /// "THIS WEEK", "LAST WEEK", or a dated range ("AUG 18 – AUG 24") for
+  /// anything further back — so no stretch of history is ever lumped into
+  /// an anonymous bucket.
+  String label(DateTime currentWeekStart) {
+    if (weekStart == currentWeekStart) return 'THIS WEEK';
+    if (weekStart == currentWeekStart.subtract(const Duration(days: 7))) {
+      return 'LAST WEEK';
+    }
+    String part(DateTime d) =>
+        '${_monthNames[d.month - 1].toUpperCase()} ${d.day}';
+    return '${part(weekStart)} – ${part(weekEnd)}';
+  }
 }
 
 class _WeekHeader extends StatelessWidget {

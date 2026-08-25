@@ -138,7 +138,7 @@ void main() {
     expect(find.text('Start Workout'), findsOneWidget);
 
     // Stats are all placeholders with nothing logged yet.
-    expect(find.text('0'), findsNWidgets(2)); // sessions this week + day streak
+    expect(find.text('0'), findsNWidgets(2)); // sessions + day streak
     expect(find.text('—'), findsWidgets); // avg duration / avg start
 
     expect(find.text('No weigh-ins logged yet.'), findsOneWidget);
@@ -170,7 +170,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('1'), findsNWidgets(2)); // sessions this week + day streak (trained today)
+    expect(find.text('1'), findsNWidgets(2)); // sessions + day streak (trained today)
     expect(find.text('82.5 kg'), findsOneWidget);
   });
 
@@ -196,7 +196,7 @@ void main() {
 
       // Kept.
       expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('THIS WEEK'), findsOneWidget);
+      expect(find.text('TRAINING'), findsWidgets); // section label + the up-next card's own tag
       expect(find.text('BODYWEIGHT'), findsOneWidget);
 
       // Moved off the landing entirely.
