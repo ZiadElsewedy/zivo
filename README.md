@@ -1,17 +1,160 @@
-# zivo
+<div align="center">
 
-A new Flutter project.
+<img src="assets/transparent/zivo-mark-paper-256.png" width="88" alt="ZIVO mark" />
+
+# ZIVO
+
+### Your whole day, in one place.
+
+A private, personal app that brings the parts of your life together —<br/>
+moments, workouts, diet, expenses, and an assistant that actually knows your numbers.
+
+[![Platform](https://img.shields.io/badge/platform-iOS%20%C2%B7%20Android-15110D?style=flat-square&labelColor=15110D&color=F6F1E9)](#getting-started)
+[![Built with](https://img.shields.io/badge/built%20with-Flutter-15110D?style=flat-square&logo=flutter&logoColor=F6F1E9&labelColor=15110D&color=FF5A1F)](https://flutter.dev)
+[![Backend](https://img.shields.io/badge/backend-Firebase-15110D?style=flat-square&logo=firebase&logoColor=15110D&labelColor=15110D&color=F6B300)](https://firebase.google.com)
+[![AI](https://img.shields.io/badge/AI-Claude%20%C2%B7%20Gemini-15110D?style=flat-square&labelColor=15110D&color=6E5BFF)](docs/DECISIONS/ADR-001-ai-assistant.md)
+[![Quality gates](https://img.shields.io/badge/quality%20gates-analyze%20%C2%B7%20test%20%C2%B7%20rules-15110D?style=flat-square&labelColor=15110D&color=12C48A)](#quality-gates)
+
+</div>
+
+---
+
+## Why ZIVO
+
+Most days don't fit into a single category. ZIVO keeps the moving parts of a life under
+one roof and one design language — warm, dark, and calm — so checking in takes seconds,
+not willpower. It is built **private-first**: your content lives in your account, backups
+go to *your own* Google Drive, and nothing is ever sold or used to train third-party models.
+
+## The Six Areas
+
+ZIVO's design system assigns one color to each area of life — the same dots you'll see in the app:
+
+| | Area | What it does |
+|---|---|---|
+| <img src="https://img.shields.io/badge/-%20-FF5A1F?style=flat-square" height="10"/> | **Today & Hub** | A single home for what's next — training, meals, spending, and moments at a glance. |
+| <img src="https://img.shields.io/badge/-%20-12C48A?style=flat-square" height="10"/> | **Workout** | First-class splits, guided live sessions, body-weight tracking, progressive-overload analysis, and PDF plan import. |
+| <img src="https://img.shields.io/badge/-%20-12C48A?style=flat-square" height="10"/> | **Diet** | Meal plans you can edit, and a daily "did I eat this" ledger. |
+| <img src="https://img.shields.io/badge/-%20-F6B300?style=flat-square" height="10"/> | **Expenses** | An append-only spending log with a running wallet balance and custom categories. |
+| <img src="https://img.shields.io/badge/-%20-6E5BFF?style=flat-square" height="10"/> | **Ask AI** | A tool-mediated Claude assistant over *your own* data — streaming answers, propose-and-confirm writes. |
+| <img src="https://img.shields.io/badge/-%20-F6F1E9?style=flat-square" height="10"/> | **Moments** | Photos and small memories, local-first, backed up to your Drive. |
+
+Cross-cutting: email-code verification, Sign in with Apple / Google / password,
+Spotify playback integration, offline-first persistence, and full media backup.
+
+## Architecture
+
+Clean architecture end-to-end — presentation depends on domain interfaces only;
+Firestore/Firebase are data-layer details behind repositories.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  presentation   pages · widgets · motion (RiseIn, springs) │
+├──────────────────────────────────────────────────────────┤
+│  domain         entities · repository interfaces · policy  │
+├──────────────────────────────────────────────────────────┤
+│  data           Firestore / Firebase Auth implementations  │
+│                 (swap-in fakes power every widget test)    │
+└──────────────────────────────────────────────────────────┘
+          │
+          ▼
+Cloud Functions (Node) ── OTP email codes · Ask gateway ·
+PDF plan import · speech-to-text · auth-event bookkeeping
+```
+
+- **Dependency injection** through a tiny `AppScope` seam; every repository is injectable, so tests run without Firebase.
+- **Security** is enforced by Firestore rules with per-collection field validation — covered by emulator rule tests (`firestore-tests/`).
+- **Motion** follows one physical material: Apple-style springs specified as damping + response (`core/motion/springs.dart`).
+
+### Project structure
+
+```
+lib/
+├── app/               # root widget + repository wiring
+├── core/              # theme · motion · media pipeline · scope · widgets
+└── features/
+    ├── auth/          # gate · login/signup · verify · settings · privacy
+    ├── workout/       # plans · sessions · analysis · body weight
+    ├── diet/          # plans + daily entries
+    ├── expenses/      # log · wallet · categories
+    ├── moments/       # photo memories
+    ├── ai/            # Ask: chat, streaming, recorder
+    ├── music/         # Spotify playback
+    ├── home/ hub/ shell/
+functions/             # Cloud Functions (Node): ai/ · auth/ · otp mail
+firestore.rules        # deny-by-default, owner-scoped, field-validated
+firestore-tests/       # security-rules suite (runs against the emulator)
+docs/                  # project context · plan · ADRs · brand system
+config/                # per-environment dart-define files
+Makefile               # run/build configurations + quality gates
+```
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+**Prerequisites:** Flutter (SDK `^3.12.2`) · Node 20+ (for Functions) · Firebase CLI (for emulators/deploys)
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+git clone https://github.com/<owner>/zivo.git && cd zivo
+flutter pub get
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+# Run against a real device/emulator in the Development environment:
+make dev
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Other configurations (each maps to config/*.json dart-defines):
+make profile     # Profile mode, physical device
+make release     # Release mode
+```
+
+Build artifacts:
+
+```bash
+make build-apk   # Release APK
+make build-ipa   # Release iOS archive
+```
+
+Firebase setup (project selection, secrets, rules deploy) is documented in
+[`docs/build_configurations.md`](docs/build_configurations.md).
+
+## Quality Gates
+
+```bash
+make gates                       # flutter analyze && flutter test
+cd functions && npm test         # Cloud Functions unit tests (offline)
+firebase emulators:exec --only firestore \
+  --project demo-zivo "cd firestore-tests && npm test"   # security-rules suite
+```
+
+Every collection in Firestore is covered by ownership-isolation and
+field-validation tests; auth event logs are additionally verified append-only.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Canonical, self-contained handoff snapshot |
+| [`docs/PLAN.md`](docs/PLAN.md) | Milestones and phased architecture plan |
+| [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits, sessions, progression engine |
+| [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction and screen blueprints |
+| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Color hues, type, motion identity |
+| [`docs/build_configurations.md`](docs/build_configurations.md) | The three build configs + dart-defines |
+| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records (ADRs) |
+
+## Security & Privacy
+
+Privacy isn't a page here — it's the threat model. Owner-only Firestore rules,
+hashed verification codes, server-authoritative audit events, and integrations
+that always act on *your own* accounts (Drive `drive.file` scope, official
+Spotify SDK). The full policy lives at [zzivo.com/privacy](https://zzivo.com/privacy),
+and natively in-app under **Settings → About → Privacy policy**.
+
+Questions about data or security: <ziadelsewedy1@gmail.com>
+
+---
+
+<div align="center">
+
+<img src="assets/transparent/zivo-mark-paper-256.png" width="28" alt="" />
+
+**ZIVO** · © 2026 · built with restraint
+
+</div>

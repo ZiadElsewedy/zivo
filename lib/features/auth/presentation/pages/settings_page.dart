@@ -15,13 +15,14 @@ import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
+import 'privacy_page.dart';
 import '../widgets/media_backup_section.dart';
 import '../../../../core/widgets/settings_row.dart';
 
-/// Settings — appearance and about, plus sign out. Split from [ProfilePage]
-/// the way most apps separate "who you are" from "how the app behaves" —
-/// deliberately small: only sections backed by something real (no
-/// notification/privacy toggles that don't do anything yet).
+/// Settings — appearance, music, about (with the privacy policy), and sign
+/// out. Split from [ProfilePage] the way most apps separate "who you are"
+/// from "how the app behaves" — deliberately small: only sections backed by
+/// something real.
 ///
 /// Presented in the app's dashboard language — atmospheric backdrop, editorial
 /// title, staggered entrance — with iOS-Settings colored marks giving each
@@ -128,15 +129,28 @@ class _SettingsPageState extends State<SettingsPage> {
                             value: info == null
                                 ? '…'
                                 : '${info.version} (${info.buildNumber})',
-                            last: AppEnvironment.isRelease,
                           ),
                           if (!AppEnvironment.isRelease)
                             SettingsRow(
                               icon: AppIcons.build,
                               title: 'Build',
                               value: AppEnvironment.name,
-                              last: true,
                             ),
+                          SettingsRow(
+                            icon: AppIcons.privacy,
+                            title: 'Privacy policy',
+                            value: 'How your data is handled',
+                            accent: AppColors.pulse,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPage(),
+                                  fullscreenDialog: true,
+                                ),
+                              );
+                            },
+                            last: true,
+                          ),
                         ],
                       ),
                     ),

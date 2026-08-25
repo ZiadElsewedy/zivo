@@ -6,7 +6,7 @@
   <title>Privacy Policy — ZIVO</title>
   <meta
     name="description"
-    content="How ZIVO handles your data, including authentication, app content, and the optional Google Drive backup integration."
+    content="How ZIVO handles your data: account and authentication, your content, the Ask AI assistant, Spotify, email verification codes, and optional Google Drive backup."
   />
   <link rel="canonical" href="https://zzivo.com/privacy" />
 
@@ -50,133 +50,130 @@
       <div class="wrap">
         <a class="back-link" href="/">← Back to ZIVO</a>
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: August 19, 2026</p>
+        <p class="updated">Last updated: August 25, 2026</p>
 
         <h2>Overview</h2>
         <p>
-          ZIVO is a private, personal application built to help one person organize the
-          different parts of their daily life — moments, notes, tasks, schedule, expenses,
-          university, and workouts — in one place. This policy explains what information
-          ZIVO stores, how it is used, and how the optional Google Drive backup integration
-          works.
-        </p>
-        <p>
-          ZIVO does not sell your data, does not show ads, and does not use your content to
-          train third-party models.
+          ZIVO is a private, personal application for organizing the parts of your day —
+          moments, workouts, diet, expenses, and more — in one calm place. This policy
+          explains what ZIVO stores, how it is used, and the choices you have.
         </p>
 
-        <h2>Information ZIVO Stores</h2>
-        <p>
-          ZIVO stores the information needed to run your account and the content you create
-          in the app. This includes account/authentication details and the personal content
-          you add across ZIVO's features.
-        </p>
+        <h2>The Short Version</h2>
+        <ul>
+          <li>Your content is private to your account and never sold or shared for ads.</li>
+          <li>ZIVO does not use your data or your content to train third-party models.</li>
+          <li>Backups live in your own Google Drive, under your own control.</li>
+          <li>You can delete your content at any time, from inside the app.</li>
+        </ul>
 
-        <h2>Authentication &amp; Account Information</h2>
+        <h2>Account &amp; Authentication Information</h2>
         <p>
-          ZIVO uses Firebase Authentication to sign you in, with Google, Apple, or
-          email/password as sign-in options. Depending on the method you choose, ZIVO
-          receives basic account details such as your name, email address, and a unique
-          account identifier. This identifier is used to keep your data scoped to your
+          ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or
+          email/password as sign-in options. Depending on the method you choose, ZIVO receives
+          basic account details such as your name, email address, and a unique account
+          identifier. That identifier is what keeps every piece of your data scoped to your
           account only.
         </p>
 
-        <h2>User-Generated Content</h2>
+        <h2>Email Verification Codes</h2>
         <p>
-          Content you create in ZIVO — such as moments, notes, tasks, schedule entries,
-          expenses, university items, and workout data — is stored in your account so the
-          app can display it back to you across your devices. This content is private to
-          your account and is not visible to other users.
+          If you sign in with email, ZIVO sends a short verification code to confirm your
+          address. Codes are hashed before storage (never kept in plain text), expire within
+          minutes, and are used for nothing beyond verifying that the address is yours.
         </p>
 
-        <h2>Media &amp; Local Storage</h2>
+        <h2>Your Content</h2>
         <p>
-          Where ZIVO features let you attach a photo (for example, in Moments), the app
-          accesses your device's photo library only to let you pick or capture that image.
-          Media you add is stored so it can be shown back to you within the app.
+          Everything you create in ZIVO — moments, workout plans and sessions, diet plans and
+          entries, expense logs, body-weight entries, and profile details — is stored in your
+          account so the app can show it back to you across your devices. It is private to you
+          and not visible to other users.
         </p>
 
-        <h2>Firebase Services</h2>
+        <h2>Photos &amp; Local Storage</h2>
         <p>
-          ZIVO is built on Google Firebase, including Firebase Authentication, Cloud
-          Firestore (ZIVO's database), and Cloud Functions (used, for example, to power
-          ZIVO's AI Assistant). Data in transit between your device and these services is
-          encrypted, and Firestore security rules restrict your data so that only your
-          authenticated account can read or write it.
+          Where a feature lets you attach a photo (such as Moments or your profile), ZIVO
+          accesses your device's photo library only when you pick or capture an image. Media
+          lives first on your device; cloud backup happens only through the backup target you
+          explicitly choose.
         </p>
 
-        <h2>Google Drive Integration</h2>
+        <h2>AI Assistant ("Ask")</h2>
         <p>
-          ZIVO includes an optional Google Drive backup feature. It is designed to use
-          Google's <strong>drive.file</strong> scope — the most restrictive level of Drive
-          access Google offers. This scope only allows ZIVO to see and manage the specific
-          files that ZIVO itself creates, or that you explicitly open with ZIVO. It does
-          not give ZIVO access to your existing files, folders, or any other content already
-          in your Google Drive. Where this feature is not yet available in the version of
-          ZIVO you are using, this section describes how it is designed to work once it is
-          enabled.
+          Ask is an opt-in assistant that can answer questions about your own data — your
+          workouts, meals, and spending. When you send a message, the relevant context is
+          processed by the model provider solely to answer you. Conversations are stored
+          privately in your account so history works across devices, and are never used to
+          train third-party models.
         </p>
 
-        <h2>What Happens When You Connect Google Drive</h2>
+        <h2>Spotify</h2>
         <p>
-          If you choose to enable Google Drive backup, you will sign in with your own Google
-          account and grant ZIVO permission to create and manage files on your behalf,
-          limited to the drive.file scope described above. ZIVO does not use a shared or
-          centralized Google Drive account — each user's backup lives in that user's own
-          Google Drive, under their own control.
+          The music feature connects to your own Spotify account when you ask it to. ZIVO uses
+          Spotify's official SDK to control playback and read what's currently playing. You can
+          disconnect at any time, from Settings.
         </p>
 
-        <h2>What Permissions Are Requested</h2>
+        <h2>Account &amp; Security Metadata</h2>
         <p>
-          ZIVO requests only the permission needed to create, read, and manage the specific
-          files it uses for backup. ZIVO does not request, and cannot use, broader access to
-          the rest of your Google Drive.
+          To keep your account safe and supportable, ZIVO keeps a small record of
+          authentication events — when your account was created, when you last signed in and
+          how, and when verification emails were sent. This metadata is security bookkeeping:
+          it is never sold, shared, or used for advertising.
         </p>
 
-        <h2>How Google Drive Data Is Used</h2>
+        <h2>Google Drive Backup</h2>
         <p>
-          Files backed up through this feature are used solely to let you back up and
-          restore ZIVO-created media across your devices. ZIVO does not scan, analyze, or
-          share the contents of your Google Drive for any other purpose, and does not use
-          this data for advertising.
+          Backup is optional and, if enabled, runs against <strong>your own</strong> Google
+          Drive — using Google's <strong>drive.file</strong> scope, the most restrictive level
+          of Drive access Google offers. It lets ZIVO see and manage only the files ZIVO itself
+          created; it does not give ZIVO access to the rest of your Drive. Where this feature is
+          not yet available in the version of ZIVO you are using, this section describes how it
+          is designed to work once enabled.
+        </p>
+        <p>
+          Each user's backup lives in that user's own Google Drive, under their own control —
+          ZIVO does not use a shared or centralized Drive account. Files backed up there are
+          used solely to restore ZIVO-created media across your devices; they are never scanned,
+          analyzed, or shared for any other purpose.
         </p>
 
         <h2>Data Sharing</h2>
         <p>
-          ZIVO does not sell or rent your personal data. ZIVO shares data only with the
-          infrastructure providers necessary to operate the app — currently Google
-          Firebase/Google Cloud (for authentication, storage, and app logic) and, only if
-          you opt in, your own Google Drive.
+          ZIVO does not sell or rent personal data. Data is processed only by the infrastructure
+          needed to run the app — Google Firebase / Google Cloud (authentication, database, and
+          app logic) — plus the integrations you explicitly enable: your own Google Drive and
+          your own Spotify account.
         </p>
 
         <h2>Data Retention &amp; Deletion</h2>
         <p>
-          Your content is retained in your ZIVO account until you delete it or delete your
-          account. If you connect Google Drive backup, the files ZIVO creates there remain
-          in your own Drive until you delete them or disconnect the integration; ZIVO does
+          Your content is retained until you delete it or delete your account. Files in your own
+          Google Drive stay there until you remove them or disconnect the integration; ZIVO does
           not control retention of files once they exist in your Drive.
         </p>
 
         <h2>Your Control Over Your Data</h2>
         <p>
-          You control the content you store in ZIVO and can remove it at any time within
-          the app. Google Drive backup is opt-in and can be disconnected at any time, both
-          from within ZIVO and from your Google Account's third-party access settings.
+          You control the content you store in ZIVO and can remove it at any time within the
+          app. Google Drive backup and the Spotify connection are opt-in and can be disconnected
+          at any time — from Settings, or from your Google Account's third-party access settings.
         </p>
 
         <h2>Security</h2>
         <p>
-          ZIVO relies on Firebase Authentication and Firestore security rules to ensure
-          that only your authenticated account can access your data, and encrypts data in
-          transit. No method of transmission or storage is 100% secure, but ZIVO is built
-          to keep your personal content scoped to you.
+          Access is enforced end-to-end: Firebase Authentication for identity, and Firestore
+          security rules so that only your authenticated account can read or write your data.
+          Verification codes are stored only as salted hashes, and data is encrypted in transit.
+          No method of transmission or storage is 100% secure, but ZIVO is built to keep your
+          personal content scoped to you.
         </p>
 
         <h2>Changes to This Policy</h2>
         <p>
-          This policy may be updated as ZIVO's features evolve, including as the Google
-          Drive integration is completed. The "Last updated" date above will always reflect
-          the most recent revision.
+          This policy may be updated as ZIVO's features evolve. The "Last updated" date above
+          always reflects the most recent revision.
         </p>
 
         <h2>Contact</h2>

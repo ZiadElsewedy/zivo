@@ -1,10 +1,10 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
@@ -28,15 +28,19 @@ import 'workout_history_page.dart';
 import 'workout_plan_page.dart';
 
 /// The Workout tab's second screen — everything that used to crowd the
-/// dashboard landing. The landing answers "what am I doing now"; this answers
-/// "how is it going": the current split, how the up-next day is trending, and
-/// what was logged recently, plus one explicit way into each deeper
-/// destination (Analysis, History, Splits).
+/// dashboard landing. The landing answers "what am I doing now"; this
+/// answers "how is it going", read top-to-bottom as three questions, each
+/// with its own visual identity:
+///
+/// 1. **How much** — an overview strip of four instruments, each in its own
+///    hue (this week pulse, streak ember, total iris, avg length solar).
+/// 2. **How well** — the active up-next day's verdict, then the current
+///    split with its per-day session distribution as proportional bars
+///    (replacing the old cramped pill wrap).
+/// 3. **What happened** — recent activity, then the deeper destinations.
 ///
 /// Reads the same live [LiveSession] stream the dashboard does, so the two
-/// screens can never disagree. Deliberately kept as one flat section list —
-/// the final home for these blocks is still open, and a flat list is trivial
-/// to re-cut.
+/// screens can never disagree.
 class WorkoutProgressPage extends StatelessWidget {
   const WorkoutProgressPage({super.key});
 
@@ -59,7 +63,7 @@ class WorkoutProgressPage extends StatelessWidget {
             const Positioned(
               top: -60,
               right: -70,
-              child: _AuraBlob(color: AppColors.iris, size: 200),
+              child: _AuraBlob(color: AppColors.pulse, size: 200),
             ),
             SafeArea(
               child: StreamBuilder<WorkoutPlan?>(
@@ -89,28 +93,24 @@ class WorkoutProgressPage extends StatelessWidget {
                               allSessions: sessions,
                             );
 
-                      // Named, non-mutated indices (rather than a running
-                      // counter) so each section's stagger step is legible on
-                      // its own even though the "Progress"/"Current split"
-                      // blocks above it are conditional — see StaggeredReveal.
-                      final splitIndex = analysis != null ? 1 : 0;
-                      final recentHeaderIndex =
-                          splitIndex + (plan != null ? 1 : 0);
-                      final recentRowsStart = recentHeaderIndex + 1;
-                      final goDeeperIndex =
-                          recentRowsStart +
-                          (stats.recentSessions.isEmpty
-                              ? 1
-                              : stats.recentSessions.length);
-
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
                         children: [
-                          StaggeredReveal(index: 0, child: _ProgressHeader()),
+                          StaggeredReveal(
+                            index: 0,
+                            child: const _ProgressHeader(),
+                          ),
                           const SizedBox(height: 24),
+                          // ---- HOW MUCH ---------------------------------
+                          StaggeredReveal(
+                            index: 0,
+                            child: _OverviewStrip(stats: stats),
+                          ),
+                          const SizedBox(height: 32),
+                          // ---- HOW WELL ---------------------------------
                           if (analysis != null) ...[
                             StaggeredReveal(
-                              index: 0,
+                              index: 1,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -124,7 +124,7 @@ class WorkoutProgressPage extends StatelessWidget {
                           ],
                           if (plan != null) ...[
                             StaggeredReveal(
-                              index: splitIndex,
+                              index: 2,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -136,8 +136,9 @@ class WorkoutProgressPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 30),
                           ],
+                          // ---- WHAT HAPPENED ----------------------------
                           StaggeredReveal(
-                            index: recentHeaderIndex,
+                            index: 3,
                             child: Row(
                               children: [
                                 const Expanded(
@@ -161,7 +162,7 @@ class WorkoutProgressPage extends StatelessWidget {
                           const SizedBox(height: 10),
                           if (stats.recentSessions.isEmpty)
                             StaggeredReveal(
-                              index: recentRowsStart,
+                              index: 4,
                               child: const _EmptyCard(
                                 label: "You haven't logged a session yet.",
                               ),
@@ -172,7 +173,7 @@ class WorkoutProgressPage extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: StaggeredReveal(
-                                  index: recentRowsStart + i,
+                                  index: 4 + i,
                                   child: _RecentSessionRow(
                                     session: session,
                                     now: now,
@@ -191,7 +192,7 @@ class WorkoutProgressPage extends StatelessWidget {
                               ),
                           const SizedBox(height: 30),
                           StaggeredReveal(
-                            index: goDeeperIndex,
+                            index: 5,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -340,6 +341,146 @@ class _ProgressHeader extends StatelessWidget {
   }
 }
 
+/// The "how much" answer — four instruments, one per hue, as a 2×2 of
+/// quiet tiles. Distinct colors so the grid scans as four different
+/// signals rather than four identical numbers.
+class _OverviewStrip extends StatelessWidget {
+  const _OverviewStrip({required this.stats});
+
+  final TrainingDashboardStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _OverviewTile(
+                icon: AppIcons.sessions,
+                accent: AppColors.pulse,
+                value: '${stats.sessionsThisWeek}',
+                label: 'This week',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _OverviewTile(
+                icon: AppIcons.streak,
+                accent: AppColors.ember,
+                value: '${stats.currentStreakDays}',
+                label: 'Day streak',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _OverviewTile(
+                icon: AppIcons.analysis,
+                accent: AppColors.iris,
+                value: '${stats.totalCompletedSessions}',
+                label: 'Total sessions',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _OverviewTile(
+                icon: AppIcons.timer,
+                accent: AppColors.solar,
+                value: stats.averageSessionDuration == null
+                    ? '—'
+                    : formatDurationShort(stats.averageSessionDuration!),
+                label: 'Avg length',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OverviewTile extends StatelessWidget {
+  const _OverviewTile({
+    required this.icon,
+    required this.accent,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent.withValues(alpha: 0.28),
+                  accent.withValues(alpha: 0.10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: accent.withValues(alpha: 0.18)),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.26),
+                  blurRadius: 14,
+                  spreadRadius: -3,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 16, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AnimatedStatValue(
+                value: value,
+                style: AppText.heroNumber.copyWith(
+                  fontSize: 21,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                label,
+                style: AppText.meta.copyWith(
+                  color: AppColors.ink3,
+                  fontSize: 11.5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 LiveSession? _firstActive(List<LiveSession> sessions) {
   for (final s in sessions) {
     if (s.status == SessionStatus.active) return s;
@@ -357,6 +498,15 @@ class ProgressSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final overall = analysis.overallVerdict;
+    final (headline, color) = switch (overall) {
+      null => (
+        analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
+        AppColors.ink2,
+      ),
+      ProgressVerdict.progressing => ('Progressing', AppColors.pulse),
+      ProgressVerdict.matched => ('Holding steady', AppColors.ink2),
+      ProgressVerdict.down => ('Slipping', AppColors.flare),
+    };
     return PressableScale(
       child: Material(
         color: Colors.transparent,
@@ -372,14 +522,58 @@ class ProgressSummaryCard extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: AppColors.card,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.09),
+                  color.withValues(alpha: 0.02),
+                ],
+              ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: color.withValues(alpha: 0.14)),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.10),
+                  blurRadius: 28,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 14),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            color.withValues(alpha: 0.28),
+                            color.withValues(alpha: 0.10),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Icon(
+                        overall == null
+                            ? AppIcons.analysis
+                            : switch (overall) {
+                                ProgressVerdict.progressing => AppIcons.trendUp,
+                                ProgressVerdict.matched => AppIcons.minus,
+                                ProgressVerdict.down => AppIcons.trendDown,
+                              },
+                        size: 16,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
                     Expanded(
                       child: Text(
                         analysis.day.label,
@@ -394,6 +588,14 @@ class ProgressSummaryCard extends StatelessWidget {
                     if (overall != null)
                       _AnalysisVerdictBadge(verdict: overall),
                   ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  headline,
+                  style: AppText.cardTitle.copyWith(
+                    fontSize: 24,
+                    color: AppColors.ink,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -417,7 +619,7 @@ class ProgressSummaryCard extends StatelessWidget {
                       ),
                     ),
                     const Icon(
-                      Icons.chevron_right_rounded,
+                      AppIcons.chevron,
                       size: 16,
                       color: AppColors.pulse,
                     ),
@@ -467,6 +669,11 @@ class _AnalysisVerdictBadge extends StatelessWidget {
   }
 }
 
+/// The current split as a real distribution read: plan identity up top
+/// (gradient mark, name, total), then each training day as a proportional
+/// bar — how many sessions each day has actually absorbed. Replaces the old
+/// cramped pill wrap, which turned six data points into six identical
+/// chips. Tapping opens Splits; the Plan chip opens the plan viewer.
 class SplitBreakdownCard extends StatelessWidget {
   const SplitBreakdownCard({
     required this.plan,
@@ -480,6 +687,7 @@ class SplitBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final byDay = stats.sessionCountByDayLabel;
+    final maxCount = byDay.values.fold(1, (a, b) => a > b ? a : b);
     return PressableScale(
       child: Material(
         color: Colors.transparent,
@@ -496,22 +704,67 @@ class SplitBreakdownCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: AppColors.hairline),
+              boxShadow: AppShadows.card,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        plan.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
+                    Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.pulse.withValues(alpha: 0.28),
+                            AppColors.pulse.withValues(alpha: 0.10),
+                          ],
                         ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.pulse.withValues(alpha: 0.18),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.pulse.withValues(alpha: 0.24),
+                            blurRadius: 16,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        AppIcons.splits,
+                        size: 19,
+                        color: AppColors.pulse,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            plan.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.rowTitle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          AnimatedStatValue(
+                            value:
+                                '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
+                            style: AppText.meta.copyWith(color: AppColors.ink3),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -527,50 +780,96 @@ class SplitBreakdownCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     const Icon(
-                      Icons.chevron_right_rounded,
+                      AppIcons.chevron,
                       color: AppColors.ink3,
                       size: 20,
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                AnimatedStatValue(
-                  value:
-                      '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
-                ),
                 if (byDay.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final entry in byDay.entries)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.pulse.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: AnimatedStatValue(
-                            value: '${entry.key} · ${entry.value}',
-                            style: AppText.meta.copyWith(
-                              color: AppColors.pulse,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  const SizedBox(height: 16),
+                  // Per-day distribution — proportional bars, so "which day
+                  // do I actually train" reads in one glance.
+                  for (final entry in byDay.entries) ...[
+                    _DayDistributionRow(
+                      label: entry.key,
+                      count: entry.value,
+                      fraction: entry.value / maxCount,
+                    ),
+                    if (entry.key != byDay.keys.last)
+                      const SizedBox(height: 10),
+                  ],
                 ],
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DayDistributionRow extends StatelessWidget {
+  const _DayDistributionRow({
+    required this.label,
+    required this.count,
+    required this.fraction,
+  });
+
+  final String label;
+  final int count;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12.5),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Stack(
+              children: [
+                Container(height: 7, color: AppColors.hairline),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: fraction.clamp(0.06, 1.0),
+                  child: Container(
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF2BD99B), AppColors.pulse],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 22,
+          child: Text(
+            '$count',
+            textAlign: TextAlign.right,
+            style: AppText.meta.copyWith(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -634,11 +933,7 @@ class _SeeAllLink extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 15,
-                  color: AppColors.ink3,
-                ),
+                const Icon(AppIcons.chevron, size: 15, color: AppColors.ink3),
               ],
             ),
           ),
@@ -677,10 +972,37 @@ class _RecentSessionRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: AppColors.hairline),
+              boxShadow: AppShadows.card,
             ),
             child: Row(
               children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.26),
+                        color.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    switch (session.status) {
+                      SessionStatus.completed => AppIcons.trendUp,
+                      SessionStatus.active => AppIcons.bolt,
+                      SessionStatus.abandoned => AppIcons.minus,
+                    },
+                    size: 16,
+                    color: color == AppColors.ink3 ? AppColors.ink2 : color,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,11 +1046,7 @@ class _RecentSessionRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.ink3,
-                  size: 18,
-                ),
+                const Icon(AppIcons.chevron, color: AppColors.ink3, size: 18),
               ],
             ),
           ),
@@ -751,7 +1069,8 @@ class _EmptyCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Text(label, style: AppText.aside.copyWith(color: AppColors.ink2)),
     );
@@ -788,7 +1107,8 @@ class _DestinationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         children: [
@@ -894,11 +1214,7 @@ class _DestinationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.ink3,
-                  size: 20,
-                ),
+                const Icon(AppIcons.chevron, color: AppColors.ink3, size: 20),
               ],
             ),
           ),

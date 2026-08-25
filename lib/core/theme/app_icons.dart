@@ -69,6 +69,9 @@ class AppIcons {
   static const apple = LucideIcons.apple;
   static const link = LucideIcons.link;
 
+  // Settings · about.
+  static const privacy = LucideIcons.shieldCheck;
+
   // Music.
   static const music = LucideIcons.music;
 

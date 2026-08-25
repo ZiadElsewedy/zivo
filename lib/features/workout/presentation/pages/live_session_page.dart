@@ -1006,6 +1006,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   Future<void> _onDiscard() async {
     if (_busy) return;
     final sessions = _sessionsRepo;
+    final navigator = Navigator.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1039,7 +1040,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _restTicker = null;
     await _persistRest();
     unawaited(sessions.deleteSession(_session.id));
-    Navigator.of(context).pop();
+    navigator.pop();
   }
 
   // ---- Build -------------------------------------------------------------
@@ -1215,10 +1216,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Set ${workingIndex + 1} of $workingSetCount',
-                style: AppText.meta.copyWith(color: AppColors.ink3),
+                'SET ${workingIndex + 1} OF $workingSetCount',
+                style: AppText.meta.copyWith(
+                  color: AppColors.ink3,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                ),
               ),
-              const SizedBox(height: AppSpacing.s),
+              const SizedBox(height: 10),
               _SetChipRow(exercise: exercise, currentSetId: set.id),
             ],
           ),
@@ -1235,27 +1241,52 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             targetText: targetText,
             comparison: comparison,
             intraSessionDeltaLabel: intraSessionDelta,
+            previous: previousSet,
           ),
         ),
         const SizedBox(height: AppSpacing.l),
         StaggeredReveal(
           index: 4,
-          child: Row(
+          child: Column(
             children: [
-              _StepperField(
-                label: 'Reps',
-                controller: _reps,
-                step: 1,
-                onChanged: _onActualChanged,
+              Row(
+                children: [
+                  _StepperField(
+                    label: 'Reps',
+                    controller: _reps,
+                    step: 1,
+                    onChanged: _onActualChanged,
+                  ),
+                  const SizedBox(width: AppSpacing.m),
+                  _StepperField(
+                    label: 'Weight (kg)',
+                    controller: _weight,
+                    step: 2.5,
+                    hint: '—',
+                    onChanged: _onActualChanged,
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.m),
-              _StepperField(
-                label: 'Weight (kg)',
-                controller: _weight,
-                step: 2.5,
-                hint: '—',
-                onChanged: _onActualChanged,
-              ),
+              // One-tap load decisions — the last weight as "same", or nudge
+              // it by the stepper's own 2.5kg increment — so the common
+              // cases ("same again", "go up") never need typing or stepping.
+              if ((previousSet?.actualWeightKg ?? set.targetWeightKg) !=
+                  null) ...[
+                const SizedBox(height: AppSpacing.m),
+                _QuickWeightRow(
+                  baseWeight:
+                      previousSet?.actualWeightKg ?? set.targetWeightKg!,
+                  stepKg: 2.5,
+                  onPick: (weight) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _weight.text = _trimWeight(weight);
+                      _actualsTouched = true;
+                    });
+                    _onActualChanged();
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -2268,6 +2299,7 @@ class _GoalBlock extends StatelessWidget {
     this.targetText,
     this.comparison,
     this.intraSessionDeltaLabel,
+    this.previous,
   });
 
   final String lastTimeLabel;
@@ -2284,6 +2316,33 @@ class _GoalBlock extends StatelessWidget {
   /// the same exercise, distinct from [comparison]'s cross-session verdict.
   /// Null when there's no previous set yet or nothing changed.
   final String? intraSessionDeltaLabel;
+
+  /// The index-aligned set from last time — the "why" behind the goal's
+  /// suggestion is derived from it (weight stepped up because the rep target
+  /// was met, one more rep at the same weight, …).
+  final LoggedSet? previous;
+
+  /// The one-line "why" under the goal — makes the progression engine's
+  /// decision legible instead of a number appearing from nowhere.
+  String? get _hint {
+    final prevWeight = previous?.actualWeightKg;
+    if (goal.weightKg != null && prevWeight != null) {
+      if (goal.weightKg! > prevWeight) {
+        return 'Weight up — you hit your reps last time';
+      }
+      if (goal.weightKg! < prevWeight) {
+        return 'Weight eased — rebuild with clean reps';
+      }
+    }
+    final prevReps = previous?.actualReps;
+    if (prevReps != null && goal.repsLabel != 'AMRAP') {
+      final suggested = int.tryParse(goal.repsLabel);
+      if (suggested != null && suggested > prevReps) {
+        return 'Same load, one more rep';
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2322,6 +2381,24 @@ class _GoalBlock extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+          if (_hint != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(AppIcons.trendUp, size: 13, color: AppColors.pulse),
+                const SizedBox(width: 5),
+                Text(
+                  _hint!,
+                  style: AppText.meta.copyWith(
+                    color: AppColors.pulse,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.m),
           Text(
             'Last time: $lastTimeLabel',
@@ -2797,13 +2874,8 @@ class _RestAdjustButton extends StatelessWidget {
 /// above the primary row, and Skip/Done keep their established hierarchy —
 /// Skip small and muted, Done unmistakably primary.
 class _ActionCluster extends StatelessWidget {
-  const _ActionCluster({
-    required this.onSkip,
-    required this.onDone,
-    this.onBack,
-  });
+  const _ActionCluster({required this.onSkip, required this.onDone});
 
-  final VoidCallback? onBack;
   final VoidCallback onSkip;
   final VoidCallback onDone;
 
@@ -2817,10 +2889,6 @@ class _ActionCluster extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (onBack != null) ...[
-            _BackControl(onTap: onBack!),
-            const SizedBox(height: AppSpacing.s),
-          ],
           Row(
             children: [
               // Deliberately smaller and visually muted next to Done — Skip
@@ -2849,41 +2917,6 @@ class _ActionCluster extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// The "walk back one set" control shown above Skip/Done once there's
-/// something to walk back to (see [LiveSession.previousResolvedSet]).
-/// Deliberately smaller and quieter than either — a rarely-needed recovery
-/// action, not a step in the normal flow — so it never competes with Done.
-class _BackControl extends StatelessWidget {
-  const _BackControl({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.arrow_back_rounded,
-                size: 15,
-                color: AppColors.ink3,
-              ),
-              const SizedBox(width: 6),
-              Text('Back', style: AppText.meta.copyWith(color: AppColors.ink3)),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -3042,6 +3075,90 @@ class _StepperFieldState extends State<_StepperField>
   }
 }
 
+/// One-tap load decisions under the steppers — "Same" (the reference
+/// weight: last time's actual, or the plan's target on first run), plus
+/// ±[stepKg] nudges. The 80% case ("same again", "go up") becomes one tap
+/// instead of typing or repeated stepping.
+class _QuickWeightRow extends StatelessWidget {
+  const _QuickWeightRow({
+    required this.baseWeight,
+    required this.stepKg,
+    required this.onPick,
+  });
+
+  final double baseWeight;
+  final double stepKg;
+  final ValueChanged<double> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _QuickWeightChip(
+          label: 'Same · ${_trimWeight(baseWeight)}kg',
+          onTap: () => onPick(baseWeight),
+          primary: true,
+        ),
+        const SizedBox(width: AppSpacing.s),
+        _QuickWeightChip(
+          label: '+${_trimWeight(stepKg)}',
+          onTap: () => onPick(baseWeight + stepKg),
+        ),
+        const SizedBox(width: AppSpacing.s),
+        _QuickWeightChip(
+          label: '−${_trimWeight(stepKg)}',
+          onTap: () => onPick(baseWeight - stepKg),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickWeightChip extends StatelessWidget {
+  const _QuickWeightChip({
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  /// The "Same" chip — the expected pick — reads as the default: filled,
+  /// not outlined.
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          decoration: BoxDecoration(
+            color: primary ? AppColors.pulseWash : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: primary
+                  ? AppColors.pulse.withValues(alpha: 0.35)
+                  : AppColors.hairline2,
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppText.meta.copyWith(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: primary ? AppColors.pulseText : AppColors.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One ± segment of a [_StepperField]'s pill — no background/border of its
 /// own (the pill's outer [Container] owns those; [ClipRRect] keeps the ink
 /// response inside the shared shape), just a clear tap target with an
@@ -3173,8 +3290,8 @@ class _SetChipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     var workingNumber = 0;
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         for (final s in exercise.sets)
           _SetChip(
@@ -3239,22 +3356,41 @@ class _SetChipState extends State<_SetChip>
     final dot = AnimatedContainer(
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOut,
-      width: 34,
-      height: 34,
+      width: 38,
+      height: 38,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: switch (state) {
-          _ChipState.done => AppColors.pulse,
-          _ChipState.current => AppColors.ember,
-          _ChipState.upcoming => Colors.transparent,
+        gradient: switch (state) {
+          _ChipState.done => const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2BD99B), AppColors.pulse],
+          ),
+          _ChipState.current => const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFF7A45), AppColors.ember],
+          ),
+          _ChipState.upcoming => null,
         },
+        color: state == _ChipState.upcoming ? Colors.transparent : null,
         border: state == _ChipState.upcoming
             ? Border.all(color: AppColors.hairline2, width: 1.4)
             : null,
+        boxShadow: state == _ChipState.done
+            ? [
+                BoxShadow(
+                  color: AppColors.pulse.withValues(alpha: 0.30),
+                  blurRadius: 12,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: state == _ChipState.done
-          ? const Icon(Icons.check_rounded, size: 17, color: Colors.white)
+          ? const Icon(AppIcons.check, size: 18, color: Colors.white)
           : Text(
               '${widget.number}',
               style: AppText.meta.copyWith(
@@ -3262,6 +3398,7 @@ class _SetChipState extends State<_SetChip>
                     ? Colors.white
                     : AppColors.ink3,
                 fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
     );

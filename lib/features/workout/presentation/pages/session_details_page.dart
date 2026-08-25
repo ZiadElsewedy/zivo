@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
@@ -19,7 +22,7 @@ import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
 /// its own row with actual reps/weight, RPE, and a clear completed/skipped
 /// marker. Reads only the [LiveSession] handed to it — no streams, no
 /// repository access; the session is already resolved by whoever pushed
-/// this page (`_RecentSessionRow` on the Workout Dashboard).
+/// this page.
 class SessionDetailsPage extends StatelessWidget {
   const SessionDetailsPage({required this.session, super.key});
 
@@ -29,41 +32,113 @@ class SessionDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.ink2),
-        title: Text('Session details', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Delete session',
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.ink2),
-            onPressed: () async {
-              final repo = AppScope.of(context).workoutSessions;
-              final confirmed = await confirmDeleteSession(context, session.dayLabel);
-              if (!confirmed || !context.mounted) return;
-              await repo.deleteSession(session.id);
-              if (context.mounted) Navigator.of(context).pop();
-            },
-          ),
-        ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
+          children: [
+            _DetailsHeader(
+              onDelete: () async {
+                final repo = AppScope.of(context).workoutSessions;
+                final confirmed = await confirmDeleteSession(
+                  context,
+                  session.dayLabel,
+                );
+                if (!confirmed || !context.mounted) return;
+                await repo.deleteSession(session.id);
+                if (context.mounted) Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 22),
+            _SessionHeroHeader(session: session),
+            const SizedBox(height: 26),
+            if (session.exercises.isEmpty)
+              Text(
+                'No exercises logged.',
+                style: AppText.aside.copyWith(color: AppColors.ink2),
+              )
+            else
+              for (final (i, exercise) in session.exercises.indexed)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: StaggeredReveal(
+                    index: i,
+                    child: _ExerciseDetailCard(exercise: exercise),
+                  ),
+                ),
+          ],
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
-        children: [
-          _SessionHeroHeader(session: session),
-          const SizedBox(height: 26),
-          if (session.exercises.isEmpty)
-            Text('No exercises logged.', style: AppText.aside.copyWith(color: AppColors.ink2))
-          else
-            for (final (i, exercise) in session.exercises.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: StaggeredReveal(index: i, child: _ExerciseDetailCard(exercise: exercise)),
+    );
+  }
+}
+
+/// The pushed-page header — back chip, title, and the delete action.
+class _DetailsHeader extends StatelessWidget {
+  const _DetailsHeader({required this.onDelete});
+
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        PressableScale(
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: () => Navigator.of(context).maybePop(),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
               ),
-        ],
-      ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Session details',
+            style: AppText.greeting.copyWith(fontSize: 26),
+          ),
+        ),
+        const SizedBox(width: 12),
+        PressableScale(
+          child: Tooltip(
+            message: 'Delete session',
+            child: InkWell(
+              onTap: onDelete,
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child: const Icon(
+                  AppIcons.trash,
+                  size: 17,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -77,7 +152,10 @@ Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: AppColors.card,
-      title: Text('Delete this session?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+      title: Text(
+        'Delete this session?',
+        style: AppText.cardTitle.copyWith(color: AppColors.ink),
+      ),
       content: Text(
         'This permanently removes your "$dayLabel" session and everything '
         "logged in it. This can't be undone.",
@@ -86,11 +164,17 @@ Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+          child: Text(
+            'Cancel',
+            style: AppText.button.copyWith(color: AppColors.ink3),
+          ),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
+          child: Text(
+            'Delete',
+            style: AppText.button.copyWith(color: AppColors.flare),
+          ),
         ),
       ],
     ),
@@ -118,8 +202,17 @@ class _SessionHeroHeader extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.card,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.09),
+            color.withValues(alpha: 0.02),
+          ],
+        ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,34 +220,90 @@ class _SessionHeroHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  session.dayLabel,
-                  style: AppText.cardTitle.copyWith(color: AppColors.ink, fontSize: 22),
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withValues(alpha: 0.28),
+                      color.withValues(alpha: 0.10),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  switch (session.status) {
+                    SessionStatus.completed => AppIcons.trendUp,
+                    SessionStatus.active => AppIcons.bolt,
+                    SessionStatus.abandoned => AppIcons.minus,
+                  },
+                  size: 18,
+                  color: color == AppColors.ink3 ? AppColors.ink2 : color,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.dayLabel,
+                      style: AppText.cardTitle.copyWith(
+                        color: AppColors.ink,
+                        fontSize: 21,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatFullDate(session.startedAt),
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
                 child: Text(
                   label,
-                  style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11),
+                  style: AppText.meta.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(_formatFullDate(session.startedAt), style: AppText.meta.copyWith(color: AppColors.ink3)),
           const SizedBox(height: 20),
           Row(
             children: [
-              Expanded(child: _HeroStat(value: formatDurationShort(duration), label: 'Duration')),
-              Expanded(child: _HeroStat(value: _timeRange(session), label: 'Time')),
-              Expanded(child: _HeroStat(value: '${session.exercises.length}', label: 'Exercises')),
+              Expanded(
+                child: _HeroStat(
+                  value: formatDurationShort(duration),
+                  label: 'Duration',
+                ),
+              ),
+              Expanded(
+                child: _HeroStat(value: _timeRange(session), label: 'Time'),
+              ),
+              Expanded(
+                child: _HeroStat(
+                  value: '${session.exercises.length}',
+                  label: 'Exercises',
+                ),
+              ),
               Expanded(
                 child: _HeroStat(
                   value: '${session.completedSetCount}/${session.totalSets}',
@@ -190,10 +339,17 @@ class _HeroStat extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink, fontSize: 16),
+          style: AppText.rowTitle.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+            fontSize: 16,
+          ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11)),
+        Text(
+          label,
+          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+        ),
       ],
     );
   }
@@ -209,9 +365,10 @@ class _ExerciseDetailCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,31 +380,45 @@ class _ExerciseDetailCard extends StatelessWidget {
                   exercise.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                  style: AppText.rowTitle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
               if (exercise.muscleGroup != null) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.pulse.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Text(
                     exercise.muscleGroup!,
-                    style: AppText.meta.copyWith(color: AppColors.pulse, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: AppText.meta.copyWith(
+                      color: AppColors.pulse,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ],
           ),
           const SizedBox(height: 12),
-          for (final (i, set) in exercise.sets.indexed)
-            Padding(
-              padding: EdgeInsets.only(bottom: i == exercise.sets.length - 1 ? 0 : 10),
-              child: _SetRow(index: i + 1, set: set),
-            ),
+          for (final (i, set) in exercise.sets.indexed) ...[
+            if (i > 0)
+              Container(
+                margin: const EdgeInsets.only(left: 26, bottom: 10),
+                height: 1,
+                color: AppColors.hairline,
+              ),
+            _SetRow(index: i + 1, set: set),
+          ],
         ],
       ),
     );
@@ -264,7 +435,8 @@ class _SetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolved = set.outcome != SetOutcome.pending;
     final weight = set.actualWeightKg ?? (resolved ? set.targetWeightKg : null);
-    final reps = set.actualReps ?? (resolved ? _targetRepsFallback(set.target) : null);
+    final reps =
+        set.actualReps ?? (resolved ? _targetRepsFallback(set.target) : null);
     final toFailure = set.target.kind == RepTargetKind.toFailure;
     final repsText = reps != null ? '$reps' : (toFailure ? 'AMRAP' : '—');
     final mainText = weight != null
@@ -273,27 +445,44 @@ class _SetRow extends StatelessWidget {
 
     final (icon, iconColor) = switch (set.outcome) {
       SetOutcome.completed => (Icons.check_circle_rounded, AppColors.pulse),
-      SetOutcome.skipped => (Icons.remove_circle_outline_rounded, AppColors.ink3),
-      SetOutcome.pending => (Icons.radio_button_unchecked_rounded, AppColors.ink3),
+      SetOutcome.skipped => (
+        Icons.remove_circle_outline_rounded,
+        AppColors.ink3,
+      ),
+      SetOutcome.pending => (
+        Icons.radio_button_unchecked_rounded,
+        AppColors.ink3,
+      ),
     };
 
     return Row(
       children: [
         Icon(icon, size: 16, color: iconColor),
         const SizedBox(width: 10),
-        Text('Set $index', style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w600)),
+        Text(
+          'Set $index',
+          style: AppText.meta.copyWith(
+            color: AppColors.ink3,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             mainText,
             style: AppText.body.copyWith(
               fontSize: 14,
-              color: set.outcome == SetOutcome.skipped ? AppColors.ink3 : AppColors.ink2,
+              color: set.outcome == SetOutcome.skipped
+                  ? AppColors.ink3
+                  : AppColors.ink2,
             ),
           ),
         ),
         if (set.outcome == SetOutcome.skipped) ...[
-          Text('Skipped', style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11)),
+          Text(
+            'Skipped',
+            style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+          ),
           const SizedBox(width: 8),
         ],
         if (set.rpe != null)
@@ -305,7 +494,11 @@ class _SetRow extends StatelessWidget {
             ),
             child: Text(
               'RPE ${_trimNumber(set.rpe!)}',
-              style: AppText.meta.copyWith(color: AppColors.solar, fontSize: 10, fontWeight: FontWeight.w700),
+              style: AppText.meta.copyWith(
+                color: AppColors.solar,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
       ],
@@ -316,14 +509,26 @@ class _SetRow extends StatelessWidget {
 int? _targetRepsFallback(RepTarget target) =>
     target.kind == RepTargetKind.toFailure ? null : target.min;
 
-double _minutesSinceMidnight(DateTime dt) => (dt.hour * 60 + dt.minute).toDouble();
+double _minutesSinceMidnight(DateTime dt) =>
+    (dt.hour * 60 + dt.minute).toDouble();
 
-String _trimNumber(double v) => v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+String _trimNumber(double v) =>
+    v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _formatFullDate(DateTime d) =>

@@ -1,4 +1,4 @@
-
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -182,11 +182,27 @@ enum _SplitAction { setActive, edit, duplicate, delete }
 enum _NewSplitAction { manual, importAi }
 
 Future<void> _openNewSplitSheet(BuildContext context) async {
-  final action = await showModalBottomSheet<_NewSplitAction>(
+  final action = await showCupertinoModalPopup<_NewSplitAction>(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (_) => const _NewSplitActionsSheet(),
+    builder: (sheetContext) => CupertinoActionSheet(
+      title: const Text('New split'),
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () =>
+              Navigator.of(sheetContext).pop(_NewSplitAction.manual),
+          child: const Text('Create Manually'),
+        ),
+        CupertinoActionSheetAction(
+          onPressed: () =>
+              Navigator.of(sheetContext).pop(_NewSplitAction.importAi),
+          child: const Text('Import with AI'),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.of(sheetContext).pop(),
+        child: const Text('Cancel'),
+      ),
+    ),
   );
   if (action == null || !context.mounted) return;
   HapticFeedback.selectionClick();
@@ -201,70 +217,6 @@ Future<void> _openNewSplitSheet(BuildContext context) async {
       await Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()));
-  }
-}
-
-/// The FAB's "new split" sheet — exactly two ways in: build it by hand, or
-/// hand a PDF to AI. Matches [_SplitActionsSheet]'s styling.
-class _NewSplitActionsSheet extends StatelessWidget {
-  const _NewSplitActionsSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 8,
-        right: 8,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 38,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-              color: AppColors.hairline2,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'New split',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.rowTitle.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          _ActionRow(
-            icon: AppIcons.edit,
-            label: 'Create Manually',
-            color: AppColors.ink2,
-            onTap: () => Navigator.of(context).pop(_NewSplitAction.manual),
-          ),
-          _ActionRow(
-            icon: AppIcons.ask,
-            label: 'Import with AI',
-            color: AppColors.pulse,
-            onTap: () => Navigator.of(context).pop(_NewSplitAction.importAi),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -410,12 +362,38 @@ class _SplitTile extends StatelessWidget {
   }
 
   Future<void> _openActions(BuildContext context) async {
-    final action = await showModalBottomSheet<_SplitAction>(
+    final action = await showCupertinoModalPopup<_SplitAction>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) =>
-          _SplitActionsSheet(splitName: split.name, isActive: isActive),
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: Text(split.name),
+        actions: [
+          if (!isActive)
+            CupertinoActionSheetAction(
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(_SplitAction.setActive),
+              child: const Text('Set as active'),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(_SplitAction.edit),
+            child: const Text('Edit'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () =>
+                Navigator.of(sheetContext).pop(_SplitAction.duplicate),
+            child: const Text('Duplicate'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () =>
+                Navigator.of(sheetContext).pop(_SplitAction.delete),
+            child: const Text('Delete'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
     );
     if (action == null || !context.mounted) return;
     // Haptic fires per-resolved-action (not on opening the sheet) — each
@@ -499,132 +477,6 @@ class _ActiveBadge extends StatelessWidget {
           color: AppColors.pulse,
           fontSize: 11,
           fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// The per-split action sheet — "Set as active" (hidden when already
-/// active), Edit, Duplicate, Delete. A bottom sheet rather than a
-/// `PopupMenuButton`, matching this feature's existing sheet-driven actions
-/// (day/exercise editing) instead of introducing a new interaction pattern.
-class _SplitActionsSheet extends StatelessWidget {
-  const _SplitActionsSheet({required this.splitName, required this.isActive});
-
-  final String splitName;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 8,
-        right: 8,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 38,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-              color: AppColors.hairline2,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                splitName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.rowTitle.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (!isActive)
-            _ActionRow(
-              icon: AppIcons.success,
-              label: 'Set as active',
-              color: AppColors.pulse,
-              onTap: () => Navigator.of(context).pop(_SplitAction.setActive),
-            ),
-          _ActionRow(
-            icon: AppIcons.edit,
-            label: 'Edit',
-            color: AppColors.ink2,
-            onTap: () => Navigator.of(context).pop(_SplitAction.edit),
-          ),
-          _ActionRow(
-            icon: AppIcons.duplicate,
-            label: 'Duplicate',
-            color: AppColors.ink2,
-            onTap: () => Navigator.of(context).pop(_SplitAction.duplicate),
-          ),
-          _ActionRow(
-            icon: AppIcons.trash,
-            label: 'Delete',
-            color: AppColors.flare,
-            onTap: () => Navigator.of(context).pop(_SplitAction.delete),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: color),
-                const SizedBox(width: 14),
-                Text(
-                  label,
-                  style: AppText.body.copyWith(
-                    fontSize: 15,
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
