@@ -223,6 +223,37 @@ class _AskPageState extends State<AskPage>
   /// user scrolls up, so incoming messages don't yank them back down.
   bool _autoFollow = true;
 
+  /// True between the start and end of a USER-initiated drag (vs a
+  /// programmatic scroll). Every automatic pin — auto-follow, the keyboard
+  /// re-pin, the streaming reveal — stands down while this is set, so the
+  /// list can always be scrolled freely: the finger owns the list.
+  bool _userDragging = false;
+
+  /// Display keys whose entrance motion has already played (or was waived as
+  /// history). This is the once-only RiseIn ledger: a bubble animates in the
+  /// moment it ARRIVES, and never again — not when its optimistic copy swaps
+  /// to the durable doc, not when the element is disposed by scrolling out
+  /// and rebuilt on the way back. This is what keeps scrolling feeling solid
+  /// instead of replaying entrances forever.
+  final Set<String> _entrancePlayed = {};
+
+  /// The conversation the entrance ledger was seeded for — the first
+  /// snapshot of a thread is all HISTORY (cold load), rendered settled with
+  /// zero entrances; anything arriving afterwards is news and rises in once.
+  String? _entranceSeededFor;
+
+  /// The stable identity of a message ON SCREEN. Both sides of an in-flight
+  /// turn share [AiMessage.clientTurnId], so the optimistic user bubble and
+  /// ZIVO's provisional live reply carry the SAME display key as their
+  /// durable copies — the swap is invisible: same widget at the same slot,
+  /// no second entrance. Role-scoped ('u:'/'a:') because both halves of a
+  /// turn share one turn id; legacy/turnless messages fall back to their id.
+  String _displayKey(AiMessage m) => switch ((m.clientTurnId, m.role)) {
+    (final String t, AiRole.user) => 'u:$t',
+    (final String t, AiRole.assistant) => 'a:$t',
+    _ => 'm:${m.id}',
+  };
+
   Stream<List<AiMessage>>? _messagesStream;
   String? _streamConversationId;
 
@@ -398,6 +429,9 @@ class _AskPageState extends State<AskPage>
       _draftTitle = null;
       _lastPersisted = const [];
       _autoFollow = true;
+      _userDragging = false;
+      _entrancePlayed.clear();
+      _entranceSeededFor = null;
     });
   }
 
@@ -617,7 +651,11 @@ class _AskPageState extends State<AskPage>
       _liveShownChars = next;
       _liveText = _liveTargetChars.take(next).join();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoScroll());
+    // Per-frame pin while the reply writes itself — instant, so the newest
+    // line stays glued to the composer without a tween restarting each frame.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeAutoScroll(instant: true),
+    );
     if (next >= _liveTargetChars.length) {
       // Fully caught up — idle the ticker until the next delta arrives.
       _revealTicker?.dispose();
@@ -849,14 +887,15 @@ class _AskPageState extends State<AskPage>
     _ => 'Thinking…',
   };
 
-  void _scrollToBottom() {
-    if (!_scroll.hasClients) return;
-    if (reducedMotion(context)) {
-      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+  void _scrollToBottom({bool instant = false}) {
+    if (!_scroll.hasClients || _userDragging) return;
+    final target = _scroll.position.maxScrollExtent;
+    if (reducedMotion(context) || instant) {
+      _scroll.jumpTo(target);
       return;
     }
     _scroll.animateTo(
-      _scroll.position.maxScrollExtent,
+      target,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
     );
@@ -864,9 +903,11 @@ class _AskPageState extends State<AskPage>
 
   /// Follows new content to the bottom only if the user hasn't scrolled
   /// away — never yanks them down mid-read, and resumes following once
-  /// they scroll back near the bottom themselves.
-  void _maybeAutoScroll() {
-    if (_autoFollow) _scrollToBottom();
+  /// they scroll back near the bottom themselves. [instant] pins without
+  /// an animation (per-frame streaming reveal, keyboard re-pin), where a
+  /// restarted tween every frame would stutter and fight the list.
+  void _maybeAutoScroll({bool instant = false}) {
+    if (_autoFollow) _scrollToBottom(instant: instant);
   }
 
   @override
@@ -1011,36 +1052,95 @@ class _AskPageState extends State<AskPage>
                                   ),
                                 );
                               }
+
+                              // The provisional live reply rides INSIDE the
+                              // list as a provisional message carrying its
+                              // turn's clientTurnId — the exact identity its
+                              // durable copy will have. When that copy lands,
+                              // the swap is same widget, same slot, same key:
+                              // element reused, entrance NOT replayed. This is
+                              // what kills the "reply pops in twice" effect.
+                              final liveActive =
+                                  !_sendFailed &&
+                                  !assistantLanded &&
+                                  _liveText.isNotEmpty;
+                              if (liveActive) {
+                                displayed.add(
+                                  AiMessage(
+                                    id: '_live',
+                                    role: AiRole.assistant,
+                                    content: _liveText,
+                                    createdAt: DateTime.now(),
+                                    clientTurnId: _activeTurnId,
+                                  ),
+                                );
+                              }
                               if (displayed.isEmpty &&
                                   !_sending &&
-                                  !_sendFailed &&
-                                  _liveText.isEmpty) {
+                                  !_sendFailed) {
                                 return _EmptyAsk(
                                   onSuggestion: _sendSuggestion,
                                 );
                               }
+                              // First snapshot of THIS thread = cold history:
+                              // everything currently persisted is waived from
+                              // entrances so it renders settled — and keeps
+                              // rendering settled on every scroll-back remount.
+                              // Anything arriving AFTER this moment is news
+                              // and rises in exactly once (see itemBuilder).
+                              if (_entranceSeededFor != conversationId) {
+                                _entranceSeededFor = conversationId;
+                                _entrancePlayed.addAll([
+                                  for (final m in displayed) _displayKey(m),
+                                ]);
+                              }
                               WidgetsBinding.instance.addPostFrameCallback(
                                 (_) => _maybeAutoScroll(),
                               );
-                              return NotificationListener<
-                                ScrollMetricsNotification
-                              >(
-                                // Fires whenever the scroll metrics change —
-                                // including every frame of the keyboard's
-                                // animated inset above shrinking this viewport.
-                                // Re-pin instantly each frame while following,
-                                // so the newest message stays glued to the
-                                // composer instead of drifting out of view.
-                                onNotification: (_) {
-                                  WidgetsBinding.instance
-                                      .addPostFrameCallback((_) {
-                                        if (!mounted || !_autoFollow) return;
+                              final indexByKey = <String, int>{
+                                for (var j = 0; j < displayed.length; j++)
+                                  _displayKey(displayed[j]): j,
+                              };
+                              return NotificationListener<Notification>(
+                                // Two jobs, one listener (ScrollMetricsNotification
+                                // is a Notification but not a ScrollNotification):
+                                //
+                                // 1. Drag bookkeeping — mark user-driven scrolls
+                                //    so NO automatic pin ever fights the thumb.
+                                // 2. Metrics changes — content growth or the
+                                //    keyboard's animated inset shrinking the
+                                //    viewport re-pins instantly while following,
+                                //    keeping the newest line glued to the
+                                //    composer without drifting.
+                                onNotification: (notification) {
+                                  if (notification is ScrollStartNotification) {
+                                    _userDragging =
+                                        notification.dragDetails != null;
+                                  } else if (notification
+                                      is ScrollUpdateNotification) {
+                                    if (notification.dragDetails != null) {
+                                      _userDragging = true;
+                                    }
+                                  } else if (notification
+                                      is ScrollEndNotification) {
+                                    _userDragging = false;
+                                  } else if (notification
+                                      is ScrollMetricsNotification) {
+                                    WidgetsBinding.instance.addPostFrameCallback(
+                                      (_) {
+                                        if (!mounted ||
+                                            !_autoFollow ||
+                                            _userDragging) {
+                                          return;
+                                        }
                                         if (!_scroll.hasClients) return;
                                         final p = _scroll.position;
                                         if (p.maxScrollExtent > 0) {
                                           _scroll.jumpTo(p.maxScrollExtent);
                                         }
-                                      });
+                                      },
+                                    );
+                                  }
                                   return false;
                                 },
                                 child: ListView.builder(
@@ -1051,66 +1151,49 @@ class _AskPageState extends State<AskPage>
                                     AppSpacing.screen,
                                     AppSpacing.base,
                                   ),
-                                  // A trailing slot holds the in-flight state: the live
-                                  // reply once text starts streaming, the phase rail, or
-                                  // a retry prompt after a failed send. The live-reply
-                                  // variant is dropped from the count the moment its
-                                  // durable copy lands, so both can never paint in
-                                  // the same frame — not even for one frame.
+                                  // Lets the framework FIND an item's existing
+                                  // element after index shifts (an optimistic
+                                  // bubble retiring as durable docs land), so
+                                  // stateful children survive instead of being
+                                  // torn down and re-animated.
+                                  findChildIndexCallback: (key) {
+                                    if (key is ValueKey<String>) {
+                                      return indexByKey[key.value];
+                                    }
+                                    return null;
+                                  },
+                                  // A trailing slot holds only the WAITING
+                                  // states now — the phase rail or the retry
+                                  // card. The live reply lives in [displayed]
+                                  // itself (above), so it and its durable copy
+                                  // can never paint as two bubbles.
                                   itemCount:
                                       displayed.length +
-                                      ((_sending ||
-                                              _sendFailed ||
-                                              (_liveText.isNotEmpty &&
-                                                  !assistantLanded))
+                                      ((_sendFailed ||
+                                              (_sending && !liveActive))
                                           ? 1
                                           : 0),
                                   itemBuilder: (context, i) {
                                     if (i >= displayed.length) {
-                                      // Grouped under the ZIVO label right after a user
-                                      // send — mirrors the runStart check below.
-                                      final showIdentity =
-                                          displayed.isEmpty ||
-                                          displayed.last.role !=
-                                              AiRole.assistant;
-                                      // The provisional live bubble shows only while
-                                      // the durable reply has NOT landed — once it
-                                      // does, the persisted copy renders and this
-                                      // slot retires, so the response can never
-                                      /// appear twice.
-                                      final liveActive =
-                                          !_sendFailed &&
-                                          !assistantLanded &&
-                                          _liveText.isNotEmpty;
-                                      final stillWriting =
-                                          _liveShownChars <
-                                          _liveTargetChars.length;
                                       Widget trailing;
-                                      if (liveActive) {
-                                        trailing = _MessageBubble(
-                                          AiMessage(
-                                            id: '_live',
-                                            role: AiRole.assistant,
-                                            content: _liveText,
-                                            createdAt: DateTime.now(),
-                                          ),
-                                          streaming: stillWriting,
-                                        );
-                                      } else if (_sending && !assistantLanded) {
-                                        trailing = _ThinkingRail(
-                                          label: _railLabel(),
-                                          slow: _turnSlow,
-                                        );
-                                      } else if (_sendFailed) {
+                                      if (_sendFailed) {
                                         trailing = _ErrorRetry(
                                           onRetry: () =>
                                               _retry(conversationId),
                                         );
                                       } else {
-                                        trailing = const SizedBox.shrink();
+                                        trailing = _ThinkingRail(
+                                          label: _railLabel(),
+                                          slow: _turnSlow,
+                                        );
                                       }
-                                      if (showIdentity &&
-                                          trailing is! SizedBox) {
+                                      // Grouped under the ZIVO label right after
+                                      // a user send — mirrors runStart below.
+                                      final showIdentity =
+                                          displayed.isEmpty ||
+                                          displayed.last.role !=
+                                              AiRole.assistant;
+                                      if (showIdentity) {
                                         trailing = Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -1123,6 +1206,17 @@ class _AskPageState extends State<AskPage>
                                       return RiseIn(child: trailing);
                                     }
                                     final message = displayed[i];
+                                    final displayKey = _displayKey(message);
+                                    // Once-only ledger: true exactly when this
+                                    // identity is new since the thread loaded.
+                                    // The optimistic→durable swap re-hits an
+                                    // already-played key, so the bubble never
+                                    // animates twice; scrolling away and back
+                                    // finds the key too, so history never
+                                    // re-entrances mid-scroll.
+                                    final justArrived = _entrancePlayed.add(
+                                      displayKey,
+                                    );
                                     final isLast =
                                         i == displayed.length - 1;
                                     // Consume the reveal token on the first render of the
@@ -1149,6 +1243,12 @@ class _AskPageState extends State<AskPage>
                                       content = _MessageBubble(
                                         message,
                                         animate: animateReply,
+                                        // Only the provisional live bubble
+                                        // carries the writing caret.
+                                        streaming:
+                                            message.id == '_live' &&
+                                            _liveShownChars <
+                                                _liveTargetChars.length,
                                       );
                                     } else {
                                       final effective =
@@ -1178,9 +1278,14 @@ class _AskPageState extends State<AskPage>
                                         ],
                                       );
                                     }
-                                    return RiseIn(
-                                      key: ValueKey(message.id),
-                                      child: content,
+                                    // The stable display key rides the item
+                                    // itself so [findChildIndexCallback] can
+                                    // relocate it after index shifts.
+                                    return KeyedSubtree(
+                                      key: ValueKey<String>(displayKey),
+                                      child: justArrived
+                                          ? RiseIn(child: content)
+                                          : content,
                                     );
                                   },
                                 ),
