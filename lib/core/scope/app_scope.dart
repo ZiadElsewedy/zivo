@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
+import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
 import '../../features/diet/domain/diet_repository.dart';
@@ -25,6 +26,7 @@ class AppScope extends InheritedWidget {
   const AppScope({
     required this.auth,
     required this.profiles,
+    this.activity,
     required this.expenses,
     this.wallet,
     this.expenseCategories,
@@ -48,6 +50,11 @@ class AppScope extends InheritedWidget {
 
   /// Persists the signed-in user's [UserProfile] (`users/{uid}` in Firestore).
   final ProfileRepository profiles;
+
+  /// Records authentication activity (account metadata + the event log) for
+  /// each successful sign-in/out. Optional so widget tests that never touch
+  /// auth bookkeeping can omit it; production always provides one.
+  final AuthActivityRepository? activity;
   final ExpenseRepository expenses;
 
   /// The wallet balance, and the user's custom expense categories on top of
@@ -172,6 +179,7 @@ class AppScope extends InheritedWidget {
   bool updateShouldNotify(AppScope oldWidget) =>
       auth != oldWidget.auth ||
       profiles != oldWidget.profiles ||
+      activity != oldWidget.activity ||
       expenses != oldWidget.expenses ||
       wallet != oldWidget.wallet ||
       expenseCategories != oldWidget.expenseCategories ||

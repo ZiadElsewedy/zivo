@@ -17,6 +17,45 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Account auth metadata: the always-current summary doc
+    // (users/{uid}/auth/account — createdAt, lastSignInAt/Via, signInCount,
+    // emailVerifiedAt, emailLastSentAt). Owner may read and write their own,
+    // but never delete it (history survives even a hostile client), and
+    // counters/timestamps must stay sane. The Cloud Functions' Admin-SDK
+    // writes (emailVerifiedAt/emailLastSentAt) bypass these rules entirely.
+    match /users/{userId}/auth/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.schemaVersion == 1
+        && (!('signInCount' in request.resource.data.keys())
+            || request.resource.data.signInCount is int)
+        && (!('registeredVia' in request.resource.data.keys())
+            || request.resource.data.registeredVia is string);
+      allow delete: if false;
+    }
+
+    // Auth event log (users/{uid}/authEvents): append-only audit trail of
+    // accountCreated/signIn/signOut events as written by the client (the
+    // Functions write the email-flavoured ones via the Admin SDK). Owner may
+    // READ their own log and APPEND a well-formed event whose occurredAt is
+    // the server's own clock (`== request.time` pins the server timestamp);
+    // updates and deletes are denied forever — history cannot be rewritten.
+    match /users/{userId}/authEvents/{eventId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.type in [
+             'accountCreated', 'signIn', 'signOut',
+             'emailOtpSent', 'emailVerified', 'passwordChanged',
+           ]
+        && request.resource.data.occurredAt == request.time
+        && (!('provider' in request.resource.data.keys())
+            || request.resource.data.provider is string)
+        && (!('platform' in request.resource.data.keys())
+            || request.resource.data.platform is string);
+      allow update, delete: if false;
+    }
+
     // Expenses: each user reads/writes only their own expenses (append-only log).
     // Rules do not cascade from the parent /users/{userId} match, so this is
     // explicit. `allow delete` is split out from create/update: on a delete
@@ -191,8 +230,10 @@ service cloud.firestore {
     // (workoutPlans — the "what I SHOULD do" template), the workout-session
     // store (workoutSessions — the guided execution record), the AI
     // conversation store (aiConversations client-writable; messages/aiUsage
-    // server-only), and the expenses wallet/expenseCategories subcollections
-    // (running balance + user-created categories on top of the built-in set).
+    // server-only), the expenses wallet/expenseCategories subcollections
+    // (running balance + user-created categories on top of the built-in set),
+    // and the auth-activity stores (auth/account summary + authEvents log —
+    // append-only, never deletable by a client).
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../domain/auth_activity_repository.dart';
 import '../domain/auth_failure.dart';
 import '../domain/auth_repository.dart';
 import '../domain/auth_result.dart';
@@ -18,18 +21,26 @@ import 'auth_config.dart';
 /// The real [AuthRepository], backed by Firebase Auth plus the Google and Apple
 /// native sign-in flows. This is the *only* place FirebaseAuth / provider SDK
 /// types are allowed — everything above consumes the domain models.
+///
+/// Auth *bookkeeping* (the account-metadata summary + event log) rides along
+/// via [activityRepository]: every successful authentication records itself
+/// fire-and-forget, so telemetry can never delay or fail a sign-in. When no
+/// repository is injected (tests, offline runs) nothing is recorded.
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository({
     fb.FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
     FirebaseFunctions? functions,
+    AuthActivityRepository? activityRepository,
   }) : _auth = firebaseAuth ?? fb.FirebaseAuth.instance,
        _google = googleSignIn ?? GoogleSignIn.instance,
-       _functions = functions ?? FirebaseFunctions.instance;
+       _functions = functions ?? FirebaseFunctions.instance,
+       _activity = activityRepository;
 
   final fb.FirebaseAuth _auth;
   final GoogleSignIn _google;
   final FirebaseFunctions _functions;
+  final AuthActivityRepository? _activity;
 
   /// google_sign_in must be initialised exactly once before use; cache the call.
   Future<void>? _googleInit;
@@ -62,6 +73,7 @@ class FirebaseAuthRepository implements AuthRepository {
         email: email.trim(),
         password: password,
       );
+      _recordSession(cred, provider: kEmailProviderId);
       return AuthSuccess(_map(cred.user!));
     });
   }
@@ -82,6 +94,7 @@ class FirebaseAuthRepository implements AuthRepository {
         await cred.user!.updateDisplayName(name);
         await cred.user!.reload();
       }
+      _recordAccountCreated(cred, provider: kEmailProviderId);
       return AuthSuccess(_map(_auth.currentUser ?? cred.user!));
     });
   }
@@ -110,6 +123,7 @@ class FirebaseAuthRepository implements AuthRepository {
       }
       final credential = fb.GoogleAuthProvider.credential(idToken: idToken);
       final userCred = await _auth.signInWithCredential(credential);
+      _recordSessionByNewness(userCred);
       return AuthSuccess(_map(userCred.user!));
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
@@ -154,6 +168,7 @@ class FirebaseAuthRepository implements AuthRepository {
         await user.updateDisplayName(fullName);
         await user.reload();
       }
+      _recordSessionByNewness(userCred);
       return AuthSuccess(_map(_auth.currentUser ?? user!));
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
@@ -288,6 +303,12 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    // Record the session end before the identity is gone — the write targets
+    // `users/{uid}` explicitly, so it completes regardless of local state.
+    final uid = _auth.currentUser?.uid;
+    if (uid != null && _activity != null) {
+      unawaited(_activity.recordSignOut(uid: uid));
+    }
     // Sign out of Google as well so the account picker reappears next time.
     // Harmless (and ignored) if the user never signed in with Google.
     try {
@@ -298,6 +319,67 @@ class FirebaseAuthRepository implements AuthRepository {
     }
     await _auth.signOut();
   }
+
+  // --- auth activity bookkeeping -------------------------------------------
+
+  /// Firebase Auth's canonical provider ids, reused verbatim as the
+  /// `provider` field on recorded events and account metadata.
+  static const String kEmailProviderId = 'password';
+  static const String kGoogleProviderId = 'google.com';
+  static const String kAppleProviderId = 'apple.com';
+
+  /// Records a federated (Google/Apple) authentication, distinguishing an
+  /// account's very first authentication from every later one via the SDK's
+  /// server-side `isNewUser` flag — email sign-up paths know this statically,
+  /// federated ones can only observe it here.
+  void _recordSessionByNewness(fb.UserCredential cred) {
+    final provider =
+        cred.additionalUserInfo?.providerId ?? kGoogleProviderId;
+    final isNew = cred.additionalUserInfo?.isNewUser ?? false;
+    if (isNew) {
+      _recordAccountCreated(cred, provider: provider);
+    } else {
+      _recordSession(cred, provider: provider);
+    }
+  }
+
+  /// Fire-and-forget registration bookkeeping. Never awaited and never throws:
+  /// a lost telemetry write costs one gap in the log, not a failed sign-up.
+  void _recordAccountCreated(fb.UserCredential cred,
+      {required String provider}) {
+    final uid = cred.user?.uid;
+    final activity = _activity;
+    if (uid == null || activity == null) return;
+    unawaited(activity.recordAccountCreated(
+      uid: uid,
+      provider: provider,
+      platform: currentPlatformName,
+    ));
+  }
+
+  /// Fire-and-forget sign-in bookkeeping; carries Firebase's own trusted
+  /// creation time so a summary doc missing `createdAt` (e.g. the
+  /// registration-era write was lost offline) gets backfilled from truth.
+  void _recordSession(fb.UserCredential cred, {required String provider}) {
+    final user = cred.user;
+    final activity = _activity;
+    if (user == null || activity == null) return;
+    unawaited(activity.recordSignIn(
+      uid: user.uid,
+      provider: provider,
+      platform: currentPlatformName,
+      fallbackCreatedAt: _parseAuthTime(user.metadata.creationTime),
+    ));
+  }
+
+  /// The device label recorded with client-written events (`ios`, `android`,
+  /// `macos`, `web`).
+  static String get currentPlatformName =>
+      kIsWeb ? 'web' : defaultTargetPlatform.name.toLowerCase();
+
+  /// Firebase Auth exposes its trusted timestamps as `DateTime?`; kept as a
+  /// named helper so the provenance reads clearly at call sites.
+  static DateTime? _parseAuthTime(DateTime? time) => time;
 
   // --- helpers -------------------------------------------------------------
 
@@ -317,6 +399,8 @@ class FirebaseAuthRepository implements AuthRepository {
     providerIds: user.providerData
         .map((p) => p.providerId)
         .toList(growable: false),
+    createdAt: _parseAuthTime(user.metadata.creationTime),
+    lastSignInAt: _parseAuthTime(user.metadata.lastSignInTime),
   );
 
   Future<AuthResult> _guard(Future<AuthResult> Function() run) async {

@@ -17,6 +17,10 @@ import '../widgets/social_auth_buttons.dart';
 /// `Authenticated`, which swaps this page out for the app shell — so this page
 /// only owns loading and error presentation. Cancellations (Apple/Google) show
 /// nothing.
+///
+/// Motion: the brand block, social buttons, form, and mode toggle rise in
+/// staggered ([RiseIn]); the tagline cross-fades when modes flip; errors slide
+/// into a reserved line so nothing else jumps.
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
 
@@ -78,11 +82,29 @@ class _AuthPageState extends State<AuthPage> {
                       const SizedBox(height: 16),
                       Text('ZIVO', style: AppText.greeting.copyWith(letterSpacing: 1)),
                       const SizedBox(height: 8),
-                      Text(
-                        _isSignUp
-                            ? 'Make your space.'
-                            : 'Your whole day, in one place.',
-                        style: AppText.aside,
+                      // Cross-fade between the two taglines as modes flip —
+                      // the copy change reads instead of snapping.
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.35),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                        child: Text(
+                          key: ValueKey(_isSignUp),
+                          _isSignUp
+                              ? 'Make your space.'
+                              : 'Your whole day, in one place.',
+                          style: AppText.aside,
+                        ),
                       ),
                     ],
                   ),
@@ -121,32 +143,55 @@ class _AuthPageState extends State<AuthPage> {
                     },
                   ),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  _ErrorBanner(message: _error!),
-                ],
+                // Reserved line so an arriving error never shifts layout.
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 220),
+                    opacity: _error == null ? 0 : 1,
+                    child: AnimatedSlide(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      offset: _error == null ? const Offset(0, -0.4) : Offset.zero,
+                      child: _error == null
+                          ? const SizedBox(width: double.infinity)
+                          : Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: _ErrorBanner(message: _error!),
+                            ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Center(
                   child: TextButton(
                     onPressed:
                         _inFlight == AuthAction.none ? _toggleMode : null,
-                    child: Text.rich(
-                      TextSpan(
-                        style: AppText.body,
-                        children: [
-                          TextSpan(
-                            text: _isSignUp
-                                ? 'Already have an account?  '
-                                : 'New to ZIVO?  ',
-                          ),
-                          TextSpan(
-                            text: _isSignUp ? 'Sign in' : 'Create account',
-                            style: AppText.button.copyWith(
-                              fontSize: 14.5,
-                              color: AppColors.emberText,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: Text.rich(
+                        key: ValueKey(_isSignUp),
+                        TextSpan(
+                          style: AppText.body,
+                          children: [
+                            TextSpan(
+                              text: _isSignUp
+                                  ? 'Already have an account?  '
+                                  : 'New to ZIVO?  ',
                             ),
-                          ),
-                        ],
+                            TextSpan(
+                              text: _isSignUp ? 'Sign in' : 'Create account',
+                              style: AppText.button.copyWith(
+                                fontSize: 14.5,
+                                color: AppColors.emberText,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
