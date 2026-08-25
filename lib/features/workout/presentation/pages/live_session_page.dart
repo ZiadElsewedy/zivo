@@ -847,7 +847,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final plans = AppScope.of(context).workoutPlans;
     final sessions = _sessionsRepo;
     unawaited(workouts.add(_session.toWorkoutLog()));
-    unawaited(plans.savePlan(_currentPlan(plans).advanceCursor()));
+    // The recommendation advances past the day that was ACTUALLY trained —
+    // any day is startable now, so the cursor can't blindly assume the
+    // rotation's previous head was the one just completed.
+    unawaited(
+      plans.savePlan(_currentPlan(plans).advanceToAfterDay(_session.dayId)),
+    );
     unawaited(sessions.saveSession(_session));
     Navigator.of(context).pop();
   }

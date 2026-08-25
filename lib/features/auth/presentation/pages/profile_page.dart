@@ -1,6 +1,9 @@
 
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/media/domain/media_kind.dart';
@@ -261,30 +264,15 @@ class ProfilePage extends StatelessWidget {
                                     ? '—'
                                     : _formatDob(profile.dateOfBirth),
                                 accent: AppColors.flare,
+                                last: true,
                                 onTap: profile == null
                                     ? null
                                     : () => _editDob(context, profile),
                               ),
-                              SettingsRow(
-                                icon: AppIcons.mail,
-                                title: 'Email',
-                                value: user.email ?? 'Hidden by provider',
-                                last: true,
-                                accent: AppColors.iris,
-                                trailing: user.email == null
-                                    ? null
-                                    : (user.isEmailVerified
-                                          ? Icon(
-                                              AppIcons.success,
-                                              size: 17,
-                                              color: AppColors.pulse,
-                                            )
-                                          : Icon(
-                                              AppIcons.warning,
-                                              size: 17,
-                                              color: AppColors.solar,
-                                            )),
-                              ),
+                              // Email intentionally NOT repeated here — it's
+                              // the hero line under the name (with its
+                              // verification badge); a second copy below read
+                              // as filler, not information.
                             ],
                           ),
                         ),
@@ -764,125 +752,138 @@ class _EditTextSheetState extends State<_EditTextSheet> {
 
   void _submit() {
     if (!_canSave) return;
+    HapticFeedback.lightImpact();
     Navigator.of(context).pop(_text.text.trim());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.hairline2,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
+    // Premium edit surface: the sheet material is a translucent, blurred
+    // glass card (the backdrop dims + blurs behind it) rather than a flat
+    // opaque strip — the same material language as the workout start
+    // confirm. Keyboard insets ride the padding so the field stays visible
+    // while typing.
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card.withValues(alpha: 0.94),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+            border: Border.all(color: AppColors.hairline2),
           ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text(widget.title, style: AppText.cardTitle),
+          padding: EdgeInsets.only(
+            top: 12,
+            left: 22,
+            right: 22,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          TextField(
-            controller: _text,
-            autofocus: true,
-            maxLength: widget.maxLength,
-            maxLines: widget.multiline ? 4 : 1,
-            minLines: widget.multiline ? 3 : 1,
-            textCapitalization: widget.capitalizeWords
-                ? TextCapitalization.words
-                : TextCapitalization.sentences,
-            textInputAction: widget.multiline
-                ? TextInputAction.newline
-                : TextInputAction.done,
-            onSubmitted: widget.multiline ? null : (_) => _submit(),
-            onChanged: (_) => setState(() {}),
-            cursorColor: AppColors.ember,
-            style: AppText.rowTitle.copyWith(
-              fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600,
-            ),
-            decoration: InputDecoration(
-              isCollapsed: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              counterStyle: AppText.meta.copyWith(
-                color: AppColors.ink3,
-                fontSize: 11,
-              ),
-              border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
-              ),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.ember, width: 1.6),
-              ),
-              hintText: widget.hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-            ),
-          ),
-          const SizedBox(height: 22),
-          Opacity(
-            opacity: _canSave ? 1 : 0.45,
-            child: Material(
-              color: Colors.transparent,
-              child: Ink(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [const Color(0xFFFF7038), AppColors.ember],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.hairline2,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: AppShadows.ember,
                 ),
-                child: InkWell(
-                  onTap: _canSave ? _submit : null,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          AppIcons.check,
-                          size: 18,
-                          color: Colors.white,
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.only(left: 2, bottom: 12),
+                child: Text(widget.title, style: AppText.cardTitle),
+              ),
+              TextField(
+                controller: _text,
+                autofocus: true,
+                maxLength: widget.maxLength,
+                maxLines: widget.multiline ? 4 : 1,
+                minLines: widget.multiline ? 3 : 1,
+                textCapitalization: widget.capitalizeWords
+                    ? TextCapitalization.words
+                    : TextCapitalization.sentences,
+                textInputAction: widget.multiline
+                    ? TextInputAction.newline
+                    : TextInputAction.done,
+                onSubmitted: widget.multiline ? null : (_) => _submit(),
+                onChanged: (_) => setState(() {}),
+                cursorColor: AppColors.ember,
+                style: AppText.rowTitle.copyWith(
+                  fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  counterStyle: AppText.meta.copyWith(
+                    color: AppColors.ink3,
+                    fontSize: 11,
+                  ),
+                  border: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.hairline),
+                  ),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.hairline),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.ember, width: 1.6),
+                  ),
+                  hintText: widget.hint,
+                  hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Opacity(
+                opacity: _canSave ? 1 : 0.45,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [const Color(0xFFFF7038), AppColors.ember],
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: AppShadows.ember,
+                    ),
+                    child: InkWell(
+                      onTap: _canSave ? _submit : null,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              AppIcons.check,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Save',
+                              style: AppText.button.copyWith(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Save',
-                          style: AppText.button.copyWith(
-                            fontSize: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
