@@ -145,6 +145,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                 itemBuilder: (context, i) => _ZoomablePhoto(
                   service: widget.service,
                   ref: _photos[i].imagePath,
+                  heroTag: 'moment-photo-${_photos[i].id}',
                 ),
               ),
             ),
@@ -182,10 +183,17 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
 /// One pinch/double-tap zoomable photo page.
 class _ZoomablePhoto extends StatefulWidget {
-  const _ZoomablePhoto({required this.service, required this.ref});
+  const _ZoomablePhoto({
+    required this.service,
+    required this.ref,
+    required this.heroTag,
+  });
 
   final MediaService service;
   final String? ref;
+
+  /// Matches the gallery tile's Hero so opening reads as the tile expanding.
+  final String heroTag;
 
   @override
   State<_ZoomablePhoto> createState() => _ZoomablePhotoState();
@@ -246,15 +254,22 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
         minScale: 1,
         maxScale: 5,
         child: SizedBox.expand(
-          child: MediaImage(
-            service: widget.service,
-            ref: widget.ref,
-            fit: BoxFit.contain,
-            placeholder: const Center(
-              child: SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+          // Same Hero tag as its gallery tile — opening a photo reads as that
+          // tile expanding to full screen. Only the initially-open page
+          // carries flight (PageView neighbors never participate).
+          child: Hero(
+            tag: widget.heroTag,
+            child: MediaImage(
+              service: widget.service,
+              ref: widget.ref,
+              fit: BoxFit.contain,
+              placeholder: const Center(
+                child: SizedBox(
+                  width: 26,
+                  height: 26,
+                  child:
+                      CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+                ),
               ),
             ),
           ),

@@ -91,8 +91,37 @@ class SpotifyMusicController implements MusicController {
     unawaited(_playerStateSub?.cancel());
     _playerStateSub = SpotifySdk.subscribePlayerState().listen(
       (state) async {
-        _current = await _fromPlayerState(state);
+        final track = state.track;
+        if (track == null) {
+          // App Remote emits track-less states transiently mid-skip. Don't
+          // publish them — a one-frame "Nothing playing" flash between two
+          // songs reads as breakage; the real track arrives a beat later.
+          return;
+        }
+        // Publish the track IMMEDIATELY with whatever artwork is already
+        // cached — title/artist/duration/position must never wait on an
+        // artwork round-trip to the Spotify app. If artwork isn't cached,
+        // fetch it out-of-band and republish (see [_fetchArtworkAndRepublish]).
+        final artwork = _cachedArtworkIfAny(track);
+        _current = NowPlaying(
+          trackId: track.uri,
+          title: track.name,
+          artist: track.artist.name ?? '',
+          artworkBytes: artwork,
+          duration: Duration(milliseconds: track.duration),
+          position: Duration(milliseconds: state.playbackPosition),
+          isPaused: state.isPaused,
+          // App Remote alone can't see other Spotify Connect devices — that
+          // needs the separate Web API's "available devices" endpoint, which
+          // this integration doesn't call. True is a safe default until that's
+          // added; a genuinely different active device would otherwise show as
+          // this app having control when it doesn't.
+          hasControl: true,
+        );
         _nowPlayingController.add(_current);
+        if (artwork == null && track.imageUri.raw.isNotEmpty) {
+          unawaited(_fetchArtworkAndRepublish(track));
+        }
       },
       onError: (Object error) {
         if (error is PlatformException) _setConnection(_mapErrorCode(error.code));
@@ -191,24 +220,24 @@ class SpotifyMusicController implements MusicController {
     _connectionController.close();
   }
 
-  Future<NowPlaying?> _fromPlayerState(PlayerState state) async {
-    final track = state.track;
-    if (track == null) return null;
-    return NowPlaying(
-      trackId: track.uri,
-      title: track.name,
-      artist: track.artist.name ?? '',
-      artworkBytes: await _artworkFor(track),
-      duration: Duration(milliseconds: track.duration),
-      position: Duration(milliseconds: state.playbackPosition),
-      isPaused: state.isPaused,
-      // App Remote alone can't see other Spotify Connect devices — that
-      // needs the separate Web API's "available devices" endpoint, which
-      // this integration doesn't call. True is a safe default until that's
-      // added; a genuinely different active device would otherwise show as
-      // this app having control when it doesn't.
-      hasControl: true,
-    );
+  /// Synchronous cache check — what track-change emissions use so they never
+  /// block on the platform channel.
+  Uint8List? _cachedArtworkIfAny(Track track) {
+    final uri = track.imageUri.raw;
+    if (uri.isEmpty) return null;
+    return uri == _cachedArtworkTrackUri ? _cachedArtworkBytes : null;
+  }
+
+  /// Fetches artwork off the critical path and republishes — but only if this
+  /// track is STILL current when the bytes land (a fast skip-past must not
+  /// patch stale artwork onto a newer song).
+  Future<void> _fetchArtworkAndRepublish(Track track) async {
+    final bytes = await _artworkFor(track);
+    if (bytes == null) return;
+    final current = _current;
+    if (current == null || current.trackId != track.uri) return;
+    _current = current.copyWith(artworkBytes: bytes);
+    _nowPlayingController.add(_current);
   }
 
   Future<Uint8List?> _artworkFor(Track track) async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -7,6 +8,7 @@ import 'domain/media_backup_target.dart';
 import 'domain/media_kind.dart';
 import 'domain/media_object.dart';
 import 'domain/media_registry.dart';
+import 'domain/media_resolution.dart';
 import 'domain/media_store.dart';
 import 'domain/media_storage_preferences.dart';
 
@@ -16,13 +18,15 @@ import 'domain/media_storage_preferences.dart';
 /// records a [MediaObject] in the [MediaRegistry], and — only if the account
 /// opted in — copies to the system Photos ([galleryTarget]).
 ///
-/// Cloud backup is provider-agnostic ([MediaBackupProvider]) and deliberately
-/// **manual and device-local**: nothing here touches a provider SDK on its own.
-/// Uploads/downloads happen only from the user-initiated [backupNow] /
-/// [syncFromBackup], and passive reads ([resolveOrFetch]) fetch only when a
-/// session is already live — so opening Moments or taking a photo never
-/// triggers a sign-in prompt. Swapping in a different provider (iCloud, Dropbox)
-/// touches only the composition root, not this service or the features.
+/// Cloud backup is provider-agnostic ([MediaBackupProvider]) and
+/// **device-local + prompt-free**: a capture uploads to Drive immediately when
+/// this account has auto-upload on (default) and this device can restore its
+/// session silently — otherwise it waits for the user-initiated [backupNow].
+/// Passive reads ([resolveWithStatus]) fetch only when a session is already
+/// live or silently restorable, so opening Moments or taking a photo never
+/// triggers a sign-in prompt. Swapping in a different provider (iCloud,
+/// Dropbox) touches only the composition root, not this service or the
+/// features.
 class MediaService {
   MediaService({
     required this.store,
@@ -163,6 +167,13 @@ class MediaService {
     } catch (_) {
       // Metadata is best-effort; the local file still exists.
     }
+
+    // Sync immediately, not at the next "Back up now": when this account
+    // opted into auto-upload and this device can speak to Drive without a
+    // prompt, push the fresh bytes right away — fire-and-forget, never
+    // blocking the save or surfacing errors here (manual backup remains the
+    // fallback that catches anything this misses).
+    if (prefs.autoUploadToDrive) _scheduleAutoUpload(object);
     return stored.relativePath;
   }
 
@@ -175,30 +186,209 @@ class MediaService {
   /// user connects once (in Storage & Sync); after that, photos download on
   /// demand and cache — opening Moments on a fresh device resolves its
   /// synced metadata against Drive automatically, with no sign-in prompt.
-  Future<File?> resolveOrFetch(String? ref) async {
+  ///
+  /// All callers should prefer [resolveWithStatus] — this is its
+  /// bytes-or-null projection, kept for callers that only care about bytes.
+  Future<File?> resolveOrFetch(String? ref) async =>
+      (await resolveWithStatus(ref)).file;
+
+  /// The full-resolution read: where the bytes are, and what a missing-bytes
+  /// state honestly means. See [MediaAvailability] for the three outcomes.
+  ///
+  /// Performance contract for grid-scale callers: successful resolutions are
+  /// memoized (one disk stat per ref per process), identical in-flight
+  /// fetches are shared (a gallery of 50 cloud-only tiles collapses to at
+  /// most [_maxParallelFetches] simultaneous downloads), and failed fetches
+  /// back off instead of re-hammering Drive on every tile rebuild.
+  Future<MediaResolution> resolveWithStatus(String? ref) async {
+    if (ref == null || ref.isEmpty) {
+      return const MediaResolution(MediaAvailability.nowhere);
+    }
+
+    final cached = _resolvedFiles[ref];
+    if (cached != null && await cached.exists()) {
+      return MediaResolution(MediaAvailability.onDevice, file: cached);
+    }
+
     final local = await store.resolve(ref);
-    if (local != null && await local.exists()) return local;
-    if (ref == null || ref.isEmpty) return null;
+    if (local != null && await local.exists()) {
+      _rememberResolved(ref, local);
+      return MediaResolution(MediaAvailability.onDevice, file: local);
+    }
 
     final provider = backup;
-    if (provider == null) return null;
-    if (!await _ensureSilentSession()) return null;
+    if (provider == null) {
+      return const MediaResolution(MediaAvailability.nowhere);
+    }
 
+    // Whether the bytes are *fetchable* is registry knowledge, and the
+    // registry is Firestore-backed metadata — it answers even with no live
+    // session. A record without a remote id was never backed up anywhere:
+    // no download could succeed, so report `nowhere` rather than pretending
+    // a retry might help.
     MediaObject? object;
     try {
       object = await registry.getByRelativePath(ref);
     } catch (_) {
-      return null;
+      return const MediaResolution(MediaAvailability.nowhere);
     }
     final remoteId = object?.remoteId;
-    if (remoteId == null) return null;
+    if (remoteId == null) {
+      return const MediaResolution(MediaAvailability.nowhere);
+    }
 
+    // Fetchable — join any in-flight fetch of this ref, or start one through
+    // the throttle. A recent failure skips the attempt entirely (backoff):
+    // the caller gets `cloudOnly`, which reads as "on its way", not an error.
+    if (_isBackingOff(ref)) {
+      return const MediaResolution(MediaAvailability.cloudOnly);
+    }
+    // putIfAbsent runs its closure synchronously, so concurrent callers of
+    // the same ref always share ONE future — no isolate-level lock needed.
+    final fetch =
+        _fetches.putIfAbsent(ref, () => _downloadToStore(ref, remoteId));
+    await fetch;
+    final fetched = _resolvedFiles[ref];
+    if (fetched != null && await fetched.exists()) {
+      return MediaResolution(MediaAvailability.onDevice, file: fetched);
+    }
+    return const MediaResolution(MediaAvailability.cloudOnly);
+  }
+
+  // ---- Resolution pipeline internals --------------------------------------
+
+  /// Successfully resolved refs → their files. Bounded; files are just paths,
+  /// so the limit is generous. Failed resolutions are NOT cached here — they
+  /// live in [_lastFetchFailure] under a short backoff instead, so recovery
+  /// (network returns, Drive reconnects) happens automatically.
+  final Map<String, File> _resolvedFiles = {};
+
+  /// Shared in-flight downloads keyed by ref. Map operations between awaits
+  /// are atomic within an isolate, so concurrent callers always observe a
+  /// consistent view without an explicit lock.
+  final Map<String, Future<void>> _fetches = {};
+  int _activeFetches = 0;
+  final List<Completer<void>> _fetchWaiters = [];
+
+  /// How many Drive downloads may run at once. A gallery scroll must feel
+  /// instant, not saturate the radio — three keeps visible tiles filling
+  /// quickly while capping contention.
+  static const _maxParallelFetches = 3;
+
+  final Map<String, DateTime> _lastFetchFailure = {};
+
+  /// How long a failed download of one ref waits before another attempt.
+  /// Short enough that toggling a plane-mode switch recovers within a browse;
+  /// long enough that rapid grid rebuilds don't retry per frame. Public so
+  /// read-side widgets can align their self-retry timers with it.
+  static const fetchFailureBackoff = Duration(seconds: 15);
+  static const _fetchFailureBackoff = fetchFailureBackoff;
+
+  /// Upper bound on memoized successes — evicting oldest-inserted is fine;
+  /// a re-evicted ref costs one cheap disk stat to warm again.
+  static const _resolvedCacheLimit = 512;
+
+  void _rememberResolved(String ref, File file) {
+    if (_resolvedFiles.length >= _resolvedCacheLimit) {
+      _resolvedFiles.remove(_resolvedFiles.keys.first);
+    }
+    _resolvedFiles[ref] = file;
+  }
+
+  bool _isBackingOff(String ref) {
+    final last = _lastFetchFailure[ref];
+    return last != null &&
+        DateTime.now().difference(last) < _fetchFailureBackoff;
+  }
+
+  Future<void> _downloadToStore(String ref, String remoteId) async {
+    // Respect the parallelism cap: beyond it, waiters queue FIFO and proceed
+    // as slots free up.
+    if (_activeFetches >= _maxParallelFetches) {
+      final waiter = Completer<void>();
+      _fetchWaiters.add(waiter);
+      await waiter.future;
+    }
+    _activeFetches++;
     try {
-      final bytes = await provider.download(remoteId);
-      if (bytes == null || bytes.isEmpty) return null;
-      return await store.writeBytes(ref, bytes);
+      if (!await _ensureSilentSession()) throw const _FetchUnavailable();
+      final bytes = await backup!.download(remoteId);
+      if (bytes == null || bytes.isEmpty) throw const _FetchUnavailable();
+      final file = await store.writeBytes(ref, bytes);
+      _rememberResolved(ref, file);
+      _lastFetchFailure.remove(ref);
     } catch (_) {
-      return null;
+      _lastFetchFailure[ref] = DateTime.now();
+    } finally {
+      _activeFetches--;
+      _fetches.remove(ref);
+      if (_fetchWaiters.isNotEmpty) {
+        _fetchWaiters.removeAt(0).complete();
+      }
+    }
+  }
+
+  // ---- Immediate auto-upload on capture ------------------------------------
+
+  /// Ids with an auto-upload currently running — a rapid capture→edit→save
+  /// sequence must not stack two uploads of the same id racing each other.
+  final Set<String> _autoUploadsInFlight = {};
+
+  /// Fire-and-forget push of a fresh capture to Drive. Every gate is silent:
+  /// no connection, no restorable session, or the user turned auto-upload off
+  /// simply means "not now" — the manual "Back up now" flow remains complete
+  /// fallback coverage. Never throws.
+  void _scheduleAutoUpload(MediaObject object) {
+    if (!_autoUploadsInFlight.add(object.id)) return;
+    unawaited(_autoUpload(object));
+  }
+
+  Future<void> _autoUpload(MediaObject object) async {
+    final id = object.id;
+    try {
+      final provider = backup;
+      if (provider == null) return;
+      if (!await _backupConnectionValidForCurrentAccount()) return;
+      if (!provider.hasLiveSession) {
+        if (!await _ensureSilentSession()) return;
+      }
+      final file = await store.resolve(object.relativePath);
+      if (file == null || !await file.exists()) return;
+      final remoteId = await provider.upload(
+        file: file,
+        fileName: p.posix.basename(object.relativePath),
+        mimeType: object.mimeType,
+        accountFolder: object.ownerUid, // per-account isolation
+        replaceRemoteId: object.remoteId,
+      );
+      if (remoteId == null) return;
+
+      // Patch ONLY the backup fields onto the freshest record: the user may
+      // have edited/re-captured while the upload ran. If those newer bytes
+      // differ from what was just pushed, leave remoteBackup pending so the
+      // next backup pushes them — marking done would be a lie.
+      MediaObject? latest;
+      try {
+        latest = await registry.get(id);
+      } catch (_) {
+        latest = null;
+      }
+      final target = latest ?? object;
+      final pushedBytesAreCurrent =
+          latest == null || latest.contentHash == object.contentHash;
+      if (pushedBytesAreCurrent) {
+        await registry.put(
+          target.copyWith(remoteBackup: BackupState.done, remoteId: remoteId),
+        );
+      } else {
+        await registry.put(
+          target.copyWith(remoteId: target.remoteId ?? remoteId),
+        );
+      }
+    } catch (_) {
+      // Deliberately swallowed — see the doc on [_scheduleAutoUpload].
+    } finally {
+      _autoUploadsInFlight.remove(id);
     }
   }
 
@@ -391,4 +581,11 @@ class MediaService {
     }
     return object.copyWith(gallery: ok ? BackupState.done : BackupState.failed);
   }
+}
+
+/// Internal signal that a cloud fetch couldn't proceed (no session, empty
+/// response, provider error) — caught by [_downloadToStore] to start the
+/// ref's backoff. Never escapes the service.
+final class _FetchUnavailable implements Exception {
+  const _FetchUnavailable();
 }

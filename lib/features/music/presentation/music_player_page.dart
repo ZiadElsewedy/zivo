@@ -99,19 +99,14 @@ class _Player extends StatelessWidget {
             style: AppText.body.copyWith(color: AppColors.ink2),
           ),
           const SizedBox(height: AppSpacing.l),
+          // Owns the track, thumb, drag bubble AND the live time labels —
+          // one component so the numbers can never disagree with the bar.
           MusicScrubber(
             controller: controller,
+            trackId: playing.trackId,
             duration: playing.duration,
             position: playing.position,
             isPaused: playing.isPaused,
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_format(playing.position), style: AppText.meta.copyWith(color: AppColors.ink3)),
-              Text(_format(playing.duration), style: AppText.meta.copyWith(color: AppColors.ink3)),
-            ],
           ),
           const SizedBox(height: AppSpacing.l),
           if (!playing.hasControl)
@@ -127,15 +122,8 @@ class _Player extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _Control(
-                icon: Icons.replay_rounded,
-                size: 26,
-                enabled: playing.hasControl,
-                onTap: controller.replay,
-              ),
-              const SizedBox(width: AppSpacing.l),
-              _Control(
                 icon: Icons.skip_previous_rounded,
-                size: 32,
+                size: 34,
                 enabled: playing.hasControl,
                 onTap: controller.previous,
               ),
@@ -144,7 +132,7 @@ class _Player extends StatelessWidget {
               const SizedBox(width: AppSpacing.l),
               _Control(
                 icon: Icons.skip_next_rounded,
-                size: 32,
+                size: 34,
                 enabled: playing.hasControl,
                 onTap: controller.next,
               ),
@@ -154,12 +142,6 @@ class _Player extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _format(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
 
@@ -174,12 +156,27 @@ class _BigArtwork extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1,
       child: LayoutBuilder(
-        builder: (context, constraints) => MusicArtwork(
-          bytes: bytes,
-          url: url,
-          size: constraints.maxWidth,
-          iconSize: 64,
-          borderRadius: 20,
+        builder: (context, constraints) => DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              // The artwork floats a few millimeters off the ground —
+              // quiet depth without any glassy gimmicks.
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 34,
+                spreadRadius: -8,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: MusicArtwork(
+            bytes: bytes,
+            url: url,
+            size: constraints.maxWidth,
+            iconSize: 64,
+            borderRadius: 20,
+          ),
         ),
       ),
     );

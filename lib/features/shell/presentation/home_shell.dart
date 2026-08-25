@@ -17,6 +17,7 @@ import '../../hub/presentation/hub_page.dart';
 import '../../moments/presentation/pages/moment_capture_page.dart';
 import '../../music/music_config.dart';
 import '../../music/presentation/now_playing_bar.dart';
+import '../../music/presentation/now_playing_orb.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
@@ -33,6 +34,11 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  /// Whether the now-playing bar has been swiped down into its floating
+  /// orb. Session-scoped on purpose — a fresh app run restores the full
+  /// bar so playback controls are always obvious again.
+  bool _musicCollapsed = false;
 
   /// One-way channel for shell-initiated composer text (voice quick-log):
   /// the sheet resolves with a transcript, it lands in Ask's composer, and
@@ -106,20 +112,40 @@ class _HomeShellState extends State<HomeShell> {
     ];
     return Scaffold(
       extendBody: true,
-      body: _TabSwitcher(index: _index, children: tabs),
+      body: Stack(
+        children: [
+          _TabSwitcher(index: _index, children: tabs),
+          // The collapsed now-playing dock: a floating orb above the tab
+          // bar, overlaying whatever the current tab shows (chat included).
+          if (kMusicEnabled && _musicCollapsed)
+            Positioned(
+              left: 14,
+              bottom: ZivoBottomBarMetrics.height(context) + 12,
+              child: MusicOrb(
+                controller: AppScope.of(context).requireMusic,
+                onExpand: () => setState(() => _musicCollapsed = false),
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // TEMPORARY placement (S1) — re-anchored to the workout/live-session
-          // surface in S2. Gated on the compile-time flag, not just the
-          // controller's own state — with it false this whole branch is dead
-          // code. `NowPlayingBar` itself still separately renders nothing
-          // until there's actually something playing.
+          // Mounted in every connection state; renders nothing until music
+          // is actually connected AND playing. Swipe down to shrink it into
+          // the floating orb (see [_musicCollapsed]).
           if (kMusicEnabled)
-            NowPlayingBar(controller: AppScope.of(context).requireMusic),
+            NowPlayingBar(
+              controller: AppScope.of(context).requireMusic,
+              collapsed: _musicCollapsed,
+              onCollapse: () {
+                HapticFeedback.lightImpact();
+                setState(() => _musicCollapsed = true);
+              },
+            ),
           ZivoBottomBar(
             currentIndex: _index,
             onTap: (i) {
