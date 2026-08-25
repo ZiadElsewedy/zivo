@@ -255,6 +255,14 @@ class _AskPageState extends State<AskPage>
     _ => 'm:${m.id}',
   };
 
+  /// The turn's last assistant message is typing itself in right now (the
+  /// buffered/non-streaming fallback). Keyed by display id and REMOVED only
+  /// when [_TypewriterText] reports completion — so an interleaved rebuild
+  /// (a snapshot emission, the send completing, a keyboard frame) can never
+  /// swap the half-typed bubble for static text mid-reveal. That mid-type
+  /// swap was the "reply pops in twice" glitch, seen again and again.
+  final Set<String> _revealActive = {};
+
   Stream<List<AiMessage>>? _messagesStream;
   String? _streamConversationId;
 
@@ -433,6 +441,7 @@ class _AskPageState extends State<AskPage>
       _userDragging = false;
       _entrancePlayed.clear();
       _entranceSeededFor = null;
+      _revealActive.clear();
     });
   }
 
@@ -1210,16 +1219,31 @@ class _AskPageState extends State<AskPage>
                                     final displayKey = _displayKey(message);
                                     final isLast =
                                         i == displayed.length - 1;
-                                    // Consume the reveal token on the first render of the
-                                    // turn's last message; only a fresh text reply types.
-                                    var animateReply = false;
-                                    if (isLast && _expectReveal) {
-                                      if (message.role == AiRole.assistant &&
-                                          message.pendingAction == null) {
-                                        animateReply = true;
-                                      }
+                                    // Consume the reveal token ONLY when an
+                                    // assistant text message actually takes
+                                    // it. Earlier code cleared the flag on
+                                    // ANY last-item render — so the
+                                    // optimistic USER bubble (last while the
+                                    // turn ran) silently burned the token,
+                                    // and whether ZIVO's reply ever typed
+                                    // depended on microsecond-level event
+                                    // ordering.
+                                    if (isLast &&
+                                        _expectReveal &&
+                                        message.role == AiRole.assistant &&
+                                        message.pendingAction == null) {
+                                      // The decision lives in [_revealActive]
+                                      // until the typewriter FINISHES — not
+                                      // in this frame's flag — so later
+                                      // rebuilds keep the same widget mounted
+                                      // instead of cutting the animation
+                                      // short mid-write.
+                                      _revealActive.add(displayKey);
                                       _expectReveal = false;
                                     }
+                                    final revealing = _revealActive.contains(
+                                      displayKey,
+                                    );
                                     // Groups consecutive assistant messages (a bubble
                                     // followed by its proposal card, say) under one
                                     // ZIVO label instead of repeating it per message.
@@ -1233,7 +1257,16 @@ class _AskPageState extends State<AskPage>
                                     if (action == null) {
                                       content = _MessageBubble(
                                         message,
-                                        animate: animateReply,
+                                        animate: revealing,
+                                        onRevealDone: revealing
+                                            ? () {
+                                                if (mounted) {
+                                                  setState(() =>
+                                                      _revealActive
+                                                          .remove(displayKey));
+                                                }
+                                              }
+                                            : null,
                                         // Only the provisional live bubble
                                         // carries the writing caret.
                                         streaming:
@@ -1620,12 +1653,21 @@ class _SuggestionChip extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble(this.message, {this.animate = false, this.streaming = false});
+  const _MessageBubble(
+    this.message, {
+    this.animate = false,
+    this.onRevealDone,
+    this.streaming = false,
+  });
 
   final AiMessage message;
 
   /// When true, the (assistant) text types in rather than appearing at once.
   final bool animate;
+
+  /// Called once the typewriter reveal finishes — the page drops the
+  /// message's reveal flag so later rebuilds render it statically.
+  final VoidCallback? onRevealDone;
 
   /// When true (the provisional live bubble mid-turn), a soft iris caret
   /// rides the text so "still writing" is visible at a glance.
@@ -1665,7 +1707,11 @@ class _MessageBubble extends StatelessWidget {
                     )
                   : null,
               child: animate
-                  ? _TypewriterText(message.content, style: style)
+                  ? _TypewriterText(
+                      message.content,
+                      style: style,
+                      onDone: onRevealDone,
+                    )
                   : streaming && !MediaQuery.of(context).disableAnimations
                   ? Text.rich(
                       TextSpan(
@@ -1732,11 +1778,14 @@ class _StreamCaretState extends State<_StreamCaret>
 /// Reveals [text] left-to-right on mount, like the assistant is composing it.
 /// One-shot (never repeats), so `pumpAndSettle` completes it; honors the
 /// platform "reduce motion" setting by showing the full text immediately.
+/// [onDone] fires when the reveal completes (including instantly under
+/// reduce-motion) — the caller uses it to retire its "revealing" flag.
 class _TypewriterText extends StatefulWidget {
-  const _TypewriterText(this.text, {required this.style});
+  const _TypewriterText(this.text, {required this.style, this.onDone});
 
   final String text;
   final TextStyle style;
+  final VoidCallback? onDone;
 
   @override
   State<_TypewriterText> createState() => _TypewriterTextState();
@@ -1756,7 +1805,7 @@ class _TypewriterTextState extends State<_TypewriterText>
     _c = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: math.max(ms, 1)),
-    )..forward();
+    )..forward().whenComplete(() => widget.onDone?.call());
   }
 
   @override
@@ -1768,6 +1817,11 @@ class _TypewriterTextState extends State<_TypewriterText>
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.of(context).disableAnimations) {
+      // Full text immediately; retire the caller's reveal flag post-frame
+      // (a synchronous callback here would setState during build).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onDone?.call();
+      });
       return Text(widget.text, style: widget.style);
     }
     final chars = widget.text.characters;

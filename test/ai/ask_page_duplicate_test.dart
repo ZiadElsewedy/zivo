@@ -208,9 +208,9 @@ void main() {
       _msg(1, AiRole.user, 'hi zivo', turnId),
       _msg(2, AiRole.assistant, 'the one true reply', turnId),
     ]);
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
+    // A buffered (non-streamed) reply types itself in ONCE — settle through
+    // the write, then assert on counts.
+    await tester.pumpAndSettle();
 
     expect(find.text('hi zivo'), findsOneWidget);
     expect(
@@ -218,6 +218,49 @@ void main() {
       findsOneWidget,
       reason: 'The durable reply replaces the live bubble exactly once',
     );
+  });
+
+  testWidgets('a buffered reply keeps TYPING through interleaved snapshots '
+      '— the reveal is never cut short into a second pop', (tester) async {
+    // The recurring "appears twice" glitch, precisely: the durable reply's
+    // first frame mounted the typewriter, and the NEXT build (any snapshot
+    // emission) recomputed animate=false — swapping the half-typed bubble
+    // for static full text mid-animation. The reveal flag now lives until
+    // the typewriter finishes, so the write runs undisturbed.
+    final ai = _ScriptedAi();
+    await tester.pumpWidget(_host(ai));
+    await tester.pump();
+    ai.emit(const []);
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'hi zivo');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pump();
+
+    final turnId = ai.sentTurnIds.single;
+    final durable = [
+      _msg(1, AiRole.user, 'hi zivo', turnId),
+      _msg(2, AiRole.assistant, 'the one true reply', turnId),
+    ];
+    ai.emit(durable);
+    await tester.pump();
+
+    // An identical re-emission one frame later (Firestore cache echo).
+    ai.emit(durable);
+    await tester.pump(const Duration(milliseconds: 10));
+
+    // Only ~10ms into a ~160ms write: the reply must NOT be fully painted
+    // yet. A mid-reveal swap would have dumped the entire text instantly.
+    expect(
+      find.text('the one true reply'),
+      findsNothing,
+      reason: 'mid-write, the typewriter must still own this bubble',
+    );
+
+    // Let the write finish — now the full text shows exactly once.
+    await tester.pumpAndSettle();
+    expect(find.text('the one true reply'), findsOneWidget);
   });
 
   testWidgets("the optimistic bubble's element SURVIVES the durable swap — "

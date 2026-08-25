@@ -7,11 +7,15 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
+import 'package:zivo/features/diet/domain/diet_day.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
+import 'package:zivo/features/diet/domain/food_item.dart';
+import 'package:zivo/features/diet/domain/meal.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
+import 'package:zivo/features/diet/presentation/pages/meal_detail_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
@@ -79,12 +83,13 @@ void main() {
     await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
     await tester.pump();
 
-    // Seeded meals and items render.
+    // Seeded meals render as CLEAN cards: label + item count, no per-item
+    // clutter — the breakdown lives behind View (see the detail-page test).
     expect(find.text('Breakfast'), findsOneWidget);
     expect(find.text('Lunch'), findsOneWidget);
     expect(find.text('Dinner'), findsOneWidget);
-    expect(find.text('Rice'), findsOneWidget);
-    expect(find.text('Chicken breast'), findsOneWidget);
+    expect(find.text('Rice'), findsNothing,
+        reason: 'item names belong to the meal detail page now');
 
     // Tapping the Lunch card marks it eaten reactively.
     await tester.tap(find.text('Lunch'));
@@ -92,6 +97,82 @@ void main() {
 
     final consumed = await diet.watchConsumed(DateTime.now()).first;
     expect(consumed, contains('seed-meal-lunch'));
+  });
+
+  testWidgets('a meal\u2019s View affordance opens its dedicated detail page '
+      'with the full item breakdown', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+
+    // Open the LUNCH card's View chip (second meal in seed order).
+    await tester.tap(find.text('View').at(1));
+    await tester.pumpAndSettle();
+
+    // The detail page shows exactly what's in Lunch — items included.
+    expect(find.text('Rice'), findsOneWidget);
+    expect(find.text('Chicken breast'), findsOneWidget);
+    expect(find.byType(MealDetailPage), findsOneWidget);
+
+    // And it can mark the meal done from here.
+    await tester.tap(find.text('Done — mark as eaten'));
+    await tester.pump();
+    final consumed = await diet.watchConsumed(DateTime.now()).first;
+    expect(consumed, contains('seed-meal-lunch'));
+  });
+
+  testWidgets('supplements are NOT meals: they get their own section and '
+      'never count toward meals eaten', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    final plan = diet.activePlan!;
+    final today = plan.days.first;
+    final withSupplements = DietPlan(
+      id: plan.id,
+      name: plan.name,
+      status: plan.status,
+      source: plan.source,
+      createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt,
+      days: [
+        DietDay(
+          weekday: today.weekday,
+          label: today.label,
+          meals: [
+            ...today.meals,
+            const Meal(
+              id: 'seed-meal-supps',
+              label: 'Supplements',
+              order: 99,
+              items: [
+                FoodItem(name: 'Vitamin D3', quantity: 1, unit: 'pcs'),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    await diet.savePlan(withSupplements);
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    // Let the consumed-set stream resolve so the hero states real counts.
+    await tester.pump(const Duration(milliseconds: 50));
+    // Own section header + own row (both say "Supplements").
+    expect(find.text('Supplements'), findsNWidgets(2));
+    expect(find.text('Vitamin D3'), findsNothing,
+        reason: 'supplement items live behind View too');
+    // The hero count excludes supplements: 3 real meals, not 4.
+    expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
+
+    // Tapping the supplement ROW marks IT taken without touching meal counts.
+    await tester.tap(find.text('Supplements').last);
+    await tester.pump();
+    expect(
+      (await diet.watchConsumed(DateTime.now()).first),
+      contains('seed-meal-supps'),
+    );
   });
 
   testWidgets('shows a spinner while the plan stream is waiting, then the plan', (tester) async {
