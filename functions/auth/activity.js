@@ -40,7 +40,7 @@ const accountRef = (db, uid) =>
  * @param {!Firestore} db
  * @param {string} uid
  * @param {string} type One of AuthEventType's wire ids.
- * @param {{provider?: string}=} extra Optional fields (provider).
+ * @param {{provider: string}=} extra Optional fields (provider).
  * @return {!Promise<!WriteResult>}
  */
 const recordAuthEvent = (db, uid, type, extra = {}) =>
@@ -91,4 +91,9 @@ const markEmailVerified = async (db, uid) => {
   ]);
 };
 
-module.exports = {SCHEMA_VERSION, recordAuthEvent, markEmailSent, markEmailVerified};
+module.exports = {
+  SCHEMA_VERSION,
+  recordAuthEvent,
+  markEmailSent,
+  markEmailVerified,
+};
