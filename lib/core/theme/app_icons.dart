@@ -39,6 +39,9 @@ class AppIcons {
   static const sessions = LucideIcons.activity;
   static const minus = LucideIcons.minus;
   static const calendarClock = LucideIcons.calendarClock;
+  static const bolt = LucideIcons.zap;
+  static const duplicate = LucideIcons.copy;
+  static const pause = LucideIcons.pause;
 
   // Common actions / affordances.
   static const add = LucideIcons.plus;

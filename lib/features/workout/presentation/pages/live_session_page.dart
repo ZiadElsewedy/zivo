@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:palette_generator/palette_generator.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -214,13 +215,18 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _session = _session.complete(now: widget.now());
     }
     if (!_session.isComplete && !_session.isPaused) {
-      _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+      _elapsedTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _tickElapsed(),
+      );
     }
     // Only a genuinely fresh start opens on the warm-up phase — a resumed
     // session (even one with nothing logged yet) or one that already has a
     // done set skips straight to running, since re-showing it wouldn't mean
     // "before your first set" any more.
-    if (widget.resume == null && _session.completedSetCount == 0 && !_session.isComplete) {
+    if (widget.resume == null &&
+        _session.completedSetCount == 0 &&
+        !_session.isComplete) {
       _startWarmup();
     }
     _prefillInputs();
@@ -300,7 +306,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     }
     if (set.actualReps != null || set.actualWeightKg != null) {
       _reps.text = set.actualReps?.toString() ?? '';
-      _weight.text = set.actualWeightKg != null ? _trimWeight(set.actualWeightKg!) : '';
+      _weight.text = set.actualWeightKg != null
+          ? _trimWeight(set.actualWeightKg!)
+          : '';
       // A real, already-saved draft — not just an untouched suggestion.
       _actualsTouched = true;
       return;
@@ -338,7 +346,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
     if (reps == set.actualReps && weight == set.actualWeightKg) return;
     setState(() {
-      _session = _session.updateSet(exercise.id, set.id, actualReps: reps, actualWeightKg: weight);
+      _session = _session.updateSet(
+        exercise.id,
+        set.id,
+        actualReps: reps,
+        actualWeightKg: weight,
+      );
     });
     unawaited(_sessionsRepo.saveSession(_session));
   }
@@ -362,9 +375,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     if (set.type != SetType.working) return null;
     final history = _historyFor(exercise);
     if (history == null) return null;
-    final workingHistory = history.sets.where((s) => s.type == SetType.working).toList(
-      growable: false,
-    );
+    final workingHistory = history.sets
+        .where((s) => s.type == SetType.working)
+        .toList(growable: false);
     final index = workingSetIndexOf(exercise, set);
     if (index < 0 || index >= workingHistory.length) return null;
     return workingHistory[index];
@@ -406,7 +419,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     // formatting the end-of-workout review uses, so the confirmation and
     // the review agree on exactly what was recorded.
     final resolved = _setById(exercise.id, set.id);
-    final undoMessage = resolved == null ? 'Set logged' : _doneSnackbarSummary(resolved);
+    final undoMessage = resolved == null
+        ? 'Set logged'
+        : _doneSnackbarSummary(resolved);
     _afterResolvingCurrentSet(
       exercise.id,
       set.id,
@@ -481,7 +496,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required Color undoIconColor,
   }) {
     _resolvingSet = true;
-    final hold = reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 260);
+    final hold = reducedMotion(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 260);
     Future<void>.delayed(hold, () {
       _resolvingSet = false;
       if (!mounted) return;
@@ -507,7 +524,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // sheet), it just no longer overrides the plan at session time.
         _startRest(restSeconds);
       }
-      _showUndoSnackbar(undoMessage, exerciseId, setId, icon: undoIcon, iconColor: undoIconColor);
+      _showUndoSnackbar(
+        undoMessage,
+        exerciseId,
+        setId,
+        icon: undoIcon,
+        iconColor: undoIconColor,
+      );
     });
   }
 
@@ -531,12 +554,22 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.surfaceRaised,
+          // Lifted clear of the bottom action zone (the phase's own primary
+          // button) — the toast confirms an action, it must never cover the
+          // next one.
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
           content: Row(
             children: [
               Icon(icon, size: 18, color: iconColor),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(message, style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14)),
+                child: Text(
+                  message,
+                  style: AppText.button.copyWith(
+                    color: AppColors.ink,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ],
           ),
@@ -586,7 +619,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _restEndsAt = null;
     _pausedRestRemaining = null;
     if (wasComplete && !_session.isPaused) {
-      _elapsedTimer ??= Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+      _elapsedTimer ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _tickElapsed(),
+      );
     }
     _prefillInputs();
   }
@@ -636,7 +672,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// [_pausedRestRemaining] instead) or when there's no rest running.
   void _resyncRestOnResume() {
     final remaining = _restRemaining;
-    if (_restEndsAt != null && remaining != null && remaining <= Duration.zero) {
+    if (_restEndsAt != null &&
+        remaining != null &&
+        remaining <= Duration.zero) {
       _endRest();
     } else if (mounted) {
       setState(() {});
@@ -677,7 +715,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// The [_resyncRestOnResume] analog for the warm-up phase.
   void _resyncWarmupOnResume() {
     final remaining = _warmupRemaining;
-    if (_warmupEndsAt != null && remaining != null && remaining <= Duration.zero) {
+    if (_warmupEndsAt != null &&
+        remaining != null &&
+        remaining <= Duration.zero) {
       _endWarmup();
     } else if (mounted) {
       setState(() {});
@@ -707,7 +747,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final remaining = nextEndsAt.difference(widget.now());
     _warmupEndsAt = nextEndsAt;
     final remainingCeilSeconds = _ceilSeconds(remaining);
-    if (_warmupTotalSeconds != null && remainingCeilSeconds > _warmupTotalSeconds!) {
+    if (_warmupTotalSeconds != null &&
+        remainingCeilSeconds > _warmupTotalSeconds!) {
       _warmupTotalSeconds = remainingCeilSeconds;
     }
     setState(() {});
@@ -739,7 +780,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     // Keep the ring sensible: grow the total if the adjustment pushed the
     // remaining time past what it was counting down from.
     final remainingCeilSeconds = _ceilSeconds(remaining);
-    if (_restTotalSeconds != null && remainingCeilSeconds > _restTotalSeconds!) {
+    if (_restTotalSeconds != null &&
+        remainingCeilSeconds > _restTotalSeconds!) {
       _restTotalSeconds = remainingCeilSeconds;
     }
     setState(() {});
@@ -797,7 +839,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     });
     unawaited(_sessionsRepo.saveSession(_session));
     _elapsedTimer?.cancel();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickElapsed());
+    _elapsedTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _tickElapsed(),
+    );
   }
 
   void _onTogglePause() => _session.isPaused ? _onResume() : _onPause();
@@ -885,11 +930,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Keep going', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text(
+              'Keep going',
+              style: AppText.button.copyWith(color: AppColors.ink3),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Discard', style: AppText.button.copyWith(color: AppColors.flareText)),
+            child: Text(
+              'Discard',
+              style: AppText.button.copyWith(color: AppColors.flareText),
+            ),
           ),
         ],
       ),
@@ -961,7 +1012,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     opacity: _session.isPaused ? 0.35 : 1,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 280),
-                      transitionBuilder: (child, animation) => reducedMotion(context)
+                      transitionBuilder: (child, animation) =>
+                          reducedMotion(context)
                           ? FadeTransition(opacity: animation, child: child)
                           : FadeTransition(
                               opacity: animation,
@@ -973,7 +1025,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                                 child: child,
                               ),
                             ),
-                      child: KeyedSubtree(key: ValueKey(_phaseKey), child: _buildPhase()),
+                      child: KeyedSubtree(
+                        key: ValueKey(_phaseKey),
+                        child: _buildPhase(),
+                      ),
                     ),
                   ),
                 ),
@@ -1030,7 +1085,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     );
     // Working-only position — warm-up ramp steps (if any) sit before this
     // in `exercise.sets` but aren't part of the numbered working sequence.
-    final workingSetCount = exercise.sets.where((s) => s.type == SetType.working).length;
+    final workingSetCount = exercise.sets
+        .where((s) => s.type == SetType.working)
+        .length;
     final workingIndex = workingSetIndexOf(exercise, set);
 
     return _runningScaffold(
@@ -1045,7 +1102,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         if (kMusicEnabled) ...[
           StaggeredReveal(
             index: 0,
-            child: _SessionNowPlaying(controller: AppScope.of(context).requireMusic),
+            child: _SessionNowPlaying(
+              controller: AppScope.of(context).requireMusic,
+            ),
           ),
           const SizedBox(height: AppSpacing.m),
         ],
@@ -1145,7 +1204,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: math.max(0, constraints.maxHeight - AppSpacing.m - AppSpacing.l),
+              minHeight: math.max(
+                0,
+                constraints.maxHeight - AppSpacing.m - AppSpacing.l,
+              ),
             ),
             child: IntrinsicHeight(
               child: Column(
@@ -1201,14 +1263,22 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 44)),
+            constraints: BoxConstraints(
+              minHeight: math.max(0, constraints.maxHeight - 44),
+            ),
             child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 8),
-                  Center(child: _Eyebrow('Pre-workout', color: AppColors.ember)),
-                  const SizedBox(height: 6),
+                  Center(
+                    child: _Eyebrow(
+                      'Pre-workout',
+                      color: AppColors.ember,
+                      icon: AppIcons.streak,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Center(
                     child: Text(
                       'Loosen up before your first set',
@@ -1225,9 +1295,21 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                   const Spacer(),
                   Row(
                     children: [
-                      Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustWarmup(-15))),
+                      Expanded(
+                        child: _RestAdjustButton(
+                          label: '-15s',
+                          icon: AppIcons.minus,
+                          onTap: () => _adjustWarmup(-15),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustWarmup(15))),
+                      Expanded(
+                        child: _RestAdjustButton(
+                          label: '+15s',
+                          icon: AppIcons.add,
+                          onTap: () => _adjustWarmup(15),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1258,13 +1340,21 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 44)),
+            constraints: BoxConstraints(
+              minHeight: math.max(0, constraints.maxHeight - 44),
+            ),
             child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 8),
-                  Center(child: _Eyebrow('Rest', color: AppColors.ink3)),
+                  Center(
+                    child: _Eyebrow(
+                      'Rest',
+                      color: AppColors.ink2,
+                      icon: AppIcons.pause,
+                    ),
+                  ),
                   // The ring is the centerpiece — split the space between the
                   // eyebrow and the bottom controls evenly around it, rather
                   // than letting it float high with all the slack dumped
@@ -1283,21 +1373,52 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                       remaining: _restRemaining ?? Duration.zero,
                       total: _restTotalSeconds ?? 1,
                     ),
-                    controller: kMusicEnabled ? AppScope.of(context).requireMusic : null,
+                    controller: kMusicEnabled
+                        ? AppScope.of(context).requireMusic
+                        : null,
                   ),
                   const SizedBox(height: 18),
-                  Center(
-                    child: Text(
-                      'Next: $nextLabel',
-                      style: AppText.rowTitle.copyWith(color: AppColors.ink2),
-                    ),
+                  Column(
+                    children: [
+                      Text(
+                        'UP NEXT',
+                        style: AppText.meta.copyWith(
+                          color: AppColors.ink3,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        nextLabel,
+                        textAlign: TextAlign.center,
+                        style: AppText.rowTitle.copyWith(
+                          color: AppColors.ink2,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15.5,
+                        ),
+                      ),
+                    ],
                   ),
                   const Spacer(),
                   Row(
                     children: [
-                      Expanded(child: _RestAdjustButton(label: '-15s', onTap: () => _adjustRest(-15))),
+                      Expanded(
+                        child: _RestAdjustButton(
+                          label: '-15s',
+                          icon: AppIcons.minus,
+                          onTap: () => _adjustRest(-15),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: _RestAdjustButton(label: '+15s', onTap: () => _adjustRest(15))),
+                      Expanded(
+                        child: _RestAdjustButton(
+                          label: '+15s',
+                          icon: AppIcons.add,
+                          onTap: () => _adjustRest(15),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1322,17 +1443,29 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     // Every exercise with at least one resolved (done or skipped) set —
     // deliberately not `doneSetCount > 0` any more, since an exercise whose
     // only sets were skipped still needs to show up here to be reviewable.
-    final reviewedExercises = _session.exercises.where((e) => e.sets.any((s) => !s.pending)).toList();
+    final reviewedExercises = _session.exercises
+        .where((e) => e.sets.any((s) => !s.pending))
+        .toList();
     return ListView(
       key: const ValueKey('completed-list'),
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       children: [
-        Center(child: _Eyebrow('Workout complete', color: AppColors.pulse)),
+        Center(
+          child: _Eyebrow(
+            'Workout complete',
+            color: AppColors.pulse,
+            icon: AppIcons.check,
+          ),
+        ),
         const SizedBox(height: 14),
         Center(
           child: _PopIn(
-            child: Icon(Icons.check_circle_rounded, size: 56, color: AppColors.pulse),
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: 56,
+              color: AppColors.pulse,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -1358,7 +1491,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
               index: i,
               child: _ReviewExerciseGroup(
                 exercise: exercise,
-                onEditSet: (set, position) => _reviewSet(exercise, set, position),
+                onEditSet: (set, position) =>
+                    _reviewSet(exercise, set, position),
               ),
             ),
           ),
@@ -1382,7 +1516,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   /// actuals) — either way the set's outcome ends up [SetOutcome.completed],
   /// since reviewing a set IS performing it. `null` (sheet dismissed without
   /// saving) leaves the set untouched.
-  Future<void> _reviewSet(SessionExercise exercise, LoggedSet set, int position) async {
+  Future<void> _reviewSet(
+    SessionExercise exercise,
+    LoggedSet set,
+    int position,
+  ) async {
     final result = await showModalBottomSheet<(int?, double?)>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1423,7 +1561,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 // ---- Formatting -------------------------------------------------------------
 
 /// "60" / "22.5" — a weight without a trailing ".0".
-String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+String _trimWeight(double v) =>
+    v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
 /// "Day A · Push".
 String _dayTitle(WorkoutDay day) => 'Day ${day.slot} · ${day.label}';
@@ -1456,7 +1595,9 @@ String? _intraSessionDeltaLabel({
 }) {
   if (previous == null) return null;
   final prevWeight = previous.actualWeightKg;
-  if (prevWeight != null && actualWeightKg != null && actualWeightKg != prevWeight) {
+  if (prevWeight != null &&
+      actualWeightKg != null &&
+      actualWeightKg != prevWeight) {
     final delta = actualWeightKg - prevWeight;
     return '${delta > 0 ? '+' : ''}${_trimWeight(delta)}kg from your previous set';
   }
@@ -1472,7 +1613,8 @@ String? _intraSessionDeltaLabel({
 /// previous performance to show at all (never trained, or never logged).
 String _formatLastTime(LoggedSet? previous) {
   final parts = <String>[
-    if (previous?.actualWeightKg != null) '${_trimWeight(previous!.actualWeightKg!)}kg',
+    if (previous?.actualWeightKg != null)
+      '${_trimWeight(previous!.actualWeightKg!)}kg',
     if (previous?.actualReps != null) '× ${previous!.actualReps}',
   ];
   return parts.isEmpty ? 'First time' : parts.join(' ');
@@ -1499,7 +1641,9 @@ String _formatSetActuals(LoggedSet set) {
 String _doneSnackbarSummary(LoggedSet set) {
   final weight = set.actualWeightKg;
   final reps = set.actualReps;
-  if (weight != null && reps != null) return '${_trimWeight(weight)}kg × $reps logged';
+  if (weight != null && reps != null) {
+    return '${_trimWeight(weight)}kg × $reps logged';
+  }
   if (reps != null) return '$reps rep${reps == 1 ? '' : 's'} logged';
   if (weight != null) return '${_trimWeight(weight)}kg logged';
   return 'Set logged';
@@ -1508,7 +1652,8 @@ String _doneSnackbarSummary(LoggedSet set) {
 /// Whole seconds remaining until [d] elapses, rounded up so a countdown
 /// never flashes "0" a moment before it's actually over; clamped at 0 for an
 /// already-elapsed duration.
-int _ceilSeconds(Duration d) => d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 1000).ceil();
+int _ceilSeconds(Duration d) =>
+    d.inMilliseconds <= 0 ? 0 : (d.inMilliseconds / 1000).ceil();
 
 /// The pre-workout warm-up phase's fixed default length — 5:00, chosen as a
 /// reasonable one-size loosen-up window; configurable later, not now.
@@ -1521,7 +1666,12 @@ const int _warmupSeconds = 300;
 /// plain neutral hairline border, so the color reads as a subtle accent
 /// rather than the card's whole edge.
 List<BoxShadow> _cardGlow(Color color) => [
-  BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 24, spreadRadius: -6, offset: const Offset(0, 8)),
+  BoxShadow(
+    color: color.withValues(alpha: 0.08),
+    blurRadius: 24,
+    spreadRadius: -6,
+    offset: const Offset(0, 8),
+  ),
 ];
 
 // ---- Small building blocks ----------------------------------------------
@@ -1552,11 +1702,19 @@ class _ReviewExerciseGroup extends StatelessWidget {
         children: [
           Text(
             exercise.name,
-            style: AppText.rowTitle.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+            style: AppText.rowTitle.copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
           ),
           const SizedBox(height: 4),
           for (final (position, set) in resolved)
-            _ReviewSetRow(position: position, set: set, onTap: () => onEditSet(set, position)),
+            _ReviewSetRow(
+              position: position,
+              set: set,
+              onTap: () => onEditSet(set, position),
+            ),
         ],
       ),
     );
@@ -1567,7 +1725,11 @@ class _ReviewExerciseGroup extends StatelessWidget {
 /// label) from a done set (Pulse check, its actual reps/weight). The whole row
 /// is the tap target, opening [_SetReviewSheet] either way.
 class _ReviewSetRow extends StatelessWidget {
-  const _ReviewSetRow({required this.position, required this.set, required this.onTap});
+  const _ReviewSetRow({
+    required this.position,
+    required this.set,
+    required this.onTap,
+  });
 
   final int position;
   final LoggedSet set;
@@ -1585,13 +1747,21 @@ class _ReviewSetRow extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                skipped ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+                skipped
+                    ? Icons.remove_circle_outline_rounded
+                    : Icons.check_circle_rounded,
                 size: 16,
                 color: skipped ? AppColors.ink3 : AppColors.pulse,
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text('Set $position', style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2)),
+                child: Text(
+                  'Set $position',
+                  style: AppText.body.copyWith(
+                    fontSize: 14,
+                    color: AppColors.ink2,
+                  ),
+                ),
               ),
               Text(
                 skipped ? 'Skipped' : _formatSetActuals(set),
@@ -1601,7 +1771,11 @@ class _ReviewSetRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.ink3),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AppColors.ink3,
+              ),
             ],
           ),
         ),
@@ -1637,7 +1811,9 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
     text: widget.initialReps?.toString() ?? '',
   );
   late final TextEditingController _weight = TextEditingController(
-    text: widget.initialWeight != null ? _trimWeight(widget.initialWeight!) : '',
+    text: widget.initialWeight != null
+        ? _trimWeight(widget.initialWeight!)
+        : '',
   );
 
   @override
@@ -1656,7 +1832,12 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(22, 12, 22, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        22,
+        12,
+        22,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
@@ -1676,7 +1857,13 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(widget.title, style: AppText.cardTitle.copyWith(fontSize: 18, color: AppColors.ink)),
+          Text(
+            widget.title,
+            style: AppText.cardTitle.copyWith(
+              fontSize: 18,
+              color: AppColors.ink,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             widget.wasSkipped
@@ -1687,7 +1874,12 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
           const SizedBox(height: 18),
           Row(
             children: [
-              _StepperField(label: 'Reps', controller: _reps, step: 1, onChanged: () => setState(() {})),
+              _StepperField(
+                label: 'Reps',
+                controller: _reps,
+                step: 1,
+                onChanged: () => setState(() {}),
+              ),
               const SizedBox(width: AppSpacing.m),
               _StepperField(
                 label: 'Weight (kg)',
@@ -1741,16 +1933,42 @@ class _FrostedTopBar extends StatelessWidget {
 }
 
 class _Eyebrow extends StatelessWidget {
-  const _Eyebrow(this.text, {required this.color});
+  const _Eyebrow(this.text, {required this.color, this.icon});
 
   final String text;
   final Color color;
 
+  /// An optional mark inside the chip — the phase's identity at a glance
+  /// (flame for warm-up, pause for rest, check for complete).
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            text.toUpperCase(),
+            style: AppText.meta.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1768,8 +1986,12 @@ class _ProgressBar extends StatefulWidget {
   State<_ProgressBar> createState() => _ProgressBarState();
 }
 
-class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, value: widget.value);
+class _ProgressBarState extends State<_ProgressBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    value: widget.value,
+  );
 
   @override
   void didUpdateWidget(covariant _ProgressBar oldWidget) {
@@ -1813,7 +2035,11 @@ class _ProgressBarState extends State<_ProgressBar> with SingleTickerProviderSta
 /// frozen once it completes. Deliberately subtle; folded into the fuller
 /// redesign later.
 class _ElapsedLabel extends StatelessWidget {
-  const _ElapsedLabel({required this.elapsed, required this.isPaused, required this.onTogglePause});
+  const _ElapsedLabel({
+    required this.elapsed,
+    required this.isPaused,
+    required this.onTogglePause,
+  });
 
   final Duration elapsed;
   final bool isPaused;
@@ -1866,12 +2092,17 @@ class _ElapsedLabel extends StatelessWidget {
                 },
                 borderRadius: BorderRadius.circular(999),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                        isPaused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
                         size: 16,
                         color: isPaused ? AppColors.pulse : AppColors.ink3,
                       ),
@@ -1968,18 +2199,26 @@ class _GoalBlock extends StatelessWidget {
             key: const Key('last-time-label'),
             style: AppText.meta.copyWith(color: AppColors.ink3),
           ),
-          if (comparison != null) _ProgressVerdictBadge(comparison: comparison!),
+          if (comparison != null)
+            _ProgressVerdictBadge(comparison: comparison!),
           if (intraSessionDeltaLabel != null) ...[
             const SizedBox(height: 6),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.bolt_rounded, size: 13, color: AppColors.ember),
+                const Icon(
+                  Icons.bolt_rounded,
+                  size: 13,
+                  color: AppColors.ember,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   intraSessionDeltaLabel!,
                   key: const Key('intra-session-delta'),
-                  style: AppText.meta.copyWith(color: AppColors.ember, fontWeight: FontWeight.w700),
+                  style: AppText.meta.copyWith(
+                    color: AppColors.ember,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -1988,7 +2227,10 @@ class _GoalBlock extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               'Target: $targetText',
-              style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w400),
+              style: AppText.meta.copyWith(
+                color: AppColors.ink3,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ],
         ],
@@ -2053,7 +2295,9 @@ class _SessionNowPlaying extends StatelessWidget {
           initialData: controller.currentNowPlaying,
           builder: (context, nowSnap) {
             final playing = nowSnap.data;
-            if (playing == null) return _ConnectMusicChip(controller: controller);
+            if (playing == null) {
+              return _ConnectMusicChip(controller: controller);
+            }
             return _NowPlayingCard(controller: controller, playing: playing);
           },
         );
@@ -2084,7 +2328,18 @@ class _RestPhase extends StatelessWidget {
       stream: music.connection,
       initialData: music.currentConnection,
       builder: (context, connSnap) {
-        if (connSnap.data != MusicConnection.connected) return Center(child: ring);
+        // Rest is the right place for music — hands are free, attention is.
+        // Disconnected: one calm invite (never a nag — it vanishes once
+        // connected). Connected: the now-playing card rides above the ring.
+        if (connSnap.data != MusicConnection.connected) {
+          return Column(
+            children: [
+              _ConnectMusicChip(controller: music),
+              const SizedBox(height: 18),
+              Center(child: ring),
+            ],
+          );
+        }
         return StreamBuilder<NowPlaying?>(
           stream: music.nowPlaying,
           initialData: music.currentNowPlaying,
@@ -2111,41 +2366,115 @@ class _RestPhase extends StatelessWidget {
 /// which keep their own taps via their own `InkWell`) opens
 /// [MusicPlayerPage] — nested `InkWell`s resolve taps to whichever one sits
 /// directly under the finger, so no manual hit-test carve-out is needed.
-/// Pulse-accented (this file's training hue) rather than the generic
-/// mini-bar's ember, so it reads as part of the workout, not a system
-/// overlay.
-class _NowPlayingCard extends StatelessWidget {
+///
+/// Adaptive, Spotify-style: the card's tint is extracted from the track's
+/// own artwork ([PaletteGenerator] over the bytes, async + cached per
+/// track), so the session surface takes on each song's visual identity —
+/// falling back to the pulse-accented neutral until artwork resolves.
+class _NowPlayingCard extends StatefulWidget {
   const _NowPlayingCard({required this.controller, required this.playing});
 
   final MusicController controller;
   final NowPlaying playing;
 
   @override
+  State<_NowPlayingCard> createState() => _NowPlayingCardState();
+}
+
+class _NowPlayingCardState extends State<_NowPlayingCard> {
+  static String? _cachedKey;
+  static Color? _cachedAccent;
+
+  Color? _accent;
+
+  @override
+  void initState() {
+    super.initState();
+    _accent = _cachedKey == _keyOf(widget.playing) ? _cachedAccent : null;
+    _extractAccent();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NowPlayingCard old) {
+    super.didUpdateWidget(old);
+    if (_keyOf(old.playing) != _keyOf(widget.playing)) _extractAccent();
+  }
+
+  String _keyOf(NowPlaying p) => '${p.title}|${p.artist}';
+
+  Future<void> _extractAccent() async {
+    final bytes = widget.playing.artworkBytes;
+    final key = _keyOf(widget.playing);
+    if (bytes == null || bytes.isEmpty) return;
+    if (_cachedKey == key && _cachedAccent != null) {
+      if (mounted) setState(() => _accent = _cachedAccent);
+      return;
+    }
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        MemoryImage(bytes),
+        size: const Size(120, 120),
+      );
+      // Prefer a vibrant swatch; fall back to the dominant color. Darkened
+      // toward the card's own brightness so text always stays readable.
+      Color? chosen =
+          palette.vibrantColor?.color ?? palette.dominantColor?.color;
+      chosen ??= palette.colors.isEmpty ? null : palette.colors.first;
+      if (chosen == null || !mounted) return;
+      final tinted = Color.lerp(chosen, AppColors.ground, 0.45)!;
+      _cachedKey = key;
+      _cachedAccent = tinted;
+      setState(() => _accent = tinted);
+    } catch (_) {
+      // Artwork failed to decode — the neutral fallback below is fine.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final accent = _accent;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
         HapticFeedback.selectionClick();
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => MusicPlayerPage(controller: controller),
+            builder: (_) => MusicPlayerPage(controller: widget.controller),
             fullscreenDialog: true,
           ),
         );
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOut,
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: accent == null
+              ? AppColors.surfaceRaised
+              // The track's own color, pulled most of the way to the
+              // card's brightness — identity without glare.
+              : Color.lerp(AppColors.surfaceRaised, accent, 0.65),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.pulse.withValues(alpha: 0.18)),
+          border: Border.all(
+            color: (accent ?? AppColors.pulse).withValues(alpha: 0.22),
+          ),
+          boxShadow: accent == null
+              ? null
+              : [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.35),
+                    blurRadius: 22,
+                    spreadRadius: -6,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
         ),
         child: Row(
           children: [
             MusicArtwork(
-              bytes: playing.artworkBytes,
-              url: playing.artworkUrl,
+              bytes: widget.playing.artworkBytes,
+              url: widget.playing.artworkUrl,
               size: 40,
               iconSize: 18,
               borderRadius: 10,
@@ -2157,7 +2486,7 @@ class _NowPlayingCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    playing.title,
+                    widget.playing.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowTitle.copyWith(
@@ -2167,21 +2496,34 @@ class _NowPlayingCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    playing.artist,
+                    widget.playing.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.meta.copyWith(fontSize: 11.5, color: AppColors.ink3),
+                    style: AppText.meta.copyWith(
+                      fontSize: 11.5,
+                      color: AppColors.ink3,
+                    ),
                   ),
                 ],
               ),
             ),
-            _MusicIconButton(icon: Icons.skip_previous_rounded, onTap: controller.previous),
             _MusicIconButton(
-              icon: playing.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-              onTap: () => playing.isPaused ? controller.play() : controller.pause(),
+              icon: Icons.skip_previous_rounded,
+              onTap: widget.controller.previous,
+            ),
+            _MusicIconButton(
+              icon: widget.playing.isPaused
+                  ? Icons.play_arrow_rounded
+                  : Icons.pause_rounded,
+              onTap: () => widget.playing.isPaused
+                  ? widget.controller.play()
+                  : widget.controller.pause(),
               primary: true,
             ),
-            _MusicIconButton(icon: Icons.skip_next_rounded, onTap: controller.next),
+            _MusicIconButton(
+              icon: Icons.skip_next_rounded,
+              onTap: widget.controller.next,
+            ),
           ],
         ),
       ),
@@ -2193,7 +2535,11 @@ class _NowPlayingCard extends StatelessWidget {
 /// small (this card is a companion, not the primary content) but still a
 /// real tap target via [IconButton]'s built-in min-size.
 class _MusicIconButton extends StatelessWidget {
-  const _MusicIconButton({required this.icon, required this.onTap, this.primary = false});
+  const _MusicIconButton({
+    required this.icon,
+    required this.onTap,
+    this.primary = false,
+  });
 
   final IconData icon;
   final Future<void> Function() onTap;
@@ -2254,7 +2600,10 @@ class _ConnectMusicChip extends StatelessWidget {
             children: [
               Icon(AppIcons.music, size: 14, color: AppColors.ink2),
               const SizedBox(width: 6),
-              Text('Connect Music', style: AppText.meta.copyWith(color: AppColors.ink2)),
+              Text(
+                'Connect Music',
+                style: AppText.meta.copyWith(color: AppColors.ink2),
+              ),
             ],
           ),
         ),
@@ -2264,10 +2613,18 @@ class _ConnectMusicChip extends StatelessWidget {
 }
 
 class _RestAdjustButton extends StatelessWidget {
-  const _RestAdjustButton({required this.label, required this.onTap});
+  const _RestAdjustButton({
+    required this.label,
+    required this.onTap,
+    this.icon,
+  });
 
   final String label;
   final VoidCallback onTap;
+
+  /// An optional mark beside the label (±) — the button reads as an
+  /// adjustment, not just a word.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -2279,12 +2636,25 @@ class _RestAdjustButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 14),
           alignment: Alignment.center,
           decoration: BoxDecoration(
+            color: AppColors.surfaceRaised.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: AppColors.hairline2, width: 1.4),
           ),
-          child: Text(
-            label,
-            style: AppText.button.copyWith(fontSize: 15, color: AppColors.ink2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: AppColors.ink3),
+                const SizedBox(width: 7),
+              ],
+              Text(
+                label,
+                style: AppText.button.copyWith(
+                  fontSize: 15,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2298,7 +2668,11 @@ class _RestAdjustButton extends StatelessWidget {
 /// above the primary row, and Skip/Done keep their established hierarchy —
 /// Skip small and muted, Done unmistakably primary.
 class _ActionCluster extends StatelessWidget {
-  const _ActionCluster({required this.onSkip, required this.onDone, this.onBack});
+  const _ActionCluster({
+    required this.onSkip,
+    required this.onDone,
+    this.onBack,
+  });
 
   final VoidCallback? onBack;
   final VoidCallback onSkip;
@@ -2308,11 +2682,16 @@ class _ActionCluster extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(top: AppSpacing.m),
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.hairline2))),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.hairline2)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (onBack != null) ...[_BackControl(onTap: onBack!), const SizedBox(height: AppSpacing.s)],
+          if (onBack != null) ...[
+            _BackControl(onTap: onBack!),
+            const SizedBox(height: AppSpacing.s),
+          ],
           Row(
             children: [
               // Deliberately smaller and visually muted next to Done — Skip
@@ -2331,7 +2710,12 @@ class _ActionCluster extends StatelessWidget {
               const SizedBox(width: AppSpacing.s),
               Expanded(
                 flex: 2,
-                child: PillButton(label: 'Done', icon: Icons.check_rounded, enabled: true, onTap: onDone),
+                child: PillButton(
+                  label: 'Done',
+                  icon: Icons.check_rounded,
+                  enabled: true,
+                  onTap: onDone,
+                ),
               ),
             ],
           ),
@@ -2361,7 +2745,11 @@ class _BackControl extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.arrow_back_rounded, size: 15, color: AppColors.ink3),
+              const Icon(
+                Icons.arrow_back_rounded,
+                size: 15,
+                color: AppColors.ink3,
+              ),
               const SizedBox(width: 6),
               Text('Back', style: AppText.meta.copyWith(color: AppColors.ink3)),
             ],
@@ -2400,8 +2788,12 @@ class _StepperField extends StatefulWidget {
   State<_StepperField> createState() => _StepperFieldState();
 }
 
-class _StepperFieldState extends State<_StepperField> with SingleTickerProviderStateMixin {
-  late final AnimationController _punch = AnimationController(vsync: this, value: 1);
+class _StepperFieldState extends State<_StepperField>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _punch = AnimationController(
+    vsync: this,
+    value: 1,
+  );
 
   double? get _value {
     final raw = widget.controller.text.trim().replaceAll(',', '.');
@@ -2416,7 +2808,9 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
     final raw = (_value ?? 0) + delta;
     final next = raw < 0 ? 0.0 : raw;
     widget.controller.text = _trimWeight(next);
-    widget.controller.selection = TextSelection.collapsed(offset: widget.controller.text.length);
+    widget.controller.selection = TextSelection.collapsed(
+      offset: widget.controller.text.length,
+    );
     if (reducedMotion(context)) {
       _punch.value = 1;
     } else {
@@ -2444,7 +2838,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
         children: [
           Text(
             widget.label.toUpperCase(),
-            style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+            style: AppText.meta.copyWith(
+              color: AppColors.ink3,
+              letterSpacing: 0.6,
+            ),
           ),
           const SizedBox(height: AppSpacing.s),
           Container(
@@ -2458,17 +2855,25 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
               borderRadius: radius,
               child: Row(
                 children: [
-                  _StepButton(icon: Icons.remove_rounded, onTap: () => _step(-widget.step)),
+                  _StepButton(
+                    icon: Icons.remove_rounded,
+                    onTap: () => _step(-widget.step),
+                  ),
                   Container(width: 1, color: AppColors.hairline2),
                   Expanded(
                     child: AnimatedBuilder(
                       animation: _punch,
-                      builder: (context, child) => Transform.scale(scale: _punch.value, child: child),
+                      builder: (context, child) =>
+                          Transform.scale(scale: _punch.value, child: child),
                       child: TextField(
                         controller: widget.controller,
                         textAlign: TextAlign.center,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
                         cursorColor: AppColors.ember,
                         style: AppText.rowTitle.copyWith(
                           fontSize: 21,
@@ -2479,8 +2884,13 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
                         decoration: InputDecoration(
                           isDense: true,
                           hintText: widget.hint,
-                          hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                          hintStyle: AppText.rowTitle.copyWith(
+                            color: AppColors.ink3,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 4,
+                          ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -2489,7 +2899,10 @@ class _StepperFieldState extends State<_StepperField> with SingleTickerProviderS
                     ),
                   ),
                   Container(width: 1, color: AppColors.hairline2),
-                  _StepButton(icon: Icons.add_rounded, onTap: () => _step(widget.step)),
+                  _StepButton(
+                    icon: Icons.add_rounded,
+                    onTap: () => _step(widget.step),
+                  ),
                 ],
               ),
             ),
@@ -2549,7 +2962,10 @@ class _ProgressVerdictBadge extends StatefulWidget {
 
 class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _scale = AnimationController(vsync: this, value: 1);
+  late final AnimationController _scale = AnimationController(
+    vsync: this,
+    value: 1,
+  );
 
   @override
   void didUpdateWidget(covariant _ProgressVerdictBadge oldWidget) {
@@ -2584,7 +3000,8 @@ class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
 
     return AnimatedBuilder(
       animation: _scale,
-      builder: (context, child) => Transform.scale(scale: _scale.value, child: child),
+      builder: (context, child) =>
+          Transform.scale(scale: _scale.value, child: child),
       child: Container(
         key: const Key('progress-verdict'),
         margin: const EdgeInsets.only(top: 6),
@@ -2598,7 +3015,13 @@ class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
           children: [
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 4),
-            Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700)),
+            Text(
+              label,
+              style: AppText.meta.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -2648,10 +3071,15 @@ class _SetChip extends StatefulWidget {
   State<_SetChip> createState() => _SetChipState();
 }
 
-class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin {
-  late final AnimationController _scale = AnimationController(vsync: this, value: _targetScale(widget.state));
+class _SetChipState extends State<_SetChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scale = AnimationController(
+    vsync: this,
+    value: _targetScale(widget.state),
+  );
 
-  double _targetScale(_ChipState state) => state == _ChipState.current ? 1.1 : 1.0;
+  double _targetScale(_ChipState state) =>
+      state == _ChipState.current ? 1.1 : 1.0;
 
   @override
   void didUpdateWidget(covariant _SetChip oldWidget) {
@@ -2664,7 +3092,9 @@ class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin 
     }
     // A set completing is the one momentum moment here — a set going
     // current/upcoming just settles, no overshoot earned.
-    final spring = widget.state == _ChipState.done ? AppSprings.bounce : AppSprings.standard;
+    final spring = widget.state == _ChipState.done
+        ? AppSprings.bounce
+        : AppSprings.standard;
     _scale.springTo(target, spring: spring);
   }
 
@@ -2699,14 +3129,17 @@ class _SetChipState extends State<_SetChip> with SingleTickerProviderStateMixin 
           : Text(
               '${widget.number}',
               style: AppText.meta.copyWith(
-                color: state == _ChipState.current ? Colors.white : AppColors.ink3,
+                color: state == _ChipState.current
+                    ? Colors.white
+                    : AppColors.ink3,
                 fontWeight: FontWeight.w700,
               ),
             ),
     );
     final popped = AnimatedBuilder(
       animation: _scale,
-      builder: (context, child) => Transform.scale(scale: _scale.value, child: child),
+      builder: (context, child) =>
+          Transform.scale(scale: _scale.value, child: child),
       child: dot,
     );
     return state == _ChipState.current
@@ -2727,7 +3160,8 @@ class _PulsingGlow extends StatefulWidget {
   State<_PulsingGlow> createState() => _PulsingGlowState();
 }
 
-class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderStateMixin {
+class _PulsingGlowState extends State<_PulsingGlow>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
@@ -2796,13 +3230,17 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
   /// sudden retarget visibly *springs* to the new fraction instead of
   /// snapping. The normal continuous per-frame decay between adjustments
   /// never touches this (it's already smooth by construction).
-  late final AnimationController _correction = AnimationController.unbounded(vsync: this)..value = 0;
+  late final AnimationController _correction = AnimationController.unbounded(
+    vsync: this,
+  )..value = 0;
 
   double? _lastProgress;
 
   double get _trueProgress {
     final totalMs = widget.total * 1000;
-    return totalMs <= 0 ? 0.0 : (widget.remaining.inMilliseconds / totalMs).clamp(0.0, 1.0);
+    return totalMs <= 0
+        ? 0.0
+        : (widget.remaining.inMilliseconds / totalMs).clamp(0.0, 1.0);
   }
 
   @override
@@ -2845,7 +3283,10 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
             animation: Listenable.merge([_glow, _correction]),
             builder: (context, _) {
               final t = Curves.easeInOut.transform(_glow.value);
-              final progress = (_trueProgress + _correction.value).clamp(0.0, 1.0);
+              final progress = (_trueProgress + _correction.value).clamp(
+                0.0,
+                1.0,
+              );
               return CustomPaint(
                 size: const Size(240, 240),
                 painter: _RestRingPainter(progress: progress, glow: t),
@@ -2870,8 +3311,14 @@ class _RestTimeLabel extends StatelessWidget {
 
   final ({String whole, String centis}) time;
 
-  static final _wholeStyle = AppText.heroNumber.copyWith(fontSize: 50, color: AppColors.ink);
-  static final _centisStyle = AppText.heroNumber.copyWith(fontSize: 26, color: AppColors.ink2);
+  static final _wholeStyle = AppText.heroNumber.copyWith(
+    fontSize: 50,
+    color: AppColors.ink,
+  );
+  static final _centisStyle = AppText.heroNumber.copyWith(
+    fontSize: 26,
+    color: AppColors.ink2,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -2888,13 +3335,21 @@ class _RestTimeLabel extends StatelessWidget {
             reference: '9:59',
             alignment: Alignment.centerRight,
             style: _wholeStyle,
-            child: Text(time.whole, key: const Key('rest-time-whole'), style: _wholeStyle),
+            child: Text(
+              time.whole,
+              key: const Key('rest-time-whole'),
+              style: _wholeStyle,
+            ),
           ),
           _FixedSlot(
             reference: '.99',
             alignment: Alignment.centerLeft,
             style: _centisStyle,
-            child: Text(time.centis, key: const Key('rest-time-centis'), style: _centisStyle),
+            child: Text(
+              time.centis,
+              key: const Key('rest-time-centis'),
+              style: _centisStyle,
+            ),
           ),
         ],
       ),
@@ -2962,7 +3417,7 @@ class _RestRingPainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 - 12;
     final track = Paint()
-      ..color = AppColors.hairline2
+      ..color = AppColors.hairline
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
@@ -2970,17 +3425,39 @@ class _RestRingPainter extends CustomPainter {
 
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
-    final sweep = Paint()
-      ..color = AppColors.ink2.withValues(alpha: 0.82 + 0.18 * glow)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 11 + 1.5 * glow
-      ..strokeCap = StrokeCap.round;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // A soft halo under the sweep — the ring's "alive" breathing reads as
+    // light, not just a thicker stroke.
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      rect,
       -math.pi / 2,
       2 * math.pi * clamped,
       false,
-      sweep,
+      Paint()
+        ..color = AppColors.ink2.withValues(alpha: 0.10 + 0.10 * glow)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 22 + 4 * glow
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // The sweep itself: a warm ivory gradient (brighter at the leading
+    // cap) so the ring reads as lit rather than flat.
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * clamped,
+      false,
+      Paint()
+        ..shader = SweepGradient(
+          startAngle: -math.pi / 2,
+          endAngle: -math.pi / 2 + 2 * math.pi * clamped,
+          colors: [AppColors.ink2.withValues(alpha: 0.70), AppColors.ink],
+          transform: const GradientRotation(-math.pi / 2),
+        ).createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 11 + 1.5 * glow
+        ..strokeCap = StrokeCap.round,
     );
   }
 
@@ -3004,7 +3481,10 @@ class _PopIn extends StatefulWidget {
 }
 
 class _PopInState extends State<_PopIn> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, value: 0);
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    value: 0,
+  );
   bool _started = false;
 
   @override
@@ -3031,7 +3511,8 @@ class _PopInState extends State<_PopIn> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) => Transform.scale(scale: _controller.value, child: child),
+      builder: (context, child) =>
+          Transform.scale(scale: _controller.value, child: child),
       child: widget.child,
     );
   }

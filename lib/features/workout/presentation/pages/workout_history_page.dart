@@ -1,23 +1,29 @@
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import 'session_details_page.dart';
 import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
 
-/// Every logged training session, newest first — the same [LiveSession]
-/// model the Workout Dashboard's "Recent activity" and [SessionDetailsPage]
-/// already read, so session → history → details is one connected system on
-/// one real data model (R11) rather than History showing a separate,
-/// disconnected flat log.
+/// Every logged training session, newest first, grouped into weeks — the
+/// same [LiveSession] model the Workout Dashboard's "Recent activity" and
+/// [SessionDetailsPage] already read, so session → history → details is one
+/// connected system on one real data model (R11) rather than History showing
+/// a separate, disconnected flat log.
 ///
-/// Dark, immersive — matching the dashboard/live-session pages on the
-/// app-wide [AppColors] dark theme.
+/// A summary strip up top answers "how much have I actually trained" at a
+/// glance (total sessions, hours, this week), then week headers give the log
+/// a timeline to read down through.
 class WorkoutHistoryPage extends StatelessWidget {
   const WorkoutHistoryPage({super.key});
 
@@ -26,48 +32,363 @@ class WorkoutHistoryPage extends StatelessWidget {
     final sessions = AppScope.of(context).workoutSessions;
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.ink2),
-        title: Text('History', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -60,
+              right: -70,
+              child: _AuraBlob(color: AppColors.iris, size: 200),
+            ),
+            SafeArea(
+              child: StreamBuilder<List<LiveSession>>(
+                stream: sessions.watchAll(),
+                initialData: sessions.current,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) return const _HistoryErrorState();
+                  final items = snapshot.data ?? const <LiveSession>[];
+                  if (items.isEmpty &&
+                      snapshot.connectionState == ConnectionState.waiting) {
+                    return const _HistoryLoadingState();
+                  }
+                  if (items.isEmpty) return const _HistoryEmptyState();
+                  final now = DateTime.now();
+                  final completed = items
+                      .where((s) => s.status == SessionStatus.completed)
+                      .toList();
+                  final totalMinutes = completed.fold<int>(
+                    0,
+                    (sum, s) => sum + s.elapsed.inMinutes,
+                  );
+                  final weekStart = _startOfWeek(now);
+
+                  final groups = <_WeekGroup>[];
+                  for (final session in items) {
+                    final ws = _startOfWeek(session.startedAt);
+                    final index = ws == weekStart
+                        ? 0
+                        : ws == weekStart.subtract(const Duration(days: 7))
+                        ? 1
+                        : 2;
+                    if (groups.length <= index) {
+                      groups.add(_WeekGroup(index, []));
+                    }
+                    // Sessions arrive newest-first; groups fill in order.
+                    if (groups[index].sessions.isEmpty) {
+                      groups[index].weekStart = ws;
+                    }
+                    groups[index].sessions.add(session);
+                  }
+
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+                    children: [
+                      RiseIn(child: _HistoryHeader()),
+                      const SizedBox(height: 22),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 50),
+                        child: _SummaryStrip(
+                          totalSessions: completed.length,
+                          totalHours: totalMinutes / 60,
+                          thisWeek: completed
+                              .where((s) => !s.startedAt.isBefore(weekStart))
+                              .length,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      for (final group in groups) ...[
+                        _WeekHeader(group.label(context)),
+                        for (final (i, session) in group.sessions.indexed)
+                          RiseIn(
+                            delay: Duration(
+                              milliseconds: (90 + i * 40).clamp(0, 320),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                bottom: i == group.sessions.length - 1 ? 0 : 10,
+                              ),
+                              child: Dismissible(
+                                key: ValueKey(session.id),
+                                direction: DismissDirection.endToStart,
+                                background: const _DeleteSwipeBackground(),
+                                confirmDismiss: (_) => confirmDeleteSession(
+                                  context,
+                                  session.dayLabel,
+                                ),
+                                onDismissed: (_) =>
+                                    sessions.deleteSession(session.id),
+                                child: _SessionHistoryRow(
+                                  session: session,
+                                  now: now,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          SessionDetailsPage(session: session),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      body: StreamBuilder<List<LiveSession>>(
-        stream: sessions.watchAll(),
-        initialData: sessions.current,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const _HistoryErrorState();
-          final items = snapshot.data ?? const <LiveSession>[];
-          if (items.isEmpty && snapshot.connectionState == ConnectionState.waiting) {
-            return const _HistoryLoadingState();
-          }
-          if (items.isEmpty) return const _HistoryEmptyState();
-          final now = DateTime.now();
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final session = items[i];
-              return Dismissible(
-                key: ValueKey(session.id),
-                direction: DismissDirection.endToStart,
-                background: const _DeleteSwipeBackground(),
-                confirmDismiss: (_) => confirmDeleteSession(context, session.dayLabel),
-                onDismissed: (_) => sessions.deleteSession(session.id),
-                child: _SessionHistoryRow(
-                  session: session,
-                  now: now,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => SessionDetailsPage(session: session)),
-                  ),
+    );
+  }
+
+  static DateTime _startOfWeek(DateTime d) {
+    final day = DateTime(d.year, d.month, d.day);
+    // Monday-based weeks.
+    return day.subtract(Duration(days: d.weekday - 1));
+  }
+}
+
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared across the app's surfaces. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pushed-page header — back chip and display title.
+class _HistoryHeader extends StatelessWidget {
+  const _HistoryHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        PressableScale(
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: () => Navigator.of(context).maybePop(),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
                 ),
-              );
-            },
-          );
-        },
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'History',
+            style: AppText.greeting.copyWith(fontSize: 30),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One week's worth of sessions, in list order.
+class _WeekGroup {
+  _WeekGroup(this.bucket, this.sessions);
+
+  final int bucket; // 0 this week · 1 last week · 2 earlier
+  final List<LiveSession> sessions;
+  DateTime? weekStart;
+
+  String label(BuildContext context) => switch (bucket) {
+    0 => 'THIS WEEK',
+    1 => 'LAST WEEK',
+    _ => 'EARLIER',
+  };
+}
+
+class _WeekHeader extends StatelessWidget {
+  const _WeekHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 14, 2, 10),
+      child: Text(
+        label,
+        style: AppText.sectionLabel.copyWith(letterSpacing: 1.0),
       ),
+    );
+  }
+}
+
+/// The "how much have I trained" answer — three instruments with their own
+/// hues (sessions pulse, hours iris, this week ember) so the strip reads as
+/// different signals, not three identical numbers.
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({
+    required this.totalSessions,
+    required this.totalHours,
+    required this.thisWeek,
+  });
+
+  final int totalSessions;
+  final double totalHours;
+  final int thisWeek;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryStat(
+              icon: AppIcons.sessions,
+              accent: AppColors.pulse,
+              value: '$totalSessions',
+              label: 'Sessions',
+            ),
+          ),
+          const _SummaryDivider(),
+          Expanded(
+            child: _SummaryStat(
+              icon: AppIcons.timer,
+              accent: AppColors.iris,
+              value: totalHours < 1
+                  ? '${totalMinutesLabel(totalHours)}m'
+                  : '${totalHours.toStringAsFixed(1)}h',
+              label: 'Trained',
+            ),
+          ),
+          const _SummaryDivider(),
+          Expanded(
+            child: _SummaryStat(
+              icon: AppIcons.streak,
+              accent: AppColors.ember,
+              value: '$thisWeek',
+              label: 'This week',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static int totalMinutesLabel(double hours) => (hours * 60).round();
+}
+
+class _SummaryDivider extends StatelessWidget {
+  const _SummaryDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 1,
+    height: 38,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    color: AppColors.hairline2,
+  );
+}
+
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({
+    required this.icon,
+    required this.accent,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                accent.withValues(alpha: 0.28),
+                accent.withValues(alpha: 0.10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: accent),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: AppText.rowTitle.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+        ),
+      ],
     );
   }
 }
@@ -75,9 +396,14 @@ class WorkoutHistoryPage extends StatelessWidget {
 /// One session's full-context row — day, date, start–end time, duration,
 /// exercise/set counts, and completion status — everything History's own
 /// list needs to say before a tap opens [SessionDetailsPage] for the
-/// per-set breakdown.
+/// per-set breakdown. A status-colored edge on the leading chip lets the
+/// eye triage the list before reading a word.
 class _SessionHistoryRow extends StatelessWidget {
-  const _SessionHistoryRow({required this.session, required this.now, required this.onTap});
+  const _SessionHistoryRow({
+    required this.session,
+    required this.now,
+    required this.onTap,
+  });
 
   final LiveSession session;
   final DateTime now;
@@ -90,7 +416,9 @@ class _SessionHistoryRow extends StatelessWidget {
       SessionStatus.active => ('In progress', AppColors.solar),
       SessionStatus.abandoned => ('Not completed', AppColors.ink3),
     };
-    final duration = session.status == SessionStatus.active ? session.activeElapsed(now: now) : session.elapsed;
+    final duration = session.status == SessionStatus.active
+        ? session.activeElapsed(now: now)
+        : session.elapsed;
 
     return Material(
       color: Colors.transparent,
@@ -102,51 +430,104 @@ class _SessionHistoryRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.hairline2),
+            border: Border.all(
+              color: session.status == SessionStatus.completed
+                  ? AppColors.hairline
+                  : color.withValues(alpha: 0.22),
+            ),
+            boxShadow: AppShadows.card,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          color.withValues(alpha: 0.26),
+                          color.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      switch (session.status) {
+                        SessionStatus.completed => AppIcons.trendUp,
+                        SessionStatus.active => AppIcons.bolt,
+                        SessionStatus.abandoned => AppIcons.minus,
+                      },
+                      size: 16,
+                      color: color == AppColors.ink3 ? AppColors.ink2 : color,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      session.dayLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          session.dayLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.rowTitle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _dateAndTimeRange(session),
+                          style: AppText.meta.copyWith(color: AppColors.ink3),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                     child: Text(
                       label,
-                      style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11),
+                      style: AppText.meta.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 3),
-              Text(_dateAndTimeRange(session), style: AppText.meta.copyWith(color: AppColors.ink3)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  _MetaChip(icon: Icons.timer_outlined, label: formatDurationShort(duration)),
+                  _MetaChip(
+                    icon: AppIcons.timer,
+                    label: formatDurationShort(duration),
+                  ),
                   const SizedBox(width: 14),
                   _MetaChip(
-                    icon: Icons.fitness_center_rounded,
+                    icon: AppIcons.workout,
                     label:
                         '${session.exercises.length} exercise${session.exercises.length == 1 ? '' : 's'}',
                   ),
                   const SizedBox(width: 14),
                   _MetaChip(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: '${session.completedSetCount}/${session.totalSets} sets',
+                    icon: AppIcons.check,
+                    label:
+                        '${session.completedSetCount}/${session.totalSets} sets',
                   ),
                 ],
               ),
@@ -178,7 +559,10 @@ class _MetaChip extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: AppColors.ink3),
         const SizedBox(width: 4),
-        Text(label, style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12)),
+        Text(
+          label,
+          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+        ),
       ],
     );
   }
@@ -198,16 +582,27 @@ class _DeleteSwipeBackground extends StatelessWidget {
         color: AppColors.flare.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Icon(Icons.delete_outline_rounded, color: AppColors.flare),
+      child: const Icon(AppIcons.trash, color: AppColors.flare, size: 20),
     );
   }
 }
 
-double _minutesSinceMidnight(DateTime dt) => (dt.hour * 60 + dt.minute).toDouble();
+double _minutesSinceMidnight(DateTime dt) =>
+    (dt.hour * 60 + dt.minute).toDouble();
 
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _formatDate(DateTime d) => '${_monthNames[d.month - 1]} ${d.day}';
@@ -221,7 +616,10 @@ class _HistoryLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceRaised,
+          shape: BoxShape.circle,
+        ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
@@ -243,7 +641,11 @@ class _HistoryErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 30,
+              color: AppColors.ink3,
+            ),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
@@ -274,8 +676,28 @@ class _HistoryEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.history_rounded, size: 30, color: AppColors.ink3),
-            const SizedBox(height: 12),
+            Container(
+              width: 64,
+              height: 64,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.iris.withValues(alpha: 0.22),
+                    AppColors.iris.withValues(alpha: 0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                AppIcons.history,
+                size: 28,
+                color: AppColors.iris,
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               'No sessions logged yet.',
               style: AppText.aside.copyWith(color: AppColors.ink2),

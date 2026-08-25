@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -106,7 +105,8 @@ class WorkoutDashboardPage extends StatelessWidget {
                             bodyWeight?.current ?? const <BodyWeightEntry>[],
                         builder: (context, weightSnap) {
                           final weightTrend = computeWeightTrend(
-                            entries: weightSnap.data ?? const <BodyWeightEntry>[],
+                            entries:
+                                weightSnap.data ?? const <BodyWeightEntry>[],
                             now: now,
                           );
                           // Deliberately just three blocks — the training card,
@@ -182,7 +182,9 @@ class WorkoutDashboardPage extends StatelessWidget {
                                       onLogWeight: bodyWeight == null
                                           ? null
                                           : () => _showLogWeightSheet(
-                                              context, bodyWeight),
+                                              context,
+                                              bodyWeight,
+                                            ),
                                     ),
                                   ],
                                 ),
@@ -214,14 +216,19 @@ class _AuraBlob extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withValues(alpha: 0.14),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
           ),
         ),
       ),
@@ -266,7 +273,12 @@ class _DashboardHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text('Workout', style: AppText.greeting.copyWith(fontSize: 30))),
+        Expanded(
+          child: Text(
+            'Workout',
+            style: AppText.greeting.copyWith(fontSize: 30),
+          ),
+        ),
         const SizedBox(width: 12),
         PressableScale(
           child: Tooltip(
@@ -288,7 +300,9 @@ class _DashboardHeader extends StatelessWidget {
                     ],
                   ),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.pulse.withValues(alpha: 0.20)),
+                  border: Border.all(
+                    color: AppColors.pulse.withValues(alpha: 0.20),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.pulse.withValues(alpha: 0.25),
@@ -298,7 +312,11 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(AppIcons.analysis, size: 18, color: AppColors.pulse),
+                child: const Icon(
+                  AppIcons.analysis,
+                  size: 18,
+                  color: AppColors.pulse,
+                ),
               ),
             ),
           ),
@@ -346,14 +364,18 @@ Future<void> _showLogWeightSheet(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Log today's weight", style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+            Text(
+              "Log today's weight",
+              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+            ),
             const SizedBox(height: 18),
             Row(
               children: [
                 _WeightStepper(
                   icon: AppIcons.minus,
                   onTap: () {
-                    final v = double.tryParse(controller.text) ?? lastWeight ?? 0;
+                    final v =
+                        double.tryParse(controller.text) ?? lastWeight ?? 0;
                     if (v <= 0.1) return;
                     controller.text = _trimNumber(v - 0.1);
                   },
@@ -363,15 +385,25 @@ Future<void> _showLogWeightSheet(
                     controller: controller,
                     autofocus: true,
                     textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,1}$'),
+                      ),
                     ],
-                    style: AppText.heroNumber.copyWith(fontSize: 40, color: AppColors.ink),
+                    style: AppText.heroNumber.copyWith(
+                      fontSize: 40,
+                      color: AppColors.ink,
+                    ),
                     cursorColor: AppColors.pulse,
                     decoration: InputDecoration(
                       suffixText: 'kg',
-                      suffixStyle: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 16),
+                      suffixStyle: AppText.meta.copyWith(
+                        color: AppColors.ink3,
+                        fontSize: 16,
+                      ),
                       border: InputBorder.none,
                     ),
                   ),
@@ -379,7 +411,8 @@ Future<void> _showLogWeightSheet(
                 _WeightStepper(
                   icon: AppIcons.add,
                   onTap: () {
-                    final v = double.tryParse(controller.text) ?? lastWeight ?? 0;
+                    final v =
+                        double.tryParse(controller.text) ?? lastWeight ?? 0;
                     controller.text = _trimNumber(v + 0.1);
                   },
                 ),
@@ -391,7 +424,10 @@ Future<void> _showLogWeightSheet(
                 child: Center(
                   child: Text(
                     'Last weigh-in: ${_trimNumber(lastWeight)} kg',
-                    style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+                    style: AppText.meta.copyWith(
+                      color: AppColors.ink3,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
@@ -573,7 +609,10 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 12),
           AnimatedStatValue(
             value: value,
-            style: AppText.heroNumber.copyWith(fontSize: 24, color: AppColors.ink),
+            style: AppText.heroNumber.copyWith(
+              fontSize: 24,
+              color: AppColors.ink,
+            ),
           ),
           const SizedBox(height: 2),
           Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
@@ -617,8 +656,13 @@ class _WeightCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               AnimatedStatValue(
-                value: latest == null ? '—' : '${_trimNumber(latest.weightKg)} kg',
-                style: AppText.heroNumber.copyWith(fontSize: 28, color: AppColors.ink),
+                value: latest == null
+                    ? '—'
+                    : '${_trimNumber(latest.weightKg)} kg',
+                style: AppText.heroNumber.copyWith(
+                  fontSize: 28,
+                  color: AppColors.ink,
+                ),
               ),
               if (change != null) ...[
                 const SizedBox(width: 10),
@@ -629,7 +673,8 @@ class _WeightCard extends StatelessWidget {
                   // same fade+slide via AnimatedSwitcher rather than a bare
                   // color snap.
                   child: AnimatedStatValue(
-                    value: '${change > 0 ? '+' : ''}${_trimNumber(change)}kg / 30d',
+                    value:
+                        '${change > 0 ? '+' : ''}${_trimNumber(change)}kg / 30d',
                     style: AppText.meta.copyWith(
                       color: change > 0 ? AppColors.flare : AppColors.pulse,
                       fontWeight: FontWeight.w600,
@@ -659,7 +704,11 @@ class _WeightCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.hairline2),
                       ),
-                      child: const Icon(AppIcons.edit, size: 14, color: AppColors.ink3),
+                      child: const Icon(
+                        AppIcons.edit,
+                        size: 14,
+                        color: AppColors.ink3,
+                      ),
                     ),
                   ),
                 ),
@@ -674,7 +723,10 @@ class _WeightCard extends StatelessWidget {
           ),
           if (trend.series.length >= 2) ...[
             const SizedBox(height: 14),
-            TrendChart(values: [for (final e in trend.series) e.weightKg], color: AppColors.solar),
+            TrendChart(
+              values: [for (final e in trend.series) e.weightKg],
+              color: AppColors.solar,
+            ),
           ],
           const SizedBox(height: 14),
           PillButton(
@@ -699,7 +751,10 @@ class _DashboardLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceRaised,
+          shape: BoxShape.circle,
+        ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
@@ -721,9 +776,17 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 30,
+              color: AppColors.ink3,
+            ),
             const SizedBox(height: 12),
-            Text("Couldn't load this.", style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+            Text(
+              "Couldn't load this.",
+              style: AppText.aside.copyWith(color: AppColors.ink2),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
@@ -748,7 +811,10 @@ class _NoPlanState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIconLike(icon: AppIcons.workout, color: AppColors.pulse),
+            const _PhaseIconLike(
+              icon: AppIcons.workout,
+              color: AppColors.pulse,
+            ),
             const SizedBox(height: 18),
             Text(
               'No workout plan yet',
@@ -772,7 +838,9 @@ class _NoPlanState extends StatelessWidget {
                 onTap: () {
                   HapticFeedback.selectionClick();
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutPdfImportPage(),
+                    ),
                   );
                 },
               ),
@@ -784,11 +852,15 @@ class _NoPlanState extends StatelessWidget {
                   HapticFeedback.selectionClick();
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const WorkoutPlanEditPage(initialPlan: null),
+                      builder: (_) =>
+                          const WorkoutPlanEditPage(initialPlan: null),
                     ),
                   );
                 },
-                child: Text('Build manually instead', style: AppText.meta.copyWith(color: AppColors.ink2)),
+                child: Text(
+                  'Build manually instead',
+                  style: AppText.meta.copyWith(color: AppColors.ink2),
+                ),
               ),
             ),
           ],
@@ -816,7 +888,10 @@ class _PhaseIconLike extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.26), color.withValues(alpha: 0.08)],
+          colors: [
+            color.withValues(alpha: 0.26),
+            color.withValues(alpha: 0.08),
+          ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: 0.18)),

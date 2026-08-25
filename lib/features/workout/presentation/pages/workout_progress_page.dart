@@ -1,8 +1,10 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
@@ -43,192 +45,297 @@ class WorkoutProgressPage extends StatelessWidget {
     final scope = AppScope.of(context);
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.ink2),
-        title: Text(
-          'Progress',
-          style: AppText.cardTitle.copyWith(color: AppColors.ink),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -60,
+              right: -70,
+              child: _AuraBlob(color: AppColors.iris, size: 200),
+            ),
+            SafeArea(
+              child: StreamBuilder<WorkoutPlan?>(
+                stream: scope.workoutPlans.watchActivePlan(),
+                initialData: scope.workoutPlans.activePlan,
+                builder: (context, planSnap) {
+                  final plan = planSnap.data;
+                  return StreamBuilder<List<LiveSession>>(
+                    stream: scope.workoutSessions.watchAll(),
+                    initialData: scope.workoutSessions.current,
+                    builder: (context, sessionsSnap) {
+                      final sessions =
+                          sessionsSnap.data ?? const <LiveSession>[];
+                      final now = DateTime.now();
+                      final stats = computeTrainingDashboardStats(
+                        sessions: sessions,
+                        now: now,
+                      );
+                      final selection = plan == null
+                          ? null
+                          : resolveUpNext(plan, _firstActive(sessions));
+                      final analysis = (plan == null || selection?.day == null)
+                          ? null
+                          : analyzeDayProgress(
+                              day: selection!.day!,
+                              planId: plan.id,
+                              allSessions: sessions,
+                            );
+
+                      // Named, non-mutated indices (rather than a running
+                      // counter) so each section's stagger step is legible on
+                      // its own even though the "Progress"/"Current split"
+                      // blocks above it are conditional — see StaggeredReveal.
+                      final splitIndex = analysis != null ? 1 : 0;
+                      final recentHeaderIndex =
+                          splitIndex + (plan != null ? 1 : 0);
+                      final recentRowsStart = recentHeaderIndex + 1;
+                      final goDeeperIndex =
+                          recentRowsStart +
+                          (stats.recentSessions.isEmpty
+                              ? 1
+                              : stats.recentSessions.length);
+
+                      return ListView(
+                        padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
+                        children: [
+                          StaggeredReveal(index: 0, child: _ProgressHeader()),
+                          const SizedBox(height: 24),
+                          if (analysis != null) ...[
+                            StaggeredReveal(
+                              index: 0,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const WorkoutSectionLabel('Progress'),
+                                  const SizedBox(height: 10),
+                                  ProgressSummaryCard(analysis: analysis),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                          ],
+                          if (plan != null) ...[
+                            StaggeredReveal(
+                              index: splitIndex,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const WorkoutSectionLabel('Current split'),
+                                  const SizedBox(height: 10),
+                                  SplitBreakdownCard(plan: plan, stats: stats),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                          ],
+                          StaggeredReveal(
+                            index: recentHeaderIndex,
+                            child: Row(
+                              children: [
+                                const Expanded(
+                                  child: WorkoutSectionLabel('Recent activity'),
+                                ),
+                                if (stats.recentSessions.isNotEmpty)
+                                  _SeeAllLink(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const WorkoutHistoryPage(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          if (stats.recentSessions.isEmpty)
+                            StaggeredReveal(
+                              index: recentRowsStart,
+                              child: const _EmptyCard(
+                                label: "You haven't logged a session yet.",
+                              ),
+                            )
+                          else
+                            for (final (i, session)
+                                in stats.recentSessions.indexed)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: StaggeredReveal(
+                                  index: recentRowsStart + i,
+                                  child: _RecentSessionRow(
+                                    session: session,
+                                    now: now,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => SessionDetailsPage(
+                                            session: session,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                          const SizedBox(height: 30),
+                          StaggeredReveal(
+                            index: goDeeperIndex,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const WorkoutSectionLabel('Go deeper'),
+                                const SizedBox(height: 10),
+                                _DestinationCard(
+                                  destinations: [
+                                    _Destination(
+                                      icon: AppIcons.analysis,
+                                      accent: AppColors.pulse,
+                                      label: 'Full analysis',
+                                      detail:
+                                          'Exercise-by-exercise, per training day',
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const WorkoutAnalysisPage(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    _Destination(
+                                      icon: AppIcons.history,
+                                      accent: AppColors.iris,
+                                      label: 'All history',
+                                      detail: 'Every session you have logged',
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const WorkoutHistoryPage(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    _Destination(
+                                      icon: AppIcons.splits,
+                                      accent: AppColors.solar,
+                                      label: 'Splits',
+                                      detail:
+                                          'Switch or edit your training splits',
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const SplitManagementPage(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
-      body: StreamBuilder<WorkoutPlan?>(
-        stream: scope.workoutPlans.watchActivePlan(),
-        initialData: scope.workoutPlans.activePlan,
-        builder: (context, planSnap) {
-          final plan = planSnap.data;
-          return StreamBuilder<List<LiveSession>>(
-            stream: scope.workoutSessions.watchAll(),
-            initialData: scope.workoutSessions.current,
-            builder: (context, sessionsSnap) {
-              final sessions = sessionsSnap.data ?? const <LiveSession>[];
-              final now = DateTime.now();
-              final stats = computeTrainingDashboardStats(
-                sessions: sessions,
-                now: now,
-              );
-              final selection = plan == null
-                  ? null
-                  : resolveUpNext(plan, _firstActive(sessions));
-              final analysis = (plan == null || selection?.day == null)
-                  ? null
-                  : analyzeDayProgress(
-                      day: selection!.day!,
-                      planId: plan.id,
-                      allSessions: sessions,
-                    );
+    );
+  }
+}
 
-              // Named, non-mutated indices (rather than a running counter)
-              // so each section's stagger step is legible on its own even
-              // though the "Progress"/"Current split" blocks above it are
-              // conditional — see StaggeredReveal.
-              final splitIndex = analysis != null ? 1 : 0;
-              final recentHeaderIndex = splitIndex + (plan != null ? 1 : 0);
-              final recentRowsStart = recentHeaderIndex + 1;
-              final goDeeperIndex =
-                  recentRowsStart +
-                  (stats.recentSessions.isEmpty ? 1 : stats.recentSessions.length);
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared across the app's surfaces. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
 
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
-                children: [
-                  if (analysis != null) ...[
-                    StaggeredReveal(
-                      index: 0,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const WorkoutSectionLabel('Progress'),
-                          const SizedBox(height: 10),
-                          ProgressSummaryCard(analysis: analysis),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-                  if (plan != null) ...[
-                    StaggeredReveal(
-                      index: splitIndex,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const WorkoutSectionLabel('Current split'),
-                          const SizedBox(height: 10),
-                          SplitBreakdownCard(plan: plan, stats: stats),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-                  StaggeredReveal(
-                    index: recentHeaderIndex,
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: WorkoutSectionLabel('Recent activity'),
-                        ),
-                        if (stats.recentSessions.isNotEmpty)
-                          _SeeAllLink(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const WorkoutHistoryPage(),
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (stats.recentSessions.isEmpty)
-                    StaggeredReveal(
-                      index: recentRowsStart,
-                      child: const _EmptyCard(label: "You haven't logged a session yet."),
-                    )
-                  else
-                    for (final (i, session) in stats.recentSessions.indexed)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: StaggeredReveal(
-                          index: recentRowsStart + i,
-                          child: _RecentSessionRow(
-                            session: session,
-                            now: now,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      SessionDetailsPage(session: session),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                  const SizedBox(height: 30),
-                  StaggeredReveal(
-                    index: goDeeperIndex,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const WorkoutSectionLabel('Go deeper'),
-                        const SizedBox(height: 10),
-                        _DestinationCard(
-                          destinations: [
-                            _Destination(
-                              icon: Icons.trending_up_rounded,
-                              label: 'Full analysis',
-                              detail: 'Exercise-by-exercise, per training day',
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WorkoutAnalysisPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _Destination(
-                              icon: Icons.history_rounded,
-                              label: 'All history',
-                              detail: 'Every session you have logged',
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const WorkoutHistoryPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _Destination(
-                              icon: Icons.dashboard_customize_rounded,
-                              label: 'Splits',
-                              detail: 'Switch or edit your training splits',
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SplitManagementPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// The pushed-page header — back chip and display title.
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        PressableScale(
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: () => Navigator.of(context).maybePop(),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Progress',
+            style: AppText.greeting.copyWith(fontSize: 30),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -284,7 +391,8 @@ class ProgressSummaryCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (overall != null) _AnalysisVerdictBadge(verdict: overall),
+                    if (overall != null)
+                      _AnalysisVerdictBadge(verdict: overall),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -411,7 +519,9 @@ class SplitBreakdownCard extends StatelessWidget {
                       onTap: () {
                         HapticFeedback.selectionClick();
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const WorkoutPlanPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const WorkoutPlanPage(),
+                          ),
                         );
                       },
                     ),
@@ -651,12 +761,14 @@ class _EmptyCard extends StatelessWidget {
 class _Destination {
   const _Destination({
     required this.icon,
+    required this.accent,
     required this.label,
     required this.detail,
     required this.onTap,
   });
 
   final IconData icon;
+  final Color accent;
   final String label;
   final String detail;
   final VoidCallback onTap;
@@ -726,7 +838,38 @@ class _DestinationRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(destination.icon, size: 20, color: AppColors.ink2),
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        destination.accent.withValues(alpha: 0.28),
+                        destination.accent.withValues(alpha: 0.10),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: destination.accent.withValues(alpha: 0.18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: destination.accent.withValues(alpha: 0.26),
+                        blurRadius: 14,
+                        spreadRadius: -3,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    destination.icon,
+                    size: 17,
+                    color: destination.accent,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.m + 2),
                 Expanded(
                   child: Column(

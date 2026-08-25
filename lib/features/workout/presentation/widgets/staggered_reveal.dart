@@ -46,7 +46,14 @@ class _StaggeredRevealState extends State<StaggeredReveal> {
         offset: _visible ? Offset.zero : const Offset(0, 0.08),
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
-        child: widget.child,
+        // The whisper of scale (0.985 -> 1) is what separates a premium
+        // settle from a plain fade — the block lands rather than appears.
+        child: AnimatedScale(
+          scale: _visible ? 1 : 0.985,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
       ),
     );
   }

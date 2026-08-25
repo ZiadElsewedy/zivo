@@ -1,9 +1,11 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -20,7 +22,8 @@ import 'workout_plan_edit_page.dart';
 /// history (§3.2 invariant 4: every split keeps its own sessions).
 ///
 /// Dark, immersive body — matching the plan/analysis/history pages on the
-/// app-wide [AppColors] theme.
+/// app-wide [AppColors] theme; each tile carries a gradient mark in the
+/// training hue, glowing for the active split.
 class SplitManagementPage extends StatelessWidget {
   const SplitManagementPage({super.key});
 
@@ -29,48 +32,147 @@ class SplitManagementPage extends StatelessWidget {
     final plans = AppScope.of(context).workoutPlans;
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.ink2),
-        title: Text('Splits', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
-      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.pulse,
-        elevation: 2,
+        elevation: 3,
         tooltip: 'New split',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         onPressed: () => _openNewSplitSheet(context),
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        child: const Icon(AppIcons.add, color: Colors.white),
       ),
-      body: StreamBuilder<List<WorkoutPlan>>(
-        stream: plans.watchSplits(),
-        initialData: plans.splits,
-        builder: (context, splitsSnap) {
-          if (splitsSnap.hasError) return const _SplitsErrorState();
-          final splits = splitsSnap.data ?? const <WorkoutPlan>[];
-          final loading = splits.isEmpty && splitsSnap.connectionState == ConnectionState.waiting;
-          if (loading) return const _SplitsLoadingState();
-          if (splits.isEmpty) return const _SplitsEmptyState();
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -60,
+              right: -70,
+              child: _AuraBlob(color: AppColors.solar, size: 200),
+            ),
+            SafeArea(
+              child: StreamBuilder<List<WorkoutPlan>>(
+                stream: plans.watchSplits(),
+                initialData: plans.splits,
+                builder: (context, splitsSnap) {
+                  if (splitsSnap.hasError) return const _SplitsErrorState();
+                  final splits = splitsSnap.data ?? const <WorkoutPlan>[];
+                  final loading =
+                      splits.isEmpty &&
+                      splitsSnap.connectionState == ConnectionState.waiting;
+                  if (loading) return const _SplitsLoadingState();
+                  if (splits.isEmpty) return const _SplitsEmptyState();
 
-          return StreamBuilder<WorkoutPlan?>(
-            stream: plans.watchActivePlan(),
-            initialData: plans.activePlan,
-            builder: (context, activeSnap) {
-              final activeId = activeSnap.data?.id;
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 100),
-                itemCount: splits.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, i) => StaggeredReveal(
-                  index: i,
-                  child: _SplitTile(split: splits[i], isActive: splits[i].id == activeId, plans: plans),
-                ),
-              );
-            },
-          );
-        },
+                  return StreamBuilder<WorkoutPlan?>(
+                    stream: plans.watchActivePlan(),
+                    initialData: plans.activePlan,
+                    builder: (context, activeSnap) {
+                      final activeId = activeSnap.data?.id;
+                      return ListView(
+                        padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+                        children: [
+                          StaggeredReveal(index: 0, child: _SplitsHeader()),
+                          const SizedBox(height: 22),
+                          for (var i = 0; i < splits.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: StaggeredReveal(
+                                index: i + 1,
+                                child: _SplitTile(
+                                  split: splits[i],
+                                  isActive: splits[i].id == activeId,
+                                  plans: plans,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared across the app's surfaces. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pushed-page header — back chip and display title.
+class _SplitsHeader extends StatelessWidget {
+  const _SplitsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        PressableScale(
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: () => Navigator.of(context).maybePop(),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text('Splits', style: AppText.greeting.copyWith(fontSize: 30)),
+        ),
+      ],
     );
   }
 }
@@ -91,12 +193,14 @@ Future<void> _openNewSplitSheet(BuildContext context) async {
   switch (action) {
     case _NewSplitAction.manual:
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(asSplit: true)),
+        MaterialPageRoute(
+          builder: (_) => const WorkoutPlanEditPage(asSplit: true),
+        ),
       );
     case _NewSplitAction.importAi:
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()));
   }
 }
 
@@ -112,7 +216,12 @@ class _NewSplitActionsSheet extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      padding: EdgeInsets.only(top: 12, left: 8, right: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 8,
+        right: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -120,7 +229,10 @@ class _NewSplitActionsSheet extends StatelessWidget {
             width: 38,
             height: 4,
             margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+            decoration: BoxDecoration(
+              color: AppColors.hairline2,
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -130,19 +242,22 @@ class _NewSplitActionsSheet extends StatelessWidget {
                 'New split',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                style: AppText.rowTitle.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 8),
           _ActionRow(
-            icon: Icons.edit_outlined,
+            icon: AppIcons.edit,
             label: 'Create Manually',
             color: AppColors.ink2,
             onTap: () => Navigator.of(context).pop(_NewSplitAction.manual),
           ),
           _ActionRow(
-            icon: Icons.auto_awesome_rounded,
+            icon: AppIcons.ask,
             label: 'Import with AI',
             color: AppColors.pulse,
             onTap: () => Navigator.of(context).pop(_NewSplitAction.importAi),
@@ -173,7 +288,11 @@ WorkoutPlan _duplicateOf(WorkoutPlan original) {
 }
 
 class _SplitTile extends StatelessWidget {
-  const _SplitTile({required this.split, required this.isActive, required this.plans});
+  const _SplitTile({
+    required this.split,
+    required this.isActive,
+    required this.plans,
+  });
 
   final WorkoutPlan split;
   final bool isActive;
@@ -182,7 +301,10 @@ class _SplitTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dayCount = split.days.length;
-    final exerciseCount = split.days.fold<int>(0, (sum, d) => sum + d.exercises.length);
+    final exerciseCount = split.days.fold<int>(
+      0,
+      (sum, d) => sum + d.exercises.length,
+    );
     return PressableScale(
       child: Material(
         color: Colors.transparent,
@@ -194,10 +316,54 @@ class _SplitTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: isActive ? AppColors.pulse.withValues(alpha: 0.5) : AppColors.hairline2),
+              border: Border.all(
+                color: isActive
+                    ? AppColors.pulse.withValues(alpha: 0.45)
+                    : AppColors.hairline,
+              ),
+              boxShadow: [
+                if (isActive)
+                  BoxShadow(
+                    color: AppColors.pulse.withValues(alpha: 0.16),
+                    blurRadius: 26,
+                    spreadRadius: -8,
+                    offset: const Offset(0, 12),
+                  ),
+              ],
             ),
             child: Row(
               children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.pulse.withValues(
+                          alpha: isActive ? 0.30 : 0.14,
+                        ),
+                        AppColors.pulse.withValues(
+                          alpha: isActive ? 0.10 : 0.04,
+                        ),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: AppColors.pulse.withValues(
+                        alpha: isActive ? 0.24 : 0.10,
+                      ),
+                    ),
+                  ),
+                  child: Icon(
+                    AppIcons.splits,
+                    size: 20,
+                    color: isActive ? AppColors.pulse : AppColors.ink2,
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,10 +375,16 @@ class _SplitTile extends StatelessWidget {
                               split.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                              style: AppText.rowTitle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink,
+                              ),
                             ),
                           ),
-                          if (isActive) ...[const SizedBox(width: 8), const _ActiveBadge()],
+                          if (isActive) ...[
+                            const SizedBox(width: 8),
+                            const _ActiveBadge(),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -224,7 +396,11 @@ class _SplitTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.more_vert_rounded, color: AppColors.ink3),
+                const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.ink3,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -238,7 +414,8 @@ class _SplitTile extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _SplitActionsSheet(splitName: split.name, isActive: isActive),
+      builder: (_) =>
+          _SplitActionsSheet(splitName: split.name, isActive: isActive),
     );
     if (action == null || !context.mounted) return;
     // Haptic fires per-resolved-action (not on opening the sheet) — each
@@ -250,7 +427,10 @@ class _SplitTile extends StatelessWidget {
       case _SplitAction.edit:
         HapticFeedback.selectionClick();
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => WorkoutPlanEditPage(initialPlan: split, asSplit: true)),
+          MaterialPageRoute(
+            builder: (_) =>
+                WorkoutPlanEditPage(initialPlan: split, asSplit: true),
+          ),
         );
       case _SplitAction.duplicate:
         HapticFeedback.lightImpact();
@@ -268,7 +448,10 @@ class _SplitTile extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: Text('Delete "${split.name}"?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        title: Text(
+          'Delete "${split.name}"?',
+          style: AppText.cardTitle.copyWith(color: AppColors.ink),
+        ),
         content: Text(
           'This removes the split and all its days and exercises. Logged '
           "history for it is kept, just no longer editable here. This can't be undone.",
@@ -277,14 +460,20 @@ class _SplitTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text(
+              'Cancel',
+              style: AppText.button.copyWith(color: AppColors.ink3),
+            ),
           ),
           TextButton(
             onPressed: () {
               HapticFeedback.mediumImpact();
               Navigator.pop(context, true);
             },
-            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
+            child: Text(
+              'Delete',
+              style: AppText.button.copyWith(color: AppColors.flare),
+            ),
           ),
         ],
       ),
@@ -306,7 +495,11 @@ class _ActiveBadge extends StatelessWidget {
       ),
       child: Text(
         'Active',
-        style: AppText.meta.copyWith(color: AppColors.pulse, fontSize: 11, fontWeight: FontWeight.w600),
+        style: AppText.meta.copyWith(
+          color: AppColors.pulse,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -329,7 +522,12 @@ class _SplitActionsSheet extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      padding: EdgeInsets.only(top: 12, left: 8, right: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 8,
+        right: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -337,7 +535,10 @@ class _SplitActionsSheet extends StatelessWidget {
             width: 38,
             height: 4,
             margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+            decoration: BoxDecoration(
+              color: AppColors.hairline2,
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -347,32 +548,35 @@ class _SplitActionsSheet extends StatelessWidget {
                 splitName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                style: AppText.rowTitle.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 8),
           if (!isActive)
             _ActionRow(
-              icon: Icons.check_circle_outline_rounded,
+              icon: AppIcons.success,
               label: 'Set as active',
               color: AppColors.pulse,
               onTap: () => Navigator.of(context).pop(_SplitAction.setActive),
             ),
           _ActionRow(
-            icon: Icons.edit_outlined,
+            icon: AppIcons.edit,
             label: 'Edit',
             color: AppColors.ink2,
             onTap: () => Navigator.of(context).pop(_SplitAction.edit),
           ),
           _ActionRow(
-            icon: Icons.copy_all_outlined,
+            icon: AppIcons.duplicate,
             label: 'Duplicate',
             color: AppColors.ink2,
             onTap: () => Navigator.of(context).pop(_SplitAction.duplicate),
           ),
           _ActionRow(
-            icon: Icons.delete_outline_rounded,
+            icon: AppIcons.trash,
             label: 'Delete',
             color: AppColors.flare,
             onTap: () => Navigator.of(context).pop(_SplitAction.delete),
@@ -384,7 +588,12 @@ class _SplitActionsSheet extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -405,7 +614,14 @@ class _ActionRow extends StatelessWidget {
               children: [
                 Icon(icon, size: 20, color: color),
                 const SizedBox(width: 14),
-                Text(label, style: AppText.body.copyWith(fontSize: 15, color: color, fontWeight: FontWeight.w500)),
+                Text(
+                  label,
+                  style: AppText.body.copyWith(
+                    fontSize: 15,
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -424,7 +640,10 @@ class _SplitsLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceRaised,
+          shape: BoxShape.circle,
+        ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
@@ -446,9 +665,17 @@ class _SplitsErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 30,
+              color: AppColors.ink3,
+            ),
             const SizedBox(height: 12),
-            Text("Couldn't load this.", style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+            Text(
+              "Couldn't load this.",
+              style: AppText.aside.copyWith(color: AppColors.ink2),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
@@ -473,11 +700,38 @@ class _SplitsEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.layers_outlined, size: 30, color: AppColors.ink3),
-            const SizedBox(height: 12),
-            Text('No splits yet.', style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+            Container(
+              width: 64,
+              height: 64,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.pulse.withValues(alpha: 0.22),
+                    AppColors.pulse.withValues(alpha: 0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                AppIcons.splits,
+                size: 28,
+                color: AppColors.pulse,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No splits yet.',
+              style: AppText.aside.copyWith(color: AppColors.ink2),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
-            Text('Tap + to build your first one.', style: AppText.meta.copyWith(color: AppColors.ink3)),
+            Text(
+              'Tap + to build your first one.',
+              style: AppText.meta.copyWith(color: AppColors.ink3),
+            ),
           ],
         ),
       ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -148,14 +147,19 @@ class _AuraBlob extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withValues(alpha: 0.16),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
           ),
         ),
       ),

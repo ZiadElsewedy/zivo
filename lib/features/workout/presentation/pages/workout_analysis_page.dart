@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -5,12 +6,17 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/rise_in.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/day_progress_analysis.dart';
 import '../../domain/live_session.dart';
 import '../../domain/progress_comparison.dart';
+import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../../domain/weight_trend.dart';
 import '../../domain/workout_day.dart';
@@ -21,19 +27,25 @@ import '../widgets/verdict_style.dart';
 
 /// The progressive-overload Analysis page (WORKOUT_SYSTEM.md §3.3, Phase 2).
 ///
-/// Reads as one continuous "how am I progressing" picture rather than a pile
-/// of same-weight boxes: wrapping day chips pick the day, a hero headline
-/// states that day's verdict in plain language, a [_BasisNote] spells out what
-/// the comparison actually is (this day's last session vs the one before —
-/// owner-reported confusion, so it's stated outright, not implied), then a
-/// slim consistency strip and bodyweight snapshot give the day-INdependent
-/// picture, and every exercise for the day lives as a row in a single
-/// sectioned list. Nothing scrolls horizontally. Everything reads from real
-/// data — [analyzeDayProgress], [computeTrainingDashboardStats], and
-/// [computeWeightTrend] — nothing is a placeholder.
+/// Reads as one continuous "how am I progressing" picture with a clear
+/// three-act structure, each act carrying its own visual identity instead of
+/// a pile of same-weight boxes:
 ///
-/// Dark, immersive body — matching the plan/live-session pages on the
-/// app-wide [AppColors] theme.
+/// 1. **Verdict** — wrapping day chips pick the day, a hero headline states
+///    that day's verdict in plain language over a soft aura of the verdict's
+///    own color, and a [_BasisNote] spells out what the comparison actually
+///    is (this day's last session vs the one before).
+/// 2. **The big picture** — day-INDEPENDENT signals, each with its own hue so
+///    they scan as different instruments: consistency stats (sessions pulse,
+///    streak ember, length iris), a last-7-days training rhythm strip, and a
+///    solar bodyweight snapshot.
+/// 3. **The day's exercises** — every exercise as a row in one sectioned
+///    list, its metric deltas color-coded by direction and its trend drawn
+///    as a sparkline in the verdict's color.
+///
+/// Nothing scrolls horizontally. Everything reads from real data —
+/// [analyzeDayProgress], [computeTrainingDashboardStats], and
+/// [computeWeightTrend] — nothing is a placeholder.
 class WorkoutAnalysisPage extends StatefulWidget {
   const WorkoutAnalysisPage({super.key});
 
@@ -49,92 +61,238 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
     final scope = AppScope.of(context);
     return Scaffold(
       backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.ink2),
-        title: Text('Analysis', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
-      ),
-      body: StreamBuilder<WorkoutPlan?>(
-        stream: scope.workoutPlans.watchActivePlan(),
-        initialData: scope.workoutPlans.activePlan,
-        builder: (context, planSnap) {
-          if (planSnap.hasError) return const _AnalysisErrorState();
-          final plan = planSnap.data;
-          final loading = plan == null && planSnap.connectionState == ConnectionState.waiting;
-          if (loading) return const _AnalysisLoadingState();
-          if (plan == null || plan.days.isEmpty) return const _NoPlanState();
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -60,
+              right: -70,
+              child: _AuraBlob(color: AppColors.pulse, size: 210),
+            ),
+            SafeArea(
+              child: StreamBuilder<WorkoutPlan?>(
+                stream: scope.workoutPlans.watchActivePlan(),
+                initialData: scope.workoutPlans.activePlan,
+                builder: (context, planSnap) {
+                  if (planSnap.hasError) return const _AnalysisErrorState();
+                  final plan = planSnap.data;
+                  final loading =
+                      plan == null &&
+                      planSnap.connectionState == ConnectionState.waiting;
+                  if (loading) return const _AnalysisLoadingState();
+                  if (plan == null || plan.days.isEmpty) {
+                    return const _NoPlanState();
+                  }
 
-          final days = [...plan.days]..sort((a, b) => a.order.compareTo(b.order));
-          final selected = days.firstWhere(
-            (d) => d.id == _selectedDayId,
-            orElse: () => plan.nextDay ?? days.first,
-          );
-
-          return StreamBuilder<List<LiveSession>>(
-            stream: scope.workoutSessions.watchAll(),
-            initialData: scope.workoutSessions.current,
-            builder: (context, sessionsSnap) {
-              if (sessionsSnap.hasError) return const _AnalysisErrorState();
-              final sessions = sessionsSnap.data ?? const <LiveSession>[];
-              final analysis = analyzeDayProgress(day: selected, planId: plan.id, allSessions: sessions);
-              final now = DateTime.now();
-              final stats = computeTrainingDashboardStats(sessions: sessions, now: now);
-
-              final bodyWeight = scope.bodyWeight;
-              return StreamBuilder<List<BodyWeightEntry>>(
-                stream: bodyWeight?.watchAll() ?? const Stream.empty(),
-                initialData: bodyWeight?.current ?? const <BodyWeightEntry>[],
-                builder: (context, weightSnap) {
-                  final weightTrend = computeWeightTrend(
-                    entries: weightSnap.data ?? const <BodyWeightEntry>[],
-                    now: now,
+                  final days = [...plan.days]
+                    ..sort((a, b) => a.order.compareTo(b.order));
+                  final selected = days.firstWhere(
+                    (d) => d.id == _selectedDayId,
+                    orElse: () => plan.nextDay ?? days.first,
                   );
-                  // One single scroll, no horizontal scrolling anywhere: the
-                  // day chips wrap onto as many lines as they need.
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 4, 22, 48),
-                    children: [
-                      _DayChips(
-                        days: days,
-                        selectedId: selected.id,
-                        onSelect: (id) => setState(() => _selectedDayId = id),
-                      ),
-                      const SizedBox(height: 30),
-                      _ProgressHero(analysis: analysis),
-                      const SizedBox(height: 20),
-                      _BasisNote(dayLabel: selected.label),
-                      const SizedBox(height: 36),
-                      _SectionLabel('Consistency'),
-                      const SizedBox(height: 5),
-                      // Called out because, unlike everything above, these
-                      // three are day-independent — they span every session.
-                      Text(
-                        'Across all your training, not just ${selected.label}.',
-                        style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
-                      ),
-                      const SizedBox(height: 12),
-                      _ConsistencyRow(stats: stats),
-                      if (weightTrend.latest != null) ...[
-                        const SizedBox(height: 14),
-                        _WeightSnapshotRow(trend: weightTrend),
-                      ],
-                      const SizedBox(height: 40),
-                      _SectionLabel('${selected.label} exercises'),
-                      const SizedBox(height: 12),
-                      if (analysis.sessionCount == 0)
-                        _DayEmptyState(dayLabel: selected.label)
-                      else
-                        _ExerciseListCard(exercises: analysis.exercises),
-                    ],
+
+                  return StreamBuilder<List<LiveSession>>(
+                    stream: scope.workoutSessions.watchAll(),
+                    initialData: scope.workoutSessions.current,
+                    builder: (context, sessionsSnap) {
+                      if (sessionsSnap.hasError) {
+                        return const _AnalysisErrorState();
+                      }
+                      final sessions =
+                          sessionsSnap.data ?? const <LiveSession>[];
+                      final analysis = analyzeDayProgress(
+                        day: selected,
+                        planId: plan.id,
+                        allSessions: sessions,
+                      );
+                      final now = DateTime.now();
+                      final stats = computeTrainingDashboardStats(
+                        sessions: sessions,
+                        now: now,
+                      );
+
+                      final bodyWeight = scope.bodyWeight;
+                      return StreamBuilder<List<BodyWeightEntry>>(
+                        stream: bodyWeight?.watchAll() ?? const Stream.empty(),
+                        initialData:
+                            bodyWeight?.current ?? const <BodyWeightEntry>[],
+                        builder: (context, weightSnap) {
+                          final weightTrend = computeWeightTrend(
+                            entries:
+                                weightSnap.data ?? const <BodyWeightEntry>[],
+                            now: now,
+                          );
+                          // One single scroll, no horizontal scrolling
+                          // anywhere: the day chips wrap onto as many lines
+                          // as they need.
+                          return ListView(
+                            padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
+                            children: [
+                              RiseIn(child: const _AnalysisHeader()),
+                              const SizedBox(height: 24),
+                              RiseIn(
+                                delay: const Duration(milliseconds: 40),
+                                child: _DayChips(
+                                  days: days,
+                                  selectedId: selected.id,
+                                  onSelect: (id) =>
+                                      setState(() => _selectedDayId = id),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              // Keyed by day so switching days replays the
+                              // entrance — the section change should read as
+                              // a transition, not a silent text swap.
+                              RiseIn(
+                                delay: const Duration(milliseconds: 80),
+                                child: _ProgressHero(
+                                  key: ValueKey('hero-${selected.id}'),
+                                  analysis: analysis,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              RiseIn(
+                                delay: const Duration(milliseconds: 100),
+                                child: _BasisNote(dayLabel: selected.label),
+                              ),
+                              const SizedBox(height: 36),
+                              const _SectionLabel('Consistency'),
+                              const SizedBox(height: 5),
+                              // Called out because, unlike everything above,
+                              // these are day-independent — they span every
+                              // session.
+                              Text(
+                                'Across all your training, not just ${selected.label}.',
+                                style: AppText.meta.copyWith(
+                                  color: AppColors.ink3,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              RiseIn(
+                                delay: const Duration(milliseconds: 120),
+                                child: _ConsistencyRow(stats: stats),
+                              ),
+                              const SizedBox(height: 12),
+                              RiseIn(
+                                delay: const Duration(milliseconds: 140),
+                                child: _WeekRhythmStrip(
+                                  sessions: sessions,
+                                  now: now,
+                                ),
+                              ),
+                              if (weightTrend.latest != null) ...[
+                                const SizedBox(height: 12),
+                                RiseIn(
+                                  delay: const Duration(milliseconds: 160),
+                                  child: _WeightSnapshotRow(trend: weightTrend),
+                                ),
+                              ],
+                              const SizedBox(height: 40),
+                              _SectionLabel('${selected.label} exercises'),
+                              const SizedBox(height: 12),
+                              if (analysis.sessionCount == 0)
+                                _DayEmptyState(dayLabel: selected.label)
+                              else
+                                _ExerciseListCard(
+                                  key: ValueKey('exercises-${selected.id}'),
+                                  exercises: analysis.exercises,
+                                ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   );
                 },
-              );
-            },
-          );
-        },
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared across the app's surfaces. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient, not an ImageFiltered blur — visually the
+          // same soft glow at a fraction of the GPU cost, which matters
+          // during page transitions (blur layers repaint per frame).
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pushed-page header — back chip and display title. (The day being
+/// analyzed is stated by the hero below; the title stays the page's name.)
+class _AnalysisHeader extends StatelessWidget {
+  const _AnalysisHeader();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        PressableScale(
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: () => Navigator.of(context).maybePop(),
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: AppColors.ink2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Analysis',
+            style: AppText.greeting.copyWith(fontSize: 30),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -145,8 +303,13 @@ class _SectionLabel extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(label.toUpperCase(), style: AppText.sectionLabel.copyWith(color: AppColors.ink3, letterSpacing: 0.8));
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: AppText.sectionLabel.copyWith(
+      color: AppColors.ink3,
+      letterSpacing: 0.8,
+    ),
+  );
 }
 
 /// The day selector as a [Wrap] of chips — deliberately NOT a horizontal
@@ -156,7 +319,11 @@ class _SectionLabel extends StatelessWidget {
 /// when the whole page is about the day you pick. Labels are just the slot +
 /// label with no "Day " prefix, so the chips stay narrow.
 class _DayChips extends StatelessWidget {
-  const _DayChips({required this.days, required this.selectedId, required this.onSelect});
+  const _DayChips({
+    required this.days,
+    required this.selectedId,
+    required this.onSelect,
+  });
 
   final List<WorkoutDay> days;
   final String selectedId;
@@ -180,7 +347,11 @@ class _DayChips extends StatelessWidget {
 }
 
 class _DayChip extends StatefulWidget {
-  const _DayChip({required this.label, required this.active, required this.onTap});
+  const _DayChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   final String label;
   final bool active;
@@ -190,12 +361,16 @@ class _DayChip extends StatefulWidget {
   State<_DayChip> createState() => _DayChipState();
 }
 
-class _DayChipState extends State<_DayChip> with SingleTickerProviderStateMixin {
+class _DayChipState extends State<_DayChip>
+    with SingleTickerProviderStateMixin {
   /// Rest value is always 1.0 — becoming active doesn't leave the chip
   /// permanently bigger, it just "twangs" the spring with a velocity kick
   /// (no target displacement), so the underdamped [AppSprings.bounce] briefly
   /// overshoots past 1.0 and eases back, reading as a tap-earned pop.
-  late final AnimationController _pop = AnimationController(vsync: this, value: 1);
+  late final AnimationController _pop = AnimationController(
+    vsync: this,
+    value: 1,
+  );
 
   @override
   void didUpdateWidget(covariant _DayChip old) {
@@ -220,14 +395,34 @@ class _DayChipState extends State<_DayChip> with SingleTickerProviderStateMixin 
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _pop,
-      builder: (context, child) => Transform.scale(scale: _pop.value, child: child),
+      builder: (context, child) =>
+          Transform.scale(scale: _pop.value, child: child),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: widget.active ? AppColors.pulse : AppColors.card,
+          gradient: widget.active
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2BD99B), AppColors.pulse],
+                )
+              : null,
+          color: widget.active ? null : AppColors.card,
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: widget.active ? Colors.transparent : AppColors.hairline2),
+          border: Border.all(
+            color: widget.active ? Colors.transparent : AppColors.hairline2,
+          ),
+          boxShadow: widget.active
+              ? [
+                  BoxShadow(
+                    color: AppColors.pulse.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : null,
         ),
         child: Material(
           // Transparent — the fill above already carries the animated
@@ -277,25 +472,45 @@ class _BasisNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 17, color: AppColors.ink3),
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.irisWash,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Icon(AppIcons.info, size: 15, color: AppColors.iris),
+          ),
           const SizedBox(width: AppSpacing.m),
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 13.5, height: 1.45),
+                style: AppText.body.copyWith(
+                  color: AppColors.ink2,
+                  fontSize: 13.5,
+                  height: 1.45,
+                ),
                 children: [
                   const TextSpan(text: 'Your '),
                   TextSpan(
                     text: 'last $dayLabel',
-                    style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const TextSpan(text: ' vs the '),
                   TextSpan(
                     text: 'one before it',
-                    style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const TextSpan(
-                    text: ' — exercise by exercise, comparing reps, top-set weight, '
+                    text:
+                        ' — exercise by exercise, comparing reps, top-set weight, '
                         'and volume (reps × weight). Not weekly, and not all workouts mixed together.',
                   ),
                 ],
@@ -311,9 +526,11 @@ class _BasisNote extends StatelessWidget {
 /// The visual anchor of the page — states the selected day's verdict in
 /// plain language first (a big display headline, matching the Today page's
 /// greeting/aside hierarchy), backed by the exact improved/matched/regressed
-/// counts underneath. Everything else on the page supports this one line.
+/// counts underneath. A soft aura of the verdict's own color pools behind
+/// the headline, so the verdict reads as the page's mood at a glance.
+/// Everything else on the page supports this one line.
 class _ProgressHero extends StatelessWidget {
-  const _ProgressHero({required this.analysis});
+  const _ProgressHero({required this.analysis, super.key});
 
   final DayProgressAnalysis analysis;
 
@@ -321,7 +538,10 @@ class _ProgressHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final overall = analysis.overallVerdict;
     final (headline, color) = switch (overall) {
-      null => (analysis.sessionCount == 0 ? "Let's get started" : 'Almost there', AppColors.ink2),
+      null => (
+        analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
+        AppColors.ink2,
+      ),
       ProgressVerdict.progressing => ('Progressing', AppColors.pulse),
       ProgressVerdict.matched => ('Holding steady', AppColors.ink2),
       ProgressVerdict.down => ('Slipping', AppColors.flare),
@@ -339,7 +559,9 @@ class _ProgressHero extends StatelessWidget {
     // color, switched in as part of the same subtree, rides along with it
     // instead of snapping ahead of the text.
     return AnimatedSwitcher(
-      duration: reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 240),
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeOut,
       transitionBuilder: (child, animation) => FadeTransition(
@@ -349,29 +571,104 @@ class _ProgressHero extends StatelessWidget {
         // how tall the headline/detail text wraps to.
         child: AnimatedBuilder(
           animation: animation,
-          builder: (context, child) =>
-              Transform.translate(offset: Offset(0, (1 - animation.value) * 6), child: child),
+          builder: (context, child) => Transform.translate(
+            offset: Offset(0, (1 - animation.value) * 6),
+            child: child,
+          ),
           child: child,
         ),
       ),
-      child: Column(
+      child: Container(
         key: ValueKey('${analysis.day.id}_$overall'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(analysis.day.label.toUpperCase(), style: AppText.sectionLabel.copyWith(color: color)),
-          const SizedBox(height: 6),
-          Text(headline, style: AppText.cardTitle.copyWith(fontSize: 32, color: AppColors.ink)),
-          const SizedBox(height: 10),
-          Text(detail, style: AppText.aside.copyWith(fontSize: 17, color: AppColors.ink2)),
-        ],
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: 0.10),
+              color.withValues(alpha: 0.02),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.14)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.12),
+              blurRadius: 30,
+              spreadRadius: -8,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.30),
+                        color.withValues(alpha: 0.10),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    overall == null
+                        ? AppIcons.analysis
+                        : switch (overall) {
+                            ProgressVerdict.progressing => AppIcons.trendUp,
+                            ProgressVerdict.matched => AppIcons.minus,
+                            ProgressVerdict.down => AppIcons.trendDown,
+                          },
+                    size: 16,
+                    color: color == AppColors.ink2 ? AppColors.ink2 : color,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  analysis.day.label.toUpperCase(),
+                  style: AppText.sectionLabel.copyWith(color: color),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              headline,
+              style: AppText.cardTitle.copyWith(
+                fontSize: 32,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              detail,
+              style: AppText.aside.copyWith(
+                fontSize: 17,
+                color: AppColors.ink2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 /// The day-independent training picture — sessions this week, the current
-/// day streak, and average session length — as one slim divided row rather
-/// than three separate boxed tiles.
+/// day streak, and average session length — each stat carrying its own
+/// identity hue (sessions pulse, streak ember, length iris) so the row scans
+/// as three different instruments rather than three identical numbers.
 class _ConsistencyRow extends StatelessWidget {
   const _ConsistencyRow({required this.stats});
 
@@ -384,16 +681,33 @@ class _ConsistencyRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Row(
         children: [
-          Expanded(child: _ConsistencyStat(value: '${stats.sessionsThisWeek}', label: 'This week')),
-          _ConsistencyDivider(),
-          Expanded(child: _ConsistencyStat(value: '${stats.currentStreakDays}', label: 'Day streak')),
-          _ConsistencyDivider(),
           Expanded(
             child: _ConsistencyStat(
+              icon: AppIcons.sessions,
+              accent: AppColors.pulse,
+              value: '${stats.sessionsThisWeek}',
+              label: 'This week',
+            ),
+          ),
+          const _ConsistencyDivider(),
+          Expanded(
+            child: _ConsistencyStat(
+              icon: AppIcons.streak,
+              accent: AppColors.ember,
+              value: '${stats.currentStreakDays}',
+              label: 'Day streak',
+            ),
+          ),
+          const _ConsistencyDivider(),
+          Expanded(
+            child: _ConsistencyStat(
+              icon: AppIcons.timer,
+              accent: AppColors.iris,
               value: stats.averageSessionDuration == null
                   ? '—'
                   : _formatDurationShort(stats.averageSessionDuration!),
@@ -410,13 +724,24 @@ class _ConsistencyDivider extends StatelessWidget {
   const _ConsistencyDivider();
 
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 30, margin: const EdgeInsets.symmetric(horizontal: 12), color: AppColors.hairline2);
+  Widget build(BuildContext context) => Container(
+    width: 1,
+    height: 38,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    color: AppColors.hairline2,
+  );
 }
 
 class _ConsistencyStat extends StatelessWidget {
-  const _ConsistencyStat({required this.value, required this.label});
+  const _ConsistencyStat({
+    required this.icon,
+    required this.accent,
+    required this.value,
+    required this.label,
+  });
 
+  final IconData icon;
+  final Color accent;
   final String value;
   final String label;
 
@@ -425,9 +750,161 @@ class _ConsistencyStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w700, fontSize: 18, color: AppColors.ink)),
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                accent.withValues(alpha: 0.28),
+                accent.withValues(alpha: 0.10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: accent),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: AppText.rowTitle.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: AppColors.ink,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label, style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11)),
+        Text(
+          label,
+          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+/// The last seven days as one quiet rhythm strip — a bar per day, filled
+/// with the training hue when a session landed (taller the more sets were
+/// completed), a hairline stub when not. The weekday letters run beneath;
+/// today's letter carries the ember accent. Purely visual: no numbers, so
+/// it adds shape without adding noise.
+class _WeekRhythmStrip extends StatelessWidget {
+  const _WeekRhythmStrip({required this.sessions, required this.now});
+
+  final List<LiveSession> sessions;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime(now.year, now.month, now.day);
+    final counts = List<int>.filled(7, 0);
+    for (final s in sessions) {
+      if (s.status != SessionStatus.completed) continue;
+      final day = DateTime(
+        s.startedAt.year,
+        s.startedAt.month,
+        s.startedAt.day,
+      );
+      final diff = today.difference(day).inDays;
+      if (diff >= 0 && diff < 7) counts[6 - diff] += s.completedSetCount;
+    }
+    final maxCount = counts.fold(1, (a, b) => a > b ? a : b);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < 7; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: _RhythmColumn(
+                count: counts[i],
+                fraction: counts[i] / maxCount,
+                letter: _weekdayLetter(today.subtract(Duration(days: 6 - i))),
+                isToday: i == 6,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _weekdayLetter(DateTime d) =>
+      ['M', 'T', 'W', 'T', 'F', 'S', 'S'][d.weekday - 1];
+}
+
+class _RhythmColumn extends StatelessWidget {
+  const _RhythmColumn({
+    required this.count,
+    required this.fraction,
+    required this.letter,
+    required this.isToday,
+  });
+
+  final int count;
+  final double fraction;
+  final String letter;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final trained = count > 0;
+    return Column(
+      children: [
+        Container(
+          height: 34,
+          width: double.infinity,
+          alignment: Alignment.bottomCenter,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 360),
+            curve: Curves.easeOutCubic,
+            width: double.infinity,
+            height: trained ? (14 + 20 * fraction.clamp(0.0, 1.0)) : 3,
+            decoration: BoxDecoration(
+              gradient: trained
+                  ? LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.pulse,
+                        AppColors.pulse.withValues(alpha: 0.45),
+                      ],
+                    )
+                  : null,
+              color: trained ? null : AppColors.hairline2,
+              borderRadius: BorderRadius.circular(5),
+              boxShadow: trained
+                  ? [
+                      BoxShadow(
+                        color: AppColors.pulse.withValues(alpha: 0.30),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          letter,
+          style: AppText.meta.copyWith(
+            color: isToday ? AppColors.ember : AppColors.ink3,
+            fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 10.5,
+          ),
+        ),
       ],
     );
   }
@@ -450,21 +927,48 @@ class _WeightSnapshotRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Row(
         children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.solar.withValues(alpha: 0.28),
+                  AppColors.solar.withValues(alpha: 0.10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(AppIcons.scale, size: 14, color: AppColors.solar),
+          ),
+          const SizedBox(width: 11),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '${_trim(latest.weightKg)} kg',
-                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
+                style: AppText.rowTitle.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
-                change == null ? 'Bodyweight' : '${change > 0 ? '+' : ''}${_trim(change)}kg over 30d',
-                style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+                change == null
+                    ? 'Bodyweight'
+                    : '${change > 0 ? '+' : ''}${_trim(change)}kg over 30d',
+                style: AppText.meta.copyWith(
+                  color: AppColors.ink3,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -489,7 +993,7 @@ class _WeightSnapshotRow extends StatelessWidget {
 /// so a five-exercise day reads as one coherent list, not five identical
 /// boxes stacked on top of each other.
 class _ExerciseListCard extends StatelessWidget {
-  const _ExerciseListCard({required this.exercises});
+  const _ExerciseListCard({required this.exercises, super.key});
 
   final List<ExerciseProgress> exercises;
 
@@ -499,13 +1003,24 @@ class _ExerciseListCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         children: [
           for (final (i, exercise) in exercises.indexed) ...[
-            if (i > 0) const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16, color: AppColors.hairline2),
-            StaggeredReveal(index: i, child: _ExerciseRow(exercise: exercise)),
+            if (i > 0)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                indent: 16,
+                endIndent: 16,
+                color: AppColors.hairline2,
+              ),
+            StaggeredReveal(
+              index: i,
+              child: _ExerciseRow(exercise: exercise),
+            ),
           ],
         ],
       ),
@@ -522,7 +1037,9 @@ class _ExerciseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final weights = [for (final p in exercise.trend) p.topWeightKg];
     final hasWeightTrend = weights.any((w) => w != null);
-    final series = hasWeightTrend ? weights : [for (final p in exercise.trend) p.volume];
+    final series = hasWeightTrend
+        ? weights
+        : [for (final p in exercise.trend) p.volume];
     final showChart = exercise.appearances >= 2 && series.length >= 2;
 
     return Padding(
@@ -540,23 +1057,61 @@ class _ExerciseRow extends StatelessWidget {
                         exercise.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                        style: AppText.rowTitle.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     if (exercise.verdict != null)
-                      _VerdictBadge(verdict: exercise.verdict!, label: verdictStyle(exercise.verdict!).$3)
+                      _VerdictBadge(
+                        verdict: exercise.verdict!,
+                        label: verdictStyle(exercise.verdict!).$3,
+                      )
                     else
-                      _NeutralTag(label: exercise.appearances == 0 ? 'Not logged' : 'First time'),
+                      _NeutralTag(
+                        label: exercise.appearances == 0
+                            ? 'Not logged'
+                            : 'First time',
+                      ),
                   ],
                 ),
                 const SizedBox(height: 7),
-                Text(
-                  _subtitle(exercise),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
-                ),
+                if (exercise.appearances >= 2 &&
+                    (exercise.repsChangePercent != null ||
+                        exercise.weightChangeKg != null ||
+                        exercise.volumeChangePercent != null))
+                  // Metric deltas, each colored by its own direction — the
+                  // row's story readable at a glance without parsing numbers.
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    children: [
+                      if (exercise.repsChangePercent != null)
+                        _MetricDelta(
+                          label: 'Reps',
+                          text: _signedPercent(exercise.repsChangePercent!),
+                        ),
+                      if (exercise.weightChangeKg != null)
+                        _MetricDelta(
+                          label: 'Weight',
+                          text: _signedKg(exercise.weightChangeKg!),
+                        ),
+                      if (exercise.volumeChangePercent != null)
+                        _MetricDelta(
+                          label: 'Volume',
+                          text: _signedPercent(exercise.volumeChangePercent!),
+                        ),
+                    ],
+                  )
+                else
+                  Text(
+                    _fallbackSubtitle(exercise),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.meta.copyWith(color: AppColors.ink3),
+                  ),
               ],
             ),
           ),
@@ -582,15 +1137,7 @@ class _ExerciseRow extends StatelessWidget {
     );
   }
 
-  static String _subtitle(ExerciseProgress exercise) {
-    if (exercise.appearances >= 2) {
-      final parts = <String>[
-        if (exercise.repsChangePercent != null) 'Reps ${_signedPercent(exercise.repsChangePercent!)}',
-        if (exercise.weightChangeKg != null) 'Weight ${_signedKg(exercise.weightChangeKg!)}',
-        if (exercise.volumeChangePercent != null) 'Volume ${_signedPercent(exercise.volumeChangePercent!)}',
-      ];
-      if (parts.isNotEmpty) return parts.join('  ·  ');
-    }
+  static String _fallbackSubtitle(ExerciseProgress exercise) {
     if (exercise.appearances == 1) {
       return exercise.lastTopWeightKg == null
           ? 'Logged once — no weight recorded.'
@@ -600,7 +1147,49 @@ class _ExerciseRow extends StatelessWidget {
   }
 
   static String _signedPercent(double v) => '${v > 0 ? '+' : ''}${v.round()}%';
-  static String _signedKg(double v) => '${v > 0 ? '+' : ''}${v.toStringAsFixed(1)}kg';
+  static String _signedKg(double v) =>
+      '${v > 0 ? '+' : ''}${v.toStringAsFixed(1)}kg';
+}
+
+/// One colored metric delta — label in the quiet ink, value tinted by its
+/// direction (pulse up, flare down, ink3 flat).
+class _MetricDelta extends StatelessWidget {
+  const _MetricDelta({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = double.tryParse(text.replaceAll(RegExp(r'[+%kg]'), '')) ?? 0;
+    final color = value > 0
+        ? AppColors.pulse
+        : value < 0
+        ? AppColors.flare
+        : AppColors.ink3;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: AppText.meta.copyWith(
+            color: AppColors.ink3,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: AppText.meta.copyWith(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// A pill badge for a [ProgressVerdict] — same visual language (icon,
@@ -618,13 +1207,22 @@ class _VerdictBadge extends StatelessWidget {
     final (icon, color, _) = verdictStyle(verdict);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.pill)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
-          Text(label, style: AppText.meta.copyWith(color: color, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: AppText.meta.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -644,7 +1242,13 @@ class _NeutralTag extends StatelessWidget {
         color: AppColors.ink3.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Text(label, style: AppText.meta.copyWith(color: AppColors.ink3, fontWeight: FontWeight.w700)),
+      child: Text(
+        label,
+        style: AppText.meta.copyWith(
+          color: AppColors.ink3,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -658,7 +1262,10 @@ class _AnalysisLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceRaised,
+          shape: BoxShape.circle,
+        ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
@@ -680,9 +1287,17 @@ class _AnalysisErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 30,
+              color: AppColors.ink3,
+            ),
             const SizedBox(height: 12),
-            Text("Couldn't load this.", style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+            Text(
+              "Couldn't load this.",
+              style: AppText.aside.copyWith(color: AppColors.ink2),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
@@ -728,16 +1343,40 @@ class _DayEmptyState extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.show_chart_rounded, size: 26, color: AppColors.ink3),
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.pulse.withValues(alpha: 0.22),
+                  AppColors.pulse.withValues(alpha: 0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              AppIcons.analysis,
+              size: 20,
+              color: AppColors.pulse,
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             "You haven't logged $dayLabel yet.",
-            style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+            style: AppText.rowTitle.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -750,7 +1389,8 @@ class _DayEmptyState extends StatelessWidget {
   }
 }
 
-String _trim(double v) => v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+String _trim(double v) =>
+    v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 String _formatDurationShort(Duration d) {
   final totalMinutes = d.inMinutes;
