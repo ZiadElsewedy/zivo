@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -32,11 +33,15 @@ import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
 class TodayPage extends StatefulWidget {
-  const TodayPage({super.key, this.onOpenAsk});
+  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog});
 
   /// Opens the Ask tab — Today can't switch tabs itself (HomeShell owns the
   /// tab index), so this is how the pull/tap gesture below reaches it.
   final VoidCallback? onOpenAsk;
+
+  /// Opens the voice quick-log sheet; HomeShell transcribes and lands the
+  /// text in Ask's composer, switching tabs itself.
+  final VoidCallback? onQuickLog;
 
   @override
   State<TodayPage> createState() => _TodayPageState();
@@ -109,7 +114,10 @@ class _TodayPageState extends State<TodayPage> {
                       ZivoBottomBarMetrics.height(context) + AppSpacing.base,
                     ),
                     children: [
-                      const RiseIn(delay: Duration.zero, child: _Header()),
+                      RiseIn(
+                        delay: Duration.zero,
+                        child: _Header(onQuickLog: widget.onQuickLog),
+                      ),
                       // Primary tier — the day's training, full-weight card.
                       const RiseIn(
                         delay: Duration(milliseconds: 90),
@@ -206,7 +214,9 @@ class _AskHint extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({this.onQuickLog});
+
+  final VoidCallback? onQuickLog;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +225,15 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        Text(formatTodayDate(now).toUpperCase(), style: AppText.dateLabel),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(child: Text(formatTodayDate(now).toUpperCase(), style: AppText.dateLabel)),
+            // Voice quick-log — one tap from the command centre to a logged
+            // expense/workout via Ask's proposal flow.
+            if (onQuickLog != null) _QuickLogButton(onTap: onQuickLog!),
+          ],
+        ),
         const SizedBox(height: 6),
         // The live clock is the header's anchor — the biggest thing on the
         // screen, so a glance answers "what time is it" before anything else.
@@ -223,6 +241,38 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 10),
         _GreetingRow(now: now),
       ],
+    );
+  }
+}
+
+/// The header's compact mic affordance for the voice quick-log sheet.
+class _QuickLogButton extends StatelessWidget {
+  const _QuickLogButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Material(
+        key: const Key('today-quicklog'),
+        color: AppColors.card,
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.hairline),
+        ),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          customBorder: const CircleBorder(),
+          child: const SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(AppIcons.mic, size: 18, color: AppColors.iris),
+          ),
+        ),
+      ),
     );
   }
 }
