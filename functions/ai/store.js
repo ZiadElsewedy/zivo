@@ -285,6 +285,22 @@ class FirestoreStore {
   }
 
   /**
+   * The id of the user's most recently active conversation (mirroring the
+   * client's `latestConversation` ordering), or null when they have none —
+   * the coach report's delivery target.
+   * @param {string} uid
+   * @return {!Promise<?string>}
+   */
+  async latestConversationId(uid) {
+    const snap = await this._user(uid)
+        .collection("aiConversations")
+        .orderBy("updatedAt", "desc")
+        .limit(1)
+        .get();
+    return snap.docs.length > 0 ? snap.docs[0].id : null;
+  }
+
+  /**
    * Creates `conversationId` if missing, else bumps `updatedAt`.
    * @param {string} uid
    * @param {string} conversationId

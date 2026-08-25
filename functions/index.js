@@ -26,6 +26,7 @@ const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
 const {getFirestore, Timestamp} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
@@ -40,6 +41,7 @@ const {
 } = require("./ai/gateway");
 const {extractWorkoutPlan} = require("./ai/workout_import");
 const {extractDietPlan} = require("./ai/diet_import");
+const {deliverWeeklyReport} = require("./ai/coach_report");
 const {FirestoreStore} = require("./ai/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
 const {ProviderRegistry} = require("./ai/providers/registry");
@@ -877,5 +879,56 @@ exports.aiTranscribe = onCall(
       } catch (err) {
         throw toSpeechHttpsError(err);
       }
+    },
+);
+
+// --- weeklyCoachReport (proactive push, ADR-003's "coach speaks first") -----
+
+/**
+ * Every Monday morning (Cairo time), appends a deterministic weekly recap —
+ * training done, diet adherence vs plan, spend — as an assistant message in
+ * each user's most recent Ask conversation, so it's waiting there when they
+ * next open the app. No model call per user: the text is a template over
+ * real numbers (`./ai/coach_report.js`), which keeps this free to run and
+ * impossible to hallucinate.
+ *
+ * Delivery targets come from Auth (every real account), but only users with
+ * at least one conversation receive anything — someone who never used Ask
+ * shouldn't find a fabricated conversation appearing. Per-user failures are
+ * logged and skipped so one bad document can't abort the whole fan-out.
+ */
+exports.weeklyCoachReport = onSchedule(
+    {
+      // 08:00 Mondays, Cairo — the app's default-currency audience (EGP).
+      schedule: "0 8 * * 1",
+      timeZone: "Africa/Cairo",
+      region: "us-central1",
+      timeoutSeconds: 540,
+    },
+    async () => {
+      const store = new FirestoreStore(db);
+      let reported = 0;
+      let skipped = 0;
+      let pageToken;
+      do {
+        const list = await getAuth().listUsers(1000, pageToken);
+        for (const user of list.users) {
+          try {
+            const delivered = await deliverWeeklyReport(
+                {store, uid: user.uid, now: new Date()});
+            if (delivered) reported++;
+            else skipped++;
+          } catch (err) {
+            skipped++;
+            logger.warn("weeklyCoachReport", {
+              uid: user.uid,
+              stage: "error",
+              message: err && err.message,
+            });
+          }
+        }
+        pageToken = list.pageToken;
+      } while (pageToken);
+      logger.info("weeklyCoachReport", {reported, skipped});
     },
 );

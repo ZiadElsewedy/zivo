@@ -525,4 +525,4 @@ const tools = [
 
 const toolsByName = new Map(tools.map((t) => [t.name, t]));
 
-module.exports = {tools, toolsByName};
+module.exports = {tools, toolsByName, dayNutrition};
