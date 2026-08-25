@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,6 +25,11 @@ import 'settings_page.dart';
 /// (name, date of birth, bio, photo) alongside the [AuthUser] auth identity
 /// (email + sign-in provider) so every real piece of data ZIVO holds about
 /// the signed-in person has a home here.
+///
+/// Shares Today & Hub's atmospheric backdrop (radial ground gradient + soft
+/// aura blobs) so all the app's dashboard-grade surfaces read as one world,
+/// and presents the identity as a hero: a gradient-ringed avatar glowing in
+/// its own hue over the name it belongs to.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -161,128 +168,164 @@ class ProfilePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: StreamBuilder<UserProfile?>(
-          stream: scope.profiles.watchProfile(user.uid),
-          initialData: null,
-          builder: (context, snapshot) {
-            final profile = snapshot.data;
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  RiseIn(
-                    child: Row(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.15,
+            colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Ambient depth — a warm glow behind the identity hero, a cool
+            // counterweight lower down. Purely decorative.
+            const Positioned(
+              top: -50,
+              right: -70,
+              child: _AuraBlob(color: AppColors.ember, size: 230),
+            ),
+            const Positioned(
+              top: 340,
+              left: -90,
+              child: _AuraBlob(color: AppColors.iris, size: 190),
+            ),
+            SafeArea(
+              child: StreamBuilder<UserProfile?>(
+                stream: scope.profiles.watchProfile(user.uid),
+                initialData: null,
+                builder: (context, snapshot) {
+                  final profile = snapshot.data;
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text('You', style: AppText.greeting),
-                        const Spacer(),
-                        _IconButton(
-                          icon: AppIcons.settings,
-                          semanticLabel: 'Settings',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const SettingsPage(),
-                            ),
+                        RiseIn(
+                          child: Row(
+                            children: [
+                              Text('You', style: AppText.greeting),
+                              const Spacer(),
+                              _IconButton(
+                                icon: AppIcons.settings,
+                                semanticLabel: 'Settings',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SettingsPage(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 50),
+                          child: _ProfileHeader(
+                            user: user,
+                            profile: profile,
+                            onTapAvatar: profile == null
+                                ? null
+                                : () => _changePhoto(context, profile),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 90),
+                          child: _AboutCard(
+                            bio: profile?.bio,
+                            onTap: profile == null
+                                ? null
+                                : () => _editBio(context, profile),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 130),
+                          child: SettingsSectionCard(
+                            label: 'ACCOUNT',
+                            children: [
+                              SettingsRow(
+                                icon: AppIcons.idCard,
+                                title: 'Name',
+                                value: profile?.name ?? '—',
+                                accent: AppColors.ember,
+                                onTap: profile == null
+                                    ? null
+                                    : () => _editName(context, profile),
+                              ),
+                              SettingsRow(
+                                icon: AppIcons.cake,
+                                title: 'Date of birth',
+                                value: profile == null
+                                    ? '—'
+                                    : _formatDob(profile.dateOfBirth),
+                                accent: AppColors.flare,
+                                onTap: profile == null
+                                    ? null
+                                    : () => _editDob(context, profile),
+                              ),
+                              SettingsRow(
+                                icon: AppIcons.mail,
+                                title: 'Email',
+                                value: user.email ?? 'Hidden by provider',
+                                last: true,
+                                accent: AppColors.iris,
+                                trailing: user.email == null
+                                    ? null
+                                    : (user.isEmailVerified
+                                          ? Icon(
+                                              AppIcons.success,
+                                              size: 17,
+                                              color: AppColors.pulse,
+                                            )
+                                          : Icon(
+                                              AppIcons.warning,
+                                              size: 17,
+                                              color: AppColors.solar,
+                                            )),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 170),
+                          child: SettingsSectionCard(
+                            label: 'SIGN-IN',
+                            children: [
+                              for (var i = 0; i < user.providerIds.length; i++)
+                                SettingsRow(
+                                  icon: _providerIcon(user.providerIds[i]),
+                                  title: _providerLabel(user.providerIds[i]),
+                                  value: 'Connected',
+                                  // The gold key is the one sign-in mark that
+                                  // owns a hue of its own; brand marks stay on
+                                  // the neutral chip so no fake branding.
+                                  accent: user.providerIds[i] == 'password'
+                                      ? AppColors.solar
+                                      : null,
+                                  last: i == user.providerIds.length - 1,
+                                ),
+                              if (user.providerIds.isEmpty)
+                                const SettingsRow(
+                                  icon: AppIcons.key,
+                                  title: 'Email',
+                                  value: 'Connected',
+                                  accent: AppColors.solar,
+                                  last: true,
+                                ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 50),
-                    child: _ProfileHeader(
-                      user: user,
-                      profile: profile,
-                      onTapAvatar: profile == null
-                          ? null
-                          : () => _changePhoto(context, profile),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 90),
-                    child: _AboutCard(
-                      bio: profile?.bio,
-                      onTap: profile == null
-                          ? null
-                          : () => _editBio(context, profile),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 130),
-                    child: SettingsSectionCard(
-                      label: 'ACCOUNT',
-                      children: [
-                        SettingsRow(
-                          icon: AppIcons.idCard,
-                          title: 'Name',
-                          value: profile?.name ?? '—',
-                          onTap: profile == null
-                              ? null
-                              : () => _editName(context, profile),
-                        ),
-                        SettingsRow(
-                          icon: AppIcons.cake,
-                          title: 'Date of birth',
-                          value: profile == null
-                              ? '—'
-                              : _formatDob(profile.dateOfBirth),
-                          onTap: profile == null
-                              ? null
-                              : () => _editDob(context, profile),
-                        ),
-                        SettingsRow(
-                          icon: AppIcons.mail,
-                          title: 'Email',
-                          value: user.email ?? 'Hidden by provider',
-                          last: true,
-                          trailing: user.email == null
-                              ? null
-                              : (user.isEmailVerified
-                                    ? const Icon(
-                                        AppIcons.success,
-                                        size: 17,
-                                        color: AppColors.pulse,
-                                      )
-                                    : const Icon(
-                                        AppIcons.warning,
-                                        size: 17,
-                                        color: AppColors.solar,
-                                      )),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 170),
-                    child: SettingsSectionCard(
-                      label: 'SIGN-IN',
-                      children: [
-                        for (var i = 0; i < user.providerIds.length; i++)
-                          SettingsRow(
-                            icon: _providerIcon(user.providerIds[i]),
-                            title: _providerLabel(user.providerIds[i]),
-                            value: 'Connected',
-                            last: i == user.providerIds.length - 1,
-                          ),
-                        if (user.providerIds.isEmpty)
-                          const SettingsRow(
-                            icon: AppIcons.key,
-                            title: 'Email',
-                            value: 'Connected',
-                            last: true,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -329,9 +372,35 @@ class ProfilePage extends StatelessWidget {
 
 enum _PhotoAction { choose, remove }
 
+/// A soft, blurred wash of color floating behind the content — the quiet
+/// "energy" glow shared with Today and Hub. Purely decorative.
+class _AuraBlob extends StatelessWidget {
+  const _AuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A small circular icon button — the same 34px chip language as
 /// `CaptureIconButton`, kept local since this page's chip is neutral
-/// (surfaceRaised) rather than capture-flow-branded.
+/// (surfaceRaised + hairline edge) rather than capture-flow-branded.
 class _IconButton extends StatelessWidget {
   const _IconButton({
     required this.icon,
@@ -355,9 +424,10 @@ class _IconButton extends StatelessWidget {
             width: 38,
             height: 38,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.surfaceRaised,
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.hairline2),
             ),
             child: Icon(icon, size: 19, color: AppColors.ink2),
           ),
@@ -367,8 +437,9 @@ class _IconButton extends StatelessWidget {
   }
 }
 
-/// Avatar + name + verified email — the identity summary above the account
-/// details.
+/// Avatar + name + verified email — the identity hero above the account
+/// details. The email carries its verification state as a small meaningful
+/// badge (pulse check when verified, solar alert when not).
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.user,
@@ -398,15 +469,34 @@ class _ProfileHeader extends StatelessWidget {
           photoPath: profile?.photoPath,
           onTap: onTapAvatar,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Text(
           _name,
-          style: AppText.cardTitle.copyWith(fontSize: 22),
+          style: AppText.cardTitle.copyWith(fontSize: 24),
           textAlign: TextAlign.center,
         ),
         if (user.email != null) ...[
-          const SizedBox(height: 5),
-          Text(user.email!, style: AppText.body, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  user.email!,
+                  style: AppText.body.copyWith(fontSize: 14),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                user.isEmailVerified ? AppIcons.success : AppIcons.warning,
+                size: 15,
+                color: user.isEmailVerified ? AppColors.pulse : AppColors.solar,
+              ),
+            ],
+          ),
         ],
       ],
     );
@@ -415,8 +505,10 @@ class _ProfileHeader extends StatelessWidget {
 
 /// The identity avatar. Shows the saved photo when one exists; otherwise a
 /// deterministic monogram (hue derived from [seed], so it's stable across
-/// sessions and distinct enough between accounts to feel personal). A small
-/// camera badge signals it's tappable — standard iOS "edit photo" affordance.
+/// sessions and distinct enough between accounts to feel personal). A
+/// gradient ring in that same hue circles the avatar and lifts it on a soft
+/// colored glow — the hero treatment this surface deserves. A small camera
+/// badge signals it's tappable — standard iOS "edit photo" affordance.
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.seed,
@@ -437,7 +529,8 @@ class _Avatar extends StatelessWidget {
     AppColors.flare,
     AppColors.solar,
   ];
-  static const double _size = 92;
+  static const double _size = 100;
+  static const double _ringWidth = 3;
 
   String get _initials {
     final words = name
@@ -463,41 +556,55 @@ class _Avatar extends StatelessWidget {
     // present, paints over it. A missing/stale ref falls back to the monogram.
     final monogram = Text(
       _initials,
-      style: AppText.cardTitle.copyWith(fontSize: 30, color: fg),
+      style: AppText.cardTitle.copyWith(fontSize: 32, color: fg),
     );
     final circle = Container(
-      width: _size,
-      height: _size,
+      width: _ringWidth * 2 + _size,
+      height: _ringWidth * 2 + _size,
       alignment: Alignment.center,
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [hue, hue.withValues(alpha: 0.75)],
+          colors: [hue, hue.withValues(alpha: 0.25)],
         ),
         boxShadow: [
           BoxShadow(
-            color: hue.withValues(alpha: 0.35),
-            blurRadius: 28,
-            spreadRadius: -6,
-            offset: const Offset(0, 12),
+            color: hue.withValues(alpha: 0.30),
+            blurRadius: 32,
+            spreadRadius: -8,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
-      child: path == null
-          ? monogram
-          : SizedBox(
-              width: _size,
-              height: _size,
-              child: MediaImage(
-                service: AppScope.of(context).requireMedia,
-                ref: path,
-                fit: BoxFit.cover,
-                placeholder: Center(child: monogram),
+      child: Container(
+        width: _size,
+        height: _size,
+        alignment: Alignment.center,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.ground, width: _ringWidth),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [hue, hue.withValues(alpha: 0.75)],
+          ),
+        ),
+        child: path == null
+            ? monogram
+            : SizedBox(
+                width: _size,
+                height: _size,
+                child: MediaImage(
+                  service: AppScope.of(context).requireMedia,
+                  ref: path,
+                  fit: BoxFit.cover,
+                  placeholder: Center(child: monogram),
+                ),
               ),
-            ),
+      ),
     );
 
     return PressableScale(
@@ -520,6 +627,14 @@ class _Avatar extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: AppColors.ember,
                     border: Border.all(color: AppColors.ground, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.ember.withValues(alpha: 0.45),
+                        blurRadius: 16,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     AppIcons.camera,
@@ -536,7 +651,8 @@ class _Avatar extends StatelessWidget {
 }
 
 /// The "About" card — a short bio the person writes about themselves, tap
-/// anywhere to edit. Shows a muted prompt until one is set.
+/// anywhere to edit. Shows a muted prompt until one is set; the affordance
+/// lives in a quiet circular edit-chip rather than a bare glyph.
 class _AboutCard extends StatelessWidget {
   const _AboutCard({required this.bio, required this.onTap});
 
@@ -549,10 +665,11 @@ class _AboutCard extends StatelessWidget {
     final hasBio = trimmed != null && trimmed.isNotEmpty;
     final card = Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -563,19 +680,30 @@ class _AboutCard extends StatelessWidget {
               Text('ABOUT', style: AppText.sectionLabel),
               const Spacer(),
               if (onTap != null)
-                Icon(
-                  hasBio ? AppIcons.edit : AppIcons.add,
-                  size: 16,
-                  color: AppColors.ink3,
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceRaised,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.hairline2),
+                  ),
+                  child: Icon(
+                    hasBio ? AppIcons.edit : AppIcons.add,
+                    size: 13,
+                    color: AppColors.ink3,
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             hasBio ? trimmed : 'Add a few words about yourself.',
             style: AppText.body.copyWith(
               color: hasBio ? AppColors.ink2 : AppColors.ink3,
               fontSize: 14.5,
+              height: 1.55,
             ),
           ),
         ],
@@ -709,28 +837,42 @@ class _EditTextSheetState extends State<_EditTextSheet> {
           Opacity(
             opacity: _canSave ? 1 : 0.45,
             child: Material(
-              color: AppColors.ember,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                onTap: _canSave ? _submit : null,
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(AppIcons.check, size: 18, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Save',
-                        style: AppText.button.copyWith(
-                          fontSize: 16,
+              color: Colors.transparent,
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [const Color(0xFFFF7038), AppColors.ember],
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: AppShadows.ember,
+                ),
+                child: InkWell(
+                  onTap: _canSave ? _submit : null,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          AppIcons.check,
+                          size: 18,
                           color: Colors.white,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          'Save',
+                          style: AppText.button.copyWith(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

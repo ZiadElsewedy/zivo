@@ -98,33 +98,39 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
   }
 
   Future<void> _connect() => _run(_Op.connect, (_) async {
-        final ok = await _media.connectBackup();
-        _toast(
-          ok ? 'Google Drive connected on this device.' : 'Couldn’t connect Google Drive.',
-          ok ? ToastKind.success : ToastKind.error,
-        );
-      });
+    final ok = await _media.connectBackup();
+    _toast(
+      ok
+          ? 'Google Drive connected on this device.'
+          : 'Couldn’t connect Google Drive.',
+      ok ? ToastKind.success : ToastKind.error,
+    );
+  });
 
   Future<void> _disconnect() => _run(_Op.disconnect, (_) async {
-        await _media.disconnectBackup();
-        _toast('Google Drive disconnected on this device.', ToastKind.info);
-      });
+    await _media.disconnectBackup();
+    _toast('Google Drive disconnected on this device.', ToastKind.info);
+  });
 
   Future<void> _backupNow() => _run(_Op.backup, (onProgress) async {
-        final n = await _media.backupNow(onProgress: onProgress);
-        _toast(
-          n == 0 ? 'Everything is already backed up.' : 'Backed up $n ${_p(n)} to Drive.',
-          ToastKind.success,
-        );
-      });
+    final n = await _media.backupNow(onProgress: onProgress);
+    _toast(
+      n == 0
+          ? 'Everything is already backed up.'
+          : 'Backed up $n ${_p(n)} to Drive.',
+      ToastKind.success,
+    );
+  });
 
   Future<void> _syncFromDrive() => _run(_Op.sync, (onProgress) async {
-        final n = await _media.syncFromBackup(onProgress: onProgress);
-        _toast(
-          n == 0 ? 'Nothing new to download.' : 'Downloaded $n ${_p(n)} from Drive.',
-          ToastKind.success,
-        );
-      });
+    final n = await _media.syncFromBackup(onProgress: onProgress);
+    _toast(
+      n == 0
+          ? 'Nothing new to download.'
+          : 'Downloaded $n ${_p(n)} from Drive.',
+      ToastKind.success,
+    );
+  });
 
   String _p(int n) => n == 1 ? 'photo' : 'photos';
 
@@ -137,7 +143,10 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
         backgroundColor: AppColors.ground,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text('Storage & Sync', style: AppText.cardTitle.copyWith(fontSize: 20)),
+        title: Text(
+          'Storage & Sync',
+          style: AppText.cardTitle.copyWith(fontSize: 20),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -174,13 +183,16 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                       icon: AppIcons.photos,
                       title: 'Save to Photos',
                       value: prefs.saveToPhotos ? 'On' : 'Off',
+                      accent: AppColors.ember,
                       last: true,
                       trailing: Switch.adaptive(
                         value: prefs.saveToPhotos,
                         activeThumbColor: AppColors.ember,
                         onChanged: _busy
                             ? null
-                            : (v) => prefsRepo.save(prefs.copyWith(saveToPhotos: v)),
+                            : (v) => prefsRepo.save(
+                                prefs.copyWith(saveToPhotos: v),
+                              ),
                       ),
                     ),
                   ],
@@ -230,7 +242,10 @@ class _DeviceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('On this device', style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  'On this device',
+                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   total == 0
@@ -298,9 +313,19 @@ class _DriveCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Google Drive', style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Google Drive',
+                      style: AppText.rowTitle.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 3),
-                    Text(_subtitle(), style: AppText.meta.copyWith(color: connected ? AppColors.pulse : AppColors.ink3)),
+                    Text(
+                      _subtitle(),
+                      style: AppText.meta.copyWith(
+                        color: connected ? AppColors.pulse : AppColors.ink3,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -310,7 +335,11 @@ class _DriveCard extends StatelessWidget {
           if (supported) ...[
             const SizedBox(height: 16),
             if (!connected)
-              _PrimaryButton(label: 'Connect Google Drive', loading: op == _Op.connect, onTap: onConnect)
+              _PrimaryButton(
+                label: 'Connect Google Drive',
+                loading: op == _Op.connect,
+                onTap: onConnect,
+              )
             else ...[
               _BackupStatusBanner(
                 total: total,
@@ -422,14 +451,16 @@ class _BackupStatusBanner extends StatelessWidget {
       wash = AppColors.pulseWash;
       icon = AppIcons.success;
       title = 'All backed up';
-      subtitle = '$total ${total == 1 ? 'photo is' : 'photos are'} safe in Google Drive.';
+      subtitle =
+          '$total ${total == 1 ? 'photo is' : 'photos are'} safe in Google Drive.';
     } else {
       accent = AppColors.solar;
       wash = AppColors.solarWash;
       icon = AppIcons.backupNow;
       title = '$backedUp of $total backed up';
       final pending = total - backedUp;
-      subtitle = '$pending ${pending == 1 ? 'photo is' : 'photos are'} waiting to back up.';
+      subtitle =
+          '$pending ${pending == 1 ? 'photo is' : 'photos are'} waiting to back up.';
       progress = total == 0 ? 0 : backedUp / total;
     }
 
@@ -460,7 +491,10 @@ class _BackupStatusBanner extends StatelessWidget {
                     ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2.2, color: accent),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: accent,
+                        ),
                       )
                     : Icon(icon, size: 18, color: accent),
               ),
@@ -469,9 +503,18 @@ class _BackupStatusBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppText.rowTitle.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: AppText.rowTitle.copyWith(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: AppText.meta.copyWith(color: AppColors.ink3)),
+                    Text(
+                      subtitle,
+                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                    ),
                   ],
                 ),
               ),
@@ -517,14 +560,24 @@ class _ConnectedDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: AppColors.pulseWash, borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text('Connected', style: AppText.meta.copyWith(color: AppColors.pulse, fontSize: 11)),
+      decoration: BoxDecoration(
+        color: AppColors.pulseWash,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        'Connected',
+        style: AppText.meta.copyWith(color: AppColors.pulse, fontSize: 11),
+      ),
     );
   }
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.label, required this.loading, required this.onTap});
+  const _PrimaryButton({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
   final String label;
   final bool loading;
   final VoidCallback onTap;
@@ -539,10 +592,26 @@ class _PrimaryButton extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 14),
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: AppColors.ember, borderRadius: BorderRadius.circular(AppRadius.pill)),
+          decoration: BoxDecoration(
+            color: AppColors.ember,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
           child: loading
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(label, style: AppText.button.copyWith(color: Colors.white, fontSize: 15)),
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: AppText.button.copyWith(
+                    color: Colors.white,
+                    fontSize: 15,
+                  ),
+                ),
         ),
       ),
     );
@@ -592,11 +661,21 @@ class _MiniButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (loading)
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: color,
+                    ),
+                  )
                 else
                   Icon(icon, size: 16, color: color),
                 const SizedBox(width: 7),
-                Text(label, style: AppText.button.copyWith(fontSize: 13, color: color)),
+                Text(
+                  label,
+                  style: AppText.button.copyWith(fontSize: 13, color: color),
+                ),
               ],
             ),
           ),

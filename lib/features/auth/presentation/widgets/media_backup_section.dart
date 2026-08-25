@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/media/presentation/storage_sync_page.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -19,10 +20,11 @@ class MediaBackupSection extends StatelessWidget {
           icon: AppIcons.backupNow,
           title: 'Storage & Sync',
           value: 'Photos, backup, Drive',
+          accent: AppColors.pulse,
           last: true,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const StorageSyncPage()),
-          ),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const StorageSyncPage())),
         ),
       ],
     );
