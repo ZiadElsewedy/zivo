@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/media/domain/media_kind.dart';
@@ -58,29 +59,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Future<void> _editBio(BuildContext context, UserProfile profile) async {
-    final bio = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _EditTextSheet(
-        title: 'About you',
-        hint: 'A few words about yourself…',
-        maxLength: 160,
-        initial: profile.bio ?? '',
-        multiline: true,
-      ),
-    );
-    if (bio == null || !context.mounted) return;
-    await AppScope.of(context).profiles.saveProfile(
-      uid: profile.uid,
-      name: profile.name,
-      dateOfBirth: profile.dateOfBirth,
-      photoPath: profile.photoPath,
-      bio: bio.isEmpty ? null : bio,
-    );
-  }
-
   Future<void> _editDob(BuildContext context, UserProfile profile) async {
     final picked = await showDobPicker(context, initial: profile.dateOfBirth);
     if (picked == null || !context.mounted) return;
@@ -119,20 +97,27 @@ class ProfilePage extends StatelessWidget {
     if (action == null || !context.mounted) return;
 
     if (action == _PhotoAction.choose) {
+      // Pick at a generous size so the crop editor has real pixels to work
+      // with; the circular crop below produces the final square avatar.
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 88,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 92,
       );
       if (picked == null || !context.mounted) return;
+      // Guide the crop to the avatar's own shape: a locked 1:1 circular frame,
+      // so what the person positions is exactly what lands in the circle — no
+      // blind cover-cropping of a rectangle. Backing out cancels the change.
+      final cropped = await _cropAvatar(picked.path);
+      if (cropped == null || !context.mounted) return;
       // Route the avatar through the media pipeline: durable local copy +
       // registry entry + any enabled backup targets. Returns the store
       // reference persisted on the profile (relative, so it survives reinstalls
       // that would strand an absolute path on iOS).
       final media = AppScope.of(context).requireMedia;
       final savedPath = await media.capture(
-        sourcePath: picked.path,
+        sourcePath: cropped.path,
         kind: MediaKind.avatar,
         id: profile.uid,
         ownerUid: profile.uid,
@@ -160,6 +145,42 @@ class ProfilePage extends StatelessWidget {
         await scope.requireMedia.deleteMedia(id: profile.uid, ref: oldPath);
       }
     }
+  }
+
+  /// The premium avatar editor — the same native cropper the moments capture
+  /// flow uses (`image_cropper`), here locked to a 1:1 **circular** frame and
+  /// themed to ZIVO. Returns the cropped file, or null if the person backs
+  /// out. "Move & Scale" so the circle previews exactly what will be saved.
+  Future<CroppedFile?> _cropAvatar(String sourcePath) {
+    return ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      compressQuality: 92,
+      uiSettings: [
+        IOSUiSettings(
+          title: 'Move & Scale',
+          doneButtonTitle: 'Choose',
+          cancelButtonTitle: 'Cancel',
+          cropStyle: CropStyle.circle,
+          aspectRatioLockEnabled: true,
+          aspectRatioPickerButtonHidden: true,
+          resetAspectRatioEnabled: false,
+        ),
+        AndroidUiSettings(
+          toolbarTitle: 'Edit Photo',
+          cropStyle: CropStyle.circle,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          toolbarColor: AppColors.ground,
+          toolbarWidgetColor: AppColors.ink,
+          backgroundColor: AppColors.ground,
+          activeControlsWidgetColor: AppColors.ember,
+          cropFrameColor: AppColors.ground,
+          cropGridColor: AppColors.hairline2,
+          statusBarLight: false,
+        ),
+      ],
+    );
   }
 
   @override
@@ -235,11 +256,19 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(height: 28),
                         RiseIn(
                           delay: const Duration(milliseconds: 90),
-                          child: _AboutCard(
+                          child: _AboutSection(
                             bio: profile?.bio,
-                            onTap: profile == null
+                            onSave: profile == null
                                 ? null
-                                : () => _editBio(context, profile),
+                                : (bio) => AppScope.of(context)
+                                      .profiles
+                                      .saveProfile(
+                                        uid: profile.uid,
+                                        name: profile.name,
+                                        dateOfBirth: profile.dateOfBirth,
+                                        photoPath: profile.photoPath,
+                                        bio: bio,
+                                      ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -285,6 +314,7 @@ class ProfilePage extends StatelessWidget {
                               for (var i = 0; i < user.providerIds.length; i++)
                                 SettingsRow(
                                   icon: _providerIcon(user.providerIds[i]),
+                                  iconWidget: _providerLogo(user.providerIds[i]),
                                   title: _providerLabel(user.providerIds[i]),
                                   value: 'Connected',
                                   // The gold key is the one sign-in mark that
@@ -327,12 +357,24 @@ class ProfilePage extends StatelessWidget {
 
   static IconData _providerIcon(String id) => switch (id) {
     'password' => AppIcons.key,
-    // No Lucide glyph represents Google's mark — Material's
-    // g_mobiledata is the one deliberate AppIcons exception here (same
-    // class of call as leaving the Today time-of-day orb on Material).
-    'google.com' => Icons.g_mobiledata_rounded,
     'apple.com' => AppIcons.apple,
+    // Google renders its real mark via [_providerLogo]; this neutral glyph is
+    // only a fallback should the bundled logo ever fail to load.
     _ => AppIcons.link,
+  };
+
+  /// The official brand mark for a provider, shown inside the row's leading
+  /// chip instead of a glyph. Google ships the genuine four-color "G"
+  /// (bundled from Google's brand assets, never recolored) — the same pattern
+  /// as the Spotify mark in Settings. Others fall back to [_providerIcon].
+  static Widget? _providerLogo(String id) => switch (id) {
+    'google.com' => Image.asset(
+      'assets/google/google-icon.png',
+      width: 18,
+      height: 18,
+      filterQuality: FilterQuality.medium,
+    ),
+    _ => null,
   };
 
   static String _formatDob(DateTime d) {
@@ -380,7 +422,8 @@ class _AuraBlob extends StatelessWidget {
           // during page transitions (blur layers repaint per frame).
           gradient: RadialGradient(
             colors: [
-              color.withValues(alpha: 0.14),
+              // Softened so the ambient glow never competes with content.
+              color.withValues(alpha: 0.10),
               color.withValues(alpha: 0.0),
             ],
           ),
@@ -456,7 +499,6 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         _Avatar(
-          seed: user.uid,
           name: _name,
           photoPath: profile?.photoPath,
           onTap: onTapAvatar,
@@ -496,33 +538,22 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 /// The identity avatar. Shows the saved photo when one exists; otherwise a
-/// deterministic monogram (hue derived from [seed], so it's stable across
-/// sessions and distinct enough between accounts to feel personal). A
-/// gradient ring in that same hue circles the avatar and lifts it on a soft
-/// colored glow — the hero treatment this surface deserves. A small camera
-/// badge signals it's tappable — standard iOS "edit photo" affordance.
+/// monogram over a calm, warm-charcoal disc — no colored ring, no glow, so
+/// the person (not a hue) is the hero. A single hairline edge and a soft
+/// neutral shadow give it just enough lift. A small ember camera badge marks
+/// it tappable — the standard iOS "edit photo" affordance.
 class _Avatar extends StatelessWidget {
   const _Avatar({
-    required this.seed,
     required this.name,
     required this.photoPath,
     required this.onTap,
   });
 
-  final String seed;
   final String name;
   final String? photoPath;
   final VoidCallback? onTap;
 
-  static const _hues = [
-    AppColors.ember,
-    AppColors.pulse,
-    AppColors.iris,
-    AppColors.flare,
-    AppColors.solar,
-  ];
-  static const double _size = 100;
-  static const double _ringWidth = 3;
+  static const double _size = 96;
 
   String get _initials {
     final words = name
@@ -539,64 +570,51 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = photoPath;
-    final hue = _hues[seed.hashCode.abs() % _hues.length];
-    final fg = hue == AppColors.solar ? const Color(0xFF2A2205) : Colors.white;
 
     // The monogram is the base layer; when a stored photo resolves it covers
     // the circle. Resolution is async (the media store maps the ref to a file),
-    // so we can't decide sync — the gradient stays behind and the photo, when
+    // so we can't decide sync — the disc stays behind and the photo, when
     // present, paints over it. A missing/stale ref falls back to the monogram.
     final monogram = Text(
       _initials,
-      style: AppText.cardTitle.copyWith(fontSize: 32, color: fg),
+      style: AppText.cardTitle.copyWith(fontSize: 34, color: AppColors.ink),
     );
     final circle = Container(
-      width: _ringWidth * 2 + _size,
-      height: _ringWidth * 2 + _size,
+      width: _size,
+      height: _size,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
+        // A calm warm-charcoal disc (surface step lighter at the top-left),
+        // a single hairline edge, and a soft *neutral* lift — no hue, no glow.
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [hue, hue.withValues(alpha: 0.25)],
+          colors: [AppColors.surfaceRaised, AppColors.card],
         ),
+        border: Border.all(color: AppColors.hairline2),
         boxShadow: [
           BoxShadow(
-            color: hue.withValues(alpha: 0.30),
-            blurRadius: 32,
-            spreadRadius: -8,
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 28,
+            spreadRadius: -10,
             offset: const Offset(0, 14),
           ),
         ],
       ),
-      child: Container(
-        width: _size,
-        height: _size,
-        alignment: Alignment.center,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.ground, width: _ringWidth),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [hue, hue.withValues(alpha: 0.75)],
-          ),
-        ),
-        child: path == null
-            ? monogram
-            : SizedBox(
-                width: _size,
-                height: _size,
-                child: MediaImage(
-                  service: AppScope.of(context).requireMedia,
-                  ref: path,
-                  fit: BoxFit.cover,
-                  placeholder: Center(child: monogram),
-                ),
+      child: path == null
+          ? monogram
+          : SizedBox(
+              width: _size,
+              height: _size,
+              child: MediaImage(
+                service: AppScope.of(context).requireMedia,
+                ref: path,
+                fit: BoxFit.cover,
+                placeholder: Center(child: monogram),
               ),
-      ),
+            ),
     );
 
     return PressableScale(
@@ -621,10 +639,10 @@ class _Avatar extends StatelessWidget {
                     border: Border.all(color: AppColors.ground, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.ember.withValues(alpha: 0.45),
-                        blurRadius: 16,
-                        spreadRadius: -4,
-                        offset: const Offset(0, 6),
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -642,87 +660,287 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-/// The "About" card — a short bio the person writes about themselves, tap
-/// anywhere to edit. Shows a muted prompt until one is set; the affordance
-/// lives in a quiet circular edit-chip rather than a bare glyph.
-class _AboutCard extends StatelessWidget {
-  const _AboutCard({required this.bio, required this.onTap});
+/// The "About" section — a short bio the person writes about themselves,
+/// edited **in place**. Tapping the card (or its pencil) turns the card
+/// itself into the editor: an inline field, a live counter, and Cancel /
+/// Save — the card grows to fit what's typed, so nothing ever leaves the
+/// page or looks cramped. A muted prompt stands in until a bio is set.
+class _AboutSection extends StatefulWidget {
+  const _AboutSection({required this.bio, required this.onSave});
 
   final String? bio;
-  final VoidCallback? onTap;
+
+  /// Persists the new bio (null clears it). When null the section is
+  /// read-only — the brief loading state before the profile resolves.
+  final Future<void> Function(String? bio)? onSave;
+
+  @override
+  State<_AboutSection> createState() => _AboutSectionState();
+}
+
+class _AboutSectionState extends State<_AboutSection> {
+  static const int _maxLength = 160;
+
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.bio ?? '',
+  );
+  final FocusNode _focus = FocusNode();
+  bool _editing = false;
+  bool _saving = false;
+
+  @override
+  void didUpdateWidget(covariant _AboutSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Track live profile updates while we're not actively editing.
+    if (!_editing && widget.bio != oldWidget.bio) {
+      _controller.text = widget.bio ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    if (widget.onSave == null) return;
+    _controller.text = widget.bio ?? '';
+    setState(() => _editing = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  void _cancel() {
+    _focus.unfocus();
+    setState(() {
+      _controller.text = widget.bio ?? '';
+      _editing = false;
+    });
+  }
+
+  Future<void> _save() async {
+    final onSave = widget.onSave;
+    if (onSave == null || _saving) return;
+    final text = _controller.text.trim();
+    setState(() => _saving = true);
+    HapticFeedback.lightImpact();
+    await onSave(text.isEmpty ? null : text);
+    if (!mounted) return;
+    _focus.unfocus();
+    setState(() {
+      _saving = false;
+      _editing = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final trimmed = bio?.trim();
+    final editable = widget.onSave != null;
+    final trimmed = widget.bio?.trim();
     final hasBio = trimmed != null && trimmed.isNotEmpty;
-    final card = Container(
+
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(
+          color: _editing
+              ? AppColors.ember.withValues(alpha: 0.55)
+              : AppColors.hairline,
+        ),
         boxShadow: AppShadows.card,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('ABOUT', style: AppText.sectionLabel),
-              const Spacer(),
-              if (onTap != null)
-                Container(
-                  width: 28,
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceRaised,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.hairline2),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('ABOUT', style: AppText.sectionLabel),
+                const Spacer(),
+                if (editable && !_editing)
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceRaised,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.hairline2),
+                    ),
+                    child: Icon(
+                      hasBio ? AppIcons.edit : AppIcons.add,
+                      size: 13,
+                      color: AppColors.ink3,
+                    ),
                   ),
-                  child: Icon(
-                    hasBio ? AppIcons.edit : AppIcons.add,
-                    size: 13,
-                    color: AppColors.ink3,
-                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (_editing)
+              _buildEditor()
+            else
+              Text(
+                hasBio ? trimmed : 'Add a few words about yourself.',
+                style: AppText.body.copyWith(
+                  color: hasBio ? AppColors.ink2 : AppColors.ink3,
+                  fontSize: 14.5,
+                  height: 1.55,
                 ),
-            ],
+              ),
+          ],
+        ),
+      ),
+    );
+
+    // In edit mode the card is a live field, so it isn't a button; likewise
+    // while the profile is still loading (no save handler).
+    if (!editable || _editing) return card;
+    return PressableScale(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        onTap: _startEditing,
+        child: card,
+      ),
+    );
+  }
+
+  Widget _buildEditor() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          focusNode: _focus,
+          maxLines: null,
+          minLines: 2,
+          maxLength: _maxLength,
+          textCapitalization: TextCapitalization.sentences,
+          cursorColor: AppColors.ember,
+          onChanged: (_) => setState(() {}),
+          style: AppText.body.copyWith(
+            color: AppColors.ink,
+            fontSize: 14.5,
+            height: 1.55,
           ),
-          const SizedBox(height: 10),
-          Text(
-            hasBio ? trimmed : 'Add a few words about yourself.',
-            style: AppText.body.copyWith(
-              color: hasBio ? AppColors.ink2 : AppColors.ink3,
+          decoration: InputDecoration(
+            isCollapsed: true,
+            counterText: '',
+            border: InputBorder.none,
+            hintText: 'A few words about yourself…',
+            hintStyle: AppText.body.copyWith(
+              color: AppColors.ink3,
               fontSize: 14.5,
               height: 1.55,
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              '${_controller.text.length} / $_maxLength',
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+            ),
+            const Spacer(),
+            _AboutButton(label: 'Cancel', onTap: _saving ? null : _cancel),
+            const SizedBox(width: 6),
+            _AboutButton(
+              label: 'Save',
+              primary: true,
+              busy: _saving,
+              onTap: _saving ? null : _save,
+            ),
+          ],
+        ),
+      ],
     );
-    if (onTap == null) return card;
+  }
+}
+
+/// A small pill action for the inline About editor — a ghost text button
+/// (Cancel) or the ember primary (Save), which shows a spinner while saving.
+class _AboutButton extends StatelessWidget {
+  const _AboutButton({
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+    this.busy = false,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final bool primary;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Container(
+      padding: EdgeInsets.symmetric(horizontal: primary ? 18 : 14, vertical: 9),
+      decoration: primary
+          ? BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFF7038), AppColors.ember],
+              ),
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: AppShadows.ember,
+            )
+          : null,
+      child: busy
+          ? const SizedBox(
+              width: 15,
+              height: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Colors.white),
+              ),
+            )
+          : Text(
+              label,
+              style: AppText.button.copyWith(
+                fontSize: 14,
+                color: primary ? Colors.white : AppColors.ink3,
+              ),
+            ),
+    );
     return PressableScale(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: onTap,
-        child: card,
+      enabled: onTap != null,
+      child: Opacity(
+        opacity: (onTap == null && !busy) ? 0.5 : 1,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onTap,
+            child: child,
+          ),
+        ),
       ),
     );
   }
 }
 
-/// A bottom sheet with one text field — single-line (name) or multiline
-/// (bio) — capped at [maxLength] with a live counter. `.withInitial(...)`
-/// supplies the starting text (kept out of the const constructor since a
-/// [TextEditingController] can't be const).
+/// A bottom sheet with one single-line text field (the Name editor), capped
+/// at [maxLength] with a live counter. `initial` supplies the starting text
+/// (kept out of the const constructor since a [TextEditingController] can't
+/// be const). The About bio is edited inline on the page — see
+/// [_AboutSection] — not here.
 class _EditTextSheet extends StatefulWidget {
   const _EditTextSheet({
     required this.title,
     required this.hint,
     required this.maxLength,
     required this.initial,
-    this.multiline = false,
     this.capitalizeWords = false,
   });
 
@@ -730,7 +948,6 @@ class _EditTextSheet extends StatefulWidget {
   final String hint;
   final int maxLength;
   final String initial;
-  final bool multiline;
   final bool capitalizeWords;
 
   @override
@@ -742,7 +959,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
     text: widget.initial,
   );
 
-  bool get _canSave => widget.multiline ? true : _text.text.trim().isNotEmpty;
+  bool get _canSave => _text.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -802,20 +1019,15 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                 controller: _text,
                 autofocus: true,
                 maxLength: widget.maxLength,
-                maxLines: widget.multiline ? 4 : 1,
-                minLines: widget.multiline ? 3 : 1,
+                maxLines: 1,
                 textCapitalization: widget.capitalizeWords
                     ? TextCapitalization.words
                     : TextCapitalization.sentences,
-                textInputAction: widget.multiline
-                    ? TextInputAction.newline
-                    : TextInputAction.done,
-                onSubmitted: widget.multiline ? null : (_) => _submit(),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submit(),
                 onChanged: (_) => setState(() {}),
                 cursorColor: AppColors.ember,
-                style: AppText.rowTitle.copyWith(
-                  fontWeight: widget.multiline ? FontWeight.w400 : FontWeight.w600,
-                ),
+                style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
