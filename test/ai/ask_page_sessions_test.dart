@@ -42,7 +42,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'Hello there');
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.tap(find.byKey(const Key('composer-send')));
       await tester.pumpAndSettle();
 
       final conversations = await ai.watchConversations().first;
@@ -66,7 +66,7 @@ void main() {
       // Opens into the one existing conversation.
       expect(find.text('hi'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.add_comment_outlined));
+      await tester.tap(find.byKey(const Key('header-new-chat')));
       await tester.pumpAndSettle();
 
       expect(find.text("Hey, I'm ZIVO."), findsOneWidget);
@@ -77,7 +77,7 @@ void main() {
         'second chat message',
       );
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.tap(find.byKey(const Key('composer-send')));
       await tester.pumpAndSettle();
 
       expect(await ai.watchConversations().first, hasLength(2));
@@ -96,7 +96,7 @@ void main() {
       await tester.pumpWidget(_host(ai));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.history_rounded));
+      await tester.tap(find.byKey(const Key('header-history')));
       await tester.pumpAndSettle();
 
       await tester.drag(find.byKey(ValueKey(id)), const Offset(-1000, 0));

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -46,6 +47,13 @@ abstract interface class AudioRecorderService {
 
   /// Whether a recording is currently in progress.
   bool get isRecording;
+
+  /// The live microphone input level while a recording runs, normalized to
+  /// `0..1` (0 = silence, 1 = full scale), sampled continuously (~10 Hz).
+  /// Broadcast stream — the recording UI subscribes on mount to render a
+  /// real-time waveform, so the user can *see* their voice being captured.
+  /// Backends without metering support return an empty stream.
+  Stream<double> inputLevels();
 }
 
 /// `record`-backed [AudioRecorderService]. Records to a temporary `.m4a`
@@ -65,6 +73,7 @@ class RecordAudioRecorderService implements AudioRecorderService {
   final AudioRecorder _recorder;
   DateTime? _startedAt;
   bool _isRecording = false;
+  double _smoothed = 0;
 
   @override
   bool get isRecording => _isRecording;
@@ -80,6 +89,7 @@ class RecordAudioRecorderService implements AudioRecorderService {
     await _recorder.start(const RecordConfig(), path: path);
     _startedAt = DateTime.now();
     _isRecording = true;
+    _smoothed = 0;
   }
 
   @override
@@ -113,5 +123,33 @@ class RecordAudioRecorderService implements AudioRecorderService {
     _isRecording = false;
     _startedAt = null;
     await _recorder.cancel();
+  }
+
+  /// dBFS floor mapped to level 0 — speech at a normal phone-to-mouth
+  /// distance sits around -30..-12 dBFS, so anything below this reads as
+  /// silence rather than noise the waveform would exaggerate.
+  static const _dbFloor = -50.0;
+
+  StreamController<double>? _levels;
+
+  @override
+  Stream<double> inputLevels() {
+    // Lazily created broadcast stream bridging `record`'s Amplitude events
+    // (dBFS) into normalized levels, lightly smoothed (exponential moving
+    // average) so the waveform glides instead of twitching per sample.
+    final existing = _levels;
+    if (existing != null) return existing.stream;
+    final controller = StreamController<double>.broadcast();
+    controller.onListen = () {
+      _recorder
+          .onAmplitudeChanged(const Duration(milliseconds: 100))
+          .listen((amplitude) {
+        final raw = ((amplitude.current - _dbFloor) / -_dbFloor).clamp(0.0, 1.0);
+        _smoothed = 0.35 * raw + 0.65 * _smoothed;
+        if (!controller.isClosed) controller.add(_smoothed);
+      });
+    };
+    _levels = controller;
+    return controller.stream;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
@@ -134,7 +135,7 @@ void main() {
     await tester.pumpWidget(_host(ai));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.tune_rounded));
+    await tester.tap(find.byKey(const Key('header-style')));
     await tester.pumpAndSettle();
 
     expect(find.text('Concise'), findsOneWidget);
@@ -144,7 +145,7 @@ void main() {
     expect(
       find.descendant(
         of: find.widgetWithText(Row, 'Balanced'),
-        matching: find.byIcon(Icons.check_circle_rounded),
+        matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,
     );
@@ -156,18 +157,18 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'hello');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pumpAndSettle();
 
     expect(ai.sentStyles, ['concise']);
 
     // Reopening the menu now shows Concise checked instead.
-    await tester.tap(find.byIcon(Icons.tune_rounded));
+    await tester.tap(find.byKey(const Key('header-style')));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.widgetWithText(Row, 'Concise'),
-        matching: find.byIcon(Icons.check_circle_rounded),
+        matching: find.byIcon(AppIcons.check),
       ),
       findsOneWidget,
     );

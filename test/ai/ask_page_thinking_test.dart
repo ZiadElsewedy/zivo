@@ -137,7 +137,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'what is due this week?');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     // Let the send lifecycle mark the turn in flight (send is gated open).
     await tester.pump();
     await tester.pump();

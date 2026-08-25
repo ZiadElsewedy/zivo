@@ -38,7 +38,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'What is due this week?');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pumpAndSettle();
 
     expect(find.text('What is due this week?'), findsOneWidget);

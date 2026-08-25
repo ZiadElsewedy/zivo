@@ -37,7 +37,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'add expense 12 coffee');
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.tap(find.byKey(const Key('composer-send')));
       await tester.pumpAndSettle();
 
       // The card shows, with its Confirm/Cancel affordances — and no canned reply.
@@ -59,7 +59,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'add expense 12 coffee');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('proposal-confirm')));
@@ -79,7 +79,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'add expense 5 other');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('proposal-cancel')));
