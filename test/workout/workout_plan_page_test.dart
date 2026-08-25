@@ -31,6 +31,7 @@ import 'package:zivo/features/workout/presentation/pages/workout_plan_page.dart'
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/inert_music_controller.dart';
 
 /// A repository whose `watchActivePlan()` stream only emits when [emit]/[emitError]
 /// is called, so tests can assert on the "waiting"/error states deterministically.
@@ -94,6 +95,9 @@ Widget _wrap({
     workoutSessions: sessionsOverride ?? InMemoryWorkoutSessionRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
+    // Music UI mounts in the session player now — the inert controller keeps
+    // that wiring satisfied without any live playback.
+    music: InertMusicController(),
     child: MaterialApp(home: child),
   );
 }

@@ -68,4 +68,10 @@ abstract interface class MediaBackupProvider {
   /// Downloads a backed-up file's bytes by its remote id. Requires a live
   /// session (caller ensures it). Returns null on failure.
   Future<List<int>?> download(String remoteId);
+
+  /// Deletes the remote copy for [remoteId] (best-effort). Requires a live
+  /// session (caller ensures it). Returns whether the deletion succeeded —
+  /// a null/failed result leaves the remote copy in place (safe to retry via
+  /// another backup/delete cycle), never corrupting anything local.
+  Future<bool> deleteRemote(String remoteId);
 }

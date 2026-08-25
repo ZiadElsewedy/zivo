@@ -46,12 +46,31 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   bool _chrome = true;
   bool _info = false;
 
+  /// Whether the CURRENT photo's bytes are actually on this device — the
+  /// metadata panel's Backup row is only honest when it knows this. On a
+  /// second device a moment can be fully synced as data while its image
+  /// lives solely in Drive.
+  Future<bool>? _onDevice;
+
   @override
   void initState() {
     super.initState();
     _photos = List.of(widget.photos);
     _index = widget.initialIndex.clamp(0, _photos.length - 1);
     _pageController = PageController(initialPage: _index);
+    _refreshOnDevice();
+  }
+
+  void _refreshOnDevice() {
+    final ref = _current.imagePath;
+    if (ref == null) {
+      _onDevice = null;
+      return;
+    }
+    _onDevice = widget.service
+        .resolve(ref)
+        .then((file) => file != null && file.existsSync())
+        .catchError((_) => false);
   }
 
   @override
@@ -121,6 +140,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                 onPageChanged: (i) => setState(() {
                   _index = i;
                   _info = false;
+                  _refreshOnDevice();
                 }),
                 itemBuilder: (context, i) => _ZoomablePhoto(
                   service: widget.service,
@@ -149,6 +169,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
             child: _BottomBar(
               moment: moment,
               media: media,
+              onDevice: _onDevice,
               infoOpen: _info,
               onToggleInfo: () => setState(() => _info = !_info),
             ),
@@ -314,18 +335,22 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.moment,
     required this.media,
+    required this.onDevice,
     required this.infoOpen,
     required this.onToggleInfo,
   });
 
   final Moment moment;
   final MediaObject? media;
+
+  /// Whether the photo's bytes are on this device right now (null while
+  /// checking, or when the moment has no image) — keeps the Backup row honest.
+  final Future<bool>? onDevice;
   final bool infoOpen;
   final VoidCallback onToggleInfo;
 
   @override
   Widget build(BuildContext context) {
-    final rows = buildMomentMetadata(moment, media);
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -368,7 +393,21 @@ class _BottomBar extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final row in rows) _MetaLine(row: row),
+                      FutureBuilder<bool>(
+                        future: onDevice,
+                        initialData: true,
+                        builder: (context, snap) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final row in buildMomentMetadata(
+                              moment,
+                              media,
+                              photoOnDevice: snap.data ?? true,
+                            ))
+                              _MetaLine(row: row),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

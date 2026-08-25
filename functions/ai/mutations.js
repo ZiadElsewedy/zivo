@@ -133,7 +133,56 @@ const CREATE_EXPENSE = {
   },
 };
 
-const mutatingTools = [CREATE_EXPENSE];
+const MARK_MEAL_EATEN = {
+  name: "mark_meal_eaten",
+  mutating: true,
+  kind: "mark_meal_eaten",
+  description:
+    "Propose marking a meal from the user's active diet plan as eaten (or " +
+    "not eaten) for a day — does not save until the user confirms. Requires " +
+    "mealId: use an id EXACTLY as it appeared in get_today/get_diet output. " +
+    "Optional: eaten (default true; false to undo), date (ISO 8601, default " +
+    "today), label (the meal's name, shown on the confirmation card).",
+  inputSchema: {
+    type: "object",
+    properties: {
+      mealId: {type: "string", description: "exact id from get_today/get_diet"},
+      label: {type: "string", description: "meal name for the confirmation card"},
+      eaten: {type: "boolean", description: "true (default) to mark eaten; false to undo"},
+      date: {type: "string", description: "ISO 8601 day, optional, default today"},
+    },
+    required: ["mealId"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload.
+   */
+  validate(input) {
+    const mealId = requireText(input.mealId, "meal id", 200);
+    const label = input.label == null || String(input.label).trim() === "" ?
+      null : requireText(input.label, "label", 200);
+    return {
+      mealId,
+      label,
+      eaten: input.eaten === undefined ? true : input.eaten === true,
+      dateIso: optionalIso(input.date, "date"),
+    };
+  },
+  fields(v) {
+    return {
+      meal: v.label || v.mealId,
+      state: v.eaten ? "eaten" : "not eaten",
+    };
+  },
+  summarize(v) {
+    return `Mark ${v.label || v.mealId} ${v.eaten ? "eaten" : "not eaten"}`;
+  },
+  result(v) {
+    return `Marked ${v.label || v.mealId} ${v.eaten ? "eaten" : "not eaten"}.`;
+  },
+};
+
+const mutatingTools = [CREATE_EXPENSE, MARK_MEAL_EATEN];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 
 module.exports = {

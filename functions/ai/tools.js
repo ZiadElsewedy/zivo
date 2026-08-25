@@ -56,12 +56,66 @@ function filterTasks(tasks, filter) {
   return tasks.filter((t) => !t.done);
 }
 
+/**
+ * Sums a meal-plan item's numeric field, skipping items where the value is
+ * absent (the diet importer legitimately leaves calories/macros null).
+ * @param {!Array<Object>} items
+ * @param {string} field
+ * @return {?number} The total, or null when NO item states the field.
+ */
+function sumItemField(items, field) {
+  let total = 0;
+  let stated = false;
+  for (const item of items) {
+    const value = item && item[field];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      total += value;
+      stated = true;
+    }
+  }
+  return stated ? total : null;
+}
+
+/**
+ * Aggregates a set of planned meals into day-level nutrition totals — the
+ * target side when fed every meal, the consumed side when fed only the eaten
+ * ones. Each component is null when no contributing item states it.
+ * @param {!Array<Object>} meals Planned meals (label/items shape).
+ * @return {!Object} `{calories, proteinG, carbsG, fatG}` totals or nulls.
+ */
+function dayNutrition(meals) {
+  const items = meals.flatMap((m) => (m && Array.isArray(m.items) ? m.items : []));
+  return {
+    kcal: sumItemField(items, "calories"),
+    proteinG: sumItemField(items, "proteinG"),
+    carbsG: sumItemField(items, "carbsG"),
+    fatG: sumItemField(items, "fatG"),
+  };
+}
+
+/**
+ * The target-vs-consumed adherence block for one resolved diet day — consumed
+ * counts only the meals whose eaten-toggle is set, so a checked-off meal
+ * contributes its planned macros. Null components mean the plan doesn't state
+ * that nutrient anywhere; they stay null rather than reading as zero.
+ * @param {!Array<Object>} meals The day's planned meals.
+ * @param {!Set<string>} eatenMealIds
+ * @return {!Object} `{target, consumed}` nutrition totals.
+ */
+function adherenceFor(meals, eatenMealIds) {
+  return {
+    target: dayNutrition(meals),
+    consumed: dayNutrition(meals.filter((m) => m && eatenMealIds.has(m.id))),
+  };
+}
+
 const TODAY_TOOL = {
   name: "get_today",
   description:
     "A composed snapshot of 'today': schedule events, tasks due today or " +
     "overdue (and still open), university items due today, today's " +
-    "workout(s), and today's diet plan with which meals are eaten.",
+    "workout(s), and today's diet plan with which meals are eaten and " +
+    "target-vs-consumed nutrition totals.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
@@ -99,10 +153,13 @@ const TODAY_TOOL = {
       diet = {
         planName: plan.name,
         dayLabel: dietDay.label,
+        nutrition: adherenceFor(dietDay.meals, eaten),
         meals: dietDay.meals.map((m) => ({
           id: m.id,
           label: m.label,
           eaten: eaten.has(m.id),
+          kcal: sumItemField(
+              Array.isArray(m.items) ? m.items : [], "calories"),
         })),
       };
     }
@@ -308,8 +365,8 @@ const DIET_TOOL = {
   name: "get_diet",
   description:
     "The active diet plan's meals for a day (default today), with " +
-    "calories/macros and which meals are already eaten. day: optional " +
-    "'yyyy-MM-dd'.",
+    "calories/macros, which meals are already eaten, and target-vs-consumed " +
+    "nutrition totals. day: optional 'yyyy-MM-dd'.",
   inputSchema: {
     type: "object",
     properties: {day: {type: "string"}},
@@ -337,6 +394,7 @@ const DIET_TOOL = {
     return {
       plan: plan.name,
       day: dietDay.label,
+      nutrition: adherenceFor(dietDay.meals, eaten),
       meals: dietDay.meals.map((m) => ({
         id: m.id,
         label: m.label,
