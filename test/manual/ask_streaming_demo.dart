@@ -163,11 +163,12 @@ class DemoAi implements AiRepository {
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
+    required Uint8List fileBytes,
+    required String mimeType,
   }) => throw UnimplementedError('not exercised by this manual demo');
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
       throw UnimplementedError('not exercised by this manual demo');
 
   @override

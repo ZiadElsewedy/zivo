@@ -36,6 +36,17 @@ const MAX_TOKENS = 8000;
 const TOOL_NAME = "propose_diet_plan";
 const REJECT_TOOL_NAME = "reject_import";
 
+// The input media types this extraction can read: a real PDF (native
+// document input — every page, text plus embedded scans) or a photo/screenshot
+// of one. Anything else is rejected before it reaches the model.
+const SUPPORTED_MEDIA_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
 // normalize() bounds — mirrors workout_import.js's MAX_SETS reasoning: a
 // hallucinated/misread extraction on a messy PDF can produce numerically-
 // valid-but-absurd values that strict mode's schema can't rule out (it only
@@ -163,7 +174,7 @@ const REJECT_TOOL = {
 // Untrusted content (ADR-002 guardrail): the PDF is the user's own document,
 // but its text is still DATA, not instructions — a PDF that says "ignore
 // your instructions" is just text on a page.
-const SYSTEM_PROMPT = `You extract structured diet-plan data from a PDF a
+const SYSTEM_PROMPT = `You extract structured diet-plan data from a document a
 user uploaded — a nutritionist's plan, a coach's meal sheet, a photographed
 page of handwritten meals. Read every page, then call exactly one tool.
 
@@ -248,8 +259,13 @@ const DEFAULT_REJECTION_REASON =
  * @param {string=} args.model Provider-native model id. Defaults to `MODEL`.
  * @param {function(!Object): !Promise<!Object>=} args.callModel Legacy seam:
  *   one Anthropic `messages.create` call. Ignored when `provider` is given.
- * @param {string} args.pdfBase64 The PDF's bytes, base64-encoded, no
- *   newlines.
+ * @param {string} args.pdfBase64 Legacy param name: the file's bytes,
+ *   base64-encoded, no newlines. Superseded by `fileBase64` (either is
+ *   accepted; `fileBase64` wins when both are given).
+ * @param {string=} args.fileBase64 The file's bytes, base64-encoded, no
+ *   newlines — a PDF or a supported image.
+ * @param {string=} args.mediaType One of SUPPORTED_MEDIA_TYPES for
+ *   `fileBase64`/`pdfBase64` — defaults to `application/pdf`.
  * @param {function(!Object): void} [args.logEvent] Optional diagnostic
  *   sink — called with one structured event per outcome (stop reason, which
  *   tool fired, reject reason if any). Injected rather than importing
@@ -259,10 +275,19 @@ const DEFAULT_REJECTION_REASON =
  *   {ok: false, reason: string}>}
  */
 async function extractDietPlan({
-  provider, model, callModel, pdfBase64, logEvent = () => {},
+  provider, model, callModel, pdfBase64, fileBase64, mediaType,
+  logEvent = () => {},
 }) {
-  if (typeof pdfBase64 !== "string" || pdfBase64.trim() === "") {
-    throw new GatewayError("invalid-argument", "A PDF is required.");
+  const base64 = fileBase64 || pdfBase64;
+  if (typeof base64 !== "string" || base64.trim() === "") {
+    throw new GatewayError(
+        "invalid-argument", "A PDF or photo of a diet plan is required.");
+  }
+  const type = mediaType || "application/pdf";
+  if (!SUPPORTED_MEDIA_TYPES.includes(type)) {
+    throw new GatewayError(
+        "invalid-argument",
+        "Only PDFs and photos (JPEG, PNG, WebP, GIF) can be imported.");
   }
 
   const activeProvider = provider ||
@@ -281,7 +306,9 @@ async function extractDietPlan({
       {
         role: "user",
         content: [
-          {type: "document", mediaType: "application/pdf", dataBase64: pdfBase64},
+          type === "application/pdf" ?
+            {type: "document", mediaType: type, dataBase64: base64} :
+            {type: "image", mediaType: type, dataBase64: base64},
           {type: "text", text: "Extract the diet plan from this document."},
         ],
       },
@@ -450,4 +477,5 @@ module.exports = {
   REJECT_TOOL,
   SYSTEM_PROMPT,
   DEFAULT_REJECTION_REASON,
+  SUPPORTED_MEDIA_TYPES,
 };

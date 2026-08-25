@@ -114,12 +114,13 @@ class _FlakyAi implements AiRepository {
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
-  }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _inner.importWorkoutPlan(fileBytes: fileBytes, mimeType: mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
-      _inner.importDietPlan(pdfBytes: pdfBytes);
+  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
+      _inner.importDietPlan(fileBytes: fileBytes, mimeType: mimeType);
 
   @override
   Future<SttOutcome> transcribe({
@@ -186,11 +187,12 @@ class _SilentDropAi implements AiRepository {
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
+    required Uint8List fileBytes,
+    required String mimeType,
   }) => throw UnimplementedError();
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
+  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
       throw UnimplementedError();
 
   @override
@@ -377,12 +379,13 @@ class _HeldAi implements AiRepository {
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
-  }) => _inner.importWorkoutPlan(pdfBytes: pdfBytes);
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _inner.importWorkoutPlan(fileBytes: fileBytes, mimeType: mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
-      _inner.importDietPlan(pdfBytes: pdfBytes);
+  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
+      _inner.importDietPlan(fileBytes: fileBytes, mimeType: mimeType);
 
   @override
   Future<SttOutcome> transcribe({

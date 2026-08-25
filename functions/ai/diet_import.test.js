@@ -364,3 +364,51 @@ test("extractDietPlan: rejects a missing/empty pdfBase64 before calling the mode
   );
   assert.equal(callModel.lastRequest, undefined);
 });
+
+test("extractDietPlan: an image mediaType rides as an image block", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  await extractDietPlan({
+    callModel,
+    fileBase64: "aW1n",
+    mediaType: "image/jpeg",
+  });
+
+  const block = callModel.lastRequest.messages[0].content[0];
+  assert.equal(block.type, "image");
+  assert.equal(block.source.media_type, "image/jpeg");
+  assert.equal(block.source.data, "aW1n");
+});
+
+test("extractDietPlan: fileBase64 wins over the legacy pdfBase64 param", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  await extractDietPlan({
+    callModel,
+    pdfBase64: "b2xk",
+    fileBase64: "bmV3",
+    mediaType: "image/png",
+  });
+
+  const block = callModel.lastRequest.messages[0].content[0];
+  assert.equal(block.source.data, "bmV3");
+});
+
+test("extractDietPlan: rejects an unsupported media type before calling the model", async () => {
+  const callModel = scriptedModel(toolResponse({planName: "x", days: [VALID_DAY]}));
+  await assert.rejects(
+      () => extractDietPlan({
+        callModel,
+        fileBase64: "ZG9jeA==",
+        mediaType: "application/msword",
+      }),
+      (err) => {
+        assert.ok(err instanceof GatewayError);
+        assert.equal(err.code, "invalid-argument");
+        return true;
+      },
+  );
+  assert.equal(callModel.lastRequest, undefined);
+});

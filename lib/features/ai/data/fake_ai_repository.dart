@@ -48,9 +48,10 @@ class _FakeConversation {
 /// (new chat / switch / sessions list) is testable without a backend.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
-    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)?
+    Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     importWorkoutPlanImpl,
-    Future<DietImportOutcome> Function(Uint8List pdfBytes)? importDietPlanImpl,
+    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    importDietPlanImpl,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -58,13 +59,19 @@ class FakeAiRepository implements AiRepository {
     )?
     transcribeImpl,
   }) : _importWorkoutPlanImpl =
-           importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
+            importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
        _importDietPlanImpl = importDietPlanImpl ?? _defaultImportDietPlan,
        _transcribeImpl = transcribeImpl ?? _defaultTranscribe;
 
-  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)
+  final Future<WorkoutImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
   _importWorkoutPlanImpl;
-  final Future<DietImportOutcome> Function(Uint8List pdfBytes)
+  final Future<DietImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
   _importDietPlanImpl;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
@@ -362,24 +369,27 @@ class FakeAiRepository implements AiRepository {
 
   /// Offline-testable stand-in for the real `aiImportWorkoutPlan` callable —
   /// delegates to [_importWorkoutPlanImpl], which defaults to
-  /// [_defaultImportWorkoutPlan] (a canned success, ignoring [pdfBytes]
+  /// [_defaultImportWorkoutPlan] (a canned success, ignoring its arguments
   /// entirely) but can be overridden at construction to script any outcome
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
-  }) => _importWorkoutPlanImpl(pdfBytes);
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _importWorkoutPlanImpl(fileBytes, mimeType);
 
   /// Offline-testable stand-in for the real `aiImportDietPlan` callable —
   /// delegates to [_importDietPlanImpl], which defaults to
-  /// [_defaultImportDietPlan] (a canned success, ignoring [pdfBytes]
+  /// [_defaultImportDietPlan] (a canned success, ignoring its arguments
   /// entirely) but can be overridden at construction to script any outcome
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
-      _importDietPlanImpl(pdfBytes);
+  Future<DietImportOutcome> importDietPlan({
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _importDietPlanImpl(fileBytes, mimeType);
 
   /// Offline-testable stand-in for the real `aiTranscribe` callable —
   /// delegates to [_transcribeImpl], which defaults to
@@ -404,12 +414,13 @@ class FakeAiRepository implements AiRepository {
     return const SttTranscribed(text: "This is a placeholder transcript.");
   }
 
-  /// A canned, deterministic extraction. Ignores [pdfBytes] entirely (this
-  /// fake never actually reads a PDF); a real upload always yields the same
-  /// small two-day sample so the review screen is buildable/testable without
-  /// Firebase.
+  /// A canned, deterministic extraction. Ignores its arguments entirely
+  /// (this fake never actually reads a file); a real upload always yields the
+  /// same small two-day sample so the review screen is buildable/testable
+  /// without Firebase.
   static Future<WorkoutImportOutcome> _defaultImportWorkoutPlan(
-    Uint8List pdfBytes,
+    Uint8List fileBytes,
+    String mimeType,
   ) async {
     return const WorkoutImportAccepted(
       WorkoutImportResult(
@@ -448,13 +459,14 @@ class FakeAiRepository implements AiRepository {
     );
   }
 
-  /// A canned, deterministic extraction. Ignores [pdfBytes] entirely (this
-  /// fake never actually reads a PDF); a real upload always yields the same
-  /// small one-day sample so the review screen is buildable/testable
+  /// A canned, deterministic extraction. Ignores its arguments entirely
+  /// (this fake never actually reads a file); a real upload always yields the
+  /// same small one-day sample so the review screen is buildable/testable
   /// without Firebase. One item is marked `estimated: true` so the "~" UI
   /// path is exercisable offline too.
   static Future<DietImportOutcome> _defaultImportDietPlan(
-    Uint8List pdfBytes,
+    Uint8List fileBytes,
+    String mimeType,
   ) async {
     return const DietImportAccepted(
       DietImportResult(

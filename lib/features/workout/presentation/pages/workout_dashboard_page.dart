@@ -823,7 +823,7 @@ class _NoPlanState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              "Import a PDF and I'll turn it into a real split, or build one from scratch.",
+              "Import a PDF or photo and I'll turn it into a real split, or build one from scratch.",
               style: AppText.body.copyWith(color: AppColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -831,7 +831,7 @@ class _NoPlanState extends StatelessWidget {
             SizedBox(
               width: 220,
               child: PillButton(
-                label: 'Import from PDF',
+                label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
                 color: AppColors.pulse,
                 enabled: true,

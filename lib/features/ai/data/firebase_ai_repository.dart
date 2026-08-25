@@ -57,8 +57,10 @@ class FirebaseAiRepository implements AiRepository {
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
-    Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)? invokeImport,
-    Future<DietImportOutcome> Function(Uint8List pdfBytes)? invokeDietImport,
+    Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    invokeImport,
+    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    invokeDietImport,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -99,8 +101,15 @@ class FirebaseAiRepository implements AiRepository {
     String actionId,
   )
   _invokeAction;
-  final Future<WorkoutImportOutcome> Function(Uint8List pdfBytes) _invokeImport;
-  final Future<DietImportOutcome> Function(Uint8List pdfBytes)
+  final Future<WorkoutImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
+  _invokeImport;
+  final Future<DietImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
   _invokeDietImport;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
@@ -196,30 +205,38 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   /// The default `importWorkoutPlan` invoker — calls `aiImportWorkoutPlan`
-  /// with the PDF base64-encoded. Like [_defaultInvokeChat], resolves
+  /// with the file base64-encoded. Like [_defaultInvokeChat], resolves
   /// [FirebaseFunctions] lazily so the repo builds without a live Firebase
   /// app.
-  static Future<WorkoutImportOutcome> Function(Uint8List pdfBytes)
+  static Future<WorkoutImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
   _defaultInvokeImport(FirebaseFunctions? functions) {
-    return (pdfBytes) async {
+    return (fileBytes, mimeType) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final result = await f.httpsCallable('aiImportWorkoutPlan').call({
-        'pdfBase64': base64Encode(pdfBytes),
+        'fileBase64': base64Encode(fileBytes),
+        'mimeType': mimeType,
       });
       return _importOutcomeFromJson(result.data);
     };
   }
 
   /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
-  /// the PDF base64-encoded. Mirrors [_defaultInvokeImport] exactly.
-  static Future<DietImportOutcome> Function(Uint8List pdfBytes)
+  /// the file base64-encoded. Mirrors [_defaultInvokeImport] exactly.
+  static Future<DietImportOutcome> Function(
+    Uint8List fileBytes,
+    String mimeType,
+  )
   _defaultInvokeDietImport(FirebaseFunctions? functions) {
-    return (pdfBytes) async {
+    return (fileBytes, mimeType) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final result = await f.httpsCallable('aiImportDietPlan').call({
-        'pdfBase64': base64Encode(pdfBytes),
+        'fileBase64': base64Encode(fileBytes),
+        'mimeType': mimeType,
       });
       return _dietImportOutcomeFromJson(result.data);
     };
@@ -428,12 +445,15 @@ class FirebaseAiRepository implements AiRepository {
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List pdfBytes,
-  }) => _invokeImport(pdfBytes);
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _invokeImport(fileBytes, mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) =>
-      _invokeDietImport(pdfBytes);
+  Future<DietImportOutcome> importDietPlan({
+    required Uint8List fileBytes,
+    required String mimeType,
+  }) => _invokeDietImport(fileBytes, mimeType);
 
   @override
   Future<SttOutcome> transcribe({

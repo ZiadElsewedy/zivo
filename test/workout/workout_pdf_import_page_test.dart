@@ -28,7 +28,7 @@ class _FailingImportAi extends FakeAiRepository {
   final Object error;
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes}) {
+  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List fileBytes, required String mimeType}) {
     throw error is String ? StateError(error as String) : error;
   }
 }
@@ -66,7 +66,16 @@ Future<InMemoryWorkoutPlanRepository> _pumpImportPage(
     ),
   );
   navigatorKey.currentState!.push(
-    MaterialPageRoute(builder: (_) => WorkoutPdfImportPage(pickPdfBytes: pickPdfBytes)),
+    MaterialPageRoute(
+      builder: (_) => WorkoutPdfImportPage(
+        // Adapt the old bytes-only stub to the page's current pickFile seam.
+        pickFile: () async {
+          final bytes = await pickPdfBytes();
+          if (bytes == null) return null;
+          return (bytes: bytes, mimeType: 'application/pdf');
+        },
+      ),
+    ),
   );
   await tester.pumpAndSettle();
   return plans;
@@ -175,7 +184,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async =>
+          importWorkoutPlanImpl: (_, _) async =>
               const WorkoutImportRejected('This looks like a grocery receipt, not a workout plan.'),
         ),
       );
@@ -194,7 +203,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async => const WorkoutImportRejected('Not a workout plan.'),
+          importWorkoutPlanImpl: (_, _) async => const WorkoutImportRejected('Not a workout plan.'),
         ),
       );
 
@@ -213,7 +222,7 @@ void main() {
           return Uint8List.fromList([1, 2, 3]);
         },
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async => const WorkoutImportRejected('Not a workout plan.'),
+          importWorkoutPlanImpl: (_, _) async => const WorkoutImportRejected('Not a workout plan.'),
         ),
       );
       expect(pickCount, 1);
@@ -231,7 +240,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async => const WorkoutImportAccepted(
+          importWorkoutPlanImpl: (_, _) async => const WorkoutImportAccepted(
             WorkoutImportResult(
               planName: 'Partial Split',
               days: [
@@ -260,7 +269,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async => const WorkoutImportRejected(
+          importWorkoutPlanImpl: (_, _) async => const WorkoutImportRejected(
             "This file doesn't contain enough valid workout data to create a training plan.",
           ),
         ),
@@ -282,7 +291,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_) async => const WorkoutImportAccepted(
+          importWorkoutPlanImpl: (_, _) async => const WorkoutImportAccepted(
             WorkoutImportResult(
               planName: 'Handwritten Plan',
               days: [
@@ -320,7 +329,7 @@ void main() {
     );
 
     expect(
-      find.text("Couldn't read that plan — try a clearer PDF, or build the split manually."),
+      find.text("Couldn't read that plan — try a clearer photo or PDF, or build the split manually."),
       findsOneWidget,
     );
     expect(pickCount, 1);
@@ -362,7 +371,7 @@ void main() {
 
     expect(find.textContaining("verify itself"), findsOneWidget);
     expect(
-      find.text("Couldn't read that plan — try a clearer PDF, or build the split manually."),
+      find.text("Couldn't read that plan — try a clearer photo or PDF, or build the split manually."),
       findsNothing,
     );
   });
