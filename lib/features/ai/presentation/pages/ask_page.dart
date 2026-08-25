@@ -1599,6 +1599,13 @@ class _ProposalCard extends StatelessWidget {
           tintBg: AppColors.solarWash,
           tintFg: AppColors.solarText,
         );
+      case 'mark_meal_eaten':
+        return (
+          icon: AppIcons.diet,
+          label: 'Diet plan',
+          tintBg: AppColors.pulseWash,
+          tintFg: AppColors.pulseText,
+        );
       default:
         return (
           icon: AppIcons.ask,

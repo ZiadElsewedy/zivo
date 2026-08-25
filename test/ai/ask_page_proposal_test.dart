@@ -115,4 +115,24 @@ void main() {
     expect(find.text('12.00 EGP'), findsOneWidget);
     expect(find.text('coffee'), findsOneWidget);
   });
+
+  testWidgets('a meal proposal renders the diet card', (tester) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
+    final conversationId = await ai.createConversation();
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    ai.proposeAction(
+      conversationId: conversationId,
+      kind: 'mark_meal_eaten',
+      summary: 'Mark Lunch eaten',
+      fields: {'meal': 'Lunch', 'state': 'eaten'},
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Diet plan'), findsOneWidget);
+    expect(find.text('Lunch'), findsOneWidget);
+    expect(find.text('eaten'), findsOneWidget);
+  });
 }
