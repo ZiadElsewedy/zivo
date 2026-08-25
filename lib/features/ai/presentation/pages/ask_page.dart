@@ -44,11 +44,20 @@ const _kLandingGrace = Duration(seconds: 12);
 /// The "Ask" chat surface: an iris-themed message list over a pinned
 /// composer. Talks only to `AppScope.of(context).ai` — Firebase-free.
 class AskPage extends StatefulWidget {
-  const AskPage({super.key, this.transcribeTimeout = _kTranscribeTimeout});
+  const AskPage({
+    super.key,
+    this.transcribeTimeout = _kTranscribeTimeout,
+    this.incomingDraft,
+  });
 
   /// Injectable for tests — how long to wait on transcription before
   /// surfacing the timeout failure.
   final Duration transcribeTimeout;
+
+  /// External text drops (voice quick-log): when the shell sets a non-null
+  /// value, the composer takes it over as an editable draft. One-shot — the
+  /// notifier resets to null after consumption so a repeated log re-triggers.
+  final ValueNotifier<String?>? incomingDraft;
 
   @override
   State<AskPage> createState() => _AskPageState();
@@ -180,6 +189,7 @@ class _AskPageState extends State<AskPage> {
       final canSend = _input.text.trim().isNotEmpty;
       if (canSend != _canSend) setState(() => _canSend = canSend);
     });
+    widget.incomingDraft?.addListener(_onIncomingDraft);
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
       final p = _scroll.position;
@@ -187,8 +197,31 @@ class _AskPageState extends State<AskPage> {
     });
   }
 
+  /// Consumes a shell-initiated draft (voice quick-log): drops it into the
+  /// composer as editable text — never auto-sent — and clears the notifier
+  /// so the next log re-triggers even if identical.
+  void _onIncomingDraft() {
+    final text = widget.incomingDraft?.value;
+    if (text == null || !mounted) return;
+    widget.incomingDraft!.value = null;
+    setState(() {
+      _input.text = text.trim();
+      _canSend = _input.text.trim().isNotEmpty;
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AskPage old) {
+    super.didUpdateWidget(old);
+    if (widget.incomingDraft != old.incomingDraft) {
+      old.incomingDraft?.removeListener(_onIncomingDraft);
+      widget.incomingDraft?.addListener(_onIncomingDraft);
+    }
+  }
+
   @override
   void dispose() {
+    widget.incomingDraft?.removeListener(_onIncomingDraft);
     _input.dispose();
     _scroll.dispose();
     _slowTurnTimer?.cancel();
