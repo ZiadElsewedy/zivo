@@ -1207,16 +1207,6 @@ class _AskPageState extends State<AskPage>
                                     }
                                     final message = displayed[i];
                                     final displayKey = _displayKey(message);
-                                    // Once-only ledger: true exactly when this
-                                    // identity is new since the thread loaded.
-                                    // The optimistic→durable swap re-hits an
-                                    // already-played key, so the bubble never
-                                    // animates twice; scrolling away and back
-                                    // finds the key too, so history never
-                                    // re-entrances mid-scroll.
-                                    final justArrived = _entrancePlayed.add(
-                                      displayKey,
-                                    );
                                     final isLast =
                                         i == displayed.length - 1;
                                     // Consume the reveal token on the first render of the
@@ -1280,12 +1270,17 @@ class _AskPageState extends State<AskPage>
                                     }
                                     // The stable display key rides the item
                                     // itself so [findChildIndexCallback] can
-                                    // relocate it after index shifts.
+                                    // relocate it after index shifts, and the
+                                    // once-only entrance ledger lives INSIDE
+                                    // the wrapper (see [_RiseOnce]) so the
+                                    // decision never flips between builds.
                                     return KeyedSubtree(
                                       key: ValueKey<String>(displayKey),
-                                      child: justArrived
-                                          ? RiseIn(child: content)
-                                          : content,
+                                      child: _RiseOnce(
+                                        ledgerKey: displayKey,
+                                        played: _entrancePlayed,
+                                        child: content,
+                                      ),
                                     );
                                   },
                                 ),
@@ -1357,6 +1352,75 @@ class _AskAuraBlob extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The message list's once-only entrance: rises into place the FIRST time a
+/// display key is seen, then never again. The ledger ([played]) is checked in
+/// initState only — so a rebuild never re-decides and never disposes a running
+/// animation — while a later REMOUNT of the same identity (scrolled out and
+/// back) reads "already played" and appears settled instantly. This is what
+/// keeps scrolling through history solid: no bubble ever re-entrances under
+/// the thumb. Honors reduce motion.
+class _RiseOnce extends StatefulWidget {
+  const _RiseOnce({
+    required this.ledgerKey,
+    required this.played,
+    required this.child,
+  });
+
+  final String ledgerKey;
+  final Set<String> played;
+  final Widget child;
+
+  @override
+  State<_RiseOnce> createState() => _RiseOnceState();
+}
+
+class _RiseOnceState extends State<_RiseOnce>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: AppMotion.enter,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (MediaQuery.of(context).disableAnimations ||
+        !widget.played.add(widget.ledgerKey)) {
+      _c.value = 1; // already played (or waived) — render settled
+      return;
+    }
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_c.value == 1 || MediaQuery.of(context).disableAnimations) {
+      return widget.child;
+    }
+    final curved = CurvedAnimation(parent: _c, curve: AppMotion.ease);
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, child) {
+        final t = curved.value;
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(-9 * (1 - t), 14 * (1 - t)),
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }
