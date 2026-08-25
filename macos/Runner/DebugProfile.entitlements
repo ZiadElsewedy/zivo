@@ -6,6 +6,12 @@
 	<true/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
+	<!-- Microphone access for voice quick-log / Ask voice notes. On a
+	     sandboxed mac this entitlement is load-bearing: without it, opening
+	     the input device terminates the process instantly (uncatchable) —
+	     exactly the "tap the mic and the app dies" crash. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
 </dict>

@@ -8,6 +8,9 @@
     <!-- Ask's mic button — recording a voice note for speech-to-text
          (`record` package, `lib/features/ai/data/audio_recorder.dart`). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Today's step counter (pedometer / `lib/features/device/steps`).
+         Android 10+ gates the step sensor behind this runtime permission. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <application
         android:label="zivo"
         android:name="${applicationName}"

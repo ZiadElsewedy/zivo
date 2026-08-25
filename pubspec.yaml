@@ -82,6 +82,7 @@ dependencies:
   # Album-artwork color extraction for the Now Playing screen's
   # color-adaptive background (added in S3).
   palette_generator: ^0.3.3
+  pedometer: ^4.2.0
 
 dev_dependencies:
   flutter_test:

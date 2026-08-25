@@ -27,6 +27,7 @@ import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/spending_glance.dart';
+import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 
@@ -118,18 +119,35 @@ class _TodayPageState extends State<TodayPage> {
                         delay: Duration.zero,
                         child: _Header(onQuickLog: widget.onQuickLog),
                       ),
-                      // Primary tier — the day's training, full-weight card.
+                      // Primary tier — the day at a glance: train / fuel /
+                      // move rings answering "what have I done today?"
                       const RiseIn(
-                        delay: Duration(milliseconds: 90),
+                        delay: Duration(milliseconds: 70),
+                        child: TodayPulseSection(),
+                      ),
+                      // The day's training, full-weight card.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 140),
                         child: _TrainingSection(),
+                      ),
+                      // Momentum — "how am I doing?" streak, week bars,
+                      // weight trend.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 210),
+                        child: MomentumSection(),
+                      ),
+                      // Worth knowing — computed right-now nudges.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 280),
+                        child: InsightsSection(),
                       ),
                       // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                       const RiseIn(
-                        delay: Duration(milliseconds: 170),
+                        delay: Duration(milliseconds: 350),
                         child: _SpendingSection(),
                       ),
                       const RiseIn(
-                        delay: Duration(milliseconds: 250),
+                        delay: Duration(milliseconds: 420),
                         child: _DietSection(),
                       ),
                     ],

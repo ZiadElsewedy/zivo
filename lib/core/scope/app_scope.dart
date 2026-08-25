@@ -7,6 +7,7 @@ import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
 import '../../features/diet/domain/diet_repository.dart';
+import '../../features/device/steps/step_counter.dart';
 import '../../features/expenses/domain/category_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
 import '../../features/expenses/domain/expenses_service.dart';
@@ -38,6 +39,7 @@ class AppScope extends InheritedWidget {
     required this.diet,
     required this.ai,
     this.recorder,
+    this.stepCounter,
     this.media,
     this.music,
     required super.child,
@@ -90,6 +92,12 @@ class AppScope extends InheritedWidget {
   /// keep constructing a scope without it; production and Ask-page mic tests
   /// always provide one. Read it through [requireRecorder].
   final AudioRecorderService? recorder;
+
+  /// The device step counter (Today's Move ring / activity insight) —
+  /// `pedometer`-backed in production on iOS/Android, null on hosts without
+  /// a step sensor. Optional for the same reason [recorder] is: tests that
+  /// don't exercise the dashboard shouldn't need one.
+  final StepCounterService? stepCounter;
 
   /// The composer's voice-note recorder, asserting it was provided. Use from
   /// the Ask page's mic button — production always wires it.
@@ -191,6 +199,7 @@ class AppScope extends InheritedWidget {
       diet != oldWidget.diet ||
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
+      stepCounter != oldWidget.stepCounter ||
       media != oldWidget.media ||
       music != oldWidget.music;
 }

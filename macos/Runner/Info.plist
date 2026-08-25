@@ -26,6 +26,10 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<!-- TCC usage description — macOS 10.14+ requires this alongside the
+	     audio-input entitlement, or the first mic access aborts the app. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ZIVO uses the microphone so you can record a voice note that Ask transcribes.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
