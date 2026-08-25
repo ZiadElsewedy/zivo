@@ -991,6 +991,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     setState(() => _busy = true);
     _restTicker?.dispose();
     _restTicker = null;
+    // Leaving drops the UI-side rest phase — clear its persisted countdown
+    // so a later relaunch doesn't resurrect a stale one.
+    unawaited(_persistRest());
     if (_session.completedSetCount == 0 && !_session.hasDraftActuals) {
       unawaited(_sessionsRepo.deleteSession(_session.id));
     }
