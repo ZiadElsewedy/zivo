@@ -8,8 +8,10 @@ import 'auth_action_button.dart';
 /// a spinner and the others disable.
 enum AuthAction { none, apple, google, email }
 
-/// The Apple + Google buttons. Apple is presented per its guidelines: a solid
-/// dark button with the Apple mark and the "Sign in with Apple" wording.
+/// The Apple + Google buttons. Apple is presented per its guidelines' white
+/// style: a solid white button with the black Apple mark and the "Sign in
+/// with Apple" wording — matching the Google card's light-on-dark treatment
+/// so the two sit as one visual family.
 class SocialAuthButtons extends StatelessWidget {
   const SocialAuthButtons({
     required this.inFlight,
@@ -32,8 +34,9 @@ class SocialAuthButtons extends StatelessWidget {
         if (showApple) ...[
           AuthActionButton(
             label: 'Sign in with Apple',
-            icon: const Icon(Icons.apple, size: 22, color: Colors.white),
-            background: Colors.black,
+            icon: const Icon(Icons.apple, size: 22, color: Colors.black),
+            background: Colors.white,
+            foreground: Colors.black,
             loading: inFlight == AuthAction.apple,
             enabled: !busy || inFlight == AuthAction.apple,
             onTap: onApple,

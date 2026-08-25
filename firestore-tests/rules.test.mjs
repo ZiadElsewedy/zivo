@@ -10,7 +10,8 @@
 // feature repositories, plus the workout-plan template store and the
 // workout-session execution-record store) plus the user profile doc, plus
 // the AI conversation store (ADR-001): client-writable `aiConversations`,
-// and server-only `messages`/`aiUsage`.
+// and server-only `messages`/`aiUsage`, plus the auth-activity stores
+// (owner-writable `auth/account` summary; append-only `authEvents` log).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +22,9 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import {
+  doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp,
+} from 'firebase/firestore';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rules = readFileSync(join(here, '..', 'firestore.rules'), 'utf8');
@@ -241,6 +244,90 @@ describe('workoutSessions delete path', () => {
     await seed(collPath(OWNER, 'workoutSessions'), valid.workoutSessions);
     await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'workoutSessions'))));
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'workoutSessions'))));
+  });
+});
+
+// --- Auth activity stores (account summary + append-only event log) ---------
+
+describe('users/{uid}/auth account-metadata ownership + validation', () => {
+  const authPath = `users/${OWNER}/auth/account`;
+  const account = {
+    schemaVersion: 1,
+    registeredVia: 'password',
+    lastSignInAt: serverTimestamp(),
+    signInCount: 1,
+  };
+
+  it('owner can create and read their own summary doc', async () => {
+    await assertSucceeds(setDoc(doc(ownerDb(), authPath), account));
+    await assertSucceeds(getDoc(doc(ownerDb(), authPath)));
+  });
+
+  it('a different signed-in user cannot read or write it', async () => {
+    await seed(authPath, { schemaVersion: 1, signInCount: 3 });
+    await assertFails(getDoc(doc(otherDb(), authPath)));
+    await assertFails(setDoc(doc(otherDb(), authPath), { schemaVersion: 1 }));
+  });
+
+  it('owner cannot write a malformed summary (field validation)', async () => {
+    await assertFails(setDoc(doc(ownerDb(), authPath), { schemaVersion: 2 })); // bad schemaVersion
+    await assertFails(setDoc(doc(ownerDb(), authPath), { schemaVersion: 1, signInCount: 'many' })); // not int
+    await assertFails(setDoc(doc(ownerDb(), authPath), { schemaVersion: 1, registeredVia: 42 })); // not string
+  });
+
+  it('nobody (not even the owner) can delete the summary', async () => {
+    await seed(authPath, { schemaVersion: 1 });
+    await assertFails(deleteDoc(doc(ownerDb(), authPath)));
+    await assertFails(deleteDoc(doc(otherDb(), authPath)));
+  });
+});
+
+describe('users/{uid}/authEvents is an append-only audit log', () => {
+  const event = () => ({
+    schemaVersion: 1,
+    type: 'signIn',
+    provider: 'password',
+    platform: 'ios',
+    occurredAt: serverTimestamp(),
+  });
+
+  it('owner can append a well-formed event and read the log back', async () => {
+    const db = ownerDb();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${OWNER}/authEvents/e1`), event()),
+    );
+    await assertSucceeds(getDoc(doc(db, `users/${OWNER}/authEvents/e1`)));
+  });
+
+  it('a different signed-in user cannot read or append to it', async () => {
+    await seed(`users/${OWNER}/authEvents/e1`, { schemaVersion: 1, type: 'signIn' });
+    await assertFails(getDoc(doc(otherDb(), `users/${OWNER}/authEvents/e1`)));
+    await assertFails(setDoc(doc(otherDb(), `users/${OWNER}/authEvents/e1`), event()));
+  });
+
+  it('append must carry a known type from the vocabulary', async () => {
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}/authEvents/e2`), {
+      ...event(),
+      type: 'hax',
+    }));
+  });
+
+  it('append must pin occurredAt to the server clock', async () => {
+    // A client-chosen timestamp would let a hostile user forge history.
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}/authEvents/e3`), {
+      ...event(),
+      occurredAt: ts(),
+    }));
+  });
+
+  it('events cannot be updated or deleted once written', async () => {
+    await seed(`users/${OWNER}/authEvents/e4`, {
+      schemaVersion: 1, type: 'signIn', occurredAt: ts(),
+    });
+    await assertFails(updateDoc(doc(ownerDb(), `users/${OWNER}/authEvents/e4`), {
+      type: 'accountCreated',
+    }));
+    await assertFails(deleteDoc(doc(ownerDb(), `users/${OWNER}/authEvents/e4`)));
   });
 });
 

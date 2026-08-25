@@ -31,6 +31,7 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
+const {markEmailSent, markEmailVerified} = require("./auth/activity");
 const {
   runAiTurn,
   confirmAction,
@@ -281,6 +282,14 @@ exports.sendEmailOtp = onCall(
             "internal", "Couldn't send the code. Please try again.");
       }
 
+      // Audit trail: only a genuinely-delivered code is recorded as sent.
+      // Bookkeeping must never fail the callable, so swallow its errors.
+      try {
+        await markEmailSent(db, uid);
+      } catch (err) {
+        console.error("sendEmailOtp: activity recording failed", err.message);
+      }
+
       return {
         status: "sent",
         cooldownSeconds: RESEND_COOLDOWN_SECONDS,
@@ -351,6 +360,14 @@ exports.verifyEmailOtp = onCall(
       // Flip the canonical verified flag. The client force-refreshes its token
       // afterwards so the auth gate advances.
       await getAuth().updateUser(uid, {emailVerified: true});
+
+      // Audit trail: when the address actually became trusted. Non-fatal on
+      // failure, like every bookkeeping write.
+      try {
+        await markEmailVerified(db, uid);
+      } catch (err) {
+        console.error("verifyEmailOtp: activity recording failed", err.message);
+      }
 
       return {status: "verified"};
     },

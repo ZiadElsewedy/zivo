@@ -38,4 +38,29 @@ void main() {
     expect(find.text('Sign in with Apple'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
+
+  testWidgets('Sign in with Apple uses the white style', (tester) async {
+    // Per Apple's guidelines' white variant: solid white pill, black mark
+    // and black label — matching the Google card's light-on-dark treatment.
+    await tester.pumpWidget(
+      wrap(
+        SocialAuthButtons(
+          inFlight: AuthAction.none,
+          onApple: () {},
+          onGoogle: () {},
+        ),
+      ),
+    );
+
+    final appleMaterial = tester.widget<Material>(
+      find.ancestor(
+        of: find.text('Sign in with Apple'),
+        matching: find.byType(Material),
+      ).first,
+    );
+    expect(appleMaterial.color, Colors.white);
+
+    final appleIcon = tester.widget<Icon>(find.byIcon(Icons.apple));
+    expect(appleIcon.color, Colors.black);
+  });
 }

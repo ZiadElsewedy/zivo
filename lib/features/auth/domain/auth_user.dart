@@ -11,6 +11,8 @@ class AuthUser {
     this.displayName,
     this.isEmailVerified = false,
     this.providerIds = const <String>[],
+    this.createdAt,
+    this.lastSignInAt,
   });
 
   /// Canonical, stable identity for this user. Never empty for a real session.
@@ -30,16 +32,30 @@ class AuthUser {
   /// `google.com`, `apple.com`. Useful for display and diagnostics only.
   final List<String> providerIds;
 
+  /// When Firebase Auth created the account (server clock). Mirrored from the
+  /// SDK's own trusted metadata — no client write can forge it.
+  final DateTime? createdAt;
+
+  /// When the current session last authenticated against Firebase's servers
+  /// (server clock). Updates on token refreshes, so it reads as "last contact
+  /// with auth", not "last human sign-in" — that richer history lives in
+  /// `users/{uid}/authEvents` via [AuthActivityRepository].
+  final DateTime? lastSignInAt;
+
   @override
   bool operator ==(Object other) =>
       other is AuthUser &&
       other.uid == uid &&
       other.email == email &&
       other.displayName == displayName &&
-      other.isEmailVerified == isEmailVerified;
+      other.isEmailVerified == isEmailVerified &&
+      other.createdAt == createdAt &&
+      other.lastSignInAt == lastSignInAt;
 
   @override
-  int get hashCode => Object.hash(uid, email, displayName, isEmailVerified);
+  int get hashCode =>
+      Object.hash(uid, email, displayName, isEmailVerified, createdAt,
+          lastSignInAt);
 
   @override
   String toString() => 'AuthUser(uid: $uid, email: $email)';

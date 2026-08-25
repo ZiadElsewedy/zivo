@@ -25,7 +25,10 @@ import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
 import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/firebase_auth_repository.dart';
+import '../features/auth/data/firestore_auth_activity_repository.dart';
 import '../features/auth/data/firestore_profile_repository.dart';
+import '../features/auth/data/noop_auth_activity_repository.dart';
+import '../features/auth/domain/auth_activity_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/auth/domain/auth_state.dart';
 import '../features/auth/domain/profile_repository.dart';
@@ -82,6 +85,7 @@ class ZivoApp extends StatefulWidget {
   const ZivoApp({
     this.auth,
     this.profiles,
+    this.activity,
     this.expenses,
     this.wallet,
     this.expenseCategories,
@@ -101,6 +105,7 @@ class ZivoApp extends StatefulWidget {
 
   final AuthRepository? auth;
   final ProfileRepository? profiles;
+  final AuthActivityRepository? activity;
   final ExpenseRepository? expenses;
   final WalletRepository? wallet;
   final CategoryRepository? expenseCategories;
@@ -121,9 +126,16 @@ class ZivoApp extends StatefulWidget {
 }
 
 class _ZivoAppState extends State<ZivoApp> {
-  late final AuthRepository _auth = widget.auth ?? FirebaseAuthRepository();
+  late final AuthRepository _auth =
+      widget.auth ?? FirebaseAuthRepository(activityRepository: _activity);
   late final ProfileRepository _profiles =
       widget.profiles ?? FirestoreProfileRepository();
+  // Auth bookkeeping (account metadata + event log) follows the Firestore
+  // flag: a real recorder against the live backend, a silent no-op offline.
+  late final AuthActivityRepository _activity = widget.activity ??
+      (_useFirestore
+          ? FirestoreAuthActivityRepository()
+          : const NoopAuthActivityRepository());
   late final ExpenseRepository _expenses =
       widget.expenses ?? _defaultExpenses();
   late final WalletRepository _wallet = widget.wallet ?? _defaultWallet();
@@ -265,6 +277,7 @@ class _ZivoAppState extends State<ZivoApp> {
     return AppScope(
       auth: _auth,
       profiles: _profiles,
+      activity: _activity,
       expenses: _expenses,
       wallet: _wallet,
       expenseCategories: _categories,
