@@ -718,7 +718,7 @@ test("clientTurnId replays an already-answered turn without re-running the model
     async () => {
       const store = makeStore({
         findMessageByClientTurnId: async () =>
-            ({role: "assistant", content: "earlier answer"}),
+          ({role: "assistant", content: "earlier answer"}),
       });
       const callModel = scriptedModel([]);
 
@@ -739,17 +739,17 @@ test("clientTurnId replays an already-answered turn without re-running the model
       assert.equal(store.calls.appendMessage.length, 0);
     });
 
-test("clientTurnId with only a prior user message skips the duplicate append "
-    + "but still runs the turn", async () => {
+test("clientTurnId with only a prior user message skips the duplicate append " +
+    "but still runs the turn", async () => {
   const store = makeStore({
     findMessageByClientTurnId: async () =>
-        ({role: "user", content: "hello"}),
+      ({role: "user", content: "hello"}),
   });
   const callModel = scriptedModel([({
-          stop_reason: "end_turn",
-          content: [{type: "text", text: "fresh answer"}],
-          usage: {input_tokens: 5, output_tokens: 5},
-        })]);
+    stop_reason: "end_turn",
+    content: [{type: "text", text: "fresh answer"}],
+    usage: {input_tokens: 5, output_tokens: 5},
+  })]);
 
   const result = await runAiTurn({
     store,
@@ -775,10 +775,10 @@ test("without clientTurnId the gateway behaves as before (always appends)",
     async () => {
       const store = makeStore();
       const callModel = scriptedModel([({
-          stop_reason: "end_turn",
-          content: [{type: "text", text: "answer"}],
-          usage: {input_tokens: 5, output_tokens: 5},
-        })]);
+        stop_reason: "end_turn",
+        content: [{type: "text", text: "answer"}],
+        usage: {input_tokens: 5, output_tokens: 5},
+      })]);
 
       await runAiTurn({
         store,
