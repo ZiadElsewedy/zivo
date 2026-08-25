@@ -46,12 +46,14 @@ class FirebaseAiRepository implements AiRepository {
       String conversationId,
       String message,
       String responseStyle,
+      String? clientTurnId,
     )?
     invokeChat,
     Future<void> Function(
       String conversationId,
       String message,
       String responseStyle,
+      String? clientTurnId,
       void Function(AiTurnEvent event) onEvent,
     )?
     invokeChatStream,
@@ -86,12 +88,14 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String? clientTurnId,
   )
   _invokeChat;
   final Future<void> Function(
     String conversationId,
     String message,
     String responseStyle,
+    String? clientTurnId,
     void Function(AiTurnEvent event) onEvent,
   )
   _invokeChatStream;
@@ -128,15 +132,17 @@ class FirebaseAiRepository implements AiRepository {
     String conversationId,
     String message,
     String responseStyle,
+    String? clientTurnId,
   )
   _defaultInvokeChat(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle) async {
+    return (conversationId, message, responseStyle, clientTurnId) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       await f.httpsCallable('aiChat').call({
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
+        'clientTurnId': ?clientTurnId,
       });
     };
   }
@@ -146,20 +152,28 @@ class FirebaseAiRepository implements AiRepository {
   /// [onEvent]. The terminating `Result` is ignored — the durable user and
   /// assistant messages arrive via [watchMessages], same as the buffered path.
   /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily.
+  ///
+  /// The payload carries `acceptsStreaming: true` explicitly — the server
+  /// gates its per-token work on that flag, and the transport alone doesn't
+  /// set it. Without it the turn silently degrades to buffered, dropping the
+  /// whole reply on screen at once.
   static Future<void> Function(
     String conversationId,
     String message,
     String responseStyle,
+    String? clientTurnId,
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle, onEvent) async {
+    return (conversationId, message, responseStyle, clientTurnId, onEvent) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final stream = f.httpsCallable('aiChat').stream({
         'conversationId': conversationId,
         'message': message,
         'responseStyle': responseStyle,
+        'acceptsStreaming': true,
+        'clientTurnId': ?clientTurnId,
       });
       await for (final response in stream) {
         if (response is Chunk) {
@@ -405,14 +419,21 @@ class FirebaseAiRepository implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return Future.value();
     // Stream only when the caller wants live events; otherwise the plain
     // `.call()` path keeps the buffered behavior (and its cheaper transport).
     return onEvent == null
-        ? _invokeChat(conversationId, trimmed, responseStyle)
-        : _invokeChatStream(conversationId, trimmed, responseStyle, onEvent);
+        ? _invokeChat(conversationId, trimmed, responseStyle, clientTurnId)
+        : _invokeChatStream(
+            conversationId,
+            trimmed,
+            responseStyle,
+            clientTurnId,
+            onEvent,
+          );
   }
 
   @override

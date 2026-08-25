@@ -328,6 +328,69 @@ void main() {
     });
   });
 
+  group('WorkoutPlan.advanceToAfterDay', () {
+    test('moves the cursor past the day that was actually trained — not +1 from the old head', () {
+      // Cursor on A, but the user trained C out of order. The recommendation
+      // must land on A (after C wraps), NOT B (blind +1 from A).
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final dayC = _day(id: 'c', slot: 'C', order: 2);
+      final plan = _plan(days: [dayA, dayB, dayC], cycleCursor: 0);
+
+      final advanced = plan.advanceToAfterDay('c');
+
+      expect(advanced.cycleCursor, 0);
+      expect(advanced.nextDay, dayA);
+    });
+
+    test('in-order completion matches advanceCursor', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final dayC = _day(id: 'c', slot: 'C', order: 2);
+      final plan = _plan(days: [dayA, dayB, dayC], cycleCursor: 0);
+
+      final advanced = plan.advanceToAfterDay('a');
+
+      expect(advanced.cycleCursor, 1);
+      expect(advanced.nextDay, dayB);
+    });
+
+    test('wraps past the last day back to the first', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 1);
+
+      final advanced = plan.advanceToAfterDay('b');
+
+      expect(advanced.nextDay, dayA);
+    });
+
+    test('unknown dayId (plan edited mid-session) falls back to a one-step advance', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final dayC = _day(id: 'c', slot: 'C', order: 2);
+      final plan = _plan(days: [dayA, dayB, dayC], cycleCursor: 1);
+
+      final advanced = plan.advanceToAfterDay('deleted-day');
+
+      expect(advanced.cycleCursor, 2);
+    });
+
+    test('is pure and preserves other fields', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 0);
+
+      final advanced = plan.advanceToAfterDay('b');
+
+      expect(plan.cycleCursor, 0);
+      expect(identical(plan, advanced), isFalse);
+      expect(advanced.id, plan.id);
+      expect(advanced.name, plan.name);
+      expect(advanced.days, plan.days);
+    });
+  });
+
   group('WorkoutPlan.copyWith', () {
     test('overrides only the given fields', () {
       final dayA = _day(id: 'a', slot: 'A', order: 0);

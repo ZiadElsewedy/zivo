@@ -217,6 +217,7 @@ class FakeAiRepository implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

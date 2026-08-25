@@ -270,6 +270,12 @@ function capToolResult(content, maxChars) {
  *   omitted) is treated as 'balanced' — never trust client input directly.
  * @param {(function(): !Date)|undefined} args.now Injectable clock.
  * @param {(!Object|undefined)} args.config Overrides for `DEFAULT_CONFIG`.
+ * @param {(string|undefined)} args.clientTurnId Client-generated idempotency
+ *   key for this turn. When supplied and a previous attempt of the SAME turn
+ *   already wrote messages, the gateway serves idempotently: an already-
+ *   answered turn replays its assistant text without re-running the model,
+ *   and a partially-written turn never appends a second user message. This
+ *   is what makes a client retry after a false failure safe.
  * @return {!Promise<{status: string, assistantText: string, usage: ?Object}>}
  */
 async function runAiTurn({
@@ -286,6 +292,7 @@ async function runAiTurn({
   responseStyle,
   now,
   config,
+  clientTurnId,
 }) {
   const activeProvider = provider ||
     new AnthropicProvider(legacyAnthropicClient(callModel, streamModel));
@@ -312,11 +319,30 @@ async function runAiTurn({
 
   const turnNow = clock();
 
-  await store.appendMessage(uid, conversationId, {
-    role: "user",
-    content: trimmed,
-    createdAt: turnNow,
-  });
+  // Idempotency gate (chat turn dedup): a client retry that races a
+  // slow-but-successful first attempt must never duplicate the turn.
+  let priorUserMessage = false;
+  if (clientTurnId) {
+    const prior = await store.findMessageByClientTurnId(
+        uid, conversationId, clientTurnId);
+    if (prior && prior.role === "assistant") {
+      // The turn already completed server-side — replay its answer instead
+      // of generating (and appending) a second one.
+      return {status: "replayed", assistantText: prior.content, usage: null};
+    }
+    // A user message exists but no answer yet: skip the re-append below and
+    // let the model run proceed exactly once.
+    priorUserMessage = prior != null;
+  }
+
+  if (!priorUserMessage) {
+    await store.appendMessage(uid, conversationId, {
+      role: "user",
+      content: trimmed,
+      createdAt: turnNow,
+      clientTurnId,
+    });
+  }
   await store.touchConversation(uid, conversationId, {
     title: DEFAULT_CONVERSATION_TITLE,
     createdAt: turnNow,
@@ -544,6 +570,7 @@ async function runAiTurn({
       role: "assistant",
       content: assistantText,
       createdAt: finishedAt,
+      clientTurnId,
     });
   }
 

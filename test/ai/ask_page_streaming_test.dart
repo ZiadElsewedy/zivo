@@ -72,6 +72,7 @@ class _StreamingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {
     _messages.add(
       AiMessage(
@@ -169,10 +170,12 @@ void main() {
 
     // Deltas stream into a provisional bubble before the durable doc exists.
     // Deltas stream into a provisional bubble before the durable doc exists
-    // — the text rides with a live caret, so match it as rich text.
+    // — the text rides a paced, per-frame reveal (never an instant dump), so
+    // run a handful of frames and match the growing rich text.
     ai.releaseDeltas.complete();
-    await tester.pump();
-    await tester.pump();
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     expect(find.text('Working…'), findsNothing);
     expect(
           find.byWidgetPredicate(

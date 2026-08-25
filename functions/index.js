@@ -443,6 +443,9 @@ exports.aiChat = onCall(
       const conversationId = (data.conversationId || "").toString();
       const message = (data.message || "").toString();
       const responseStyle = (data.responseStyle || "").toString();
+      // Client-generated idempotency key — makes a retried turn safe.
+      const clientTurnId =
+        (data.clientTurnId || "").toString() || undefined;
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -452,8 +455,11 @@ exports.aiChat = onCall(
       // the gateway's phase/delta events as chunks and stream the model. A
       // plain `.call()` sets `acceptsStreaming` false, so the turn runs exactly
       // as before — buffered, no events, no per-token work. The final return
-      // value is delivered to both call styles either way.
-      const streaming = request.acceptsStreaming === true && !!response;
+      // value is delivered to both call styles either way. The flag arrives
+      // explicitly in the payload (the transport alone doesn't imply it).
+      const streaming =
+        request.acceptsStreaming === true ||
+        data.acceptsStreaming === true && !!response;
 
       try {
         return await runAiTurn({
@@ -466,6 +472,7 @@ exports.aiChat = onCall(
           conversationId,
           message,
           responseStyle,
+          clientTurnId,
           now: () => new Date(),
         });
       } catch (err) {

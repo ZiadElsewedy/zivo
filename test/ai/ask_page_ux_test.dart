@@ -51,6 +51,7 @@ class _FlakyAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {
     if (failNext) {
       failNext = false;
@@ -171,6 +172,7 @@ class _SilentDropAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {}
 
   @override
@@ -319,6 +321,7 @@ class _HeldAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {
     await gate.future;
     return _inner.send(

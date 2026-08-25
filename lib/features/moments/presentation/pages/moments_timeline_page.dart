@@ -8,6 +8,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/time_ago.dart';
+import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../domain/moment.dart';
@@ -126,6 +127,10 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
         backgroundColor: AppColors.ground,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        // Pushed from the Hub — the house back chip, matching Workout/Diet.
+        automaticallyImplyLeading: false,
+        leadingWidth: 56,
+        leading: const BackChip(),
         title: Text('Moments', style: AppText.cardTitle),
         actions: [
           IconButton(

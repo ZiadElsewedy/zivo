@@ -48,6 +48,23 @@ class WorkoutPlan {
     return copyWith(cycleCursor: (cycleCursor + 1) % days.length);
   }
 
+  /// A copy with the cursor moved to whichever day FOLLOWS [dayId] in the
+  /// rotation (wrapping past the last). This is how completion should always
+  /// advance the cycle now that any day can be trained in any order: finishing
+  /// "Pull" out of sequence must move the recommendation PAST Pull — the old
+  /// blind `+1` from wherever the cursor happened to be could desync the
+  /// recommendation from what was actually trained.
+  ///
+  /// A [dayId] that no longer exists (the plan was edited mid-session) falls
+  /// back to the blind one-step advance rather than corrupting the cursor.
+  WorkoutPlan advanceToAfterDay(String dayId) {
+    if (days.isEmpty) return this;
+    final sorted = [...days]..sort((a, b) => a.order.compareTo(b.order));
+    final index = sorted.indexWhere((d) => d.id == dayId);
+    if (index < 0) return advanceCursor();
+    return copyWith(cycleCursor: sorted[(index + 1) % sorted.length].order);
+  }
+
   WorkoutPlan copyWith({
     String? name,
     WorkoutPlanStatus? status,

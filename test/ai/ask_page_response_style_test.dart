@@ -62,6 +62,7 @@ class _RecordingAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) {
     sentStyles.add(responseStyle);
     return _inner.send(

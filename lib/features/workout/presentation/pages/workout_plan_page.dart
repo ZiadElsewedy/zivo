@@ -5,10 +5,12 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/live_session.dart';
 import '../../domain/planned_exercise.dart';
+import '../../domain/session_status.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -46,7 +48,11 @@ class WorkoutPlanPage extends StatelessWidget {
             backgroundColor: AppColors.ground,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            iconTheme: const IconThemeData(color: AppColors.ink2),
+            // Pushed from the Hub — the house back chip, not Material's
+            // default arrow, so every drill-down reads as one system.
+            automaticallyImplyLeading: false,
+            leadingWidth: 56,
+            leading: const BackChip(),
             title: Text('Workout', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
             actions: [
               PressableScale(
@@ -232,13 +238,26 @@ class _PlanBody extends StatelessWidget {
               'Full cycle',
               style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Today\'s pick is marked — but any day is fair game. Life doesn\'t always follow the rotation.',
+              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+            ),
             const SizedBox(height: 10),
             for (final (i, day) in days.indexed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: StaggeredReveal(
                   index: i,
-                  child: _BrowseDayCard(day: day, isNext: day.id == nextInRotation?.id),
+                  child: _BrowseDayCard(
+                    day: day,
+                    isNext: day.id == nextInRotation?.id,
+                    plan: plan,
+                    resumable: sessionSnapshot.data?.dayId == day.id &&
+                            sessionSnapshot.data?.status == SessionStatus.active
+                        ? sessionSnapshot.data
+                        : null,
+                  ),
                 ),
               ),
           ],
@@ -417,14 +436,26 @@ class _SetDot extends StatelessWidget {
   }
 }
 
-/// A read-only, tap-to-expand card for one day in the cycle. Collapsed it shows
-/// the day title, its exercise count, and a "Next up" marker when it's the day
-/// the cursor points at; expanded it lists the day's exercises.
+/// A read-only-browse, tap-to-expand card for one day in the cycle. Collapsed
+/// it shows the day title, its exercise count, and a "Next up" marker when
+/// it's the day the cursor points at; expanded it lists the day's exercises
+/// AND offers Start — the recommendation leads (the cursor's day is marked
+/// "Next up" everywhere), but the user is never locked out of choosing a
+/// different day when life doesn't follow the rotation.
 class _BrowseDayCard extends StatefulWidget {
-  const _BrowseDayCard({required this.day, required this.isNext});
+  const _BrowseDayCard({
+    required this.day,
+    required this.isNext,
+    required this.plan,
+    required this.resumable,
+  });
 
   final WorkoutDay day;
   final bool isNext;
+  final WorkoutPlan plan;
+
+  /// A same-day active session to resume into, or null to start fresh.
+  final LiveSession? resumable;
 
   @override
   State<_BrowseDayCard> createState() => _BrowseDayCardState();
@@ -432,6 +463,19 @@ class _BrowseDayCard extends StatefulWidget {
 
 class _BrowseDayCardState extends State<_BrowseDayCard> {
   bool _expanded = false;
+
+  void _start() {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveSessionPage(
+          day: widget.day,
+          plan: widget.plan,
+          resume: widget.resumable,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -451,7 +495,11 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(
+                color: widget.isNext
+                    ? AppColors.pulse.withValues(alpha: 0.28)
+                    : AppColors.hairline2,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,29 +559,45 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        plannedExerciseMeta(exercise),
-                                        style: AppText.meta.copyWith(
-                                          color: AppColors.ink3,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                       const SizedBox(width: 8),
+                                       Text(
+                                         plannedExerciseMeta(exercise),
+                                         style: AppText.meta.copyWith(
+                                           color: AppColors.ink3,
+                                           fontSize: 12,
+                                         ),
+                                       ),
+                                     ],
+                                   ),
+                                 ),
+                              if (exercises.isNotEmpty) ...[
+                                const SizedBox(height: 14),
+                                // The choice affordance — any day can run.
+                                // Resuming an in-progress session for THIS
+                                // day reads "Resume", mirroring the Today
+                                // card's language.
+                                PillButton(
+                                  label: widget.resumable == null
+                                      ? 'Start this day'
+                                      : 'Resume workout',
+                                  icon: Icons.play_arrow_rounded,
+                                  color: AppColors.pulse,
+                                  enabled: true,
+                                  onTap: _start,
                                 ),
-                            ],
-                          ),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+                              ],
+                             ],
+                           ),
+                         ),
+                 ),
+               ],
+             ),
+           ),
+         ),
+       ),
+     );
+   }
+ }
 
 class _NextUpBadge extends StatelessWidget {
   const _NextUpBadge();

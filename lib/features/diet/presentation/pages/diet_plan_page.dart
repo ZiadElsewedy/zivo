@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
@@ -45,6 +46,10 @@ class DietPlanPage extends StatelessWidget {
             backgroundColor: AppColors.ground,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
+            // Pushed from the Hub — the house back chip, matching Workout.
+            automaticallyImplyLeading: false,
+            leadingWidth: 56,
+            leading: const BackChip(),
             title: Text('Diet', style: AppText.cardTitle),
             actions: [
               if (plan != null && !planSnapshot.hasError)

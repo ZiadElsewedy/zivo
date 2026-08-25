@@ -713,3 +713,83 @@ test("an oversized tool result is truncated before it re-enters the loop",
       assert.ok(content.length < 6100);
       assert.match(content, /truncated \d+ characters/);
     });
+
+test("clientTurnId replays an already-answered turn without re-running the model",
+    async () => {
+      const store = makeStore({
+        findMessageByClientTurnId: async () =>
+          ({role: "assistant", content: "earlier answer"}),
+      });
+      const callModel = scriptedModel([]);
+
+      const result = await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "hello again",
+        clientTurnId: "turn-1",
+        now: makeClock(0),
+      });
+
+      // The completed turn is replayed verbatim — no model call, no writes.
+      assert.equal(result.status, "replayed");
+      assert.equal(result.assistantText, "earlier answer");
+      assert.equal(callModel.callCount(), 0);
+      assert.equal(store.calls.appendMessage.length, 0);
+    });
+
+test("clientTurnId with only a prior user message skips the duplicate append " +
+    "but still runs the turn", async () => {
+  const store = makeStore({
+    findMessageByClientTurnId: async () =>
+      ({role: "user", content: "hello"}),
+  });
+  const callModel = scriptedModel([({
+    stop_reason: "end_turn",
+    content: [{type: "text", text: "fresh answer"}],
+    usage: {input_tokens: 5, output_tokens: 5},
+  })]);
+
+  const result = await runAiTurn({
+    store,
+    callModel,
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "hello",
+    clientTurnId: "turn-2",
+    now: makeClock(0),
+  });
+
+  // No duplicate user message; exactly one assistant answer appended.
+  const appendedUsers =
+      store.calls.appendMessage.filter((c) => c.message.role === "user");
+  assert.equal(appendedUsers.length, 0);
+  const appendedAssistants =
+      store.calls.appendMessage.filter((c) => c.message.role === "assistant");
+  assert.equal(appendedAssistants.length, 1);
+  assert.equal(result.assistantText, "fresh answer");
+});
+
+test("without clientTurnId the gateway behaves as before (always appends)",
+    async () => {
+      const store = makeStore();
+      const callModel = scriptedModel([({
+        stop_reason: "end_turn",
+        content: [{type: "text", text: "answer"}],
+        usage: {input_tokens: 5, output_tokens: 5},
+      })]);
+
+      await runAiTurn({
+        store,
+        callModel,
+        uid: UID,
+        conversationId: CONVERSATION_ID,
+        message: "hello",
+        now: makeClock(0),
+      });
+
+      const appendedUsers =
+          store.calls.appendMessage.filter((c) => c.message.role === "user");
+      assert.equal(appendedUsers.length, 1);
+    });
