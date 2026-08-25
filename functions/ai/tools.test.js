@@ -125,3 +125,109 @@ test("get_diet returns null plan when there is none", async () => {
 
   assert.deepEqual(result, {plan: null});
 });
+
+const DIET_PLAN = {
+  name: "Cut",
+  status: "active",
+  days: [
+    {
+      weekday: null,
+      label: "Every day",
+      meals: [
+        {
+          id: "breakfast",
+          label: "Breakfast",
+          items: [
+            {name: "Oats", quantity: 60, unit: "g", calories: 220,
+              proteinG: 8, carbsG: 38, fatG: 4},
+          ],
+        },
+        {
+          id: "dinner",
+          label: "Dinner",
+          items: [
+            {name: "Chicken", quantity: 200, unit: "g", calories: 330,
+              proteinG: 62, carbsG: 0, fatG: 7},
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+test("get_diet reports target-vs-consumed nutrition for the resolved day",
+    async () => {
+      const tool = toolsByName.get("get_diet");
+      const store = {
+        getActiveDietPlan: async () => DIET_PLAN,
+        listDietEntries: async (uid, dayKey) => {
+          assert.equal(uid, UID);
+          assert.equal(dayKey, "2026-08-17");
+          return [{mealId: "breakfast", eaten: true}];
+        },
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.deepEqual(result.nutrition.target, {
+        kcal: 550, proteinG: 70, carbsG: 38, fatG: 11,
+      });
+      // Only breakfast is checked off, so only its macros count as consumed.
+      assert.deepEqual(result.nutrition.consumed, {
+        kcal: 220, proteinG: 8, carbsG: 38, fatG: 4,
+      });
+      assert.equal(result.meals[0].eaten, true);
+      assert.equal(result.meals[1].eaten, false);
+    });
+
+test("get_diet leaves nutrients null when no item states them", async () => {
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => ({
+      name: "Handwritten",
+      status: "active",
+      days: [{
+        weekday: null,
+        label: "Every day",
+        meals: [{
+          id: "m1",
+          label: "Lunch",
+          items: [{name: "Rice", quantity: 1, unit: "plate",
+            calories: null, proteinG: null, carbsG: null, fatG: null}],
+        }],
+      }],
+    }),
+    listDietEntries: async () => [],
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+
+  assert.deepEqual(result.nutrition.target, {
+    kcal: null, proteinG: null, carbsG: null, fatG: null,
+  });
+  assert.deepEqual(result.nutrition.consumed, {
+    kcal: null, proteinG: null, carbsG: null, fatG: null,
+  });
+});
+
+test("get_today's diet snapshot carries per-meal kcal and adherence totals",
+    async () => {
+      const tool = toolsByName.get("get_today");
+      const store = {
+        listSchedule: async () => [],
+        listTasks: async () => [],
+        listUniversity: async () => [],
+        listWorkouts: async () => [],
+        getActiveDietPlan: async () => DIET_PLAN,
+        listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.deepEqual(result.diet.nutrition.target.kcal, 550);
+      assert.deepEqual(result.diet.nutrition.consumed.kcal, 220);
+      assert.deepEqual(result.diet.meals, [
+        {id: "breakfast", label: "Breakfast", eaten: true, kcal: 220},
+        {id: "dinner", label: "Dinner", eaten: false, kcal: 330},
+      ]);
+    });

@@ -84,7 +84,8 @@ function sumItemField(items, field) {
  * @return {!Object} `{calories, proteinG, carbsG, fatG}` totals or nulls.
  */
 function dayNutrition(meals) {
-  const items = meals.flatMap((m) => (m && Array.isArray(m.items) ? m.items : []));
+  const items = meals.flatMap(
+      (m) => (m && Array.isArray(m.items) ? m.items : []));
   return {
     kcal: sumItemField(items, "calories"),
     proteinG: sumItemField(items, "proteinG"),

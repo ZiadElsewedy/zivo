@@ -289,6 +289,33 @@ test("confirmAction performs the write and is idempotent", async () => {
   assert.equal(store.writes.expenses.length, 1);
 });
 
+test("confirmAction applies mark_meal_eaten through the store", async () => {
+  const writes = {entries: []};
+  const store = makeStore({
+    setDietEntry: async (uid, dayKey, mealId, eaten) => {
+      writes.entries.push({uid, dayKey, mealId, eaten});
+    },
+  });
+  const callModel = scriptedModel([
+    toolUse("mark_meal_eaten",
+        {mealId: "lunch-2", label: "Lunch", date: "2026-08-17T00:00:00.000Z"}),
+  ]);
+  const {actionId} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "I had lunch", now: makeClock(1000),
+  });
+
+  const confirmed = await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+    now: makeClock(2000),
+  });
+  assert.equal(confirmed.status, "applied");
+  assert.deepEqual(writes.entries, [{
+    uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", eaten: true,
+  }]);
+  assert.match(confirmed.assistantText, /Marked Lunch eaten/);
+});
+
 test("confirmAction on an expired action refuses and writes nothing", async () => {
   const store = makeStore();
   const callModel = scriptedModel([

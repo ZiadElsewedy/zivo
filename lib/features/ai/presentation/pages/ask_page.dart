@@ -1538,6 +1538,8 @@ class _ProposalCard extends StatelessWidget {
     switch (action.kind) {
       case 'create_expense':
         return '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim();
+      case 'mark_meal_eaten':
+        return '${f['meal'] ?? ''}'.trim();
       default:
         return action.summary;
     }
@@ -1554,6 +1556,13 @@ class _ProposalCard extends StatelessWidget {
         if (f['note'] != null) {
           chips.add(_chip(AppIcons.caption, f['note'].toString()));
         }
+      case 'mark_meal_eaten':
+        chips.add(
+          _chip(
+            f['state'] == 'eaten' ? AppIcons.success : AppIcons.close,
+            f['state']?.toString() ?? 'eaten',
+          ),
+        );
     }
     return chips;
   }
