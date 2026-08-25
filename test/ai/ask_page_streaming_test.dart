@@ -158,7 +158,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'hi');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.tap(find.byKey(const Key('composer-send')));
     await tester.pump();
     await tester.pump();
 
@@ -167,11 +167,20 @@ void main() {
     expect(find.text('Hello world'), findsNothing);
 
     // Deltas stream into a provisional bubble before the durable doc exists.
+    // Deltas stream into a provisional bubble before the durable doc exists
+    // — the text rides with a live caret, so match it as rich text.
     ai.releaseDeltas.complete();
     await tester.pump();
     await tester.pump();
     expect(find.text('Working…'), findsNothing);
-    expect(find.text('Hello world'), findsOneWidget);
+    expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText &&
+                widget.text.toPlainText().startsWith('Hello world'),
+          ),
+          findsOneWidget,
+        );
 
     // Durable message lands; the provisional is dropped — exactly one bubble,
     // and it did not re-type (it already streamed live).

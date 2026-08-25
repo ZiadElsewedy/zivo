@@ -4,9 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -24,11 +24,31 @@ import '../../domain/ai_role.dart';
 import '../../domain/ai_turn_event.dart';
 import '../../domain/stt_error.dart';
 import '../../domain/stt_outcome.dart';
+import '../widgets/chat_header.dart';
+import '../widgets/voice_composer.dart';
+
+/// How long a voice-note transcription may run before the UI gives up
+/// waiting and offers a friendly retry — a hung request must never leave the
+/// composer locked.
+const _kTranscribeTimeout = Duration(seconds: 35);
+
+/// With zero gateway events for this long mid-turn, the rail admits the wait
+/// ("Still working…") instead of silently spinning.
+const _kSlowTurnAfter = Duration(seconds: 18);
+
+/// After a turn's stream ends, the optimistic bubble waits this long for the
+/// durable user message to land before concluding the send failed — covering
+/// silent server drops that would otherwise look like an eternal hang.
+const _kLandingGrace = Duration(seconds: 12);
 
 /// The "Ask" chat surface: an iris-themed message list over a pinned
 /// composer. Talks only to `AppScope.of(context).ai` — Firebase-free.
 class AskPage extends StatefulWidget {
-  const AskPage({super.key});
+  const AskPage({super.key, this.transcribeTimeout = _kTranscribeTimeout});
+
+  /// Injectable for tests — how long to wait on transcription before
+  /// surfacing the timeout failure.
+  final Duration transcribeTimeout;
 
   @override
   State<AskPage> createState() => _AskPageState();
@@ -113,9 +133,23 @@ class _AskPageState extends State<AskPage> {
   /// True while a voice note is being recorded (mic tapped, not yet stopped).
   bool _recording = false;
 
-  /// True while a just-stopped recording is being transcribed — disables the
-  /// composer briefly so the user isn't left tapping into a stale input.
+  /// True while a just-stopped recording is being transcribed — the composer
+  /// shows its honest "Transcribing…" state with an escape hatch.
   bool _transcribing = false;
+
+  /// Guards against a discarded transcription landing late: bumped on every
+  /// cancel/new attempt; stale outcomes are ignored.
+  int _transcribeToken = 0;
+
+  /// True once a turn has run with no gateway event for [_kSlowTurnAfter] —
+  /// lets the rail admit the wait instead of silently spinning.
+  bool _turnSlow = false;
+  Timer? _slowTurnTimer;
+
+  /// Fires after a finished turn if its optimistic user message never landed
+  /// in Firestore — flipping the trailing slot to the retry card instead of
+  /// leaving what looks like a permanent hang.
+  Timer? _landingWatchdog;
 
   /// The user's just-sent text while a turn is in flight or has failed —
   /// rendered as an optimistic bubble until the durable message lands.
@@ -157,6 +191,8 @@ class _AskPageState extends State<AskPage> {
   void dispose() {
     _input.dispose();
     _scroll.dispose();
+    _slowTurnTimer?.cancel();
+    _landingWatchdog?.cancel();
     super.dispose();
   }
 
@@ -217,6 +253,8 @@ class _AskPageState extends State<AskPage> {
   /// [conversationId] is null for an unsaved "New chat" (nothing persisted
   /// yet — see [_send]).
   void _switchTo(String? conversationId, {required bool isUntitled}) {
+    _slowTurnTimer?.cancel();
+    _landingWatchdog?.cancel();
     setState(() {
       _activeConversationId = conversationId;
       _activeResolved = true;
@@ -228,6 +266,7 @@ class _AskPageState extends State<AskPage> {
       _liveText = '';
       _streamed = false;
       _expectReveal = false;
+      _turnSlow = false;
       _resolved.clear();
       _baselineUserCount = 0;
       _lastPersisted = const [];
@@ -319,6 +358,8 @@ class _AskPageState extends State<AskPage> {
 
   Future<void> _runSend(String conversationId, String text) async {
     final ai = AppScope.of(context).ai;
+    _slowTurnTimer?.cancel();
+    _landingWatchdog?.cancel();
     setState(() {
       _sending = true;
       _expectReveal = true;
@@ -326,7 +367,12 @@ class _AskPageState extends State<AskPage> {
       _liveText = '';
       _streamed = false;
       _sendFailed = false;
+      _turnSlow = false;
       _autoFollow = true;
+    });
+    // If the gateway goes quiet for [_kSlowTurnAfter], admit it in the rail.
+    _slowTurnTimer = Timer(_kSlowTurnAfter, () {
+      if (mounted && _sending) setState(() => _turnSlow = true);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     try {
@@ -337,16 +383,19 @@ class _AskPageState extends State<AskPage> {
         responseStyle: _responseStyle,
       );
     } catch (_) {
+      _slowTurnTimer?.cancel();
       if (mounted) {
         setState(() {
           _sending = false;
           _sendFailed = true;
+          _turnSlow = false;
           _phase = null;
           _liveText = '';
         });
       }
       return;
     }
+    _slowTurnTimer?.cancel();
     if (!mounted) return;
     setState(() {
       _sending = false;
@@ -355,6 +404,19 @@ class _AskPageState extends State<AskPage> {
       if (_streamed) _expectReveal = false;
       _phase = null;
       _liveText = '';
+      _turnSlow = false;
+    });
+    // The stream ended cleanly, but that says nothing about persistence: if
+    // the user message never lands (a silent server drop), surface the retry
+    // card rather than leaving the optimistic bubble hanging forever.
+    final baselineAtSend = _baselineUserCount;
+    _landingWatchdog = Timer(_kLandingGrace, () {
+      if (!mounted || _pendingText == null || _sending || _sendFailed) return;
+      final persistedUserCount = _lastPersisted
+          .where((m) => m.role == AiRole.user)
+          .length;
+      if (persistedUserCount > baselineAtSend) return;
+      setState(() => _sendFailed = true);
     });
     // _pendingText is intentionally left set here — the StreamBuilder
     // reconciliation below clears it once the persisted message actually
@@ -362,13 +424,18 @@ class _AskPageState extends State<AskPage> {
   }
 
   /// Applies one live turn event from the gateway: phases drive the rail,
-  /// deltas accumulate the provisional reply.
+  /// deltas accumulate the provisional reply. Any event proves liveness, so
+  /// the slow-turn admission resets.
   void _onTurnEvent(AiTurnEvent event) {
     if (!mounted) return;
     switch (event) {
       case AiPhaseEvent(:final phase):
+        _slowTurnTimer?.cancel();
+        if (_turnSlow) setState(() => _turnSlow = false);
         setState(() => _phase = phase);
       case AiDeltaEvent(:final text):
+        _slowTurnTimer?.cancel();
+        if (_turnSlow) setState(() => _turnSlow = false);
         setState(() {
           _streamed = true;
           _liveText += text;
@@ -406,9 +473,8 @@ class _AskPageState extends State<AskPage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    // The app's translucent top toast — never a bottom SnackBar.
+    showZivoToast(context, message, kind: ToastKind.error);
   }
 
   /// Tap-to-toggle: not recording → request permission and start; recording
@@ -417,9 +483,16 @@ class _AskPageState extends State<AskPage> {
   Future<void> _toggleMic() async {
     final recorder = AppScope.of(context).requireRecorder;
     if (_recording) {
-      setState(() => _recording = false);
+      // Flip straight into the transcribing state so the composer never
+      // flashes back to idle between stopping and the request going out.
+      setState(() {
+        _recording = false;
+        _transcribing = true;
+      });
       final audio = await recorder.stop();
       if (audio == null) {
+        if (!mounted) return;
+        setState(() => _transcribing = false);
         _handleSttOutcome(
           const SttFailed(
             SttError.recordingFailed,
@@ -455,18 +528,75 @@ class _AskPageState extends State<AskPage> {
     await recorder.cancel();
   }
 
+  /// Discards a clip mid-transcription: the composer unlocks immediately and
+  /// any outcome from this attempt is ignored via the token.
+  void _cancelTranscription() {
+    setState(() {
+      _transcribeToken++;
+      _transcribing = false;
+    });
+  }
+
   /// Sends [audio] to `ai.transcribe` and, on success, drops the transcript
-  /// into the composer for the user to edit/send — never auto-sent.
+  /// into the composer for the user to edit/send — never auto-sent. A hung
+  /// request times out into a friendly failure instead of locking the
+  /// composer forever; a cancelled attempt is ignored by token.
   Future<void> _transcribe(RecordedAudio audio) async {
     final ai = AppScope.of(context).ai;
+    final token = ++_transcribeToken;
     setState(() => _transcribing = true);
-    final outcome = await ai.transcribe(
-      audioBytes: audio.bytes,
-      mimeType: audio.mimeType,
-    );
-    if (!mounted) return;
+    SttOutcome outcome;
+    try {
+      outcome = await _withTimeout(
+        ai.transcribe(audioBytes: audio.bytes, mimeType: audio.mimeType),
+        widget.transcribeTimeout,
+        onTimeout: () => const SttFailed(
+          SttError.timeout,
+          'That took too long — check your connection and try again.',
+        ),
+        onFailure: () => const SttFailed(
+          SttError.unknown,
+          "Couldn't transcribe that — check your connection and try again.",
+        ),
+      );
+    } catch (_) {
+      outcome = const SttFailed(
+        SttError.unknown,
+        "Couldn't transcribe that — check your connection and try again.",
+      );
+    }
+    if (!mounted || token != _transcribeToken) return;
     setState(() => _transcribing = false);
     _handleSttOutcome(outcome);
+  }
+
+  /// Races [future] against [limit]: resolves with the future's outcome, a
+  /// typed [SttFailed] from [onTimeout] if it settles too slowly, or one
+  /// from [onFailure] if it throws. Hand-rolled rather than
+  /// `Future.timeout` so the outcome never depends on a concrete
+  /// implementation's reified generic type.
+  Future<SttOutcome> _withTimeout(
+    Future<SttOutcome> future,
+    Duration limit, {
+    required SttOutcome Function() onTimeout,
+    required SttOutcome Function() onFailure,
+  }) {
+    final completer = Completer<SttOutcome>();
+    late final Timer timer;
+    timer = Timer(limit, () {
+      if (!completer.isCompleted) completer.complete(onTimeout());
+    });
+    future
+        .whenComplete(timer.cancel)
+        .then(
+          (outcome) {
+            if (!completer.isCompleted) completer.complete(outcome);
+          },
+          onError: (Object _) {
+            if (!completer.isCompleted) completer.complete(onFailure());
+          },
+        );
+    return completer.future;
   }
 
   void _handleSttOutcome(SttOutcome outcome) {
@@ -514,7 +644,7 @@ class _AskPageState extends State<AskPage> {
         bottom: false,
         child: Column(
           children: [
-            _Header(
+            ChatHeader(
               onNewChat: (!_activeResolved || _sending) ? null : _newChat,
               onSessions: (!_activeResolved || _sending)
                   ? null
@@ -614,9 +744,13 @@ class _AskPageState extends State<AskPage> {
                                   content: _liveText,
                                   createdAt: DateTime.now(),
                                 ),
+                                streaming: true,
                               );
                             } else if (_sending) {
-                              trailing = _ThinkingRail(label: _railLabel());
+                              trailing = _ThinkingRail(
+                                label: _railLabel(),
+                                slow: _turnSlow,
+                              );
                             } else {
                               trailing = _ErrorRetry(
                                 onRetry: () => _retry(conversationId),
@@ -688,9 +822,9 @@ class _AskPageState extends State<AskPage> {
                 },
               ),
             ),
-            _Composer(
+            VoiceComposer(
               controller: _input,
-              enabled: _canSend,
+              canSend: _canSend,
               bottomInset: math.max(
                 media.viewInsets.bottom,
                 media.padding.bottom,
@@ -699,119 +833,17 @@ class _AskPageState extends State<AskPage> {
               isRecording: _recording,
               transcribing: _transcribing,
               sending: _sending,
-              onMicTap: _toggleMic,
+              onMicToggle: _toggleMic,
               onCancelRecording: _cancelRecording,
+              onCancelTranscription: _cancelTranscription,
+              // Soft-resolved: hosts without a recorder simply get a
+              // waveform-less composer; [requireRecorder]'s hard assert
+              // belongs to the mic flow itself, not every rebuild.
+              recorder: AppScope.of(context).recorder,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.onNewChat,
-    required this.onSessions,
-    required this.responseStyle,
-    required this.onSelectStyle,
-  });
-
-  /// Starts a new chat session. Null (disabled) while a turn is in flight.
-  final VoidCallback? onNewChat;
-
-  /// Opens the sessions bottom sheet. Null (disabled) while a turn is in
-  /// flight.
-  final VoidCallback? onSessions;
-
-  /// The current reply-length preference, for the style picker's checkmark.
-  final String responseStyle;
-
-  /// Persists a newly-picked reply-length preference.
-  final void Function(String style) onSelectStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.base,
-        AppSpacing.s,
-        AppSpacing.s,
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Text('Ask', style: AppText.cardTitle)),
-          _ResponseStyleMenu(
-            responseStyle: responseStyle,
-            onSelect: onSelectStyle,
-          ),
-          IconButton(
-            onPressed: onSessions,
-            icon: const Icon(Icons.history_rounded),
-            color: onSessions == null ? AppColors.ink3 : AppColors.ink2,
-            tooltip: 'Chat history',
-          ),
-          IconButton(
-            onPressed: onNewChat,
-            icon: const Icon(Icons.add_comment_outlined),
-            color: onNewChat == null ? AppColors.ink3 : AppColors.ink2,
-            tooltip: 'New chat',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A compact "tune" icon opening a small ZIVO-styled menu to pick how ZIVO
-/// replies — Concise / Balanced / Detailed, persisted via [onSelect].
-class _ResponseStyleMenu extends StatelessWidget {
-  const _ResponseStyleMenu({
-    required this.responseStyle,
-    required this.onSelect,
-  });
-
-  final String responseStyle;
-  final void Function(String style) onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.tune_rounded),
-      color: AppColors.card,
-      iconColor: AppColors.ink2,
-      tooltip: 'Reply style',
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.hairline),
-      ),
-      onSelected: onSelect,
-      itemBuilder: (context) => [
-        for (final style in kResponseStyles)
-          PopupMenuItem<String>(
-            value: style,
-            child: Row(
-              children: [
-                Icon(
-                  style == responseStyle
-                      ? Icons.check_circle_rounded
-                      : Icons.circle_outlined,
-                  size: 16,
-                  color: style == responseStyle
-                      ? AppColors.iris
-                      : AppColors.ink3,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  responseStyleLabel(style),
-                  style: AppText.rowTitle.copyWith(color: AppColors.ink),
-                ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }
@@ -829,7 +861,7 @@ class _ZivoIdentity extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
-            Icons.auto_awesome_rounded,
+            AppIcons.ask,
             size: 13,
             color: AppColors.iris,
           ),
@@ -868,25 +900,39 @@ class _EmptyAsk extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.auto_awesome_rounded,
-              size: 30,
-              color: AppColors.iris,
+            // The hero: the sparkles glyph resting in its own iris glow.
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.irisWash,
+                border: Border.all(color: AppColors.iris.withValues(alpha: 0.25)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.iris.withValues(alpha: 0.22),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Icon(AppIcons.ask, size: 26, color: AppColors.irisText),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
+            // The screen's one warm aside — Fraunces italic, per brand.
             Text(
               "Hey, I'm ZIVO.",
-              style: AppText.cardTitle,
+              style: AppText.aside.copyWith(color: AppColors.ink),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Ask about your training, diet, and spending — or I can add '
               'an expense for you.',
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.body.copyWith(color: AppColors.ink2, height: 1.45),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 8,
@@ -916,17 +962,26 @@ class _SuggestionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
+    return PressableScale(
+      child: Material(
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            label,
-            style: AppText.meta.copyWith(color: AppColors.ink2),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.hairline2),
+            ),
+            child: Text(
+              label,
+              style: AppText.meta.copyWith(fontSize: 12.5, color: AppColors.ink2),
+            ),
           ),
         ),
       ),
@@ -935,12 +990,16 @@ class _SuggestionChip extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble(this.message, {this.animate = false});
+  const _MessageBubble(this.message, {this.animate = false, this.streaming = false});
 
   final AiMessage message;
 
   /// When true, the (assistant) text types in rather than appearing at once.
   final bool animate;
+
+  /// When true (the provisional live bubble mid-turn), a soft iris caret
+  /// rides the text so "still writing" is visible at a glance.
+  final bool streaming;
 
   @override
   Widget build(BuildContext context) {
@@ -965,15 +1024,76 @@ class _MessageBubble extends StatelessWidget {
               decoration: isUser
                   ? BoxDecoration(
                       color: AppColors.iris,
-                      borderRadius: BorderRadius.circular(18),
+                      // A softened bottom-right tail points the pill back
+                      // at its author — small, but it reads as intentional.
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(18),
+                        topRight: Radius.circular(18),
+                        bottomLeft: Radius.circular(18),
+                        bottomRight: Radius.circular(6),
+                      ),
                     )
                   : null,
               child: animate
                   ? _TypewriterText(message.content, style: style)
+                  : streaming && !MediaQuery.of(context).disableAnimations
+                  ? Text.rich(
+                      TextSpan(
+                        text: message.content,
+                        children: [
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: _StreamCaret(),
+                          ),
+                        ],
+                      ),
+                      style: style,
+                    )
                   : Text(message.content, style: style),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The caret riding the end of a streaming reply — a softly breathing iris
+/// bar. Only mounted mid-turn, so its loop never outlives the stream.
+class _StreamCaret extends StatefulWidget {
+  const _StreamCaret();
+
+  @override
+  State<_StreamCaret> createState() => _StreamCaretState();
+}
+
+class _StreamCaretState extends State<_StreamCaret>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 480),
+    lowerBound: 0.25,
+    upperBound: 1,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _c,
+      child: Container(
+        width: 2.5,
+        height: 14,
+        margin: const EdgeInsets.only(left: 2),
+        decoration: BoxDecoration(
+          color: AppColors.iris,
+          borderRadius: BorderRadius.circular(2),
+        ),
       ),
     );
   }
@@ -1029,15 +1149,21 @@ class _TypewriterTextState extends State<_TypewriterText>
   }
 }
 
-/// The calm "the assistant is working" state: an iris dot that breathes beside
-/// a quiet label. Shown only while a turn is in flight, so its looping pulse is
-/// never left mounted (which would stall `pumpAndSettle`). No spinner.
+/// The calm "the assistant is working" state: a softly glowing iris orb that
+/// breathes beside the authoritative phase label, which cross-fades between
+/// phases. After [_kSlowTurnAfter] with no gateway activity, [slow] admits
+/// the wait ("Still working on this one…") so a long turn never reads as a
+/// silent hang. Shown only while a turn is in flight, so its looping pulse
+/// is never left mounted (which would stall `pumpAndSettle`). No spinner.
 class _ThinkingRail extends StatefulWidget {
-  const _ThinkingRail({this.label = 'Thinking…'});
+  const _ThinkingRail({this.label = 'Thinking…', this.slow = false});
 
   /// The current phase label (authoritative when streaming; "Thinking…" until
   /// the first phase event or for a buffered turn).
   final String label;
+
+  /// The turn has gone quiet — add the honest reassurance line.
+  final bool slow;
 
   @override
   State<_ThinkingRail> createState() => _ThinkingRailState();
@@ -1048,6 +1174,8 @@ class _ThinkingRailState extends State<_ThinkingRail>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
+    lowerBound: 0.35,
+    upperBound: 1,
   )..repeat(reverse: true);
 
   @override
@@ -1061,32 +1189,93 @@ class _ThinkingRailState extends State<_ThinkingRail>
     final still = MediaQuery.of(context).disableAnimations;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 10,
-            height: 10,
-            child: still
-                ? const _IrisDot(0.9)
-                : FadeTransition(
-                    opacity: Tween<double>(begin: 0.35, end: 1).animate(
-                      CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+          Row(
+            children: [
+              // The orb: an iris core inside its own glow.
+              still
+                  ? const _GlowOrb(opacity: 0.9)
+                  : FadeTransition(
+                      opacity: _c,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 0.85, end: 1).animate(_c),
+                        child: const _GlowOrb(opacity: 1),
+                      ),
                     ),
-                    child: const _IrisDot(1),
+              const SizedBox(width: 9),
+              AnimatedSwitcher(
+                duration: still
+                    ? Duration.zero
+                    : const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [...previousChildren, ?currentChild],
+                ),
+                child: Text(
+                  widget.label,
+                  key: ValueKey(widget.label),
+                  style: AppText.meta.copyWith(
+                    color: AppColors.irisText,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 9),
-          Text(
-            widget.label,
-            style: AppText.meta.copyWith(
-              color: AppColors.irisText,
-              fontWeight: FontWeight.w600,
-            ),
+          // Honest slow-turn reassurance — appears only when warranted.
+          AnimatedSize(
+            duration: still ? Duration.zero : const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topLeft,
+            child: widget.slow
+                ? Padding(
+                    key: const ValueKey('slow'),
+                    padding: const EdgeInsets.only(left: 19, top: 4),
+                    child: Text(
+                      'Still working on this one…',
+                      style: AppText.meta.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.ink3,
+                      ),
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
           ),
         ],
       ),
     );
   }
+}
+
+/// A small iris dot wrapped in its own soft glow — the "alive" signal.
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.opacity});
+
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+    opacity: opacity,
+    child: Container(
+      width: 11,
+      height: 11,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.iris.withValues(alpha: 0.45),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: const Center(child: _IrisDot(1)),
+    ),
+  );
 }
 
 class _IrisDot extends StatelessWidget {
@@ -1103,9 +1292,9 @@ class _IrisDot extends StatelessWidget {
   );
 }
 
-/// Shown in the trailing slot after a failed send: the user's text stays in
-/// its optimistic bubble (never lost) and this offers a one-tap retry
-/// instead of a SnackBar that vanishes.
+/// Shown in the trailing slot after a failed send — a quiet, modern inline
+/// card (not a 2010 banner): the user's text stays in its optimistic bubble
+/// above, this explains what happened and offers a one-tap retry.
 class _ErrorRetry extends StatelessWidget {
   const _ErrorRetry({required this.onRetry});
 
@@ -1115,29 +1304,67 @@ class _ErrorRetry extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-      child: Row(
-        children: [
-          Text(
-            'Something went wrong.',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              'Retry',
-              style: AppText.meta.copyWith(
-                color: AppColors.ink2,
-                fontWeight: FontWeight.w600,
+      child: Container(
+        key: const Key('error-retry'),
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        decoration: BoxDecoration(
+          color: AppColors.flare.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.flare.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          children: [
+            const Icon(AppIcons.warning, size: 17, color: AppColors.flareText),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Couldn't reach ZIVO",
+                    style: AppText.rowTitle.copyWith(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Your message wasn\u2019t sent.',
+                    style: AppText.body.copyWith(
+                      fontSize: 13,
+                      height: 1.3,
+                      color: AppColors.ink2,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            PressableScale(
+              child: Material(
+                color: AppColors.irisWash,
+                borderRadius: BorderRadius.circular(999),
+                child: InkWell(
+                  onTap: onRetry,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 9,
+                    ),
+                    child: Text(
+                      'Retry',
+                      style: AppText.button.copyWith(
+                        color: AppColors.irisText,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1275,15 +1502,15 @@ class _ProposalCard extends StatelessWidget {
     final String text;
     switch (status) {
       case AiActionStatus.applied:
-        icon = Icons.check_circle_rounded;
+        icon = AppIcons.success;
         color = AppColors.pulseText;
         text = 'Confirmed';
       case AiActionStatus.cancelled:
-        icon = Icons.cancel_outlined;
+        icon = AppIcons.close;
         color = AppColors.ink3;
         text = 'Cancelled';
       default:
-        icon = Icons.schedule_rounded;
+        icon = AppIcons.clock;
         color = AppColors.ink3;
         text = 'Suggestion expired — ask again';
     }
@@ -1322,10 +1549,10 @@ class _ProposalCard extends StatelessWidget {
     switch (action.kind) {
       case 'create_expense':
         if (f['category'] != null) {
-          chips.add(_chip(Icons.sell_outlined, f['category'].toString()));
+          chips.add(_chip(AppIcons.tag, f['category'].toString()));
         }
         if (f['note'] != null) {
-          chips.add(_chip(Icons.notes_rounded, f['note'].toString()));
+          chips.add(_chip(AppIcons.caption, f['note'].toString()));
         }
     }
     return chips;
@@ -1358,258 +1585,19 @@ class _ProposalCard extends StatelessWidget {
     switch (kind) {
       case 'create_expense':
         return (
-          icon: Icons.savings_outlined,
+          icon: AppIcons.expenses,
           label: 'New expense',
           tintBg: AppColors.solarWash,
           tintFg: AppColors.solarText,
         );
       default:
         return (
-          icon: Icons.auto_awesome_rounded,
+          icon: AppIcons.ask,
           label: 'Suggestion',
           tintBg: AppColors.hairline,
           tintFg: AppColors.ink2,
         );
     }
-  }
-}
-
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.enabled,
-    required this.bottomInset,
-    required this.onSend,
-    required this.isRecording,
-    required this.transcribing,
-    required this.sending,
-    required this.onMicTap,
-    required this.onCancelRecording,
-  });
-
-  final TextEditingController controller;
-  final bool enabled;
-  final double bottomInset;
-  final VoidCallback onSend;
-
-  /// True while a voice note is being recorded — the mic button becomes a
-  /// stop button, a cancel button appears, and the text field is replaced by
-  /// a "Recording…" indicator.
-  final bool isRecording;
-
-  /// True while a just-stopped recording is being transcribed — disables the
-  /// mic/send buttons briefly.
-  final bool transcribing;
-
-  /// True while a turn is in flight — dims the send button and blocks the
-  /// mic so the user can't start a conflicting action mid-turn.
-  final bool sending;
-  final VoidCallback onMicTap;
-  final VoidCallback onCancelRecording;
-
-  @override
-  Widget build(BuildContext context) {
-    final canSend = enabled && !isRecording && !transcribing && !sending;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        AppSpacing.s,
-        AppSpacing.base,
-        bottomInset + AppSpacing.s,
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.hairline),
-        ),
-        child: Row(
-          children: [
-            if (isRecording)
-              IconButton(
-                onPressed: onCancelRecording,
-                icon: const Icon(Icons.close_rounded, color: AppColors.ink3),
-                tooltip: 'Cancel recording',
-              ),
-            Expanded(
-              child: isRecording
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.fiber_manual_record_rounded,
-                            size: 12,
-                            color: AppColors.flare,
-                          ),
-                          const SizedBox(width: 8),
-                          Text('Recording…', style: AppText.rowTitle),
-                        ],
-                      ),
-                    )
-                  : transcribing
-                  ? const Padding(
-                      padding: EdgeInsets.only(left: 16),
-                      child: _TranscribingRow(),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: TextField(
-                        controller: controller,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) {
-                          if (canSend) onSend();
-                        },
-                        enabled: !transcribing,
-                        cursorColor: AppColors.iris,
-                        style: AppText.rowTitle,
-                        decoration: const InputDecoration(
-                          isCollapsed: true,
-                          border: InputBorder.none,
-                          hintText: 'Ask ZIVO…',
-                        ),
-                      ),
-                    ),
-            ),
-            PressableScale(
-              child: IconButton(
-                onPressed: (transcribing || sending) ? null : onMicTap,
-                icon: Icon(
-                  isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
-                  color: (transcribing || sending)
-                      ? AppColors.ink3
-                      : (isRecording ? AppColors.flare : AppColors.iris),
-                ),
-                tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
-              ),
-            ),
-            _SendButton(canSend: canSend, onSend: onSend),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The composer's send button — springs itself in (opacity + scale) the
-/// moment [canSend] flips false→true (the user typed something) rather than
-/// just going from a dim, unpressable icon to an enabled one with no visual
-/// event; also carries its own [PressableScale] and fires a light haptic on
-/// an actual send.
-class _SendButton extends StatefulWidget {
-  const _SendButton({required this.canSend, required this.onSend});
-
-  final bool canSend;
-  final VoidCallback onSend;
-
-  @override
-  State<_SendButton> createState() => _SendButtonState();
-}
-
-class _SendButtonState extends State<_SendButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _reveal = AnimationController(
-    vsync: this,
-    value: widget.canSend ? 1 : 0,
-  );
-
-  @override
-  void didUpdateWidget(covariant _SendButton old) {
-    super.didUpdateWidget(old);
-    if (widget.canSend != old.canSend) {
-      if (reducedMotion(context)) {
-        _reveal.value = widget.canSend ? 1 : 0;
-      } else {
-        _reveal.springTo(widget.canSend ? 1 : 0, spring: AppSprings.standard);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _reveal.dispose();
-    super.dispose();
-  }
-
-  void _handleSend() {
-    HapticFeedback.lightImpact();
-    widget.onSend();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _reveal,
-      builder: (context, child) {
-        final t = _reveal.value.clamp(0.0, 1.0);
-        return Opacity(
-          opacity: 0.55 + 0.45 * t,
-          child: Transform.scale(scale: 0.88 + 0.12 * t, child: child),
-        );
-      },
-      child: PressableScale(
-        child: IconButton(
-          onPressed: widget.canSend ? _handleSend : null,
-          icon: Icon(
-            Icons.arrow_upward_rounded,
-            color: widget.canSend ? AppColors.iris : AppColors.ink3,
-          ),
-          tooltip: 'Send',
-        ),
-      ),
-    );
-  }
-}
-
-/// The "Transcribing…" row shown while a just-stopped recording is being
-/// converted to text — an animated pulse on the icon reads as active
-/// processing rather than a static, possibly-stuck state.
-class _TranscribingRow extends StatefulWidget {
-  const _TranscribingRow();
-
-  @override
-  State<_TranscribingRow> createState() => _TranscribingRowState();
-}
-
-class _TranscribingRowState extends State<_TranscribingRow>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final still = MediaQuery.of(context).disableAnimations;
-    return Row(
-      children: [
-        still
-            ? const Icon(
-                Icons.graphic_eq_rounded,
-                size: 14,
-                color: AppColors.iris,
-              )
-            : FadeTransition(
-                opacity: Tween<double>(
-                  begin: 0.35,
-                  end: 1,
-                ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
-                child: const Icon(
-                  Icons.graphic_eq_rounded,
-                  size: 14,
-                  color: AppColors.iris,
-                ),
-              ),
-        const SizedBox(width: 8),
-        Text('Transcribing…', style: AppText.rowTitle),
-      ],
-    );
   }
 }
 
@@ -1892,7 +1880,7 @@ class _DeleteChatSwipeBackground extends StatelessWidget {
         color: AppColors.flare.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(Icons.delete_outline_rounded, color: AppColors.flare),
+      child: const Icon(AppIcons.trash, color: AppColors.flare),
     );
   }
 }
@@ -1920,7 +1908,7 @@ class _NewChatPill extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons.add_comment_outlined,
+                  AppIcons.chatNew,
                   size: 15,
                   color: AppColors.iris,
                 ),
@@ -1983,7 +1971,7 @@ class _SessionRow extends StatelessWidget {
               if (isActive) ...[
                 const SizedBox(width: 8),
                 const Icon(
-                  Icons.check_circle_rounded,
+                  AppIcons.success,
                   size: 16,
                   color: AppColors.iris,
                 ),

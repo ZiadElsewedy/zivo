@@ -54,6 +54,7 @@ class AppIcons {
   static const infoFill = LucideIcons.info;
   static const chevron = LucideIcons.chevronRight;
   static const edit = LucideIcons.pencil;
+  static const tag = LucideIcons.tag;
   static const location = LucideIcons.mapPin;
   static const caption = LucideIcons.type;
 
@@ -65,6 +66,14 @@ class AppIcons {
   static const key = LucideIcons.keyRound;
   static const apple = LucideIcons.apple;
   static const link = LucideIcons.link;
+
+  // Ask · chat & voice.
+  static const chatNew = LucideIcons.messageSquarePlus;
+  static const replyStyle = LucideIcons.slidersHorizontal;
+  static const mic = LucideIcons.mic;
+  static const stopCircle = LucideIcons.circleStop;
+  static const waveform = LucideIcons.audioLines;
+  static const send = LucideIcons.arrowUp;
 
   // Music.
   static const music = LucideIcons.music;
