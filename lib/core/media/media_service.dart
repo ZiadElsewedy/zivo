@@ -83,6 +83,13 @@ class MediaService {
   /// Imports a just-captured/picked file into durable local storage, registers
   /// it, and — if "Save to Photos" is on — copies it to the system gallery.
   /// Never touches the cloud provider. Returns the store-relative reference.
+  ///
+  /// Re-importing over an existing id (an EDITED photo — same entity, new
+  /// bytes) deliberately carries the previous record's [MediaObject.remoteId]
+  /// forward: the bytes changed, so the entry flips back to
+  /// [BackupState.pending] (the next "Back up now" must push the new bytes),
+  /// but keeping the remote id makes that push an in-place Drive UPDATE
+  /// instead of a duplicate file next to an orphaned old copy.
   Future<String> capture({
     required String sourcePath,
     required MediaKind kind,
@@ -91,16 +98,42 @@ class MediaService {
     CaptureSource source = CaptureSource.unknown,
     DateTime? capturedAt,
   }) async {
+    // Carry forward what a previous capture of THIS id already established
+    // (its remote file identity, its gallery outcome) so editing a photo
+    // never orphans or duplicates its backed-up copy. Best-effort: a registry
+    // read failure just means a fresh record.
+    MediaObject? previous;
+    try {
+      previous = await registry.get(id);
+    } catch (_) {
+      previous = null;
+    }
+
     final stored = await store.importFile(sourcePath: sourcePath, kind: kind, id: id);
 
+    // A re-import that landed on a DIFFERENT path (the picked file's
+    // extension differs from the stored one, e.g. .jpg → .png) would orphan
+    // the old bytes under the registry's now-replaced path — remove them so
+    // edits never accumulate hidden copies on disk. Same path = the import
+    // overwrote in place; nothing to clean.
+    if (previous?.relativePath != null && previous!.relativePath != stored.relativePath) {
+      try {
+        await store.delete(previous.relativePath);
+      } catch (_) {
+        // Best-effort.
+      }
+    }
+
     // Local copy done — everything below is best-effort and must never lose the
-    // photo or block the owning entity from saving.
+    // photo or block the owning feature from saving.
     MediaStoragePreferences prefs;
     try {
       prefs = await preferences.read();
     } catch (_) {
       prefs = MediaStoragePreferences.defaults;
     }
+
+    final replacedRemoteId = previous?.remoteId;
 
     var object = MediaObject(
       id: id,
@@ -114,6 +147,11 @@ class MediaService {
       source: source,
       width: stored.width,
       height: stored.height,
+      gallery: previous?.gallery ?? BackupState.pending,
+      // Bytes changed (or first capture) — the cloud copy, if any, is stale
+      // until the next backup pushes these bytes over it.
+      remoteBackup: BackupState.pending,
+      remoteId: replacedRemoteId,
     );
 
     if (prefs.saveToPhotos) {
@@ -132,16 +170,19 @@ class MediaService {
   Future<File?> resolve(String? ref) => store.resolve(ref);
 
   /// Like [resolve], but if the local copy is missing it pulls the bytes from
-  /// the backup provider — *only when a session is already live* (so it never
-  /// prompts). On a second device the user connects once (in Storage & Sync),
-  /// which establishes the session; then photos download on demand and cache.
+  /// the backup provider — *only when a session is already live, or can be
+  /// silently restored* (see [_ensureSilentSession]). On a second device the
+  /// user connects once (in Storage & Sync); after that, photos download on
+  /// demand and cache — opening Moments on a fresh device resolves its
+  /// synced metadata against Drive automatically, with no sign-in prompt.
   Future<File?> resolveOrFetch(String? ref) async {
     final local = await store.resolve(ref);
     if (local != null && await local.exists()) return local;
     if (ref == null || ref.isEmpty) return null;
 
     final provider = backup;
-    if (provider == null || !provider.hasLiveSession) return null;
+    if (provider == null) return null;
+    if (!await _ensureSilentSession()) return null;
 
     MediaObject? object;
     try {
@@ -161,10 +202,81 @@ class MediaService {
     }
   }
 
-  /// Deletes the local file and its registry entry.
-  Future<void> deleteMedia({required String id, required String? ref}) async {
+  /// True when a backup session is live when this returns. A live session
+  /// short-circuits true; otherwise — and ONLY when this device has a
+  /// persisted connection owned by the CURRENT account — attempts a silent
+  /// restore (`attemptLightweightAuthentication`, no sign-in sheet), so a
+  /// freshly-reinstalled/second device that already connected once resumes
+  /// its session invisibly instead of leaving every photo stuck on a
+  /// placeholder until the user finds Storage & Sync.
+  ///
+  /// Throttled to one attempt per app run per cooldown window: passive reads
+  /// must never hammer the auth SDK, and repeated failures (offline, revoked)
+  /// degrade to exactly the old "placeholder until manual connect" behavior.
+  Future<bool> _ensureSilentSession() async {
+    final provider = backup;
+    if (provider == null) return false;
+    if (provider.hasLiveSession) return true;
+
+    final now = DateTime.now();
+    if (_lastSilentRestoreAttempt != null &&
+        now.difference(_lastSilentRestoreAttempt!) < _silentRestoreCooldown) {
+      return false;
+    }
+    _lastSilentRestoreAttempt = now;
+
+    // Same ownership gate as every other provider use: never revive a
+    // connection that belongs to another account.
+    if (!await _backupConnectionValidForCurrentAccount()) return false;
+    try {
+      return await provider.restoreSession() != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  DateTime? _lastSilentRestoreAttempt;
+
+  /// How long a failed silent-restore blocks further background attempts.
+  /// Short enough that transient offline starts recover within the same
+  /// browsing session; long enough that a gallery scroll fires at most one.
+  static const _silentRestoreCooldown = Duration(minutes: 2);
+
+  /// Deletes a piece of media everywhere it lives: the local file, its
+  /// registry entry, and — best-effort, when one exists — its cloud backup
+  /// copy. Deleting the OWNING entity without this would leave orphaned
+  /// bytes accumulating locally and in Drive forever.
+  ///
+  /// [remoteId] may be passed by callers that already hold the registry
+  /// record; otherwise it's looked up before the entry is removed. The local
+  /// delete always happens; cloud deletion is best-effort (a failure leaves
+  /// the remote copy for a later cleanup rather than blocking anything).
+  Future<void> deleteMedia({required String id, required String? ref, String? remoteId}) async {
+    var idToDelete = remoteId;
+    if (idToDelete == null && backup?.hasLiveSession == true) {
+      try {
+        idToDelete = (await registry.get(id))?.remoteId;
+      } catch (_) {
+        idToDelete = null;
+      }
+    }
     await store.delete(ref);
-    await registry.remove(id);
+    try {
+      await registry.remove(id);
+    } catch (_) {
+      // Registry is metadata; the user asked for deletion and the file is
+      // gone — never surface a failure here.
+    }
+    final provider = backup;
+    if (idToDelete != null && provider != null && provider.hasLiveSession) {
+      try {
+        await provider.deleteRemote(idToDelete);
+      } catch (_) {
+        // Best-effort: an un-deletable remote copy is harmless (it sits in
+        // the account's own folder; re-uploading under the same id replaces
+        // it).
+      }
+    }
   }
 
   /// Interactive connect to the backup provider (user-initiated). Tags the

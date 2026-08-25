@@ -608,11 +608,12 @@ exports.aiImportWorkoutPlan = onCall(
       }
 
       const data = request.data || {};
-      const pdfBase64 = (data.pdfBase64 || "").toString();
+      const pdfBase64 = (data.fileBase64 || data.pdfBase64 || "").toString();
       if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
         throw new HttpsError(
-            "invalid-argument", "That PDF is too large to import.");
+            "invalid-argument", "That file is too large to import.");
       }
+      const mimeType = (data.mimeType || "application/pdf").toString();
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -624,7 +625,8 @@ exports.aiImportWorkoutPlan = onCall(
         const result = await extractWorkoutPlan({
           provider: providerForCapability(registry, "workout_import"),
           model: router.resolve("workout_import").model,
-          pdfBase64,
+          fileBase64: pdfBase64,
+          mediaType: mimeType,
           logEvent: (event) => logger.info("aiImportWorkoutPlan", {
             approxPdfBytes,
             ...event,
@@ -670,11 +672,12 @@ exports.aiImportDietPlan = onCall(
       }
 
       const data = request.data || {};
-      const pdfBase64 = (data.pdfBase64 || "").toString();
+      const pdfBase64 = (data.fileBase64 || data.pdfBase64 || "").toString();
       if (pdfBase64.length > MAX_PDF_BASE64_CHARS) {
         throw new HttpsError(
-            "invalid-argument", "That PDF is too large to import.");
+            "invalid-argument", "That file is too large to import.");
       }
+      const mimeType = (data.mimeType || "application/pdf").toString();
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -684,7 +687,8 @@ exports.aiImportDietPlan = onCall(
         const result = await extractDietPlan({
           provider: providerForCapability(registry, "diet_import"),
           model: router.resolve("diet_import").model,
-          pdfBase64,
+          fileBase64: pdfBase64,
+          mediaType: mimeType,
           logEvent: (event) => logger.info("aiImportDietPlan", {
             approxPdfBytes,
             ...event,

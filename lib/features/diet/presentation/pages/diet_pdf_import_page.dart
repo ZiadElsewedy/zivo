@@ -14,21 +14,44 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
 import 'diet_plan_edit_page.dart';
 
-/// Picks a PDF and returns its bytes — null means the user backed out of the
-/// picker (not an error); a picked file with no readable bytes throws, same
-/// as any other read failure, so callers only need two branches.
-Future<Uint8List?> _defaultPickPdfBytes() async {
+/// The largest file the import flow will upload. Cloud Functions callables
+/// reject requests past ~10 MiB at the transport layer — before the server's
+/// own size check ever runs — and base64 inflates bytes by ~4/3, so anything
+/// bigger than this dies with a cryptic platform error instead of a clear
+/// one.
+const _maxFileBytes = 7 * 1024 * 1024;
+
+/// The file types the import flow accepts, mapped to the media type sent to
+/// the backend — PDFs are read natively; photos ride as image blocks.
+const _allowedExtensions = <String, String>{
+  'pdf': 'application/pdf',
+  'png': 'image/png',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'webp': 'image/webp',
+};
+
+/// Picks a plan document (PDF or photo) and returns its bytes plus media type
+/// — null means the user backed out of the picker (not an error); a picked
+/// file with no readable bytes throws, same as any other read failure, so
+/// callers only need two branches.
+Future<({Uint8List bytes, String mimeType})?> _defaultPickFile() async {
   final picked = await FilePicker.platform.pickFiles(
     type: FileType.custom,
-    allowedExtensions: const ['pdf'],
+    allowedExtensions: List.unmodifiable(_allowedExtensions.keys),
     withData: true,
   );
   if (picked == null || picked.files.isEmpty) return null;
-  final bytes = picked.files.single.bytes;
+  final file = picked.files.single;
+  final mimeType = _allowedExtensions[file.extension?.toLowerCase()];
+  if (mimeType == null) {
+    throw StateError('Unsupported file type: ${file.extension}');
+  }
+  final bytes = file.bytes;
   if (bytes == null || bytes.isEmpty) {
     throw StateError("Couldn't read that file.");
   }
-  return bytes;
+  return (bytes: bytes, mimeType: mimeType);
 }
 
 /// The Diet PDF-import flow (Chunk B+C) — a deliberately shorter mirror of
@@ -46,11 +69,11 @@ Future<Uint8List?> _defaultPickPdfBytes() async {
 class DietPdfImportPage extends StatefulWidget {
   const DietPdfImportPage({
     super.key,
-    Future<Uint8List?> Function()? pickPdfBytes,
-  }) : pickPdfBytes = pickPdfBytes ?? _defaultPickPdfBytes;
+    Future<({Uint8List bytes, String mimeType})?> Function()? pickFile,
+  }) : pickFile = pickFile ?? _defaultPickFile;
 
   /// Overridable for tests — defaults to the real file picker.
-  final Future<Uint8List?> Function() pickPdfBytes;
+  final Future<({Uint8List bytes, String mimeType})?> Function() pickFile;
 
   @override
   State<DietPdfImportPage> createState() => _DietPdfImportPageState();
@@ -111,9 +134,9 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       _rejectionReason = null;
     });
 
-    Uint8List? bytes;
+    ({Uint8List bytes, String mimeType})? file;
     try {
-      bytes = await widget.pickPdfBytes();
+      file = await widget.pickFile();
     } catch (error, stack) {
       debugPrint('DietPdfImport: could not read the picked file: $error');
       debugPrintStack(stackTrace: stack);
@@ -126,9 +149,21 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       return;
     }
 
-    if (bytes == null) {
+    if (file == null) {
       // The user backed out of the picker — nothing went wrong, just leave.
       if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    // Fail fast on oversized files — the callable's transport rejects them
+    // anyway, but with an error this screen can't explain.
+    if (file.bytes.length > _maxFileBytes) {
+      if (!mounted) return;
+      setState(() {
+        _phase = _ImportPhase.error;
+        _errorMessage = 'That file is too large — please choose one under '
+            '7 MB.';
+      });
       return;
     }
 
@@ -139,7 +174,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
     try {
       final outcome = await AppScope.of(
         context,
-      ).ai.importDietPlan(pdfBytes: bytes);
+      ).ai.importDietPlan(fileBytes: file.bytes, mimeType: file.mimeType);
       _analyzingTimer?.cancel();
       if (!mounted) return;
       switch (outcome) {
@@ -198,7 +233,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: 'Import PDF',
+              title: 'Import Plan',
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: AppColors.ink2,
               iconColor: AppColors.ink2,
@@ -258,6 +293,13 @@ String _importErrorMessage(Object error) {
               "build's debug token in the Firebase console, then try again."
         : "Couldn't verify this app install. Please try again in a moment.";
   }
+  if (text.contains('not-found')) {
+    // The callable itself is missing — an undeployed or renamed backend
+    // function. Nothing about the picked file is wrong; blaming it sends
+    // people re-scanning a perfectly good plan.
+    return "The import service isn't available right now — please try "
+        'again later.';
+  }
   if (text.contains('deadline') ||
       text.contains('timeout') ||
       text.contains('unavailable') ||
@@ -265,7 +307,7 @@ String _importErrorMessage(Object error) {
     return 'Network problem reaching the import service — check your '
         'connection and try again.';
   }
-  return "Couldn't read that plan — try a clearer PDF, or build the plan manually.";
+  return "Couldn't read that plan — try a clearer photo or PDF, or build the plan manually.";
 }
 
 /// The icon-chip look shared by every phase of this flow — the same
@@ -313,8 +355,9 @@ class _SelectingState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              "Choose a PDF and I'll map it into a real, editable plan — "
-              "estimating calories and macros wherever the document doesn't state them.",
+              'Choose a PDF or a photo of your plan and I\'ll map it into a '
+              'real, editable plan — estimating calories and macros wherever '
+              "the document doesn't state them.",
               style: AppText.body.copyWith(color: AppColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -392,7 +435,7 @@ class _RejectedState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const _PhaseIcon(
-              icon: Icons.picture_as_pdf_outlined,
+              icon: Icons.description_outlined,
               color: AppColors.flare,
             ),
             const SizedBox(height: 18),

@@ -104,8 +104,8 @@ class _EmptyState extends StatelessWidget {
             Text('No diet plan yet.', style: AppText.aside),
             const SizedBox(height: 6),
             Text(
-              "Import a PDF and I'll estimate calories and macros for you, "
-              'or build one from scratch.',
+              "Import a PDF or photo and I'll estimate calories and macros "
+              'for you, or build one from scratch.',
               style: AppText.meta.copyWith(color: AppColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -113,7 +113,7 @@ class _EmptyState extends StatelessWidget {
             SizedBox(
               width: 220,
               child: PillButton(
-                label: 'Import from PDF',
+                label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
                 color: AppColors.pulseText,
                 enabled: true,

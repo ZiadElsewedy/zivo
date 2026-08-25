@@ -12,7 +12,17 @@ class MetadataRow {
 /// what the gallery's detail panel shows: when it was taken, the exact time and
 /// time zone, how it was captured, dimensions, size, type, location, and backup
 /// status. Fields with no data are omitted rather than shown blank.
-List<MetadataRow> buildMomentMetadata(Moment moment, MediaObject? media) {
+///
+/// [photoOnDevice] reflects whether the BYTES are actually on this device —
+/// distinct from the metadata existing at all. On a second device a moment can
+/// be fully present as data while its image lives only in Drive; claiming
+/// "On this device" then would be a lie, so callers that know better pass
+/// false (the panel then shows exactly which copy IS authoritative).
+List<MetadataRow> buildMomentMetadata(
+  Moment moment,
+  MediaObject? media, {
+  bool photoOnDevice = true,
+}) {
   final rows = <MetadataRow>[
     MetadataRow('Date', formatFullDate(moment.takenAt)),
     MetadataRow('Time', formatExactTime(moment.takenAt)),
@@ -35,7 +45,7 @@ List<MetadataRow> buildMomentMetadata(Moment moment, MediaObject? media) {
     rows.add(MetadataRow('Location', location));
   }
   if (media != null) {
-    rows.add(MetadataRow('Backup', _backupLabel(media)));
+    rows.add(MetadataRow('Backup', _backupLabel(media, photoOnDevice)));
   }
   return rows;
 }
@@ -88,9 +98,15 @@ String formatBytes(int bytes) {
   return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
 }
 
-String _backupLabel(MediaObject media) {
-  final parts = <String>['On this device'];
-  if (media.gallery == BackupState.done) parts.add('Photos');
+String _backupLabel(MediaObject media, bool photoOnDevice) {
+  final parts = <String>[];
+  if (photoOnDevice) {
+    parts.add('On this device');
+    if (media.gallery == BackupState.done) parts.add('Photos');
+  }
   if (media.remoteBackup == BackupState.done) parts.add('Google Drive');
+  if (parts.isEmpty) {
+    return photoOnDevice ? 'Not backed up yet' : 'In Google Drive — tap to download';
+  }
   return parts.join(' · ');
 }

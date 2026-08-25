@@ -86,26 +86,40 @@ abstract interface class AiRepository {
     required String actionId,
   });
 
-  /// Extracts a proposed workout split from a PDF's raw bytes
+  /// Extracts a proposed workout split from a document's raw bytes
   /// (WORKOUT_SYSTEM.md §3.4, Phase 6) via the `aiImportWorkoutPlan`
   /// callable — one Claude call, no Firestore write. The caller reviews/edits
   /// the result before saving it (via `WorkoutPlanRepository.saveSplit`);
   /// this method alone never creates a split.
   ///
+  /// [mimeType] is the picked file's media type: `application/pdf`, or an
+  /// image type (`image/jpeg`, `image/png`, …) when the user imported a
+  /// photo of their plan instead of a PDF.
+  ///
   /// Resolves to [WorkoutImportRejected] (never throws) when the document
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  Future<WorkoutImportOutcome> importWorkoutPlan({required Uint8List pdfBytes});
+  Future<WorkoutImportOutcome> importWorkoutPlan({
+    required Uint8List fileBytes,
+    required String mimeType,
+  });
 
-  /// Extracts a proposed diet plan from a PDF's raw bytes (Chunk B+C) via
-  /// the `aiImportDietPlan` callable — one Claude call, no Firestore write.
-  /// The caller reviews/edits the result before saving it (via
+  /// Extracts a proposed diet plan from a document's raw bytes (Chunk B+C)
+  /// via the `aiImportDietPlan` callable — one Claude call, no Firestore
+  /// write. The caller reviews/edits the result before saving it (via
   /// `DietRepository.savePlan`); this method alone never creates a plan.
+  ///
+  /// [mimeType] is the picked file's media type: `application/pdf`, or an
+  /// image type (`image/jpeg`, `image/png`, …) when the user imported a
+  /// photo of their plan instead of a PDF.
   ///
   /// Resolves to [DietImportRejected] (never throws) when the document
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes});
+  Future<DietImportOutcome> importDietPlan({
+    required Uint8List fileBytes,
+    required String mimeType,
+  });
 
   /// Transcribes a recorded voice note via the `aiTranscribe` callable
   /// (`functions/ai/speech/gateway.js`) — input only: this never calls the

@@ -247,6 +247,7 @@ void main() {
   testWidgets('a Down verdict tints the trend chart with the verdict-style red, not the default green', (
     tester,
   ) async {
+    _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 45),

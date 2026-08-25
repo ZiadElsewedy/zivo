@@ -103,15 +103,47 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     if (mounted) showZivoToast(context, message, kind: kind);
   }
 
-  Future<void> _connect() => _run(_Op.connect, (_) async {
+  /// Connect runs the interactive sign-in, then — on success — immediately
+  /// catches this device up with everything already backed up (the whole
+  /// point of connecting a second device), driving the same live progress
+  /// banner the Sync button uses. A connect that downloads 0 photos is still
+  /// a success; the toast only mentions the download when there was one.
+  Future<void> _connect() async {
+    if (_busy) return;
+    setState(() {
+      _op = _Op.connect;
+      _opDone = 0;
+      _opTotal = 0;
+    });
     final ok = await _media.connectBackup();
-    _toast(
-      ok
-          ? 'Google Drive connected on this device.'
-          : 'Couldn’t connect Google Drive.',
-      ok ? ToastKind.success : ToastKind.error,
-    );
-  });
+    if (!mounted) return;
+    if (!ok) {
+      _toast('Couldn’t connect Google Drive.', ToastKind.error);
+      setState(() => _op = _Op.none);
+      await _refresh();
+      return;
+    }
+    _toast('Google Drive connected on this device.', ToastKind.success);
+    setState(() => _op = _Op.sync);
+    try {
+      final n = await _media.syncFromBackup(
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() {
+              _opDone = done;
+              _opTotal = total;
+            });
+          }
+        },
+      );
+      if (n > 0) {
+        _toast('Downloaded $n ${_p(n)} from Drive.', ToastKind.success);
+      }
+    } finally {
+      if (mounted) setState(() => _op = _Op.none);
+      await _refresh();
+    }
+  }
 
   Future<void> _disconnect() => _run(_Op.disconnect, (_) async {
     await _media.disconnectBackup();

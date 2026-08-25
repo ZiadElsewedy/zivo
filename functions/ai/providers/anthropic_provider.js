@@ -88,6 +88,16 @@ function toAnthropicPart(part) {
       },
     };
   }
+  if (part && part.type === "image") {
+    return {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: part.mediaType,
+        data: part.dataBase64,
+      },
+    };
+  }
   if (part && part.type === "tool_result") {
     const block = {
       type: "tool_result",

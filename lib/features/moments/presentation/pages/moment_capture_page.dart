@@ -118,14 +118,16 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
 
   /// Opens the native crop/straighten/rotate editor on the current photo and
   /// keeps the edited result. Works for a freshly-picked photo or an existing
-  /// moment's stored photo (resolved from the media store first).
+  /// moment's stored photo — resolving via [MediaService.resolveOrFetch], so
+  /// a cloud-only photo (synced metadata, image still in Drive) downloads on
+  /// demand and edits like any local one rather than silently doing nothing.
   Future<void> _editPhoto() async {
     var path = _pickedTempPath;
     if (path == null && _imageRef != null) {
-      final file = await AppScope.of(context).requireMedia.resolve(_imageRef);
+      final file = await AppScope.of(context).requireMedia.resolveOrFetch(_imageRef);
       path = file?.path;
     }
-    if (path == null) return;
+    if (path == null || !mounted) return;
     final cropped = await ImageCropper().cropImage(
       sourcePath: path,
       compressQuality: 92,
@@ -206,6 +208,17 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       );
     }
 
+    // An edit that REMOVED the photo must remove its bytes too — the local
+    // file, the registry record, and any Drive copy would otherwise outlive
+    // the moment as orphans. (A REPLACED photo is handled inside capture():
+    // same id → same store path overwritten in place.)
+    if (initial != null && initial.imagePath != null && imageRef == null) {
+      await scope.requireMedia.deleteMedia(
+        id: initial.id,
+        ref: initial.imagePath,
+      );
+    }
+
     final moment = Moment(
       id: id,
       caption: _caption.text.trim(),
@@ -225,8 +238,13 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   Future<void> _delete() async {
     final initial = widget.initial;
     if (initial == null) return;
-    final moments = AppScope.of(context).moments;
-    await moments.remove(initial.id);
+    final scope = AppScope.of(context);
+    await scope.moments.remove(initial.id);
+    // The moment's photo dies with it — everywhere it lives (see
+    // [MediaService.deleteMedia]).
+    if (initial.imagePath != null) {
+      await scope.requireMedia.deleteMedia(id: initial.id, ref: initial.imagePath);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 

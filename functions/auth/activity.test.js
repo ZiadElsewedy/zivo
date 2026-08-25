@@ -13,7 +13,11 @@ const assert = require("node:assert/strict");
 
 const {markEmailSent, markEmailVerified, recordAuthEvent} = require("./activity");
 
-/** A minimal Firestore stub capturing collection/doc/set/add calls. */
+/**
+ * A minimal Firestore stub capturing collection/doc/set/add calls.
+ * @return {{db: !Object, writes: {sets: !Array<!Object>,
+ *     adds: !Array<!Object>}}} The stub db and captured writes.
+ */
 function stubDb() {
   const writes = {sets: [], adds: []};
   const db = {

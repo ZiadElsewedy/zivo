@@ -19,6 +19,16 @@ function toDate(value) {
   return value instanceof Timestamp ? value.toDate() : null;
 }
 
+/**
+ * Midnight at the start of the 'yyyy-MM-dd' day `dayKey` names.
+ * @param {string} dayKey
+ * @return {!Date}
+ */
+function startOfDayFor(dayKey) {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /** The Admin-SDK-backed `store` seam for the `aiChat` gateway. */
 class FirestoreStore {
   /**
@@ -207,6 +217,33 @@ class FirestoreStore {
       const d = doc.data();
       return {mealId: d.mealId || "", eaten: !!d.eaten};
     });
+  }
+
+  /**
+   * Upserts the eaten-toggle for one meal on one day, mirroring the client's
+   * `FirestoreDietRepository.setMealEaten` write exactly (same doc id
+   * `dietEntries/{dayKey}__{mealId}`, same fields, merge) so either side's
+   * writes are indistinguishable in Firestore.
+   * @param {string} uid
+   * @param {string} dayKey 'yyyy-MM-dd' (`dayKeyFor`)
+   * @param {string} mealId
+   * @param {boolean} eaten
+   * @return {!Promise<void>}
+   */
+  async setDietEntry(uid, dayKey, mealId, eaten) {
+    const now = FieldValue.serverTimestamp();
+    await this._user(uid)
+        .collection("dietEntries")
+        .doc(`${dayKey}__${mealId}`)
+        .set({
+          dayKey,
+          date: Timestamp.fromDate(startOfDayFor(dayKey)),
+          mealId,
+          eaten,
+          schemaVersion: 1,
+          createdAt: now,
+          updatedAt: now,
+        }, {merge: true});
   }
 
   /**

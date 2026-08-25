@@ -12,6 +12,7 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
+import '../../domain/workout_session_repository.dart';
 import 'session_details_page.dart';
 import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
 
@@ -49,105 +50,127 @@ class WorkoutHistoryPage extends StatelessWidget {
               child: _AuraBlob(color: AppColors.iris, size: 200),
             ),
             SafeArea(
-              child: StreamBuilder<List<LiveSession>>(
-                stream: sessions.watchAll(),
-                initialData: sessions.current,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) return const _HistoryErrorState();
-                  final items = snapshot.data ?? const <LiveSession>[];
-                  if (items.isEmpty &&
-                      snapshot.connectionState == ConnectionState.waiting) {
-                    return const _HistoryLoadingState();
-                  }
-                  if (items.isEmpty) return const _HistoryEmptyState();
-                  final now = DateTime.now();
-                  final completed = items
-                      .where((s) => s.status == SessionStatus.completed)
-                      .toList();
-                  final totalMinutes = completed.fold<int>(
-                    0,
-                    (sum, s) => sum + s.elapsed.inMinutes,
-                  );
-                  final weekStart = _startOfWeek(now);
-
-                  final groups = <_WeekGroup>[];
-                  for (final session in items) {
-                    final ws = _startOfWeek(session.startedAt);
-                    final index = ws == weekStart
-                        ? 0
-                        : ws == weekStart.subtract(const Duration(days: 7))
-                        ? 1
-                        : 2;
-                    if (groups.length <= index) {
-                      groups.add(_WeekGroup(index, []));
-                    }
-                    // Sessions arrive newest-first; groups fill in order.
-                    if (groups[index].sessions.isEmpty) {
-                      groups[index].weekStart = ws;
-                    }
-                    groups[index].sessions.add(session);
-                  }
-
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
-                    children: [
-                      RiseIn(child: _HistoryHeader()),
-                      const SizedBox(height: 22),
-                      RiseIn(
-                        delay: const Duration(milliseconds: 50),
-                        child: _SummaryStrip(
-                          totalSessions: completed.length,
-                          totalHours: totalMinutes / 60,
-                          thisWeek: completed
-                              .where((s) => !s.startedAt.isBefore(weekStart))
-                              .length,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      for (final group in groups) ...[
-                        _WeekHeader(group.label(context)),
-                        for (final (i, session) in group.sessions.indexed)
-                          RiseIn(
-                            delay: Duration(
-                              milliseconds: (90 + i * 40).clamp(0, 320),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                bottom: i == group.sessions.length - 1 ? 0 : 10,
-                              ),
-                              child: Dismissible(
-                                key: ValueKey(session.id),
-                                direction: DismissDirection.endToStart,
-                                background: const _DeleteSwipeBackground(),
-                                confirmDismiss: (_) => confirmDeleteSession(
-                                  context,
-                                  session.dayLabel,
-                                ),
-                                onDismissed: (_) =>
-                                    sessions.deleteSession(session.id),
-                                child: _SessionHistoryRow(
-                                  session: session,
-                                  now: now,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          SessionDetailsPage(session: session),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 14),
-                      ],
-                    ],
-                  );
-                },
+              // The header lives OUTSIDE the stream so the page always has
+              // its title and a way back — even while loading, on error, or
+              // with nothing logged yet (a pushed page must never become a
+              // chrome-less dead end).
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+                    child: RiseIn(child: _HistoryHeader()),
+                  ),
+                  Expanded(child: _body(sessions)),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _body(WorkoutSessionRepository sessions) {
+    return StreamBuilder<List<LiveSession>>(
+      stream: sessions.watchAll(),
+      initialData: sessions.current,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const _HistoryErrorState();
+        final items = snapshot.data ?? const <LiveSession>[];
+        if (items.isEmpty &&
+            snapshot.connectionState == ConnectionState.waiting) {
+          return const _HistoryLoadingState();
+        }
+        if (items.isEmpty) return const _HistoryEmptyState();
+        final now = DateTime.now();
+        final completed = items
+            .where((s) => s.status == SessionStatus.completed)
+            .toList();
+        final totalMinutes = completed.fold<int>(
+          0,
+          (sum, s) => sum + s.elapsed.inMinutes,
+        );
+        final weekStart = _startOfWeek(now);
+
+        final groups = <_WeekGroup>[];
+        for (final session in items) {
+          final ws = _startOfWeek(session.startedAt);
+          final index = ws == weekStart
+              ? 0
+              : ws == weekStart.subtract(const Duration(days: 7))
+              ? 1
+              : 2;
+          // Buckets can be sparse — e.g. every session is over two weeks old
+          // (a returning user) lands in bucket 2 with nothing in 0/1. Grow
+          // densely and drop empties below; indexing straight into a sparse
+          // list crashed here (RangeError) whenever the newest session wasn't
+          // THIS week.
+          while (groups.length <= index) {
+            groups.add(_WeekGroup(groups.length, []));
+          }
+          // Sessions arrive newest-first; each bucket keeps that order.
+          if (groups[index].sessions.isEmpty) {
+            groups[index].weekStart = ws;
+          }
+          groups[index].sessions.add(session);
+        }
+        final visibleGroups =
+            groups.where((g) => g.sessions.isNotEmpty).toList();
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+          children: [
+            RiseIn(
+              delay: const Duration(milliseconds: 50),
+              child: _SummaryStrip(
+                totalSessions: completed.length,
+                totalHours: totalMinutes / 60,
+                thisWeek: completed
+                    .where((s) => !s.startedAt.isBefore(weekStart))
+                    .length,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final group in visibleGroups) ...[
+              _WeekHeader(group.label(context)),
+              for (final (i, session) in group.sessions.indexed)
+                RiseIn(
+                  delay: Duration(
+                    milliseconds: (90 + i * 40).clamp(0, 320),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i == group.sessions.length - 1 ? 0 : 10,
+                    ),
+                    child: Dismissible(
+                      key: ValueKey(session.id),
+                      direction: DismissDirection.endToStart,
+                      background: const _DeleteSwipeBackground(),
+                      confirmDismiss: (_) => confirmDeleteSession(
+                        context,
+                        session.dayLabel,
+                      ),
+                      onDismissed: (_) =>
+                          sessions.deleteSession(session.id),
+                      child: _SessionHistoryRow(
+                        session: session,
+                        now: now,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                SessionDetailsPage(session: session),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 14),
+            ],
+          ],
+        );
+      },
     );
   }
 

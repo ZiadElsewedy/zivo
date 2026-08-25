@@ -143,6 +143,13 @@ void main() {
     );
     await tester.pump();
 
+    // The wallet header pushes the list below the default test viewport.
+    await tester.scrollUntilVisible(
+      find.text('Weekly shop'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
     await tester.tap(find.text('Weekly shop'));
     await tester.pumpAndSettle();
 
@@ -174,6 +181,14 @@ void main() {
 
     expect(expenses.current.any((e) => e.id == 'to-delete'), isTrue);
 
+    // Bring the row into the viewport before the swipe — the wallet header
+    // pushes the list below the default test viewport.
+    await tester.scrollUntilVisible(
+      find.text('Uber'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
     await tester.drag(find.text('Uber'), const Offset(-500, 0));
     await tester.pumpAndSettle();
 

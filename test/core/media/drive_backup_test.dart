@@ -89,6 +89,17 @@ class _FakeDriveClient implements MediaBackupProvider {
     downloaded.add(fileId);
     return downloadBytes;
   }
+
+  bool failDeletes = false;
+
+  final List<String> deletedRemote = [];
+
+  @override
+  Future<bool> deleteRemote(String remoteId) async {
+    if (failDeletes) return false;
+    deletedRemote.add(remoteId);
+    return true;
+  }
 }
 
 void main() {

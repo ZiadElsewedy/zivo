@@ -269,36 +269,13 @@ Widget _wrap({
 /// never settle on their own — `pumpAndSettle` would hang while either view
 /// is on screen, so every step advances by a fixed, generous duration instead.
 ///
-/// Several discrete pumps, not one big jump — same reason
-/// [_dismissUndoSnackbar] does: a single large `pump(duration)` doesn't
-/// reliably carry the SnackBar overlay's own entrance transition to a
-/// genuinely hit-testable state, even once the widget itself is found by a
-/// text finder. ~700ms total, not the old 350ms: a Done/Skip now holds on
-/// the running screen for a ~260ms "completion beat" (see
-/// `_afterResolvingCurrentSet`) before the phase actually advances and the
-/// Undo snackbar appears — its own ~250ms entrance still has to run and
-/// settle AFTER that, so this has to clear both back to back.
+/// Several discrete pumps, not one big jump — the phase crossfade
+/// (AnimatedSwitcher) plus the completion-beat hold both need real frames to
+/// reach a genuinely hit-testable state.
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 175));
-  }
-}
-
-/// Dismisses the Undo snackbar (shown after every Done/Skip) and lets its
-/// exit animation finish — otherwise it sits over the next phase's bottom
-/// action button for its multi-second duration, exactly like it would for a
-/// real user who taps through it rather than waiting or tapping Undo. Only
-/// needed by tests that chain another tap onto the bottom action area right
-/// after a Done/Skip; everything else is unaffected by the snackbar existing.
-Future<void> _dismissUndoSnackbar(WidgetTester tester) async {
-  final messengers = find.byType(ScaffoldMessenger);
-  if (messengers.evaluate().isEmpty) return;
-  tester.state<ScaffoldMessengerState>(messengers.first).clearSnackBars();
-  // Empirically needs several discrete pumps, not one big time jump, to
-  // actually clear the SnackBar's hit-testable overlay entry.
-  for (var i = 0; i < 10; i++) {
-    await tester.pump(const Duration(milliseconds: 200));
   }
 }
 
@@ -373,7 +350,7 @@ void main() {
       // compound (Chest), reps reset to the same fixed count.
       expect(find.text('Set 1 of 2'), findsOneWidget);
       expect(find.text('Bench'), findsOneWidget);
-      expect(find.text('Last time: 30kg × 5'), findsOneWidget);
+      expect(find.text('30kg × 5'), findsOneWidget); // LAST TIME stat
       expect(find.text('32.5kg × 5'), findsOneWidget); // the Goal label
 
       // Reps/weight are prefilled from the goal, not the bare plan target.
@@ -400,7 +377,6 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       expect(find.text('Skip rest'), findsOneWidget);
       expect(restWholeSeconds(tester), closeTo(90, 1));
       expect(find.text('REST'), findsOneWidget);
@@ -423,7 +399,7 @@ void main() {
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       expect(find.text('Set 2 of 2'), findsOneWidget);
-      expect(find.text('Last time: 32.5kg × 5'), findsOneWidget);
+      expect(find.text('32.5kg × 5'), findsOneWidget); // LAST TIME stat
       expect(find.text('35kg × 5'), findsOneWidget); // goal: 32.5 + 2.5
 
       // Complete the final set → completed summary.
@@ -431,7 +407,6 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       expect(find.text('Finish'), findsOneWidget);
       expect(find.textContaining('2 of 2 sets'), findsOneWidget);
 
@@ -598,7 +573,6 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Skip'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
@@ -615,7 +589,7 @@ void main() {
     },
   );
 
-  testWidgets('Skip shows an Undo snackbar; Undo restores the set to pending and current', (
+  testWidgets('Skip is reversed by the in-screen Back control — set returns pending and current', (
     tester,
   ) async {
     final workouts = _RecordingWorkoutRepository();
@@ -638,20 +612,17 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
     await tester.tap(find.text('Skip'));
-    // Waits out both the completion-beat hold and the snackbar's entrance
-    // transition (short of its dismiss duration) before inspecting/tapping
-    // it — see `_settle`'s doc comment.
+    // Waits out the completion-beat hold and the phase crossfade into rest
+    // before inspecting — see `_settle`'s doc comment.
     await _settle(tester);
 
-    expect(find.text('Set skipped'), findsOneWidget);
-    expect(find.text('Undo'), findsOneWidget);
+    // No bottom toast anymore — the persistent Back control is the undo.
     var afterSkip = sessions.current.single;
     expect(afterSkip.exercises.single.sets.first.skipped, isTrue);
     expect(afterSkip.currentSet?.id, isNot(skippedId)); // advanced to set 2
 
-    await tester.tap(find.text('Undo'));
+    await tester.tap(find.text('Back'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
 
     final afterUndo = sessions.current.single;
     expect(afterUndo.exercises.single.sets.first.pending, isTrue);
@@ -659,7 +630,7 @@ void main() {
     expect(find.text('Set 1 of 2'), findsOneWidget);
   });
 
-  testWidgets('Done shows an Undo snackbar; Undo restores the set to pending (Ziad\'s incident)', (
+  testWidgets('Done is reversed by Back — an accidental log restores to pending (Ziad\'s incident)', (
     tester,
   ) async {
     final workouts = _RecordingWorkoutRepository();
@@ -683,16 +654,10 @@ void main() {
     await tester.tap(find.text('Done'));
     await _settle(tester);
 
-    // No weight was typed and the plan's Bench set has no target weight —
-    // the fixed(5) target's own reps fallback still gives a real summary
-    // rather than a generic "Set done".
-    expect(find.text('5 reps logged'), findsOneWidget);
-    expect(find.text('Undo'), findsOneWidget);
     expect(sessions.current.single.completedSetCount, 1);
 
-    await tester.tap(find.text('Undo'));
+    await tester.tap(find.text('Back'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
 
     // Reversed, and no longer resting — back on the running screen for set 1.
     expect(sessions.current.single.completedSetCount, 0);
@@ -730,7 +695,6 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
 
@@ -746,7 +710,7 @@ void main() {
   );
 
   testWidgets(
-    'Done shows what was actually logged ("80kg × 8 logged"), not a generic "Set done"',
+    'Done logs exactly what was typed (8 reps × 80kg), not a generic "Set done"',
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
@@ -773,12 +737,16 @@ void main() {
       await tester.tap(find.text('Done'));
       await _settle(tester);
 
-      expect(find.text('80kg × 8 logged'), findsOneWidget);
-      expect(find.text('Set done'), findsNothing);
+      // The typed actuals are what got persisted on the just-resolved set —
+      // the confirmation toast is gone; the autosaved session is the record.
+      final set = sessions.current.single.exercises.single.sets.first;
+      expect(set.done, isTrue);
+      expect(set.actualReps, 8);
+      expect(set.actualWeightKg, 80);
     },
   );
 
-  testWidgets('Undo reverses the LAST set of a workout, un-completing the session', (
+  testWidgets('Back reverses the LAST set of a workout, un-completing the session', (
     tester,
   ) async {
     final workouts = _RecordingWorkoutRepository();
@@ -801,7 +769,6 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
@@ -809,15 +776,12 @@ void main() {
     await tester.tap(find.text('Done')); // the last set — completes the session
     await _settle(tester);
 
-    // No weight was typed and the plan's Bench set has no target weight —
-    // the fixed(5) target's own reps fallback still gives a real summary
-    // rather than a generic "Set done".
-    expect(find.text('5 reps logged'), findsOneWidget);
     expect(sessions.current.single.isComplete, isTrue);
 
-    await tester.tap(find.text('Undo'));
+    // Back is reachable from the completed review too — an undo must be able
+    // to reverse the very last set of a workout.
+    await tester.tap(find.text('Back'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
 
     final reopened = sessions.current.single;
     expect(reopened.isComplete, isFalse);
@@ -852,7 +816,6 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
 
@@ -901,14 +864,12 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Skip'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Skip'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
 
       // Bench had ZERO completed sets — the old "doneSetCount > 0" filter
       // would have hidden it entirely. It must still show, flagged.
@@ -970,14 +931,12 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
 
     expect(find.text('Finish'), findsOneWidget);
     expect(find.text('Skipped'), findsNothing); // nothing was skipped
@@ -1121,7 +1080,6 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
       expect(elapsedText(tester), '0:50');
-      await _dismissUndoSnackbar(tester);
 
       // Finish the day (single-exercise, 2-set plan) → completes and freezes.
       await tester.tap(find.text('Skip rest'));
@@ -1224,7 +1182,7 @@ void main() {
       );
       await _start(tester);
 
-      expect(find.text('Last time: First time'), findsOneWidget);
+      expect(find.text('First time'), findsOneWidget); // LAST TIME stat
       // Bench's plan sets carry no targetWeightKg, fixed(5) reps → the
       // prescription-only goal is reps with no weight to suggest.
       expect(find.text('× 5'), findsOneWidget);
@@ -1279,7 +1237,7 @@ void main() {
 
       // "First time" for THIS split's Bench — split p2's 999kg must never
       // surface here, even though the exerciseId matches.
-      expect(find.text('Last time: First time'), findsOneWidget);
+      expect(find.text('First time'), findsOneWidget); // LAST TIME stat
       expect(find.textContaining('999'), findsNothing);
     },
   );
@@ -1479,14 +1437,12 @@ void main() {
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     expect(find.text('Finish'), findsOneWidget);
 
     // Finish now pops synchronously (the write is fire-and-forget), so the
@@ -1539,14 +1495,12 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Finish'));
       await tester.pumpAndSettle();
 
@@ -1581,14 +1535,12 @@ void main() {
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     await tester.tap(find.text('Skip rest'));
     await _settle(tester);
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
     await tester.tap(find.text('Done'));
     await _settle(tester);
-    await _dismissUndoSnackbar(tester);
     expect(find.text('Finish'), findsOneWidget);
 
     // `workouts.add` never resolves — if Finish awaited it, this would hang
@@ -1762,22 +1714,29 @@ void main() {
       );
       await _start(tester);
 
-      // Set 1: a range target — the "Target:" line adds real context, keep it.
+      // Set 1: a range target — the TARGET stat cell carries the plan's
+      // range as real context beside LAST TIME.
       expect(find.text('Set 1 of 2'), findsOneWidget);
-      expect(find.text('Target: 8–10 reps'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('target-label'))).data,
+        '8–10 reps',
+      );
 
-      // Advance to set 2: to-failure — "Target: To failure" would just
-      // restate the AMRAP goal label above it, so it's suppressed.
+      // Advance to set 2: to-failure — a "To failure" target cell would just
+      // restate the AMRAP goal label above it, so it's suppressed (the cell
+      // reads "—").
       await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
       await tester.pump();
       await tester.tap(find.text('Done'));
       await _settle(tester);
-      await _dismissUndoSnackbar(tester);
       await tester.tap(find.text('Skip rest'));
       await _settle(tester);
 
       expect(find.text('Set 2 of 2'), findsOneWidget);
-      expect(find.textContaining('Target:'), findsNothing);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('target-label'))).data,
+        '—',
+      );
     },
   );
 

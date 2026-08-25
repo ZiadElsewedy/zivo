@@ -171,6 +171,26 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     }
   }
 
+  @override
+  Future<bool> deleteRemote(String fileId) async {
+    final headers = await _headers();
+    if (headers == null) return false;
+
+    final client = _BearerClient(headers);
+    try {
+      final api = drive.DriveApi(client);
+      // Drive's default delete moves the file to the account's trash —
+      // recoverable there for 30 days, then gone. That's the right softness
+      // for "the user deleted this moment": out of the ZIVO folder either way.
+      await api.files.delete(fileId);
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close();
+    }
+  }
+
   /// Finds/creates `rootFolderName` then its `accountFolder` child, returning
   /// the child's id so each ZIVO account's photos live in their own folder.
   Future<String?> _ensureAccountFolder(drive.DriveApi api, String accountFolder) async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -25,16 +27,23 @@ class _RiseInState extends State<RiseIn> with SingleTickerProviderStateMixin {
     duration: AppMotion.enter,
   );
 
+  /// A cancelable Timer, not a bare `Future.delayed` — a page can dispose this
+  /// widget before the stagger delay elapses (a fast back-swipe, or any test
+  /// that pumps one frame and tears down), and an uncancelled delayed callback
+  /// left pending trips Flutter test's timersPending invariant.
+  Timer? _delayTimer;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(widget.delay, () {
+    _delayTimer = Timer(widget.delay, () {
       if (mounted) _c.forward();
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _c.dispose();
     super.dispose();
   }

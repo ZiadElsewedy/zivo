@@ -29,7 +29,7 @@ class _FailingImportAi extends FakeAiRepository {
   final Object error;
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List pdfBytes}) {
+  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) {
     throw error is String ? StateError(error as String) : error;
   }
 }
@@ -69,7 +69,14 @@ Future<InMemoryDietRepository> _pumpImportPage(
   );
   navigatorKey.currentState!.push(
     MaterialPageRoute(
-      builder: (_) => DietPdfImportPage(pickPdfBytes: pickPdfBytes),
+      builder: (_) => DietPdfImportPage(
+        // Adapt the old bytes-only stub to the page's current pickFile seam.
+        pickFile: () async {
+          final bytes = await pickPdfBytes();
+          if (bytes == null) return null;
+          return (bytes: bytes, mimeType: 'application/pdf');
+        },
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -174,7 +181,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_) async => const DietImportRejected(
+          importDietPlanImpl: (_, _) async => const DietImportRejected(
             'This looks like a workout plan, not a diet plan.',
           ),
         ),
@@ -199,7 +206,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_) async =>
+          importDietPlanImpl: (_, _) async =>
               const DietImportRejected('Not a diet plan.'),
         ),
       );
@@ -223,7 +230,7 @@ void main() {
             return Uint8List.fromList([1, 2, 3]);
           },
           ai: FakeAiRepository(
-            importDietPlanImpl: (_) async =>
+            importDietPlanImpl: (_, _) async =>
                 const DietImportRejected('Not a diet plan.'),
           ),
         );
@@ -245,7 +252,7 @@ void main() {
           tester,
           pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
           ai: FakeAiRepository(
-            importDietPlanImpl: (_) async => const DietImportAccepted(
+            importDietPlanImpl: (_, _) async => const DietImportAccepted(
               DietImportResult(
                 planName: 'Partial Plan',
                 days: [
@@ -292,7 +299,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_) async => const DietImportRejected(
+          importDietPlanImpl: (_, _) async => const DietImportRejected(
             "This file doesn't contain enough valid diet data to create a plan.",
           ),
         ),
@@ -323,7 +330,7 @@ void main() {
 
       expect(
         find.text(
-          "Couldn't read that plan — try a clearer PDF, or build the plan manually.",
+          "Couldn't read that plan — try a clearer photo or PDF, or build the plan manually.",
         ),
         findsOneWidget,
       );

@@ -104,7 +104,9 @@ void main() {
 
     expect(find.text('Push'), findsOneWidget);
     expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('50m'), findsOneWidget);
+    // The duration appears on the session row AND rolled up in the summary
+    // strip's total-time stat — so at least one, not exactly one.
+    expect(find.text('50m'), findsWidgets);
     expect(find.text('1 exercise'), findsOneWidget);
 
     // A newly logged session appears at the top reactively.

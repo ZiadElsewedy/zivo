@@ -91,7 +91,6 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
   }
 
   Future<void> _openPhoto(List<Moment> photos, int index) async {
-    final moments = AppScope.of(context).moments;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PhotoViewerPage(
@@ -99,10 +98,22 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
           photos: photos,
           mediaById: _media,
           initialIndex: index,
-          onDelete: (m) => moments.remove(m.id),
+          onDelete: _deleteMomentCompletely,
         ),
       ),
     );
+    await _loadMedia();
+  }
+
+  /// Deletes a moment AND its media everywhere it lives — the local file,
+  /// the registry record, and the Google Drive copy (best-effort, when one
+  /// exists). Deleting only the Firestore doc would orphan the bytes on
+  /// every device and in the cloud, and leave a ghost tile for any moment
+  /// whose caption was empty.
+  Future<void> _deleteMomentCompletely(Moment moment) async {
+    final scope = AppScope.of(context);
+    await scope.moments.remove(moment.id);
+    await scope.requireMedia.deleteMedia(id: moment.id, ref: moment.imagePath);
     await _loadMedia();
   }
 

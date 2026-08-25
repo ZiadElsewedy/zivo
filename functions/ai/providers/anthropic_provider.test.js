@@ -158,6 +158,29 @@ test("a document part translates to a base64 document block", async () => {
   assert.equal(client.calls[0].messages[0].content[1].text, "Extract it.");
 });
 
+test("an image part translates to a base64 image block", async () => {
+  const client = fakeClient({stop_reason: "end_turn", content: [], usage: {}});
+  const provider = new AnthropicProvider(client);
+
+  await provider.generate({
+    model: "m",
+    maxTokens: 10,
+    messages: [{
+      role: "user",
+      content: [
+        {type: "image", mediaType: "image/jpeg", dataBase64: "aW1n"},
+        {type: "text", text: "Extract it."},
+      ],
+    }],
+  });
+
+  const block = client.calls[0].messages[0].content[0];
+  assert.equal(block.type, "image");
+  assert.equal(block.source.type, "base64");
+  assert.equal(block.source.media_type, "image/jpeg");
+  assert.equal(block.source.data, "aW1n");
+});
+
 test("a tool_result part translates to tool_use_id/is_error", async () => {
   const client = fakeClient({stop_reason: "end_turn", content: [], usage: {}});
   const provider = new AnthropicProvider(client);

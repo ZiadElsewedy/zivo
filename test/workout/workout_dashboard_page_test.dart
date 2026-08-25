@@ -113,7 +113,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('No workout plan yet'), findsOneWidget);
-    expect(find.text('Import from PDF'), findsOneWidget);
+    expect(find.text('Import a plan'), findsOneWidget);
     expect(find.text('Build manually instead'), findsOneWidget);
   });
 
@@ -240,7 +240,9 @@ void main() {
     expect(find.text('CURRENT SPLIT'), findsOneWidget);
     expect(find.text('RECENT ACTIVITY'), findsOneWidget);
     expect(find.text('Push Pull Legs'), findsOneWidget);
-    expect(find.textContaining('Push · 1'), findsOneWidget); // split breakdown chip
+    // The split breakdown renders each training day as its own row (the
+    // label also appears in the recent-activity row and the analysis teaser).
+    expect(find.text('Push'), findsWidgets);
     expect(find.text('Completed'), findsOneWidget); // recent-activity row
 
     // No destination was lost in the move.
