@@ -359,15 +359,21 @@ class _RecordingBarState extends State<_RecordingBar>
   void _subscribe() {
     final stream = widget.recorder?.inputLevels();
     if (stream == null) return;
-    _levelsSub = stream.listen((level) {
-      if (!mounted) return;
-      setState(() {
-        _peak = _peak > level ? _peak : level;
-        _bars
-          ..removeAt(0)
-          ..add(level);
-      });
-    });
+    // Metering glitches are cosmetic — swallowed so a stream error can
+    // never bubble out of the composer and take the page down.
+    _levelsSub = stream.listen(
+      (level) {
+        if (!mounted) return;
+        setState(() {
+          _peak = _peak > level ? _peak : level;
+          _bars
+            ..removeAt(0)
+            ..add(level);
+        });
+      },
+      onError: (_) {},
+      cancelOnError: false,
+    );
   }
 
   @override
