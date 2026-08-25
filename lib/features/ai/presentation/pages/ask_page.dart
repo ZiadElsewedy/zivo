@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -1357,12 +1358,12 @@ class _AskAuraBlob extends StatelessWidget {
 }
 
 /// The message list's once-only entrance: rises into place the FIRST time a
-/// display key is seen, then never again. The ledger ([played]) is checked in
-/// initState only — so a rebuild never re-decides and never disposes a running
-/// animation — while a later REMOUNT of the same identity (scrolled out and
-/// back) reads "already played" and appears settled instantly. This is what
-/// keeps scrolling through history solid: no bubble ever re-entrances under
-/// the thumb. Honors reduce motion.
+/// display key is seen, then never again. The ledger ([played]) is consulted
+/// exactly once per mount — so a rebuild never re-decides and never disposes
+/// a running animation — while a later REMOUNT of the same identity (scrolled
+/// out and back) reads "already played" and appears settled instantly. This
+/// is what keeps scrolling through history solid: no bubble ever re-entrances
+/// under the thumb. Honors reduce motion.
 class _RiseOnce extends StatefulWidget {
   const _RiseOnce({
     required this.ledgerKey,
@@ -1481,58 +1482,100 @@ class _EmptyAsk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.section),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // The hero: the sparkles glyph resting in its own iris glow.
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.irisWash,
-                border: Border.all(color: AppColors.iris.withValues(alpha: 0.25)),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.iris.withValues(alpha: 0.22),
-                    blurRadius: 28,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(AppIcons.ask, size: 26, color: AppColors.irisText),
-            ),
-            const SizedBox(height: 18),
-            // The screen's one warm aside — Fraunces italic, per brand.
-            Text(
-              "Hey, I'm ZIVO.",
-              style: AppText.aside.copyWith(color: AppColors.ink),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ask about your training, diet, and spending — or I can add '
-              'an expense for you.',
-              style: AppText.body.copyWith(color: AppColors.ink2, height: 1.45),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
+    final still = MediaQuery.of(context).disableAnimations;
+    return SingleChildScrollView(
+      // Scrollable rather than a bare Center: with the keyboard rising, a
+      // min-height column can overflow — this lets it give instead of
+      // throwing yellow stripes over a premium moment.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.section),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (final prompt in _suggestions)
-                  _SuggestionChip(
-                    label: prompt,
-                    onTap: () => onSuggestion(prompt),
+                // The hero: ZIVO's own illustration floating in a soft iris
+                // halo. One graceful play on arrival (not an infinite loop) —
+                // it lands, breathes once, and gets out of the way.
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 190,
+                      height: 190,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [Color(0x336E5BFF), Color(0x006E5BFF)],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 148,
+                      height: 148,
+                      child: Lottie.asset(
+                        'assets/ai-generate.json',
+                        fit: BoxFit.contain,
+                        repeat: false,
+                        animate: !still,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // The screen's one warm aside — Fraunces italic, per brand.
+                RiseIn(
+                  delay: still ? Duration.zero : const Duration(milliseconds: 120),
+                  child: Text(
+                    "Hey, I'm ZIVO.",
+                    style: AppText.aside.copyWith(
+                      color: AppColors.ink,
+                      fontSize: 26,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
+                ),
+                const SizedBox(height: 8),
+                RiseIn(
+                  delay: still ? Duration.zero : const Duration(milliseconds: 200),
+                  child: Text(
+                    'Your training, diet, and spending — ask me anything, or '
+                    'let me log it for you.',
+                    style: AppText.body.copyWith(
+                      color: AppColors.ink2,
+                      height: 1.45,
+                      fontSize: 14.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final (index, prompt) in _suggestions.indexed)
+                        RiseIn(
+                          delay: still
+                              ? Duration.zero
+                              : Duration(milliseconds: 280 + index * 70),
+                          child: _SuggestionChip(
+                            label: prompt,
+                            onTap: () => onSuggestion(prompt),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

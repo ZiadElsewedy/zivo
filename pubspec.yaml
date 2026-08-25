@@ -135,6 +135,7 @@ flutter:
   # (light) files are for ZIVO's dark surfaces, "ink" (dark) for light ones.
   assets:
     - assets/loading.json
+    - assets/ai-generate.json
     - assets/transparent/
     - assets/spotify/
     - assets/google/

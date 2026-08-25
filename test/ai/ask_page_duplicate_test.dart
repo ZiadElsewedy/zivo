@@ -220,6 +220,45 @@ void main() {
     );
   });
 
+  testWidgets("the optimistic bubble's element SURVIVES the durable swap — "
+      'one entrance, never two', (tester) async {
+    // The "pop twice" bug: the pending bubble mounted its entrance motion,
+    // then the durable doc arrived under a DIFFERENT key and re-ran it —
+    // shrink, expand, again. The fix pairs both copies under one display
+    // key (the turn id), so the same element continues across the swap.
+    final ai = _ScriptedAi();
+    await tester.pumpWidget(_host(ai));
+    await tester.pump();
+    ai.emit(const []);
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'hello');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('composer-send')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    Element riseElement() => tester.element(
+          find
+              .byWidgetPredicate(
+                (w) => w.runtimeType.toString() == '_RiseOnce',
+              )
+              .last,
+        );
+    final before = riseElement();
+
+    final turnId = ai.sentTurnIds.single;
+    ai.emit([_msg(1, AiRole.user, 'hello', turnId)]);
+    await tester.pump();
+    await tester.pump();
+
+    expect(riseElement(), same(before),
+        reason: 'The bubble must be the SAME live element before and after '
+            'the optimistic→durable swap; a remount would replay its '
+            'entrance and read as the message appearing twice.');
+    expect(find.text('hello'), findsOneWidget);
+  });
+
   testWidgets('a new chat named at creation keeps its custom title instead '
       'of auto-titling from the first message', (tester) async {
     final ai = _ScriptedAi();
