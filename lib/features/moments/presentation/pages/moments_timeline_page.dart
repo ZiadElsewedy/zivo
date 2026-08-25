@@ -317,21 +317,28 @@ class _GalleryTile extends StatelessWidget {
     );
   }
 
+  /// Tile width × devicePixelRatio — the decode target that keeps a
+  /// three-across grid from decoding full 1600px captures per cell.
+  int _decodeWidth(BuildContext context) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final tileWidth =
+        (MediaQuery.of(context).size.width - 28 - 12) / 3; // 14px gutters + gaps
+    return (tileWidth * dpr).round().clamp(120, 800);
+  }
+
   Widget _photo(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        MediaImage(
-          service: AppScope.of(context).requireMedia,
-          ref: moment.imagePath,
-          fit: BoxFit.cover,
-          // Shown until the photo resolves — on another device it may live only
-          // in Google Drive and is being fetched, or isn't backed up/reachable.
-          placeholder: const ColoredBox(
-            color: AppColors.surfaceRaised,
-            child: Center(
-              child: Icon(AppIcons.driveCloud, size: 22, color: AppColors.ink3),
-            ),
+        // Hero-tagged so opening the viewer reads as THE tile expanding to
+        // fill the screen — not a new screen appearing over the grid.
+        Hero(
+          tag: 'moment-photo-${moment.id}',
+          child: MediaImage(
+            service: AppScope.of(context).requireMedia,
+            ref: moment.imagePath,
+            fit: BoxFit.cover,
+            decodeWidth: _decodeWidth(context),
           ),
         ),
         if (media?.source == CaptureSource.camera)

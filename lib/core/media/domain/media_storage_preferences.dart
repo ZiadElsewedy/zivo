@@ -7,23 +7,42 @@
 /// that never connected is never nagged to sign in. This holds only the small,
 /// device-agnostic media preferences.
 class MediaStoragePreferences {
-  const MediaStoragePreferences({this.saveToPhotos = false});
+  const MediaStoragePreferences({
+    this.saveToPhotos = false,
+    this.autoUploadToDrive = true,
+  });
 
   /// Opt-in: also copy each captured photo into the device's system Photos.
   final bool saveToPhotos;
 
-  /// Default preferences for a brand-new account: local-only.
+  /// Default-on: the moment a capture lands locally it also uploads to Google
+  /// Drive (when this device has a connected session) — a photo becomes
+  /// recoverable on every other device within seconds of being taken, no
+  /// "Back up now" visit required. Off here means manual-only backups. Never
+  /// prompts: if no session can be silently restored, the upload simply
+  /// doesn't happen now and the next "Back up now" covers it.
+  final bool autoUploadToDrive;
+
+  /// Default preferences for a brand-new account: local-first, auto-upload on.
   static const MediaStoragePreferences defaults = MediaStoragePreferences();
 
-  MediaStoragePreferences copyWith({bool? saveToPhotos}) =>
-      MediaStoragePreferences(saveToPhotos: saveToPhotos ?? this.saveToPhotos);
+  MediaStoragePreferences copyWith({
+    bool? saveToPhotos,
+    bool? autoUploadToDrive,
+  }) =>
+      MediaStoragePreferences(
+        saveToPhotos: saveToPhotos ?? this.saveToPhotos,
+        autoUploadToDrive: autoUploadToDrive ?? this.autoUploadToDrive,
+      );
 
   @override
   bool operator ==(Object other) =>
-      other is MediaStoragePreferences && other.saveToPhotos == saveToPhotos;
+      other is MediaStoragePreferences &&
+      other.saveToPhotos == saveToPhotos &&
+      other.autoUploadToDrive == autoUploadToDrive;
 
   @override
-  int get hashCode => saveToPhotos.hashCode;
+  int get hashCode => Object.hash(saveToPhotos, autoUploadToDrive);
 }
 
 /// The seam between the app and per-account media preferences storage.
