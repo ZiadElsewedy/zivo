@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:zivo/app/app.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
+import 'package:zivo/features/music/data/fake_music_controller.dart';
 
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
@@ -24,5 +25,12 @@ void main() {
     providerIds: <String>['google.com'],
   );
   final auth = FakeAuthRepository(initial: const Authenticated(user));
-  runApp(ZivoApp(auth: auth, profiles: FakeProfileRepository()));
+  // Force the fake music player in the preview: the real spotifyClientId is
+  // present, so _defaultMusic() would otherwise pick SpotifyMusicController,
+  // which can't connect in the simulator (no Spotify app).
+  runApp(ZivoApp(
+    auth: auth,
+    profiles: FakeProfileRepository(),
+    music: FakeMusicController(),
+  ));
 }

@@ -29,6 +29,7 @@ import 'package:zivo/features/workout/presentation/pages/live_session_page.dart'
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/inert_music_controller.dart';
 
 /// Records what the player writes, so tests can assert the completion path
 /// persists and the discard path writes nothing. [add] resolves after a
@@ -242,6 +243,7 @@ Widget _wrap({
     workoutSessions: workoutSessions,
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
+    music: InertMusicController(),
     child: MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -858,6 +860,12 @@ void main() {
     expect(find.text('Set 2 of 2'), findsOneWidget);
     expect(find.text('Back'), findsOneWidget);
 
+    // The now-playing companion at the top of the logging slot pushes the
+    // action cluster below the fold on this fixed test viewport — scroll it
+    // into view rather than assuming it's already hit-testable, same as
+    // `_start`'s own scroll for "Skip warm-up".
+    await tester.ensureVisible(find.text('Back'));
+    await tester.pump();
     await tester.tap(find.text('Back'));
     await _settle(tester);
 

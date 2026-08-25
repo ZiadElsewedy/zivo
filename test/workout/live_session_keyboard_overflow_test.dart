@@ -20,6 +20,7 @@ import 'package:zivo/features/workout/presentation/pages/live_session_page.dart'
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/inert_music_controller.dart';
 
 /// R3: does the running-set screen (Reps/Weight steppers) overflow when the
 /// on-screen keyboard opens on a short device? Simulated here — rather than
@@ -78,6 +79,7 @@ Future<void> _runAt(WidgetTester tester, {required Size size, required double ke
       workoutSessions: InMemoryWorkoutSessionRepository(),
       diet: InMemoryDietRepository(),
       ai: FakeAiRepository(),
+      music: InertMusicController(),
       child: MaterialApp(
         home: LiveSessionPage(day: _day(), plan: _plan()),
       ),

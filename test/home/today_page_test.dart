@@ -41,6 +41,7 @@ import 'package:zivo/features/workout/presentation/pages/live_session_page.dart'
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/inert_music_controller.dart';
 
 Widget _wrap({
   required Widget child,
@@ -62,6 +63,7 @@ Widget _wrap({
     workoutSessions: workoutSessions ?? InMemoryWorkoutSessionRepository(),
     diet: diet,
     ai: FakeAiRepository(),
+    music: InertMusicController(),
     child: MaterialApp(home: child),
   );
 }

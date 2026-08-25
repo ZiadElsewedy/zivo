@@ -9,6 +9,11 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../music/domain/music_connection.dart';
+import '../../../music/domain/music_controller.dart';
+import '../../../music/domain/now_playing.dart';
+import '../../../music/music_config.dart';
+import '../../../music/presentation/music_player_page.dart';
 import '../widgets/media_backup_section.dart';
 import '../../../../core/widgets/settings_row.dart';
 
@@ -71,8 +76,15 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               const RiseIn(child: MediaBackupSection()),
               const SizedBox(height: 20),
+              if (kMusicEnabled) ...[
+                RiseIn(
+                  delay: const Duration(milliseconds: 50),
+                  child: _MusicSection(controller: AppScope.of(context).requireMusic),
+                ),
+                const SizedBox(height: 20),
+              ],
               RiseIn(
-                delay: const Duration(milliseconds: 50),
+                delay: const Duration(milliseconds: 90),
                 child: SettingsSectionCard(
                   label: 'ABOUT',
                   children: [
@@ -101,12 +113,12 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 30),
               RiseIn(
-                delay: const Duration(milliseconds: 100),
+                delay: const Duration(milliseconds: 130),
                 child: _SignOutButton(loading: _signingOut, onTap: _signOut),
               ),
               const SizedBox(height: 44),
               RiseIn(
-                delay: const Duration(milliseconds: 150),
+                delay: const Duration(milliseconds: 180),
                 child: _BrandFooter(
                   version: info == null
                       ? null
@@ -160,6 +172,77 @@ class _BrandFooter extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Settings' always-reachable entry point into the music feature — visible
+/// in every connection state (before connecting there's no mini-bar or
+/// in-session card yet, so this would otherwise be the one dead end with no
+/// way in). Tapping always opens [MusicPlayerPage]; the connect/retry
+/// affordance and per-state copy live there, not duplicated here — this row
+/// is purely a destination link, its trailing value just previewing status.
+class _MusicSection extends StatelessWidget {
+  const _MusicSection({required this.controller});
+
+  final MusicController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<MusicConnection>(
+      stream: controller.connection,
+      initialData: controller.currentConnection,
+      builder: (context, connSnap) {
+        final state = connSnap.data ?? MusicConnection.disconnected;
+        return StreamBuilder<NowPlaying?>(
+          stream: controller.nowPlaying,
+          initialData: controller.currentNowPlaying,
+          builder: (context, nowSnap) {
+            final playing = nowSnap.data;
+            final value = switch (state) {
+              MusicConnection.connected => playing != null ? 'Playing' : 'Connected',
+              MusicConnection.connecting => 'Connecting…',
+              MusicConnection.authFailed => "Couldn't connect",
+              MusicConnection.needsPremium => 'Premium required',
+              MusicConnection.noSpotifyApp => 'Install Spotify',
+              MusicConnection.disconnected => 'Not connected',
+            };
+            return SettingsSectionCard(
+              label: 'MUSIC',
+              children: [
+                SettingsRow(
+                  icon: AppIcons.music,
+                  // TODO(spotify-icon): this is a neutral placeholder swatch
+                  // (flat color, no mark) at assets/spotify/spotify-icon.png
+                  // — swap in the official Spotify logo once sourced. Do
+                  // NOT recreate/recolor the mark; follow Spotify's brand
+                  // guidelines. Referenced here and nowhere else in the
+                  // app — the in-session card/chip stay logo-free.
+                  iconWidget: ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Image.asset(
+                      'assets/spotify/spotify-icon.png',
+                      width: 18,
+                      height: 18,
+                    ),
+                  ),
+                  title: 'Spotify',
+                  value: value,
+                  last: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MusicPlayerPage(controller: controller),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
