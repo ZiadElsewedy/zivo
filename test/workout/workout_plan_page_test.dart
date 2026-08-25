@@ -219,6 +219,17 @@ void main() {
     await tester.tap(find.text('Day B · Pull'));
     await tester.pump();
     expect(find.text('Deadlift'), findsOneWidget);
+
+    // And every expanded day is startable — the rotation recommends, it
+    // doesn't restrict. Starting a non-"Next up" day opens the live session
+    // for THAT day.
+    await tester.pump(const Duration(milliseconds: 300)); // let expansion settle
+    await tester.ensureVisible(find.text('Start this day'));
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.tap(find.text('Start this day'), warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('elapsed-timer')), findsOneWidget);
   });
 
   testWidgets('shows a spinner while the plan stream is waiting', (tester) async {
