@@ -1385,15 +1385,25 @@ class _RiseOnceState extends State<_RiseOnce>
     duration: AppMotion.enter,
   );
 
+  /// Whether this identity should render settled: its entrance already
+  /// played, or it was waived as history, or the user reduces motion.
+  bool? _settled;
+
   @override
-  void initState() {
-    super.initState();
-    if (MediaQuery.of(context).disableAnimations ||
-        !widget.played.add(widget.ledgerKey)) {
-      _c.value = 1; // already played (or waived) — render settled
-      return;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Decided exactly once, on first dependencies — never re-decided by a
+    // rebuild, so an in-flight entrance is never torn down mid-flight.
+    if (_settled == null) {
+      final fresh = widget.played.add(widget.ledgerKey);
+      final reduceMotion = MediaQuery.of(context).disableAnimations;
+      _settled = !fresh || reduceMotion;
+      if (_settled!) {
+        _c.value = 1;
+      } else {
+        _c.forward();
+      }
     }
-    _c.forward();
   }
 
   @override
@@ -1404,7 +1414,7 @@ class _RiseOnceState extends State<_RiseOnce>
 
   @override
   Widget build(BuildContext context) {
-    if (_c.value == 1 || MediaQuery.of(context).disableAnimations) {
+    if (_settled ?? false) {
       return widget.child;
     }
     final curved = CurvedAnimation(parent: _c, curve: AppMotion.ease);
