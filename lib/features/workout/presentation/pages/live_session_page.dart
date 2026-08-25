@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -229,7 +230,53 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         !_session.isComplete) {
       _startWarmup();
     }
+    unawaited(_restorePersistedRest());
     _prefillInputs();
+  }
+
+  /// Rest is a UI-side phase, so an app KILL while resting would otherwise
+  /// drop the user back on the running screen with the countdown gone — the
+  /// "timer didn't keep running" report. The countdown's absolute wall-clock
+  /// end is persisted (start/adjust/end/pause all maintain it), and restored
+  /// here: still in the future → the phase resumes with the correct remaining
+  /// time, exactly as if the app had never closed. Already past → silently
+  /// skipped (the rest is simply over).
+  static const _kRestEndsAt = 'zivo.session.rest.endsAtMs';
+  static const _kRestTotal = 'zivo.session.rest.totalSeconds';
+
+  Future<void> _persistRest() async {
+    final prefs = await SharedPreferences.getInstance();
+    final endsAt = _restEndsAt;
+    final total = _restTotalSeconds;
+    if (endsAt == null || total == null) {
+      await prefs.remove(_kRestEndsAt);
+      await prefs.remove(_kRestTotal);
+      return;
+    }
+    await prefs.setInt(_kRestEndsAt, endsAt.millisecondsSinceEpoch);
+    await prefs.setInt(_kRestTotal, total);
+  }
+
+  Future<void> _restorePersistedRest() async {
+    if (_session.isComplete || _session.isPaused) return;
+    if (_restEndsAt != null) return; // live rest already running
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt(_kRestEndsAt);
+    final total = prefs.getInt(_kRestTotal);
+    if (ms == null || total == null || !mounted) return;
+    final endsAt = DateTime.fromMillisecondsSinceEpoch(ms);
+    if (!endsAt.isAfter(widget.now())) {
+      // The rest finished while the app was closed — clear it out.
+      await prefs.remove(_kRestEndsAt);
+      await prefs.remove(_kRestTotal);
+      return;
+    }
+    setState(() {
+      _restEndsAt = endsAt;
+      _restTotalSeconds = total;
+    });
+    _restTicker?.dispose();
+    _restTicker = createTicker(_onRestTick)..start();
   }
 
   @override
@@ -496,6 +543,34 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required Color undoIconColor,
   }) {
     _resolvingSet = true;
+    final completing = _session.currentSet == null;
+
+    // When another rest follows, go STRAIGHT there — the session pointer has
+    // already advanced, so a hold here would render the *next* exercise for
+    // a beat before rest crossfades in (the exact flash this flow used to
+    // have). One synchronous transition, one crossfade: this set's screen →
+    // rest. The completion beat below is kept only for the actual last set,
+    // where the checkmark spring IS the moment worth holding for.
+    if (!completing && restSeconds > 0 && !reducedMotion(context)) {
+      // The guard stays up through the phase crossfade — the outgoing
+      // running screen's Done/Skip remain hit-testable while they fade, and
+      // a tap landing there must not resolve the *next* set by accident.
+      Future<void>.delayed(const Duration(milliseconds: 320), () {
+        _resolvingSet = false;
+      });
+      _prefillInputs();
+      _startRest(restSeconds);
+      unawaited(_sessionsRepo.saveSession(_session));
+      _showUndoSnackbar(
+        undoMessage,
+        exerciseId,
+        setId,
+        icon: undoIcon,
+        iconColor: undoIconColor,
+      );
+      return;
+    }
+
     final hold = reducedMotion(context)
         ? Duration.zero
         : const Duration(milliseconds: 260);
@@ -514,6 +589,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         _restTicker = null;
         _restTotalSeconds = null;
         _restEndsAt = null;
+        unawaited(_persistRest());
         _elapsedTimer?.cancel();
         setState(() {});
       } else {
@@ -554,10 +630,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.surfaceRaised,
-          // Lifted clear of the bottom action zone (the phase's own primary
-          // button) — the toast confirms an action, it must never cover the
-          // next one.
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+          // Lifted clear of the bottom action zone AND the rest screen's
+          // ±15s row — the toast confirms an action, it must never cover
+          // the next one.
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 172),
           content: Row(
             children: [
               Icon(icon, size: 18, color: iconColor),
@@ -618,6 +694,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _restTotalSeconds = null;
     _restEndsAt = null;
     _pausedRestRemaining = null;
+    unawaited(_persistRest());
     if (wasComplete && !_session.isPaused) {
       _elapsedTimer ??= Timer.periodic(
         const Duration(seconds: 1),
@@ -635,11 +712,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         _restTotalSeconds = null;
         _restEndsAt = null;
       });
+      unawaited(_persistRest());
       return;
     }
     _restTotalSeconds = seconds;
     _restEndsAt = widget.now().add(Duration(seconds: seconds));
     setState(() {});
+    unawaited(_persistRest());
     _restTicker = createTicker(_onRestTick)..start();
   }
 
@@ -686,6 +765,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     _restTicker = null;
     _restTotalSeconds = null;
     _restEndsAt = null;
+    unawaited(_persistRest());
     if (mounted) setState(() {});
   }
 
@@ -785,6 +865,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restTotalSeconds = remainingCeilSeconds;
     }
     setState(() {});
+    unawaited(_persistRest());
   }
 
   /// Pauses the workout: stops the elapsed clock, and — if a rest was
@@ -813,6 +894,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _session = _session.pause(now: now);
     });
     _elapsedTimer?.cancel();
+    // The persisted countdown must not resurrect a stale rest after a
+    // pause → kill → relaunch; a paused rest lives only in memory.
+    unawaited(_persistRest());
     unawaited(_sessionsRepo.saveSession(_session));
   }
 
@@ -826,6 +910,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       _restEndsAt = now.add(pausedRemaining);
       _restTicker?.dispose();
       _restTicker = createTicker(_onRestTick)..start();
+      unawaited(_persistRest());
     }
     final pausedWarmupRemaining = _pausedWarmupRemaining;
     if (pausedWarmupRemaining != null) {
@@ -949,6 +1034,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     setState(() => _busy = true);
     _restTicker?.dispose();
     _restTicker = null;
+    await _persistRest();
     unawaited(sessions.deleteSession(_session.id));
     Navigator.of(context).pop();
   }
@@ -1000,6 +1086,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     : _session.activeElapsed(now: widget.now()),
                 isPaused: _session.isPaused,
                 onTogglePause: _session.isComplete ? null : _onTogglePause,
+                // The walk-back-one-set control lives here — directly under
+                // the workout name, reachable from EVERY phase (rest
+                // included), not buried in the running screen's bottom
+                // action cluster.
+                onBack: _session.previousResolvedSet != null ? _onBack : null,
               ),
               Expanded(
                 // Paused freezes the rest/elapsed clocks (model state), but a
@@ -1168,11 +1259,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       ],
       done: StaggeredReveal(
         index: 5,
-        child: _ActionCluster(
-          onBack: _session.previousResolvedSet != null ? _onBack : null,
-          onSkip: _onSetSkip,
-          onDone: _onSetDone,
-        ),
+        // Back moved to the header row (under the workout name) so it's
+        // reachable from every phase — the cluster stays Skip/Done only.
+        child: _ActionCluster(onSkip: _onSetSkip, onDone: _onSetDone),
       ),
     );
   }
@@ -1290,6 +1379,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     child: _RestRing(
                       remaining: _warmupRemaining ?? Duration.zero,
                       total: _warmupTotalSeconds ?? 1,
+                      animate: !_session.isPaused,
                     ),
                   ),
                   const Spacer(),
@@ -1372,6 +1462,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     ring: _RestRing(
                       remaining: _restRemaining ?? Duration.zero,
                       total: _restTotalSeconds ?? 1,
+                      animate: !_session.isPaused,
                     ),
                     controller: kMusicEnabled
                         ? AppScope.of(context).requireMusic
@@ -2039,6 +2130,7 @@ class _ElapsedLabel extends StatelessWidget {
     required this.elapsed,
     required this.isPaused,
     required this.onTogglePause,
+    this.onBack,
   });
 
   final Duration elapsed;
@@ -2048,12 +2140,46 @@ class _ElapsedLabel extends StatelessWidget {
   /// complete — nothing left to pause).
   final VoidCallback? onTogglePause;
 
+  /// Walk back one set — shown once anything has been resolved, from any
+  /// phase, directly under the workout name.
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Row(
         children: [
+          if (onBack != null) ...[
+            PressableScale(
+              child: Tooltip(
+                message: 'Back one set',
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onBack!();
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceRaised,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.hairline2),
+                    ),
+                    child: const Icon(
+                      AppIcons.back,
+                      size: 14,
+                      color: AppColors.ink2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
           const SizedBox(width: 5),
           Text(
@@ -3209,10 +3335,19 @@ class _PulsingGlowState extends State<_PulsingGlow>
 /// ([_glow]), never from scaling the whole thing (see M2: constant-size
 /// timer).
 class _RestRing extends StatefulWidget {
-  const _RestRing({required this.remaining, required this.total});
+  const _RestRing({
+    required this.remaining,
+    required this.total,
+    this.animate = true,
+  });
 
   final Duration remaining;
   final int total;
+
+  /// False while the session is paused — the ring's breathing glow must
+  /// stop with the countdown, or a paused rest still *looks* alive (which
+  /// read as "the pause button doesn't work").
+  final bool animate;
 
   @override
   State<_RestRing> createState() => _RestRingState();
@@ -3257,6 +3392,13 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
       _correction.springTo(0, spring: AppSprings.standard);
     }
     _lastProgress = next;
+    // The breathing glow follows the pause state — frozen ring for a frozen
+    // countdown.
+    if (widget.animate) {
+      if (!_glow.isAnimating) _glow.repeat(reverse: true);
+    } else if (_glow.isAnimating) {
+      _glow.stop();
+    }
   }
 
   @override
@@ -3282,7 +3424,9 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
           AnimatedBuilder(
             animation: Listenable.merge([_glow, _correction]),
             builder: (context, _) {
-              final t = Curves.easeInOut.transform(_glow.value);
+              final t = widget.animate
+                  ? Curves.easeInOut.transform(_glow.value)
+                  : 0.0;
               final progress = (_trueProgress + _correction.value).clamp(
                 0.0,
                 1.0,
