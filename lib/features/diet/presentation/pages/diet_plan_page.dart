@@ -20,6 +20,7 @@ import '../../domain/meal.dart';
 import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
+import 'grocery_list_page.dart';
 
 /// The Diet Plan page — today's meals as tactile completion cards under a
 /// calorie-ring hero summary, and the full week browsable below. A Pulse
@@ -45,6 +46,18 @@ class DietPlanPage extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             title: Text('Diet', style: AppText.cardTitle),
+            actions: [
+              if (plan != null && !planSnapshot.hasError)
+                IconButton(
+                  tooltip: 'Groceries',
+                  icon: const Icon(Icons.shopping_basket_rounded),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GroceryListPage(plan: plan),
+                    ),
+                  ),
+                ),
+            ],
           ),
           floatingActionButton: loading || planSnapshot.hasError
               ? null
