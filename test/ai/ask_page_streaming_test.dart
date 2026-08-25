@@ -40,7 +40,7 @@ class _StreamingAi implements AiRepository {
   Future<String> ensureConversation() async => 'c';
 
   @override
-  Future<String> createConversation() async => 'c2';
+  Future<String> createConversation({String? title}) async => 'c2';
 
   @override
   Future<void> renameConversation(String id, String title) async {}

@@ -46,7 +46,7 @@ class DemoAi implements AiRepository {
   Future<String> ensureConversation() async => 'demo';
 
   @override
-  Future<String> createConversation() async => 'demo';
+  Future<String> createConversation({String? title}) async => 'demo';
 
   @override
   Future<void> renameConversation(String id, String title) async {}

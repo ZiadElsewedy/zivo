@@ -21,6 +21,8 @@ import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 import 'package:zivo/features/workout/domain/workout_plan_status.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_dashboard_page.dart';
+import 'package:zivo/features/workout/presentation/pages/bodyweight_history_page.dart';
+import 'package:zivo/features/workout/presentation/pages/workout_stats_pages.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -361,5 +363,68 @@ void main() {
 
     expect(bodyWeight.current, hasLength(1));
     expect(bodyWeight.current.single.weightKg, 80.5);
+  });
+
+  Future<void> _pumpDashboard(
+    WidgetTester tester, {
+    InMemoryWorkoutSessionRepository? sessions,
+    InMemoryBodyWeightRepository? bodyWeight,
+  }) async {
+    _useTallViewport(tester);
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    await plans.savePlan(_plan());
+    final sessionRepo =
+        sessions ?? InMemoryWorkoutSessionRepository();
+    await sessionRepo.saveSession(
+      _completedSession(id: 's1', startedAt: DateTime.now().subtract(const Duration(hours: 2))),
+    );
+    final weightRepo = bodyWeight ?? InMemoryBodyWeightRepository();
+    addTearDown(weightRepo.dispose);
+
+    await tester.pumpWidget(
+      _wrap(
+        child: const WorkoutDashboardPage(),
+        plans: plans,
+        sessions: sessionRepo,
+        bodyWeight: weightRepo,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  void _expectDrillDown(WidgetTester tester, String label, Type pageType) {
+    final finder = find.text(label);
+    tester.ensureVisible(finder);
+    tester.pump(const Duration(milliseconds: 100));
+    tester.tap(finder);
+    tester.pump();
+    tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(pageType, skipOffstage: true), findsOneWidget);
+  }
+
+  testWidgets('the Sessions tile opens the sessions history page', (tester) async {
+    await _pumpDashboard(tester);
+    _expectDrillDown(tester, 'Sessions', WorkoutSessionsPage);
+  });
+
+  testWidgets('the Day streak tile opens the streak history page', (tester) async {
+    await _pumpDashboard(tester);
+    _expectDrillDown(tester, 'Day streak', WorkoutStreakPage);
+  });
+
+  testWidgets('the Avg duration tile opens the duration stats page', (tester) async {
+    await _pumpDashboard(tester);
+    _expectDrillDown(tester, 'Avg duration', WorkoutDurationStatsPage);
+  });
+
+  testWidgets('the Avg start tile opens the start-times stats page', (tester) async {
+    await _pumpDashboard(tester);
+    _expectDrillDown(tester, 'Avg start', WorkoutStartTimesPage);
+  });
+
+  testWidgets('the Bodyweight card opens the weigh-in history page', (tester) async {
+    await _pumpDashboard(tester);
+    _expectDrillDown(tester, 'No weigh-ins logged yet.', BodyweightHistoryPage);
   });
 }

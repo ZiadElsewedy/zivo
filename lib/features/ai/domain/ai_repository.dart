@@ -28,8 +28,11 @@ abstract interface class AiRepository {
   /// server data arrives (the resume-most-recent bug this method fixes).
   Future<AiConversation?> latestConversation();
 
-  /// Creates a new, empty conversation (title 'New chat') and returns its id.
-  Future<String> createConversation();
+  /// Creates a new, empty conversation and returns its id. [title] names the
+  /// chat up front (e.g. "Workout Changes") when the user named it at
+  /// creation; it defaults to 'New chat', which the first message's
+  /// auto-title then replaces.
+  Future<String> createConversation({String? title});
 
   /// Renames [id]'s conversation to [title] — used for the auto-title applied
   /// after the first user message in a still-untitled ('New chat') session.

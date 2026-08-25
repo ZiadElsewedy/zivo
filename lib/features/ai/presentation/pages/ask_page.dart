@@ -164,18 +164,21 @@ class _AskPageState extends State<AskPage>
   Timer? _landingWatchdog;
 
   /// The user's just-sent text while a turn is in flight or has failed —
-  /// rendered as an optimistic bubble until the durable message lands.
+  /// rendered as an optimistic bubble until the durable message lands,
+  /// paired to [_activeTurnId] (not to counts or text compares — see
+  /// [_userLanded]).
   String? _pendingText;
 
   /// True when the most recent send attempt threw — shows the retry rail.
   bool _sendFailed = false;
 
-  /// Persisted user-message count captured right before a send starts, so
-  /// reconciliation can tell the optimistic message landed without
-  /// comparing text.
+  /// Persisted user-message count captured right before a send starts — the
+  /// LEGACY fallback for pairing an optimistic bubble when a persisted
+  /// message carries no [AiMessage.clientTurnId] (pre-dedup docs and
+  /// turn-less server writes). The turn-id match always wins when present.
   int _baselineUserCount = 0;
 
-  /// The same baseline for ASSISTANT messages — the gate that stops the
+  /// The same fallback for ASSISTANT messages — the gate that stops the
   /// provisional live bubble the moment the durable reply lands in
   /// Firestore. Without it there is a window (the server writes the reply
   /// doc slightly before the functions stream closes) where the reply
@@ -187,7 +190,14 @@ class _AskPageState extends State<AskPage>
   /// across retries of the same logical message, so a retry after a false
   /// failure (client-side throw while the server actually processed the
   /// turn) can never double-post the message or generate a second reply.
+  /// Both durable messages of the turn carry it; the UI pairs the optimistic
+  /// bubbles against it exactly.
   String? _activeTurnId;
+
+  /// The title the user gave this new chat at creation ("Workout
+  /// Changes"), used instead of auto-titling from the first message when
+  /// the unsaved chat is persisted. Null for the default behavior.
+  String? _draftTitle;
 
   /// The latest snapshot from `watchMessages`, kept for reconciliation.
   List<AiMessage> _lastPersisted = const [];
@@ -271,15 +281,24 @@ class _AskPageState extends State<AskPage>
     if (!_activeResolved) return;
     if (_sending) return;
     if (!_canSend) return;
+    // One optimistic slot, one durable pairing: block a second send until
+    // the previous turn's user message has actually landed (or failed).
+    // In practice the server persists the user message before any reply
+    // delta streams, so this never blocks a real queueing rhythm — it only
+    // closes the window where a fast second send would overwrite the first
+    // turn's unlanded optimistic bubble.
+    if (_pendingText != null && !_sendFailed) return;
     final text = _input.text;
     _input.clear();
 
     var conversationId = _activeConversationId;
+    var draftTitle = _draftTitle;
     if (conversationId == null) {
       final ai = AppScope.of(context).ai;
-      conversationId = await ai.createConversation();
+      conversationId = await ai.createConversation(title: draftTitle);
       if (!mounted) return;
-      _activeIsUntitled = true;
+      _activeIsUntitled = draftTitle == null || draftTitle.trim().isEmpty;
+      draftTitle = null; // consumed — no auto-title on top of it
     }
 
     // A fresh idempotency key per logical message; [_retry] deliberately
@@ -294,8 +313,9 @@ class _AskPageState extends State<AskPage>
         .where((m) => m.role == AiRole.assistant)
         .length;
     // The first user message in a still-'New chat' conversation earns an
-    // auto-title — fired alongside the send, not blocking it.
-    if (baselineUserCount == 0 && _activeIsUntitled) {
+    // auto-title — fired alongside the send, not blocking it. A chat the
+  // user named at creation keeps its name instead.
+    if (baselineUserCount == 0 && _activeIsUntitled && draftTitle == null) {
       _activeIsUntitled = false;
       unawaited(_autoTitle(conversationId, text));
     }
@@ -306,6 +326,7 @@ class _AskPageState extends State<AskPage>
       _sendFailed = false;
       _baselineUserCount = baselineUserCount;
       _baselineAssistantCount = baselineAssistantCount;
+      _draftTitle = null;
     });
     await _runSend(conversationId, text);
   }
@@ -323,6 +344,28 @@ class _AskPageState extends State<AskPage>
     } catch (_) {
       // Best-effort — see doc comment.
     }
+  }
+
+  /// Whether the durable copy of the in-flight turn's [role] message has
+  /// landed in the watch snapshot. The PRIMARY signal is exact: both sides
+  /// of a turn carry the same [AiMessage.clientTurnId], so pairing by it can
+  /// never desync the way counts and text compares could (stale cache
+  /// snapshots, baseline drift, whitespace variants) — which is exactly what
+  /// made a sent message and ZIVO's reply show up twice. The count checks
+  /// remain only as a fallback for snapshots whose messages predate turn
+  /// dedup and carry no turn id.
+  bool _turnLanded(AiRole role) {
+    final turnId = _activeTurnId;
+    if (turnId != null &&
+        _lastPersisted.any((m) => m.role == role && m.clientTurnId == turnId)) {
+      return true;
+    }
+    final persistedCount = _lastPersisted
+        .where((m) => m.role == role)
+        .length;
+    return role == AiRole.user
+        ? persistedCount > _baselineUserCount
+        : persistedCount > _baselineAssistantCount;
   }
 
   /// Switches the active conversation — clears all optimistic/in-flight
@@ -352,14 +395,25 @@ class _AskPageState extends State<AskPage>
       _baselineUserCount = 0;
       _baselineAssistantCount = 0;
       _activeTurnId = null;
+      _draftTitle = null;
       _lastPersisted = const [];
       _autoFollow = true;
     });
   }
 
   /// Starts a new, unsaved chat — no Firestore write until [_send] actually
-  /// fires the first message.
-  void _newChat() => _switchTo(null, isUntitled: true);
+  /// fires the first message. Offers an optional name first ("Workout
+  /// Changes") so the chat is findable in history later; a blank name keeps
+  /// today's auto-title-from-first-message behavior.
+  Future<void> _newChat() async {
+    final name = await _promptNewChatName(context);
+    if (!mounted) return;
+    final trimmed = name?.trim();
+    _switchTo(null, isUntitled: true);
+    if (trimmed != null && trimmed.isNotEmpty) {
+      setState(() => _draftTitle = trimmed);
+    }
+  }
 
   Future<void> _openSessions(String? activeConversationId) async {
     final result = await showModalBottomSheet<_SessionsSelection>(
@@ -619,10 +673,20 @@ class _AskPageState extends State<AskPage>
   }
 
   /// Tap-to-toggle: not recording → request permission and start; recording
-  /// → stop and transcribe. A denied permission or a recorder failure shows
-  /// a toast and leaves the composer untouched — never a thrown error.
+  /// → stop and transcribe. A denied permission, a missing recorder, or a
+  /// recorder/plugin failure shows a toast and leaves the composer
+  /// untouched — never a thrown error.
   Future<void> _toggleMic() async {
-    final recorder = AppScope.of(context).requireRecorder;
+    final recorder = AppScope.of(context).recorder;
+    if (recorder == null) {
+      _handleSttOutcome(
+        const SttFailed(
+          SttError.unknown,
+          "Voice input isn't available right now.",
+        ),
+      );
+      return;
+    }
     if (_recording) {
       // Flip straight into the transcribing state so the composer never
       // flashes back to idle between stopping and the request going out.
@@ -630,7 +694,12 @@ class _AskPageState extends State<AskPage>
         _recording = false;
         _transcribing = true;
       });
-      final audio = await recorder.stop();
+      RecordedAudio? audio;
+      try {
+        audio = await recorder.stop();
+      } catch (_) {
+        audio = null;
+      }
       if (audio == null) {
         if (!mounted) return;
         setState(() => _transcribing = false);
@@ -646,7 +715,12 @@ class _AskPageState extends State<AskPage>
       return;
     }
 
-    final granted = await recorder.ensurePermission();
+    bool granted;
+    try {
+      granted = await recorder.ensurePermission();
+    } catch (_) {
+      granted = false;
+    }
     if (!mounted) return;
     if (!granted) {
       _handleSttOutcome(
@@ -657,16 +731,31 @@ class _AskPageState extends State<AskPage>
       );
       return;
     }
-    await recorder.start();
+    try {
+      await recorder.start();
+    } catch (_) {
+      if (!mounted) return;
+      _handleSttOutcome(
+        const SttFailed(
+          SttError.recordingFailed,
+          "Couldn't start the microphone — try again.",
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
     setState(() => _recording = true);
   }
 
   /// Discards the in-progress recording without transcribing it.
   Future<void> _cancelRecording() async {
-    final recorder = AppScope.of(context).requireRecorder;
+    final recorder = AppScope.of(context).recorder;
     setState(() => _recording = false);
-    await recorder.cancel();
+    try {
+      await recorder?.cancel();
+    } catch (_) {
+      // Discarding is best-effort — nothing to surface.
+    }
   }
 
   /// Discards a clip mid-transcription: the composer unlocks immediately and
@@ -798,9 +887,34 @@ class _AskPageState extends State<AskPage>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.ground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+      body: DecoratedBox(
+        // The chat's atmosphere: an iris-tinted radial wash rising from the
+        // top over the ground color, with two soft glow blobs — the same
+        // premium depth language Today and the Workout dashboard use, in
+        // Ask's own hue, instead of a flat plain fill.
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.15),
+            radius: 1.2,
+            colors: [Color(0xFF1D192E), AppColors.ground, Color(0xFF0D0B12)],
+            stops: [0.0, 0.55, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -70,
+              right: -60,
+              child: _AskAuraBlob(color: AppColors.iris, size: 230),
+            ),
+            const Positioned(
+              bottom: 120,
+              left: -90,
+              child: _AskAuraBlob(color: Color(0xFF3B2A66), size: 210),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
           children: [
             ChatHeader(
               onNewChat: (!_activeResolved || _sending) ? null : _newChat,
@@ -841,25 +955,20 @@ class _AskPageState extends State<AskPage>
                             builder: (context, snapshot) {
                               _lastPersisted =
                                   snapshot.data ?? const <AiMessage>[];
-                              final persistedUserCount = _lastPersisted
-                                  .where((m) => m.role == AiRole.user)
-                                  .length;
                               final displayed = <AiMessage>[..._lastPersisted];
 
                               // The durable ASSISTANT reply landing gates the
                               // provisional live bubble — the instant it's in
                               // the snapshot exactly one copy of the reply
-                              // renders (the persisted one). This closes the
-                              // window where the server writes the reply doc
-                              // slightly before the functions stream closes,
-                              // which used to duplicate the response.
-                              final assistantLanded =
-                                  _lastPersisted
-                                      .where(
-                                        (m) => m.role == AiRole.assistant,
-                                      )
-                                      .length >
-                                  _baselineAssistantCount;
+                              // renders (the persisted one). Paired by turn
+                              // id (see [_turnLanded]), so the window where
+                              // the server writes the reply doc slightly
+                              // before the functions stream closes can never
+                              // duplicate the response — nor can a stale or
+                              // reordered snapshot.
+                              final assistantLanded = _turnLanded(
+                                AiRole.assistant,
+                              );
                               if (_liveText.isNotEmpty && assistantLanded) {
                                 WidgetsBinding.instance.addPostFrameCallback(
                                   (_) => _retireLiveReply(),
@@ -867,16 +976,17 @@ class _AskPageState extends State<AskPage>
                               }
 
                               // The optimistic USER bubble "lands" the moment
-                              // the server has persisted a new user message —
-                              // state-based, not a text/id compare, so it can't
-                              // mismatch or double up. Content equality backs
-                              // the count check up against baseline desyncs.
+                              // its own turn's durable user message shows up
+                              // in the snapshot — state-based pairing, not a
+                              // text/id compare, so it can't mismatch or
+                              // double up.
                               final pendingLanded =
                                   _pendingText != null &&
-                                  (persistedUserCount > _baselineUserCount ||
+                                  (_turnLanded(AiRole.user) ||
                                    _lastPersisted.any(
                                      (m) =>
                                          m.role == AiRole.user &&
+                                         m.clientTurnId == null &&
                                          m.content.trim() ==
                                              _pendingText!.trim(),
                                    ));
@@ -897,6 +1007,7 @@ class _AskPageState extends State<AskPage>
                                     role: AiRole.user,
                                     content: _pendingText!,
                                     createdAt: DateTime.now(),
+                                    clientTurnId: _activeTurnId,
                                   ),
                                 );
                               }
@@ -942,12 +1053,16 @@ class _AskPageState extends State<AskPage>
                                   ),
                                   // A trailing slot holds the in-flight state: the live
                                   // reply once text starts streaming, the phase rail, or
-                                  // a retry prompt after a failed send.
+                                  // a retry prompt after a failed send. The live-reply
+                                  // variant is dropped from the count the moment its
+                                  // durable copy lands, so both can never paint in
+                                  // the same frame — not even for one frame.
                                   itemCount:
                                       displayed.length +
                                       ((_sending ||
                                               _sendFailed ||
-                                              _liveText.isNotEmpty)
+                                              (_liveText.isNotEmpty &&
+                                                  !assistantLanded))
                                           ? 1
                                           : 0),
                                   itemBuilder: (context, i) {
@@ -1099,6 +1214,42 @@ class _AskPageState extends State<AskPage>
               ),
             ),
           ],
+        ),
+      ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A soft, blurred wash of color floating behind the chat — the same quiet
+/// "energy glow" the Today and Workout surfaces carry, drawn in Ask's iris
+/// hue family so the conversation reads as a place, not a flat fill.
+/// Purely decorative and pointer-transparent.
+class _AskAuraBlob extends StatelessWidget {
+  const _AskAuraBlob({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // A radial gradient rather than an ImageFiltered blur — visually
+          // the same soft glow at a fraction of the GPU cost, which matters
+          // in a scrolling message list.
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.16),
+              color.withValues(alpha: 0.0),
+            ],
+          ),
         ),
       ),
     );
@@ -1881,6 +2032,104 @@ class _ProposalCard extends StatelessWidget {
 sealed class _SessionsSelection {}
 
 final class _NewChatSelected extends _SessionsSelection {}
+
+/// Asks for an optional chat name ("Workout Changes") when starting a new
+/// chat — naming is what makes history findable later. Returns the trimmed
+/// name, an empty string for "no name" (explicit skip), or null on cancel.
+Future<String?> _promptNewChatName(BuildContext context) {
+  final controller = TextEditingController();
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: AppColors.card,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        14,
+        AppSpacing.screen,
+        MediaQuery.of(sheetContext).viewInsets.bottom + 18,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.hairline2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('New chat', style: AppText.cardTitle.copyWith(fontSize: 19)),
+          const SizedBox(height: 6),
+          Text(
+            'Name it so you can find it later — or leave it blank and the '
+            'first message will title it.',
+            style: AppText.meta.copyWith(color: AppColors.ink3, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            key: const Key('new-chat-name-field'),
+            controller: controller,
+            autofocus: true,
+            maxLength: 60,
+            textCapitalization: TextCapitalization.sentences,
+            style: AppText.rowTitle.copyWith(color: AppColors.ink),
+            cursorColor: AppColors.iris,
+            decoration: InputDecoration(
+              hintText: 'e.g. Workout changes',
+              hintStyle: AppText.body.copyWith(color: AppColors.ink3),
+              counterStyle: AppText.meta.copyWith(
+                color: AppColors.ink3,
+                fontSize: 11,
+              ),
+              filled: true,
+              fillColor: AppColors.surfaceRaised,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onSubmitted: (value) =>
+                Navigator.of(sheetContext).pop(value.trim()),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: _SheetAction(
+              label: 'Start chatting',
+              color: AppColors.irisText,
+              background: AppColors.irisWash,
+              onTap: () => Navigator.of(sheetContext).pop(controller.text.trim()),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: _SheetAction(
+              label: 'Cancel',
+              color: AppColors.ink2,
+              background: Colors.transparent,
+              onTap: () => Navigator.of(sheetContext).pop(null),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
 final class _ConversationSelected extends _SessionsSelection {
   _ConversationSelected(this.conversation);

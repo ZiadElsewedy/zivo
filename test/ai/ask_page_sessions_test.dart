@@ -69,6 +69,12 @@ void main() {
       await tester.tap(find.byKey(const Key('header-new-chat')));
       await tester.pumpAndSettle();
 
+      // The optional naming sheet appears first; skipping it (Cancel) keeps
+      // the auto-title behavior and lands in the unsaved new chat.
+      expect(find.byKey(const Key('new-chat-name-field')), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
       expect(find.text("Hey, I'm ZIVO."), findsOneWidget);
       expect(await ai.watchConversations().first, hasLength(1));
 

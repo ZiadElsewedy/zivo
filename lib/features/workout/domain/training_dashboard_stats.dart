@@ -157,3 +157,63 @@ Duration _averageDuration(List<Duration> values) {
   final totalMicros = values.fold<int>(0, (sum, d) => sum + d.inMicroseconds);
   return Duration(microseconds: totalMicros ~/ values.length);
 }
+
+// ---- Streak drill-down (Day Streak stat) ----------------------------------
+
+/// The calendar days (local midnight) that make up the CURRENT day streak,
+/// newest first — exactly the days [currentStreakDays] counted, so the
+/// streak's drill-down page can never disagree with the tile's number.
+/// Empty when there is no active streak.
+List<DateTime> currentStreakTrainedDays({
+  required List<LiveSession> sessions,
+  required DateTime now,
+}) {
+  final completed = sessions
+      .where((s) => s.status == SessionStatus.completed)
+      .map((s) => _dayStart(s.startedAt))
+      .toSet();
+  var cursor = _dayStart(now);
+  if (!completed.contains(cursor)) cursor = cursor.subtract(const Duration(days: 1));
+  final days = <DateTime>[];
+  while (completed.contains(cursor)) {
+    days.add(cursor);
+    cursor = cursor.subtract(const Duration(days: 1));
+  }
+  return days;
+}
+
+/// The longest ever run of consecutive trained days — the "best streak"
+/// context line on the streak drill-down page.
+int bestStreakDays({required List<LiveSession> sessions}) {
+  final days = sessions
+      .where((s) => s.status == SessionStatus.completed)
+      .map((s) => _dayStart(s.startedAt))
+      .toSet().toList()
+    ..sort();
+  var best = 0;
+  var run = 0;
+  DateTime? previous;
+  for (final day in days) {
+    run = (previous != null && day.difference(previous) == const Duration(days: 1))
+        ? run + 1
+        : 1;
+    best = run > best ? run : best;
+    previous = day;
+  }
+  return best;
+}
+
+/// Every completed session that fell on [day] — the per-day detail behind a
+/// streak entry.
+List<LiveSession> sessionsOnDay(List<LiveSession> sessions, DateTime day) {
+  final start = _dayStart(day);
+  final end = start.add(const Duration(days: 1));
+  return sessions
+      .where(
+        (s) =>
+            s.status == SessionStatus.completed &&
+            !s.startedAt.isBefore(start) &&
+            s.startedAt.isBefore(end),
+      )
+      .toList();
+}
