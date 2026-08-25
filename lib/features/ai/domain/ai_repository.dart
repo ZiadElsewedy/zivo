@@ -71,6 +71,13 @@ abstract interface class AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+
+    /// Client-generated idempotency key for THIS turn (stable across retries
+    /// of the same logical message). The server uses it to skip appending a
+    /// duplicate user message and to replay an already-written assistant
+    /// reply instead of generating a second one when a retry races a slow
+    /// first attempt that actually succeeded server-side.
+    String? clientTurnId,
   });
 
   /// Confirms a proposed action (ADR-003), executing its write server-side via

@@ -124,11 +124,11 @@ void main() {
     test('send calls the injected invokeChat with the conversation id, '
         'trimmed text, and responseStyle (defaulting to balanced)', () async {
       final firestore = FakeFirebaseFirestore();
-      final calls = <(String, String, String)>[];
+      final calls = <(String, String, String)>[]; // turnId asserted separately below where relevant
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle) async {
+        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
           calls.add((conversationId, message, responseStyle));
         },
       );
@@ -152,7 +152,7 @@ void main() {
       final repo = FirebaseAiRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
-        invokeChat: (conversationId, message, responseStyle) async {
+        invokeChat: (conversationId, message, responseStyle, clientTurnId) async {
           callCount++;
         },
       );
@@ -397,7 +397,7 @@ void main() {
       'confirmAction / cancelAction call the matching callable with the ids',
       () async {
         final firestore = FakeFirebaseFirestore();
-        final calls = <(String, String, String)>[];
+        final calls = <(String, String, String)>[]; // turnId asserted separately below where relevant
         final repo = FirebaseAiRepository(
           firestore: firestore,
           uidSource: _signedInAs('test-uid'),

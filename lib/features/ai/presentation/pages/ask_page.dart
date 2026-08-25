@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
@@ -55,7 +56,8 @@ class AskPage extends StatefulWidget {
   State<AskPage> createState() => _AskPageState();
 }
 
-class _AskPageState extends State<AskPage> {
+class _AskPageState extends State<AskPage>
+    with TickerProviderStateMixin {
   /// Resolves the initial active conversation once at startup, from the
   /// user's most-recently-updated existing conversation — never creates one.
   /// If there are none, [_activeConversationId] stays null (an unsaved "New
@@ -164,8 +166,39 @@ class _AskPageState extends State<AskPage> {
   /// comparing text.
   int _baselineUserCount = 0;
 
+  /// The same baseline for ASSISTANT messages — the gate that stops the
+  /// provisional live bubble the moment the durable reply lands in
+  /// Firestore. Without it there is a window (the server writes the reply
+  /// doc slightly before the functions stream closes) where the reply
+  /// renders TWICE: once from the snapshot, once from the still-mounted
+  /// live bubble.
+  int _baselineAssistantCount = 0;
+
+  /// Client-generated idempotency key for the in-flight turn — stable
+  /// across retries of the same logical message, so a retry after a false
+  /// failure (client-side throw while the server actually processed the
+  /// turn) can never double-post the message or generate a second reply.
+  String? _activeTurnId;
+
   /// The latest snapshot from `watchMessages`, kept for reconciliation.
   List<AiMessage> _lastPersisted = const [];
+
+  // -- Live-reply pacing -----------------------------------------------------
+  // Streamed deltas are NOT painted directly: they land in [_liveTargetChars]
+  // and a per-frame ticker reveals characters at a fast, adaptive rate — an
+  // immediate start, a smooth continuous write, and exponential catch-up so
+  // the display never lags more than a few frames behind the network. The
+  // result reads as ZIVO actively typing (ChatGPT-like) whether the server
+  // delivers many small deltas or one big buffered blob.
+
+  /// Characters received but not yet revealed.
+  final List<String> _liveTargetChars = [];
+
+  /// How many characters of the target are currently visible.
+  int _liveShownChars = 0;
+
+  /// Drives the reveal at frame rate while there is anything left to show.
+  Ticker? _revealTicker;
 
   /// True while the list is pinned to the bottom; goes false the moment the
   /// user scrolls up, so incoming messages don't yank them back down.
@@ -194,6 +227,7 @@ class _AskPageState extends State<AskPage> {
     _scroll.dispose();
     _slowTurnTimer?.cancel();
     _landingWatchdog?.cancel();
+    _revealTicker?.dispose();
     super.dispose();
   }
 
@@ -215,8 +249,16 @@ class _AskPageState extends State<AskPage> {
       _activeIsUntitled = true;
     }
 
+    // A fresh idempotency key per logical message; [_retry] deliberately
+    // reuses it so a retry can never double-post the turn server-side.
+    _activeTurnId =
+        '${DateTime.now().microsecondsSinceEpoch}-${_activeConversationId.hashCode}';
+
     final baselineUserCount = _lastPersisted
         .where((m) => m.role == AiRole.user)
+        .length;
+    final baselineAssistantCount = _lastPersisted
+        .where((m) => m.role == AiRole.assistant)
         .length;
     // The first user message in a still-'New chat' conversation earns an
     // auto-title — fired alongside the send, not blocking it.
@@ -230,6 +272,7 @@ class _AskPageState extends State<AskPage> {
       _pendingText = text;
       _sendFailed = false;
       _baselineUserCount = baselineUserCount;
+      _baselineAssistantCount = baselineAssistantCount;
     });
     await _runSend(conversationId, text);
   }
@@ -256,6 +299,8 @@ class _AskPageState extends State<AskPage> {
   void _switchTo(String? conversationId, {required bool isUntitled}) {
     _slowTurnTimer?.cancel();
     _landingWatchdog?.cancel();
+    _revealTicker?.dispose();
+    _revealTicker = null;
     setState(() {
       _activeConversationId = conversationId;
       _activeResolved = true;
@@ -265,11 +310,15 @@ class _AskPageState extends State<AskPage> {
       _sending = false;
       _phase = null;
       _liveText = '';
+      _liveTargetChars.clear();
+      _liveShownChars = 0;
       _streamed = false;
       _expectReveal = false;
       _turnSlow = false;
       _resolved.clear();
       _baselineUserCount = 0;
+      _baselineAssistantCount = 0;
+      _activeTurnId = null;
       _lastPersisted = const [];
       _autoFollow = true;
     });
@@ -346,6 +395,9 @@ class _AskPageState extends State<AskPage> {
   /// is still correct — no duplicate optimistic bubble.
   Future<void> _retry(String conversationId) async {
     if (_pendingText == null) return;
+    // Same [_activeTurnId] as the original attempt — the server treats this
+    // as the same logical turn, so a retry racing a slow first attempt can
+    // never append a second user message or generate a duplicate reply.
     await _runSend(conversationId, _pendingText!);
   }
 
@@ -366,6 +418,8 @@ class _AskPageState extends State<AskPage> {
       _expectReveal = true;
       _phase = null;
       _liveText = '';
+      _liveTargetChars.clear();
+      _liveShownChars = 0;
       _streamed = false;
       _sendFailed = false;
       _turnSlow = false;
@@ -380,11 +434,14 @@ class _AskPageState extends State<AskPage> {
       await ai.send(
         conversationId: conversationId,
         text: text,
+        clientTurnId: _activeTurnId,
         onEvent: _onTurnEvent,
         responseStyle: _responseStyle,
       );
     } catch (_) {
       _slowTurnTimer?.cancel();
+      _revealTicker?.dispose();
+      _revealTicker = null;
       if (mounted) {
         setState(() {
           _sending = false;
@@ -392,6 +449,8 @@ class _AskPageState extends State<AskPage> {
           _turnSlow = false;
           _phase = null;
           _liveText = '';
+          _liveTargetChars.clear();
+          _liveShownChars = 0;
         });
       }
       return;
@@ -404,9 +463,13 @@ class _AskPageState extends State<AskPage> {
       // durable message; only a buffered (non-streaming) turn falls back to it.
       if (_streamed) _expectReveal = false;
       _phase = null;
-      _liveText = '';
       _turnSlow = false;
     });
+    // _liveText is deliberately NOT cleared here: the durable reply may not
+    // have landed in the watch snapshot yet, and dropping the live bubble
+    // now would blank the screen for a beat. The builder clears it (and
+    // stops the reveal ticker) the moment the durable assistant message
+    /// lands — see the `assistantLanded` reconciliation below.
     // The stream ended cleanly, but that says nothing about persistence: if
     // the user message never lands (a silent server drop), surface the retry
     // card rather than leaving the optimistic bubble hanging forever.
@@ -425,8 +488,9 @@ class _AskPageState extends State<AskPage> {
   }
 
   /// Applies one live turn event from the gateway: phases drive the rail,
-  /// deltas accumulate the provisional reply. Any event proves liveness, so
-  /// the slow-turn admission resets.
+  /// deltas feed the paced revealer (never painted directly — see the
+  /// pacer fields). Any event proves liveness, so the slow-turn admission
+  /// resets.
   void _onTurnEvent(AiTurnEvent event) {
     if (!mounted) return;
     switch (event) {
@@ -437,12 +501,55 @@ class _AskPageState extends State<AskPage> {
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();
         if (_turnSlow) setState(() => _turnSlow = false);
-        setState(() {
-          _streamed = true;
-          _liveText += text;
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoScroll());
+        _streamed = true;
+        _liveTargetChars.addAll(text.characters);
+        _ensureRevealTicker();
     }
+  }
+
+  /// Starts the per-frame reveal ticker if it isn't already running.
+  void _ensureRevealTicker() {
+    if (_revealTicker != null || !mounted) return;
+    final ticker = createTicker(_onRevealTick)..start();
+    _revealTicker = ticker;
+  }
+
+  /// The pacer's per-frame step: a small floor keeps the write visibly
+  /// moving even between network chunks; the exponential term drains any
+  /// accumulated backlog within a handful of frames, so the display tracks
+  /// the server closely no matter how bursty the deltas are. At 60fps this
+  /// reads as fast, fluid typing — never a crawl, never an instant dump.
+  void _onRevealTick(Duration elapsed) {
+    if (!mounted) return;
+    final remaining = _liveTargetChars.length - _liveShownChars;
+    if (remaining <= 0) return;
+    final step = math.max(4, remaining >> 3);
+    final next = math.min(_liveTargetChars.length, _liveShownChars + step);
+    if (!mounted) return;
+    setState(() {
+      _liveShownChars = next;
+      _liveText = _liveTargetChars.take(next).join();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoScroll());
+    if (next >= _liveTargetChars.length) {
+      // Fully caught up — idle the ticker until the next delta arrives.
+      _revealTicker?.dispose();
+      _revealTicker = null;
+    }
+  }
+
+  /// Tears down the live bubble once the durable reply is on screen: stops
+  /// the reveal ticker and drops the provisional text so exactly ONE copy of
+  /// the reply remains. Called via post-frame from the builder.
+  void _retireLiveReply() {
+    _revealTicker?.dispose();
+    _revealTicker = null;
+    if (!mounted) return;
+    setState(() {
+      _liveText = '';
+      _liveTargetChars.clear();
+      _liveShownChars = 0;
+    });
   }
 
   Future<void> _confirm(String conversationId, String actionId) async {
@@ -704,22 +811,45 @@ class _AskPageState extends State<AskPage> {
                               final persistedUserCount = _lastPersisted
                                   .where((m) => m.role == AiRole.user)
                                   .length;
-                              // The optimistic bubble "lands" the moment the server
-                              // has persisted a new user message — state-based, not
-                              // a text/id compare, so it can't mismatch or double up.
-                              final landed =
+                              final displayed = <AiMessage>[..._lastPersisted];
+
+                              // The durable ASSISTANT reply landing gates the
+                              // provisional live bubble — the instant it's in
+                              // the snapshot exactly one copy of the reply
+                              // renders (the persisted one). This closes the
+                              // window where the server writes the reply doc
+                              // slightly before the functions stream closes,
+                              // which used to duplicate the response.
+                              final assistantLanded =
+                                  _lastPersisted
+                                      .where(
+                                        (m) => m.role == AiRole.assistant,
+                                      )
+                                      .length >
+                                  _baselineAssistantCount;
+                              if (_liveText.isNotEmpty && assistantLanded) {
+                                WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => _retireLiveReply(),
+                                );
+                              }
+
+                              // The optimistic USER bubble "lands" the moment
+                              // the server has persisted a new user message —
+                              // state-based, not a text/id compare, so it can't
+                              // mismatch or double up. Content equality backs
+                              // the count check up against baseline desyncs.
+                              final pendingLanded =
                                   _pendingText != null &&
-                                  persistedUserCount > _baselineUserCount;
-                              if (landed) {
+                                  (persistedUserCount > _baselineUserCount ||
+                                   _lastPersisted.any(
+                                     (m) =>
+                                         m.role == AiRole.user &&
+                                         m.content.trim() ==
+                                             _pendingText!.trim(),
+                                   ));
+                              if (pendingLanded) {
                                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted &&
-                                      _pendingText != null &&
-                                      _lastPersisted
-                                              .where(
-                                                (m) => m.role == AiRole.user,
-                                              )
-                                              .length >
-                                          _baselineUserCount) {
+                                  if (mounted && _pendingText != null) {
                                     setState(() {
                                       _pendingText = null;
                                       _sendFailed = false;
@@ -727,8 +857,7 @@ class _AskPageState extends State<AskPage> {
                                   }
                                 });
                               }
-                              final displayed = <AiMessage>[..._lastPersisted];
-                              if (_pendingText != null && !landed) {
+                              if (_pendingText != null && !pendingLanded) {
                                 displayed.add(
                                   AiMessage(
                                     id: '_pending',
@@ -740,7 +869,8 @@ class _AskPageState extends State<AskPage> {
                               }
                               if (displayed.isEmpty &&
                                   !_sending &&
-                                  !_sendFailed) {
+                                  !_sendFailed &&
+                                  _liveText.isEmpty) {
                                 return _EmptyAsk(
                                   onSuggestion: _sendSuggestion,
                                 );
@@ -782,7 +912,11 @@ class _AskPageState extends State<AskPage> {
                                   // a retry prompt after a failed send.
                                   itemCount:
                                       displayed.length +
-                                      ((_sending || _sendFailed) ? 1 : 0),
+                                      ((_sending ||
+                                              _sendFailed ||
+                                              _liveText.isNotEmpty)
+                                          ? 1
+                                          : 0),
                                   itemBuilder: (context, i) {
                                     if (i >= displayed.length) {
                                       // Grouped under the ZIVO label right after a user
@@ -791,8 +925,20 @@ class _AskPageState extends State<AskPage> {
                                           displayed.isEmpty ||
                                           displayed.last.role !=
                                               AiRole.assistant;
+                                      // The provisional live bubble shows only while
+                                      // the durable reply has NOT landed — once it
+                                      // does, the persisted copy renders and this
+                                      // slot retires, so the response can never
+                                      /// appear twice.
+                                      final liveActive =
+                                          !_sendFailed &&
+                                          !assistantLanded &&
+                                          _liveText.isNotEmpty;
+                                      final stillWriting =
+                                          _liveShownChars <
+                                          _liveTargetChars.length;
                                       Widget trailing;
-                                      if (_sending && _liveText.isNotEmpty) {
+                                      if (liveActive) {
                                         trailing = _MessageBubble(
                                           AiMessage(
                                             id: '_live',
@@ -800,20 +946,23 @@ class _AskPageState extends State<AskPage> {
                                             content: _liveText,
                                             createdAt: DateTime.now(),
                                           ),
-                                          streaming: true,
+                                          streaming: stillWriting,
                                         );
-                                      } else if (_sending) {
+                                      } else if (_sending && !assistantLanded) {
                                         trailing = _ThinkingRail(
                                           label: _railLabel(),
                                           slow: _turnSlow,
                                         );
-                                      } else {
+                                      } else if (_sendFailed) {
                                         trailing = _ErrorRetry(
                                           onRetry: () =>
                                               _retry(conversationId),
                                         );
+                                      } else {
+                                        trailing = const SizedBox.shrink();
                                       }
-                                      if (showIdentity) {
+                                      if (showIdentity &&
+                                          trailing is! SizedBox) {
                                         trailing = Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -1194,8 +1343,10 @@ class _TypewriterTextState extends State<_TypewriterText>
   @override
   void initState() {
     super.initState();
-    // ~22ms/char, capped so long replies never crawl. Calm, not frantic.
-    final ms = math.min(widget.text.characters.length * 22, 2000);
+    // ~9ms/char with a hard cap — a fast, fluid write that never crawls on
+    // long replies (the streamed path paces itself per-frame; this is only
+    // the fallback for turns that arrived without deltas).
+    final ms = math.min(widget.text.characters.length * 9, 1400);
     _c = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: math.max(ms, 1)),

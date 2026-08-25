@@ -62,6 +62,7 @@ class _GatedAi implements AiRepository {
     required String text,
     void Function(AiTurnEvent event)? onEvent,
     String responseStyle = kDefaultResponseStyle,
+    String? clientTurnId,
   }) async {
     await gate.future;
     await _inner.send(

@@ -264,6 +264,13 @@ class FirestoreStore {
       createdAt: Timestamp.fromDate(message.createdAt),
       schemaVersion: 1,
     };
+    // Client-generated idempotency key (ADR: chat turn dedup). Persisted on
+    // both the user and assistant messages of a turn so a client retry that
+    // races a slow-but-successful first attempt can be detected and served
+    // idempotently instead of duplicating the turn.
+    if (message.clientTurnId) {
+      data.clientTurnId = message.clientTurnId;
+    }
     // An action_proposal message (ADR-003) carries the pending action the
     // client renders as a confirmation card. Its `status` mirrors the pending
     // action's lifecycle (pending → applied/cancelled/expired) so the card
@@ -348,6 +355,36 @@ class FirestoreStore {
           };
         })
         .reverse();
+  }
+
+  /**
+   * Finds an existing message written for a client turn id (chat turn
+   * dedup). Returns {id, role, content} or null.
+   *
+   * @param {string} uid
+   * @param {string} conversationId
+   * @param {string} clientTurnId
+   * @return {!Promise<?{role: string, content: string}>}
+   */
+  async findMessageByClientTurnId(uid, conversationId, clientTurnId) {
+    const snap = await this._user(uid)
+        .collection("aiConversations")
+        .doc(conversationId)
+        .collection("messages")
+        .where("clientTurnId", "==", clientTurnId)
+        .orderBy("createdAt", "asc")
+        .limit(10)
+        .get();
+    let assistant = null;
+    let user = null;
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (d.role === "assistant" && !assistant) assistant = d;
+      if (d.role === "user" && !user) user = d;
+    }
+    if (assistant) return {role: "assistant", content: assistant.content};
+    if (user) return {role: "user", content: user.content};
+    return null;
   }
 
   /**
