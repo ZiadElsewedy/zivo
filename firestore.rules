@@ -140,6 +140,24 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Body weight entries: each user reads/writes only their own weigh-in log
+    // (one doc per weigh-in; the latest by loggedAt drives the dashboard card,
+    // history page, and analysis snapshot). Rules do not cascade from
+    // /users/{userId}, so explicit — without this block the catch-all below
+    // denied EVERY bodyWeightEntries read AND write, which is exactly why a
+    // saved weigh-in never appeared anywhere. Delete is split out from
+    // create/update because request.resource.data is null on delete (see the
+    // expenses comment above for the full rationale).
+    match /users/{userId}/bodyWeightEntries/{entryId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.weightKg is number
+        && request.resource.data.weightKg > 0
+        && request.resource.data.loggedAt is timestamp
+        && request.resource.data.schemaVersion == 1;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Moments: each user reads/writes only their own moments. imagePath is a
     // media-store reference (relative local path), not a Firebase Storage URL.
     match /users/{userId}/moments/{momentId} {
@@ -228,7 +246,8 @@ service cloud.firestore {
     // Nothing else is exposed to clients. The feature repositories (expenses,
     // workouts, moments, diet) are migrated, plus the workout-plan store
     // (workoutPlans — the "what I SHOULD do" template), the workout-session
-    // store (workoutSessions — the guided execution record), the AI
+    // store (workoutSessions — the guided execution record), the body-weight
+    // store (bodyWeightEntries — the weigh-in log), the AI
     // conversation store (aiConversations client-writable; messages/aiUsage
     // server-only), the expenses wallet/expenseCategories subcollections
     // (running balance + user-created categories on top of the built-in set),

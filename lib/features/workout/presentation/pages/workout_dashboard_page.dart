@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -164,7 +166,14 @@ class WorkoutDashboardPage extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const WorkoutSectionLabel('This week'),
+                                    // "Training", not "This week" — the grid
+                                    // mixes all-time instruments (sessions,
+                                    // avg duration, avg start) with the
+                                    // rolling streak, so a week-scoped header
+                                    // mislabeled every number beneath it (and
+                                    // made the all-time Sessions tile read as
+                                    // a weekly count).
+                                    const WorkoutSectionLabel('Training'),
                                     const SizedBox(height: 10),
                                     _StatsGrid(stats: stats),
                                   ],
@@ -443,14 +452,41 @@ Future<void> _showLogWeightSheet(
                 final value = double.tryParse(controller.text);
                 if (value == null || value <= 0) return;
                 HapticFeedback.lightImpact();
-                bodyWeight.save(
-                  BodyWeightEntry(
-                    id: DateTime.now().microsecondsSinceEpoch.toString(),
-                    weightKg: value,
-                    loggedAt: DateTime.now(),
-                  ),
+                final entry = BodyWeightEntry(
+                  id: DateTime.now().microsecondsSinceEpoch.toString(),
+                  weightKg: value,
+                  loggedAt: DateTime.now(),
                 );
                 Navigator.of(sheetContext).pop();
+                // Fire-and-forget like every other write in the app —
+                // Firestore commits cache-first, so awaiting would hang the
+                // button offline (see live_session_page's _onFinish note) —
+                // but never SILENTLY: a rejected save (rules, signed-out)
+                // used to vanish without a trace, reading as "weight doesn't
+                // save". Surface it on the page beneath the sheet.
+                // Future.sync also catches save()'s synchronous signed-out
+                // StateError, which a bare catchError would miss.
+                unawaited(
+                  Future.sync(() => bodyWeight.save(entry)).catchError((
+                    Object error,
+                  ) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: AppColors.card,
+                        content: Text(
+                          "Couldn't save that weigh-in — check your "
+                          'connection and try again.',
+                          style: AppText.body.copyWith(
+                            color: AppColors.ink,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                );
               },
             ),
           ],
@@ -511,7 +547,12 @@ class _StatsGrid extends StatelessWidget {
                 icon: AppIcons.sessions,
                 accent: AppColors.pulse,
                 label: 'Sessions',
-                value: '${stats.sessionsThisWeek}',
+                // ALL-TIME completed count, matching the page this tile
+                // opens — it used to show sessionsThisWeek here while
+                // WorkoutSessionsPage headlined the all-time total, so the
+                // tile said one number and its destination another (the
+                // "17 completed workouts but 2 sessions" report).
+                value: '${stats.totalCompletedSessions}',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const WorkoutSessionsPage()),
                 ),

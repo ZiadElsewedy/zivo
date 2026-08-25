@@ -179,11 +179,25 @@ class WorkoutSessionsPage extends StatelessWidget {
         final completedCount = sessions
             .where((s) => s.status == SessionStatus.completed)
             .length;
+        final unfinishedCount = sessions.length - completedCount;
+        // The subtitle must describe EVERY row below it: the list shows
+        // active and ended-early sessions too, so a bare "N completed"
+        // read as if the page were dropping workouts when the counts and
+        // rows didn't line up.
+        final subtitle = switch ((completedCount, unfinishedCount)) {
+          (0, 0) => 'No completed workouts yet.',
+          (_, 0) =>
+            '$completedCount completed ${completedCount == 1 ? 'workout' : 'workouts'}',
+          (0, _) =>
+            'No completed workouts · $unfinishedCount '
+            '${unfinishedCount == 1 ? 'entry' : 'entries'}',
+          (_, _) => '$completedCount completed '
+              '${completedCount == 1 ? 'workout' : 'workouts'} · '
+              '$unfinishedCount not completed',
+        };
         return StatDrillDownScaffold(
           title: 'Sessions',
-          subtitle: completedCount == 0
-              ? 'No completed workouts yet.'
-              : '$completedCount completed ${completedCount == 1 ? 'workout' : 'workouts'}',
+          subtitle: subtitle,
           children: [
             if (sessions.isEmpty)
               const _EmptyCard(
@@ -218,6 +232,13 @@ class _SessionRow extends StatelessWidget {
       SessionStatus.active => ('In progress', AppColors.solar),
       SessionStatus.abandoned => ('Ended early', AppColors.ink3),
     };
+    // An active session's `elapsed` is ~0 (completedAt is null, so it
+    // measures start→start minus pauses) and renders as "0m"/"-1m" — the
+    // live reading is `activeElapsed`. Completed AND ended-early sessions
+    // both have a real completedAt, so plain `elapsed` is right for them.
+    final duration = session.status == SessionStatus.active
+        ? session.activeElapsed(now: DateTime.now())
+        : session.elapsed;
     return PressableScale(
       child: Material(
         color: AppColors.card,
@@ -281,7 +302,7 @@ class _SessionRow extends StatelessWidget {
                       Text(
                         '${formatDayLabel(session.startedAt)} · '
                         '${formatClockTimeLabel(session.startedAt)} · '
-                        '${_durationLabel(session.elapsed)} · '
+                        '${_durationLabel(duration)} · '
                         '${session.completedSetCount}/${session.totalSets} sets',
                         style: AppText.meta.copyWith(color: AppColors.ink3),
                         maxLines: 1,

@@ -17,7 +17,15 @@ import '../domain/body_weight_repository.dart';
 /// (including to/from signed-out).
 class FirestoreBodyWeightRepository implements BodyWeightRepository {
   FirestoreBodyWeightRepository({FirebaseFirestore? firestore, required this.uidSource})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance {
+    // Start listening immediately, independent of whether any widget is
+    // currently watching — see FirestoreWorkoutSessionRepository's
+    // constructor doc for the full rationale (this repo had the matching
+    // bug: saving a weigh-in while no screen was subscribed left the cache
+    // stale, so the next subscriber first replayed the OLD list before the
+    // fresh snapshot landed — a saved weigh-in appeared to vanish).
+    _start();
+  }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
@@ -33,13 +41,12 @@ class FirestoreBodyWeightRepository implements BodyWeightRepository {
 
   @override
   Stream<List<BodyWeightEntry>> watchAll() async* {
-    _controller ??= StreamController<List<BodyWeightEntry>>.broadcast(
-      onListen: _start,
-      onCancel: _stop,
-    );
+    _controller ??= StreamController<List<BodyWeightEntry>>.broadcast();
     // A broadcast stream never replays its latest value to a *late*
     // subscriber — replay the cached snapshot on subscribe so every listener
     // sees the current value immediately, matching the in-memory contract.
+    // Because the underlying Firestore listener runs for the repository's
+    // whole lifetime (see the constructor), this cached value is never stale.
     if (_hasSnapshot) yield current;
     yield* _controller!.stream;
   }
@@ -48,11 +55,13 @@ class FirestoreBodyWeightRepository implements BodyWeightRepository {
     _uidSub = _uidWithInitial().listen(_onUidChanged);
   }
 
-  void _stop() {
+  /// Tears down the always-on listener — not called in production (the
+  /// repository lives for the app's process lifetime), only for explicit
+  /// teardown in tests.
+  void dispose() {
     _uidSub?.cancel();
-    _uidSub = null;
     _querySub?.cancel();
-    _querySub = null;
+    _controller?.close();
   }
 
   Stream<String?> _uidWithInitial() async* {
