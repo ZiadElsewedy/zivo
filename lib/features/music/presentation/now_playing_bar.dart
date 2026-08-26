@@ -8,6 +8,7 @@ import '../../../core/widgets/pressable_scale.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
+import 'artwork_palette_service.dart';
 import 'music_artwork.dart';
 import 'music_player_page.dart';
 
@@ -153,11 +154,21 @@ class _Bar extends StatelessWidget {
               fullscreenDialog: true,
             ),
           ),
-          child: Container(
+          // The bar's fill adapts to the current cover, kept confined to this
+          // widget — the palette color never leaves the mini bar.
+          child: ArtworkPalette(
+            trackId: playing.trackId,
+            artworkBytes: playing.artworkBytes,
+            builder: (context, background) => Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
             padding: const EdgeInsets.fromLTRB(10, 5, 6, 7),
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              // Lift the dark wash toward the raised-surface tone so the bar
+              // still reads as elevated; with no art (fallback) it stays the
+              // original surfaceRaised exactly.
+              color: background == ArtworkPaletteService.defaultBackground
+                  ? AppColors.surfaceRaised
+                  : Color.lerp(background, AppColors.surfaceRaised, 0.35)!,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.hairline2),
             ),
@@ -253,6 +264,7 @@ class _Bar extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ),
