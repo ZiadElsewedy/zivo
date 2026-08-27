@@ -29,6 +29,13 @@ class OtpSendCooldown extends OtpSendResult {
   final int retryAfterSeconds;
 }
 
+/// The address is already verified server-side (a stale client sitting on the
+/// verify screen after the flag flipped elsewhere). No code was sent; the
+/// repository has refreshed the session so the auth gate advances on its own.
+class OtpSendAlreadyVerified extends OtpSendResult {
+  const OtpSendAlreadyVerified();
+}
+
 /// The send failed for a presentable [failure] (rate cap hit, network, etc.).
 class OtpSendFailed extends OtpSendResult {
   const OtpSendFailed(this.failure, {this.retryAfterSeconds});

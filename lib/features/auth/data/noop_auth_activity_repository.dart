@@ -30,6 +30,9 @@ class NoopAuthActivityRepository implements AuthActivityRepository {
   Future<void> recordSignOut({required String uid}) async {}
 
   @override
+  Future<void> recordPasswordChanged({required String uid}) async {}
+
+  @override
   Future<void> recordEvent({
     required String uid,
     required AuthEventType type,

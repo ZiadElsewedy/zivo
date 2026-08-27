@@ -95,6 +95,57 @@ class FakeAuthRepository implements AuthRepository {
     return verifyOtpResult;
   }
 
+  /// Scripted outcomes for the password-reset + account-management flows.
+  OtpSendResult sendResetOtpResult =
+      const OtpSendSuccess(cooldownSeconds: 60, expiresInSeconds: 600);
+  OtpVerifyResult resetPasswordResult = const OtpVerifySuccess();
+  AuthResult? changePasswordResult;
+  AuthResult? deleteAccountResult;
+
+  int sendResetOtpCount = 0;
+  int changePasswordCount = 0;
+  int deleteAccountCount = 0;
+  final List<String> resetEmails = <String>[];
+
+  @override
+  Future<OtpSendResult> sendPasswordResetOtp({required String email}) async {
+    sendResetOtpCount++;
+    resetEmails.add(email);
+    return sendResetOtpResult;
+  }
+
+  @override
+  Future<OtpVerifyResult> resetPasswordWithOtp({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    verifiedCodes.add(code);
+    // Mimic the real repo: a successful reset signs the user in.
+    if (resetPasswordResult is OtpVerifySuccess) {
+      emit(Authenticated(successUser));
+    }
+    return resetPasswordResult;
+  }
+
+  @override
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    changePasswordCount++;
+    return changePasswordResult ?? AuthSuccess(successUser);
+  }
+
+  @override
+  Future<AuthResult> deleteAccount({String? password}) async {
+    deleteAccountCount++;
+    final result = deleteAccountResult ?? AuthSuccess(successUser);
+    // Mimic the real repo: a successful delete signs out.
+    if (result is AuthSuccess) emit(const Unauthenticated());
+    return result;
+  }
+
   @override
   Future<void> signOut() async {
     signOutCount++;

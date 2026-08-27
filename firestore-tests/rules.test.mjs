@@ -115,6 +115,14 @@ describe('emailOtps is Functions-only (denied to all clients)', () => {
   });
 });
 
+describe('passwordResetOtps is Functions-only (denied to all clients)', () => {
+  it('owner cannot read or write their own reset-code record', async () => {
+    await seed(`passwordResetOtps/${OWNER}`, { hash: 'x' });
+    await assertFails(getDoc(doc(ownerDb(), `passwordResetOtps/${OWNER}`)));
+    await assertFails(setDoc(doc(ownerDb(), `passwordResetOtps/${OWNER}`), { hash: 'y' }));
+  });
+});
+
 describe('users/{uid} profile ownership', () => {
   it('owner can read and write their own profile', async () => {
     const db = ownerDb();

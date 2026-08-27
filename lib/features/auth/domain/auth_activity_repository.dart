@@ -35,6 +35,12 @@ abstract interface class AuthActivityRepository {
   /// Appends a `signOut` event to the log.
   Future<void> recordSignOut({required String uid});
 
+  /// Records an in-app password change: stamps `lastPasswordChangeAt` on the
+  /// summary and appends a `passwordChanged` event. (The OTP-based *reset*
+  /// flow records the server-side equivalent itself, since the user is signed
+  /// out there and can't write their own log.)
+  Future<void> recordPasswordChanged({required String uid});
+
   /// Appends one raw [AuthEventType] to the log — the escape hatch used by
   /// server-adjacent flows and future event kinds (e.g. `passwordChanged`).
   Future<void> recordEvent({

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/password_policy.dart';
 import 'auth_action_button.dart';
+import 'password_checklist.dart';
 
 /// Email + password inputs with a submit button. Owns its text controllers and
 /// light client-side validation (non-empty email with an `@`, password ≥ 6);
@@ -136,7 +137,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
             visible: widget.isSignUp,
             child: Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: _PasswordChecklist(password: _password.text),
+              child: PasswordChecklist(password: _password.text),
             ),
           ),
           _Slot(
@@ -156,7 +157,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
                 ),
                 SizedBox(
                   height: _confirmPassword.text.isEmpty ? 0 : 24,
-                  child: _MatchHint(
+                  child: PasswordMatchHint(
                     matches: _confirmPassword.text == _password.text,
                     visible: _confirmPassword.text.isNotEmpty,
                   ),
@@ -212,98 +213,6 @@ class _Slot extends StatelessWidget {
       child: visible
           ? KeyedSubtree(key: ValueKey(visible), child: child)
           : SizedBox.shrink(key: ValueKey(visible)),
-    );
-  }
-}
-
-/// Live per-rule feedback for [PasswordPolicy], rendered under the password
-/// field during sign-up so the user knows exactly what's missing. Each rule's
-/// tint eases between met/unmet rather than snapping.
-class _PasswordChecklist extends StatelessWidget {
-  const _PasswordChecklist({required this.password});
-
-  final String password;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final rule in PasswordPolicy.rules)
-          _ChecklistRow(
-            label: rule.label,
-            met: rule.isSatisfiedBy(password),
-          ),
-      ],
-    );
-  }
-}
-
-class _ChecklistRow extends StatelessWidget {
-  const _ChecklistRow({required this.label, required this.met});
-
-  final String label;
-  final bool met;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<Color?>(
-      tween: ColorTween(begin: AppColors.ink3, end: met ? AppColors.pulseText : AppColors.ink3),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      builder: (context, color, child) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Icon(
-              met ? Icons.check_circle_rounded : Icons.circle_outlined,
-              size: 14,
-              color: color,
-            ),
-            const SizedBox(width: 8),
-            Text(label, style: AppText.meta.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Inline feedback on whether the confirm-password field matches the first
-/// password. Fades in once something has been typed; its tint eases between
-/// the match/mismatch colors rather than snapping.
-class _MatchHint extends StatelessWidget {
-  const _MatchHint({required this.matches, required this.visible});
-
-  final bool matches;
-  final bool visible;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<Color?>(
-      tween: ColorTween(
-        begin: AppColors.flareText,
-        end: matches ? AppColors.pulseText : AppColors.flareText,
-      ),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      builder: (context, color, _) {
-        final icon = matches
-            ? Icons.check_circle_rounded
-            : Icons.error_outline_rounded;
-        final label = matches ? 'Passwords match' : "Passwords don't match";
-        return AnimatedOpacity(
-          duration: const Duration(milliseconds: 180),
-          opacity: visible ? 1 : 0,
-          child: Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 8),
-              Text(label, style: AppText.meta.copyWith(color: color)),
-            ],
-          ),
-        );
-      },
     );
   }
 }

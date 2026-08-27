@@ -36,6 +36,16 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Auth hardening + account lifecycle** — completed the auth system on the
+  `claude/auth-system-review-1c7a20` branch: **forgot-password** (branded OTP → new
+  password, signed-out, `forgot_password_page.dart`), **change password** (reauth →
+  `change_password_page.dart`), **account deletion** (reauth → server-side data + identity
+  wipe, `delete_account_sheet.dart` + the `deleteAccount` callable), plus the OTP
+  **rate-limit-bypass fix** (throttle accounting now survives a code being consumed/expired/
+  locked out — shared `functions/auth/otp.js`, unit-tested), the **already-verified** send
+  path, and smaller fixes (deadline→network copy, Apple null-token guard). New locked
+  collection `passwordResetOtps/{uid}` (rule + test). See
+  [auth/FEATURE.md](../lib/features/auth/FEATURE.md).
 - **Music restored** as a workout-anchored now-playing companion + immersive **Now Playing**
   screen with an **album-artwork color-adaptive background** and a subtle mini-bar tint
   (`palette_generator`). Controller seam: `FakeMusicController` (default/offline) vs
@@ -71,6 +81,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
 - **Manual E2E:** real-PDF-in-app import → review → confirm for both workout and diet.
+- **Auth callables deploy:** the new `sendPasswordResetOtp` / `resetPasswordWithOtp` /
+  `deleteAccount` callables need `firebase deploy --only functions` (owner creds) before the
+  new flows work against the real backend. The forgot-password email reuses the existing
+  `RESEND_API_KEY` + `OTP_PEPPER` secrets — no new secrets required.
+- **Firebase App Check (still recommended, deferred by request):** the callables + Auth
+  endpoints remain reachable by anything with the app config. Adding `firebase_app_check`
+  + `enforceAppCheck: true` is the outstanding hardening layer that caps scripted abuse of
+  the (now unauthenticated) reset endpoint and account creation.
 
 ## How work happens here (workflow)
 
@@ -90,6 +108,13 @@ suite green. **Always re-run `make gates` rather than trusting a remembered test
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-27 — Hardened + completed the auth system (branch `claude/auth-system-review-1c7a20`):
+  forgot-password (OTP), change password, account deletion; fixed the OTP hourly-cap bypass by
+  moving throttle accounting into a shared, unit-tested `functions/auth/otp.js`; handled the
+  already-verified send path; added `passwordResetOtps` lockdown (rule + test) and Flutter
+  widget tests for the new flows. `flutter analyze` clean; Flutter suite green (2 pre-existing
+  failures unrelated to auth: `profile_page` bio + `today_dashboard` brand-new-user); functions
+  `node --test` 208 green; rules suite 71 green. App Check intentionally left out for now.
 - 2026-08-27 — Added the agent-neutral context system (AGENTS.md router + CLAUDE.md adapter,
   PRODUCT.md positioning, this file, per-feature FEATURE.md maps, ADR-004); repositioned as an
   AI gym tracker; de-stated the reference docs; added the STATE.md freshness pre-commit hook

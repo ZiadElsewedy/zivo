@@ -128,6 +128,20 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
       _guard(() => _appendEvent(uid, AuthEventType.signOut));
 
   @override
+  Future<void> recordPasswordChanged({required String uid}) =>
+      _guard(() async {
+        // Stamp the summary (owner-writable; the rules require schemaVersion)
+        // and append the event, mirroring the server's markPasswordChanged.
+        await _accountsOf(uid).doc('account').set({
+          'schemaVersion': _schemaVersion,
+          'lastPasswordChangeAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await _appendEvent(uid, AuthEventType.passwordChanged,
+            provider: 'password');
+      });
+
+  @override
   Future<void> recordEvent({
     required String uid,
     required AuthEventType type,

@@ -80,6 +80,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         if (!initial) _toast('A new code is on its way.');
       case OtpSendCooldown(:final retryAfterSeconds):
         _startCooldown(retryAfterSeconds);
+      case OtpSendAlreadyVerified():
+        // The address is already verified (flipped elsewhere). The repository
+        // refreshed the session, so the gate advances on its own — nothing to
+        // do here but stop showing "Sending…".
+        break;
       case OtpSendFailed(:final failure, :final retryAfterSeconds):
         if (retryAfterSeconds != null) _startCooldown(retryAfterSeconds);
         setState(() => _errorText = failure.message);

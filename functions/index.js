@@ -1,30 +1,29 @@
 /**
- * ZIVO — email OTP verification backend.
+ * ZIVO — authentication backend (OTP flows + account deletion).
  *
- * Two callable functions gate email/password sign-ups behind a 6-digit code:
+ * Callables that gate the email/password lifecycle behind a 6-digit code and
+ * that tear an account down cleanly:
  *
- *   sendEmailOtp()       → generates, hashes, stores, and emails a fresh code
- *   verifyEmailOtp(code) → checks the code and flips the user's emailVerified
+ *   sendEmailOtp()                              → email a verification code
+ *   verifyEmailOtp(code)                        → verify it, flip emailVerified
+ *   sendPasswordResetOtp(email)                 → email a reset code (signed out)
+ *   resetPasswordWithOtp(email, code, password) → verify it, set the password
+ *   deleteAccount()                             → erase all data + the identity
  *
- * Security posture (all enforced here — the client is never trusted):
- *   • The code is generated with a CSPRNG and NEVER stored or logged in
- *     plaintext. Firestore holds only an HMAC-SHA256 digest keyed by a server
- *     secret (OTP_PEPPER) plus a per-code random salt, so a database leak does
- *     not expose codes even against offline brute force.
- *   • Single-use: the record is deleted the moment a code verifies.
- *   • Expiry: codes are valid for OTP_TTL_MINUTES.
- *   • Attempt cap: MAX_ATTEMPTS wrong guesses invalidate the code.
- *   • Resend cooldown (RESEND_COOLDOWN_SECONDS) and an hourly send cap
- *     (MAX_SENDS_PER_HOUR) throttle abuse.
- *   • The emailOtps/{uid} collection is locked to clients by Firestore rules;
- *     only this Admin SDK code reads or writes it.
+ * The OTP mechanics (CSPRNG code, HMAC-SHA256 digest keyed by the OTP_PEPPER
+ * secret + a per-code salt, expiry, single-use, attempt cap, resend cooldown,
+ * and an hourly send cap whose accounting survives a code being consumed) live
+ * in ./auth/otp.js as PURE, unit-tested decision functions; the callables here
+ * only wrap a Firestore transaction around them, send the branded email, and
+ * apply the success side-effect. The client is never trusted.
+ *
+ * Both `emailOtps/{uid}` and `passwordResetOtps/{uid}` are locked to clients by
+ * the Firestore rules; only this Admin SDK code reads or writes them.
  */
 
-const {createHmac, randomBytes, randomInt, timingSafeEqual} =
-  require("node:crypto");
 const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
-const {getFirestore, Timestamp} = require("firebase-admin/firestore");
+const {getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions");
@@ -32,7 +31,12 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
-const {markEmailSent, markEmailVerified} = require("./auth/activity");
+const otp = require("./auth/otp");
+const {
+  markEmailSent,
+  markEmailVerified,
+  markPasswordChanged,
+} = require("./auth/activity");
 const {
   runAiTurn,
   confirmAction,
@@ -82,64 +86,56 @@ const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 // wires the OpenAI provider automatically.
 
 // --- Tunables ---------------------------------------------------------------
+// Kept as a single config object so ./auth/otp.js's pure decision functions
+// and these callables share ONE source of truth (and the unit tests can pin
+// the exact same numbers).
 const OTP_TTL_MINUTES = 10;
-const MAX_ATTEMPTS = 5;
-const RESEND_COOLDOWN_SECONDS = 60;
-const MAX_SENDS_PER_HOUR = 5;
-const CODE_LENGTH = 6;
-const HOUR_MS = 60 * 60 * 1000;
+const OTP_CONFIG = {
+  codeLength: 6,
+  ttlMs: OTP_TTL_MINUTES * 60 * 1000,
+  maxAttempts: 5,
+  cooldownMs: 60 * 1000,
+  maxSendsPerHour: 5,
+  hourMs: 60 * 60 * 1000,
+};
 
 // The verified "From" identity on your Resend account. `zzivo.com` is verified
 // in Resend (DNS via Cloudflare), so we can send to any recipient — not just
 // the account owner, which was the limit of the shared onboarding sender.
 const EMAIL_FROM = "ZIVO <no-reply@zzivo.com>";
 
-const COLLECTION = "emailOtps";
+// Both OTP stores are Admin-SDK-only (denied to every client by the rules).
+const EMAIL_OTP_COLLECTION = "emailOtps";
+const PASSWORD_RESET_OTP_COLLECTION = "passwordResetOtps";
+
+/** A well-formed submitted code (exactly the configured number of digits). */
+const isWellFormedCode = (code) =>
+  new RegExp(`^\\d{${OTP_CONFIG.codeLength}}$`).test(code);
+
+/** A loose "looks like an email" check for the signed-out reset endpoint. */
+const isLikelyEmail = (email) =>
+  /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+
+/** The password policy mirrored from the client's `PasswordPolicy` — enforced
+ * again server-side so a crafted request can't set a weak password. */
+const isStrongPassword = (p) =>
+  typeof p === "string" && p.length >= 8 &&
+  /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p);
 
 /**
- * A cryptographically-uniform CODE_LENGTH-digit string (leading zeros kept).
- * @return {string}
- */
-const generateCode = () => {
-  let out = "";
-  for (let i = 0; i < CODE_LENGTH; i++) out += randomInt(0, 10).toString();
-  return out;
-};
-
-/**
- * HMAC-SHA256(pepper, `${salt}:${code}`) as hex. Keyed by the server secret.
- * @param {string} code
- * @param {string} salt
- * @param {string} pepper
- * @return {string}
- */
-const hashCode = (code, salt, pepper) =>
-  createHmac("sha256", pepper).update(`${salt}:${code}`).digest("hex");
-
-/**
- * Constant-time comparison of two hex digests.
- * @param {string} a
- * @param {string} b
- * @return {boolean}
- */
-const digestsEqual = (a, b) => {
-  const ba = Buffer.from(a, "hex");
-  const bb = Buffer.from(b, "hex");
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
-};
-
-/**
- * The branded ZIVO verification email.
- * @param {string} code
+ * The shared branded ZIVO one-time-code email. Only [heading] and [intro]
+ * change per purpose (verify vs reset); the wordmark, the spaced code chip,
+ * the expiry note, and the footer are identical so both emails read as one
+ * family. (The CSPRNG code generation and hashing live in ./auth/otp.js.)
+ * @param {{code: string, subject: string, heading: string, intro: string}} a
  * @return {{subject: string, html: string, text: string}}
  */
-const brandedEmail = (code) => {
+const otpEmail = ({code, subject, heading, intro}) => {
   const spaced = code.split("").join("&nbsp;&nbsp;");
   return {
-    subject: `${code} is your ZIVO verification code`,
+    subject,
     text:
-      `Your ZIVO verification code is ${code}.\n\n` +
+      `${intro}\n\nYour code is ${code}.\n\n` +
       `It expires in ${OTP_TTL_MINUTES} minutes. ` +
       `If you didn't request it, you can ignore this email.`,
     html: `<!doctype html>
@@ -156,8 +152,8 @@ const brandedEmail = (code) => {
             </tr>
             <tr>
               <td style="padding:12px 40px 0 40px;">
-                <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:600;color:#1E1A16;">Verify your email</div>
-                <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#6B6157;margin-top:6px;">Enter this code in the app to finish setting up your space.</div>
+                <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:600;color:#1E1A16;">${heading}</div>
+                <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#6B6157;margin-top:6px;">${intro}</div>
               </td>
             </tr>
             <tr>
@@ -180,6 +176,161 @@ const brandedEmail = (code) => {
   };
 };
 
+/** The email-verification code email. */
+const brandedEmail = (code) => otpEmail({
+  code,
+  subject: `${code} is your ZIVO verification code`,
+  heading: "Verify your email",
+  intro: "Enter this code in the app to finish setting up your space.",
+});
+
+/** The password-reset code email. */
+const passwordResetEmail = (code) => otpEmail({
+  code,
+  subject: `${code} is your ZIVO password reset code`,
+  heading: "Reset your password",
+  intro: "Enter this code in the app to set a new password.",
+});
+
+// --- shared OTP flow (transaction + email + bookkeeping) --------------------
+
+/**
+ * The "send a code" flow shared by both OTP callables: runs the throttle
+ * decision (./auth/otp.js) in a transaction — writing only on an actual send —
+ * then emails the code and runs optional bookkeeping. The plaintext code never
+ * leaves this function beyond the email itself.
+ * @param {{ref: !DocumentReference, recipientEmail: string,
+ *   buildEmail: function(string): {subject: string, html: string, text: string},
+ *   onSent?: function(): !Promise<void>}} args
+ * @return {!Promise<!Object>}
+ */
+const runOtpSend = async ({ref, recipientEmail, buildEmail, onSent}) => {
+  const pepper = OTP_PEPPER.value();
+  const nowMs = Date.now();
+
+  const decision = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? snap.data() : undefined;
+    const d = otp.decideSend({existing, nowMs, pepper, config: OTP_CONFIG});
+    if (d.kind === "capped") {
+      throw new HttpsError(
+          "resource-exhausted",
+          "Too many codes requested. Please try again later.",
+          {retryAfterSeconds: d.retryAfterSeconds});
+    }
+    if (d.kind === "send") tx.set(ref, d.doc);
+    return d;
+  });
+
+  if (decision.kind === "cooldown") {
+    return {status: "cooldown", retryAfterSeconds: decision.retryAfterSeconds};
+  }
+
+  // Send the branded email. On failure clear only the active code (the hourly
+  // throttle accounting stays put) so the user can retry after the cooldown
+  // rather than a failed send resetting the rate limit.
+  try {
+    const resend = new Resend(RESEND_API_KEY.value());
+    const {subject, html, text} = buildEmail(decision.code);
+    const result = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: recipientEmail,
+      subject,
+      html,
+      text,
+    });
+    if (result.error) throw new Error(result.error.message);
+  } catch (err) {
+    await ref.set(otp.clearCodePatch(), {merge: true}).catch(() => undefined);
+    console.error("otp send: email delivery failed", err.message);
+    throw new HttpsError(
+        "internal", "Couldn't send the code. Please try again.");
+  }
+
+  // Bookkeeping must never fail the callable, so swallow its errors.
+  if (onSent) {
+    try {
+      await onSent();
+    } catch (err) {
+      console.error("otp send: activity recording failed", err.message);
+    }
+  }
+
+  return {
+    status: "sent",
+    cooldownSeconds: OTP_CONFIG.cooldownMs / 1000,
+    expiresInSeconds: OTP_CONFIG.ttlMs / 1000,
+  };
+};
+
+/**
+ * The "verify a code" flow shared by both OTP callables: runs the verify
+ * decision (./auth/otp.js) in a transaction, applying its patch and throwing
+ * the mapped HttpsError on any failure; on success runs [onOk] (flip
+ * emailVerified / set the new password). The transaction preserves the hourly
+ * throttle accounting on every clear path.
+ * @param {{ref: !DocumentReference, code: string,
+ *   onOk: function(): !Promise<void>}} args
+ * @return {!Promise<void>}
+ */
+const runOtpVerify = async ({ref, code, onOk}) => {
+  const pepper = OTP_PEPPER.value();
+  const nowMs = Date.now();
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? snap.data() : undefined;
+    const d = otp.decideVerify(
+        {existing, code, nowMs, pepper, config: OTP_CONFIG});
+    switch (d.kind) {
+      case "none":
+        throw new HttpsError(
+            "failed-precondition", "No active code. Request a new one.");
+      case "expired":
+        tx.update(ref, d.patch);
+        throw new HttpsError(
+            "failed-precondition", "That code has expired. Request a new one.");
+      case "exhausted":
+        tx.update(ref, d.patch);
+        throw new HttpsError(
+            "resource-exhausted", "Too many attempts. Request a new code.");
+      case "invalid":
+        tx.update(ref, d.patch);
+        throw new HttpsError("invalid-argument", "That code isn't right.", {
+          attemptsRemaining: d.attemptsRemaining,
+        });
+      case "ok":
+      default:
+        tx.update(ref, d.patch);
+    }
+  });
+
+  await onOk();
+};
+
+/**
+ * Resolves the uid of a PASSWORD account for [email], or null when there is no
+ * such account — WITHOUT revealing which. Used by the signed-out reset flow so
+ * the endpoint can't be turned into an account-enumeration oracle. Only
+ * accounts that actually have a `password` provider qualify (a Google/Apple-only
+ * account has no password to reset, and must not have one added this way).
+ * @param {string} email
+ * @return {!Promise<?string>}
+ */
+const resolvePasswordAccountUid = async (email) => {
+  try {
+    const user = await getAuth().getUserByEmail(email);
+    const hasPassword = (user.providerData || [])
+        .some((p) => p.providerId === "password");
+    return hasPassword ? user.uid : null;
+  } catch (err) {
+    if (err.code !== "auth/user-not-found") {
+      console.error("resolvePasswordAccountUid: lookup failed", err.message);
+    }
+    return null;
+  }
+};
+
 // --- sendEmailOtp -----------------------------------------------------------
 
 exports.sendEmailOtp = onCall(
@@ -197,106 +348,17 @@ exports.sendEmailOtp = onCall(
             "failed-precondition",
             "No email is associated with this account.");
       }
-      // Already verified (e.g. a stale client): nothing to do.
+      // Already verified (e.g. a stale client): nothing to do. The client
+      // force-refreshes its token on this status so the auth gate advances.
       if (auth.token.email_verified === true) {
         return {status: "already-verified"};
       }
-
-      const pepper = OTP_PEPPER.value();
-      const ref = db.collection(COLLECTION).doc(uid);
-      const now = Date.now();
-
-      // Reserve/decide inside a transaction; the plaintext code only ever lives
-      // in this function's memory and is returned for the email send below.
-      const decision = await db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        const existing = snap.exists ? snap.data() : undefined;
-
-        // Hourly send cap (rolling 1h window).
-        let sendCount = 0;
-        let windowStartMs = now;
-        if (existing) {
-          windowStartMs = existing.windowStartAt.toMillis();
-          if (now - windowStartMs < HOUR_MS) {
-            sendCount = existing.sendCount;
-            if (sendCount >= MAX_SENDS_PER_HOUR) {
-              const retryAfterSeconds = Math.ceil(
-                  (windowStartMs + HOUR_MS - now) / 1000);
-              throw new HttpsError(
-                  "resource-exhausted",
-                  "Too many codes requested. Please try again later.",
-                  {retryAfterSeconds});
-            }
-          } else {
-            windowStartMs = now; // window elapsed → reset
-          }
-
-          // Resend cooldown: a still-valid code was sent very recently.
-          const sinceLastSent = now - existing.lastSentAt.toMillis();
-          const codeStillValid = existing.expiresAt.toMillis() > now;
-          const cooldownMs = RESEND_COOLDOWN_SECONDS * 1000;
-          if (codeStillValid && sinceLastSent < cooldownMs) {
-            const retryAfterSeconds = Math.ceil(
-                (cooldownMs - sinceLastSent) / 1000);
-            return {action: "cooldown", retryAfterSeconds};
-          }
-        }
-
-        const code = generateCode();
-        const salt = randomBytes(16).toString("hex");
-        tx.set(ref, {
-          codeHash: hashCode(code, salt, pepper),
-          salt,
-          attempts: 0,
-          createdAt: Timestamp.fromMillis(now),
-          expiresAt: Timestamp.fromMillis(now + OTP_TTL_MINUTES * 60 * 1000),
-          lastSentAt: Timestamp.fromMillis(now),
-          sendCount: sendCount + 1,
-          windowStartAt: Timestamp.fromMillis(windowStartMs),
-        });
-        return {action: "send", code};
+      return runOtpSend({
+        ref: db.collection(EMAIL_OTP_COLLECTION).doc(uid),
+        recipientEmail: email,
+        buildEmail: brandedEmail,
+        onSent: () => markEmailSent(db, uid),
       });
-
-      if (decision.action === "cooldown") {
-        return {
-          status: "cooldown",
-          retryAfterSeconds: decision.retryAfterSeconds,
-        };
-      }
-
-      // Send the branded email. If this fails, drop the record so the user can
-      // retry immediately rather than being stuck behind the cooldown.
-      try {
-        const resend = new Resend(RESEND_API_KEY.value());
-        const {subject, html, text} = brandedEmail(decision.code);
-        const result = await resend.emails.send({
-          from: EMAIL_FROM,
-          to: email,
-          subject,
-          html,
-          text,
-        });
-        if (result.error) throw new Error(result.error.message);
-      } catch (err) {
-        await ref.delete().catch(() => undefined);
-        console.error("sendEmailOtp: email delivery failed", err.message);
-        throw new HttpsError(
-            "internal", "Couldn't send the code. Please try again.");
-      }
-
-      // Audit trail: only a genuinely-delivered code is recorded as sent.
-      // Bookkeeping must never fail the callable, so swallow its errors.
-      try {
-        await markEmailSent(db, uid);
-      } catch (err) {
-        console.error("sendEmailOtp: activity recording failed", err.message);
-      }
-
-      return {
-        status: "sent",
-        cooldownSeconds: RESEND_COOLDOWN_SECONDS,
-        expiresInSeconds: OTP_TTL_MINUTES * 60,
-      };
     },
 );
 
@@ -312,66 +374,160 @@ exports.verifyEmailOtp = onCall(
       const uid = auth.uid;
 
       const code = ((request.data && request.data.code) || "").toString();
-      if (!/^\d{6}$/.test(code)) {
+      if (!isWellFormedCode(code)) {
         throw new HttpsError("invalid-argument", "Enter the 6-digit code.");
       }
 
-      const pepper = OTP_PEPPER.value();
-      const ref = db.collection(COLLECTION).doc(uid);
-
-      // Verify + single-use consume atomically so parallel submits can't both
-      // win and the attempt counter can't be raced.
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists) {
-          throw new HttpsError(
-              "failed-precondition", "No active code. Request a new one.");
-        }
-        const doc = snap.data();
-
-        if (doc.expiresAt.toMillis() <= Date.now()) {
-          tx.delete(ref);
-          throw new HttpsError(
-              "failed-precondition",
-              "That code has expired. Request a new one.");
-        }
-        if (doc.attempts >= MAX_ATTEMPTS) {
-          tx.delete(ref);
-          throw new HttpsError(
-              "resource-exhausted", "Too many attempts. Request a new code.");
-        }
-
-        const candidate = hashCode(code, doc.salt, pepper);
-        if (!digestsEqual(candidate, doc.codeHash)) {
-          const attempts = doc.attempts + 1;
-          if (attempts >= MAX_ATTEMPTS) {
-            tx.delete(ref);
-            throw new HttpsError(
-                "resource-exhausted", "Too many attempts. Request a new code.");
+      await runOtpVerify({
+        ref: db.collection(EMAIL_OTP_COLLECTION).doc(uid),
+        code,
+        onOk: async () => {
+          // Flip the canonical verified flag. The client force-refreshes its
+          // token afterwards so the auth gate advances.
+          await getAuth().updateUser(uid, {emailVerified: true});
+          // Audit trail: when the address actually became trusted. Non-fatal.
+          try {
+            await markEmailVerified(db, uid);
+          } catch (err) {
+            console.error(
+                "verifyEmailOtp: activity recording failed", err.message);
           }
-          tx.update(ref, {attempts});
-          throw new HttpsError("invalid-argument", "That code isn't right.", {
-            attemptsRemaining: MAX_ATTEMPTS - attempts,
-          });
-        }
-
-        // Correct → consume (single-use).
-        tx.delete(ref);
+        },
       });
 
-      // Flip the canonical verified flag. The client force-refreshes its token
-      // afterwards so the auth gate advances.
-      await getAuth().updateUser(uid, {emailVerified: true});
+      return {status: "verified"};
+    },
+);
 
-      // Audit trail: when the address actually became trusted. Non-fatal on
-      // failure, like every bookkeeping write.
-      try {
-        await markEmailVerified(db, uid);
-      } catch (err) {
-        console.error("verifyEmailOtp: activity recording failed", err.message);
+// --- sendPasswordResetOtp ---------------------------------------------------
+
+/**
+ * Emails a reset code to a signed-OUT user who owns a password account for the
+ * given address. Returns the SAME generic "sent" shape whether or not the
+ * account exists (no send happens for a missing/social-only account), so this
+ * endpoint can't be used to enumerate accounts. Throttling is identical to
+ * email verification, so a real account is capped at the hourly send limit.
+ */
+exports.sendPasswordResetOtp = onCall(
+    {secrets: [RESEND_API_KEY, OTP_PEPPER], region: "us-central1"},
+    async (request) => {
+      const email =
+        ((request.data && request.data.email) || "").toString().trim()
+            .toLowerCase();
+      if (!isLikelyEmail(email)) {
+        throw new HttpsError("invalid-argument", "Enter a valid email address.");
       }
 
-      return {status: "verified"};
+      const uid = await resolvePasswordAccountUid(email);
+      if (!uid) {
+        // Generic success — no account (or a social-only one) gets no email.
+        return {
+          status: "sent",
+          cooldownSeconds: OTP_CONFIG.cooldownMs / 1000,
+          expiresInSeconds: OTP_CONFIG.ttlMs / 1000,
+        };
+      }
+
+      return runOtpSend({
+        ref: db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid),
+        recipientEmail: email,
+        buildEmail: passwordResetEmail,
+        // No bookkeeping on send — the reset is recorded on success below.
+      });
+    },
+);
+
+// --- resetPasswordWithOtp ---------------------------------------------------
+
+/**
+ * Verifies a reset code and sets the new password (Admin SDK), for a
+ * signed-OUT user. The new password is validated against the same policy as
+ * the client before the code is consumed, so a weak password can't burn a
+ * code. A missing/social-only account resolves to the same "no active code"
+ * path a real-but-expired code would, so existence still isn't revealed.
+ */
+exports.resetPasswordWithOtp = onCall(
+    {secrets: [OTP_PEPPER], region: "us-central1"},
+    async (request) => {
+      const data = request.data || {};
+      const email = (data.email || "").toString().trim().toLowerCase();
+      const code = (data.code || "").toString();
+      const newPassword = (data.newPassword || "").toString();
+
+      if (!isLikelyEmail(email) || !isWellFormedCode(code)) {
+        throw new HttpsError(
+            "invalid-argument", "Enter the code sent to your email.");
+      }
+      if (!isStrongPassword(newPassword)) {
+        throw new HttpsError(
+            "invalid-argument", "Choose a stronger password.",
+            {reason: "weakPassword"});
+      }
+
+      const uid = await resolvePasswordAccountUid(email);
+      if (!uid) {
+        throw new HttpsError(
+            "failed-precondition", "No active code. Request a new one.");
+      }
+
+      await runOtpVerify({
+        ref: db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid),
+        code,
+        onOk: async () => {
+          // Receiving the code at this address proves ownership, so also mark
+          // the email verified — an unverified user who resets shouldn't then
+          // be bounced through email verification a second time.
+          await getAuth().updateUser(uid, {
+            password: newPassword,
+            emailVerified: true,
+          });
+          // Audit trail: when the password actually changed. Non-fatal.
+          try {
+            await markPasswordChanged(db, uid);
+          } catch (err) {
+            console.error(
+                "resetPasswordWithOtp: activity recording failed", err.message);
+          }
+        },
+      });
+
+      return {status: "reset"};
+    },
+);
+
+// --- deleteAccount ----------------------------------------------------------
+
+/**
+ * Permanently erases the signed-in user: every document under their
+ * `users/{uid}` subtree, both OTP records, and finally the auth identity
+ * itself. Data-first so a partial failure can never orphan documents beneath a
+ * deleted uid. The client reauthenticates before calling this, so a fresh
+ * session is required to reach it.
+ */
+exports.deleteAccount = onCall(
+    {region: "us-central1"},
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError(
+            "unauthenticated", "Sign in before deleting your account.");
+      }
+      const uid = auth.uid;
+      try {
+        await db.recursiveDelete(db.collection("users").doc(uid));
+        await Promise.all([
+          db.collection(EMAIL_OTP_COLLECTION).doc(uid).delete()
+              .catch(() => undefined),
+          db.collection(PASSWORD_RESET_OTP_COLLECTION).doc(uid).delete()
+              .catch(() => undefined),
+        ]);
+        await getAuth().deleteUser(uid);
+      } catch (err) {
+        console.error("deleteAccount: failed", err.message);
+        throw new HttpsError(
+            "internal", "Couldn't delete your account. Please try again.");
+      }
+      return {status: "deleted"};
     },
 );
 

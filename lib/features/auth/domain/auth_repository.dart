@@ -47,6 +47,40 @@ abstract interface class AuthRepository {
   /// advances past [AwaitingEmailVerification].
   Future<OtpVerifyResult> verifyEmailOtp(String code);
 
+  /// Requests a 6-digit password-reset code be emailed to [email], for a
+  /// **signed-out** user who has forgotten their password. To avoid revealing
+  /// which addresses have accounts, the backend returns the same result
+  /// whether or not [email] belongs to a password account — so the UI always
+  /// advances to the code step on success. All rate-limiting mirrors
+  /// [sendEmailOtp].
+  Future<OtpSendResult> sendPasswordResetOtp({required String email});
+
+  /// Verifies [code] for [email] and, on success, sets [newPassword]
+  /// server-side and signs the user in with the new credentials (so the auth
+  /// stream advances). [newPassword] should already satisfy the client
+  /// [PasswordPolicy]; the backend enforces it again as the trust boundary.
+  Future<OtpVerifyResult> resetPasswordWithOtp({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
+  /// Changes the **signed-in** password user's password. Reauthenticates with
+  /// [currentPassword] first (Firebase requires a recent login), then sets
+  /// [newPassword]. Fails with [AuthFailureKind.wrongPassword] when the current
+  /// password is wrong. Only valid for accounts with a `password` provider.
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Permanently deletes the signed-in account: reauthenticates first (with
+  /// [password] for password accounts, or by re-running the provider flow for
+  /// Google/Apple), then erases all Firestore data and the auth identity
+  /// server-side, and signs out locally. Returns [AuthCancelled] if the user
+  /// backs out of a provider reauth sheet.
+  Future<AuthResult> deleteAccount({String? password});
+
   /// Signs the user out of this app (and any linked provider session so the
   /// account picker reappears next time).
   Future<void> signOut();

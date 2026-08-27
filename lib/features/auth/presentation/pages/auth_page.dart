@@ -9,6 +9,7 @@ import '../../domain/auth_repository.dart';
 import '../../domain/auth_result.dart';
 import '../widgets/email_auth_form.dart';
 import '../widgets/social_auth_buttons.dart';
+import 'forgot_password_page.dart';
 
 /// The signed-out surface: Sign in with Apple, Continue with Google, and an
 /// email/password form that toggles between sign-in and account creation.
@@ -55,6 +56,12 @@ class _AuthPageState extends State<AuthPage> {
       _isSignUp = !_isSignUp;
       _error = null;
     });
+  }
+
+  void _openForgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+    );
   }
 
   @override
@@ -143,6 +150,30 @@ class _AuthPageState extends State<AuthPage> {
                     },
                   ),
                 ),
+                // Password recovery — sign-in only (sign-up has no password to
+                // recover yet). Kept quiet so it doesn't compete with the CTA.
+                if (!_isSignUp)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _inFlight == AuthAction.none
+                            ? _openForgotPassword
+                            : null,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Forgot password?',
+                          style: AppText.meta.copyWith(color: AppColors.ink2),
+                        ),
+                      ),
+                    ),
+                  ),
                 // Reserved line so an arriving error never shifts layout.
                 AnimatedSize(
                   duration: const Duration(milliseconds: 260),

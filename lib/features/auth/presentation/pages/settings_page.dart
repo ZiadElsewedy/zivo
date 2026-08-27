@@ -15,8 +15,10 @@ import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
+import 'change_password_page.dart';
 import 'privacy_page.dart';
 import '../widgets/media_backup_section.dart';
+import '../widgets/delete_account_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 
 /// Settings — appearance, music, about (with the privacy policy), and sign
@@ -63,6 +65,11 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final info = _packageInfo;
+    // Password accounts can change their password in-app; social accounts have
+    // no ZIVO password, so that row is hidden for them. Deletion is offered to
+    // everyone.
+    final user = AppScope.of(context).auth.currentUser;
+    final isPasswordUser = user?.providerIds.contains('password') ?? false;
     return Scaffold(
       backgroundColor: AppColors.ground,
       body: DecoratedBox(
@@ -149,6 +156,37 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               );
                             },
+                            last: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    RiseIn(
+                      delay: const Duration(milliseconds: 150),
+                      child: SettingsSectionCard(
+                        label: 'ACCOUNT',
+                        children: [
+                          if (isPasswordUser)
+                            SettingsRow(
+                              icon: AppIcons.key,
+                              title: 'Change password',
+                              value: '',
+                              accent: AppColors.iris,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ChangePasswordPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          SettingsRow(
+                            icon: AppIcons.trash,
+                            title: 'Delete account',
+                            value: '',
+                            accent: AppColors.flare,
+                            onTap: () => DeleteAccountSheet.show(context),
                             last: true,
                           ),
                         ],
