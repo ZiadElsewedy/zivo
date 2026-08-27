@@ -363,7 +363,9 @@ const DELETE_EXPENSE = {
         Number.isInteger(input.amountMinor) && input.amountMinor >= 0) {
       out.amountMinor = input.amountMinor;
     }
-    if (input.currency) out.currency = String(input.currency).trim().toUpperCase();
+    if (input.currency) {
+      out.currency = String(input.currency).trim().toUpperCase();
+    }
     if (input.category) out.category = String(input.category).trim();
     return out;
   },

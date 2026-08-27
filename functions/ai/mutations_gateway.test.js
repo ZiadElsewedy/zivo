@@ -375,7 +375,8 @@ test("delete_expense: propose then confirm removes exactly that id", async () =>
   });
   assert.equal(confirmed.status, "applied");
   assert.deepEqual(store.writes.deletes, [{uid: UID, id: "exp-7"}]);
-  assert.match(confirmed.assistantText, /Deleted expense · transport 30\.00 EGP/);
+  assert.match(
+      confirmed.assistantText, /Deleted expense · transport 30\.00 EGP/);
 });
 
 test("confirmAction on an expired action refuses and writes nothing", async () => {

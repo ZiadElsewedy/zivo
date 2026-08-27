@@ -38,7 +38,8 @@ test("create_expense: rejects an unknown category", () => {
 });
 
 test("every mutating tool exposes card fields and a result line", () => {
-  for (const tool of [createExpense, editExpense, deleteExpense, markMealEaten]) {
+  const all = [createExpense, editExpense, deleteExpense, markMealEaten];
+  for (const tool of all) {
     assert.equal(tool.mutating, true);
     assert.equal(typeof tool.summarize, "function");
     assert.equal(typeof tool.fields, "function");
@@ -62,7 +63,8 @@ test("edit_expense: keeps only the fields being changed, plus id and label",
       const f = editExpense.fields(v);
       assert.equal(f.action, "edit");
       assert.equal(f.amount, "60.00");
-      assert.match(editExpense.result(v), /Updated expense · coffee 40\.00 EGP/);
+      assert.match(
+          editExpense.result(v), /Updated expense · coffee 40\.00 EGP/);
     });
 
 test("edit_expense: normalizes currency/category and validates them", () => {
@@ -87,7 +89,8 @@ test("edit_expense: normalizes currency/category and validates them", () => {
 
 test("edit_expense: rejects a missing id and a no-op edit (nothing to change)",
     () => {
-      assert.throws(() => editExpense.validate({amountMinor: 100}), ValidationError);
+      assert.throws(
+          () => editExpense.validate({amountMinor: 100}), ValidationError);
       assert.throws(
           () => editExpense.validate({expenseId: "exp-3", label: "coffee"}),
           ValidationError);
