@@ -80,6 +80,10 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
+  - **Pending now:** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
+    `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
+    live AI keeps the old create-only backend (the app's redesigned cards already render
+    edit/delete proposals once the backend proposes them). Command: `firebase deploy --only functions`.
 - **Manual E2E:** real-PDF-in-app import → review → confirm for both workout and diet.
 - **Auth callables deploy:** the new `sendPasswordResetOtp` / `resetPasswordWithOtp` /
   `deleteAccount` callables need `firebase deploy --only functions` (owner creds) before the
@@ -115,6 +119,12 @@ suite green. **Always re-run `make gates` rather than trusting a remembered test
   widget tests for the new flows. `flutter analyze` clean; Flutter suite green (2 pre-existing
   failures unrelated to auth: `profile_page` bio + `today_dashboard` brand-new-user); functions
   `node --test` 208 green; rules suite 71 green. App Check intentionally left out for now.
+- 2026-08-27 — Ask polish + AI edit/delete: fixed the Momentum week-bars 4px bottom overflow
+  (`today_pulse_card.dart`); reworked the Ask composer into a floating frosted island that the
+  chat scrolls under, bumped ZIVO's reply font, and redesigned the confirmation card + made its
+  resolved state a keep-the-details history receipt (`ask_page.dart`, `voice_composer.dart`);
+  added confirm-gated **edit_expense/delete_expense** AI tools + `get_expenses` id exposure
+  (ADR-005 — `functions/ai/*`, tests green). **Backend not yet deployed** (owner action above).
 - 2026-08-27 — Added the agent-neutral context system (AGENTS.md router + CLAUDE.md adapter,
   PRODUCT.md positioning, this file, per-feature FEATURE.md maps, ADR-004); repositioned as an
   AI gym tracker; de-stated the reference docs; added the STATE.md freshness pre-commit hook

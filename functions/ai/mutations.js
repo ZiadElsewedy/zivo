@@ -13,9 +13,12 @@
  * rules and the manual capture forms exactly (see `firestore.rules` and the
  * Firestore repository write shapes under lib/features).
  *
- * Create-only, expenses only (2026: create_task/create_event were removed
- * along with the Schedule/Tasks features they backed — see the Gym+Diet
- * specialization). No edits or deletes.
+ * Expenses (create/edit/delete) + diet meal toggling (2026: create_task/
+ * create_event were removed along with the Schedule/Tasks features they
+ * backed — see the Gym+Diet specialization). Editing and deleting are
+ * confirm-gated exactly like creating: the model must first identify the
+ * exact record (its `id`, from get_expenses) and every change still waits on
+ * the user's Confirm before any write happens.
  */
 
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
@@ -43,6 +46,54 @@ function requireText(value, label, max) {
   if (!text) throw new ValidationError(`A ${label} is required.`);
   if (text.length > max) throw new ValidationError(`That ${label} is too long.`);
   return text;
+}
+
+/**
+ * A trimmed string of at most `max` chars, or null when absent/blank.
+ * @param {*} value
+ * @param {string} label
+ * @param {number} max
+ * @return {?string}
+ */
+function optionalText(value, label, max) {
+  if (value == null || String(value).trim() === "") return null;
+  return requireText(value, label, max);
+}
+
+/**
+ * A positive integer amount in minor units, or throws.
+ * @param {*} value
+ * @return {number}
+ */
+function requireAmountMinor(value) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ValidationError("The amount must be a whole number of minor units (e.g. 1200 for 12.00).");
+  }
+  if (value === 0) throw new ValidationError("The amount can't be zero.");
+  return value;
+}
+
+/**
+ * `value` validated against the expense category enum, or throws.
+ * @param {*} value
+ * @return {string}
+ */
+function requireCategory(value) {
+  const category = String(value || "").trim();
+  if (!EXPENSE_CATEGORIES.includes(category)) {
+    throw new ValidationError(`Category must be one of: ${EXPENSE_CATEGORIES.join(", ")}.`);
+  }
+  return category;
+}
+
+/**
+ * A minor-units integer rendered as a fixed-2 major-unit string, or null.
+ * @param {?number} amountMinor
+ * @return {?string}
+ */
+function majorAmount(amountMinor) {
+  return typeof amountMinor === "number" ?
+    (amountMinor / 100).toFixed(2) : null;
 }
 
 /**
@@ -95,19 +146,11 @@ const CREATE_EXPENSE = {
    * @return {!Object} Validated payload.
    */
   validate(input) {
-    const amountMinor = input.amountMinor;
-    if (!Number.isInteger(amountMinor) || amountMinor < 0) {
-      throw new ValidationError("The amount must be a whole number of minor units (e.g. 1200 for 12.00).");
-    }
-    if (amountMinor === 0) throw new ValidationError("The amount can't be zero.");
-    const category = String(input.category || "").trim();
-    if (!EXPENSE_CATEGORIES.includes(category)) {
-      throw new ValidationError(`Category must be one of: ${EXPENSE_CATEGORIES.join(", ")}.`);
-    }
+    const amountMinor = requireAmountMinor(input.amountMinor);
+    const category = requireCategory(input.category);
     const currency = (input.currency ?
       String(input.currency).trim() : DEFAULT_CURRENCY).toUpperCase();
-    const note = input.note == null || String(input.note).trim() === "" ?
-      null : requireText(input.note, "note", MAX_NOTE_CHARS);
+    const note = optionalText(input.note, "note", MAX_NOTE_CHARS);
     return {
       amountMinor,
       currency,
@@ -182,7 +225,181 @@ const MARK_MEAL_EATEN = {
   },
 };
 
-const mutatingTools = [CREATE_EXPENSE, MARK_MEAL_EATEN];
+/**
+ * Builds the human "what's changing" clause shared by edit_expense's summary
+ * and result line from a validated patch — "40.00 EGP, food" etc.
+ * @param {!Object} v A validated edit_expense payload.
+ * @return {string}
+ */
+function editChangeClause(v) {
+  const parts = [];
+  if (v.amountMinor !== undefined) {
+    parts.push(`${majorAmount(v.amountMinor)} ${v.currency || ""}`.trim());
+  } else if (v.currency !== undefined) {
+    parts.push(v.currency);
+  }
+  if (v.category !== undefined) parts.push(v.category);
+  if (v.note !== undefined) parts.push(`note "${v.note}"`);
+  if (v.spentAtIso !== undefined) parts.push("a new date");
+  return parts.join(", ");
+}
+
+const EDIT_EXPENSE = {
+  name: "edit_expense",
+  mutating: true,
+  kind: "edit_expense",
+  description:
+    "Propose editing an existing expense (does not save until the user " +
+    "confirms). Requires expenseId — use an id EXACTLY as it appeared in " +
+    "get_expenses output; never invent one. Provide a short human `label` " +
+    "naming the expense as it is NOW (e.g. 'coffee 40.00 EGP') for the " +
+    "confirmation card, plus at least one field to change: amountMinor " +
+    "(integer minor units, e.g. 6000 = 60.00), category (one of: food, " +
+    "coffee, transport, groceries, other), currency, note, spentAt (ISO " +
+    "8601). Only pass the fields you want changed.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      expenseId: {type: "string", description: "exact id from get_expenses"},
+      label: {type: "string", description: "the expense as it is now, for the card"},
+      amountMinor: {type: "integer", description: "new amount in minor units"},
+      category: {type: "string", enum: EXPENSE_CATEGORIES},
+      currency: {type: "string"},
+      note: {type: "string"},
+      spentAt: {type: "string", description: "ISO 8601, optional"},
+    },
+    required: ["expenseId"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload — expenseId/label plus only the
+   *   fields being changed (absent keys mean "leave as-is").
+   */
+  validate(input) {
+    const expenseId = requireText(input.expenseId, "expense id", 200);
+    const label = optionalText(input.label, "label", 200);
+    const patch = {expenseId, label};
+    if (input.amountMinor !== undefined && input.amountMinor !== null) {
+      patch.amountMinor = requireAmountMinor(input.amountMinor);
+    }
+    if (input.category !== undefined && input.category !== null &&
+        String(input.category).trim() !== "") {
+      patch.category = requireCategory(input.category);
+    }
+    if (input.currency !== undefined && input.currency !== null &&
+        String(input.currency).trim() !== "") {
+      patch.currency = String(input.currency).trim().toUpperCase();
+    }
+    if (input.note !== undefined && input.note !== null &&
+        String(input.note).trim() !== "") {
+      patch.note = requireText(input.note, "note", MAX_NOTE_CHARS);
+    }
+    if (input.spentAt !== undefined && input.spentAt !== null &&
+        String(input.spentAt).trim() !== "") {
+      patch.spentAtIso = requireIso(input.spentAt, "spent-at time");
+    }
+    const changed = ["amountMinor", "category", "currency", "note", "spentAtIso"]
+        .some((k) => patch[k] !== undefined);
+    if (!changed) {
+      throw new ValidationError(
+          "Tell me what to change about that expense (amount, category, …).");
+    }
+    return patch;
+  },
+  fields(v) {
+    return {
+      action: "edit",
+      target: v.label || null,
+      amount: majorAmount(v.amountMinor),
+      currency: v.currency || null,
+      category: v.category || null,
+      note: v.note || null,
+    };
+  },
+  summarize(v) {
+    const target = v.label ? ` ${v.label}` : "";
+    const clause = editChangeClause(v);
+    return `Update${target}${clause ? ` → ${clause}` : ""}`;
+  },
+  result(v) {
+    const target = v.label ? ` · ${v.label}` : "";
+    const clause = editChangeClause(v);
+    return `Updated expense${target}${clause ? ` → ${clause}` : ""}`;
+  },
+};
+
+const DELETE_EXPENSE = {
+  name: "delete_expense",
+  mutating: true,
+  kind: "delete_expense",
+  description:
+    "Propose deleting an existing expense (does not delete until the user " +
+    "confirms). Requires expenseId — use an id EXACTLY as it appeared in " +
+    "get_expenses output; never invent one. Provide a short human `label` " +
+    "naming the expense (e.g. 'coffee 40.00 EGP on Aug 25') and, for a clear " +
+    "confirmation card, the expense's current amountMinor, currency, and " +
+    "category (display only — nothing is written).",
+  inputSchema: {
+    type: "object",
+    properties: {
+      expenseId: {type: "string", description: "exact id from get_expenses"},
+      label: {type: "string", description: "the expense being removed, for the card"},
+      amountMinor: {type: "integer", description: "current amount, for the card"},
+      currency: {type: "string"},
+      category: {type: "string"},
+    },
+    required: ["expenseId"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload — the id to delete plus display-only
+   *   context for the confirmation card and history line.
+   */
+  validate(input) {
+    const expenseId = requireText(input.expenseId, "expense id", 200);
+    const label = optionalText(input.label, "label", 200);
+    const out = {expenseId, label};
+    if (input.amountMinor !== undefined && input.amountMinor !== null &&
+        Number.isInteger(input.amountMinor) && input.amountMinor >= 0) {
+      out.amountMinor = input.amountMinor;
+    }
+    if (input.currency) {
+      out.currency = String(input.currency).trim().toUpperCase();
+    }
+    if (input.category) out.category = String(input.category).trim();
+    return out;
+  },
+  fields(v) {
+    return {
+      action: "delete",
+      target: v.label || null,
+      amount: majorAmount(v.amountMinor),
+      currency: v.currency || null,
+      category: v.category || null,
+    };
+  },
+  summarize(v) {
+    const amount = majorAmount(v.amountMinor);
+    const detail = v.label ||
+      [amount ? `${amount} ${v.currency || ""}`.trim() : null, v.category]
+          .filter(Boolean).join(" · ");
+    return `Delete ${detail || "this expense"}`;
+  },
+  result(v) {
+    const amount = majorAmount(v.amountMinor);
+    const detail = v.label ||
+      [amount ? `${amount} ${v.currency || ""}`.trim() : null, v.category]
+          .filter(Boolean).join(" · ");
+    return `Deleted expense${detail ? ` · ${detail}` : ""}`;
+  },
+};
+
+const mutatingTools = [
+  CREATE_EXPENSE,
+  EDIT_EXPENSE,
+  DELETE_EXPENSE,
+  MARK_MEAL_EATEN,
+];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 
 module.exports = {

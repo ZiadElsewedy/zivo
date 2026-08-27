@@ -446,8 +446,12 @@ class WeekActivityBars extends StatelessWidget {
     final maxWorkouts =
         activity.fold<int>(0, (m, d) => math.max(m, d.workouts));
     const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    // Height must clear the tallest bar (8 + 38 = 46) plus the label gap (6)
+    // and the weekday initial's own line box (~14 at 10sp) — 66 in all. The
+    // old 62 clipped that by 4px, tripping a bottom-overflow stripe on the
+    // day with the tallest bar; 68 leaves a hair of headroom.
     return SizedBox(
-      height: 62,
+      height: 68,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [

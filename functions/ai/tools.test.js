@@ -20,11 +20,11 @@ test("get_expenses totals amounts by category for the requested range",
           assert.equal(typeof range.fromMs, "number");
           assert.equal(typeof range.toMs, "number");
           return [
-            {amountMinor: 500, currency: "USD", category: "coffee",
+            {id: "e1", amountMinor: 500, currency: "USD", category: "coffee",
               note: null, spentAt: new Date("2026-08-16T09:00:00")},
-            {amountMinor: 300, currency: "USD", category: "coffee",
+            {id: "e2", amountMinor: 300, currency: "USD", category: "coffee",
               note: null, spentAt: new Date("2026-08-15T09:00:00")},
-            {amountMinor: 1200, currency: "USD", category: "groceries",
+            {id: "e3", amountMinor: 1200, currency: "USD", category: "groceries",
               note: "weekly shop", spentAt: new Date("2026-08-14T09:00:00")},
           ];
         },
@@ -36,6 +36,8 @@ test("get_expenses totals amounts by category for the requested range",
       assert.deepEqual(result.totalByCategory, {coffee: 800, groceries: 1200});
       assert.equal(result.currency, "USD");
       assert.equal(result.items.length, 3);
+      // Each item surfaces its stable id — the handle edit/delete target.
+      assert.deepEqual(result.items.map((e) => e.id), ["e1", "e2", "e3"]);
     });
 
 test("get_expenses filters by category when given", async () => {
