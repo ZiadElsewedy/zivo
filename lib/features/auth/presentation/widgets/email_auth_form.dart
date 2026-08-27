@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../domain/password_policy.dart';
 import 'auth_action_button.dart';
+import 'auth_text_field.dart';
 import 'password_checklist.dart';
 
 /// Email + password inputs with a submit button. Owns its text controllers and
@@ -22,10 +21,16 @@ class EmailAuthForm extends StatefulWidget {
     required this.submitting,
     required this.enabled,
     required this.onSubmit,
+    this.prefillEmail,
     super.key,
   });
 
   final bool isSignUp;
+
+  /// An address to seed the email field with — currently the account a
+  /// just-completed password reset was performed on. Only ever applied when it
+  /// *changes*, so it can never overwrite what the user is typing.
+  final String? prefillEmail;
 
   /// The email action is in flight (spinner on the submit button).
   final bool submitting;
@@ -53,9 +58,19 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
   @override
   void initState() {
     super.initState();
+    if (widget.prefillEmail != null) _email.text = widget.prefillEmail!;
     _email.addListener(_recompute);
     _password.addListener(_recompute);
     _confirmPassword.addListener(_recompute);
+  }
+
+  @override
+  void didUpdateWidget(covariant EmailAuthForm old) {
+    super.didUpdateWidget(old);
+    final seeded = widget.prefillEmail;
+    if (seeded != null && seeded != old.prefillEmail) {
+      _email.text = seeded;
+    }
   }
 
   void _recompute() {
@@ -105,7 +120,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
         children: [
           _Slot(
             visible: widget.isSignUp,
-            child: _Field(
+            child: AuthTextField(
               controller: _name,
               hint: 'Name (optional)',
               icon: Icons.person_outline_rounded,
@@ -114,7 +129,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
             ),
           ),
           const SizedBox(height: 10),
-          _Field(
+          AuthTextField(
             controller: _email,
             hint: 'Email',
             icon: Icons.mail_outline_rounded,
@@ -123,7 +138,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: 10),
-          _Field(
+          AuthTextField(
             controller: _password,
             hint: 'Password',
             icon: Icons.lock_outline_rounded,
@@ -146,7 +161,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 10),
-                _Field(
+                AuthTextField(
                   controller: _confirmPassword,
                   hint: 'Confirm password',
                   icon: Icons.lock_outline_rounded,
@@ -168,8 +183,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           const SizedBox(height: 16),
           AuthActionButton(
             label: widget.isSignUp ? 'Create account' : 'Sign in',
-            icon: Icon(Icons.arrow_forward_rounded,
-                size: 18, color: AppColors.ground),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
             background: AppColors.ember,
             loading: widget.submitting,
             enabled: widget.enabled && _canSubmit,
@@ -213,65 +227,6 @@ class _Slot extends StatelessWidget {
       child: visible
           ? KeyedSubtree(key: ValueKey(visible), child: child)
           : SizedBox.shrink(key: ValueKey(visible)),
-    );
-  }
-}
-
-/// A single ZIVO-styled text field (white card, hairline border, warm ink).
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.enabled,
-    this.obscureText = false,
-    this.keyboardType,
-    this.textInputAction,
-    this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool enabled;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onSubmitted;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      onSubmitted: onSubmitted,
-      autocorrect: false,
-      enableSuggestions: !obscureText,
-      style: AppText.rowTitle,
-      cursorColor: AppColors.ember,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-        prefixIcon: Icon(icon, size: 20, color: AppColors.ink3),
-        filled: true,
-        fillColor: AppColors.card,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.hairline2, width: 1.4),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.hairline2, width: 1.4),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.ember, width: 1.6),
-        ),
-      ),
     );
   }
 }

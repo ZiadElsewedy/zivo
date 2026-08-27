@@ -121,10 +121,8 @@ class FakeAuthRepository implements AuthRepository {
     required String newPassword,
   }) async {
     verifiedCodes.add(code);
-    // Mimic the real repo: a successful reset signs the user in.
-    if (resetPasswordResult is OtpVerifySuccess) {
-      emit(Authenticated(successUser));
-    }
+    // Mimic the real repo: a reset sets the credential and leaves the user
+    // signed out — they sign in again with the password they just chose.
     return resetPasswordResult;
   }
 

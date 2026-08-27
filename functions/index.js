@@ -6,7 +6,7 @@
  *
  *   sendEmailOtp()                              → email a verification code
  *   verifyEmailOtp(code)                        → verify it, flip emailVerified
- *   sendPasswordResetOtp(email)                 → email a reset code (signed out)
+ *   sendPasswordResetOtp(email)                 → email a code (signed out)
  *   resetPasswordWithOtp(email, code, password) → verify it, set the password
  *   deleteAccount()                             → erase all data + the identity
  *
@@ -108,16 +108,28 @@ const EMAIL_FROM = "ZIVO <no-reply@zzivo.com>";
 const EMAIL_OTP_COLLECTION = "emailOtps";
 const PASSWORD_RESET_OTP_COLLECTION = "passwordResetOtps";
 
-/** A well-formed submitted code (exactly the configured number of digits). */
+/**
+ * A well-formed submitted code (exactly the configured number of digits).
+ * @param {string} code
+ * @return {boolean}
+ */
 const isWellFormedCode = (code) =>
   new RegExp(`^\\d{${OTP_CONFIG.codeLength}}$`).test(code);
 
-/** A loose "looks like an email" check for the signed-out reset endpoint. */
+/**
+ * A loose "looks like an email" check for the signed-out reset endpoint.
+ * @param {string} email
+ * @return {boolean}
+ */
 const isLikelyEmail = (email) =>
   /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 
-/** The password policy mirrored from the client's `PasswordPolicy` — enforced
- * again server-side so a crafted request can't set a weak password. */
+/**
+ * The password policy mirrored from the client's `PasswordPolicy` — enforced
+ * again server-side so a crafted request can't set a weak password.
+ * @param {*} p
+ * @return {boolean}
+ */
 const isStrongPassword = (p) =>
   typeof p === "string" && p.length >= 8 &&
   /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p);
@@ -176,7 +188,11 @@ const otpEmail = ({code, subject, heading, intro}) => {
   };
 };
 
-/** The email-verification code email. */
+/**
+ * The email-verification code email.
+ * @param {string} code
+ * @return {{subject: string, html: string, text: string}}
+ */
 const brandedEmail = (code) => otpEmail({
   code,
   subject: `${code} is your ZIVO verification code`,
@@ -184,7 +200,11 @@ const brandedEmail = (code) => otpEmail({
   intro: "Enter this code in the app to finish setting up your space.",
 });
 
-/** The password-reset code email. */
+/**
+ * The password-reset code email.
+ * @param {string} code
+ * @return {{subject: string, html: string, text: string}}
+ */
 const passwordResetEmail = (code) => otpEmail({
   code,
   subject: `${code} is your ZIVO password reset code`,
@@ -200,8 +220,8 @@ const passwordResetEmail = (code) => otpEmail({
  * then emails the code and runs optional bookkeeping. The plaintext code never
  * leaves this function beyond the email itself.
  * @param {{ref: !DocumentReference, recipientEmail: string,
- *   buildEmail: function(string): {subject: string, html: string, text: string},
- *   onSent?: function(): !Promise<void>}} args
+ *   buildEmail: function(string): !Object,
+ *   onSent: (undefined|function(): !Promise<void>)}} args
  * @return {!Promise<!Object>}
  */
 const runOtpSend = async ({ref, recipientEmail, buildEmail, onSent}) => {
@@ -312,8 +332,9 @@ const runOtpVerify = async ({ref, code, onOk}) => {
  * Resolves the uid of a PASSWORD account for [email], or null when there is no
  * such account — WITHOUT revealing which. Used by the signed-out reset flow so
  * the endpoint can't be turned into an account-enumeration oracle. Only
- * accounts that actually have a `password` provider qualify (a Google/Apple-only
- * account has no password to reset, and must not have one added this way).
+ * accounts that actually have a `password` provider qualify (a Google- or
+ * Apple-only account has no password to reset, and must not have one added
+ * this way).
  * @param {string} email
  * @return {!Promise<?string>}
  */

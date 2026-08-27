@@ -18,27 +18,43 @@ import 'pressable_scale.dart';
 /// `leading` or inline in a custom header — so navigation reads as one
 /// system instead of Material-default arrows mixing with house chrome.
 class BackChip extends StatelessWidget {
-  const BackChip({super.key});
+  const BackChip({this.onTap, this.enabled = true, super.key});
+
+  /// Where "back" goes. Defaults to popping the route — override it only for a
+  /// multi-step page where back means back one *step* (the password-reset
+  /// flow), so those pages keep the house affordance instead of forking a
+  /// look-alike.
+  final VoidCallback? onTap;
+
+  /// Dims and disarms the chip while an action is in flight.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: PressableScale(
-        child: Tooltip(
-          message: 'Back',
-          child: InkWell(
-            onTap: () => Navigator.of(context).maybePop(),
-            customBorder: const CircleBorder(),
-            child: Container(
-              width: 38,
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceRaised,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.hairline2),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.5,
+        child: PressableScale(
+          enabled: enabled,
+          child: Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap: enabled
+                  ? (onTap ?? () => Navigator.of(context).maybePop())
+                  : null,
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.hairline2),
+                ),
+                child:
+                    const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
               ),
-              child: const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
             ),
           ),
         ),

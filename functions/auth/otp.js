@@ -98,9 +98,9 @@ const clearCodePatch = () => ({
  * hourly cap — purely, from the existing record and the current time.
  *
  * @param {{existing: ?Object, nowMs: number, pepper: string,
- *   config?: !Object}} args
- * @return {{kind: string, code?: string, doc?: !Object,
- *   retryAfterSeconds?: number}}
+ *   config: (!Object|undefined)}} args
+ * @return {{kind: string, code: (string|undefined),
+ *   doc: (!Object|undefined), retryAfterSeconds: (number|undefined)}}
  *   kind is one of: "send" (write `doc`, then email `code`), "cooldown", or
  *   "capped" (both carry `retryAfterSeconds`).
  */
@@ -161,13 +161,16 @@ const decideSend = ({existing, nowMs, pepper, config = DEFAULT_CONFIG}) => {
  * record, the submitted code, and the current time.
  *
  * @param {{existing: ?Object, code: string, nowMs: number, pepper: string,
- *   config?: !Object}} args
- * @return {{kind: string, patch?: !Object, attemptsRemaining?: number}}
+ *   config: (!Object|undefined)}} args
+ * @return {{kind: string, patch: (!Object|undefined),
+ *   attemptsRemaining: (number|undefined)}}
  *   kind is one of: "none" (no active code), "expired", "exhausted",
  *   "invalid" (carries `attemptsRemaining`), or "ok". Every kind except
  *   "none" carries a `patch` to apply inside the caller's transaction.
  */
-const decideVerify = ({existing, code, nowMs, pepper, config = DEFAULT_CONFIG}) => {
+const decideVerify = ({
+  existing, code, nowMs, pepper, config = DEFAULT_CONFIG,
+}) => {
   const {maxAttempts} = config;
 
   if (!existing || !existing.codeHash) return {kind: "none"};

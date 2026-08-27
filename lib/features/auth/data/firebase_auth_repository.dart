@@ -299,27 +299,17 @@ class FirebaseAuthRepository implements AuthRepository {
     required String code,
     required String newPassword,
   }) async {
-    final trimmedEmail = email.trim();
-    final result = await _verifyOtp('resetPasswordWithOtp', {
-      'email': trimmedEmail,
+    // Deliberately no sign-in on success: resetting a password sets the
+    // credential, it does not start a session. Proving you can receive a code
+    // at an address is a weaker claim than knowing the password, so the new
+    // password is made to earn its first session through the normal sign-in
+    // — which also means the user leaves the flow having typed the password
+    // they just chose at least once.
+    return _verifyOtp('resetPasswordWithOtp', {
+      'email': email.trim(),
       'code': code,
       'newPassword': newPassword,
     });
-    if (result is OtpVerifySuccess) {
-      // The password is now set server-side. Sign in with the new credentials
-      // so the auth gate advances straight into the app. Best-effort: if this
-      // fails the reset still succeeded and the user can sign in manually.
-      try {
-        final cred = await _auth.signInWithEmailAndPassword(
-          email: trimmedEmail,
-          password: newPassword,
-        );
-        _recordSession(cred, provider: kEmailProviderId);
-      } catch (_) {
-        // Non-fatal — the password change is what mattered.
-      }
-    }
-    return result;
   }
 
   /// Shared "submit a code" call used by both the email-verification and

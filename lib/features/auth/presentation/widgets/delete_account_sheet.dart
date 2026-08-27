@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -6,7 +7,9 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/auth_result.dart';
+import 'auth_backdrop.dart';
 import 'auth_text_field.dart';
 
 /// The account-deletion confirmation sheet, opened from [SettingsPage].
@@ -33,6 +36,11 @@ class DeleteAccountSheet extends StatefulWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      // A modal, irreversible task: push the page behind it properly back
+      // rather than leaving Settings legible right up against the sheet. The
+      // dim is what makes this read as a decision instead of another row.
+      barrierColor: const Color(0xB3000000),
       builder: (_) => DeleteAccountSheet(isPasswordAccount: isPassword),
     );
   }
@@ -79,6 +87,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
       _deleting = true;
       _error = null;
     });
+    HapticFeedback.mediumImpact();
     final result = await auth.deleteAccount(
       password: widget.isPasswordAccount ? _password.text : null,
     );
@@ -101,139 +110,198 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+    // `padding` (not `viewPadding`) is the home-indicator gap *minus* whatever
+    // the keyboard already covers, so the footer clears the indicator when the
+    // keyboard is down without gaining a phantom 34pt when it's up.
+    final bottomSafe = media.padding.bottom;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(color: AppColors.hairline2),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: AppColors.hairline2)),
           ),
-        ),
-        padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.hairline2,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.flare.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+          // The sheet's own light is flare, not ember — the surface is tinted
+          // by the thing it's about, so the warning is in the material before
+          // it's in the copy.
+          child: AuthBackdrop(
+            base: AppColors.card,
+            hue: AppColors.flare,
+            alignment: const Alignment(-0.75, -1.6),
+            intensity: 0.85,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(22, 12, 22, 18 + bottomSafe),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.hairline2,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  child: const Icon(AppIcons.trash,
-                      size: 18, color: AppColors.flareText),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Delete account',
-                      style: AppText.cardTitle.copyWith(fontSize: 19)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'This permanently deletes your account and everything in it — '
-              'workouts, diet, moments, expenses, and profile. This cannot be '
-              'undone.',
-              style: AppText.body.copyWith(color: AppColors.ink2, height: 1.4),
-            ),
-            if (widget.isPasswordAccount) ...[
-              const SizedBox(height: 18),
-              AuthTextField(
-                controller: _password,
-                hint: 'Enter your password to confirm',
-                icon: Icons.lock_outline_rounded,
-                enabled: !_deleting,
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _confirm(),
-              ),
-            ],
-            SizedBox(
-              height: 26,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 150),
-                opacity: _error == null ? 0 : 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Text(
-                    _error ?? '',
-                    style: AppText.meta.copyWith(color: AppColors.flareText),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.flareWash,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.flare.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: const Icon(AppIcons.trash,
+                            size: 19, color: AppColors.flareText),
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Text(
+                          'Delete account',
+                          style: AppText.cardTitle.copyWith(fontSize: 21),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'This permanently deletes your account and everything in '
+                    'it — workouts, diet, moments, expenses, and profile. This '
+                    'cannot be undone.',
+                    style:
+                        AppText.body.copyWith(color: AppColors.ink2, height: 1.45),
+                  ),
+                  if (widget.isPasswordAccount) ...[
+                    const SizedBox(height: 20),
+                    AuthTextField(
+                      controller: _password,
+                      hint: 'Enter your password to confirm',
+                      icon: Icons.lock_outline_rounded,
+                      enabled: !_deleting,
+                      obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      hasError: _error != null,
+                      onSubmitted: (_) => _confirm(),
+                    ),
+                  ],
+                  SizedBox(
+                    height: 30,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 150),
+                      opacity: _error == null ? 0 : 1,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10, left: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                size: 15, color: AppColors.flareText),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error ?? '',
+                                style: AppText.meta
+                                    .copyWith(color: AppColors.flareText),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Cancel is given the same weight and shape as the delete —
+                  // backing out of an irreversible action shouldn't be the
+                  // harder target to hit.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SheetButton(
+                          label: 'Cancel',
+                          enabled: !_deleting,
+                          onTap: () => Navigator.of(context).maybePop(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SheetButton(
+                          label: 'Delete my account',
+                          destructive: true,
+                          loading: _deleting,
+                          enabled: _canConfirm,
+                          onTap: _confirm,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            _DeleteButton(loading: _deleting, enabled: _canConfirm, onTap: _confirm),
-            const SizedBox(height: 10),
-            Center(
-              child: TextButton(
-                onPressed:
-                    _deleting ? null : () => Navigator.of(context).maybePop(),
-                child: Text('Cancel',
-                    style: AppText.button
-                        .copyWith(fontSize: 15, color: AppColors.ink2)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// The destructive confirm action — the same tinted-glass flare treatment as
-/// Settings' sign-out button, so the two destructive moments read alike.
-class _DeleteButton extends StatelessWidget {
-  const _DeleteButton({
-    required this.loading,
+/// The sheet's footer buttons. One shape, two weights: the destructive action
+/// carries the flare wash and border (the same tinted-glass treatment as
+/// Settings' sign-out, so the two destructive moments read alike), and Cancel
+/// is the quiet neutral next to it.
+class _SheetButton extends StatelessWidget {
+  const _SheetButton({
+    required this.label,
     required this.enabled,
     required this.onTap,
+    this.destructive = false,
+    this.loading = false,
   });
 
-  final bool loading;
+  final String label;
   final bool enabled;
   final VoidCallback onTap;
+  final bool destructive;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     final active = enabled && !loading;
+    final tint = destructive ? AppColors.flareText : AppColors.ink2;
     return Opacity(
       opacity: enabled ? 1 : 0.5,
       child: PressableScale(
         enabled: active,
-        child: Material(
-          color: Colors.transparent,
-          child: Ink(
-            decoration: BoxDecoration(
-              color: AppColors.flare.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(color: AppColors.flare.withValues(alpha: 0.35)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: AppMotion.ease,
+          height: 52,
+          decoration: BoxDecoration(
+            color: destructive
+                ? AppColors.flare.withValues(alpha: 0.13)
+                : AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: destructive
+                  ? AppColors.flare.withValues(alpha: 0.38)
+                  : AppColors.hairline2,
             ),
+          ),
+          child: Material(
+            color: Colors.transparent,
             child: InkWell(
               onTap: active ? onTap : null,
               borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                alignment: Alignment.center,
+              child: Center(
                 child: loading
                     ? const SizedBox(
                         width: 18,
@@ -244,11 +312,10 @@ class _DeleteButton extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        'Delete my account',
-                        style: AppText.button.copyWith(
-                          fontSize: 15,
-                          color: AppColors.flareText,
-                        ),
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.button.copyWith(fontSize: 15, color: tint),
                       ),
               ),
             ),

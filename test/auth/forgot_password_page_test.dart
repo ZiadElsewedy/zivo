@@ -55,7 +55,7 @@ void main() {
     await teardownPage(tester);
   });
 
-  testWidgets('a valid code + new password resets and signs the user in',
+  testWidgets('a valid code + new password resets without signing in',
       (tester) async {
     final auth = await pumpPage(tester);
 
@@ -76,7 +76,8 @@ void main() {
     await step(tester);
 
     expect(auth.verifiedCodes.last, '123456');
-    expect(auth.currentUser, isNotNull); // auto-signed-in on success
+    // A reset sets the credential only — the user goes back to sign in with it.
+    expect(auth.currentUser, isNull);
 
     await teardownPage(tester);
   });

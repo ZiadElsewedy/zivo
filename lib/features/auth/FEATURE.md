@@ -22,6 +22,12 @@
   `auth_action_button.dart`, `auth_text_field.dart` + `password_checklist.dart` (shared auth
   inputs, used by sign-up / reset / change), `delete_account_sheet.dart` (reauth-gated
   deletion), `media_backup_section.dart` (the Media & Backup settings block).
+- Shared auth chrome — use these on any new auth surface so the flow stays one system:
+  `auth_backdrop.dart` (the warm hue bloom over the ground), `auth_header.dart`
+  (`AuthHeader` title + Fraunces aside, `AuthSectionLabel` for a field group), and
+  `auth_footer_bar.dart` (`AuthFooterBar`: bottom-anchored primary action with a scroll-edge
+  fade). `AuthTextField` owns the floating label, focus glow, and password reveal —
+  don't hand-roll an `InputDecoration` field alongside it.
 
 ## Repositories
 
@@ -61,6 +67,11 @@
   accounts with a `password` provider are eligible.
 - A successful password **reset** also flips `emailVerified` (receiving the code proves
   ownership), so an unverified user isn't re-bounced through verification after resetting.
+- A reset **does not sign the user in**. `resetPasswordWithOtp` sets the credential and
+  leaves the session signed out; `ForgotPasswordPage` pops with the address it reset, and
+  `AuthPage` pre-fills the email so the user authenticates normally with the password they
+  just chose. Owning the mailbox is a weaker claim than knowing the password — don't
+  re-add the convenience sign-in.
 - **Account deletion** is server-side (`deleteAccount` callable: `recursiveDelete` of
   `users/{uid}` + both OTP docs + `deleteUser`), gated by a client-side **reauthentication**
   (password typed, or the provider flow re-run for Google/Apple).

@@ -169,7 +169,6 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                 delay: const Duration(milliseconds: 120),
                 child: AuthActionButton(
                   label: 'Continue',
-                  icon: const SizedBox.shrink(),
                   loading: _saving,
                   enabled: !_saving && _canSubmit,
                   onTap: _submit,

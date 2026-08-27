@@ -4,7 +4,8 @@ module.exports = {
     node: true,
   },
   parserOptions: {
-    "ecmaVersion": 2018,
+    // Matches the Node 24 runtime the functions deploy to.
+    "ecmaVersion": 2022,
   },
   extends: [
     "eslint:recommended",
@@ -25,7 +26,7 @@ module.exports = {
   },
   overrides: [
     {
-      files: ["**/*.spec.*"],
+      files: ["**/*.spec.*", "**/*.test.*"],
       env: {
         mocha: true,
       },

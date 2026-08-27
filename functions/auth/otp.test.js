@@ -34,7 +34,12 @@ const CONFIG = {
 };
 const NOW = 1_700_000_000_000; // fixed clock
 
-/** Merge a verify patch onto a record the way tx.update would. */
+/**
+ * Merge a verify patch onto a record the way tx.update would.
+ * @param {!Object} doc
+ * @param {!Object} patch
+ * @return {!Object}
+ */
 const applyPatch = (doc, patch) => ({...doc, ...patch});
 
 // --- generateCode / hashCode / digestsEqual --------------------------------

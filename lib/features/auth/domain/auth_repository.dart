@@ -56,9 +56,11 @@ abstract interface class AuthRepository {
   Future<OtpSendResult> sendPasswordResetOtp({required String email});
 
   /// Verifies [code] for [email] and, on success, sets [newPassword]
-  /// server-side and signs the user in with the new credentials (so the auth
-  /// stream advances). [newPassword] should already satisfy the client
-  /// [PasswordPolicy]; the backend enforces it again as the trust boundary.
+  /// server-side. **The user is left signed out** — a reset sets the
+  /// credential, it doesn't open a session, so the caller returns to sign-in
+  /// and the new password is used to authenticate normally. [newPassword]
+  /// should already satisfy the client [PasswordPolicy]; the backend enforces
+  /// it again as the trust boundary.
   Future<OtpVerifyResult> resetPasswordWithOtp({
     required String email,
     required String code,

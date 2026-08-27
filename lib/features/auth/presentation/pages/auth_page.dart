@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/auth_result.dart';
+import '../widgets/auth_backdrop.dart';
 import '../widgets/email_auth_form.dart';
 import '../widgets/social_auth_buttons.dart';
 import 'forgot_password_page.dart';
@@ -34,6 +35,9 @@ class _AuthPageState extends State<AuthPage> {
   AuthAction _inFlight = AuthAction.none;
   String? _error;
 
+  /// An address handed back by the reset flow, to seed the email field.
+  String? _prefillEmail;
+
   Future<void> _run(AuthAction action, Future<AuthResult> Function(AuthRepository auth) op) async {
     if (_inFlight != AuthAction.none) return;
     final auth = AppScope.of(context).auth; // read before await
@@ -58,176 +62,210 @@ class _AuthPageState extends State<AuthPage> {
     });
   }
 
-  void _openForgotPassword() {
-    Navigator.of(context).push(
+  /// Opens the reset flow and handles its return. A successful reset pops with
+  /// the address it was performed on and leaves the session signed out, so the
+  /// user lands back here with the email already filled and the password they
+  /// just chose as the only thing left to type.
+  Future<void> _openForgotPassword() async {
+    final resetEmail = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
     );
+    if (!mounted || resetEmail == null) return;
+    setState(() {
+      _isSignUp = false;
+      _error = null;
+      _prefillEmail = resetEmail;
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Password updated. Sign in with your new password.',
+            style: AppText.meta.copyWith(color: AppColors.ink),
+          ),
+          backgroundColor: AppColors.surfaceRaised,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.vertical -
-                  40,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
-                RiseIn(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Image.asset('assets/transparent/zivo-mark-paper-256.png', width: 40, height: 40),
-                      const SizedBox(height: 16),
-                      Text('ZIVO', style: AppText.greeting.copyWith(letterSpacing: 1)),
-                      const SizedBox(height: 8),
-                      // Cross-fade between the two taglines as modes flip —
-                      // the copy change reads instead of snapping.
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.35),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
+      body: AuthBackdrop(
+        // The bloom sits behind the wordmark, so the mark reads as the
+        // thing lighting the screen rather than a logo dropped on black.
+        alignment: const Alignment(-0.5, -0.78),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.vertical -
+                    40,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+                  RiseIn(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Image.asset('assets/transparent/zivo-mark-paper-256.png', width: 44, height: 44),
+                        const SizedBox(height: 18),
+                        // The wordmark is set wider than the display face's own
+                        // tracking — at this size it reads as a mark, not a
+                        // heading, which is the one place positive tracking on
+                        // large type earns its keep.
+                        Text('ZIVO',
+                            style: AppText.greeting.copyWith(fontSize: 36, letterSpacing: 1.4)),
+                        const SizedBox(height: 10),
+                        // Cross-fade between the two taglines as modes flip —
+                        // the copy change reads instead of snapping.
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 260),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) => FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.35),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          ),
+                          child: Text(
+                            key: ValueKey(_isSignUp),
+                            _isSignUp
+                                ? 'Make your space.'
+                                : 'Your whole day, in one place.',
+                            style: AppText.aside,
                           ),
                         ),
-                        child: Text(
-                          key: ValueKey(_isSignUp),
-                          _isSignUp
-                              ? 'Make your space.'
-                              : 'Your whole day, in one place.',
-                          style: AppText.aside,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 40),
-                RiseIn(
-                  delay: const Duration(milliseconds: 60),
-                  child: SocialAuthButtons(
-                    inFlight: _inFlight,
-                    onApple: () => _run(AuthAction.apple, (a) => a.signInWithApple()),
-                    onGoogle: () => _run(AuthAction.google, (a) => a.signInWithGoogle()),
-                    showApple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+                  const SizedBox(height: 40),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 60),
+                    child: SocialAuthButtons(
+                      inFlight: _inFlight,
+                      onApple: () => _run(AuthAction.apple, (a) => a.signInWithApple()),
+                      onGoogle: () => _run(AuthAction.google, (a) => a.signInWithGoogle()),
+                      showApple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 22),
-                const _OrDivider(),
-                const SizedBox(height: 22),
-                RiseIn(
-                  delay: const Duration(milliseconds: 120),
-                  child: EmailAuthForm(
-                    isSignUp: _isSignUp,
-                    submitting: _inFlight == AuthAction.email,
-                    enabled: _inFlight == AuthAction.none ||
-                        _inFlight == AuthAction.email,
-                    onSubmit: ({required email, required password, name}) {
-                      _run(
-                        AuthAction.email,
-                        (a) => _isSignUp
-                            ? a.signUpWithEmail(
-                                email: email,
-                                password: password,
-                                displayName: name,
-                              )
-                            : a.signInWithEmail(email: email, password: password),
-                      );
-                    },
+                  const SizedBox(height: 22),
+                  const _OrDivider(),
+                  const SizedBox(height: 22),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 120),
+                    child: EmailAuthForm(
+                      isSignUp: _isSignUp,
+                      prefillEmail: _prefillEmail,
+                      submitting: _inFlight == AuthAction.email,
+                      enabled: _inFlight == AuthAction.none ||
+                          _inFlight == AuthAction.email,
+                      onSubmit: ({required email, required password, name}) {
+                        _run(
+                          AuthAction.email,
+                          (a) => _isSignUp
+                              ? a.signUpWithEmail(
+                                  email: email,
+                                  password: password,
+                                  displayName: name,
+                                )
+                              : a.signInWithEmail(email: email, password: password),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                // Password recovery — sign-in only (sign-up has no password to
-                // recover yet). Kept quiet so it doesn't compete with the CTA.
-                if (!_isSignUp)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _inFlight == AuthAction.none
-                            ? _openForgotPassword
-                            : null,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Forgot password?',
-                          style: AppText.meta.copyWith(color: AppColors.ink2),
+                  // Password recovery — sign-in only (sign-up has no password to
+                  // recover yet). Kept quiet so it doesn't compete with the CTA.
+                  if (!_isSignUp)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _inFlight == AuthAction.none
+                              ? _openForgotPassword
+                              : null,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Forgot password?',
+                            style: AppText.meta.copyWith(color: AppColors.ink2),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                // Reserved line so an arriving error never shifts layout.
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 220),
-                    opacity: _error == null ? 0 : 1,
-                    child: AnimatedSlide(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      offset: _error == null ? const Offset(0, -0.4) : Offset.zero,
-                      child: _error == null
-                          ? const SizedBox(width: double.infinity)
-                          : Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: _ErrorBanner(message: _error!),
-                            ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child: TextButton(
-                    onPressed:
-                        _inFlight == AuthAction.none ? _toggleMode : null,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder: (child, animation) =>
-                          FadeTransition(opacity: animation, child: child),
-                      child: Text.rich(
-                        key: ValueKey(_isSignUp),
-                        TextSpan(
-                          style: AppText.body,
-                          children: [
-                            TextSpan(
-                              text: _isSignUp
-                                  ? 'Already have an account?  '
-                                  : 'New to ZIVO?  ',
-                            ),
-                            TextSpan(
-                              text: _isSignUp ? 'Sign in' : 'Create account',
-                              style: AppText.button.copyWith(
-                                fontSize: 14.5,
-                                color: AppColors.emberText,
+                  // Reserved line so an arriving error never shifts layout.
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 220),
+                      opacity: _error == null ? 0 : 1,
+                      child: AnimatedSlide(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        offset: _error == null ? const Offset(0, -0.4) : Offset.zero,
+                        child: _error == null
+                            ? const SizedBox(width: double.infinity)
+                            : Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: _ErrorBanner(message: _error!),
                               ),
-                            ),
-                          ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: TextButton(
+                      onPressed:
+                          _inFlight == AuthAction.none ? _toggleMode : null,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(opacity: animation, child: child),
+                        child: Text.rich(
+                          key: ValueKey(_isSignUp),
+                          TextSpan(
+                            style: AppText.body,
+                            children: [
+                              TextSpan(
+                                text: _isSignUp
+                                    ? 'Already have an account?  '
+                                    : 'New to ZIVO?  ',
+                              ),
+                              TextSpan(
+                                text: _isSignUp ? 'Sign in' : 'Create account',
+                                style: AppText.button.copyWith(
+                                  fontSize: 14.5,
+                                  color: AppColors.emberText,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -243,12 +281,12 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: AppColors.hairline2, thickness: 1)),
+        const Expanded(child: Divider(color: AppColors.hairline, thickness: 1)),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text('or', style: AppText.meta.copyWith(color: AppColors.ink3)),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text('or', style: AppText.sectionLabel.copyWith(fontSize: 10.5)),
         ),
-        const Expanded(child: Divider(color: AppColors.hairline2, thickness: 1)),
+        const Expanded(child: Divider(color: AppColors.hairline, thickness: 1)),
       ],
     );
   }
