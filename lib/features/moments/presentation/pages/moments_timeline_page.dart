@@ -359,11 +359,20 @@ class _GalleryTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Icon(AppIcons.caption, size: 18, color: AppColors.ink3),
-          Text(
-            moment.caption.isEmpty ? 'Untitled' : moment.caption,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.body.copyWith(fontSize: 12.5, color: AppColors.ink2),
+          // Flexible so the caption YIELDS when the square tile is tight
+          // (narrow widths / larger text scale) instead of forcing its full
+          // 3-line height and overflowing the cell by a few px — the
+          // "Bottom overflowed by N pixels" on this grid. Still ellipsizes.
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                moment.caption.isEmpty ? 'Untitled' : moment.caption,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(fontSize: 12.5, color: AppColors.ink2),
+              ),
+            ),
           ),
           Text(
             timeAgo(moment.takenAt, now),

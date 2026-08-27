@@ -654,7 +654,12 @@ class _AskPageState extends State<AskPage>
     if (!mounted) return;
     final remaining = _liveTargetChars.length - _liveShownChars;
     if (remaining <= 0) return;
-    final step = math.max(4, remaining >> 3);
+    // A calmer, more human cadence than a fast dump: reveal ~1 char/frame
+    // (~60/s) once caught up, with a gentle exponential catch-up (remaining
+    // >> 4) so a big buffered delta still drains within a few frames rather
+    // than lagging seconds behind. Slower than the old max(4, remaining >> 3),
+    // which read as "instant" on short replies.
+    final step = math.max(1, remaining >> 4);
     final next = math.min(_liveTargetChars.length, _liveShownChars + step);
     if (!mounted) return;
     setState(() {
@@ -1228,8 +1233,18 @@ class _AskPageState extends State<AskPage>
                                     // and whether ZIVO's reply ever typed
                                     // depended on microsecond-level event
                                     // ordering.
+                                    // `!_streamed` is load-bearing: a reply
+                                    // that already streamed token-by-token must
+                                    // never ALSO typewriter-reveal on its
+                                    // durable copy. Without it, when the
+                                    // persisted assistant doc lands before
+                                    // `_runSend`'s completion resets
+                                    // `_expectReveal`, the same reply animates
+                                    // in twice (streamed, then re-typed) — the
+                                    // "response appears twice" glitch.
                                     if (isLast &&
                                         _expectReveal &&
+                                        !_streamed &&
                                         message.role == AiRole.assistant &&
                                         message.pendingAction == null) {
                                       // The decision lives in [_revealActive]
@@ -1549,12 +1564,26 @@ class _EmptyAsk extends StatelessWidget {
                     SizedBox(
                       width: 148,
                       height: 148,
-                      child: Lottie.asset(
-                        'assets/ai-generate.json',
-                        fit: BoxFit.contain,
-                        repeat: false,
-                        animate: !still,
-                      ),
+                      // The asset's opaque white background layer was removed
+                      // so the marks bloom on the dark halo — it used to render
+                      // as a white box (that stray rectangle), which is what
+                      // read as "broken". It plays once and settles (the
+                      // deliberate "breathe once and get out of the way"), now
+                      // that the bloom is actually visible. Reduce-motion gets
+                      // ZIVO's static mark instead of a frozen first frame.
+                      child: still
+                          ? const Center(
+                              child: Icon(
+                                AppIcons.ask,
+                                size: 56,
+                                color: AppColors.iris,
+                              ),
+                            )
+                          : Lottie.asset(
+                              'assets/ai-generate.json',
+                              fit: BoxFit.contain,
+                              repeat: false,
+                            ),
                     ),
                   ],
                 ),
@@ -1798,10 +1827,10 @@ class _TypewriterTextState extends State<_TypewriterText>
   @override
   void initState() {
     super.initState();
-    // ~9ms/char with a hard cap — a fast, fluid write that never crawls on
-    // long replies (the streamed path paces itself per-frame; this is only
-    // the fallback for turns that arrived without deltas).
-    final ms = math.min(widget.text.characters.length * 9, 1400);
+    // ~20ms/char with a hard cap — a calm, natural write (matching the
+    // streamed path's slower cadence) that still never crawls on long replies.
+    // This is only the fallback for turns that arrived without deltas.
+    final ms = math.min(widget.text.characters.length * 20, 3200);
     _c = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: math.max(ms, 1)),

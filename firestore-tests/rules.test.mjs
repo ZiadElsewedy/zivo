@@ -41,6 +41,7 @@ const valid = {
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
   workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
+  workoutMeta: { activeSplitId: 'plan1' },
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
   bodyWeightEntries: { weightKg: 82.5, loggedAt: ts(), schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
@@ -54,6 +55,7 @@ const invalid = {
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
   dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
   workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
+  workoutMeta: { activeSplitId: 123 }, // activeSplitId neither string nor null
   workoutSessions: { dayLabel: 'Push', status: 'paused', startedAt: ts(), exercises: [], schemaVersion: 1 }, // status not in enum
   bodyWeightEntries: { weightKg: -1, loggedAt: ts(), schemaVersion: 1 }, // weight not > 0
   aiConversations: { title: 123, schemaVersion: 1 }, // title not a string
@@ -154,6 +156,17 @@ for (const coll of collections) {
     });
   });
 }
+
+// The generic loop above exercises the string-id case; the pointer is also
+// written with a null id to CLEAR it (when the last split is deleted), so
+// cover that allowed path explicitly.
+describe('workoutMeta active-split pointer allows a null id', () => {
+  it('owner can write { activeSplitId: null } to clear the pointer', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), collPath(OWNER, 'workoutMeta')), { activeSplitId: null }),
+    );
+  });
+});
 
 describe('AI messages are Functions-only (owner may read, no client may write)', () => {
   const messagesPath = `users/${OWNER}/aiConversations/c1/messages/m1`;

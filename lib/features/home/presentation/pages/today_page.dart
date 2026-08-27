@@ -17,8 +17,6 @@ import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
-import '../../../expenses/domain/expense_repository.dart';
-import '../../../expenses/domain/wallet.dart';
 import '../../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/up_next_selection.dart';
@@ -28,7 +26,6 @@ import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
-import '../widgets/spending_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
@@ -146,10 +143,6 @@ class _TodayPageState extends State<TodayPage> {
                       // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                       const RiseIn(
                         delay: Duration(milliseconds: 350),
-                        child: _SpendingSection(),
-                      ),
-                      const RiseIn(
-                        delay: Duration(milliseconds: 420),
                         child: _DietSection(),
                       ),
                     ],
@@ -866,52 +859,6 @@ class _GetStartedAction extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SpendingSection extends StatelessWidget {
-  const _SpendingSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final expenses = scope.expenses;
-    final wallet = scope.wallet;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Spending'),
-        StreamBuilder<List<Expense>>(
-          stream: expenses.watchAll(),
-          initialData: expenses.current,
-          builder: (context, snapshot) {
-            final items = snapshot.data ?? const <Expense>[];
-            final now = DateTime.now();
-            final todayMinor = todayTotalMinor(items, now);
-            final weekMinor = weekTotalMinor(items, now);
-            if (wallet == null) {
-              return SpendingGlanceRow(
-                todayMinor: todayMinor,
-                weekMinor: weekMinor,
-                currency: 'EGP',
-              );
-            }
-            return StreamBuilder<Wallet?>(
-              stream: wallet.watch(),
-              initialData: wallet.current,
-              builder: (context, walletSnapshot) {
-                return SpendingGlanceRow(
-                  todayMinor: todayMinor,
-                  weekMinor: weekMinor,
-                  currency: walletSnapshot.data?.currency ?? 'EGP',
-                  walletMinor: walletSnapshot.data?.balanceMinor,
-                );
-              },
-            );
-          },
-        ),
-      ],
     );
   }
 }
