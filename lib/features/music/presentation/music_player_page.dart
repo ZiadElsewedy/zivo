@@ -9,6 +9,7 @@ import '../../capture/presentation/widgets/capture_widgets.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
+import 'artwork_palette_service.dart';
 import 'music_artwork.dart';
 import 'music_scrubber.dart';
 
@@ -24,41 +25,58 @@ class MusicPlayerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: PressableScale(
-          child: IconButton(
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
-            color: AppColors.ink2,
-            onPressed: () => Navigator.of(context).pop(),
+    // Outer subscription drives ONLY the artwork-derived background wash (a
+    // presentation concern) — the connection/now-playing logic below keeps its
+    // own subscriptions untouched. The palette color stays inside this builder;
+    // it is never passed out of the music UI.
+    return StreamBuilder<NowPlaying?>(
+      stream: controller.nowPlaying,
+      initialData: controller.currentNowPlaying,
+      builder: (context, paletteSnap) {
+        final track = paletteSnap.data;
+        return ArtworkPalette(
+          trackId: track?.trackId,
+          artworkBytes: track?.artworkBytes,
+          builder: (context, background) => Scaffold(
+            backgroundColor: background,
+            appBar: AppBar(
+              // Transparent so the animated ground shows through behind it.
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              leading: PressableScale(
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
+                  color: AppColors.ink2,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+            body: SafeArea(
+              child: StreamBuilder<MusicConnection>(
+                stream: controller.connection,
+                initialData: controller.currentConnection,
+                builder: (context, connSnap) {
+                  final state = connSnap.data ?? MusicConnection.disconnected;
+                  if (state != MusicConnection.connected) {
+                    return _ConnectionState(
+                        state: state, onConnect: controller.connect);
+                  }
+                  return StreamBuilder<NowPlaying?>(
+                    stream: controller.nowPlaying,
+                    initialData: controller.currentNowPlaying,
+                    builder: (context, snap) {
+                      final playing = snap.data;
+                      if (playing == null) return const _NothingPlaying();
+                      return _Player(controller: controller, playing: playing);
+                    },
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-      ),
-      body: SafeArea(
-        child: StreamBuilder<MusicConnection>(
-          stream: controller.connection,
-          initialData: controller.currentConnection,
-          builder: (context, connSnap) {
-            final state = connSnap.data ?? MusicConnection.disconnected;
-            if (state != MusicConnection.connected) {
-              return _ConnectionState(state: state, onConnect: controller.connect);
-            }
-            return StreamBuilder<NowPlaying?>(
-              stream: controller.nowPlaying,
-              initialData: controller.currentNowPlaying,
-              builder: (context, snap) {
-                final playing = snap.data;
-                if (playing == null) return const _NothingPlaying();
-                return _Player(controller: controller, playing: playing);
-              },
-            );
-          },
-        ),
-      ),
+        );
+      },
     );
   }
 }
