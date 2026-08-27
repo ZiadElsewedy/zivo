@@ -124,6 +124,24 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Active-split pointer: users/{uid}/workoutMeta/active = { activeSplitId }.
+    // The multi-split repository writes this to remember which of the
+    // workoutPlans above is the ACTIVE split, and watches it to drive the
+    // active-plan stream (Today's Training card, the Workout dashboard, Hub).
+    // Without an explicit rule the catch-all below denied every read AND
+    // write here — which made the FIRST import's pointer write fail ("Couldn't
+    // save that split") even though the split doc itself saved, and made the
+    // pointer's snapshot listener error out and blank Today's Training card.
+    // Rules do not cascade from /users/{userId}, so this is explicit.
+    // activeSplitId is a plan id (string) or null (pointer cleared); the doc
+    // carries nothing else.
+    match /users/{userId}/workoutMeta/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && (request.resource.data.activeSplitId == null
+            || request.resource.data.activeSplitId is string);
+    }
+
     // Workout sessions: each user reads/writes only their own live/finished
     // sessions — the guided execution record ("what I'm doing/did this run"),
     // distinct from the workoutPlans template above. Exercises/sets are
