@@ -27,5 +27,9 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`. Cross-cutting logic:
 
 ## Gotchas
 
-- The log is **append-only** — corrections are new entries, not edits/deletes; the wallet
-  balance is derived from the log. Don't add in-place mutation of past entries.
+- The **manual UI** treats the log as append-only — corrections are new entries. But the
+  repository (`update`/`remove`) and [`firestore.rules`](../../../firestore.rules) both support
+  in-place edit **and** delete, and the **AI** now uses them (confirm-gated —
+  [ADR-005](../../../docs/DECISIONS/ADR-005-ai-edit-delete-expenses.md), via
+  `functions/ai/store.js`). The wallet balance is derived from the log, so it stays correct after
+  an edit/delete. If you add manual edit/delete affordances, recompute the wallet from the log.

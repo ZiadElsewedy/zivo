@@ -3,7 +3,8 @@
 > Tool-mediated Claude assistant over the user's own data: streaming answers, read tools,
 > and confirm-gated writes, plus voice input. ADRs:
 > [ADR-001](../../../docs/DECISIONS/ADR-001-ai-assistant.md) (V1 read-only),
-> [ADR-003](../../../docs/DECISIONS/ADR-003-ai-mutations-v2.md) (V2 propose→confirm→execute).
+> [ADR-003](../../../docs/DECISIONS/ADR-003-ai-mutations-v2.md) (V2 propose→confirm→execute),
+> [ADR-005](../../../docs/DECISIONS/ADR-005-ai-edit-delete-expenses.md) (edit/delete expenses).
 > **The model + tools live in the backend** — see `functions/ai/` (below), not just here.
 
 ## Start here
@@ -33,9 +34,9 @@
 
 | File | Role |
 |---|---|
-| `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)** |
-| `tools.js` | uid-scoped **read** tools |
-| `mutations.js` | confirm-gated **write** tools (propose → confirm → execute) |
+| `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)**, confirm/execute dispatch (`applyProposedAction`) |
+| `tools.js` | uid-scoped **read** tools — `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten` |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
 | `store.js`, `dates.js` | Firestore access + date helpers |
@@ -49,4 +50,5 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   validate real changes against the emulator + real API, not just `node --test`.
 - **Any prompt/tool change needs a `functions` deploy** (owner's creds — see `docs/STATE.md`).
 - Writes are **always** confirmation-gated (ADR-003) — never make the AI execute a mutation
-  without the propose→confirm step.
+  without the propose→confirm step. This holds for edits/deletes too (ADR-005): the model must
+  identify the exact record by its real `id` (from a read tool) and still wait on Confirm.

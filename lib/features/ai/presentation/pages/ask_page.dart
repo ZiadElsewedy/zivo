@@ -10,6 +10,7 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -43,6 +44,13 @@ const _kSlowTurnAfter = Duration(seconds: 18);
 /// durable user message to land before concluding the send failed — covering
 /// silent server drops that would otherwise look like an eternal hang.
 const _kLandingGrace = Duration(seconds: 12);
+
+/// Bottom clearance beneath the message list (and empty state) so content
+/// scrolls UNDER the floating composer island instead of ending above it —
+/// roughly the idle composer's rendered height (≈72) plus a small gap. The
+/// composer floats over the list (see [AskPage]'s Stack), so the last line
+/// still comes to rest just above it.
+const _kComposerFloatClearance = 84.0;
 
 /// The "Ask" chat surface: an iris-themed message list over a pinned
 /// composer. Talks only to `AppScope.of(context).ai` — Firebase-free.
@@ -987,9 +995,14 @@ class _AskPageState extends State<AskPage>
                     : const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
                 padding: EdgeInsets.only(bottom: keyboardInset),
-                child: Column(
+                // The composer floats OVER the conversation (a Stack), not
+                // docked beneath it (a Column) — so messages scroll under the
+                // frosted island, reading as a layer above the chat. The list
+                // pads its bottom by [_kComposerFloatClearance] so the newest
+                // line still rests just above the composer.
+                child: Stack(
                   children: [
-                    Expanded(
+                    Positioned.fill(
                       child: FutureBuilder<void>(
                         future: _initialLoad,
                         builder: (context, _) {
@@ -1164,7 +1177,9 @@ class _AskPageState extends State<AskPage>
                                     AppSpacing.screen,
                                     AppSpacing.base,
                                     AppSpacing.screen,
-                                    AppSpacing.base,
+                                    // Clear the floating composer that overlays
+                                    // the bottom of the list.
+                                    _kComposerFloatClearance,
                                   ),
                                   // Lets the framework FIND an item's existing
                                   // element after index shifts (an optimistic
@@ -1339,24 +1354,30 @@ class _AskPageState extends State<AskPage>
                         },
                       ),
                     ),
-                    VoiceComposer(
-                      controller: _input,
-                      canSend: _canSend,
-                      // Bottom spacing is owned by the AnimatedPadding above —
-                      // both the safe area and the keyboard ride that one
-                      // animated value, never twice.
-                      bottomInset: 0,
-                      onSend: _send,
-                      isRecording: _recording,
-                      transcribing: _transcribing,
-                      sending: _sending,
-                      onMicToggle: _toggleMic,
-                      onCancelRecording: _cancelRecording,
-                      onCancelTranscription: _cancelTranscription,
-                      // Soft-resolved: hosts without a recorder simply get a
-                      // waveform-less composer; [requireRecorder]'s hard assert
-                      // belongs to the mic flow itself, not every rebuild.
-                      recorder: AppScope.of(context).recorder,
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: VoiceComposer(
+                        controller: _input,
+                        canSend: _canSend,
+                        // Bottom spacing is owned by the AnimatedPadding above —
+                        // both the safe area and the keyboard ride that one
+                        // animated value, never twice.
+                        bottomInset: 0,
+                        onSend: _send,
+                        isRecording: _recording,
+                        transcribing: _transcribing,
+                        sending: _sending,
+                        onMicToggle: _toggleMic,
+                        onCancelRecording: _cancelRecording,
+                        onCancelTranscription: _cancelTranscription,
+                        // Soft-resolved: hosts without a recorder simply get a
+                        // waveform-less composer; [requireRecorder]'s hard
+                        // assert belongs to the mic flow itself, not every
+                        // rebuild.
+                        recorder: AppScope.of(context).recorder,
+                      ),
                     ),
                   ],
                 ),
@@ -1535,6 +1556,9 @@ class _EmptyAsk extends StatelessWidget {
       // Scrollable rather than a bare Center: with the keyboard rising, a
       // min-height column can overflow — this lets it give instead of
       // throwing yellow stripes over a premium moment.
+      // Bottom padding keeps the suggestion pills clear of the floating
+      // composer that overlays this surface.
+      padding: const EdgeInsets.only(bottom: _kComposerFloatClearance),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           minHeight: MediaQuery.of(context).size.height * 0.6,
@@ -1705,10 +1729,17 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AiRole.user;
-    final style = AppText.body.copyWith(
-      color: isUser ? Colors.white : AppColors.ink,
-      height: isUser ? null : 1.4,
-    );
+    // ZIVO's replies read a touch larger than the user's own lines — it's the
+    // long-form text the user actually reads, so a bump to 16 (from body's
+    // 14.5) with generous leading makes it easier on the eyes without
+    // ballooning the compact user pills.
+    final style = isUser
+        ? AppText.body.copyWith(color: Colors.white)
+        : AppText.body.copyWith(
+            fontSize: 16,
+            height: 1.5,
+            color: AppColors.ink,
+          );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -2102,28 +2133,36 @@ class _ProposalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved = status != AiActionStatus.pending;
+    final meta = _kindMeta(action.kind);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.hairline2),
-        ),
-        // The card collapses smoothly from the full proposal down to the
-        // one-line result when the user confirms or cancels.
-        child: AnimatedSize(
-          duration: AppMotion.enter,
-          curve: AppMotion.ease,
-          alignment: Alignment.topCenter,
+      // The card grows/settles smoothly as it swaps between the proposal and
+      // the confirmed/declined receipt.
+      child: AnimatedSize(
+        duration: AppMotion.enter,
+        curve: AppMotion.ease,
+        alignment: Alignment.topCenter,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            // While it's awaiting a decision the card wears a faint wash of its
+            // own hue and a soft lift, so it reads as a live, tappable object;
+            // once resolved it settles back to a quiet history receipt.
+            border: Border.all(
+              color: resolved
+                  ? AppColors.hairline
+                  : meta.tintFg.withValues(alpha: 0.22),
+            ),
+            boxShadow: resolved ? null : AppShadows.card,
+          ),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             child: KeyedSubtree(
-              key: ValueKey(status == AiActionStatus.pending),
-              child: status == AiActionStatus.pending
-                  ? _pending()
-                  : _resolved(),
+              key: ValueKey(resolved),
+              child: resolved ? _resolved(meta) : _pending(meta),
             ),
           ),
         ),
@@ -2131,65 +2170,45 @@ class _ProposalCard extends StatelessWidget {
     );
   }
 
-  Widget _pending() {
-    final meta = _kindMeta(action.kind);
+  Widget _pending(({IconData icon, String label, Color tintBg, Color tintFg}) meta) {
     final chips = _chips();
+    final confirm = _confirmSpec();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 29,
-              height: 29,
-              decoration: BoxDecoration(
-                color: meta.tintBg,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(meta.icon, size: 18, color: meta.tintFg),
-            ),
-            const SizedBox(width: 9),
-            Text(
-              meta.label,
-              style: AppText.meta.copyWith(
-                color: meta.tintFg,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 11),
+        _headerRow(meta),
+        const SizedBox(height: 13),
         Text(
           _primaryLine(),
-          style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+          style: AppText.cardTitle.copyWith(fontSize: 20, letterSpacing: -0.3),
         ),
         if (chips.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(spacing: 6, runSpacing: 6, children: chips),
+          const SizedBox(height: 12),
+          Wrap(spacing: 7, runSpacing: 7, children: chips),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: Material(
-                color: AppColors.iris,
+                color: confirm.color,
                 borderRadius: BorderRadius.circular(999),
                 child: InkWell(
                   key: const Key('proposal-confirm'),
                   onTap: onConfirm,
                   borderRadius: BorderRadius.circular(999),
                   child: Container(
-                    height: 44,
+                    height: 46,
                     alignment: Alignment.center,
                     child: Text(
-                      'Confirm',
+                      confirm.label,
                       style: AppText.button.copyWith(color: Colors.white),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             InkWell(
               key: const Key('proposal-cancel'),
               onTap: onCancel,
@@ -2197,7 +2216,7 @@ class _ProposalCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
-                  vertical: 12,
+                  vertical: 13,
                 ),
                 child: Text(
                   'Cancel',
@@ -2211,41 +2230,128 @@ class _ProposalCard extends StatelessWidget {
     );
   }
 
-  Widget _resolved() {
-    final IconData icon;
-    final Color color;
-    final String text;
-    switch (status) {
-      case AiActionStatus.applied:
-        icon = AppIcons.success;
-        color = AppColors.pulseText;
-        text = 'Confirmed';
-      case AiActionStatus.cancelled:
-        icon = AppIcons.close;
-        color = AppColors.ink3;
-        text = 'Cancelled';
-      default:
-        icon = AppIcons.clock;
-        color = AppColors.ink3;
-        text = 'Suggestion expired — ask again';
-    }
-    return Row(
+  /// The resolved receipt: keeps the WHAT (kind, headline, detail chips) so a
+  /// confirmation read days later still says exactly what was added, changed,
+  /// or removed — with a small status pill instead of the action buttons.
+  Widget _resolved(({IconData icon, String label, Color tintBg, Color tintFg}) meta) {
+    final s = _statusSpec();
+    final chips = _chips();
+    final applied = status == AiActionStatus.applied;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            text,
-            style: AppText.body.copyWith(
-              fontSize: 14,
-              color: status == AiActionStatus.applied
-                  ? AppColors.ink
-                  : AppColors.ink3,
-            ),
+        _headerRow(meta, trailing: _statusPill(s)),
+        const SizedBox(height: 12),
+        Text(
+          _primaryLine(),
+          style: AppText.cardTitle.copyWith(
+            fontSize: 19,
+            letterSpacing: -0.3,
+            color: applied ? AppColors.ink : AppColors.ink3,
+            // A struck-through headline reads instantly as "this did not
+            // happen" for a cancelled or expired proposal.
+            decoration: applied ? null : TextDecoration.lineThrough,
+            decorationColor: AppColors.ink3,
           ),
         ),
+        if (chips.isNotEmpty) ...[
+          const SizedBox(height: 11),
+          Opacity(
+            opacity: applied ? 1 : 0.6,
+            child: Wrap(spacing: 7, runSpacing: 7, children: chips),
+          ),
+        ],
       ],
     );
+  }
+
+  Widget _headerRow(
+    ({IconData icon, String label, Color tintBg, Color tintFg}) meta, {
+    Widget? trailing,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: meta.tintBg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(meta.icon, size: 18, color: meta.tintFg),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          meta.label,
+          style: AppText.meta.copyWith(
+            color: meta.tintFg,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        ),
+        if (trailing != null) ...[const Spacer(), trailing],
+      ],
+    );
+  }
+
+  Widget _statusPill(({IconData icon, String label, Color fg, Color bg}) s) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: s.bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(s.icon, size: 13, color: s.fg),
+          const SizedBox(width: 5),
+          Text(
+            s.label,
+            style: AppText.meta.copyWith(
+              fontSize: 12,
+              color: s.fg,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ({IconData icon, String label, Color fg, Color bg}) _statusSpec() {
+    switch (status) {
+      case AiActionStatus.applied:
+        return (
+          icon: AppIcons.check,
+          label: 'Confirmed',
+          fg: AppColors.pulseText,
+          bg: AppColors.pulseWash,
+        );
+      case AiActionStatus.cancelled:
+        return (
+          icon: AppIcons.close,
+          label: 'Cancelled',
+          fg: AppColors.ink3,
+          bg: AppColors.hairline,
+        );
+      default:
+        return (
+          icon: AppIcons.clock,
+          label: 'Expired',
+          fg: AppColors.ink3,
+          bg: AppColors.hairline,
+        );
+    }
+  }
+
+  /// The confirm button's verb + colour. A delete is destructive, so it wears
+  /// the alert hue and says "Delete" rather than a neutral "Confirm".
+  ({String label, Color color}) _confirmSpec() {
+    if (action.kind == 'delete_expense') {
+      return (label: 'Delete', color: AppColors.flare);
+    }
+    return (label: 'Confirm', color: AppColors.iris);
   }
 
   String _primaryLine() {
@@ -2253,6 +2359,12 @@ class _ProposalCard extends StatelessWidget {
     switch (action.kind) {
       case 'create_expense':
         return '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim();
+      case 'edit_expense':
+      case 'delete_expense':
+        final target = f['target'];
+        return (target is String && target.trim().isNotEmpty)
+            ? target
+            : action.summary;
       case 'mark_meal_eaten':
         return '${f['meal'] ?? ''}'.trim();
       default:
@@ -2271,6 +2383,32 @@ class _ProposalCard extends StatelessWidget {
         if (f['note'] != null) {
           chips.add(_chip(AppIcons.caption, f['note'].toString()));
         }
+      case 'edit_expense':
+        // Each field being changed, shown as its NEW value ("→ 60.00 EGP").
+        final amount = f['amount'];
+        if (amount != null) {
+          chips.add(_chip(
+            AppIcons.expenses,
+            '→ $amount ${f['currency'] ?? ''}'.trim(),
+          ));
+        }
+        if (f['category'] != null) {
+          chips.add(_chip(AppIcons.tag, '→ ${f['category']}'));
+        }
+        if (f['note'] != null) {
+          chips.add(_chip(AppIcons.caption, '→ ${f['note']}'));
+        }
+      case 'delete_expense':
+        final amount = f['amount'];
+        if (amount != null) {
+          chips.add(_chip(
+            AppIcons.expenses,
+            '$amount ${f['currency'] ?? ''}'.trim(),
+          ));
+        }
+        if (f['category'] != null) {
+          chips.add(_chip(AppIcons.tag, f['category'].toString()));
+        }
       case 'mark_meal_eaten':
         chips.add(
           _chip(
@@ -2284,7 +2422,7 @@ class _ProposalCard extends StatelessWidget {
 
   Widget _chip(IconData icon, String label, {Color? bg, Color? fg}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: bg ?? AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(999),
@@ -2313,6 +2451,20 @@ class _ProposalCard extends StatelessWidget {
           label: 'New expense',
           tintBg: AppColors.solarWash,
           tintFg: AppColors.solarText,
+        );
+      case 'edit_expense':
+        return (
+          icon: AppIcons.edit,
+          label: 'Edit expense',
+          tintBg: AppColors.solarWash,
+          tintFg: AppColors.solarText,
+        );
+      case 'delete_expense':
+        return (
+          icon: AppIcons.trash,
+          label: 'Delete expense',
+          tintBg: AppColors.flareWash,
+          tintFg: AppColors.flareText,
         );
       case 'mark_meal_eaten':
         return (

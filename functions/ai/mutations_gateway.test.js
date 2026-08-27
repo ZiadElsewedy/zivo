@@ -37,7 +37,7 @@ function makeClock(startMs) {
 function makeStore(overrides) {
   const messages = [];
   const pendingActions = new Map();
-  const writes = {expenses: []};
+  const writes = {expenses: [], edits: [], deletes: []};
 
   const store = {
     messages,
@@ -79,6 +79,9 @@ function makeStore(overrides) {
       if (m) m.status = status;
     },
     createExpense: async (uid, e) => writes.expenses.push(e),
+    updateExpense: async (uid, id, patch) =>
+      writes.edits.push({uid, id, patch}),
+    deleteExpense: async (uid, id) => writes.deletes.push({uid, id}),
   };
   return Object.assign(store, overrides || {});
 }
@@ -314,6 +317,65 @@ test("confirmAction applies mark_meal_eaten through the store", async () => {
     uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", eaten: true,
   }]);
   assert.match(confirmed.assistantText, /Marked Lunch eaten/);
+});
+
+test("edit_expense: propose then confirm patches only the changed fields", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    toolUse("edit_expense", {
+      expenseId: "exp-42",
+      label: "coffee 40.00 EGP",
+      amountMinor: 6000,
+    }),
+  ]);
+  const {actionId, status} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "change that coffee to 60", now: makeClock(1000),
+  });
+  // Proposing writes nothing — it only persists a pending action + card.
+  assert.equal(status, "proposed");
+  assert.equal(store.writes.edits.length, 0);
+  const card = store.messages.find((m) => m.kind === "action_proposal");
+  assert.equal(card.actionKind, "edit_expense");
+
+  const confirmed = await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+    now: makeClock(2000),
+  });
+  assert.equal(confirmed.status, "applied");
+  // Exactly the id and the single changed field reach the store — no
+  // category/currency/note keys the model never set.
+  assert.deepEqual(store.writes.edits, [{
+    uid: UID, id: "exp-42", patch: {amountMinor: 6000},
+  }]);
+  assert.match(confirmed.assistantText, /Updated expense · coffee 40\.00 EGP/);
+});
+
+test("delete_expense: propose then confirm removes exactly that id", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    toolUse("delete_expense", {
+      expenseId: "exp-7",
+      label: "transport 30.00 EGP",
+      amountMinor: 3000,
+      currency: "EGP",
+      category: "transport",
+    }),
+  ]);
+  const {actionId, status} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "delete that transport expense", now: makeClock(1000),
+  });
+  assert.equal(status, "proposed");
+  assert.equal(store.writes.deletes.length, 0);
+
+  const confirmed = await confirmAction({
+    store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+    now: makeClock(2000),
+  });
+  assert.equal(confirmed.status, "applied");
+  assert.deepEqual(store.writes.deletes, [{uid: UID, id: "exp-7"}]);
+  assert.match(confirmed.assistantText, /Deleted expense · transport 30\.00 EGP/);
 });
 
 test("confirmAction on an expired action refuses and writes nothing", async () => {

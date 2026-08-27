@@ -10,6 +10,8 @@ const {test} = require("node:test");
 const {mutatingToolsByName, ValidationError} = require("./mutations");
 
 const createExpense = mutatingToolsByName.get("create_expense");
+const editExpense = mutatingToolsByName.get("edit_expense");
+const deleteExpense = mutatingToolsByName.get("delete_expense");
 const markMealEaten = mutatingToolsByName.get("mark_meal_eaten");
 
 test("create_expense: valid input normalizes; currency defaults to EGP", () => {
@@ -36,12 +38,79 @@ test("create_expense: rejects an unknown category", () => {
 });
 
 test("every mutating tool exposes card fields and a result line", () => {
-  for (const tool of [createExpense, markMealEaten]) {
+  for (const tool of [createExpense, editExpense, deleteExpense, markMealEaten]) {
     assert.equal(tool.mutating, true);
     assert.equal(typeof tool.summarize, "function");
     assert.equal(typeof tool.fields, "function");
     assert.equal(typeof tool.result, "function");
   }
+});
+
+test("edit_expense: keeps only the fields being changed, plus id and label",
+    () => {
+      const v = editExpense.validate({
+        expenseId: "exp-1",
+        label: "coffee 40.00 EGP",
+        amountMinor: 6000,
+      });
+      assert.deepEqual(v, {
+        expenseId: "exp-1",
+        label: "coffee 40.00 EGP",
+        amountMinor: 6000,
+      });
+      // The card/history fields carry the verb and the new value.
+      const f = editExpense.fields(v);
+      assert.equal(f.action, "edit");
+      assert.equal(f.amount, "60.00");
+      assert.match(editExpense.result(v), /Updated expense · coffee 40\.00 EGP/);
+    });
+
+test("edit_expense: normalizes currency/category and validates them", () => {
+  const v = editExpense.validate({
+    expenseId: "exp-2",
+    category: "food",
+    currency: "usd",
+  });
+  assert.deepEqual(v, {
+    expenseId: "exp-2",
+    label: null,
+    category: "food",
+    currency: "USD",
+  });
+  assert.throws(
+      () => editExpense.validate({expenseId: "x", category: "rent"}),
+      ValidationError);
+  assert.throws(
+      () => editExpense.validate({expenseId: "x", amountMinor: 0}),
+      ValidationError);
+});
+
+test("edit_expense: rejects a missing id and a no-op edit (nothing to change)",
+    () => {
+      assert.throws(() => editExpense.validate({amountMinor: 100}), ValidationError);
+      assert.throws(
+          () => editExpense.validate({expenseId: "exp-3", label: "coffee"}),
+          ValidationError);
+    });
+
+test("delete_expense: requires an id; carries display-only context", () => {
+  const v = deleteExpense.validate({
+    expenseId: "exp-9",
+    label: "coffee 40.00 EGP",
+    amountMinor: 4000,
+    currency: "egp",
+    category: "coffee",
+  });
+  assert.deepEqual(v, {
+    expenseId: "exp-9",
+    label: "coffee 40.00 EGP",
+    amountMinor: 4000,
+    currency: "EGP",
+    category: "coffee",
+  });
+  assert.equal(deleteExpense.fields(v).action, "delete");
+  assert.match(deleteExpense.result(v), /Deleted expense · coffee 40\.00 EGP/);
+  assert.throws(() => deleteExpense.validate({}), ValidationError);
 });
 
 test("mark_meal_eaten: eaten defaults to true; label and date default to null",
