@@ -1,4 +1,10 @@
-# ZIVO — Workout System: Source of Truth
+# ZIVO — Workout System (design reference)
+
+> **Reference for the workout system's design — NOT current status.** Read this for *how*
+> splits/sessions/progression are modeled. For *where the code lives* start at
+> [`../lib/features/workout/FEATURE.md`](../lib/features/workout/FEATURE.md); for *current
+> state / what's in flight* read [`STATE.md`](STATE.md). Any "already done / next step"
+> phrasing below is a historical snapshot — the code and `STATE.md` win.
 
 > **Purpose.** This is the single all-in-one context file for ZIVO's Workout
 > system. If you open a fresh AI/Cursor/Claude chat, read this file first: it

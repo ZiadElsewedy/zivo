@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -24,9 +26,11 @@ import '../widgets/animated_stat_value.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/up_next_workout_card.dart';
 import '../widgets/workout_section_label.dart';
+import 'bodyweight_history_page.dart';
 import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
 import 'workout_progress_page.dart';
+import 'workout_stats_pages.dart';
 
 /// The Workout tab's landing page — a real training dashboard, not just a
 /// session log. Reads [LiveSession]s directly (the record of what actually
@@ -162,7 +166,14 @@ class WorkoutDashboardPage extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const WorkoutSectionLabel('This week'),
+                                    // "Training", not "This week" — the grid
+                                    // mixes all-time instruments (sessions,
+                                    // avg duration, avg start) with the
+                                    // rolling streak, so a week-scoped header
+                                    // mislabeled every number beneath it (and
+                                    // made the all-time Sessions tile read as
+                                    // a weekly count).
+                                    const WorkoutSectionLabel('Training'),
                                     const SizedBox(height: 10),
                                     _StatsGrid(stats: stats),
                                   ],
@@ -441,14 +452,41 @@ Future<void> _showLogWeightSheet(
                 final value = double.tryParse(controller.text);
                 if (value == null || value <= 0) return;
                 HapticFeedback.lightImpact();
-                bodyWeight.save(
-                  BodyWeightEntry(
-                    id: DateTime.now().microsecondsSinceEpoch.toString(),
-                    weightKg: value,
-                    loggedAt: DateTime.now(),
-                  ),
+                final entry = BodyWeightEntry(
+                  id: DateTime.now().microsecondsSinceEpoch.toString(),
+                  weightKg: value,
+                  loggedAt: DateTime.now(),
                 );
                 Navigator.of(sheetContext).pop();
+                // Fire-and-forget like every other write in the app —
+                // Firestore commits cache-first, so awaiting would hang the
+                // button offline (see live_session_page's _onFinish note) —
+                // but never SILENTLY: a rejected save (rules, signed-out)
+                // used to vanish without a trace, reading as "weight doesn't
+                // save". Surface it on the page beneath the sheet.
+                // Future.sync also catches save()'s synchronous signed-out
+                // StateError, which a bare catchError would miss.
+                unawaited(
+                  Future.sync(() => bodyWeight.save(entry)).catchError((
+                    Object error,
+                  ) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: AppColors.card,
+                        content: Text(
+                          "Couldn't save that weigh-in — check your "
+                          'connection and try again.',
+                          style: AppText.body.copyWith(
+                            color: AppColors.ink,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                );
               },
             ),
           ],
@@ -498,6 +536,8 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Every tile is a doorway, not a dead end — each metric opens the
+    // per-session history that produced it.
     return Column(
       children: [
         Row(
@@ -507,7 +547,15 @@ class _StatsGrid extends StatelessWidget {
                 icon: AppIcons.sessions,
                 accent: AppColors.pulse,
                 label: 'Sessions',
-                value: '${stats.sessionsThisWeek}',
+                // ALL-TIME completed count, matching the page this tile
+                // opens — it used to show sessionsThisWeek here while
+                // WorkoutSessionsPage headlined the all-time total, so the
+                // tile said one number and its destination another (the
+                // "17 completed workouts but 2 sessions" report).
+                value: '${stats.totalCompletedSessions}',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutSessionsPage()),
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -517,6 +565,9 @@ class _StatsGrid extends StatelessWidget {
                 accent: AppColors.ember,
                 label: 'Day streak',
                 value: '${stats.currentStreakDays}',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutStreakPage()),
+                ),
               ),
             ),
           ],
@@ -532,6 +583,10 @@ class _StatsGrid extends StatelessWidget {
                 value: stats.averageSessionDuration == null
                     ? '—'
                     : formatDurationShort(stats.averageSessionDuration!),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const WorkoutDurationStatsPage()),
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -543,6 +598,9 @@ class _StatsGrid extends StatelessWidget {
                 value: stats.averageStartMinutesSinceMidnight == null
                     ? '—'
                     : formatClockTime(stats.averageStartMinutesSinceMidnight!),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WorkoutStartTimesPage()),
+                ),
               ),
             ),
           ],
@@ -554,69 +612,96 @@ class _StatsGrid extends StatelessWidget {
 
 /// One stat tile — a glowing gradient icon chip in the stat's own hue above
 /// the animated value, so each tile reads as a different signal at a glance.
+/// Tapping it drills into that stat's own page (see [_StatsGrid]).
 class _StatTile extends StatelessWidget {
   const _StatTile({
     required this.icon,
     required this.accent,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   final IconData icon;
   final Color accent;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+    return PressableScale(
+      enabled: onTap != null,
+      child: Material(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap?.call();
+          },
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent.withValues(alpha: 0.28),
-                  accent.withValues(alpha: 0.10),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: accent.withValues(alpha: 0.18)),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.28),
-                  blurRadius: 16,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 6),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.hairline),
+              boxShadow: AppShadows.card,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            accent.withValues(alpha: 0.28),
+                            accent.withValues(alpha: 0.10),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: accent.withValues(alpha: 0.18)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.28),
+                            blurRadius: 16,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, size: 16, color: accent),
+                    ),
+                    if (onTap != null)
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: AppColors.ink3,
+                      ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                AnimatedStatValue(
+                  value: value,
+                  style: AppText.heroNumber.copyWith(
+                    fontSize: 24,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
               ],
             ),
-            child: Icon(icon, size: 16, color: accent),
           ),
-          const SizedBox(height: 12),
-          AnimatedStatValue(
-            value: value,
-            style: AppText.heroNumber.copyWith(
-              fontSize: 24,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
-        ],
+        ),
       ),
     );
   }
@@ -641,7 +726,17 @@ class _WeightCard extends StatelessWidget {
     final latest = trend.latest;
     final change = trend.changeKgOverWindow;
     final repo = bodyWeight;
-    return Container(
+    // The whole card is a doorway to the full weigh-in history; the Log
+    // action keeps its own tap (nested buttons win the gesture arena).
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const BodyweightHistoryPage()),
+        );
+      },
+      child: Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -737,6 +832,7 @@ class _WeightCard extends StatelessWidget {
             onTap: onLogWeight ?? () {},
           ),
         ],
+      ),
       ),
     );
   }

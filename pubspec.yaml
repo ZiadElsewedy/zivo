@@ -1,5 +1,5 @@
 name: zivo
-description: "ZIVO — a private single-user Personal OS."
+description: "ZIVO — an AI-powered gym / training tracker (private, single-user)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -82,6 +82,7 @@ dependencies:
   # Album-artwork color extraction for the Now Playing screen's
   # color-adaptive background (added in S3).
   palette_generator: ^0.3.3
+  pedometer: ^4.2.0
 
 dev_dependencies:
   flutter_test:
@@ -135,8 +136,10 @@ flutter:
   # (light) files are for ZIVO's dark surfaces, "ink" (dark) for light ones.
   assets:
     - assets/loading.json
+    - assets/ai-generate.json
     - assets/transparent/
     - assets/spotify/
+    - assets/google/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -36,6 +36,7 @@ import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
 import '../features/diet/data/in_memory_diet_repository.dart';
 import '../features/diet/domain/diet_repository.dart';
+import '../features/device/steps/step_counter.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/firestore_wallet_repository.dart';
@@ -87,6 +88,7 @@ class ZivoApp extends StatefulWidget {
     this.profiles,
     this.activity,
     this.expenses,
+    this.stepCounter,
     this.wallet,
     this.expenseCategories,
     this.moments,
@@ -117,6 +119,7 @@ class ZivoApp extends StatefulWidget {
   final DietRepository? diet;
   final AiRepository? ai;
   final AudioRecorderService? recorder;
+  final StepCounterService? stepCounter;
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
   final MusicController? music;
@@ -154,6 +157,13 @@ class _ZivoAppState extends State<ZivoApp> {
   late final AiRepository _ai = widget.ai ?? _defaultAi();
   late final AudioRecorderService _recorder =
       widget.recorder ?? RecordAudioRecorderService();
+
+  /// The device step counter — only where a step sensor exists (iOS /
+  /// Android). Desktop and web hosts get null and Today simply hides its
+  /// Move ring; no error, no dead UI.
+  late final StepCounterService? _stepCounter =
+      widget.stepCounter ??
+      (deviceHasStepSensor ? PedometerStepCounterService() : null);
 
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
@@ -289,6 +299,7 @@ class _ZivoAppState extends State<ZivoApp> {
       diet: _diet,
       ai: _ai,
       recorder: _recorder,
+      stepCounter: _stepCounter,
       media: _media,
       music: _music,
       child: MaterialApp(

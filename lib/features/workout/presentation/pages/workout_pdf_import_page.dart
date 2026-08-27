@@ -221,6 +221,11 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     setState(() => _saving = true);
     try {
       await AppScope.of(context).workoutPlans.saveSplit(draft);
+      // saveSplit deliberately does NOT steal the active pointer (multi-split
+      // semantics) — but an import is unambiguous intent: this IS the plan
+      // the user wants training against. Without this, Today's Training card
+      // kept reading "No training plan yet" after a successful import.
+      await _activate(draft.id);
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -241,21 +246,37 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     }
   }
 
+  /// Points the active-split pointer at [id]. Best-effort: the split was just
+  /// saved, so a failure here would be extraordinary — and the import itself
+  /// already succeeded either way.
+  Future<void> _activate(String id) async {
+    try {
+      await AppScope.of(context).workoutPlans.setActiveSplit(id);
+    } catch (error) {
+      debugPrint('WorkoutPdfImport: setActiveSplit failed: $error');
+    }
+  }
+
   Future<void> _editBeforeImporting() async {
     final draft = _draft;
     if (draft == null) return;
-    await Navigator.of(context).push<WorkoutPlan>(
+    // The editor saves via saveSplit (asSplit mode) which never steals
+    // active — so when it returns a SAVED plan, finish the job here. A null
+    // return means deleted or closed: nothing to activate.
+    final saved = await Navigator.of(context).push<WorkoutPlan>(
       MaterialPageRoute(builder: (_) => WorkoutPlanEditPage(initialPlan: draft, asSplit: true)),
     );
+    if (saved != null) await _activate(saved.id);
     // Whether the review ended in Save, Delete, or just closing — the import
     // flow itself is done either way.
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _buildManually() async {
-    await Navigator.of(context).push<WorkoutPlan>(
+    final saved = await Navigator.of(context).push<WorkoutPlan>(
       MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(asSplit: true)),
     );
+    if (saved != null) await _activate(saved.id);
     if (mounted) Navigator.of(context).pop();
   }
 

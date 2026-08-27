@@ -71,9 +71,11 @@ class ChatHeader extends StatelessWidget {
   }
 }
 
-/// One uniform glass squircle in the header row: hairline outline over the
-/// card surface, a Lucide glyph, instant press-down scale, and a light
-/// haptic on commit. Disabled while a turn is in flight.
+/// One uniform glass squircle in the header row. The premium treatment:
+/// a lit-from-above gradient fill (warm charcoal catching light at the top
+/// edge), hairline outline, soft contact shadow for real lift, a Lucide
+/// glyph, instant press-down scale, and a light haptic on commit. Disabled
+/// while a turn is in flight.
 class _HeaderAction extends StatelessWidget {
   const _HeaderAction({
     super.key,
@@ -93,28 +95,32 @@ class _HeaderAction extends StatelessWidget {
       message: tooltip,
       child: PressableScale(
         enabled: !disabled,
-        child: Material(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(13),
-          child: InkWell(
-            onTap: disabled
-                ? null
-                : () {
-                    HapticFeedback.lightImpact();
-                    onTap!();
-                  },
-            borderRadius: BorderRadius.circular(13),
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: AppColors.hairline),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: disabled ? AppColors.ink3 : AppColors.ink2,
+        child: Opacity(
+          opacity: disabled ? 0.45 : 1,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: disabled
+                  ? null
+                  : () {
+                      HapticFeedback.lightImpact();
+                      onTap!();
+                    },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 40,
+                height: 40,
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: _glassSheen,
+                ),
+                decoration: _glassDecoration(),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: disabled ? AppColors.ink3 : AppColors.ink2,
+                ),
               ),
             ),
           ),
@@ -123,6 +129,38 @@ class _HeaderAction extends StatelessWidget {
     );
   }
 }
+
+/// The shared "glass squircle" skin for header controls: a diagonal gradient
+/// from a raised warm charcoal down to card, a hairline edge, a faint top
+/// sheen as if lit from above, and a low soft shadow that lifts it off the
+/// chat's aurora background.
+BoxDecoration _glassDecoration() => BoxDecoration(
+  borderRadius: BorderRadius.circular(14),
+  gradient: const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF33291F), AppColors.card],
+  ),
+  border: Border.all(color: AppColors.hairline2),
+  boxShadow: const [
+    BoxShadow(
+      color: Color(0x59000000),
+      blurRadius: 12,
+      offset: Offset(0, 5),
+      spreadRadius: -2,
+    ),
+  ],
+);
+
+/// A faint light-from-above sheen layered over the glass fill.
+LinearGradient get _glassSheen => LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.center,
+  colors: [
+    Colors.white.withValues(alpha: 0.05),
+    Colors.white.withValues(alpha: 0.0),
+  ],
+);
 
 /// The reply-length picker: a glass squircle opening a small ZIVO-styled
 /// menu (Concise / Balanced / Detailed), persisted via [onSelect]. The
@@ -156,16 +194,16 @@ class _ReplyStyleMenu extends StatelessWidget {
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
         child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: AppColors.hairline),
+          width: 40,
+          height: 40,
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: _glassSheen,
           ),
+          decoration: _glassDecoration(),
           child: const Icon(
             AppIcons.replyStyle,
-            size: 18,
+            size: 19,
             color: AppColors.ink2,
           ),
         ),

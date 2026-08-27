@@ -315,11 +315,13 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   @override
-  Future<String> createConversation() async {
+  Future<String> createConversation({String? title}) async {
     final uid = _requireUid();
     final now = Timestamp.fromDate(DateTime.now());
     final ref = await _conversationsCollection(uid).add({
-      'title': 'New chat',
+      'title': (title == null || title.trim().isEmpty)
+          ? 'New chat'
+          : title.trim(),
       'createdAt': now,
       'updatedAt': now,
       'schemaVersion': 1,
@@ -531,6 +533,7 @@ class FirebaseAiRepository implements AiRepository {
       content: data['content'] as String? ?? '',
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
       pendingAction: _pendingActionFrom(data),
+      clientTurnId: data['clientTurnId'] as String?,
     );
   }
 

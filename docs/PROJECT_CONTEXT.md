@@ -1,319 +1,31 @@
-# ZIVO — Project Context
+# ZIVO — Project Context (architecture & conventions reference)
 
-> **Purpose of this file.** A single, canonical, self-contained snapshot so a new
-> Claude session (or developer) can understand ZIVO without replaying its history.
-> **The codebase is the source of truth.** Where this file and `docs/PLAN.md`
-> disagree, the code wins — `PLAN.md` is the *aspirational* architecture; this file
-> describes what is *actually built today*.
+> **Reference doc — NOT current state.** This is the deep, evergreen reference for ZIVO's
+> architecture, conventions, data model, and constraints. It is **not** a status report and
+> not a handoff log.
 >
-> **Last verified against the codebase:** 2026-08-19 (active development moved to the Workout/Diet
-> overhaul on `feature/workout-diet-v2` — the AI streaming work described later in this handoff
-> (Phase 3.5, `feature/ai-streaming-ux`) is **paused, not abandoned**; M9 AI V2 remains the last
-> milestone once this track wraps. Firestore persistence, Authentication, and University are merged
-> into `main`).
-> **Last updated:** 2026-08-19 — active branch `claude/media-storage-architecture-95c0a4`: media
-> storage rework **Phase 1 (local-first pipeline) + Phase 2 (Google Drive) code done & committed**;
-> Phase 2 now pending only the owner's GCP setup + an on-device OAuth check. See the **Active** entry
-> in Current Handoff. Prior AI-streaming context below was last verified 2026-08-17.
+> - **Where we are now** (branch, what's live, what's in flight): [`STATE.md`](STATE.md).
+> - **What ZIVO is + what makes it different:** [`PRODUCT.md`](PRODUCT.md).
+> - **The codebase map + read order for any agent:** [`/AGENTS.md`](../AGENTS.md).
+> - **The code is the source of truth.** Where this file and the code disagree, the code
+>   wins. Some "status"/"current" phrasing in the sections below is a historical snapshot
+>   from when it was written — verify against the code and `STATE.md` before relying on it.
 >
-> **Last verified against the codebase:** 2026-08-17 (Phase 3.5 AI streaming **deployed**; the
-> `add task` propose→confirm→execute flow **verified on-device**; the empty-collection infinite
-> spinner **fixed** (`3635a60`, 256 tests); **M7 Performance signed off** → M9 AI V2 is the last
-> milestone; App Check **still not enforced** (M9 Phase 4). On `feature/ai-streaming-ux`; Firestore
-> persistence, Authentication, and University are merged into `main`).
-
----
-
-## Current Handoff
-
-> Cross-account handoff snapshot. A new session MUST read this, then inspect the actual
-> git state / diff, recover the exact state, and continue from **Exact next action** —
-> without redoing completed work. Active development is on `feature/workout-diet-v2`.
-
-### Workout/Diet overhaul — CURRENT
-
-- **Status (as of 2026-08-20):** `feature/workout-diet-v2`, HEAD `6f78302`, working tree **CLEAN**
-  (all committed). Since the last handoff snapshot (`3b39f43`, then an uncommitted Home/Workout
-  sync fix), the branch landed — in order — `9dfe432` (progressive-overload analysis page),
-  `245a051` (first-class splits data foundation: multi-split repo + migration), `e4c7601` (pinned
-  the exercise-identity invariant + `splitId` alias), `9253b2a` (split management: create/switch/
-  edit/delete), `dff3c4d` (scoped analysis + history to the active split), `33d0630` (AI PDF
-  import — extractor + review UI, **Phase 6**), `a9d3f5b` + `76c9fb0` (two code-review passes over
-  Phases 0–6), and `6f78302` (a further Phase 6 hardening pass: a reversed-rep-range crash fix +
-  `normalize()` numeric bounds). The Home/Workout sync fix from the prior handoff (deleting
-  `TrainingCard`/`training_builder.dart`, `AliveColorDrift` made continuous) is folded into this
-  history and done.
-- **Phase 6 (AI PDF import) is BUILT + TESTED + DEPLOYED (2026-08-20).** `aiImportWorkoutPlan` is
-  live (v2 callable, us-central1) in `zivo-63f15`, deployed via
-  `firebase deploy --only functions:aiImportWorkoutPlan` after a full green verification pass
-  (551 Flutter / 52 Node tests, analyze + eslint clean); it reuses the existing `ANTHROPIC_API_KEY`
-  secret already bound to `aiChat`. **Phase 7 (verify + handoff) is done.** The ONLY step still
-  open is the real-PDF-in-app end-to-end (import → review → confirm → see the new split) — needs
-  the running app + a real file, so it's the owner's manual verify.
-- **Verification bar:** `flutter analyze` clean; `flutter test` **551 passing**; functions
-  `node --test` **52 passing**; eslint clean.
-- **Do not redo / do not undo (compressed):**
-  - Don't re-derive the progression-analysis page, the first-class splits data foundation +
-    migration, the exercise-identity invariant/`splitId` alias, split management (create/switch/
-    edit/delete), or active-split scoping for analysis/history — all built, tested, committed.
-  - Don't re-derive the Phase 6 AI PDF import pipeline (server `aiImportWorkoutPlan` callable,
-    client import→review→save flow) or its hardening pass (the reversed-range fix in
-    `workoutPlanFromImport`, `normalize()`'s `MAX_SETS`/non-negative bounds in
-    `functions/ai/workout_import.js`).
-  - The splits migration's "oldest vs newest active split on a tie" fallback resolves to
-    oldest-by-`createdAt` — confirmed intentional, matches `deleteSplit()`'s own re-pointing
-    convention, not a bug; don't flip it.
-  - `WorkoutImportResult`/`ImportedDay`/`ImportedExercise` live in `lib/features/workout/domain/`
-    (moved off `lib/features/ai/domain/`) — don't move them back.
-  - Settled, deliberately-not-fixed (don't re-flag as bugs without surfacing first): a collapsed
-    day hiding its notes is Phase 1's intentional design, not a regression; the AI Cloud Function
-    callables' auth-boilerplate duplication and `analyzeDayProgress()`'s lack of memoization are
-    both real but deliberately deferred at this app's personal scale.
-  - From the earlier Home-card slice: don't reintroduce `TrainingCard`/`training_builder.dart`/
-    `todaysWorkout()` on Home (Home reads the same `watchActivePlan()` → `plan.nextDay` source as
-    the Workout page, guaranteed in sync); don't gate `AliveColorDrift` back to active-only — it's
-    deliberately continuous.
-  - **Shared working directory caution:** avoid `git checkout`/branch switches on this repo while
-    another session has uncommitted changes in flight; stage files by name, never
-    `git add -A`/`.`.
-- **Exact next action:** the milestone is code-complete, verified, and deployed. The ONLY step
-  left is the owner's manual **real-PDF-in-app end-to-end verify** (import an actual PDF → review →
-  confirm → see the new split) on the running app. Deploy is done (`aiImportWorkoutPlan` live,
-  2026-08-20); Phase 7 handoff docs are refreshed.
-
-### AI streaming / launch (Phase 3.5) — paused, preserved for reference
-
-> Predates the workout/diet track above and is **paused, not superseded** — its own git state,
-> verification status, and manual next steps are unchanged from when it was last active. Resume
-> directly from here if the owner picks this track back up.
-> without redoing completed work. Active development is on `claude/media-storage-architecture-95c0a4`
-> (media storage rework); the AI-streaming handoff below is the prior, still-valid `main`/
-> `feature/ai-streaming-ux` context.
-
-### Active: Media storage architecture (2026-08-19, `claude/media-storage-architecture-95c0a4`)
-
-- **Goal:** make media (Moments photos, profile pictures, future images) storage-agnostic and
-  per-account configurable — WhatsApp-style local-first storage with optional cloud backup —
-  instead of being tied to Firebase Storage. Key finding: **the app never actually used Firebase
-  Storage.** Moments stored the ephemeral `image_picker` cache path directly in Firestore; profile
-  avatars copied into `Documents/avatars/{uid}.ext` but stored an absolute path (breaks on iOS
-  reinstall). No bytes ever went to a bucket.
-- **Owner decisions (2026-08-19):** build local + Google Drive together on one branch; default =
-  durable local copy always + auto Drive backup every 3 days + a manual "Back up now"; **`drive.file`**
-  scope (app-created files only — no Google restricted-scope review); Save-to-Photos is opt-in.
-- **Status: Phase 1 (local-first pipeline) DONE & committed (`cce035a`).** New `lib/core/media/`
-  module: `MediaStore`/`LocalMediaStore` (durable copies under `Documents/media/{kind}/{id}.ext`,
-  addressed by **relative** refs so files survive iOS container-path changes), `MediaObject` +
-  `MediaRegistry` (Firestore/in-memory metadata + per-target backup state at `users/{uid}/media`;
-  bytes never touch Firestore), `MediaStoragePreferences` + repos (per-account at
-  `users/{uid}/settings/media`), `MediaBackupTarget` interface + `DeviceGalleryTarget` (via `gal`),
-  `MediaService` orchestrator (capture fan-out, `backupNow()`, 3-day `runAutoBackupIfDue()` — all
-  unit-tested against a fake Drive target), and a `MediaImage` display widget. Moments + profile
-  avatars migrated onto it; a "Media & Backup" Settings section added (Save to Photos works; Drive
-  row is a labelled placeholder). DI wired in `AppScope`/`app.dart`; Firestore rules added for
-  `media` + `settings`; iOS `NSPhotoLibraryAddUsageDescription` + Android legacy storage permission
-  added. Added `gal` + `path` deps. **`flutter analyze` clean; all 461 tests pass (19 new).**
-- **Phase 2 (Google Drive) — CODE DONE & committed; blocked only on the owner's GCP setup + an
-  on-device OAuth check.** Built: `DriveBackupClient` interface + `GoogleDriveBackupClient`
-  (google_sign_in v7 incremental authorization — `authorizationClient.authorizeScopes([DriveApi.driveFileScope])`
-  — plus googleapis Drive v3, with the OAuth bearer token injected into a custom `http.Client`, so no
-  google_sign_in↔googleapis bridge package is needed); `GoogleDriveTarget` keyed `BackupTargetId.drive`;
-  `MediaService.connectDrive()/disconnectDrive()/supportsDrive` and an `isUnmetered` seam
-  (`connectivity_plus`) that enforces "Wi-Fi only" on the **automatic** path only (manual "Back up now"
-  ignores it, by design). The Media & Backup Settings section is now a full flow (Connect / Back up now /
-  Auto-backup 3-day toggle / Wi-Fi only / Disconnect), and `HomeShell.initState` fires
-  `runAutoBackupIfDue()` on app open. Deps added: `googleapis`, `http`, `connectivity_plus`.
-  **`flutter analyze` clean; 471 tests pass (+10 Drive tests using a fake `DriveBackupClient`).**
-- **Still needed from the owner** (project `zivo-63f15`): (1) enable the Google Drive API, (2) add scope
-  `https://www.googleapis.com/auth/drive.file` to the OAuth consent screen, (3) add
-  `ziadelsewedy1@gmail.com` as a test user. iOS URL scheme + Android SHA-1 already exist from Firebase auth.
-- **Exact next action:** after the 3 GCP steps, do the **on-device verification** of
-  `GoogleDriveBackupClient` (the only file unit tests couldn't exercise): connect prompt, `drive.file`
-  scope grant, app folder create, upload, and re-backup via `replaceFileId`. Fix any google_sign_in v7 /
-  googleapis signature mismatches surfaced there. Then decide on merging the branch. iOS can't guarantee
-  true timed background — the 3-day cadence realistically fires on the next app open after 3 days.
-- **Manual owner action:** the 3 Google Cloud steps above; decide when to merge this branch.
-- **Do not redo:** don't re-derive the `lib/core/media/` module, the Moments/Profile migration, or the
-  Drive client/target/connect flow — Phases 1 and 2 are built, committed, and green. Don't reintroduce
-  raw picker paths or absolute stored paths; media flows through `MediaService`. Don't add a
-  google_sign_in↔googleapis bridge package — the custom bearer `http.Client` is deliberate.
-
-### Prior handoff: AI streaming UX (2026-08-17, `feature/ai-streaming-ux`)
-
-- **Status (as of 2026-08-17):** **Phase 3.5 (AI streaming UX + caching cost win) is deployed to
-  `zivo-63f15`.** `aiChat`, `aiConfirmAction`, `aiCancelAction` were redeployed 2026-08-17
-  (Node 24, 2nd Gen, `us-central1`). Phase 3.5 shipped three slices: **Slice C** — real streaming
-  (`aiChat` streams over Firebase callable streaming, `response.sendChunk` ↔ `httpsCallable.stream()`;
-  server-authoritative phase events drive the iris activity rail); **Slice A** — prompt caching + history
-  trimming (a cached static system+tools prefix reads back at 0.1×; `aiUsage` docs gain
-  `cacheReadTokens`/`cacheWriteTokens` and `schemaVersion: 2`); **Slice B** — a client typewriter
-  fallback for the buffered `.call()` path. Runbook: `docs/PHASE_3_5_DEPLOY.md`.
-- **Bug found & fixed during the Phase 3.5 deploy validation (committed, `9c6d153`):**
-  the emulator dry-run (driving the emulated `aiChat` over the real callable streaming wire against
-  the **real Anthropic API**) exposed a prod-breaking defect the offline suite could not catch.
-  `claude-sonnet-5` returns a **signed placeholder `thinking` block** by default; the buffered path
-  (`messages.create`) preserves its signature so the follow-up model call is accepted, but the
-  streaming path (`@anthropic-ai/sdk@0.32.0` `stream.finalMessage()`) reconstructs it with an
-  **empty signature**. Re-sending that block on the second model call of any `tool_use` turn fails
-  the API's `each thinking block must contain thinking` check → **400 on every streamed multi-tool
-  (read) turn**. The offline tests stayed green because their canned fake model emits no thinking
-  blocks. **Fix** (`functions/ai/gateway.js`, `stripEmptyThinking`): strip empty-content thinking
-  blocks from the assistant message before echoing it back into history — transport-agnostic,
-  genuinely-signed blocks preserved. A gateway **regression test** covers both (empty stripped,
-  signed kept). Note added to revisit if extended thinking is ever enabled.
-- **Validation done (server/wire, without a device):** post-fix, verified live against the
-  emulator — read turn streams `understanding → working → text deltas → done → ok` result;
-  proposal turn streams `understanding → deltas → preparing_change → done → proposed` (+`actionId`).
-  **Slice A caching confirmed with real numbers** from the emulator's `aiUsage` docs:
-  `schemaVersion: 2` on every doc and `cacheReadTokens > 0` every turn (~4712 on 2-call read turns,
-  2356 on the single-call proposal) — the static prefix reads back cached, saving ≈ $0.013/read turn
-  vs. full price. The runbook's failure condition (reads stuck at 0) is not hit.
-- **On-device client check — DONE (2026-08-17, owner verified):** ran the Ask mutation flow on a
-  signed-in simulator. `can you add a random task today` → model **proposed** (title/due/priority)
-  → owner **confirmed** → **`Confirmed`** card → **`Added to Tasks · Random task`**. The streamed
-  response settled cleanly into one durable message — **no double-bubble** (the specific runbook
-  Step 2 concern). This closes the last device-only validation for Phase 3.5's `add task` path.
-  Two behavior notes to review (not bugs): (1) the model **asked clarifying questions first**
-  ("set a due time? high or normal?") instead of proposing one action immediately per ADR-003's
-  "propose-one" intent — candidate system-prompt tightening; (2) the proposal arrived as **prose**
-  ("just confirm and I'll add it") rather than the structured iris confirmation *card*, yet the
-  Confirmed/Added cards still rendered after — confirm whether that's the intended path.
-- **Separate infinite-spinner bug — root-caused & FIXED (committed, `3635a60`; earlier partial
-  `eaebc17`):** opening any **empty** Hub detail page (Schedule, Diet, …) spun forever — no data,
-  no error. The handoff's backend theory (App Check / indexes / Firestore connection) was a **red
-  herring**: reproduced live, the Today screen renders real Firestore data, so the backend works.
-  Real cause: Firestore repos returned a **raw broadcast stream** from `watchAll()`, and a Dart
-  broadcast stream **never replays its latest value to a late subscriber**. The Today dashboard
-  (kept alive in the `IndexedStack`) is the *first* subscriber to every `watchAll()`; a Hub detail
-  page's `StreamBuilder` is a *second, late* subscriber → gets no replay → sits at `waiting` with
-  empty `initialData` → infinite spinner, but **only for empty collections** (non-empty ones render
-  from non-empty `current`). The in-memory repos never had this because they `yield current` first;
-  the Firestore repos silently broke that contract — which is why 255 tests and the console stayed
-  clean. **Fix:** all 8 Firestore repos (`schedule`/`tasks`/`expenses`/`notes`/`moments`/`workout`/
-  `university` list repos + `diet`'s `watchActivePlan()`) now track a `_hasSnapshot` flag and
-  `yield current` on subscribe before the broadcast stream — restoring the in-memory contract.
-  A schedule **regression test** was *proven* to catch it (times out on old code, passes on new).
-  `flutter analyze` clean; `flutter test` **256 pass**.
-- **Spinner fix — live re-verify CONFIRMED (2026-08-17):** fresh full rebuild on the iPhone 17
-  sim; both empty Hub pages Today pre-subscribes to now render their empty state instead of
-  spinning (Workout → "No workouts yet.", Diet → "No diet plan yet." + Create plan). Console clean
-  (zero `cloud_firestore` errors), 256 tests green. (Note: `3635a60` was auto-committed by a
-  concurrent session — byte-for-byte identical to the fix author's working tree, nothing added.)
-- **Confirmation-card state bug — FIXED & committed (`1a85c77`, 2026-08-17):** *"fix(ai): make
-  confirmation cards reflect true server state and stop duplicate writes."* Fixed five things:
-  (1) **duplicate-write guard** — gateway refuses a second proposal while an unexpired pending
-  action exists (`store.getActivePendingAction`), so re-proposing (e.g. typing "confirm") can't mint
-  a second card/task; (2) **card reflects true server state + survives reopen** — action_proposal
-  messages now persist `status` (+ `expiresAt`); confirm/cancel/expire flip it (`store.markProposalMessage`);
-  the client reads the stored status instead of hardcoding `pending`; (3) **typed "confirm" = nudge**
-  (owner decision) — hits the guard, replies "tap Confirm or Cancel on the card above"; tap-to-confirm
-  stays the only write path (ADR-003), no free-text auto-execute; (4) **expiry edge** — a still-pending
-  card renders as **Expired** on read once its TTL passes; (5) **prompt tightening** — don't re-propose
-  while one is pending, don't treat typed "confirm"/"yes" as permission, propose via the tool not prose.
-  Root cause had been: the applied-state override `_resolved[actionId]` was only set on button tap
-  (`ask_page.dart`), and the proposal message's server status was never flipped for a text-turn confirm.
-  Gates: functions node --test **42/42**, `flutter test` **258/258**, analyze + eslint clean.
-  6 files (`functions/ai/{gateway,store}.js` + 2 gateway tests, `firebase_ai_repository.dart` + its
-  test). **NOT pushed, NOT deployed.** ⚠️ **Deploy client + server together** — the client reads the
-  `status`/`expiresAt` fields the new gateway writes, so `firebase deploy --only functions` and a
-  fresh app build must ship in the same go, or deployed cards won't reflect server state.
-- **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
-  `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation on the owner's
-  account; add + verify providers in the Console before any public launch.
-- **M7 Performance — DONE (2026-08-17):** owner ran the on-device profiling passes and signed off
-  — performance is good, **no measured fixes needed**. The profiling harness stays in the repo
-  (`docs/performance/`, `scripts/perf/`). This leaves **M9 (AI V2) as the only remaining milestone.**
-- **Branch:** `feature/ai-streaming-ux`, checked out and active. Latest commits: `3635a60`
-  (broadcast-replay fix) on top of `9c6d153` (empty-thinking-block fix). Working tree: this handoff
-  doc update only.
-- **App Check — still NOT enforced** (unchanged pre-launch item): `aiChat`/`aiConfirmAction`/
-  `aiCancelAction` have no `enforceAppCheck: true`. Fine for private validation; this is **M9 Phase
-  4** — enforce it (server flag + Console providers) before any public launch.
-- **Exact next action:** (1) confirm the live-simulator re-verify of the spinner fix completed
-  (open an empty Hub detail page → empty state, not a spinner); (2) **decide on merging
-  `feature/ai-streaming-ux` into `main`** — Phase 3.5 is deployed & on-device-verified, the spinner
-  fix is landed & 256 tests green; (3) then finish **M9 Phase 4** (enforce App Check + final deploy),
-  the last step to launch-readiness. Optionally review the two AI-behavior notes above (propose-one;
-  card vs. prose) as a system-prompt polish.
-- **What the read-only V1 slice (still current architecture) adds:**
-  - **Gateway** (`functions/ai/gateway.js`): `runAiTurn({store, callModel, uid, conversationId,
-    message, now, config})` — a pure-ish orchestration function kept free of
-    `@anthropic-ai/sdk`/`firebase-admin` so it runs offline. Persists the user message, checks the
-    per-day cap (`store.getTodayUsageTotals`), loops up to `maxIterations` (5) model↔tool
-    round-trips with `stop_reason` handling for `tool_use` / `end_turn` / `refusal`, aborts cleanly
-    on the per-turn token ceiling (50000) or the iteration cap, persists the assistant's final
-    reply, and logs usage (`tokensIn`/`tokensOut`/`costUsd`/`tools`/`iterations`/`latencyMs`,
-    Sonnet 5 pricing $3/$15 per 1M in/out tokens). The `SYSTEM_PROMPT` constant states ZIVO +
-    read-only scope and explicitly fences tool output as **untrusted data, not instructions**
-    (prompt-injection defense). Each tool call's `tool_use.id` is threaded through as `toolCallId`
-    in the usage log (idempotency groundwork for a future V2 mutation phase).
-  - **Tools** (`functions/ai/tools.js`): 9 uid-scoped read-only tools — `get_today`, `get_tasks`,
-    `get_schedule`, `get_expenses`, `get_university`, `get_workouts`, `get_diet`, `search_notes`,
-    `summarize_week` — each `{name, description, inputSchema, execute(store, uid, input, now)}`.
-    Money stays integer minor units; totals-by-category are computed server-side, not left to the
-    model. `search_notes` is a naive case-insensitive substring match (not full-text), matching
-    ADR-001's stated scope.
-  - **Store seam** (`functions/ai/store.js`): `FirestoreStore` — the only file besides `index.js`
-    that touches Firestore (Admin SDK, always explicitly `uid`-scoped). Implements 8 uid-scoped
-    reads (`listTasks`, `listSchedule`, `listExpenses`, `listUniversity`, `listWorkouts`,
-    `searchNotes`, `getActiveDietPlan`, `listDietEntries`) plus persistence
-    (`appendMessage`/`touchConversation`/`logUsage`) and `getRecentMessages`/
-    `getTodayUsageTotals`. Field names mirror the client `FirestoreXRepository` classes exactly.
-    `functions/ai/dates.js` holds pure date-range helpers (today/week/month bounds, `dayKeyFor`,
-    the diet day-resolution mirror of the client's `dayForDate`) shared by both.
-  - **`functions/index.js`**: added `exports.aiChat = onCall({secrets: [ANTHROPIC_API_KEY],
-    region: "us-central1"}, ...)` — a thin wrapper (auth guard, input coercion, constructs the real
-    `Anthropic` client + `FirestoreStore`, calls `runAiTurn`, maps `GatewayError` → `HttpsError`).
-    All real logic stays in `gateway.js`/`tools.js` for testability. `functions/package.json`
-    gained the `@anthropic-ai/sdk` dependency and a `"test": "node --test"` script.
-  - **Tests** (`functions/ai/gateway.test.js`, `functions/ai/tools.test.js`, offline `node --test`,
-    no SDK/emulator): input validation, uid-scoped tool execution, the iteration cap (asserts exact
-    model-call count), the per-turn token ceiling, the per-day cap (asserts zero model calls),
-    refusal handling, a tool-executor error recovering via an `is_error` tool_result, the
-    prompt-injection fence, and usage logging — plus direct `tools.js` tests (`get_expenses`
-    category totals, `search_notes` matching). **17/17 pass.**
-  - **`lib/features/ai/data/firebase_ai_repository.dart`**: the real `AiRepository`.
-    `ensureConversation()` reuses the most-recently-updated `aiConversations` doc or creates one;
-    `watchMessages()` streams `.../messages` ordered by `createdAt`, re-scoping on uid change
-    (mirrors `FirestoreUniversityRepository`'s `UidSource` pattern); `send()` never writes
-    Firestore directly (rules forbid it) — it calls an injectable `invokeChat` seam defaulting to
-    `FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable('aiChat')`. `app.dart`'s
-    `_defaultAi()` now returns `FirebaseAiRepository` when `USE_FIRESTORE=true` (the default),
-    `FakeAiRepository` otherwise — same pattern as the other 8 repositories.
-  - **`test/ai/firebase_ai_repository_test.dart`** (`fake_cloud_firestore`, mirrors the University
-    repo test): conversation create-then-reuse (including reuse of a doc already in Firestore, not
-    just the in-memory cache), message ordering/role-mapping, `send()` invoking the injected fake
-    `invokeChat` with the trimmed text, and no-op on empty/whitespace input. The real callable
-    invocation is on-device-only and explicitly not exercised here.
-  *(V1 read-only architecture above is still current; V2 mutations (ADR-003) and Phase 3.5
-  streaming/caching build on top of it.)*
-- **Last completed action:** ran the Phase 3.5 deploy & validation runbook — emulator dry-run,
-  discovered and fixed the streamed empty-thinking-block 400 (`9c6d153`, with a regression test),
-  redeployed the three AI callables, and validated the streaming transport + Slice A caching against
-  the emulator with the real Anthropic API (see Status bullets above).
-- **Verification status:** functions lint clean; `functions` offline suite **40/40 pass** (was 39,
-  +1 `stripEmptyThinking` regression test); `flutter test` **251 pass** (unchanged — server-only
-  fix). Live emulator validation: streaming read + proposal turns both stream phases→deltas→result;
-  `aiUsage` docs show `schemaVersion: 2` with `cacheReadTokens > 0` every turn. **Not run:** the
-  on-device signed-in client rendering (runbook Step 2) — needs the owner's device.
-- **Manual user action:** (1) run runbook Step 2 on a signed-in device (`what's due this week?`,
-  `add task Submit the report`) to confirm the client rendering — rail phases, no double-bubble,
-  durable message persists across reopen; (2) enforce App Check (server `enforceAppCheck: true` +
-  Console providers) before any public launch; (3) decide on merging `feature/ai-streaming-ux`.
-- **Do not redo:** don't re-derive the gateway/tools/store or the streaming/caching slices — Phase
-  3.5 is built and deployed. The empty-thinking-block fix is committed; don't reintroduce echoing
-  raw `resp.content` back into history without stripping empty thinking blocks. Don't set secrets or
-  flip App Check enforcement — owner-only.
+> *(The stale multi-branch "Current Handoff" that used to sit here was removed 2026-08-27;
+> current state now lives in the small, maintained `STATE.md`.)*
 
 ---
 
 ## 1. Product vision and purpose
 
-ZIVO is a **Personal OS** — a single, cohesive mobile surface that centralizes one
-person's life areas (schedule, tasks, expenses, workouts, notes, moments, university,
-and eventually an AI assistant) instead of scattering them across separate apps.
+ZIVO is an **AI-powered gym / training tracker** — a training app built around an AI coach
+that knows your numbers (splits, logged sets, body-weight, diet), with guided live sessions
+and progression intelligence at its center. Diet, a training-anchored music companion, and
+lightweight moments/expenses round out the experience. (Historical note: ZIVO began as a
+broad single-user "Personal OS"; it was specialized in 2026-08 — see
+[`PRODUCT.md`](PRODUCT.md) and [ADR-004](DECISIONS/ADR-004-scope-specialization.md).)
 
-Guiding principles (from `docs/PLAN.md §0`, still in force):
+Guiding principles (several predate the specialization; the single-user posture still holds):
 
 - **One person, one system.** No multi-tenancy, sharing, teams, or roles. Take every
   simplification single-user allows.
@@ -789,7 +501,7 @@ Test files (`test/`):
 | `lib/main.dart` | Entry point → `ensureInitialized()` + `await Firebase.initializeApp()` → `runApp(ZivoApp())`. |
 | `lib/firebase_options.dart` | Hand-authored `DefaultFirebaseOptions` (iOS) from the verified `GoogleService-Info.plist`. Regenerate via `flutterfire configure` when the CLI can discover the project. |
 | `ios/Runner/GoogleService-Info.plist` | Firebase config for the registered iOS app; bundled into the Runner target. |
-| `lib/app/app.dart` | Root: instantiates the 6 in-memory repos, provides `AppScope`, `MaterialApp` (`AppTheme.light`, `home: HomeShell`). |
+| `lib/app/app.dart` | Root: instantiates every feature repository (Firestore-backed when `USE_FIRESTORE` is true — the default — else in-memory), provides `AppScope`, dark `MaterialApp` (`AppTheme.dark`, `home: AuthGate`). |
 | `lib/core/scope/app_scope.dart` | DI seam (`AppScope.of(context)`). **Add new repos here.** |
 | `lib/features/shell/presentation/home_shell.dart` | 4-tab `IndexedStack` (Today, Hub, Ask, You) + Quick Capture routing. |
 | `lib/features/capture/presentation/quick_capture_sheet.dart` | `CaptureChoice` enum + the capture sheet. |

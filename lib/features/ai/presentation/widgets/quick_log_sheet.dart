@@ -92,23 +92,48 @@ class _QuickLogSheetState extends State<QuickLogSheet>
   void _subscribeLevels(AudioRecorderService recorder) {
     _levelsSub?.cancel();
     _level = 0;
-    _levelsSub = recorder.inputLevels().listen((level) {
-      if (!mounted || _phase != _Phase.recording) return;
-      setState(() => _level = level);
-    });
+    // Errors on the level stream are cosmetic (metering glitches, backend
+    // quirks) — swallowed here so they can never take the sheet down.
+    _levelsSub = recorder.inputLevels().listen(
+      (level) {
+        if (!mounted || _phase != _Phase.recording) return;
+        setState(() => _level = level);
+      },
+      onError: (_) {},
+      cancelOnError: false,
+    );
   }
 
   Future<void> _startRecording() async {
-    final recorder = _recorder = AppScope.of(context).requireRecorder;
     if (_phase == _Phase.recording || _phase == _Phase.transcribing) return;
+    // Soft-resolved: a scope without a recorder (or one whose plugin side
+    // fails — a PlatformException from a denied/stale permission or an OS
+    // audio-session conflict) degrades to the sheet's retryable failure
+    // line. It must never throw out of this handler and take the app down.
+    final recorder = AppScope.of(context).recorder;
+    if (recorder == null) {
+      _fail("Voice input isn't available right now.");
+      return;
+    }
+    _recorder = recorder;
 
-    final granted = await recorder.ensurePermission();
+    bool granted;
+    try {
+      granted = await recorder.ensurePermission();
+    } catch (_) {
+      granted = false;
+    }
     if (!mounted) return;
     if (!granted) {
       _fail('Turn on microphone access to use voice input.');
       return;
     }
-    await recorder.start();
+    try {
+      await recorder.start();
+    } catch (_) {
+      _fail("Couldn't start the microphone — try again.");
+      return;
+    }
     if (!mounted) return;
     _setPhase(_Phase.recording);
     setState(() => _failureMessage = null);
@@ -119,13 +144,21 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     });
   }
 
-  /// Stop-and-transcribe — the recording bar's stop button.
+  /// Stop-and-transcribe — the recording bar's stop button. Every plugin
+  /// call is guarded: a platform failure here (audio-session conflict, a
+  /// stale recorder, sandbox/TCC quirks) lands on the sheet's retryable
+  /// failure line — it can never escape as an unhandled async error.
   Future<void> _stopRecording() async {
     final recorder = _recorder;
     if (_phase != _Phase.recording || recorder == null) return;
     _setPhase(_Phase.transcribing);
     _tick?.cancel();
-    final audio = await recorder.stop();
+    RecordedAudio? audio;
+    try {
+      audio = await recorder.stop();
+    } catch (_) {
+      audio = null;
+    }
     await _levelsSub?.cancel();
     _levelsSub = null;
     if (!mounted) return;
@@ -166,11 +199,17 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     );
   }
 
+  /// Discard/cancel paths are best-effort too — a plugin failure while
+  /// discarding must never throw out of the sheet.
   Future<void> _cancelRecording() async {
     _token++;
     _tick?.cancel();
     await _levelsSub?.cancel();
-    await _recorder?.cancel();
+    try {
+      await _recorder?.cancel();
+    } catch (_) {
+      // Discarding is cosmetic — nothing to surface.
+    }
     if (!mounted) return;
     _setPhase(_Phase.idle);
   }

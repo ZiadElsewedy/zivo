@@ -22,6 +22,7 @@ import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
 import 'grocery_list_page.dart';
+import 'meal_detail_page.dart';
 
 /// The Diet Plan page — today's meals as tactile completion cards under a
 /// calorie-ring hero summary, and the full week browsable below. A Pulse
@@ -195,8 +196,10 @@ class _PlanBody extends StatelessWidget {
                 loading: consumedLoading,
               ),
               const SizedBox(height: 14),
+              // Real meals only — the supplements block renders separately
+              // below, so "Meal 1..N" stays about food.
               for (final meal in [
-                ...today.meals,
+                ...regularMeals(today.meals),
               ]..sort((a, b) => a.order.compareTo(b.order)))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -210,6 +213,34 @@ class _PlanBody extends StatelessWidget {
                     ),
                   ),
                 ),
+              // Supplements are NOT meals: their own quiet checklist, their
+              // own hue, zero influence on meal counts or kcal left.
+              if (supplementMeals(today.meals).isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Supplements',
+                  style: AppText.meta.copyWith(
+                    color: AppColors.solarText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (final meal in [
+                  ...supplementMeals(today.meals),
+                ]..sort((a, b) => a.order.compareTo(b.order)))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _SupplementCard(
+                      meal: meal,
+                      taken: consumed.contains(meal.id),
+                      onToggle: () => diet.setMealEaten(
+                        mealId: meal.id,
+                        day: now,
+                        eaten: !consumed.contains(meal.id),
+                      ),
+                    ),
+                  ),
+              ],
             ],
             const SizedBox(height: 30),
             Text(
@@ -446,11 +477,10 @@ class _CalorieRingPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// A meal card whose eaten/un-eaten states are two designed treatments, not
-/// text decoration: completing fills the card with a pulse wash, draws in a
-/// check, and springs with the one earned overshoot on this surface — same
-/// rule as a workout set chip completing. Un-completing reverses smoothly,
-/// no overshoot.
+/// A meal card kept deliberately CLEAN: completion state, name, kcal, macro
+/// chips and a "View" affordance — nothing else. The item-by-item breakdown
+/// lives in [MealDetailPage] (opened by View), not on the plan screen.
+/// Tapping the card body toggles eaten, as before.
 class _MealCard extends StatefulWidget {
   const _MealCard({
     required this.meal,
@@ -503,6 +533,15 @@ class _MealCardState extends State<_MealCard>
     widget.onToggle();
   }
 
+  void _openDetail() {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MealDetailPage(meal: widget.meal, isSupplement: false),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final meal = widget.meal;
@@ -539,9 +578,9 @@ class _MealCardState extends State<_MealCard>
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _CompletionMark(t: _t.value),
                           const SizedBox(width: 13),
@@ -549,97 +588,71 @@ class _MealCardState extends State<_MealCard>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        meal.label,
-                                        style: AppText.rowTitle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.ink,
-                                        ),
-                                      ),
-                                    ),
-                                    ClipRect(
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        widthFactor: tc,
-                                        child: Opacity(
-                                          opacity: tc,
-                                          child: const _DonePill(),
-                                        ),
-                                      ),
-                                    ),
-                                    if (kcal != null) ...[
-                                      const SizedBox(width: 8),
+                                Text(
+                                  meal.label,
+                                  style: AppText.rowTitle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  [
+                                    '${meal.items.length} '
+                                        'item${meal.items.length == 1 ? '' : 's'}',
+                                    if (kcal != null)
+                                      '${hasEstimate ? '~' : ''}$kcal kcal',
+                                  ].join(' · '),
+                                  style: AppText.meta.copyWith(
+                                    color: AppColors.ink3,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (macros != null &&
+                              macros.proteinG != null) ...[
+                            const SizedBox(width: 8),
+                            _MacroChip(
+                              label: 'P',
+                              value:
+                                  '${macros.proteinG!.round()}g',
+                            ),
+                          ],
+                          const SizedBox(width: 6),
+                          // The dedicated view affordance — one tap opens
+                          // exactly what's inside this meal and nothing else.
+                          PressableScale(
+                            child: Material(
+                              color: AppColors.surfaceRaised,
+                              borderRadius: BorderRadius.circular(999),
+                              child: InkWell(
+                                onTap: _openDetail,
+                                borderRadius: BorderRadius.circular(999),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      12, 7, 10, 7),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
                                       Text(
-                                        '${hasEstimate ? '~' : ''}$kcal kcal',
+                                        'View',
                                         style: AppText.meta.copyWith(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                           color: AppColors.pulseText,
                                         ),
                                       ),
+                                      const Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 15,
+                                        color: AppColors.pulseText,
+                                      ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                                if (macros != null &&
-                                    (macros.proteinG != null ||
-                                        macros.carbsG != null ||
-                                        macros.fatG != null)) ...[
-                                  const SizedBox(height: 4),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 2,
-                                    children: [
-                                      if (macros.proteinG != null)
-                                        _MacroChip(
-                                          label: 'P',
-                                          value: '${macros.proteinG!.round()}g',
-                                        ),
-                                      if (macros.carbsG != null)
-                                        _MacroChip(
-                                          label: 'C',
-                                          value: '${macros.carbsG!.round()}g',
-                                        ),
-                                      if (macros.fatG != null)
-                                        _MacroChip(
-                                          label: 'F',
-                                          value: '${macros.fatG!.round()}g',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                                const SizedBox(height: 8),
-                                for (final item in meal.items)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 3),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppText.body.copyWith(
-                                              fontSize: 14,
-                                              color: AppColors.ink2,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          [
-                                            foodQtyLabel(item),
-                                            ?macroLabel(item),
-                                          ].join(' · '),
-                                          style: AppText.meta.copyWith(
-                                            color: AppColors.ink3,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -651,6 +664,114 @@ class _MealCardState extends State<_MealCard>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// One supplement entry — compact checkable row in its own solar-hued block,
+/// visually distinct from meals by design (they are not food).
+class _SupplementCard extends StatelessWidget {
+  const _SupplementCard({
+    required this.meal,
+    required this.taken,
+    required this.onToggle,
+  });
+
+  final Meal meal;
+  final bool taken;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Material(
+        color: AppColors.card.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onToggle();
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: taken
+                    ? AppColors.solar.withValues(alpha: 0.4)
+                    : AppColors.hairline,
+              ),
+            ),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: reducedMotion(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 160),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: taken ? AppColors.solar : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: taken ? AppColors.solar : AppColors.hairline2,
+                      width: 1.6,
+                    ),
+                  ),
+                  child: taken
+                      ? const Icon(Icons.check_rounded,
+                          size: 13, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    meal.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: taken ? AppColors.ink3 : AppColors.ink,
+                      decoration:
+                          taken ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                if (meal.items.length > 1) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${meal.items.length} items',
+                    style: AppText.meta.copyWith(
+                      fontSize: 11.5,
+                      color: AppColors.ink3,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'View details',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MealDetailPage(
+                        meal: meal,
+                        isSupplement: true,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -695,29 +816,6 @@ class _CompletionMark extends StatelessWidget {
               ),
             )
           : null,
-    );
-  }
-}
-
-class _DonePill extends StatelessWidget {
-  const _DonePill();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.pulseWash,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        'Done',
-        style: AppText.meta.copyWith(
-          color: AppColors.pulseText,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
     );
   }
 }

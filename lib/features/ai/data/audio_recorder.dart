@@ -143,11 +143,22 @@ class RecordAudioRecorderService implements AudioRecorderService {
     controller.onListen = () {
       _recorder
           .onAmplitudeChanged(const Duration(milliseconds: 100))
-          .listen((amplitude) {
-        final raw = ((amplitude.current - _dbFloor) / -_dbFloor).clamp(0.0, 1.0);
-        _smoothed = 0.35 * raw + 0.65 * _smoothed;
-        if (!controller.isClosed) controller.add(_smoothed);
-      });
+          .listen(
+            (amplitude) {
+              final raw =
+                  ((amplitude.current - _dbFloor) / -_dbFloor).clamp(0.0, 1.0);
+              _smoothed = 0.35 * raw + 0.65 * _smoothed;
+              if (!controller.isClosed) controller.add(_smoothed);
+            },
+            // Metering glitches (e.g. an amplitude tick racing stop/cancel)
+            // are purely cosmetic — mirrored to the broadcast controller,
+            // whose UI-side listeners also swallow them. An unhandled stream
+            // error must never escape the recorder seam.
+            onError: (Object error) {
+              if (!controller.isClosed) controller.addError(error);
+            },
+            cancelOnError: false,
+          );
     };
     _levels = controller;
     return controller.stream;

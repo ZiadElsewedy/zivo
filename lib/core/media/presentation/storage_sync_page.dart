@@ -248,6 +248,39 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                   ),
                   const SizedBox(height: 22),
                   RiseIn(
+                    delay: const Duration(milliseconds: 110),
+                    child: StreamBuilder<MediaStoragePreferences>(
+                      stream: prefsRepo.watch(),
+                      initialData: MediaStoragePreferences.defaults,
+                      builder: (context, snapshot) {
+                        final prefs =
+                            snapshot.data ?? MediaStoragePreferences.defaults;
+                        return SettingsSectionCard(
+                          label: 'INSTANT SYNC',
+                          children: [
+                            SettingsRow(
+                              icon: AppIcons.bolt,
+                              title: 'Upload to Drive as you capture',
+                              value: prefs.autoUploadToDrive ? 'On' : 'Off',
+                              accent: AppColors.solar,
+                              last: true,
+                              trailing: Switch.adaptive(
+                                value: prefs.autoUploadToDrive,
+                                activeThumbColor: AppColors.ember,
+                                onChanged: _busy
+                                    ? null
+                                    : (v) => prefsRepo.save(
+                                        prefs.copyWith(autoUploadToDrive: v),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  RiseIn(
                     delay: const Duration(milliseconds: 130),
                     child: StreamBuilder<MediaStoragePreferences>(
                       stream: prefsRepo.watch(),

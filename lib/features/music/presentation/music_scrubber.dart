@@ -1,40 +1,34 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
+import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 
-/// Apple's momentum-projection formula (apple-design skill §6) — reused
-/// verbatim from `workout_start_sheet.dart`'s drag-to-dismiss handoff:
-/// where released momentum would coast to a stop, absent further input.
-/// Fed a fraction-of-track-per-second velocity here rather than px/sec —
-/// the formula is unit-agnostic (it just scales whatever velocity it's
-/// given), and the scrubber already does its own math in track-fraction
-/// space (see [_MusicScrubberState]).
-double _projectMomentum(
-  double velocityPerSecond, {
-  double decelerationRate = 0.998,
-}) => (velocityPerSecond / 1000) * decelerationRate / (1 - decelerationRate);
-
-/// The full player's draggable position scrubber — tracks the finger 1:1
-/// while dragging, and on release hands the release velocity to a spring
-/// that settles on a momentum-projected final position (a fast flick lands
-/// further along the track than a slow one stopped at the same point),
-/// mirroring `workout_start_sheet.dart`'s drag-to-dismiss handoff exactly:
-/// same [_projectMomentum] formula, same `SpringSimulation` velocity
-/// carry-through via [AppSprings].
+/// The full player's position scrubber — the whole seek experience in one
+/// component: the draggable track, its growing thumb, and the live time
+/// labels underneath.
 ///
-/// The actual seek fires immediately on release — audio should respond
-/// right away, not wait on a cosmetic animation. The spring is purely the
-/// visual landing; [_dragging] stays true until it finishes settling, so
-/// the next stream-driven resync (see [_resync]) doesn't cut the spring off
-/// mid-flight.
+/// Seek semantics (deliberately boring — a scrubber must be predictable):
+/// - While dragging, the playhead IS the finger, 1:1, and the labels count
+///   with it — you always know exactly what second you're on.
+/// - Release seeks to exactly where the finger is. No momentum projection,
+///   no overshoot: audio lands where you let go, every time. (The old
+///   flick-flings-somewhere-ahead behavior made the song's actual landing
+///   spot unguessable.)
+/// - A plain tap jumps straight to that point on the track.
+///
+/// Between controller emissions the bar ticks forward as a steady real-time
+/// clock (`animateTo` over the remaining track time) — emissions only ever
+/// correct drift, never drive the motion.
 class MusicScrubber extends StatefulWidget {
   const MusicScrubber({
     required this.controller,
+    required this.trackId,
     required this.duration,
     required this.position,
     required this.isPaused,
@@ -42,11 +36,14 @@ class MusicScrubber extends StatefulWidget {
   });
 
   final MusicController controller;
+
+  /// Identifies the current track — a change resets the bar to zero instantly
+  /// instead of animating from the previous song's last position.
+  final String trackId;
   final Duration duration;
 
   /// The last known position from the controller's stream — the scrubber
-  /// resyncs to this (see [_MusicScrubberState.didUpdateWidget]) whenever
-  /// the user isn't actively dragging.
+  /// resyncs to this whenever the user isn't actively dragging.
   final Duration position;
   final bool isPaused;
 
@@ -67,10 +64,19 @@ class _MusicScrubberState extends State<MusicScrubber>
     return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
   }
 
+  bool _seekable(Duration duration) =>
+      duration.inMilliseconds > 0 && widget.controller.currentConnection == MusicConnection.connected;
+
   @override
   void didUpdateWidget(covariant MusicScrubber old) {
     super.didUpdateWidget(old);
     if (_dragging) return; // the user's thumb is the source of truth right now
+    if (old.trackId != widget.trackId) {
+      // New song: land at zero (or its reported start), don't glide there.
+      _progress.stop();
+      _progress.value = _fractionOf(widget.position, widget.duration);
+      return;
+    }
     if (old.position == widget.position &&
         old.isPaused == widget.isPaused &&
         old.duration == widget.duration) {
@@ -79,18 +85,15 @@ class _MusicScrubberState extends State<MusicScrubber>
     _resync();
   }
 
-  /// Jumps to the latest known position, then — if playing — animates
-  /// smoothly toward the end over the remaining real time. `animateTo`
-  /// (not a spring) here: this is a steady real-time clock, not a
-  /// momentum-driven gesture — the spring belongs to [_onDragEnd] alone.
-  /// The fake controller only emits every ~250ms; this is what makes the
-  /// bar itself read as continuously moving between those emissions.
+  /// Jumps to the latest known position, then — if playing — animates smoothly
+  /// toward the end over the remaining real time. The next stream emission
+  /// re-anchors, so interpolation drift self-corrects continuously.
   void _resync() {
     _progress.stop();
     _progress.value = _fractionOf(widget.position, widget.duration);
     if (!widget.isPaused) {
       final remaining = widget.duration - widget.position;
-      if (remaining > Duration.zero) {
+      if (remaining > Duration.zero && !reducedMotion(context)) {
         _progress.animateTo(1, duration: remaining, curve: Curves.linear);
       }
     }
@@ -102,97 +105,212 @@ class _MusicScrubberState extends State<MusicScrubber>
     super.dispose();
   }
 
-  void _onDragStart(DragStartDetails details) {
-    _dragging = true;
+  void _beginDrag() {
+    if (!_seekable(widget.duration)) return;
+    HapticFeedback.selectionClick();
+    setState(() => _dragging = true);
     _progress.stop();
   }
 
+  double _fractionAt(double localDx) =>
+      (_trackWidth <= 0 ? 0.0 : localDx / _trackWidth).clamp(0.0, 1.0);
+
   void _onDragUpdate(DragUpdateDetails details) {
-    if (_trackWidth <= 0) return;
-    _progress.value = (details.localPosition.dx / _trackWidth).clamp(0.0, 1.0);
+    _progress.value = _fractionAt(details.localPosition.dx);
   }
 
-  Future<void> _onDragEnd(DragEndDetails details) async {
-    if (_trackWidth <= 0) {
-      _dragging = false;
-      return;
-    }
-    final velocity = details.velocity.pixelsPerSecond.dx / _trackWidth;
-    final projected = (_progress.value + _projectMomentum(velocity)).clamp(0.0, 1.0);
+  /// Commits a seek to exactly [fraction] of the track — release and tap both
+  /// land through here, so what you see is what plays.
+  void _commitSeek(double fraction) {
     final target = Duration(
-      milliseconds: (widget.duration.inMilliseconds * projected).round(),
+      milliseconds: (widget.duration.inMilliseconds * fraction).round(),
     );
+    HapticFeedback.lightImpact();
+    // Fire-and-forget by design: the controller swallows its own errors (a
+    // stale connection surfaces through the connection stream instead), and
+    // awaiting here would let a slow platform call pin [_dragging] — freezing
+    // the bar mid-song over a cosmetic detail.
     unawaited(widget.controller.seek(target));
-    if (reducedMotion(context)) {
-      _progress.value = projected;
-      _dragging = false;
-      return;
-    }
-    // Bypasses the `springTo` convenience extension only to recover the
-    // `TickerFuture` it doesn't expose — same spring, same velocity
-    // handoff, just awaited so `_dragging` doesn't clear (and a stream
-    // resync doesn't cut in) until the visual landing actually finishes.
-    await _progress.animateWith(
-      SpringSimulation(AppSprings.standard, _progress.value, projected, velocity),
+    // Adopt the committed position immediately rather than waiting for the
+    // stream echo — the bar reads as instantaneous, and the next emission
+    // simply confirms it.
+    _progress.stop();
+    _progress.value = fraction;
+    setState(() => _dragging = false);
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (!_dragging) return;
+    // Velocity is read but deliberately unused for projection — a scrubber's
+    // contract is "release == play from here", full stop.
+    _commitSeek(_progress.value);
+  }
+
+  String _format(double fraction) {
+    final d = Duration(
+      milliseconds: (widget.duration.inMilliseconds * fraction).round(),
     );
-    _dragging = false;
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _trackWidth = constraints.maxWidth;
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: _onDragStart,
-          onHorizontalDragUpdate: _onDragUpdate,
-          onHorizontalDragEnd: (d) => unawaited(_onDragEnd(d)),
-          child: SizedBox(
-            height: 28,
-            width: double.infinity,
-            child: AnimatedBuilder(
-              animation: _progress,
-              builder: (context, _) {
-                final fraction = _progress.value.clamp(0.0, 1.0);
-                final fillWidth = _trackWidth * fraction;
-                final thumbLeft = (fillWidth - 7).clamp(0.0, (_trackWidth - 14).clamp(0.0, double.infinity));
+    final seekable = _seekable(widget.duration);
+    return AnimatedBuilder(
+      animation: _progress,
+      builder: (context, _) {
+        final fraction = _progress.value.clamp(0.0, 1.0);
+        final remainingFraction = 1.0 - fraction;
+        return Column(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                _trackWidth = constraints.maxWidth;
+                const trackHeight = 4.0;
+                final activeTrackHeight = _dragging ? 6.0 : trackHeight;
+                final thumbSize = _dragging ? 20.0 : 14.0;
+                final thumbLeft =
+                    ((_trackWidth * fraction) - thumbSize / 2)
+                        .clamp(0.0, (_trackWidth - thumbSize).clamp(0.0, double.infinity));
                 return Stack(
+                  clipBehavior: Clip.none,
                   alignment: Alignment.centerLeft,
                   children: [
-                    Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.hairline2,
-                        borderRadius: BorderRadius.circular(2),
+                    // The tappable/draggable surface sits over generous
+                    // vertical padding — a 28px-tall hit area, Spotify-style.
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: seekable
+                          ? (d) {
+                              _beginDrag();
+                              _progress.value = _fractionAt(d.localPosition.dx);
+                            }
+                          : null,
+                      onTapUp: seekable
+                          ? (d) => _commitSeek(_fractionAt(d.localPosition.dx))
+                          : null,
+                      onHorizontalDragStart: seekable
+                          ? (d) => _beginDrag()
+                          : null,
+                      onHorizontalDragUpdate: seekable ? _onDragUpdate : null,
+                      onHorizontalDragEnd: seekable ? _onDragEnd : null,
+                      onHorizontalDragCancel: seekable
+                          ? () => setState(() => _dragging = false)
+                          : null,
+                      child: SizedBox(
+                        height: 30,
+                        width: double.infinity,
                       ),
                     ),
-                    Container(
-                      height: 4,
-                      width: fillWidth,
-                      decoration: BoxDecoration(
-                        color: AppColors.ember,
-                        borderRadius: BorderRadius.circular(2),
+                    // Track + thumb render BELOW the gesture surface so the
+                    // finger never occludes them mid-drag.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [
+                                Container(
+                                  height: trackHeight,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.hairline2,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                Container(
+                                  height: activeTrackHeight,
+                                  width: _trackWidth * fraction,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.ember,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     Positioned(
                       left: thumbLeft,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: const BoxDecoration(
-                          color: AppColors.ember,
-                          shape: BoxShape.circle,
+                      top: 15 - thumbSize / 2,
+                      child: IgnorePointer(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          curve: Curves.easeOut,
+                          width: thumbSize,
+                          height: thumbSize,
+                          decoration: BoxDecoration(
+                            color: AppColors.ember,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.ember.withValues(alpha: 0.35),
+                                blurRadius: _dragging ? 10 : 4,
+                                spreadRadius: -1,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
+                    // The drag-time readout floating over the thumb — the
+                    // answer to "what second am I on" while your finger is
+                    // still down.
+                    if (_dragging)
+                      Positioned(
+                        left: (thumbLeft + thumbSize / 2)
+                            .clamp(24.0, _trackWidth - 24.0),
+                        top: -22,
+                        child: FractionalTranslation(
+                          translation: const Offset(-0.5, 0),
+                          child: _TimeBubble(label: _format(fraction)),
+                        ),
+                      ),
                   ],
                 );
               },
             ),
-          ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_format(fraction),
+                    style: AppText.meta.copyWith(color: AppColors.ink3)),
+                Text('-${_format(remainingFraction)}',
+                    style: AppText.meta.copyWith(color: AppColors.ink3)),
+              ],
+            ),
+          ],
         );
       },
+    );
+  }
+}
+
+/// The little rounded time chip that rides above the thumb mid-drag.
+class _TimeBubble extends StatelessWidget {
+  const _TimeBubble({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.hairline2),
+      ),
+      child: Text(
+        label,
+        style: AppText.meta.copyWith(color: AppColors.ink, fontSize: 11.5),
+      ),
     );
   }
 }

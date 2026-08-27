@@ -38,6 +38,7 @@ import 'package:zivo/features/workout/domain/workout_repository.dart';
 import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
+import 'package:zivo/features/workout/presentation/pages/workout_day_details_page.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -202,7 +203,7 @@ void main() {
       expect(find.text('Start Workout'), findsOneWidget);
       expect(find.text('Pull'), findsNothing);
       expect(find.text('Lat Pulldown'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
@@ -224,7 +225,7 @@ void main() {
       );
       await _settle(tester);
 
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 
@@ -245,12 +246,13 @@ void main() {
       expect(find.text('Full Arm'), findsOneWidget);
       expect(find.text('1 exercise'), findsOneWidget);
       expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
   testWidgets(
-    'tapping Start shows a dark confirm sheet; Cancel dismisses without navigating',
+    'tapping Start opens the live session DIRECTLY — the split already '
+    'decided today\'s workout, so there is no confirm/re-selection step',
     (tester) async {
       await tallView(tester);
 
@@ -260,89 +262,47 @@ void main() {
           diet: InMemoryDietRepository(),
           workoutPlans: _FixedPlanRepository(_planWithNextDay()),
         ),
-      );
-      await _settle(tester);
-
-      await tester.tap(find.text('Start Workout'));
-      await _settle(tester);
-
-      expect(find.text('Ready to start Full Arm?'), findsOneWidget);
-      expect(find.text('1 exercise today.'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.byType(LiveSessionPage), findsNothing);
-
-      await tester.tap(find.text('Cancel'));
-      await _settle(tester);
-
-      expect(find.text('Ready to start Full Arm?'), findsNothing);
-      expect(find.byType(LiveSessionPage), findsNothing);
-      expect(find.text('Full Arm'), findsOneWidget); // still on Today
-    },
-  );
-
-  testWidgets(
-    'dragging the confirm sheet down past the threshold dismisses it, without navigating',
-    (tester) async {
-      await tallView(tester);
-
-      await tester.pumpWidget(
-        _wrap(
-          child: const TodayPage(),
-          diet: InMemoryDietRepository(),
-          workoutPlans: _FixedPlanRepository(_planWithNextDay()),
-        ),
-      );
-      await _settle(tester);
-
-      await tester.tap(find.text('Start Workout'));
-      await _settle(tester);
-      expect(find.text('Ready to start Full Arm?'), findsOneWidget);
-
-      // Well past the 120px dismiss threshold — same exit as Cancel.
-      await tester.drag(
-        find.text('Ready to start Full Arm?'),
-        const Offset(0, 300),
       );
       await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsNothing);
-      expect(find.byType(LiveSessionPage), findsNothing);
-      expect(find.text('Full Arm'), findsOneWidget); // still on Today
+      await tester.tap(find.text('Start Workout'));
+      await _settle(tester);
+
+      expect(find.byType(LiveSessionPage), findsOneWidget);
     },
   );
 
   testWidgets(
-    'dragging the confirm sheet down short of the threshold springs it back open',
+    'the Change chip opens the day picker and picking another day starts it directly',
     (tester) async {
       await tallView(tester);
+      final plan = _planWithTwoDays(); // next-due "Full Arm", also has d2
 
       await tester.pumpWidget(
         _wrap(
           child: const TodayPage(),
           diet: InMemoryDietRepository(),
-          workoutPlans: _FixedPlanRepository(_planWithNextDay()),
+          workoutPlans: _FixedPlanRepository(plan),
         ),
       );
       await _settle(tester);
 
-      await tester.tap(find.text('Start Workout'));
+      await tester.tap(find.byKey(const Key('training-change')));
       await _settle(tester);
 
-      // A short drag, well under the 120px dismiss threshold.
-      await tester.drag(
-        find.text('Ready to start Full Arm?'),
-        const Offset(0, 30),
-      );
+      // The sheet lists every day of the split; pick a different one.
+      final otherDay = plan.days.firstWhere((d) => d.id != plan.nextDay!.id);
+      await tester.tap(find.text(otherDay.label).last);
       await _settle(tester);
 
-      // Still open — sprang back rather than dismissing.
-      expect(find.text('Ready to start Full Arm?'), findsOneWidget);
-      expect(find.byType(LiveSessionPage), findsNothing);
+      // Picking starts that workout directly — no further confirm.
+      expect(find.byType(LiveSessionPage), findsOneWidget);
     },
   );
 
   testWidgets(
-    'confirming Start navigates directly into a fresh LiveSessionPage, bypassing Hub → Workout',
+    'tapping the card body (outside the CTA) opens the day details page',
     (tester) async {
       await tallView(tester);
       final plan = _planWithNextDay();
@@ -356,64 +316,15 @@ void main() {
       );
       await _settle(tester);
 
-      await tester.tap(find.text('Start Workout'));
-      await _settle(tester);
-      // The card's own CTA reads "Start Workout" (distinct text), so the
-      // sheet's plain "Start" confirm button is the only match here.
-      await tester.tap(find.text('Start'));
+      // Tap the card's title text — outside the Start button.
+      await tester.tap(find.text('Full Arm'));
       await _settle(tester);
 
-      expect(find.byType(LiveSessionPage), findsOneWidget);
-      // A fresh (non-resume) session opens on the pre-workout warm-up phase.
-      expect(find.text('PRE-WORKOUT'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'an active session for the up-next day shows Resume and skips the warm-up phase on confirm',
-    (tester) async {
-      await tallView(tester);
-      final plan = _planWithNextDay();
-      final sessions = InMemoryWorkoutSessionRepository();
-      final active = LiveSession.start(
-        plan.days.first,
-        id: 'active1',
-        planId: plan.id,
-        now: DateTime.now(),
+      expect(
+        find.byType(WorkoutDayDetailsPage),
+        findsOneWidget,
+        reason: 'The card body should open today\'s workout details',
       );
-      await sessions.saveSession(active);
-
-      // Not pumpAndSettle anywhere in this file now — the card's
-      // `AliveColorDrift` (up_next_workout_card.dart) is a continuous,
-      // always-on repeating animation (not gated to an active session
-      // anymore), same convention as `live_session_page_test.dart`'s own
-      // `_settle` (and it stays mounted, ticking, even once covered by the
-      // confirm sheet/LiveSessionPage — Navigator keeps prior routes alive).
-      await tester.pumpWidget(
-        _wrap(
-          child: const TodayPage(),
-          diet: InMemoryDietRepository(),
-          workoutPlans: _FixedPlanRepository(plan),
-          workoutSessions: sessions,
-        ),
-      );
-      await _settle(tester);
-
-      expect(find.text('Resume Workout'), findsOneWidget);
-      expect(find.text('Start Workout'), findsNothing);
-
-      await tester.tap(find.text('Resume Workout'));
-      await _settle(tester);
-      expect(find.text('Ready to jump back in?'), findsOneWidget);
-
-      // The card's own CTA reads "Resume Workout" (distinct text), so the
-      // sheet's plain "Resume" confirm button is the only match here.
-      await tester.tap(find.text('Resume'));
-      await _settle(tester);
-
-      expect(find.byType(LiveSessionPage), findsOneWidget);
-      // A resumed session never re-opens on the warm-up phase.
-      expect(find.text('PRE-WORKOUT'), findsNothing);
     },
   );
 
@@ -540,7 +451,7 @@ void main() {
       expect(find.text('Get started'), findsOneWidget);
       expect(find.text('Import a\nworkout plan'), findsOneWidget);
       expect(find.text('Add an\nexpense'), findsOneWidget);
-      expect(find.text('No training logged yet today.'), findsNothing);
+      expect(find.text('No training plan yet'), findsNothing);
     },
   );
 
@@ -576,7 +487,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Get started'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 
@@ -610,7 +521,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Get started'), findsNothing);
-      expect(find.text('No training logged yet today.'), findsOneWidget);
+      expect(find.text('No training plan yet'), findsOneWidget);
     },
   );
 }

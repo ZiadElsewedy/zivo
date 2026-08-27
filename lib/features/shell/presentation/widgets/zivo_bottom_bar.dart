@@ -8,25 +8,42 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 
 /// Shared sizing so callers needing clearance above [ZivoBottomBar] (e.g. a
-/// page's scroll padding) can derive it exactly instead of guessing a magic
-/// number — keeps that clearance from drifting out of sync with the bar's
-/// actual layout.
+/// page's scroll padding, or the floating now-playing orb) can derive it
+/// exactly instead of guessing a magic number — keeps that clearance from
+/// drifting out of sync with the bar's actual layout.
 abstract final class ZivoBottomBarMetrics {
-  /// The bar's device-independent content height: outer top inset (10) +
-  /// inner tab padding (4 + 4) + icon (24) + icon-label gap (5) + label
-  /// line height (~14 at 9.5sp).
-  static const double contentHeight = 61;
+  /// The floating island's own device-independent height: vertical padding
+  /// (11 + 11) + icon (24) + icon-label gap (4) + label line height (~13 at
+  /// 9.5sp). The island floats, so its rendered footprint also includes the
+  /// bottom margin below it — see [height].
+  static const double islandHeight = 63;
 
-  /// Total rendered height of [ZivoBottomBar] for the current context,
-  /// including whatever bottom safe-area inset it applies.
+  /// Horizontal inset of the floating island from the screen edges.
+  static const double sideMargin = 16;
+
+  /// The gap between the island's bottom edge and the safe area (or the
+  /// screen bottom on devices without a home indicator).
+  static double _bottomMargin(double bottomInset) =>
+      bottomInset > 0 ? bottomInset : 14;
+
+  /// Total rendered footprint of [ZivoBottomBar] for the current context —
+  /// the floating island plus the margin beneath it — so page content and
+  /// the now-playing orb clear the whole thing.
   static double height(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return contentHeight + (bottomInset > 0 ? bottomInset : 12);
+    return islandHeight + _bottomMargin(bottomInset) + 6;
   }
 }
 
 /// The four-tab command bar: Today · Hub · Ask · You (decision D-1).
-class ZivoBottomBar extends StatelessWidget {
+///
+/// A floating, blurred "island" rather than an edge-to-edge strip: it reads
+/// as a physical object lifted off the content. Its signature is a single
+/// ember capsule that **spring-glides** between destinations on the app's
+/// house physics, while every tab's icon and label continuously interpolate
+/// their colour and scale from the capsule's live position — so a tab
+/// doesn't just switch on, it warms up as the capsule arrives.
+class ZivoBottomBar extends StatefulWidget {
   const ZivoBottomBar({
     required this.currentIndex,
     required this.onTap,
@@ -37,56 +54,114 @@ class ZivoBottomBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   @override
+  State<ZivoBottomBar> createState() => _ZivoBottomBarState();
+}
+
+class _ZivoBottomBarState extends State<ZivoBottomBar>
+    with SingleTickerProviderStateMixin {
+  static const _tabs = <_TabSpec>[
+    _TabSpec('Today', AppIcons.today),
+    _TabSpec('Hub', AppIcons.hub),
+    _TabSpec('Ask', AppIcons.ask),
+    _TabSpec('You', AppIcons.you),
+  ];
+
+  /// The live, fractional position of the ember capsule along the tab row
+  /// (0 = Today … 3 = You). It's a continuous value — not the integer index
+  /// — precisely so it can spring *between* slots and drive the smooth
+  /// colour/scale falloff on either side as it travels.
+  late final AnimationController _pos = AnimationController.unbounded(
+    vsync: this,
+    value: widget.currentIndex.toDouble(),
+  );
+
+  @override
+  void didUpdateWidget(covariant ZivoBottomBar old) {
+    super.didUpdateWidget(old);
+    if (widget.currentIndex != old.currentIndex) {
+      final target = widget.currentIndex.toDouble();
+      if (reducedMotion(context)) {
+        _pos.value = target;
+      } else {
+        // The capsule is a physical object the tap flicked toward its new
+        // home — a touch of overshoot as it settles is the life of the bar.
+        _pos.springTo(target, spring: AppSprings.bounce);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pos.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xE0211A14),
-            border: Border(top: BorderSide(color: AppColors.hairline)),
-          ),
-          padding: EdgeInsets.only(top: 10, bottom: bottomInset > 0 ? bottomInset : 12),
-          child: Row(
-            children: [
-              _Tab(
-                index: 0,
-                label: 'Today',
-                icon: AppIcons.today,
-                activeIcon: AppIcons.todayFill,
-                filled: true,
-                currentIndex: currentIndex,
-                onTap: onTap,
+    return Padding(
+      padding: EdgeInsets.only(
+        left: ZivoBottomBarMetrics.sideMargin,
+        right: ZivoBottomBarMetrics.sideMargin,
+        bottom: ZivoBottomBarMetrics._bottomMargin(bottomInset),
+      ),
+      child: DecoratedBox(
+        // A soft, warm lift so the island floats above whatever scrolls
+        // behind it — depth from shadow, not a hard border.
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF000000).withValues(alpha: 0.38),
+              blurRadius: 28,
+              spreadRadius: -6,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              height: ZivoBottomBarMetrics.islandHeight,
+              decoration: BoxDecoration(
+                color: const Color(0xF01D160F),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.hairline2),
               ),
-              _Tab(
-                index: 1,
-                label: 'Hub',
-                icon: AppIcons.hub,
-                activeIcon: AppIcons.hubFill,
-                filled: true,
-                currentIndex: currentIndex,
-                onTap: onTap,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final slot = constraints.maxWidth / _tabs.length;
+                  return AnimatedBuilder(
+                    animation: _pos,
+                    builder: (context, _) {
+                      final pos = _pos.value.clamp(0.0, _tabs.length - 1.0);
+                      return Stack(
+                        children: [
+                          _Capsule(left: pos * slot, width: slot),
+                          Row(
+                            children: [
+                              for (var i = 0; i < _tabs.length; i++)
+                                Expanded(
+                                  child: _Tab(
+                                    spec: _tabs[i],
+                                    // Warmth falls off with distance from the
+                                    // capsule: 1 at its centre, 0 a slot away.
+                                    t: (1 - (pos - i).abs()).clamp(0.0, 1.0),
+                                    onTap: () => widget.onTap(i),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
-              _Tab(
-                index: 2,
-                label: 'Ask',
-                icon: AppIcons.ask,
-                activeIcon: AppIcons.askFill,
-                filled: true,
-                currentIndex: currentIndex,
-                onTap: onTap,
-              ),
-              _Tab(
-                index: 3,
-                label: 'You',
-                icon: AppIcons.you,
-                activeIcon: AppIcons.youFill,
-                filled: true,
-                currentIndex: currentIndex,
-                onTap: onTap,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -94,120 +169,69 @@ class ZivoBottomBar extends StatelessWidget {
   }
 }
 
-class _Tab extends StatefulWidget {
-  const _Tab({
-    required this.index,
-    required this.label,
-    required this.icon,
-    required this.currentIndex,
-    required this.onTap,
-    this.activeIcon,
-    this.filled = false,
-  });
+/// The ember highlight that glides beneath the active tab.
+class _Capsule extends StatelessWidget {
+  const _Capsule({required this.left, required this.width});
 
-  final int index;
-  final String label;
-  final IconData icon;
-  final IconData? activeIcon;
-  final bool filled;
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  @override
-  State<_Tab> createState() => _TabState();
-}
-
-class _TabState extends State<_Tab> with SingleTickerProviderStateMixin {
-  bool get _active => widget.index == widget.currentIndex;
-
-  /// 0 = inactive, 1 = active — drives both the icon's spring-in scale and
-  /// the outline↔fill glyph cross-fade below.
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    value: _active ? 1 : 0,
-  );
-
-  @override
-  void didUpdateWidget(covariant _Tab old) {
-    super.didUpdateWidget(old);
-    final wasActive = old.index == old.currentIndex;
-    if (_active != wasActive) {
-      if (reducedMotion(context)) {
-        _c.value = _active ? 1 : 0;
-      } else {
-        // A momentum moment the tap itself earned — the only place overshoot
-        // belongs (see AppSprings.bounce doc).
-        _c.springTo(_active ? 1 : 0, spring: AppSprings.bounce);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+  final double left;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
-    final color = _active ? AppColors.ember : AppColors.tabInactive;
-    return Expanded(
-      child: InkWell(
-        onTap: () => widget.onTap(widget.index),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedBuilder(
-                animation: _c,
-                builder: (context, _) {
-                  final t = _c.value.clamp(0.0, 1.0);
-                  return Transform.scale(
-                    scale: 1.0 + 0.12 * t,
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Opacity(
-                            opacity: 1 - t,
-                            child: Icon(
-                              widget.icon,
-                              size: 24,
-                              color: AppColors.tabInactive,
-                            ),
-                          ),
-                          Opacity(
-                            opacity: t,
-                            child: Icon(
-                              widget.activeIcon ?? widget.icon,
-                              size: 24,
-                              color: AppColors.ember,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 5),
-              // Color here is semantic state (active/inactive), not
-              // decoration — an implicit tween is cheap and idiomatic in
-              // Flutter, so it's allowed to cross-fade alongside the icon
-              // rather than snapping.
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                style: AppText.tabLabel.copyWith(color: color),
-                child: Text(widget.label.toUpperCase()),
-              ),
-            ],
-          ),
+    // Inset within its slot so the capsule reads as a pill, not a full cell.
+    const inset = 8.0;
+    return Positioned(
+      left: left + inset,
+      top: 8,
+      bottom: 8,
+      width: width - inset * 2,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.emberWash,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.ember.withValues(alpha: 0.28)),
         ),
+      ),
+    );
+  }
+}
+
+class _TabSpec {
+  const _TabSpec(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+class _Tab extends StatelessWidget {
+  const _Tab({required this.spec, required this.t, required this.onTap});
+
+  final _TabSpec spec;
+
+  /// 0 = fully inactive, 1 = fully active — the live warmth of this tab,
+  /// interpolated from the capsule's position so it eases in and out as the
+  /// capsule passes rather than snapping.
+  final double t;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color.lerp(AppColors.tabInactive, AppColors.ember, t)!;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Transform.scale(
+            scale: 1.0 + 0.12 * t,
+            child: Icon(spec.icon, size: 24, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            spec.label.toUpperCase(),
+            style: AppText.tabLabel.copyWith(color: color),
+          ),
+        ],
       ),
     );
   }

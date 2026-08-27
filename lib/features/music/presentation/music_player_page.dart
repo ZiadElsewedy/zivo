@@ -9,6 +9,7 @@ import '../../capture/presentation/widgets/capture_widgets.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
+import 'artwork_palette_service.dart';
 import 'music_artwork.dart';
 import 'music_scrubber.dart';
 
@@ -24,41 +25,58 @@ class MusicPlayerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      appBar: AppBar(
-        backgroundColor: AppColors.ground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: PressableScale(
-          child: IconButton(
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
-            color: AppColors.ink2,
-            onPressed: () => Navigator.of(context).pop(),
+    // Outer subscription drives ONLY the artwork-derived background wash (a
+    // presentation concern) — the connection/now-playing logic below keeps its
+    // own subscriptions untouched. The palette color stays inside this builder;
+    // it is never passed out of the music UI.
+    return StreamBuilder<NowPlaying?>(
+      stream: controller.nowPlaying,
+      initialData: controller.currentNowPlaying,
+      builder: (context, paletteSnap) {
+        final track = paletteSnap.data;
+        return ArtworkPalette(
+          trackId: track?.trackId,
+          artworkBytes: track?.artworkBytes,
+          builder: (context, background) => Scaffold(
+            backgroundColor: background,
+            appBar: AppBar(
+              // Transparent so the animated ground shows through behind it.
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              leading: PressableScale(
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
+                  color: AppColors.ink2,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+            body: SafeArea(
+              child: StreamBuilder<MusicConnection>(
+                stream: controller.connection,
+                initialData: controller.currentConnection,
+                builder: (context, connSnap) {
+                  final state = connSnap.data ?? MusicConnection.disconnected;
+                  if (state != MusicConnection.connected) {
+                    return _ConnectionState(
+                        state: state, onConnect: controller.connect);
+                  }
+                  return StreamBuilder<NowPlaying?>(
+                    stream: controller.nowPlaying,
+                    initialData: controller.currentNowPlaying,
+                    builder: (context, snap) {
+                      final playing = snap.data;
+                      if (playing == null) return const _NothingPlaying();
+                      return _Player(controller: controller, playing: playing);
+                    },
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-      ),
-      body: SafeArea(
-        child: StreamBuilder<MusicConnection>(
-          stream: controller.connection,
-          initialData: controller.currentConnection,
-          builder: (context, connSnap) {
-            final state = connSnap.data ?? MusicConnection.disconnected;
-            if (state != MusicConnection.connected) {
-              return _ConnectionState(state: state, onConnect: controller.connect);
-            }
-            return StreamBuilder<NowPlaying?>(
-              stream: controller.nowPlaying,
-              initialData: controller.currentNowPlaying,
-              builder: (context, snap) {
-                final playing = snap.data;
-                if (playing == null) return const _NothingPlaying();
-                return _Player(controller: controller, playing: playing);
-              },
-            );
-          },
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -99,19 +117,14 @@ class _Player extends StatelessWidget {
             style: AppText.body.copyWith(color: AppColors.ink2),
           ),
           const SizedBox(height: AppSpacing.l),
+          // Owns the track, thumb, drag bubble AND the live time labels —
+          // one component so the numbers can never disagree with the bar.
           MusicScrubber(
             controller: controller,
+            trackId: playing.trackId,
             duration: playing.duration,
             position: playing.position,
             isPaused: playing.isPaused,
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_format(playing.position), style: AppText.meta.copyWith(color: AppColors.ink3)),
-              Text(_format(playing.duration), style: AppText.meta.copyWith(color: AppColors.ink3)),
-            ],
           ),
           const SizedBox(height: AppSpacing.l),
           if (!playing.hasControl)
@@ -127,15 +140,8 @@ class _Player extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _Control(
-                icon: Icons.replay_rounded,
-                size: 26,
-                enabled: playing.hasControl,
-                onTap: controller.replay,
-              ),
-              const SizedBox(width: AppSpacing.l),
-              _Control(
                 icon: Icons.skip_previous_rounded,
-                size: 32,
+                size: 34,
                 enabled: playing.hasControl,
                 onTap: controller.previous,
               ),
@@ -144,7 +150,7 @@ class _Player extends StatelessWidget {
               const SizedBox(width: AppSpacing.l),
               _Control(
                 icon: Icons.skip_next_rounded,
-                size: 32,
+                size: 34,
                 enabled: playing.hasControl,
                 onTap: controller.next,
               ),
@@ -154,12 +160,6 @@ class _Player extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _format(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
 
@@ -174,12 +174,27 @@ class _BigArtwork extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1,
       child: LayoutBuilder(
-        builder: (context, constraints) => MusicArtwork(
-          bytes: bytes,
-          url: url,
-          size: constraints.maxWidth,
-          iconSize: 64,
-          borderRadius: 20,
+        builder: (context, constraints) => DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              // The artwork floats a few millimeters off the ground —
+              // quiet depth without any glassy gimmicks.
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 34,
+                spreadRadius: -8,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: MusicArtwork(
+            bytes: bytes,
+            url: url,
+            size: constraints.maxWidth,
+            iconSize: 64,
+            borderRadius: 20,
+          ),
         ),
       ),
     );

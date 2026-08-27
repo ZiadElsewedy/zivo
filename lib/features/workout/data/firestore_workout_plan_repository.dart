@@ -230,12 +230,25 @@ class FirestoreWorkoutPlanRepository implements WorkoutPlanRepository {
     _pointerSub = _metaDoc(uid).snapshots().listen((snapshot) {
       _activePointerId = _pointerIdFrom(snapshot.data());
       _emitFromCache();
-    }, onError: _onStreamError);
+    }, onError: _onPointerError);
   }
 
   void _onStreamError(Object error, StackTrace stack) {
     _planController?.addError(error, stack);
     _splitsController?.addError(error, stack);
+  }
+
+  /// A failure reading the OPTIONAL active-split pointer must never poison the
+  /// plan/splits streams: [_resolveActive] already falls back to the
+  /// active-status (then oldest) split when there is no valid pointer, so on a
+  /// pointer-read error we just drop the pointer and re-emit from cache rather
+  /// than push an error to every consumer. Poisoning the plan stream here is
+  /// what used to blank Today's Training card (dropping it to the "Import a
+  /// plan" empty state) whenever the pointer doc was momentarily unreadable —
+  /// e.g. a missing/stale `workoutMeta` rule, the exact gap this guards.
+  void _onPointerError(Object error, StackTrace stack) {
+    _activePointerId = null;
+    _emitFromCache();
   }
 
   void _emitFromCache() {

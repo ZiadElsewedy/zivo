@@ -35,8 +35,10 @@ int? mealCalories(Meal meal) {
 }
 
 /// Sum of meal calories in [day]; null if none of its meals carry calories.
+/// Supplements are excluded — the day's energy target is about FOOD; the
+/// vitamins block isn't part of "kcal left" (see [isSupplementMeal]).
 int? dayCalories(DietDay day) {
-  final mealTotals = day.meals.map(mealCalories).whereType<int>();
+  final mealTotals = regularMeals(day.meals).map(mealCalories).whereType<int>();
   if (mealTotals.isEmpty) return null;
   return mealTotals.fold<int>(0, (sum, c) => sum + c);
 }

@@ -21,6 +21,8 @@ import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 import 'package:zivo/features/workout/domain/workout_plan_status.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_dashboard_page.dart';
+import 'package:zivo/features/workout/presentation/pages/bodyweight_history_page.dart';
+import 'package:zivo/features/workout/presentation/pages/workout_stats_pages.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -136,7 +138,7 @@ void main() {
     expect(find.text('Start Workout'), findsOneWidget);
 
     // Stats are all placeholders with nothing logged yet.
-    expect(find.text('0'), findsNWidgets(2)); // sessions this week + day streak
+    expect(find.text('0'), findsNWidgets(2)); // sessions + day streak
     expect(find.text('—'), findsWidgets); // avg duration / avg start
 
     expect(find.text('No weigh-ins logged yet.'), findsOneWidget);
@@ -168,7 +170,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('1'), findsNWidgets(2)); // sessions this week + day streak (trained today)
+    expect(find.text('1'), findsNWidgets(2)); // sessions + day streak (trained today)
     expect(find.text('82.5 kg'), findsOneWidget);
   });
 
@@ -194,7 +196,7 @@ void main() {
 
       // Kept.
       expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('THIS WEEK'), findsOneWidget);
+      expect(find.text('TRAINING'), findsWidgets); // section label + the up-next card's own tag
       expect(find.text('BODYWEIGHT'), findsOneWidget);
 
       // Moved off the landing entirely.
@@ -361,5 +363,72 @@ void main() {
 
     expect(bodyWeight.current, hasLength(1));
     expect(bodyWeight.current.single.weightKg, 80.5);
+  });
+
+  Future<void> pumpDashboard(
+    WidgetTester tester, {
+    InMemoryWorkoutSessionRepository? sessions,
+    InMemoryBodyWeightRepository? bodyWeight,
+  }) async {
+    _useTallViewport(tester);
+    final plans = InMemoryWorkoutPlanRepository();
+    addTearDown(plans.dispose);
+    await plans.savePlan(_plan());
+    final sessionRepo =
+        sessions ?? InMemoryWorkoutSessionRepository();
+    await sessionRepo.saveSession(
+      _completedSession(id: 's1', startedAt: DateTime.now().subtract(const Duration(hours: 2))),
+    );
+    final weightRepo = bodyWeight ?? InMemoryBodyWeightRepository();
+    addTearDown(weightRepo.dispose);
+
+    await tester.pumpWidget(
+      _wrap(
+        child: const WorkoutDashboardPage(),
+        plans: plans,
+        sessions: sessionRepo,
+        bodyWeight: weightRepo,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  Future<void> expectDrillDown(
+    WidgetTester tester,
+    String label,
+    Type pageType,
+  ) async {
+    final finder = find.text(label);
+    await tester.ensureVisible(finder);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(finder);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(pageType, skipOffstage: true), findsOneWidget);
+  }
+
+  testWidgets('the Sessions tile opens the sessions history page', (tester) async {
+    await pumpDashboard(tester);
+    await expectDrillDown(tester, 'Sessions', WorkoutSessionsPage);
+  });
+
+  testWidgets('the Day streak tile opens the streak history page', (tester) async {
+    await pumpDashboard(tester);
+    await expectDrillDown(tester, 'Day streak', WorkoutStreakPage);
+  });
+
+  testWidgets('the Avg duration tile opens the duration stats page', (tester) async {
+    await pumpDashboard(tester);
+    await expectDrillDown(tester, 'Avg duration', WorkoutDurationStatsPage);
+  });
+
+  testWidgets('the Avg start tile opens the start-times stats page', (tester) async {
+    await pumpDashboard(tester);
+    await expectDrillDown(tester, 'Avg start', WorkoutStartTimesPage);
+  });
+
+  testWidgets('the Bodyweight card opens the weigh-in history page', (tester) async {
+    await pumpDashboard(tester);
+    await expectDrillDown(tester, 'No weigh-ins logged yet.', BodyweightHistoryPage);
   });
 }

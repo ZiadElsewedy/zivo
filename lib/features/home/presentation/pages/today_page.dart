@@ -12,21 +12,21 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../auth/domain/user_profile.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
-import '../../../expenses/domain/expense_repository.dart';
-import '../../../expenses/domain/wallet.dart';
 import '../../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_plan.dart';
+import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
 import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
-import '../widgets/spending_glance.dart';
+import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
 
@@ -118,18 +118,31 @@ class _TodayPageState extends State<TodayPage> {
                         delay: Duration.zero,
                         child: _Header(onQuickLog: widget.onQuickLog),
                       ),
-                      // Primary tier — the day's training, full-weight card.
+                      // Primary tier — the day at a glance: train / fuel /
+                      // move rings answering "what have I done today?"
                       const RiseIn(
-                        delay: Duration(milliseconds: 90),
+                        delay: Duration(milliseconds: 70),
+                        child: TodayPulseSection(),
+                      ),
+                      // The day's training, full-weight card.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 140),
                         child: _TrainingSection(),
+                      ),
+                      // Momentum — "how am I doing?" streak, week bars,
+                      // weight trend.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 210),
+                        child: MomentumSection(),
+                      ),
+                      // Worth knowing — computed right-now nudges.
+                      const RiseIn(
+                        delay: Duration(milliseconds: 280),
+                        child: InsightsSection(),
                       ),
                       // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                       const RiseIn(
-                        delay: Duration(milliseconds: 170),
-                        child: _SpendingSection(),
-                      ),
-                      const RiseIn(
-                        delay: Duration(milliseconds: 250),
+                        delay: Duration(milliseconds: 350),
                         child: _DietSection(),
                       ),
                     ],
@@ -415,41 +428,6 @@ class _GreetingRow extends StatelessWidget {
   }
 }
 
-class _EmptyLine extends StatelessWidget {
-  const _EmptyLine(this.text, {this.icon = Icons.spa_rounded});
-
-  final String text;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-      decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline, width: 1),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.ink3),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              text,
-              style: AppText.body.copyWith(
-                color: AppColors.ink3,
-                fontSize: 14.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Always shows the active plan's up-next day, resolved by the SAME
 /// `resolveUpNext` (see `up_next_selection.dart`) the Workout tab's own page
 /// reads, so the two surfaces can't drift apart. Deliberately does NOT branch
@@ -480,8 +458,9 @@ class _TrainingSection extends StatelessWidget {
 /// session `active` (see [LiveSession.isPaused]). With nothing running it
 /// offers the next-due day with a Start CTA. Finishing a workout advances the
 /// plan cursor and clears the active session (see `live_session_page.dart`),
-/// so the card falls back to the new next-due day on its own. Falls back to a
-/// plain empty line only when there's genuinely no plan/day to offer.
+/// so the card falls back to the new next-due day on its own. Falls back to
+/// [_EmptySplitCard] when the plan has no days left, and (via
+/// [_TrainingEmptyFallback]) to a no-plan card when there's no plan at all.
 class _TrainingUpNext extends StatelessWidget {
   const _TrainingUpNext({required this.scope});
 
@@ -510,7 +489,9 @@ class _TrainingUpNext extends StatelessWidget {
             final selection = resolveUpNext(plan, sessionSnapshot.data);
             final day = selection.day;
             if (day == null) {
-              return const _TrainingEmptyFallback();
+              // A plan whose days were all removed still resolves here —
+              // that's a split to fix, not "nothing logged today".
+              return _EmptySplitCard(plan: plan);
             }
             return UpNextWorkoutCard(
               plan: plan,
@@ -524,21 +505,18 @@ class _TrainingUpNext extends StatelessWidget {
   }
 }
 
-/// What Training shows when it has nothing to offer: the plain empty line
-/// for a user who already has *some* real data elsewhere (a diet plan or a
-/// logged expense), or — for a genuinely brand-new user with none of the
-/// three (workout/diet/expenses) — the actionable [_GetStartedCard] instead.
+/// What Training shows when there's no workout plan but the user already has
+/// real data elsewhere (a diet plan or a logged expense) — a proper
+/// actionable card, not the bare grey line it replaced ("No training logged
+/// yet today.", which also misdescribed the state: nothing about it was
+/// about *today*, and the actual gap is that no plan exists yet).
+///
 /// Reactive: as soon as a diet plan or an expense shows up, this collapses
-/// back to the plain line on its own (and disappears entirely once a
+/// back from [_GetStartedCard] on its own (and disappears entirely once a
 /// workout plan exists, since the outer [_TrainingUpNext] stops reaching
 /// this branch at all).
 class _TrainingEmptyFallback extends StatelessWidget {
   const _TrainingEmptyFallback();
-
-  static const _emptyLine = _EmptyLine(
-    'No training logged yet today.',
-    icon: Icons.fitness_center_rounded,
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -547,17 +525,224 @@ class _TrainingEmptyFallback extends StatelessWidget {
       stream: scope.diet.watchActivePlan(),
       initialData: scope.diet.activePlan,
       builder: (context, dietSnapshot) {
-        if (dietSnapshot.data != null) return _emptyLine;
+        if (dietSnapshot.data != null) return const _NoPlanTrainingCard();
         return StreamBuilder<List<Expense>>(
           stream: scope.expenses.watchAll(),
           initialData: scope.expenses.current,
           builder: (context, expenseSnapshot) {
             final expenses = expenseSnapshot.data ?? const <Expense>[];
-            if (expenses.isNotEmpty) return _emptyLine;
+            if (expenses.isNotEmpty) return const _NoPlanTrainingCard();
             return const _GetStartedCard();
           },
         );
       },
+    );
+  }
+}
+
+/// The Training section's own empty-state card: same card surface, gradient
+/// icon-chip and pill-CTA language as the rest of Today (and the Workout
+/// tab's no-plan state), with both ways forward one tap away.
+class _NoPlanTrainingCard extends StatelessWidget {
+  const _NoPlanTrainingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return RiseIn(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _TrainingIconChip(
+                  icon: Icons.fitness_center_rounded,
+                  color: AppColors.pulse,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No training plan yet',
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Import your split from a PDF or photo and Zivo turns it into '
+              'a real rotating plan — or build one by hand.',
+              style: AppText.body.copyWith(
+                color: AppColors.ink2,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: PillButton(
+                label: 'Import a plan',
+                icon: Icons.upload_file_rounded,
+                color: AppColors.pulse,
+                enabled: true,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutPdfImportPage(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Center(
+              child: PressableScale(
+                child: TextButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const WorkoutPlanEditPage(initialPlan: null),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Build manually instead',
+                    style: AppText.meta.copyWith(color: AppColors.ink2),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The active split exists but has no days left (every day was deleted) —
+/// previously this collapsed into the generic empty line, which read as
+/// "nothing logged today" while the actual fix is editing the split.
+class _EmptySplitCard extends StatelessWidget {
+  const _EmptySplitCard({required this.plan});
+
+  final WorkoutPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    return RiseIn(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _TrainingIconChip(
+                  icon: Icons.post_add_rounded,
+                  color: AppColors.solar,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${plan.name} has no days',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Add training days and exercises to this split and it will '
+              'show up here, ready to start.',
+              style: AppText.body.copyWith(
+                color: AppColors.ink2,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: PillButton(
+                label: 'Edit split',
+                icon: Icons.edit_rounded,
+                color: AppColors.solar,
+                enabled: true,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WorkoutPlanEditPage(initialPlan: plan),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The tinted gradient icon chip shared by both Training empty cards — the
+/// same visual unit the Workout tab's phase states use, so the flows read
+/// as one product.
+class _TrainingIconChip extends StatelessWidget {
+  const _TrainingIconChip({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.26),
+            color.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.26),
+            blurRadius: 18,
+            spreadRadius: -5,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 22, color: color),
     );
   }
 }
@@ -674,52 +859,6 @@ class _GetStartedAction extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SpendingSection extends StatelessWidget {
-  const _SpendingSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final expenses = scope.expenses;
-    final wallet = scope.wallet;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Spending'),
-        StreamBuilder<List<Expense>>(
-          stream: expenses.watchAll(),
-          initialData: expenses.current,
-          builder: (context, snapshot) {
-            final items = snapshot.data ?? const <Expense>[];
-            final now = DateTime.now();
-            final todayMinor = todayTotalMinor(items, now);
-            final weekMinor = weekTotalMinor(items, now);
-            if (wallet == null) {
-              return SpendingGlanceRow(
-                todayMinor: todayMinor,
-                weekMinor: weekMinor,
-                currency: 'EGP',
-              );
-            }
-            return StreamBuilder<Wallet?>(
-              stream: wallet.watch(),
-              initialData: wallet.current,
-              builder: (context, walletSnapshot) {
-                return SpendingGlanceRow(
-                  todayMinor: todayMinor,
-                  weekMinor: weekMinor,
-                  currency: walletSnapshot.data?.currency ?? 'EGP',
-                  walletMinor: walletSnapshot.data?.balanceMinor,
-                );
-              },
-            );
-          },
-        ),
-      ],
     );
   }
 }

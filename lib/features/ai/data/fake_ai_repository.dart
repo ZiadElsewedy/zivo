@@ -143,8 +143,11 @@ class FakeAiRepository implements AiRepository {
   }
 
   @override
-  Future<String> createConversation() async =>
-      _createConversation(title: 'New chat').id;
+  Future<String> createConversation({String? title}) async => _createConversation(
+    title: title == null || title.trim().isEmpty
+        ? 'New chat'
+        : title.trim(),
+  ).id;
 
   @override
   Future<void> renameConversation(String id, String title) async {
@@ -233,6 +236,7 @@ class FakeAiRepository implements AiRepository {
         role: AiRole.user,
         content: trimmed,
         createdAt: userCreatedAt,
+        clientTurnId: clientTurnId,
       ),
     );
 
@@ -282,6 +286,7 @@ class FakeAiRepository implements AiRepository {
         role: AiRole.assistant,
         content: kFakeAiReply,
         createdAt: assistantCreatedAt,
+        clientTurnId: clientTurnId,
       ),
     );
     convo.updatedAt = assistantCreatedAt;

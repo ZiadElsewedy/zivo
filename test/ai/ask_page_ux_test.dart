@@ -69,7 +69,7 @@ class _FlakyAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation() => _inner.createConversation();
+  Future<String> createConversation({String? title}) => _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>
@@ -142,7 +142,7 @@ class _SilentDropAi implements AiRepository {
   Future<String> ensureConversation() async => 'c1';
 
   @override
-  Future<String> createConversation() async => 'c1';
+  Future<String> createConversation({String? title}) async => 'c1';
 
   @override
   Future<void> renameConversation(String id, String title) async {}
@@ -336,7 +336,7 @@ class _HeldAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation() => _inner.createConversation();
+  Future<String> createConversation({String? title}) => _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>

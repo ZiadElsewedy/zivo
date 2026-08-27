@@ -30,7 +30,6 @@ import '../../workout/domain/session_status.dart';
 import '../../workout/domain/up_next_selection.dart';
 import '../../workout/domain/workout_plan.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
-import '../../workout/presentation/widgets/up_next_workout_card.dart';
 
 /// The Hub — a light dashboard into each module's depth. A two-column grid
 /// of premium module cards, each with a glowing gradient icon chip in its
@@ -98,8 +97,10 @@ class HubPage extends StatelessWidget {
                 children: [
                   const _Header(),
                   const SizedBox(height: 24),
-                  const _TrainingSection(),
-                  const SizedBox(height: 26),
+                  // The full "Start Workout" training card lives on Today (and
+                  // the Workout dashboard) — the Hub deliberately doesn't
+                  // duplicate it here, leading with the module grid instead.
+                  // The _WorkoutTile below still surfaces the up-next day.
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
@@ -155,54 +156,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Today's training, front and center on the Hub — the SAME [UpNextWorkoutCard]
-/// the Today page and the Workout dashboard render, driven by the same
-/// `resolveUpNext`, so the user can start (or resume) a workout directly from
-/// Home without detouring through the Workout tab. Silently absent when there's
-/// no plan/day to offer — the Workout tile below still covers that case.
-class _TrainingSection extends StatelessWidget {
-  const _TrainingSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    return StreamBuilder<WorkoutPlan?>(
-      stream: scope.workoutPlans.watchActivePlan(),
-      initialData: scope.workoutPlans.activePlan,
-      builder: (context, planSnapshot) {
-        final plan = planSnapshot.data;
-        if (plan == null) return const SizedBox.shrink();
-        return StreamBuilder<LiveSession?>(
-          stream: scope.workoutSessions.watchActiveSession(),
-          initialData: scope.workoutSessions.activeSession,
-          builder: (context, sessionSnapshot) {
-            final selection = resolveUpNext(plan, sessionSnapshot.data);
-            final day = selection.day;
-            if (day == null) return const SizedBox.shrink();
-            return RiseIn(
-              delay: const Duration(milliseconds: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 2, bottom: 12),
-                    child: Text('TRAINING', style: AppText.sectionLabel),
-                  ),
-                  UpNextWorkoutCard(
-                    plan: plan,
-                    day: day,
-                    resumable: selection.resumable,
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

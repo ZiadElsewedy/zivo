@@ -36,7 +36,7 @@ class _RecordingAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation() => _inner.createConversation();
+  Future<String> createConversation({String? title}) => _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>

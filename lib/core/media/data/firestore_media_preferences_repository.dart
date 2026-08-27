@@ -70,6 +70,7 @@ class FirestoreMediaPreferencesRepository implements MediaPreferencesRepository 
     }
     await _doc(uid).set({
       'saveToPhotos': preferences.saveToPhotos,
+      'autoUploadToDrive': preferences.autoUploadToDrive,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -79,6 +80,9 @@ class FirestoreMediaPreferencesRepository implements MediaPreferencesRepository 
     if (data == null) return MediaStoragePreferences.defaults;
     return MediaStoragePreferences(
       saveToPhotos: data['saveToPhotos'] as bool? ?? false,
+      // Absent on docs written before auto-upload existed — the feature's
+      // default (on) is what a missing key has to mean.
+      autoUploadToDrive: data['autoUploadToDrive'] as bool? ?? true,
     );
   }
 }
