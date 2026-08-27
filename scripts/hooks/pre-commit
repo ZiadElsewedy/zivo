@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# ZIVO pre-commit hook — docs/STATE.md freshness nudge.
+#
+# Reminds you to update docs/STATE.md when a commit changes app/backend *code*
+# (lib/ or functions/) but does not also touch docs/STATE.md. docs/STATE.md is
+# the single source of truth for "current state" (see AGENTS.md) — keeping it
+# fresh in the same commit as the change is what stops the docs from rotting.
+#
+# Behaviour:
+#   - Default:                    WARN only (never blocks the commit).
+#   - ZIVO_STRICT_STATE_CHECK=1:  BLOCK the commit (exit 1) instead of warning.
+#   - Bypass entirely with:       git commit --no-verify
+#
+# Install once per clone:  make hooks   (sets core.hooksPath=scripts/hooks).
+
+set -u
+
+git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+
+# Skip merge commits — "did you update STATE?" is not meaningful mid-merge.
+[ -f "$git_dir/MERGE_HEAD" ] && exit 0
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+# Staged *code* under lib/ or functions/ (markdown like FEATURE.md doesn't count).
+code=$(printf '%s\n' "$staged" | grep -E '^(lib|functions)/' | grep -vE '\.md$' || true)
+[ -z "$code" ] && exit 0
+
+# Did the same commit also touch docs/STATE.md? Then we're good.
+if printf '%s\n' "$staged" | grep -qxE 'docs/STATE\.md'; then
+  exit 0
+fi
+
+n=$(printf '%s\n' "$code" | grep -c .)
+printf '\n\033[33m▸ ZIVO reminder:\033[0m this commit changes %s code file(s) under lib/ or functions/,\n' "$n" >&2
+printf '  but does not update \033[1mdocs/STATE.md\033[0m — the source of truth for current state.\n' >&2
+printf '  If this changes what is live or in-flight, update it and re-stage:\n' >&2
+printf '     edit \033[36mdocs/STATE.md\033[0m  →  git add docs/STATE.md\n' >&2
+printf '  (skip once: git commit --no-verify   ·   enforce: ZIVO_STRICT_STATE_CHECK=1)\n\n' >&2
+
+if [ "${ZIVO_STRICT_STATE_CHECK:-0}" = "1" ]; then
+  printf '\033[31mBlocked by ZIVO_STRICT_STATE_CHECK=1 — update docs/STATE.md or use --no-verify.\033[0m\n\n' >&2
+  exit 1
+fi
+
+exit 0

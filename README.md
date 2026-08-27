@@ -4,10 +4,11 @@
 
 # ZIVO
 
-### Your whole day, in one place.
+### The gym tracker with a coach that knows your numbers.
 
-A private, personal app that brings the parts of your life together —<br/>
-moments, workouts, diet, expenses, and an assistant that actually knows your numbers.
+An AI-powered training tracker — guided sessions, progressive-overload analysis, and an<br/>
+assistant that reads your own splits, sets, and body-weight — with diet, a workout music
+companion, and moments along for the ride.
 
 [![Platform](https://img.shields.io/badge/platform-iOS%20%C2%B7%20Android-15110D?style=flat-square&labelColor=15110D&color=F6F1E9)](#getting-started)
 [![Built with](https://img.shields.io/badge/built%20with-Flutter-15110D?style=flat-square&logo=flutter&logoColor=F6F1E9&labelColor=15110D&color=FF5A1F)](https://flutter.dev)
@@ -21,10 +22,13 @@ moments, workouts, diet, expenses, and an assistant that actually knows your num
 
 ## Why ZIVO
 
-Most days don't fit into a single category. ZIVO keeps the moving parts of a life under
-one roof and one design language — warm, dark, and calm — so checking in takes seconds,
-not willpower. It is built **private-first**: your content lives in your account, backups
-go to *your own* Google Drive, and nothing is ever sold or used to train third-party models.
+Most training apps are a log with a chatbot bolted on. ZIVO is built the other way around:
+an AI coach that actually knows your numbers — your splits, your logged sets, your
+body-weight trend, your diet — wrapped in guided live sessions and progression analysis,
+in one warm, dark, calm design so checking in takes seconds, not willpower. It is built
+**private-first**: your content lives in your account, the AI only ever acts on *your own*
+data, backups go to *your own* Google Drive, and nothing is sold or used to train
+third-party models.
 
 ## The Six Areas
 
@@ -129,10 +133,16 @@ field-validation tests; auth event logs are additionally verified append-only.
 
 ## Documentation
 
+> **Working on ZIVO with an AI agent?** Start at [`AGENTS.md`](AGENTS.md) — the
+> agent-neutral guide (map, read-order, constraints). `CLAUDE.md` is a thin adapter to it.
+
 | Document | Contents |
 |---|---|
-| [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Canonical, self-contained handoff snapshot |
-| [`docs/PLAN.md`](docs/PLAN.md) | Milestones and phased architecture plan |
+| [`AGENTS.md`](AGENTS.md) | **Agent entry point** — codebase map, read-order, constraints (any AI agent) |
+| [`docs/PRODUCT.md`](docs/PRODUCT.md) | What ZIVO is + what makes it different (positioning) |
+| [`docs/STATE.md`](docs/STATE.md) | **Current state** — branch, what's live, what's in flight |
+| [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference |
+| [`docs/PLAN.md`](docs/PLAN.md) | Milestones and phased architecture plan (aspirational) |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits, sessions, progression engine |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction and screen blueprints |
 | [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Color hues, type, motion identity |

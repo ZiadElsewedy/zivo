@@ -7,7 +7,7 @@ RELEASE_DEFINES = --dart-define-from-file=config/release.json
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev profile release build-apk build-ipa build-apk-profile gates
+.PHONY: help dev profile release build-apk build-ipa build-apk-profile gates hooks
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -33,3 +33,8 @@ build-ipa: ## Build the Release iOS archive
 
 gates: ## Run the local quality gates (analyze + test)
 	flutter analyze && flutter test
+
+hooks: ## Install shared git hooks (docs/STATE.md freshness check)
+	@chmod +x scripts/hooks/* 2>/dev/null || true
+	@git config core.hooksPath scripts/hooks
+	@echo "Git hooks installed (core.hooksPath = scripts/hooks). Run once per clone."

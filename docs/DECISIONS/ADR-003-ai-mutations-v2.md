@@ -10,42 +10,11 @@ the "V2 (ADR-later)" it deferred); `docs/PLAN.md` §11 (AI architecture), §12 (
 
 ---
 
-## Handoff — where Ask actually is today (2026-08-16)
-
-A new Claude session MUST read this, then inspect the real git state/diff before touching code.
-Active branch: `feature/ai-assistant`.
-
-**Done and live:**
-- **V1 read-only Ask is deployed and verified on-device.** `aiChat` callable is live in
-  `zivo-63f15` (Claude `claude-sonnet-5`, 9 uid-scoped read tools, per-turn/day token & iteration
-  ceilings, `aiUsage` logging, prompt-injection fencing). `USE_FIRESTORE` defaults to `true`
-  (`lib/app/app.dart`), so the app uses the real `FirebaseAiRepository`, not the fake.
-- **Composer layout fix** landed (commit `2f24562`): the Ask composer now clears the bottom nav
-  bar / keyboard via `max(viewInsets.bottom, padding.bottom)` in `ask_page.dart`, with a
-  regression test.
-- **Functions deps repaired**: `@anthropic-ai/sdk` was declared but not installed;
-  `npm install` in `functions/` fixed the deploy-time `MODULE_NOT_FOUND`. `functions/package-lock.json`
-  is modified in the working tree and should be committed.
-
-**In progress (do not assume finished):**
-- **App Check** — client wiring added (`firebase_app_check` in `pubspec.yaml`;
-  `FirebaseAppCheck.instance.activate(...)` in `lib/main.dart`, debug providers in debug builds,
-  Play Integrity / App Attest in release). **Server enforcement is NOT yet on** — `aiChat` has no
-  `enforceAppCheck: true`. Remaining: owner registers providers + the debug token in the Console,
-  confirms verified requests in App Check metrics, then flip `enforceAppCheck: true` on `aiChat`
-  and redeploy. **This should be finished and enforced before V2 mutations ship** — a callable
-  that writes user data must not be callable by non-app clients.
-- **Android Google sign-in** — the debug keystore SHA-1
-  (`5A:05:84:16:E0:D2:20:12:23:A9:80:CB:47:24:EF:5D:E6:CF:A0:4F`) was added in the Console; the
-  refreshed `google-services.json` had not yet propagated the `client_type: 1` Android OAuth client
-  at last check. Re-pull with `firebase apps:sdkconfig ANDROID <appId>` and confirm `client_type: 1`
-  is present before considering it done. iOS sign-in is unaffected.
-
-**Deferred UI robustness (still open, pre-req for good V2 UX):** `AskPage._send` and
-`FirebaseAiRepository.send` do not catch failures, so backend errors surface as unhandled
-exceptions instead of an in-chat message. V2 needs graceful error handling anyway — fold it in.
-
----
+> **Implementation status is not tracked in this ADR.** The propose→confirm→execute
+> flow is built and live; see [`../STATE.md`](../STATE.md) for current AI state and
+> [`../../lib/features/ai/FEATURE.md`](../../lib/features/ai/FEATURE.md) for where the code
+> lives. (A stale 2026-08-16 "where Ask is today" handoff block was removed here 2026-08-27 —
+> ADRs record the decision, not the handoff.)
 
 ## Context
 

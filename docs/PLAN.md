@@ -1,4 +1,10 @@
-# Personal OS — Architecture & Implementation Plan
+# ZIVO — Architecture & Implementation Plan (aspirational)
+
+> **Aspirational plan — NOT the current build.** This is the long-term milestone/architecture
+> plan; it describes intent, not what exists. It also predates the product's repositioning
+> (ZIVO is now an **AI gym tracker**, not a general "personal OS" — see [`PRODUCT.md`](PRODUCT.md)).
+> For current state read [`STATE.md`](STATE.md); for the codebase map read [`/AGENTS.md`](../AGENTS.md).
+> Where this file and the code disagree, the code wins.
 
 > Codename: **zivo** · Owner: Ziad · Phase: Planning & Setup · Status: Living document
 >

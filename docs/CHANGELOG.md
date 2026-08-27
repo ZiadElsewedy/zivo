@@ -2,8 +2,8 @@
 
 Chronological log of meaningful milestones, architectural decisions, completed
 features, and verification results. Intentionally concise — not a commit-by-commit
-history. Newest last within each phase; see `docs/PROJECT_CONTEXT.md` for the current
-state.
+history. **This log may lag the code** — for current state see [`STATE.md`](STATE.md),
+and for recent changes not yet captured here, `git log`.
 
 > **Status of the whole project so far:** a UX-first prototype. Every feature is a full
 > `domain → data → presentation` vertical slice backed by **in-memory** repositories.

@@ -1,4 +1,9 @@
-# Personal OS — Phase -1: Product & UX Discovery Blueprint
+# ZIVO — Product & UX Discovery Blueprint (design intent)
+
+> **Design intent — NOT the current build.** This early discovery blueprint captures how
+> ZIVO should feel and behave; screens/flows may differ from what shipped. It predates the
+> repositioning to an **AI gym tracker** (see [`PRODUCT.md`](PRODUCT.md)). For current state
+> read [`STATE.md`](STATE.md); the code is the source of truth for what actually exists.
 
 > Brand: **ZIVO** (Ziad + _vivo_, "I live") · Owner: Ziad · Phase: **-1 (Product & UX Discovery)**
 > · Status: For review
