@@ -1,3 +1,4 @@
+import 'package:zivo/features/music/domain/audio_output.dart';
 import 'package:zivo/features/music/domain/music_connection.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
@@ -29,6 +30,12 @@ class InertMusicController implements MusicController {
 
   @override
   MusicConnection get currentConnection => MusicConnection.disconnected;
+
+  @override
+  Stream<AudioOutput?> get output => const Stream.empty();
+
+  @override
+  AudioOutput? get currentOutput => null;
 
   @override
   Future<void> connect() async {}

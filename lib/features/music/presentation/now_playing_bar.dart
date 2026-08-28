@@ -10,6 +10,7 @@ import '../../../core/theme/train_tokens.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
+import 'artwork_palette_service.dart';
 import 'music_player_page.dart';
 import 'spotify_strip.dart';
 
@@ -144,10 +145,14 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Text-first per the workout-tracking handoff: no artwork tile, and so no
-    // artwork-derived background tint either — the strip is instrumentation,
-    // and a cover image (plus the wash pulled off it) competed with the
-    // screen's own numbers. Identity now comes from the live equalizer glyph.
+    // Still text-first — no artwork *tile* (the equalizer glyph carries "it's
+    // playing"). But the frosted plate now carries a subtle **echo** of the
+    // current cover's colour: a faint accent wash + a soft accent glow beneath,
+    // so the mini bar quietly reacts to the song like the full player does
+    // (owner-requested). Kept low-alpha so it never competes with a screen's
+    // hero number — the reason the tint was dropped from the *in-set* strips,
+    // which this echo deliberately does NOT touch. The colour comes from the
+    // same per-track palette the player uses (cached, so it's ~free here).
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
@@ -164,26 +169,52 @@ class _Bar extends StatelessWidget {
           // let headings read straight through it. A frosted plate underneath
           // keeps the spec's fill on top while giving it something opaque
           // enough to sit on.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: reducedMotion(context)
-                  ? ImageFilter.blur()
-                  : ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: ColoredBox(
-                color: TrainColors.base.withValues(alpha: 0.82),
-                child: SpotifyStrip.full(
-                  controller: controller,
-                  playing: playing,
-                  onOpen: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => MusicPlayerPage(controller: controller),
-                      fullscreenDialog: true,
+          ArtworkPalette(
+            trackId: playing.trackId,
+            artworkBytes: playing.artworkBytes,
+            builder: (context, colours) {
+              final accent = colours.accent;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.16),
+                      blurRadius: 22,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: reducedMotion(context)
+                        ? ImageFilter.blur()
+                        : ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                    child: ColoredBox(
+                      // A hint of the cover's colour blended into the frosted
+                      // base — subtle enough to read as ambient tint, not fill.
+                      color: Color.alphaBlend(
+                        accent.withValues(alpha: 0.06),
+                        TrainColors.base.withValues(alpha: 0.82),
+                      ),
+                      child: SpotifyStrip.full(
+                        controller: controller,
+                        playing: playing,
+                        onOpen: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                MusicPlayerPage(controller: controller),
+                            fullscreenDialog: true,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           const SizedBox(height: 5),
           // Quiet grab-handle affordance: this bar can be swiped away.

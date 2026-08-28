@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../domain/audio_output.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
@@ -38,7 +39,19 @@ class FakeMusicController implements MusicController {
     _connectionController.add(MusicConnection.connected);
     _startTicker();
     _emit();
+    _emitOutput();
   }
+
+  /// An obviously-fake output device — same "unmistakably fixture, never reads
+  /// as a real product" spirit as the playlist above — so the player's output
+  /// row is demoable off-device (real routes need a platform channel that only
+  /// runs on hardware; see `MusicController.output`). Mirrors the prototype's
+  /// Bluetooth + battery case.
+  static const _fixtureOutput = AudioOutput(
+    name: 'Fixture Buds',
+    kind: AudioOutputKind.bluetooth,
+    batteryPercent: 72,
+  );
 
   // A handful of placeholder tracks — Ziad's call whether these ship as
   // real seed content or get swapped before the flag ever flips on; picked
@@ -75,9 +88,11 @@ class FakeMusicController implements MusicController {
 
   final _nowPlayingController = StreamController<NowPlaying?>.broadcast();
   final _connectionController = StreamController<MusicConnection>.broadcast();
+  final _outputController = StreamController<AudioOutput?>.broadcast();
 
   NowPlaying? _current;
   MusicConnection _connectionState = MusicConnection.connected;
+  AudioOutput? _output;
 
   @override
   Stream<NowPlaying?> get nowPlaying => _nowPlayingController.stream;
@@ -86,10 +101,22 @@ class FakeMusicController implements MusicController {
   Stream<MusicConnection> get connection => _connectionController.stream;
 
   @override
+  Stream<AudioOutput?> get output => _outputController.stream;
+
+  @override
   NowPlaying? get currentNowPlaying => _current;
 
   @override
   MusicConnection get currentConnection => _connectionState;
+
+  @override
+  AudioOutput? get currentOutput => _output;
+
+  void _emitOutput() {
+    // No device when disconnected — the route belongs to the connection.
+    _output = _connected ? _fixtureOutput : null;
+    _outputController.add(_output);
+  }
 
   _FakeTrack get _track => _playlist[_index];
 
@@ -142,6 +169,7 @@ class FakeMusicController implements MusicController {
     _connectionController.add(_connectionState);
     _startTicker();
     _emit();
+    _emitOutput();
   }
 
   @override
@@ -152,6 +180,7 @@ class FakeMusicController implements MusicController {
     _connectionController.add(_connectionState);
     _current = null;
     _nowPlayingController.add(null);
+    _emitOutput();
   }
 
   @override
@@ -207,5 +236,6 @@ class FakeMusicController implements MusicController {
     _ticker?.cancel();
     _nowPlayingController.close();
     _connectionController.close();
+    _outputController.close();
   }
 }

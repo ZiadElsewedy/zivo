@@ -7,6 +7,7 @@ import 'package:spotify_sdk/models/track.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 
 import '../music_config.dart';
+import '../domain/audio_output.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
@@ -53,6 +54,17 @@ class SpotifyMusicController implements MusicController {
 
   @override
   MusicConnection get currentConnection => _connectionState;
+
+  // The OS audio route is not exposed by the Spotify App Remote SDK, so this
+  // binding reports "unknown" (null) and the player omits the output row. To
+  // populate it for real, add a platform channel — iOS
+  // `AVAudioSession.currentRoute.outputs`, Android `AudioManager`/`MediaRouter`
+  // — and push an [AudioOutput] onto a broadcast controller here. See HANDOFF §6.
+  @override
+  Stream<AudioOutput?> get output => const Stream.empty();
+
+  @override
+  AudioOutput? get currentOutput => null;
 
   void _setConnection(MusicConnection state) {
     _connectionState = state;

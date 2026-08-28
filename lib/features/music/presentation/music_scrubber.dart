@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/train_tokens.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 
@@ -32,10 +32,16 @@ class MusicScrubber extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.isPaused,
+    this.accentColor = AppColors.ember,
     super.key,
   });
 
   final MusicController controller;
+
+  /// The colour of the played track, its thumb and glow. Defaults to ember;
+  /// the immersive player passes the current track's neon accent so the scrub
+  /// line reacts to the artwork alongside the rest of the screen.
+  final Color accentColor;
 
   /// Identifies the current track — a change resets the bar to zero instantly
   /// instead of animating from the previous song's last position.
@@ -146,6 +152,12 @@ class _MusicScrubberState extends State<MusicScrubber>
     _commitSeek(_progress.value);
   }
 
+  static final _timecode = TrainType.mono(
+    size: 11,
+    tracking: 0.02,
+    color: const Color(0x73F4F4F0),
+  );
+
   String _format(double fraction) {
     final d = Duration(
       milliseconds: (widget.duration.inMilliseconds * fraction).round(),
@@ -225,7 +237,7 @@ class _MusicScrubberState extends State<MusicScrubber>
                                   height: activeTrackHeight,
                                   width: _trackWidth * fraction,
                                   decoration: BoxDecoration(
-                                    color: AppColors.ember,
+                                    color: widget.accentColor,
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
@@ -245,11 +257,12 @@ class _MusicScrubberState extends State<MusicScrubber>
                           width: thumbSize,
                           height: thumbSize,
                           decoration: BoxDecoration(
-                            color: AppColors.ember,
+                            color: widget.accentColor,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.ember.withValues(alpha: 0.35),
+                                color:
+                                    widget.accentColor.withValues(alpha: 0.35),
                                 blurRadius: _dragging ? 10 : 4,
                                 spreadRadius: -1,
                               ),
@@ -275,14 +288,12 @@ class _MusicScrubberState extends State<MusicScrubber>
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_format(fraction),
-                    style: AppText.meta.copyWith(color: AppColors.ink3)),
-                Text('-${_format(remainingFraction)}',
-                    style: AppText.meta.copyWith(color: AppColors.ink3)),
+                Text(_format(fraction), style: _timecode),
+                Text('-${_format(remainingFraction)}', style: _timecode),
               ],
             ),
           ],
@@ -309,7 +320,7 @@ class _TimeBubble extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppText.meta.copyWith(color: AppColors.ink, fontSize: 11.5),
+        style: TrainType.mono(size: 11.5, color: TrainColors.ink),
       ),
     );
   }

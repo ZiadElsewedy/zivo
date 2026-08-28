@@ -56,6 +56,7 @@ class AppIcons {
   static const info = LucideIcons.info;
   static const infoFill = LucideIcons.info;
   static const chevron = LucideIcons.chevronRight;
+  static const chevronDown = LucideIcons.chevronDown;
   static const edit = LucideIcons.pencil;
   static const tag = LucideIcons.tag;
   static const location = LucideIcons.mapPin;
@@ -83,6 +84,11 @@ class AppIcons {
 
   // Music.
   static const music = LucideIcons.music;
+  static const shuffle = LucideIcons.shuffle;
+  static const repeat = LucideIcons.repeat;
+  static const headphones = LucideIcons.headphones;
+  static const bluetooth = LucideIcons.bluetooth;
+  static const speaker = LucideIcons.volume2;
 
   // Settings · media & backup.
   static const theme = LucideIcons.moon;

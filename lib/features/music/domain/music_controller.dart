@@ -1,3 +1,4 @@
+import 'audio_output.dart';
 import 'music_connection.dart';
 import 'now_playing.dart';
 
@@ -28,6 +29,22 @@ abstract class MusicController {
   /// The last value [connection] emitted, read synchronously — same
   /// `initialData` role as [currentNowPlaying].
   MusicConnection get currentConnection;
+
+  /// The audio output the current track is routing through (AirPods, buds, the
+  /// phone speaker…), or null when unknown. Emits on route changes. Optional by
+  /// design — a controller with no way to know the route stays on `null`, and
+  /// the player simply omits the output row (nothing shifts when it's absent).
+  ///
+  /// NOTE: the OS audio route is NOT something the Spotify App Remote SDK
+  /// reports, so [SpotifyMusicController] currently emits `null`; populating it
+  /// for real needs a platform channel (iOS `AVAudioSession.currentRoute`,
+  /// Android `AudioManager`/`MediaRouter`). [FakeMusicController] emits a
+  /// fixture device so the row is demoable off-device. See HANDOFF §6.
+  Stream<AudioOutput?> get output;
+
+  /// The last value [output] emitted, read synchronously — same `initialData`
+  /// role as [currentNowPlaying]/[currentConnection].
+  AudioOutput? get currentOutput;
 
   /// Starts (or retries) connecting to the underlying player. A no-op if
   /// already connected/connecting.
