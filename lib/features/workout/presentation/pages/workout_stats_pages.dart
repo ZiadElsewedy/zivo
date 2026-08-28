@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
@@ -14,12 +13,16 @@ import '../pages/session_details_page.dart';
 
 /// The drill-down pages behind the Workout dashboard's "This week" tiles.
 /// One file because they are one idea — each tile's number, opened up into
-/// the per-session history that produced it — sharing the dashboard's
-/// ground-gradient language and pulse accents. Every page is self-sufficient
-/// (its own [AppScope] streams), so the numbers stay live.
-
-/// The shared scaffold chrome for all stat drill-downs: back chip, title,
-/// and an optional summary line, over the dashboard's green-tinted gradient.
+/// the per-session history that produced it — sharing the hub's own green
+/// wash and handoff chrome. Every page is self-sufficient (its own
+/// [AppScope] streams), so the numbers stay live.
+/// The shared shell for the four stat drill-downs the Workout hub's tiles
+/// open — Sessions, Streak, Duration, Start times.
+///
+/// Dressed to the design handoff like the hub itself: the green screen wash,
+/// the 36px back circle beside a Manrope 800/27 title, and an optional mono
+/// caption beneath it. One shell rather than four, so a tile and the page it
+/// opens can never look like they belong to different apps.
 class StatDrillDownScaffold extends StatelessWidget {
   const StatDrillDownScaffold({
     super.key,
@@ -29,73 +32,38 @@ class StatDrillDownScaffold extends StatelessWidget {
   });
 
   final String title;
+
+  /// A mono caption under the title, scoping what's below it.
   final String? subtitle;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          22,
+          12,
+          22,
+          MediaQuery.of(context).padding.bottom + 32,
         ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 32),
-            children: [
-              Row(
-                children: [
-                  PressableScale(
-                    child: Tooltip(
-                      message: 'Back',
-                      child: InkWell(
-                        onTap: () => Navigator.of(context).maybePop(),
-                        customBorder: const CircleBorder(),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceRaised,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.hairline2),
-                          ),
-                          child: const Icon(
-                            AppIcons.back,
-                            size: 18,
-                            color: AppColors.ink2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AppText.greeting.copyWith(fontSize: 26),
-                    ),
-                  ),
-                ],
+        children: [
+          TrainPageHeader(title: title),
+          if (subtitle != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              subtitle!.toUpperCase(),
+              style: TrainType.mono(
+                size: 11.5,
+                tracking: 0.06,
+                color: TrainColors.ink3,
               ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  subtitle!,
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
-                ),
-              ],
-              const SizedBox(height: 20),
-              ...children,
-            ],
-          ),
-        ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          ...children,
+        ],
       ),
     );
   }
@@ -104,15 +72,23 @@ class StatDrillDownScaffold extends StatelessWidget {
 /// A big number + label header used at the top of a drill-down ("12
 /// sessions", "4 days"), tinted with its stat hue so the page still reads as
 /// the tile it came from.
+/// A drill-down's one hero number: mono 300/40 over a mono caption. The
+/// page's single large figure — everything below it demotes to a row
+/// (identity §1.1).
 class StatHeroValue extends StatelessWidget {
   const StatHeroValue({
     super.key,
     required this.value,
     required this.label,
     required this.accent,
+    this.unit,
   });
 
   final String value;
+
+  /// The value's unit — always smaller and dimmer than the value it belongs
+  /// to (identity §1.2).
+  final String? unit;
   final String label;
   final Color accent;
 
@@ -121,21 +97,55 @@ class StatHeroValue extends StatelessWidget {
     return RiseIn(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accent.withValues(alpha: 0.16)),
+          gradient: TrainColors.cardGradient,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: accent.withValues(alpha: 0.20)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              value,
-              style: AppText.heroNumber.copyWith(fontSize: 40, color: AppColors.ink),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TrainType.mono(
+                      size: 40,
+                      weight: FontWeight.w300,
+                      tracking: -0.05,
+                      color: const Color(0xFFF9F9F5),
+                    ),
+                  ),
+                ),
+                if (unit != null) ...[
+                  const SizedBox(width: 7),
+                  Text(
+                    unit!,
+                    style: TrainType.mono(
+                      size: 11,
+                      weight: FontWeight.w500,
+                      tracking: 0.14,
+                      color: const Color(0x59F4F4F0),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
+            const SizedBox(height: 9),
+            Text(
+              label.toUpperCase(),
+              style: TrainType.caption(
+                size: 9,
+                tracking: 0.16,
+                color: TrainColors.ink4,
+              ),
+            ),
           ],
         ),
       ),
@@ -167,7 +177,7 @@ class WorkoutSessionsPage extends StatelessWidget {
                 child: Center(
                   child: Text(
                     "Couldn't load sessions.",
-                    style: TextStyle(color: AppColors.ink3),
+                    style: TextStyle(color: TrainColors.ink4),
                   ),
                 ),
               ),
@@ -190,10 +200,11 @@ class WorkoutSessionsPage extends StatelessWidget {
             '$completedCount completed ${completedCount == 1 ? 'workout' : 'workouts'}',
           (0, _) =>
             'No completed workouts · $unfinishedCount '
-            '${unfinishedCount == 1 ? 'entry' : 'entries'}',
-          (_, _) => '$completedCount completed '
-              '${completedCount == 1 ? 'workout' : 'workouts'} · '
-              '$unfinishedCount not completed',
+                '${unfinishedCount == 1 ? 'entry' : 'entries'}',
+          (_, _) =>
+            '$completedCount completed '
+                '${completedCount == 1 ? 'workout' : 'workouts'} · '
+                '$unfinishedCount not completed',
         };
         return StatDrillDownScaffold(
           title: 'Sessions',
@@ -228,9 +239,9 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusLabel, statusColor) = switch (session.status) {
-      SessionStatus.completed => ('Completed', AppColors.pulse),
-      SessionStatus.active => ('In progress', AppColors.solar),
-      SessionStatus.abandoned => ('Ended early', AppColors.ink3),
+      SessionStatus.completed => ('Completed', TrainColors.green),
+      SessionStatus.active => ('In progress', TrainColors.ember),
+      SessionStatus.abandoned => ('Ended early', TrainColors.ink4),
     };
     // An active session's `elapsed` is ~0 (completedAt is null, so it
     // measures start→start minus pauses) and renders as "0m"/"-1m" — the
@@ -241,18 +252,20 @@ class _SessionRow extends StatelessWidget {
         : session.elapsed;
     return PressableScale(
       child: Material(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => SessionDetailsPage(session: session)),
+            MaterialPageRoute(
+              builder: (_) => SessionDetailsPage(session: session),
+            ),
           ),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.hairline),
+              border: Border.all(color: TrainColors.hairline),
             ),
             child: Row(
               children: [
@@ -265,9 +278,11 @@ class _SessionRow extends StatelessWidget {
                           Flexible(
                             child: Text(
                               session.dayLabel,
-                              style: AppText.rowTitle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink,
+                              style: TrainType.ui(
+                                size: 14,
+                                weight: FontWeight.w700,
+                                color: TrainColors.inkPlain,
+                                height: 1,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -284,27 +299,28 @@ class _SessionRow extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              statusLabel,
-                              style: AppText.meta.copyWith(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: statusColor == AppColors.pulse
-                                    ? AppColors.pulseText
-                                    : statusColor == AppColors.solar
-                                    ? AppColors.solarText
-                                    : AppColors.ink3,
+                              statusLabel.toUpperCase(),
+                              style: TrainType.caption(
+                                size: 8.5,
+                                tracking: 0.12,
+                                weight: FontWeight.w600,
+                                color: statusColor,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 7),
                       Text(
                         '${formatDayLabel(session.startedAt)} · '
                         '${formatClockTimeLabel(session.startedAt)} · '
                         '${_durationLabel(duration)} · '
-                        '${session.completedSetCount}/${session.totalSets} sets',
-                        style: AppText.meta.copyWith(color: AppColors.ink3),
+                        '${session.completedSetCount}/${session.totalSets} SETS',
+                        style: TrainType.mono(
+                          size: 9.5,
+                          tracking: 0.08,
+                          color: const Color(0x59F4F4F0),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -314,8 +330,8 @@ class _SessionRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 const Icon(
                   Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.ink3,
+                  size: 16,
+                  color: Color(0x4DF4F4F0),
                 ),
               ],
             ),
@@ -328,8 +344,18 @@ class _SessionRow extends StatelessWidget {
 
 String formatDayLabel(DateTime d) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[d.month - 1]} ${d.day}';
 }
@@ -365,7 +391,10 @@ class WorkoutStreakPage extends StatelessWidget {
       builder: (context, snapshot) {
         final sessions = snapshot.data ?? const <LiveSession>[];
         final now = DateTime.now();
-        final streakDays = currentStreakTrainedDays(sessions: sessions, now: now);
+        final streakDays = currentStreakTrainedDays(
+          sessions: sessions,
+          now: now,
+        );
         final best = bestStreakDays(sessions: sessions);
         return StatDrillDownScaffold(
           title: 'Day streak',
@@ -377,13 +406,13 @@ class WorkoutStreakPage extends StatelessWidget {
                   : streakDays.length == 1
                   ? 'day in your current streak'
                   : 'days in your current streak',
-              accent: AppColors.ember,
+              accent: TrainColors.ember,
             ),
             const SizedBox(height: 10),
             StatHeroValue(
               value: '$best',
               label: best == 1 ? 'best day streak' : 'best day streak ever',
-              accent: AppColors.ember,
+              accent: TrainColors.ember,
             ),
             const SizedBox(height: 18),
             if (streakDays.isNotEmpty)
@@ -419,54 +448,68 @@ class _StreakDayRow extends StatelessWidget {
     final labels = trained.map((s) => s.dayLabel).toSet().join(' · ');
     final isToday = DateUtils.isSameDay(day, DateTime.now());
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.ember.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.ember.withValues(alpha: 0.25)),
+              color: TrainColors.ember.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: TrainColors.ember.withValues(alpha: 0.22),
+              ),
             ),
             child: Icon(
               isToday ? Icons.today_rounded : Icons.check_rounded,
-              size: 17,
-              color: AppColors.ember,
+              size: 16,
+              color: TrainColors.ember,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   isToday ? 'Today' : formatDayLabel(day),
-                  style: AppText.rowTitle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                  style: TrainType.ui(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: TrainColors.inkPlain,
+                    height: 1,
                   ),
                 ),
-                if (labels.isNotEmpty)
+                if (labels.isNotEmpty) ...[
+                  const SizedBox(height: 6),
                   Text(
-                    labels,
-                    style: AppText.meta.copyWith(color: AppColors.ink3),
+                    labels.toUpperCase(),
+                    style: TrainType.mono(
+                      size: 9.5,
+                      tracking: 0.08,
+                      color: const Color(0x59F4F4F0),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ],
               ],
             ),
           ),
           Text(
-            '${trained.length} ${trained.length == 1 ? 'session' : 'sessions'}',
-            style: AppText.meta.copyWith(color: AppColors.ink2),
+            '${trained.length} ${trained.length == 1 ? 'SESSION' : 'SESSIONS'}',
+            style: TrainType.caption(
+              size: 9,
+              tracking: 0.12,
+              color: TrainColors.ink4,
+            ),
           ),
         ],
       ),
@@ -503,7 +546,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
               label: avg == null
                   ? 'Complete a workout to see your average.'
                   : 'average completed session',
-              accent: AppColors.iris,
+              accent: TrainColors.violetGlyph,
             ),
             if (durations.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -513,7 +556,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: StatHeroValue(
                       value: _durationLabel(durations.first),
                       label: 'shortest',
-                      accent: AppColors.iris,
+                      accent: TrainColors.violetGlyph,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -521,7 +564,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: StatHeroValue(
                       value: _durationLabel(durations.last),
                       label: 'longest',
-                      accent: AppColors.iris,
+                      accent: TrainColors.violetGlyph,
                     ),
                   ),
                 ],
@@ -544,7 +587,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                       subtitle:
                           '${formatDayLabel(session.startedAt)} · ${timeAgo(session.startedAt, DateTime.now())} ago',
                       trailing: _durationLabel(session.elapsed),
-                      accent: AppColors.iris,
+                      accent: TrainColors.violetGlyph,
                     ),
                   ),
                 ),
@@ -581,7 +624,7 @@ class WorkoutStartTimesPage extends StatelessWidget {
               label: avgStart == null
                   ? 'Complete a workout to see your usual start time.'
                   : 'when you usually start training',
-              accent: AppColors.solar,
+              accent: TrainColors.amber,
             ),
             const SizedBox(height: 18),
             if (completed.isEmpty)
@@ -600,7 +643,7 @@ class WorkoutStartTimesPage extends StatelessWidget {
                       subtitle:
                           '${session.dayLabel} · ${formatDayLabel(session.startedAt)}',
                       trailing: timeAgo(session.startedAt, DateTime.now()),
-                      accent: AppColors.solar,
+                      accent: TrainColors.amber,
                     ),
                   ),
                 ),
@@ -612,10 +655,11 @@ class WorkoutStartTimesPage extends StatelessWidget {
 }
 
 List<LiveSession> _completed(List<LiveSession>? sessions) {
-  final list = (sessions ?? const <LiveSession>[])
-      .where((s) => s.status == SessionStatus.completed)
-      .toList()
-    ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+  final list =
+      (sessions ?? const <LiveSession>[])
+          .where((s) => s.status == SessionStatus.completed)
+          .toList()
+        ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
   return list;
 }
 
@@ -648,38 +692,46 @@ class _MetricRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
+          // The 4px spine the handoff uses in place of a saturated icon
+          // tile — it says which signal without competing with the value.
           Container(
-            width: 6,
-            height: 34,
+            width: 4,
+            height: 26,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(3),
+              color: accent,
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: AppText.rowTitle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                  style: TrainType.ui(
+                    size: 13.5,
+                    weight: FontWeight.w700,
+                    color: TrainColors.inkPlain,
+                    height: 1,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
                 Text(
-                  subtitle,
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
+                  subtitle.toUpperCase(),
+                  style: TrainType.mono(
+                    size: 9.5,
+                    tracking: 0.08,
+                    color: const Color(0x59F4F4F0),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -689,10 +741,7 @@ class _MetricRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             trailing,
-            style: AppText.rowTitle.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
+            style: TrainType.mono(size: 14, color: TrainColors.ink),
           ),
         ],
       ),
@@ -712,18 +761,23 @@ class _EmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.6),
+        color: const Color(0x06FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 26, color: AppColors.ink3),
+          Icon(icon, size: 24, color: TrainColors.ink4),
           const SizedBox(height: 10),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: AppText.body.copyWith(color: AppColors.ink3, fontSize: 14),
+            style: TrainType.ui(
+              size: 13.5,
+              weight: FontWeight.w400,
+              color: TrainColors.ink4,
+              height: 1.5,
+            ),
           ),
         ],
       ),
