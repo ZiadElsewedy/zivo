@@ -58,6 +58,13 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   - Domain additions: `weeklySessionCounts` / `dailySessionCounts` /
     `recentSessionDurationMinutes` (tile sparklines) and `lifetimeVolumeKg` (You's
     lifetime tonnage).
+- **Plan editing + import flows too** (beyond the handoff's stated scope, at the owner's
+  request): the workout plan editor, PDF import wizard and workout capture. Done through
+  the shared `capture_widgets.dart` chrome (`CaptureTopBar`/`CaptureIconButton`/
+  `PillButton`/`SelectChip`), so the diet and expense/moment capture flows come along
+  with them. Commit actions moved from green to **ember** across these screens — green is
+  state, ember is the one committing action (identity §3) — and secondary "Add day"/"Add
+  exercise" buttons went quiet so they stop competing with Save.
 - **Workout drill-downs on the handoff too.** Every page reached from the Workout hub —
   Progress, the four stat pages, Bodyweight history, Day details, Session details,
   History, Analysis, Splits — was still on v2 material. All are across now, via two
@@ -143,6 +150,8 @@ suite green. **Always re-run `make gates` rather than trusting a remembered test
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — Redressed the plan editor, PDF import and workout capture via the shared
+  capture chrome; commit actions are ember now, not green. Still 32 failing (unchanged).
 - 2026-08-28 — Carried the handoff into the workout drill-downs (Progress, the four stat
   pages, bodyweight/day/session details, history, analysis, splits) behind two shared
   seams. No new test failures — still the same 33 that fail on `version-1` untouched.

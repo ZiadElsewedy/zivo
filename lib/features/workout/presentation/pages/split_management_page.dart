@@ -33,14 +33,14 @@ class SplitManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final plans = AppScope.of(context).workoutPlans;
     return Scaffold(
-      backgroundColor: AppColors.ground,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: TrainColors.green,
-        elevation: 3,
-        tooltip: 'New split',
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        onPressed: () => _openNewSplitSheet(context),
-        child: const Icon(AppIcons.add, color: Colors.white),
+      backgroundColor: TrainColors.base,
+      // Ember, not green: creating a split is the one COMMITTING action on
+      // this screen, and green is reserved for state and progress (the
+      // "Active" badge on the split that is currently in play).
+      floatingActionButton: TrainFab(
+        icon: AppIcons.add,
+        semanticLabel: 'New split',
+        onTap: () => _openNewSplitSheet(context),
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(gradient: TrainColors.hubTint),

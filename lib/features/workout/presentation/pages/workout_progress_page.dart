@@ -1091,13 +1091,16 @@ class _DestinationRow extends StatelessWidget {
                           height: 1.1,
                         ),
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 4),
                       Text(
+                        // A sentence, not a label — Manrope. Mono is for
+                        // figures and captions (identity §6).
                         destination.detail,
-                        style: TrainType.mono(
+                        style: TrainType.ui(
+                          size: 12,
+                          weight: FontWeight.w400,
                           color: TrainColors.ink4,
-                          tracking: 0.06,
-                          size: 10,
+                          height: 1.4,
                         ),
                       ),
                     ],
