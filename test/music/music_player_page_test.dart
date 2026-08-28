@@ -4,6 +4,7 @@ import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/train_chrome.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
+import 'package:zivo/features/music/presentation/music_artwork.dart';
 import 'package:zivo/features/music/presentation/music_player_page.dart';
 
 /// Coverage for the immersive Now Playing screen. `FakeMusicController` starts
@@ -132,6 +133,97 @@ void main() {
         await tester.pump(const Duration(milliseconds: 60));
         expect(music.currentNowPlaying!.repeatMode, MusicRepeatMode.off);
         expect(find.byIcon(AppIcons.repeat), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        music.dispose();
+        tester.view.reset();
+      }
+    },
+  );
+
+  // Pull-down-to-dismiss. The player rides the scroll view's own overscroll, so
+  // these drive it by dragging the scroll surface down past the top (a stepped
+  // drag, so the bouncing physics integrates like a real finger). A host route
+  // sits underneath so there's something to pop back to.
+  Widget hostFor(FakeMusicController music) => MaterialApp(
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => Center(
+          child: ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (_) => MusicPlayerPage(controller: music),
+              ),
+            ),
+            child: const Text('open player'),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Future<void> openPlayer(WidgetTester tester) async {
+    await tester.tap(find.text('open player'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400)); // finish the push
+    expect(find.byType(MusicPlayerPage), findsOneWidget);
+  }
+
+  testWidgets(
+    'a firm pull-down dismisses the player',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      final music = FakeMusicController();
+      try {
+        await tester.pumpWidget(hostFor(music));
+        await openPlayer(tester);
+
+        // Pull the surface well past the top in steps, then release.
+        final gesture =
+            await tester.startGesture(tester.getCenter(find.byType(SingleChildScrollView)));
+        for (var i = 0; i < 12; i++) {
+          await gesture.moveBy(const Offset(0, 70));
+          await tester.pump();
+        }
+        // ignore: avoid_print
+        print('DIAG pixels=${tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels}');
+        await gesture.up();
+        await tester.pump(); // fire the pop
+        await tester.pump(const Duration(milliseconds: 500)); // pop transition
+
+        // The player route is gone; we're back on the host.
+        expect(find.byType(MusicPlayerPage), findsNothing);
+        expect(find.text('open player'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        music.dispose();
+        tester.view.reset();
+      }
+    },
+  );
+
+  testWidgets(
+    'a short pull-down springs back and does NOT dismiss',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      final music = FakeMusicController();
+      try {
+        await tester.pumpWidget(hostFor(music));
+        await openPlayer(tester);
+
+        // A small tug — well under the dismiss threshold.
+        final gesture =
+            await tester.startGesture(tester.getCenter(find.byType(SingleChildScrollView)));
+        await gesture.moveBy(const Offset(0, 36));
+        await tester.pump();
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300)); // spring back
+
+        // Still here.
+        expect(find.byType(MusicPlayerPage), findsOneWidget);
         expect(tester.takeException(), isNull);
       } finally {
         music.dispose();
