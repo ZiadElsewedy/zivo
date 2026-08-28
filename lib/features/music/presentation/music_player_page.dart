@@ -60,31 +60,42 @@ class MusicPlayerPage extends StatelessWidget {
                 // The one soft radial glow this screen is allowed — pulled from
                 // the cover and breathing slowly behind everything.
                 Positioned.fill(child: _AmbientGlow(accent: colours.accent)),
-                SafeArea(
-                  child: StreamBuilder<MusicConnection>(
-                    stream: controller.connection,
-                    initialData: controller.currentConnection,
-                    builder: (context, connSnap) {
-                      final state =
-                          connSnap.data ?? MusicConnection.disconnected;
-                      if (state != MusicConnection.connected) {
-                        return _ConnectionState(
-                            state: state, onConnect: controller.connect);
-                      }
-                      return StreamBuilder<NowPlaying?>(
-                        stream: controller.nowPlaying,
-                        initialData: controller.currentNowPlaying,
-                        builder: (context, snap) {
-                          final playing = snap.data;
-                          if (playing == null) return const _NothingPlaying();
-                          return _ImmersivePlayer(
-                            controller: controller,
-                            playing: playing,
-                            colours: colours,
+                // Positioned.fill (not a loose Stack child) so the scroll view
+                // fills the height instead of shrink-wrapping to its content.
+                // That gives BouncingScrollPhysics room to overscroll even when
+                // the player fits the screen — which is what pull-to-dismiss
+                // rides. It hands down tight constraints WITHOUT querying child
+                // intrinsics, so it's safe past MusicScrubber's LayoutBuilder
+                // (unlike IntrinsicHeight / SliverFillRemaining — see §4).
+                Positioned.fill(
+                  child: SafeArea(
+                    child: StreamBuilder<MusicConnection>(
+                      stream: controller.connection,
+                      initialData: controller.currentConnection,
+                      builder: (context, connSnap) {
+                        final state =
+                            connSnap.data ?? MusicConnection.disconnected;
+                        if (state != MusicConnection.connected) {
+                          return _ConnectionState(
+                            state: state,
+                            onConnect: controller.connect,
                           );
-                        },
-                      );
-                    },
+                        }
+                        return StreamBuilder<NowPlaying?>(
+                          stream: controller.nowPlaying,
+                          initialData: controller.currentNowPlaying,
+                          builder: (context, snap) {
+                            final playing = snap.data;
+                            if (playing == null) return const _NothingPlaying();
+                            return _ImmersivePlayer(
+                              controller: controller,
+                              playing: playing,
+                              colours: colours,
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -135,10 +146,8 @@ class _AmbientGlowState extends State<_AmbientGlow>
     }
     return AnimatedBuilder(
       animation: _c,
-      builder: (context, _) => _GlowPaint(
-        accent: widget.accent,
-        breath: 0.55 + 0.35 * _c.value,
-      ),
+      builder: (context, _) =>
+          _GlowPaint(accent: widget.accent, breath: 0.55 + 0.35 * _c.value),
     );
   }
 }
@@ -193,18 +202,26 @@ class _ImmersivePlayer extends StatefulWidget {
 /// Adds **pull-down-to-dismiss** on top of the single scroll. It rides the
 /// scroll view's own `BouncingScrollPhysics` overscroll rather than a competing
 /// gesture, so normal vertical scrolling is never intercepted: only once the
-/// content is at the top and the finger keeps pulling down does the whole
-/// surface follow it (translate + a light fade/scale), and releasing past a
-/// threshold pops the route. Released short, the physics springs it back and the
-/// transform follows it home — no bespoke animation. The finger-up decision
-/// comes from a passive [Listener] (which never joins the gesture arena, so it
-/// can't disturb the scroll), not `ScrollEndNotification` — that one is delayed
-/// until the bounce fully settles, by which point the pull distance is gone.
+/// content is at the top and the finger keeps pulling down does the surface
+/// follow it — that downward travel is the physics' own rubber-band, which we
+/// simply fade and gently recede as it grows — and releasing past a threshold
+/// pops the route. Released short, the physics springs it back and the fade
+/// follows it home, no bespoke animation. The finger-up decision comes from a
+/// passive [Listener] (which never joins the gesture arena, so it can't disturb
+/// the scroll), not `ScrollEndNotification` — that one is delayed until the
+/// bounce fully settles, by which point the pull distance is already gone.
 class _ImmersivePlayerState extends State<_ImmersivePlayer> {
   /// Live overscroll distance (px past the top). Drives the dismiss transform;
   /// a [ValueNotifier] so only the thin transform wrapper rebuilds each frame of
   /// a pull — never the whole scroll subtree underneath it.
   final ValueNotifier<double> _pull = ValueNotifier<double>(0);
+
+  /// Owned so the scroll position SURVIVES rebuilds. The player rebuilds on
+  /// every `nowPlaying` emission (position ticks, pause, artwork arriving); a
+  /// controller-less scroll view would spin up a fresh `ScrollPosition` at 0 on
+  /// each one — resetting any scroll mid-interaction and, worse, detaching an
+  /// in-progress pull-to-dismiss drag from under the finger.
+  final ScrollController _scroll = ScrollController();
 
   /// Releasing past this many px of pull dismisses; below it springs back.
   static const double _dismissThreshold = 116;
@@ -216,6 +233,8 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
   bool _dismissing = false;
 
   bool _onScroll(ScrollNotification notification) {
+    // ignore: avoid_print
+    print('ZON ${notification.runtimeType} px=${notification.metrics.pixels} ctrl=${_scroll.hasClients ? _scroll.offset : "noclients"}');
     if (_dismissing) return false;
     final pixels = notification.metrics.pixels;
     // BouncingScrollPhysics lets pixels dip below minScrollExtent (0) at the top
@@ -239,6 +258,7 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
   @override
   void dispose() {
     _pull.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -247,8 +267,10 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
     final controller = widget.controller;
     final playing = widget.playing;
     final accent = widget.colours.accent;
-    final artworkSide =
-        (MediaQuery.of(context).size.width * 0.66).clamp(200.0, 320.0);
+    final artworkSide = (MediaQuery.of(context).size.width * 0.66).clamp(
+      200.0,
+      320.0,
+    );
 
     // One cohesive top-to-bottom scroll — not distributed with `spaceBetween`,
     // because a fill-to-viewport wrapper (`IntrinsicHeight` /
@@ -257,6 +279,7 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
     // the balancing instead, and the whole thing scrolls as a unit on short
     // screens / large text.
     final scroll = SingleChildScrollView(
+      controller: _scroll,
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
@@ -264,9 +287,7 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RiseIn(
-            child: _TopBar(onClose: () => Navigator.of(context).pop()),
-          ),
+          RiseIn(child: _TopBar(onClose: () => Navigator.of(context).pop())),
           const SizedBox(height: 22),
           RiseIn(
             delay: const Duration(milliseconds: 80),
@@ -351,17 +372,23 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
           valueListenable: _pull,
           child: scroll,
           builder: (context, pull, child) {
-            if (pull <= 0) return child!;
+            // Structurally stable on purpose: Opacity + Transform are ALWAYS in
+            // the tree (identity at rest), so the scroll view's render object
+            // never reparents when the pull starts — reparenting it mid-drag
+            // cancels the very gesture doing the pulling. The downward
+            // finger-follow is the scroll's own BouncingScrollPhysics overscroll
+            // (adding a Transform.translate here both double-moved it and broke
+            // the drag); we only fade and gently recede the surface as it goes,
+            // and Transform keeps `transformHitTests: false` so it can't perturb
+            // the live pointer either.
             final t = (pull / _pullRange).clamp(0.0, 1.0);
-            return Transform.translate(
-              offset: Offset(0, pull),
-              child: Opacity(
-                opacity: 1 - 0.45 * t,
-                child: Transform.scale(
-                  scale: reduce ? 1.0 : 1 - 0.04 * t,
-                  alignment: Alignment.topCenter,
-                  child: child,
-                ),
+            return Opacity(
+              opacity: 1 - 0.4 * t,
+              child: Transform.scale(
+                scale: reduce ? 1.0 : 1 - 0.04 * t,
+                alignment: Alignment.topCenter,
+                transformHitTests: false,
+                child: child,
               ),
             );
           },
@@ -609,7 +636,9 @@ class _Controls extends StatelessWidget {
           },
         ),
         _IconControl(
-          icon: repeat == MusicRepeatMode.one ? AppIcons.repeatOne : AppIcons.repeat,
+          icon: repeat == MusicRepeatMode.one
+              ? AppIcons.repeatOne
+              : AppIcons.repeat,
           semanticLabel: switch (repeat) {
             MusicRepeatMode.off => 'Repeat off',
             MusicRepeatMode.all => 'Repeat all',
@@ -656,12 +685,9 @@ class _IconControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = glyph ??
-        Icon(
-          icon,
-          size: 21,
-          color: active ? activeColor : TrainColors.ink2,
-        );
+    Widget child =
+        glyph ??
+        Icon(icon, size: 21, color: active ? activeColor : TrainColors.ink2);
     if (flip) {
       child = Transform.flip(flipX: true, child: child);
     }
@@ -833,8 +859,7 @@ class _ConnectionState extends StatelessWidget {
         null,
       ),
       MusicConnection.connecting => (Icons.sync_rounded, 'Connecting…', null),
-      MusicConnection.disconnected ||
-      MusicConnection.connected => (
+      MusicConnection.disconnected || MusicConnection.connected => (
         Icons.music_note_rounded,
         "Connect Spotify to see what's playing.",
         'Connect Spotify',

@@ -4,6 +4,7 @@ import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/train_chrome.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
+import 'package:zivo/features/music/presentation/music_artwork.dart';
 import 'package:zivo/features/music/presentation/music_player_page.dart';
 
 /// Coverage for the immersive Now Playing screen. `FakeMusicController` starts
@@ -179,15 +180,17 @@ void main() {
         await tester.pumpWidget(hostFor(music));
         await openPlayer(tester);
 
+        await tester.pump(const Duration(milliseconds: 700)); // settle RiseIns
         // Pull the surface well past the top in steps, then release.
-        final gesture =
-            await tester.startGesture(tester.getCenter(find.byType(SingleChildScrollView)));
+        final startAt = tester.getCenter(find.byType(MusicArtwork));
+        // ignore: avoid_print
+        print('DIAG start=$startAt');
+        final gesture = await tester.startGesture(startAt);
         for (var i = 0; i < 12; i++) {
           await gesture.moveBy(const Offset(0, 70));
-          await tester.pump();
         }
         // ignore: avoid_print
-        print('DIAG pixels=${tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels}');
+        print('DIAG after moves (no inter-pumps) pixels=${tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels.toStringAsFixed(1)}');
         await gesture.up();
         await tester.pump(); // fire the pop
         await tester.pump(const Duration(milliseconds: 500)); // pop transition
@@ -215,7 +218,7 @@ void main() {
 
         // A small tug — well under the dismiss threshold.
         final gesture =
-            await tester.startGesture(tester.getCenter(find.byType(SingleChildScrollView)));
+            await tester.startGesture(tester.getCenter(find.text('NOW PLAYING')));
         await gesture.moveBy(const Offset(0, 36));
         await tester.pump();
         await gesture.up();
