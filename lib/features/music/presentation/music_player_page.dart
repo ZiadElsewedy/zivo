@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
@@ -233,15 +234,24 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
   bool _dismissing = false;
 
   bool _onScroll(ScrollNotification notification) {
-    // ignore: avoid_print
-    print('ZON ${notification.runtimeType} px=${notification.metrics.pixels} ctrl=${_scroll.hasClients ? _scroll.offset : "noclients"}');
     if (_dismissing) return false;
     final pixels = notification.metrics.pixels;
     // BouncingScrollPhysics lets pixels dip below minScrollExtent (0) at the top
     // — that negative amount IS the downward pull. Reading it here tracks both
     // the finger drag and the ballistic spring-back, so the transform trails the
     // surface all the way home on a short release for free.
-    _pull.value = pixels < 0 ? -pixels : 0.0;
+    final pull = pixels < 0 ? -pixels : 0.0;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      // The spring-back can correct the position DURING layout/paint; poking the
+      // notifier now would "schedule a build during frame". Apply it right after
+      // this frame instead — one frame of lag on the fade is imperceptible.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_dismissing) _pull.value = pull;
+      });
+    } else {
+      _pull.value = pull;
+    }
     return false;
   }
 

@@ -7,21 +7,28 @@
 > (`AGENTS.md`) and design language (`lib/core/theme/train_tokens.dart`,
 > `assets/design_handoff_workout_tracking 2/IDENTITY.md`).
 
-**Branch:** `version-1` · **HEAD:** `9f15302` (increments 1 & 2 were **committed
-here by the owner**) · original base: `c191e33`. The owner reviews + commits
-himself, so expect committed work to arrive between sessions.
+**Branch:** `version-1` · **HEAD:** `ccc01c2` · original base: `c191e33`. Landing
+history: increments 1 & 2 at `9f15302`; 3 & 4 at `cbe32c4`; increment 5 at
+`084161a` + `ccc01c2`. The owner reviews + commits himself **and has been
+committing between (and during) sessions** — sometimes snapshotting mid-work — so
+expect committed work, occasionally rough, to arrive out from under you. Verify
+git before assuming anything is or isn't in.
 
-**Status:** **increments 3 & 4 are uncommitted** working-tree changes (see §2b/§2c).
-Increments 1 & 2 are already in `9f15302`. All four are `make gates`-clean —
-`flutter analyze` clean; full suite **`+696 -46`** (the 46 pre-existing, see §7).
+**Status:** increments 1–5 are **committed**. One small **uncommitted** delta
+remains on the player + its test (§2d): it strips two stray debug `print`s that
+`ccc01c2` snapshotted in by accident, and adds the scheduler-phase guard that
+fixes a "Build scheduled during frame" crash on the dismiss spring-back. With that
+delta it's `make gates`-clean — `flutter analyze` clean; the 5 music tests green;
+full suite green apart from a pre-existing, **non-music** set (§7).
 
 **Increments done so far:**
 1. ✅ **Immersive Now-Playing player** — single-scroll, dynamic artwork→neon colours, Spotify branding (§3–§5). **Committed** (`9f15302`).
 2. ✅ **Output/Bluetooth device row** (full controller-port seam) **+ mini-bar artwork/colour echo** (§2a, §5). **Committed** (`9f15302`).
-3. ✅ **Real OS audio-route plumbing** — native iOS + Android platform channels feed `SpotifyMusicController.output` the live route (§2b). **Native compiles verified** (debug APK + iOS Runner.app both built); on-device functional test still pending (§7). **UNCOMMITTED.**
-4. ✅ **Shuffle & repeat wired** — real `setShuffle`/`setRepeat` on the `MusicController` port + all 3 impls; shuffle/repeat are now **observed state** on `NowPlaying` (like `isPaused`), not local UI toggles. Spotify reads/writes them via App Remote; repeat cycles off→all→one with a repeat-one glyph (§2c, §5.3). **UNCOMMITTED — this session's delta.**
+3. ✅ **Real OS audio-route plumbing** — native iOS + Android platform channels feed `SpotifyMusicController.output` the live route (§2b). **Native compiles verified** (debug APK + iOS Runner.app both built); on-device functional test still pending (§6.1). **Committed** (`cbe32c4`).
+4. ✅ **Shuffle & repeat wired** — real `setShuffle`/`setRepeat` on the `MusicController` port + all 3 impls; shuffle/repeat are now **observed state** on `NowPlaying` (like `isPaused`), not local UI toggles. Spotify reads/writes them via App Remote; repeat cycles off→all→one with a repeat-one glyph (§2c, §5.3). **Committed** (`cbe32c4`).
+5. ✅ **Pull-down-to-dismiss** — the fullscreen player dismisses on an overscroll pull past the top. It rides the scroll view's own `BouncingScrollPhysics` (so normal scrolling is never intercepted); the surface fades + subtly recedes as you pull, and releasing past ~116px pops the route (§2d, §6.4). **Committed** (`084161a` + `ccc01c2`), minus the small fix in Status.
 
-Next up: **on-device functional check of the audio route** (§6.1) — the one thing still unverified (needs hardware) — then on-device visual QA (§6.3), then roll the pass to other screens (§6.6). Shuffle/repeat wiring (was §6.2) is now done.
+Next up: **on-device functional check of the audio route** (§6.1) and on-device visual QA (§6.3) — both need hardware. (§6.6 "roll the pass to other screens" was taken up separately — see `24b8eec`.)
 
 ---
 
@@ -108,6 +115,26 @@ value flows back on `nowPlaying`. No new deps.
 | `lib/core/theme/app_icons.dart` | Added `repeatOne` (`LucideIcons.repeat1`) for the repeat-one state. |
 | `lib/features/music/presentation/music_player_page.dart` | `_ImmersivePlayer` is now **stateless** (the local `_shuffle`/`_repeat` are gone). `_Controls` renders shuffle/repeat from `playing`, computes the repeat cycle, swaps in the repeat-one glyph, and — new — **disables** shuffle/repeat when `!hasControl` (still showing their state), consistent with prev/next. |
 | `test/music/music_player_page_test.dart` | +2 tests: shuffle drives the controller & reflects state; repeat cycles off→all→one→off with the glyph swap. (Tall viewport so the controls are on-screen to tap; still never `pumpAndSettle`.) |
+
+### 2d. Increment 5 additions (pull-down-to-dismiss)
+
+The fullscreen player now dismisses on a downward pull, matching the mini-bar's
+swipe language. It deliberately has **no dismiss gesture of its own** — it rides
+the scroll view's `BouncingScrollPhysics` overscroll, so it can never fight normal
+scrolling (there is no competing recognizer). Each piece below was a real bug
+found the hard way — don't undo them.
+
+| File | Change |
+|---|---|
+| `lib/features/music/presentation/music_player_page.dart` | `_ImmersivePlayer` is **stateful again** (transient pull state — the increment-4 note calling it stateless is superseded). A `NotificationListener` reads overscroll into a `ValueNotifier` `_pull`; a `ValueListenableBuilder` fades + subtly scales the surface as it grows. The downward finger-follow is the physics' own rubber-band — do **not** add a `Transform.translate` (it double-moves *and* breaks the drag). The `Transform`/`Opacity` are **always present** (identity at rest): conditionally inserting them reparents the scroll mid-drag and cancels the gesture; `Transform` keeps `transformHitTests: false`. A passive `Listener` (never joins the gesture arena) catches finger-up and pops past ~116px. |
+| `test/music/music_player_page_test.dart` | +2 tests: a firm pull dismisses (route popped); a short pull springs back. Harness note in-file: issue the drag moves **back-to-back with no `pump()` between them** — a mid-drag pump while the endless glow animates re-settles the drag so overscroll never accumulates (a test-only artifact; a real finger streams moves continuously). |
+
+**The three fixes (all required, all landed):**
+1. **`Positioned.fill` on the scroll's `SafeArea`** (§4) — as a *loose* `Stack` child the scroll shrink-wrapped to its content, so when the player fits the screen (the common case) there was **zero overscroll room** and dismiss could never fire. Filling the height gives the bounce room; it hands down tight constraints without querying intrinsics, so it stays safe past `MusicScrubber`'s `LayoutBuilder`.
+2. **A persistent `ScrollController`** on the scroll view — the player rebuilds on every `nowPlaying` emission; a controller-less scroll spins up a fresh `ScrollPosition` at 0 on each, resetting the scroll and *detaching an in-flight drag*.
+3. **A scheduler-phase guard in `_onScroll`** — the spring-back can correct the position *during layout/paint*; poking the notifier then throws "Build scheduled during frame". When in `persistentCallbacks`, defer the `_pull` update to a post-frame callback.
+
+> ⚠️ **`ccc01c2` committed this mid-debug** — with two stray `print`s (in `_onScroll` and the test) and **without** fix #3. The uncommitted delta (see Status) removes the prints and adds the guard; keep it.
 
 ---
 
@@ -227,8 +254,11 @@ in the player, fixture device in dev) and the mini-bar artwork/colour echo. See 
    dynamic colour + real artwork + real output device, and sanity-check
    spacing/entrance on small (SE) and large (Pro Max) screens. The one thing the
    sim/tests can't cover.
-4. **Swipe-down-to-dismiss** the fullscreen player (matches the mini-bar's
-   swipe language) — optional polish; today it's the chevron + the platform route.
+4. ✅ **Swipe-down-to-dismiss — DONE (increment 5).** The fullscreen player
+   dismisses on an overscroll pull past the top (§2d), alongside the chevron and
+   the platform route. On-device, sanity-check the pull on a small (SE) screen
+   where the player actually scrolls — pulling *past* the top should dismiss while
+   mid-content scrolling stays untouched.
 5. **(Optional) echo on the collapsed `MusicOrb`** (`now_playing_orb.dart`) for
    consistency with the mini-bar — same `ArtworkPalette` wrap, very low alpha.
 6. **Roll the premium pass onward** (per the agreed sequence): Today → You →
@@ -240,25 +270,27 @@ in the player, fixture device in dev) and the mini-bar artwork/colour echo. See 
 
 ## 7. Verification (current state)
 
-- `flutter analyze` — **clean** (whole project, after all four increments).
-- `flutter test test/music/music_player_page_test.dart` — **green** (3 tests:
+- `flutter analyze` — **clean** (whole project, after all five increments — with
+  the uncommitted delta applied; `ccc01c2` alone still has the stray debug prints).
+- `flutter test test/music/music_player_page_test.dart` — **green** (5 tests:
   render/branding/output row `Fixture Buds`/`72%`/bluetooth; shuffle drives the
-  controller & reflects state; repeat cycles off→all→one→off with the glyph swap).
+  controller & reflects state; repeat cycles off→all→one→off with the glyph swap;
+  a firm pull-down dismisses the player; a short pull-down springs back).
 - **Native compiles verified** (the route plumbing): `flutter build apk --debug`
   → `✓ Built app-debug.apk` (Kotlin OK) and `flutter build ios --debug
   --no-codesign` → `✓ Built Runner.app` (Swift OK). **Not** yet run on hardware —
   the live BT-device behaviour is the outstanding functional check (§6.1).
-- **Full suite: `+696 -46`** (693 pre-existing passes + the 3 music tests; the
-  interface change, mini-bar echo, route plumbing, and shuffle/repeat added
-  **zero** Dart regressions — `SpotifyMusicController`/the channel aren't
-  instantiated in tests). The 46 failures are **pre-existing on `version-1` and
-  NOT caused by this work** — proven in increment 1 by stashing the music files
-  back to `HEAD`: the baseline was byte-identical `+693 -46`. None of the failing
-  tests reference music/player/spotify/scrubber/artwork. They span auth/home/
-  workout/ai/diet/expenses/moments and look like fallout from the in-flight
-  Today/live-session redesign — a **separate** cleanup, out of scope here.
+- **Full suite: `+712 -32`** this session (5 music tests among the passes; all
+  five increments added **zero** music regressions — none of the failing tests
+  reference music/player/spotify/scrubber/artwork/dismiss/shuffle/repeat). The
+  failures are **pre-existing on `version-1` and NOT caused by this work** — they
+  span auth/ai/home/workout and look like fallout from the in-flight
+  Today/live-session redesign, a **separate** cleanup out of scope here. The count
+  drifts run to run (was `-46` earlier; `-32` now) as flaky ones settle and the
+  owner lands parallel work (e.g. `24b8eec`), so match on **which files** fail
+  (non-music), not the exact number.
   ```bash
-  flutter test 2>&1 | tail -1   # expect +696 -46 until those are fixed elsewhere
+  flutter test 2>&1 | tail -1   # music stays green; the failures are non-music
   ```
 - **`docs/STATE.md` NOT updated** (left to whoever commits, per shared-tree
   caution). On commit, add an update-log line and note the music player redesign.

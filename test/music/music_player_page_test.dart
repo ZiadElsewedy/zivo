@@ -141,10 +141,17 @@ void main() {
     },
   );
 
-  // Pull-down-to-dismiss. The player rides the scroll view's own overscroll, so
-  // these drive it by dragging the scroll surface down past the top (a stepped
-  // drag, so the bouncing physics integrates like a real finger). A host route
-  // sits underneath so there's something to pop back to.
+  // Pull-down-to-dismiss. The player has no dismiss gesture of its own — it
+  // rides the scroll view's BouncingScrollPhysics overscroll, so these tests
+  // drag the scroll surface down past the top (from the artwork, which carries
+  // no gesture of its own) and release. A host route sits underneath so there's
+  // something to pop back to.
+  //
+  // Harness detail worth knowing: the moves are issued back-to-back with NO
+  // `pump()` between them, on purpose. Pumping a frame mid-drag while the
+  // player's endless ambient-glow animation is running re-settles the in-flight
+  // drag and the overscroll never accumulates — a test-only artifact (a real
+  // finger streams moves continuously). Move, then pump once to apply.
   Widget hostFor(FakeMusicController music) => MaterialApp(
     home: Scaffold(
       body: Builder(
@@ -166,8 +173,20 @@ void main() {
   Future<void> openPlayer(WidgetTester tester) async {
     await tester.tap(find.text('open player'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400)); // finish the push
+    await tester.pump(const Duration(milliseconds: 700)); // push + RiseIns
     expect(find.byType(MusicPlayerPage), findsOneWidget);
+  }
+
+  Future<void> pullDown(WidgetTester tester, double distance) async {
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(MusicArtwork)),
+    );
+    // Consecutive moves, no inter-move pump (see the note above).
+    const step = 40.0;
+    for (var moved = 0.0; moved < distance; moved += step) {
+      await gesture.moveBy(const Offset(0, step));
+    }
+    await gesture.up();
   }
 
   testWidgets(
@@ -180,18 +199,7 @@ void main() {
         await tester.pumpWidget(hostFor(music));
         await openPlayer(tester);
 
-        await tester.pump(const Duration(milliseconds: 700)); // settle RiseIns
-        // Pull the surface well past the top in steps, then release.
-        final startAt = tester.getCenter(find.byType(MusicArtwork));
-        // ignore: avoid_print
-        print('DIAG start=$startAt');
-        final gesture = await tester.startGesture(startAt);
-        for (var i = 0; i < 12; i++) {
-          await gesture.moveBy(const Offset(0, 70));
-        }
-        // ignore: avoid_print
-        print('DIAG after moves (no inter-pumps) pixels=${tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels.toStringAsFixed(1)}');
-        await gesture.up();
+        await pullDown(tester, 640); // firm pull, well past the ~116px threshold
         await tester.pump(); // fire the pop
         await tester.pump(const Duration(milliseconds: 500)); // pop transition
 
@@ -216,13 +224,8 @@ void main() {
         await tester.pumpWidget(hostFor(music));
         await openPlayer(tester);
 
-        // A small tug — well under the dismiss threshold.
-        final gesture =
-            await tester.startGesture(tester.getCenter(find.text('NOW PLAYING')));
-        await gesture.moveBy(const Offset(0, 36));
-        await tester.pump();
-        await gesture.up();
-        await tester.pump(const Duration(milliseconds: 300)); // spring back
+        await pullDown(tester, 100); // a noticeable tug, still under threshold
+        await tester.pump(const Duration(milliseconds: 400)); // spring back
 
         // Still here.
         expect(find.byType(MusicPlayerPage), findsOneWidget);
