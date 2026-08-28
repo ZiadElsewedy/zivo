@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -7,11 +6,11 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/day_progress_analysis.dart';
 import '../../domain/live_session.dart';
@@ -59,240 +58,137 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _AuraBlob(color: AppColors.pulse, size: 210),
-            ),
-            SafeArea(
-              child: StreamBuilder<WorkoutPlan?>(
-                stream: scope.workoutPlans.watchActivePlan(),
-                initialData: scope.workoutPlans.activePlan,
-                builder: (context, planSnap) {
-                  if (planSnap.hasError) return const _AnalysisErrorState();
-                  final plan = planSnap.data;
-                  final loading =
-                      plan == null &&
-                      planSnap.connectionState == ConnectionState.waiting;
-                  if (loading) return const _AnalysisLoadingState();
-                  if (plan == null || plan.days.isEmpty) {
-                    return const _NoPlanState();
-                  }
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      child: StreamBuilder<WorkoutPlan?>(
+        stream: scope.workoutPlans.watchActivePlan(),
+        initialData: scope.workoutPlans.activePlan,
+        builder: (context, planSnap) {
+          if (planSnap.hasError) return const _AnalysisErrorState();
+          final plan = planSnap.data;
+          final loading =
+              plan == null &&
+              planSnap.connectionState == ConnectionState.waiting;
+          if (loading) return const _AnalysisLoadingState();
+          if (plan == null || plan.days.isEmpty) {
+            return const _NoPlanState();
+          }
 
-                  final days = [...plan.days]
-                    ..sort((a, b) => a.order.compareTo(b.order));
-                  final selected = days.firstWhere(
-                    (d) => d.id == _selectedDayId,
-                    orElse: () => plan.nextDay ?? days.first,
+          final days = [...plan.days]
+            ..sort((a, b) => a.order.compareTo(b.order));
+          final selected = days.firstWhere(
+            (d) => d.id == _selectedDayId,
+            orElse: () => plan.nextDay ?? days.first,
+          );
+
+          return StreamBuilder<List<LiveSession>>(
+            stream: scope.workoutSessions.watchAll(),
+            initialData: scope.workoutSessions.current,
+            builder: (context, sessionsSnap) {
+              if (sessionsSnap.hasError) {
+                return const _AnalysisErrorState();
+              }
+              final sessions = sessionsSnap.data ?? const <LiveSession>[];
+              final analysis = analyzeDayProgress(
+                day: selected,
+                planId: plan.id,
+                allSessions: sessions,
+              );
+              final now = DateTime.now();
+              final stats = computeTrainingDashboardStats(
+                sessions: sessions,
+                now: now,
+              );
+
+              final bodyWeight = scope.bodyWeight;
+              return StreamBuilder<List<BodyWeightEntry>>(
+                stream: bodyWeight?.watchAll() ?? const Stream.empty(),
+                initialData: bodyWeight?.current ?? const <BodyWeightEntry>[],
+                builder: (context, weightSnap) {
+                  final weightTrend = computeWeightTrend(
+                    entries: weightSnap.data ?? const <BodyWeightEntry>[],
+                    now: now,
                   );
-
-                  return StreamBuilder<List<LiveSession>>(
-                    stream: scope.workoutSessions.watchAll(),
-                    initialData: scope.workoutSessions.current,
-                    builder: (context, sessionsSnap) {
-                      if (sessionsSnap.hasError) {
-                        return const _AnalysisErrorState();
-                      }
-                      final sessions =
-                          sessionsSnap.data ?? const <LiveSession>[];
-                      final analysis = analyzeDayProgress(
-                        day: selected,
-                        planId: plan.id,
-                        allSessions: sessions,
-                      );
-                      final now = DateTime.now();
-                      final stats = computeTrainingDashboardStats(
-                        sessions: sessions,
-                        now: now,
-                      );
-
-                      final bodyWeight = scope.bodyWeight;
-                      return StreamBuilder<List<BodyWeightEntry>>(
-                        stream: bodyWeight?.watchAll() ?? const Stream.empty(),
-                        initialData:
-                            bodyWeight?.current ?? const <BodyWeightEntry>[],
-                        builder: (context, weightSnap) {
-                          final weightTrend = computeWeightTrend(
-                            entries:
-                                weightSnap.data ?? const <BodyWeightEntry>[],
-                            now: now,
-                          );
-                          // One single scroll, no horizontal scrolling
-                          // anywhere: the day chips wrap onto as many lines
-                          // as they need.
-                          return ListView(
-                            padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
-                            children: [
-                              RiseIn(child: const _AnalysisHeader()),
-                              const SizedBox(height: 24),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 40),
-                                child: _DayChips(
-                                  days: days,
-                                  selectedId: selected.id,
-                                  onSelect: (id) =>
-                                      setState(() => _selectedDayId = id),
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                              // Keyed by day so switching days replays the
-                              // entrance — the section change should read as
-                              // a transition, not a silent text swap.
-                              RiseIn(
-                                delay: const Duration(milliseconds: 80),
-                                child: _ProgressHero(
-                                  key: ValueKey('hero-${selected.id}'),
-                                  analysis: analysis,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 100),
-                                child: _BasisNote(dayLabel: selected.label),
-                              ),
-                              const SizedBox(height: 36),
-                              const _SectionLabel('Consistency'),
-                              const SizedBox(height: 5),
-                              // Called out because, unlike everything above,
-                              // these are day-independent — they span every
-                              // session.
-                              Text(
-                                'Across all your training, not just ${selected.label}.',
-                                style: AppText.meta.copyWith(
-                                  color: AppColors.ink3,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 120),
-                                child: _ConsistencyRow(stats: stats),
-                              ),
-                              const SizedBox(height: 12),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 140),
-                                child: _WeekRhythmStrip(
-                                  sessions: sessions,
-                                  now: now,
-                                ),
-                              ),
-                              if (weightTrend.latest != null) ...[
-                                const SizedBox(height: 12),
-                                RiseIn(
-                                  delay: const Duration(milliseconds: 160),
-                                  child: _WeightSnapshotRow(trend: weightTrend),
-                                ),
-                              ],
-                              const SizedBox(height: 40),
-                              _SectionLabel('${selected.label} exercises'),
-                              const SizedBox(height: 12),
-                              if (analysis.sessionCount == 0)
-                                _DayEmptyState(dayLabel: selected.label)
-                              else
-                                _ExerciseListCard(
-                                  key: ValueKey('exercises-${selected.id}'),
-                                  exercises: analysis.exercises,
-                                ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+                  // One single scroll, no horizontal scrolling
+                  // anywhere: the day chips wrap onto as many lines
+                  // as they need.
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
+                    children: [
+                      RiseIn(child: const TrainPageHeader(title: 'Analysis')),
+                      const SizedBox(height: 24),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 40),
+                        child: _DayChips(
+                          days: days,
+                          selectedId: selected.id,
+                          onSelect: (id) => setState(() => _selectedDayId = id),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      // Keyed by day so switching days replays the
+                      // entrance — the section change should read as
+                      // a transition, not a silent text swap.
+                      RiseIn(
+                        delay: const Duration(milliseconds: 80),
+                        child: _ProgressHero(
+                          key: ValueKey('hero-${selected.id}'),
+                          analysis: analysis,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 100),
+                        child: _BasisNote(dayLabel: selected.label),
+                      ),
+                      const SizedBox(height: 36),
+                      const _SectionLabel('Consistency'),
+                      const SizedBox(height: 5),
+                      // Called out because, unlike everything above,
+                      // these are day-independent — they span every
+                      // session.
+                      Text(
+                        'Across all your training, not just ${selected.label}.',
+                        style: AppText.meta.copyWith(
+                          color: TrainColors.ink4,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 120),
+                        child: _ConsistencyRow(stats: stats),
+                      ),
+                      const SizedBox(height: 12),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 140),
+                        child: _WeekRhythmStrip(sessions: sessions, now: now),
+                      ),
+                      if (weightTrend.latest != null) ...[
+                        const SizedBox(height: 12),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 160),
+                          child: _WeightSnapshotRow(trend: weightTrend),
+                        ),
+                      ],
+                      const SizedBox(height: 40),
+                      _SectionLabel('${selected.label} exercises'),
+                      const SizedBox(height: 12),
+                      if (analysis.sessionCount == 0)
+                        _DayEmptyState(dayLabel: selected.label)
+                      else
+                        _ExerciseListCard(
+                          key: ValueKey('exercises-${selected.id}'),
+                          exercises: analysis.exercises,
+                        ),
+                    ],
                   );
                 },
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page header — back chip and display title. (The day being
-/// analyzed is stated by the hero below; the title stays the page's name.)
-class _AnalysisHeader extends StatelessWidget {
-  const _AnalysisHeader();
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        PressableScale(
-          child: Tooltip(
-            message: 'Back',
-            child: InkWell(
-              onTap: () => Navigator.of(context).maybePop(),
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Analysis',
-            style: AppText.greeting.copyWith(fontSize: 30),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -306,7 +202,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     label.toUpperCase(),
     style: AppText.sectionLabel.copyWith(
-      color: AppColors.ink3,
+      color: TrainColors.ink4,
       letterSpacing: 0.8,
     ),
   );
@@ -405,18 +301,18 @@ class _DayChipState extends State<_DayChip>
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF2BD99B), AppColors.pulse],
+                  colors: [Color(0xFF2BD99B), TrainColors.green],
                 )
               : null,
-          color: widget.active ? null : AppColors.card,
+          color: widget.active ? null : const Color(0x08FFFFFF),
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-            color: widget.active ? Colors.transparent : AppColors.hairline2,
+            color: widget.active ? Colors.transparent : TrainColors.hairline,
           ),
           boxShadow: widget.active
               ? [
                   BoxShadow(
-                    color: AppColors.pulse.withValues(alpha: 0.35),
+                    color: TrainColors.green.withValues(alpha: 0.35),
                     blurRadius: 18,
                     spreadRadius: -4,
                     offset: const Offset(0, 6),
@@ -438,7 +334,7 @@ class _DayChipState extends State<_DayChip>
               child: Text(
                 widget.label,
                 style: AppText.meta.copyWith(
-                  color: widget.active ? Colors.white : AppColors.ink2,
+                  color: widget.active ? Colors.white : TrainColors.ink2,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -465,9 +361,9 @@ class _BasisNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,14 +376,18 @@ class _BasisNote extends StatelessWidget {
               color: AppColors.irisWash,
               borderRadius: BorderRadius.circular(9),
             ),
-            child: const Icon(AppIcons.info, size: 15, color: AppColors.iris),
+            child: const Icon(
+              AppIcons.info,
+              size: 15,
+              color: TrainColors.violetGlyph,
+            ),
           ),
           const SizedBox(width: AppSpacing.m),
           Expanded(
             child: Text.rich(
               TextSpan(
                 style: AppText.body.copyWith(
-                  color: AppColors.ink2,
+                  color: TrainColors.ink2,
                   fontSize: 13.5,
                   height: 1.45,
                 ),
@@ -496,7 +396,7 @@ class _BasisNote extends StatelessWidget {
                   TextSpan(
                     text: 'last $dayLabel',
                     style: TextStyle(
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -504,7 +404,7 @@ class _BasisNote extends StatelessWidget {
                   TextSpan(
                     text: 'one before it',
                     style: TextStyle(
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -540,11 +440,11 @@ class _ProgressHero extends StatelessWidget {
     final (headline, color) = switch (overall) {
       null => (
         analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
-        AppColors.ink2,
+        TrainColors.ink2,
       ),
-      ProgressVerdict.progressing => ('Progressing', AppColors.pulse),
-      ProgressVerdict.matched => ('Holding steady', AppColors.ink2),
-      ProgressVerdict.down => ('Slipping', AppColors.flare),
+      ProgressVerdict.progressing => ('Progressing', TrainColors.green),
+      ProgressVerdict.matched => ('Holding steady', TrainColors.ink2),
+      ProgressVerdict.down => ('Slipping', TrainColors.ember),
     };
     final detail = overall == null
         ? (analysis.sessionCount == 0
@@ -583,7 +483,7 @@ class _ProgressHero extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: const Color(0x08FFFFFF),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -594,14 +494,6 @@ class _ProgressHero extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withValues(alpha: 0.14)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 30,
-              spreadRadius: -8,
-              offset: const Offset(0, 14),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,7 +524,7 @@ class _ProgressHero extends StatelessWidget {
                             ProgressVerdict.down => AppIcons.trendDown,
                           },
                     size: 16,
-                    color: color == AppColors.ink2 ? AppColors.ink2 : color,
+                    color: color == TrainColors.ink2 ? TrainColors.ink2 : color,
                   ),
                 ),
                 const SizedBox(width: 9),
@@ -647,7 +539,7 @@ class _ProgressHero extends StatelessWidget {
               headline,
               style: AppText.cardTitle.copyWith(
                 fontSize: 32,
-                color: AppColors.ink,
+                color: TrainColors.ink,
               ),
             ),
             const SizedBox(height: 10),
@@ -655,7 +547,7 @@ class _ProgressHero extends StatelessWidget {
               detail,
               style: AppText.aside.copyWith(
                 fontSize: 17,
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
               ),
             ),
           ],
@@ -679,17 +571,16 @@ class _ConsistencyRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
           Expanded(
             child: _ConsistencyStat(
               icon: AppIcons.sessions,
-              accent: AppColors.pulse,
+              accent: TrainColors.green,
               value: '${stats.sessionsThisWeek}',
               label: 'This week',
             ),
@@ -698,7 +589,7 @@ class _ConsistencyRow extends StatelessWidget {
           Expanded(
             child: _ConsistencyStat(
               icon: AppIcons.streak,
-              accent: AppColors.ember,
+              accent: TrainColors.ember,
               value: '${stats.currentStreakDays}',
               label: 'Day streak',
             ),
@@ -707,7 +598,7 @@ class _ConsistencyRow extends StatelessWidget {
           Expanded(
             child: _ConsistencyStat(
               icon: AppIcons.timer,
-              accent: AppColors.iris,
+              accent: TrainColors.violetGlyph,
               value: stats.averageSessionDuration == null
                   ? '—'
                   : _formatDurationShort(stats.averageSessionDuration!),
@@ -728,7 +619,7 @@ class _ConsistencyDivider extends StatelessWidget {
     width: 1,
     height: 38,
     margin: const EdgeInsets.symmetric(horizontal: 12),
-    color: AppColors.hairline2,
+    color: TrainColors.hairline,
   );
 }
 
@@ -773,13 +664,13 @@ class _ConsistencyStat extends StatelessWidget {
           style: AppText.rowTitle.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 18,
-            color: AppColors.ink,
+            color: TrainColors.ink,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+          style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11),
         ),
       ],
     );
@@ -816,10 +707,9 @@ class _WeekRhythmStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
@@ -876,17 +766,17 @@ class _RhythmColumn extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.pulse,
-                        AppColors.pulse.withValues(alpha: 0.45),
+                        TrainColors.green,
+                        TrainColors.green.withValues(alpha: 0.45),
                       ],
                     )
                   : null,
-              color: trained ? null : AppColors.hairline2,
+              color: trained ? null : TrainColors.hairline,
               borderRadius: BorderRadius.circular(5),
               boxShadow: trained
                   ? [
                       BoxShadow(
-                        color: AppColors.pulse.withValues(alpha: 0.30),
+                        color: TrainColors.green.withValues(alpha: 0.30),
                         blurRadius: 10,
                         spreadRadius: -2,
                         offset: const Offset(0, 3),
@@ -900,7 +790,7 @@ class _RhythmColumn extends StatelessWidget {
         Text(
           letter,
           style: AppText.meta.copyWith(
-            color: isToday ? AppColors.ember : AppColors.ink3,
+            color: isToday ? TrainColors.ember : TrainColors.ink4,
             fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
             fontSize: 10.5,
           ),
@@ -925,10 +815,9 @@ class _WeightSnapshotRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
@@ -941,13 +830,17 @@ class _WeightSnapshotRow extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.solar.withValues(alpha: 0.28),
-                  AppColors.solar.withValues(alpha: 0.10),
+                  TrainColors.amber.withValues(alpha: 0.28),
+                  TrainColors.amber.withValues(alpha: 0.10),
                 ],
               ),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(AppIcons.scale, size: 14, color: AppColors.solar),
+            child: const Icon(
+              AppIcons.scale,
+              size: 14,
+              color: TrainColors.amber,
+            ),
           ),
           const SizedBox(width: 11),
           Column(
@@ -957,7 +850,7 @@ class _WeightSnapshotRow extends StatelessWidget {
                 '${_trim(latest.weightKg)} kg',
                 style: AppText.rowTitle.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
+                  color: TrainColors.ink,
                 ),
               ),
               const SizedBox(height: 2),
@@ -966,7 +859,7 @@ class _WeightSnapshotRow extends StatelessWidget {
                     ? 'Bodyweight'
                     : '${change > 0 ? '+' : ''}${_trim(change)}kg over 30d',
                 style: AppText.meta.copyWith(
-                  color: AppColors.ink3,
+                  color: TrainColors.ink4,
                   fontSize: 11,
                 ),
               ),
@@ -978,7 +871,7 @@ class _WeightSnapshotRow extends StatelessWidget {
               width: 96,
               child: TrendChart(
                 values: [for (final e in trend.series) e.weightKg],
-                color: AppColors.solar,
+                color: TrainColors.amber,
                 height: 36,
               ),
             ),
@@ -1001,10 +894,9 @@ class _ExerciseListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         children: [
@@ -1015,7 +907,7 @@ class _ExerciseListCard extends StatelessWidget {
                 thickness: 1,
                 indent: 16,
                 endIndent: 16,
-                color: AppColors.hairline2,
+                color: TrainColors.hairline,
               ),
             StaggeredReveal(
               index: i,
@@ -1059,7 +951,7 @@ class _ExerciseRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: AppText.rowTitle.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
+                          color: TrainColors.ink,
                         ),
                       ),
                     ),
@@ -1110,7 +1002,7 @@ class _ExerciseRow extends StatelessWidget {
                     _fallbackSubtitle(exercise),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.meta.copyWith(color: AppColors.ink3),
+                    style: AppText.meta.copyWith(color: TrainColors.ink4),
                   ),
               ],
             ),
@@ -1128,7 +1020,7 @@ class _ExerciseRow extends StatelessWidget {
                 // glance, not just a red badge.
                 color: exercise.verdict == ProgressVerdict.down
                     ? verdictStyle(ProgressVerdict.down).$2
-                    : AppColors.pulse,
+                    : TrainColors.green,
               ),
             ),
           ],
@@ -1163,17 +1055,17 @@ class _MetricDelta extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = double.tryParse(text.replaceAll(RegExp(r'[+%kg]'), '')) ?? 0;
     final color = value > 0
-        ? AppColors.pulse
+        ? TrainColors.green
         : value < 0
-        ? AppColors.flare
-        : AppColors.ink3;
+        ? TrainColors.ember
+        : TrainColors.ink4;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
           style: AppText.meta.copyWith(
-            color: AppColors.ink3,
+            color: TrainColors.ink4,
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
           ),
@@ -1239,13 +1131,13 @@ class _NeutralTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.ink3.withValues(alpha: 0.12),
+        color: TrainColors.ink4.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         label,
         style: AppText.meta.copyWith(
-          color: AppColors.ink3,
+          color: TrainColors.ink4,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -1263,12 +1155,15 @@ class _AnalysisLoadingState extends StatelessWidget {
         width: 140,
         height: 140,
         decoration: const BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(
+            TrainColors.ink2,
+            BlendMode.srcIn,
+          ),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -1290,18 +1185,18 @@ class _AnalysisErrorState extends StatelessWidget {
             const Icon(
               Icons.cloud_off_rounded,
               size: 30,
-              color: AppColors.ink3,
+              color: TrainColors.ink4,
             ),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1321,7 +1216,7 @@ class _NoPlanState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Text(
           'Create a workout plan to see progress analysis.',
-          style: AppText.aside.copyWith(color: AppColors.ink2),
+          style: AppText.aside.copyWith(color: TrainColors.ink2),
           textAlign: TextAlign.center,
         ),
       ),
@@ -1341,10 +1236,9 @@ class _DayEmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1358,8 +1252,8 @@ class _DayEmptyState extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.pulse.withValues(alpha: 0.22),
-                  AppColors.pulse.withValues(alpha: 0.06),
+                  TrainColors.green.withValues(alpha: 0.22),
+                  TrainColors.green.withValues(alpha: 0.06),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
@@ -1367,7 +1261,7 @@ class _DayEmptyState extends StatelessWidget {
             child: const Icon(
               AppIcons.analysis,
               size: 20,
-              color: AppColors.pulse,
+              color: TrainColors.green,
             ),
           ),
           const SizedBox(height: 12),
@@ -1375,13 +1269,13 @@ class _DayEmptyState extends StatelessWidget {
             "You haven't logged $dayLabel yet.",
             style: AppText.rowTitle.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppColors.ink,
+              color: TrainColors.ink,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Complete a session to start tracking progress.',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: TrainColors.ink4),
           ),
         ],
       ),

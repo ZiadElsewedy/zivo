@@ -75,8 +75,8 @@ void main() {
     await tester.pumpWidget(wrap(child: const WorkoutSessionsPage(), sessions: sessions));
     await tester.pump();
 
-    expect(find.textContaining('1 completed workout · 1 not completed'), findsOneWidget);
-    expect(find.text('Ended early'), findsOneWidget);
+    expect(find.textContaining('1 COMPLETED WORKOUT · 1 NOT COMPLETED'), findsOneWidget);
+    expect(find.text('ENDED EARLY'), findsOneWidget);
   });
 
   testWidgets('an in-progress session renders its live elapsed time, not ~0m', (
@@ -96,6 +96,6 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('· 20m ·'), findsOneWidget);
-    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('IN PROGRESS'), findsOneWidget);
   });
 }

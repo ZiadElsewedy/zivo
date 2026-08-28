@@ -58,6 +58,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   - Domain additions: `weeklySessionCounts` / `dailySessionCounts` /
     `recentSessionDurationMinutes` (tile sparklines) and `lifetimeVolumeKg` (You's
     lifetime tonnage).
+- **Workout drill-downs on the handoff too.** Every page reached from the Workout hub —
+  Progress, the four stat pages, Bodyweight history, Day details, Session details,
+  History, Analysis, Splits — was still on v2 material. All are across now, via two
+  shared seams so they can't drift again: `WorkoutSectionLabel` is a wrapper over
+  `TrainSectionLabel`, and `StatDrillDownScaffold` is the one shell behind all four
+  stat pages. `verdictStyle` moved onto the handoff's four hues (green progressing,
+  ember down, neutral matched — no fifth red). Decorative colored glows stripped
+  app-wide on these surfaces per identity §5.
 
 - **Auth hardening + account lifecycle** — completed the auth system on the
   `claude/auth-system-review-1c7a20` branch: **forgot-password** (branded OTP → new
@@ -135,6 +143,9 @@ suite green. **Always re-run `make gates` rather than trusting a remembered test
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — Carried the handoff into the workout drill-downs (Progress, the four stat
+  pages, bodyweight/day/session details, history, analysis, splits) behind two shared
+  seams. No new test failures — still the same 33 that fail on `version-1` untouched.
 - 2026-08-28 — Built the seven remaining design-handoff screens (Workout hub, You,
   Settings, Diet, Expenses, Moments, Ask) plus the Hub tab, on a new shared
   `train_surfaces.dart` primitive set. Fixed a real overflow on the Rest ring's timer

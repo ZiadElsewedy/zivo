@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
@@ -30,49 +29,49 @@ class SessionDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
-          children: [
-            _DetailsHeader(
-              onDelete: () async {
-                final repo = AppScope.of(context).workoutSessions;
-                final confirmed = await confirmDeleteSession(
-                  context,
-                  session.dayLabel,
-                );
-                if (!confirmed || !context.mounted) return;
-                await repo.deleteSession(session.id);
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-            const SizedBox(height: 22),
-            _SessionHeroHeader(session: session),
-            const SizedBox(height: 26),
-            if (session.exercises.isEmpty)
-              Text(
-                'No exercises logged.',
-                style: AppText.aside.copyWith(color: AppColors.ink2),
-              )
-            else
-              for (final (i, exercise) in session.exercises.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: StaggeredReveal(
-                    index: i,
-                    child: _ExerciseDetailCard(exercise: exercise),
-                  ),
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
+        children: [
+          _DetailsHeader(
+            onDelete: () async {
+              final repo = AppScope.of(context).workoutSessions;
+              final confirmed = await confirmDeleteSession(
+                context,
+                session.dayLabel,
+              );
+              if (!confirmed || !context.mounted) return;
+              await repo.deleteSession(session.id);
+              if (context.mounted) Navigator.of(context).pop();
+            },
+          ),
+          const SizedBox(height: 22),
+          _SessionHeroHeader(session: session),
+          const SizedBox(height: 26),
+          if (session.exercises.isEmpty)
+            Text(
+              'No exercises logged.',
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
+            )
+          else
+            for (final (i, exercise) in session.exercises.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: StaggeredReveal(
+                  index: i,
+                  child: _ExerciseDetailCard(exercise: exercise),
                 ),
-          ],
-        ),
+              ),
+        ],
       ),
     );
   }
 }
 
 /// The pushed-page header — back chip, title, and the delete action.
+/// The pushed-page header: the shared back circle and title, with this
+/// page's one action — deleting the session — as the trailing chip.
 class _DetailsHeader extends StatelessWidget {
   const _DetailsHeader({required this.onDelete});
 
@@ -80,65 +79,16 @@ class _DetailsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        PressableScale(
-          child: Tooltip(
-            message: 'Back',
-            child: InkWell(
-              onTap: () => Navigator.of(context).maybePop(),
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Session details',
-            style: AppText.greeting.copyWith(fontSize: 26),
-          ),
-        ),
-        const SizedBox(width: 12),
-        PressableScale(
-          child: Tooltip(
-            message: 'Delete session',
-            child: InkWell(
-              onTap: onDelete,
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.trash,
-                  size: 17,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return TrainPageHeader(
+      title: 'Session details',
+      action: TrainHeaderAction(
+        icon: AppIcons.trash,
+        semanticLabel: 'Delete session',
+        // Neutral, not ember: destructive, but already gated behind its own
+        // confirm — it doesn't get to be the loudest thing in the bar.
+        accent: const Color(0xFFF4F4F0),
+        onTap: onDelete,
+      ),
     );
   }
 }
@@ -151,29 +101,29 @@ Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      backgroundColor: AppColors.card,
+      backgroundColor: const Color(0x08FFFFFF),
       title: Text(
         'Delete this session?',
-        style: AppText.cardTitle.copyWith(color: AppColors.ink),
+        style: AppText.cardTitle.copyWith(color: TrainColors.ink),
       ),
       content: Text(
         'This permanently removes your "$dayLabel" session and everything '
         "logged in it. This can't be undone.",
-        style: AppText.body.copyWith(color: AppColors.ink2),
+        style: AppText.body.copyWith(color: TrainColors.ink2),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
           child: Text(
             'Cancel',
-            style: AppText.button.copyWith(color: AppColors.ink3),
+            style: AppText.button.copyWith(color: TrainColors.ink4),
           ),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
           child: Text(
             'Delete',
-            style: AppText.button.copyWith(color: AppColors.flare),
+            style: AppText.button.copyWith(color: TrainColors.ember),
           ),
         ),
       ],
@@ -190,9 +140,9 @@ class _SessionHeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', AppColors.pulse),
-      SessionStatus.active => ('In progress', AppColors.solar),
-      SessionStatus.abandoned => ('Not completed', AppColors.ink3),
+      SessionStatus.completed => ('Completed', TrainColors.green),
+      SessionStatus.active => ('In progress', TrainColors.amber),
+      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: DateTime.now())
@@ -201,7 +151,7 @@ class _SessionHeroHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -212,7 +162,6 @@ class _SessionHeroHeader extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: color.withValues(alpha: 0.14)),
-        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +191,7 @@ class _SessionHeroHeader extends StatelessWidget {
                     SessionStatus.abandoned => AppIcons.minus,
                   },
                   size: 18,
-                  color: color == AppColors.ink3 ? AppColors.ink2 : color,
+                  color: color == TrainColors.ink4 ? TrainColors.ink2 : color,
                 ),
               ),
               const SizedBox(width: 12),
@@ -253,14 +202,14 @@ class _SessionHeroHeader extends StatelessWidget {
                     Text(
                       session.dayLabel,
                       style: AppText.cardTitle.copyWith(
-                        color: AppColors.ink,
+                        color: TrainColors.ink,
                         fontSize: 21,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _formatFullDate(session.startedAt),
-                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                      style: AppText.meta.copyWith(color: TrainColors.ink4),
                     ),
                   ],
                 ),
@@ -341,14 +290,14 @@ class _HeroStat extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: AppText.rowTitle.copyWith(
             fontWeight: FontWeight.w700,
-            color: AppColors.ink,
+            color: TrainColors.ink,
             fontSize: 16,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+          style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11),
         ),
       ],
     );
@@ -365,10 +314,9 @@ class _ExerciseDetailCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,7 +330,7 @@ class _ExerciseDetailCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppText.rowTitle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                    color: TrainColors.ink,
                   ),
                 ),
               ),
@@ -394,13 +342,13 @@ class _ExerciseDetailCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.pulse.withValues(alpha: 0.12),
+                    color: TrainColors.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Text(
                     exercise.muscleGroup!,
                     style: AppText.meta.copyWith(
-                      color: AppColors.pulse,
+                      color: TrainColors.green,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -415,7 +363,7 @@ class _ExerciseDetailCard extends StatelessWidget {
               Container(
                 margin: const EdgeInsets.only(left: 26, bottom: 10),
                 height: 1,
-                color: AppColors.hairline,
+                color: TrainColors.hairline,
               ),
             _SetRow(index: i + 1, set: set),
           ],
@@ -444,14 +392,14 @@ class _SetRow extends StatelessWidget {
         : '$repsText rep${reps == 1 ? '' : 's'}';
 
     final (icon, iconColor) = switch (set.outcome) {
-      SetOutcome.completed => (Icons.check_circle_rounded, AppColors.pulse),
+      SetOutcome.completed => (Icons.check_circle_rounded, TrainColors.green),
       SetOutcome.skipped => (
         Icons.remove_circle_outline_rounded,
-        AppColors.ink3,
+        TrainColors.ink4,
       ),
       SetOutcome.pending => (
         Icons.radio_button_unchecked_rounded,
-        AppColors.ink3,
+        TrainColors.ink4,
       ),
     };
 
@@ -462,7 +410,7 @@ class _SetRow extends StatelessWidget {
         Text(
           'Set $index',
           style: AppText.meta.copyWith(
-            color: AppColors.ink3,
+            color: TrainColors.ink4,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -473,15 +421,15 @@ class _SetRow extends StatelessWidget {
             style: AppText.body.copyWith(
               fontSize: 14,
               color: set.outcome == SetOutcome.skipped
-                  ? AppColors.ink3
-                  : AppColors.ink2,
+                  ? TrainColors.ink4
+                  : TrainColors.ink2,
             ),
           ),
         ),
         if (set.outcome == SetOutcome.skipped) ...[
           Text(
             'Skipped',
-            style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+            style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11),
           ),
           const SizedBox(width: 8),
         ],
@@ -489,13 +437,13 @@ class _SetRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.solar.withValues(alpha: 0.14),
+              color: TrainColors.amber.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(
               'RPE ${_trimNumber(set.rpe!)}',
               style: AppText.meta.copyWith(
-                color: AppColors.solar,
+                color: TrainColors.amber,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),

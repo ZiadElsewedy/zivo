@@ -1,15 +1,13 @@
-
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../domain/workout_session_repository.dart';
@@ -31,42 +29,20 @@ class WorkoutHistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessions = AppScope.of(context).workoutSessions;
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      // The header lives OUTSIDE the stream so the page always has its title
+      // and a way back — even while loading, on error, or with nothing
+      // logged yet (a pushed page must never become a chrome-less dead end).
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(22, 12, 22, 0),
+            child: RiseIn(child: TrainPageHeader(title: 'History')),
           ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _AuraBlob(color: AppColors.iris, size: 200),
-            ),
-            SafeArea(
-              // The header lives OUTSIDE the stream so the page always has
-              // its title and a way back — even while loading, on error, or
-              // with nothing logged yet (a pushed page must never become a
-              // chrome-less dead end).
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-                    child: RiseIn(child: _HistoryHeader()),
-                  ),
-                  Expanded(child: _body(sessions)),
-                ],
-              ),
-            ),
-          ],
-        ),
+          Expanded(child: _body(sessions)),
+        ],
       ),
     );
   }
@@ -100,12 +76,11 @@ class WorkoutHistoryPage extends StatelessWidget {
         // missing workouts even though the count above was correct.
         final byWeek = <DateTime, List<LiveSession>>{};
         for (final session in items) {
-          byWeek.putIfAbsent(_startOfWeek(session.startedAt), () => []).add(
-            session,
-          );
+          byWeek
+              .putIfAbsent(_startOfWeek(session.startedAt), () => [])
+              .add(session);
         }
-        final weekStarts = byWeek.keys.toList()
-          ..sort((a, b) => b.compareTo(a));
+        final weekStarts = byWeek.keys.toList()..sort((a, b) => b.compareTo(a));
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
@@ -122,14 +97,10 @@ class WorkoutHistoryPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             for (final ws in weekStarts) ...[
-              _WeekHeader(
-                _WeekGroup(ws, byWeek[ws]!).label(weekStart),
-              ),
+              _WeekHeader(_WeekGroup(ws, byWeek[ws]!).label(weekStart)),
               for (final (i, session) in byWeek[ws]!.indexed)
                 RiseIn(
-                  delay: Duration(
-                    milliseconds: (90 + i * 40).clamp(0, 320),
-                  ),
+                  delay: Duration(milliseconds: (90 + i * 40).clamp(0, 320)),
                   child: Padding(
                     padding: EdgeInsets.only(
                       bottom: i == byWeek[ws]!.length - 1 ? 0 : 10,
@@ -138,12 +109,9 @@ class WorkoutHistoryPage extends StatelessWidget {
                       key: ValueKey(session.id),
                       direction: DismissDirection.endToStart,
                       background: const _DeleteSwipeBackground(),
-                      confirmDismiss: (_) => confirmDeleteSession(
-                        context,
-                        session.dayLabel,
-                      ),
-                      onDismissed: (_) =>
-                          sessions.deleteSession(session.id),
+                      confirmDismiss: (_) =>
+                          confirmDeleteSession(context, session.dayLabel),
+                      onDismissed: (_) => sessions.deleteSession(session.id),
                       child: _SessionHistoryRow(
                         session: session,
                         now: now,
@@ -169,81 +137,6 @@ class WorkoutHistoryPage extends StatelessWidget {
     final day = DateTime(d.year, d.month, d.day);
     // Monday-based weeks.
     return day.subtract(Duration(days: d.weekday - 1));
-  }
-}
-
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page header — back chip and display title.
-class _HistoryHeader extends StatelessWidget {
-  const _HistoryHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        PressableScale(
-          child: Tooltip(
-            message: 'Back',
-            child: InkWell(
-              onTap: () => Navigator.of(context).maybePop(),
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'History',
-            style: AppText.greeting.copyWith(fontSize: 30),
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -307,17 +200,16 @@ class _SummaryStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
           Expanded(
             child: _SummaryStat(
               icon: AppIcons.sessions,
-              accent: AppColors.pulse,
+              accent: TrainColors.green,
               value: '$totalSessions',
               label: 'Sessions',
             ),
@@ -326,7 +218,7 @@ class _SummaryStrip extends StatelessWidget {
           Expanded(
             child: _SummaryStat(
               icon: AppIcons.timer,
-              accent: AppColors.iris,
+              accent: TrainColors.violetGlyph,
               value: totalHours < 1
                   ? '${totalMinutesLabel(totalHours)}m'
                   : '${totalHours.toStringAsFixed(1)}h',
@@ -337,7 +229,7 @@ class _SummaryStrip extends StatelessWidget {
           Expanded(
             child: _SummaryStat(
               icon: AppIcons.streak,
-              accent: AppColors.ember,
+              accent: TrainColors.ember,
               value: '$thisWeek',
               label: 'This week',
             ),
@@ -358,7 +250,7 @@ class _SummaryDivider extends StatelessWidget {
     width: 1,
     height: 38,
     margin: const EdgeInsets.symmetric(horizontal: 12),
-    color: AppColors.hairline2,
+    color: TrainColors.hairline,
   );
 }
 
@@ -403,13 +295,13 @@ class _SummaryStat extends StatelessWidget {
           style: AppText.rowTitle.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 18,
-            color: AppColors.ink,
+            color: TrainColors.ink,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+          style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11),
         ),
       ],
     );
@@ -435,9 +327,9 @@ class _SessionHistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', AppColors.pulse),
-      SessionStatus.active => ('In progress', AppColors.solar),
-      SessionStatus.abandoned => ('Not completed', AppColors.ink3),
+      SessionStatus.completed => ('Completed', TrainColors.green),
+      SessionStatus.active => ('In progress', TrainColors.amber),
+      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: now)
@@ -451,14 +343,13 @@ class _SessionHistoryRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: const Color(0x08FFFFFF),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: session.status == SessionStatus.completed
-                  ? AppColors.hairline
+                  ? TrainColors.hairline
                   : color.withValues(alpha: 0.22),
             ),
-            boxShadow: AppShadows.card,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -487,7 +378,9 @@ class _SessionHistoryRow extends StatelessWidget {
                         SessionStatus.abandoned => AppIcons.minus,
                       },
                       size: 16,
-                      color: color == AppColors.ink3 ? AppColors.ink2 : color,
+                      color: color == TrainColors.ink4
+                          ? TrainColors.ink2
+                          : color,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -501,13 +394,13 @@ class _SessionHistoryRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: AppText.rowTitle.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
+                            color: TrainColors.ink,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _dateAndTimeRange(session),
-                          style: AppText.meta.copyWith(color: AppColors.ink3),
+                          style: AppText.meta.copyWith(color: TrainColors.ink4),
                         ),
                       ],
                     ),
@@ -580,11 +473,11 @@ class _MetaChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.ink3),
+        Icon(icon, size: 13, color: TrainColors.ink4),
         const SizedBox(width: 4),
         Text(
           label,
-          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+          style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 12),
         ),
       ],
     );
@@ -602,10 +495,10 @@ class _DeleteSwipeBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        color: AppColors.flare.withValues(alpha: 0.16),
+        color: TrainColors.ember.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Icon(AppIcons.trash, color: AppColors.flare, size: 20),
+      child: const Icon(AppIcons.trash, color: TrainColors.ember, size: 20),
     );
   }
 }
@@ -640,12 +533,15 @@ class _HistoryLoadingState extends StatelessWidget {
         width: 140,
         height: 140,
         decoration: const BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(
+            TrainColors.ink2,
+            BlendMode.srcIn,
+          ),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -667,18 +563,18 @@ class _HistoryErrorState extends StatelessWidget {
             const Icon(
               Icons.cloud_off_rounded,
               size: 30,
-              color: AppColors.ink3,
+              color: TrainColors.ink4,
             ),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
           ],
@@ -708,8 +604,8 @@ class _HistoryEmptyState extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.iris.withValues(alpha: 0.22),
-                    AppColors.iris.withValues(alpha: 0.06),
+                    TrainColors.violetGlyph.withValues(alpha: 0.22),
+                    TrainColors.violetGlyph.withValues(alpha: 0.06),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
@@ -717,19 +613,19 @@ class _HistoryEmptyState extends StatelessWidget {
               child: const Icon(
                 AppIcons.history,
                 size: 28,
-                color: AppColors.iris,
+                color: TrainColors.violetGlyph,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               'No sessions logged yet.',
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Finish a workout and it shows up here.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
           ],
