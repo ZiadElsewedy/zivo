@@ -4,7 +4,6 @@ import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/train_chrome.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
-import 'package:zivo/features/music/presentation/music_artwork.dart';
 import 'package:zivo/features/music/presentation/music_player_page.dart';
 
 /// Coverage for the immersive Now Playing screen. `FakeMusicController` starts
