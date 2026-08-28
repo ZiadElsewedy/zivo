@@ -175,7 +175,7 @@ class _GlowPaint extends StatelessWidget {
 /// the transport, so nothing reads as a detached component. On tall screens the
 /// groups distribute top / centre / bottom; on short ones the whole thing
 /// scrolls as a unit.
-class _ImmersivePlayer extends StatelessWidget {
+class _ImmersivePlayer extends StatefulWidget {
   const _ImmersivePlayer({
     required this.controller,
     required this.playing,
@@ -187,8 +187,66 @@ class _ImmersivePlayer extends StatelessWidget {
   final ArtworkColors colours;
 
   @override
+  State<_ImmersivePlayer> createState() => _ImmersivePlayerState();
+}
+
+/// Adds **pull-down-to-dismiss** on top of the single scroll. It rides the
+/// scroll view's own `BouncingScrollPhysics` overscroll rather than a competing
+/// gesture, so normal vertical scrolling is never intercepted: only once the
+/// content is at the top and the finger keeps pulling down does the whole
+/// surface follow it (translate + a light fade/scale), and releasing past a
+/// threshold pops the route. Released short, the physics springs it back and the
+/// transform follows it home — no bespoke animation. The finger-up decision
+/// comes from a passive [Listener] (which never joins the gesture arena, so it
+/// can't disturb the scroll), not `ScrollEndNotification` — that one is delayed
+/// until the bounce fully settles, by which point the pull distance is gone.
+class _ImmersivePlayerState extends State<_ImmersivePlayer> {
+  /// Live overscroll distance (px past the top). Drives the dismiss transform;
+  /// a [ValueNotifier] so only the thin transform wrapper rebuilds each frame of
+  /// a pull — never the whole scroll subtree underneath it.
+  final ValueNotifier<double> _pull = ValueNotifier<double>(0);
+
+  /// Releasing past this many px of pull dismisses; below it springs back.
+  static const double _dismissThreshold = 116;
+
+  /// Pull at which the fade/scale reach full — a little beyond the threshold, so
+  /// the surface reads as clearly "leaving" by the time it commits.
+  static const double _pullRange = 260;
+
+  bool _dismissing = false;
+
+  bool _onScroll(ScrollNotification notification) {
+    if (_dismissing) return false;
+    final pixels = notification.metrics.pixels;
+    // BouncingScrollPhysics lets pixels dip below minScrollExtent (0) at the top
+    // — that negative amount IS the downward pull. Reading it here tracks both
+    // the finger drag and the ballistic spring-back, so the transform trails the
+    // surface all the way home on a short release for free.
+    _pull.value = pixels < 0 ? -pixels : 0.0;
+    return false;
+  }
+
+  void _onPointerUp() {
+    if (_dismissing) return;
+    if (_pull.value >= _dismissThreshold) {
+      // Freeze the transform where it was released and let the route's own
+      // slide-down carry it the rest of the way (see _onScroll's early-out).
+      _dismissing = true;
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pull.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final accent = colours.accent;
+    final controller = widget.controller;
+    final playing = widget.playing;
+    final accent = widget.colours.accent;
     final artworkSide =
         (MediaQuery.of(context).size.width * 0.66).clamp(200.0, 320.0);
 
@@ -198,7 +256,7 @@ class _ImmersivePlayer extends StatelessWidget {
     // `MusicScrubber`'s internal `LayoutBuilder`. The generous, tuned gaps do
     // the balancing instead, and the whole thing scrolls as a unit on short
     // screens / large text.
-    return SingleChildScrollView(
+    final scroll = SingleChildScrollView(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
@@ -278,6 +336,36 @@ class _ImmersivePlayer extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    final reduce = reducedMotion(context);
+    return Listener(
+      // Passive — a Listener never enters the gesture arena, so it reads the
+      // finger-up without stealing anything from the scroll view.
+      onPointerUp: (_) => _onPointerUp(),
+      onPointerCancel: (_) => _onPointerUp(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _pull,
+          child: scroll,
+          builder: (context, pull, child) {
+            if (pull <= 0) return child!;
+            final t = (pull / _pullRange).clamp(0.0, 1.0);
+            return Transform.translate(
+              offset: Offset(0, pull),
+              child: Opacity(
+                opacity: 1 - 0.45 * t,
+                child: Transform.scale(
+                  scale: reduce ? 1.0 : 1 - 0.04 * t,
+                  alignment: Alignment.topCenter,
+                  child: child,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
