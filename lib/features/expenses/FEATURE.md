@@ -8,7 +8,8 @@
 - `presentation/pages/expenses_list_page.dart` — the spend log + wallet balance.
 - `presentation/pages/expense_capture_page.dart` — add an expense (`amount_keypad.dart`,
   `category_chips.dart`).
-- Widgets: `add_category_sheet.dart`, `wallet_balance_sheet.dart`, `category_hue_colors.dart`.
+- Widgets: `add_category_sheet.dart`, `wallet_balance_sheet.dart`, `category_hue_colors.dart`,
+  `category_icons.dart`.
 - Today glance: [`home/presentation/widgets/spending_glance.dart`](../home/presentation/widgets/spending_glance.dart).
 
 ## Repositories (three)
@@ -26,6 +27,15 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`. Cross-cutting logic:
 [`core/util/money.dart`](../../core/util/money.dart).
 
 ## Gotchas
+
+- **Categories carry a `CategoryIcon`, never an emoji.** The identity spec rules emoji out
+  (§4, §8), so a category stores a *semantic* icon name (`iconId` in Firestore) that
+  `category_icons.dart` resolves to a stroked Lucide glyph via `AppIcons` — the same shape
+  as `category_hue_colors.dart` for hues. Nothing in `lib/` imports the icon package except
+  `AppIcons`; keep it that way. Documents saved before this change carry `emoji` instead,
+  and `FirestoreCategoryRepository` reads them through `categoryIconFromLegacyEmoji`;
+  that path and the rules test's `emoji`-shaped invalid payload can go once no live
+  account holds a pre-migration category.
 
 - The **manual UI** treats the log as append-only — corrections are new entries. But the
   repository (`update`/`remove`) and [`firestore.rules`](../../../firestore.rules) both support

@@ -195,7 +195,8 @@ class ArtworkPaletteService {
 /// [builder].
 ///
 /// Confined to the music UI by construction — only `MusicPlayerPage` (full
-/// background) and `NowPlayingBar` (subtle mini-bar echo) build one. The colours
+/// background) and `NowPlayingLozenge` (subtle echo behind the fused strip) build
+/// one. The colours
 /// it produces are passed to [builder] and nowhere else; they never cross into
 /// `SessionAmbience` or the workout tree.
 class ArtworkPalette extends StatefulWidget {

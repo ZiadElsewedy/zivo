@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-08-28 · **Active branch:** `claude/workout-tracking-design-05babf`
-(off `version-1`; `version-1` is 26 commits ahead of `main`).
+**Last updated:** 2026-08-28 · **Active branch:** `version-1`
+(`version-1` is 27 commits ahead of `main`).
 
 ---
 
@@ -32,6 +32,12 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
+- **Hue discipline: hold the rule strictly** (owner decision, 2026-08-28, from the design
+  audit's C2). On multi-tile grids, tiles lead with neutral or the screen's own one hue and
+  differentiate **by icon**, not by accent colour — no sanctioned "category palette". Ember
+  stops appearing as decoration; it stays the single committing action. **Not implemented
+  yet:** the Hub, Workout-hub stat tiles, Progress, Expenses category bars and Profile all
+  still use accent hues decoratively. Do this before calling the redesign finished.
 - **Music/Spotify is IN** — it was briefly deleted in that same pass but the owner
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
@@ -122,6 +128,13 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
     edit/delete proposals once the backend proposes them). Command: `firebase deploy --only functions`.
+- **Firestore rules deploy — REQUIRED before creating a category works against the real
+  backend.** The emoji→stroked-icon change (design audit H3) makes the client write
+  `iconId` where it used to write `emoji`, and `firestore.rules` was updated to match. The
+  **live** rule still requires `emoji`, so until it is deployed every "Add category" write
+  is rejected with permission-denied. Reads and existing categories are unaffected
+  (rules validate writes only, and the repo still understands legacy `emoji` docs).
+  Command (owner creds): `firebase deploy --only firestore:rules`.
 - **Manual E2E:** real-PDF-in-app import → review → confirm for both workout and diet.
 - **Auth callables deploy:** the new `sendPasswordResetOtp` / `resetPasswordWithOtp` /
   `deleteAccount` callables need `firebase deploy --only functions` (owner creds) before the
@@ -150,6 +163,27 @@ suite green. **Always re-run `make gates` rather than trusting a remembered test
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — **Design audit H3.** Retired emoji from expense categories (identity §4/§8).
+  `ExpenseCategory.emoji` became `icon: CategoryIcon` — a semantic enum persisted as
+  `iconId`, resolved to a stroked Lucide glyph by the new
+  `expenses/presentation/widgets/category_icons.dart` via `AppIcons` (nothing but
+  `AppIcons` imports the icon package). Chips are now hue-tinted stroked icons, the
+  24-emoji picker became a 24-icon picker, and the Add chip's stray Material
+  `Icons.add_rounded` went to Lucide. Pre-migration documents are still read correctly via
+  `categoryIconFromLegacyEmoji`. `firestore.rules` now validates `iconId` — **needs a
+  rules deploy** (owner action above). Added the `expenseCategories` rules coverage that
+  was missing entirely (rules suite 71 → 76 green) plus domain tests for both fallbacks.
+  Verified end-to-end on iPhone 17: created a category and saw it render with its glyph.
+- 2026-08-28 — **Design audit H1 + H2.** Rebuilt the bottom as ONE height-aware object:
+  music is now a slim strip fused inside the nav island (`NowPlayingLozenge` in the new
+  `ZivoBottomBar.fused` slot), and the new `BottomChrome` inherited widget publishes the
+  island+strip height so Today/Hub/You/Ask all derive their clearance from one value.
+  Retired `now_playing_bar.dart` and `now_playing_orb.dart` — the orb only existed to
+  shrink a too-tall bar and it docked on top of the Ask composer. Ask drops from three
+  bottom bars to two; the Hub's last row and You's sign-in card now clear the strip (the
+  Hub reserved nothing for music before). Also guarded the splash screen's post-frame
+  callback with `mounted` (it threw on every cold start). Verified on iPhone 17 with the
+  seeded harness. Suite unchanged: same 32 pre-existing failures, name-for-name.
 - 2026-08-28 — Redressed the plan editor, PDF import and workout capture via the shared
   capture chrome; commit actions are ember now, not green. Still 32 failing (unchanged).
 - 2026-08-28 — Carried the handoff into the workout drill-downs (Progress, the four stat

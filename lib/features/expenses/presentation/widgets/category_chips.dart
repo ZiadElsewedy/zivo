@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
+import 'category_hue_colors.dart';
+import 'category_icons.dart';
 
 /// Category chips — frequent-first, one tap. Selected chip fills Solar. A
 /// trailing dashed chip opens category creation.
@@ -72,10 +75,19 @@ class _Chip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (category.emoji.isNotEmpty) ...[
-              Text(category.emoji, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-            ],
+            // Stroked, and tinted with the category's own hue so the chips
+            // still scan at a glance — the job the emoji used to do, minus the
+            // per-OS lottery. On the selected chip the fill IS the hue, so the
+            // glyph flips to the same dark ink as the label instead of tinting
+            // a colour onto a colour.
+            Icon(
+              categoryIcon(category.icon),
+              size: 14,
+              color: selected
+                  ? const Color(0xFF2A2205)
+                  : hueColor(category.hue),
+            ),
+            const SizedBox(width: 6),
             Text(
               category.label,
               style: AppText.button.copyWith(
@@ -114,11 +126,14 @@ class _AddChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.add_rounded, size: 15, color: AppColors.ink3),
+            const Icon(AppIcons.add, size: 15, color: AppColors.ink3),
             const SizedBox(width: 5),
             Text(
               'Add',
-              style: AppText.button.copyWith(fontSize: 13.5, color: AppColors.ink3),
+              style: AppText.button.copyWith(
+                fontSize: 13.5,
+                color: AppColors.ink3,
+              ),
             ),
           ],
         ),

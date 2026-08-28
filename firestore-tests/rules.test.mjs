@@ -7,7 +7,8 @@
 // Covers PLAN §10/§20/§28: deny-by-default, per-user ownership isolation,
 // per-collection field validation, and the Functions-only emailOtps lockout —
 // for each persisted collection (across the expenses/workouts/moments/diet
-// feature repositories, plus the workout-plan template store and the
+// feature repositories, including the user's custom expense categories, plus
+// the workout-plan template store and the
 // workout-session execution-record store) plus the user profile doc, plus
 // the AI conversation store (ADR-001): client-writable `aiConversations`,
 // and server-only `messages`/`aiUsage`, plus the auth-activity stores
@@ -45,6 +46,7 @@ const valid = {
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
   bodyWeightEntries: { weightKg: 82.5, loggedAt: ts(), schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
+  expenseCategories: { label: 'Subs', iconId: 'bills', hue: 'iris' },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -59,6 +61,9 @@ const invalid = {
   workoutSessions: { dayLabel: 'Push', status: 'paused', startedAt: ts(), exercises: [], schemaVersion: 1 }, // status not in enum
   bodyWeightEntries: { weightKg: -1, loggedAt: ts(), schemaVersion: 1 }, // weight not > 0
   aiConversations: { title: 123, schemaVersion: 1 }, // title not a string
+  // `emoji` was the pre-migration field name; a doc still shaped that way is
+  // missing `iconId` and must be rejected.
+  expenseCategories: { label: 'Subs', emoji: '🧾', hue: 'iris' }, // no iconId
 };
 
 const collections = Object.keys(valid);
@@ -235,6 +240,14 @@ describe('expenses delete path', () => {
     await seed(collPath(OWNER, 'expenses'), valid.expenses);
     await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'expenses'))));
     await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'expenses'))));
+  });
+});
+
+describe('expenseCategories delete path', () => {
+  it('owner can delete their own category; non-owner cannot', async () => {
+    await seed(collPath(OWNER, 'expenseCategories'), valid.expenseCategories);
+    await assertFails(deleteDoc(doc(otherDb(), collPath(OWNER, 'expenseCategories'))));
+    await assertSucceeds(deleteDoc(doc(ownerDb(), collPath(OWNER, 'expenseCategories'))));
   });
 });
 

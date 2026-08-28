@@ -11,7 +11,7 @@ import 'package:zivo/features/music/domain/now_playing.dart';
 /// instance with no `dispose()` hook available would leak a pending timer
 /// past each test's teardown (`flutter_test`'s "timer still pending"
 /// invariant — the exact bug `app.dart`'s `_ZivoAppState.dispose()` exists
-/// to avoid for the real app). Since `NowPlayingBar` only ever mounts once
+/// to avoid for the real app). Since the now-playing lozenge only ever mounts once
 /// connected, staying `disconnected` also means it renders nothing —
 /// existing tests that don't care about music see no new UI.
 ///

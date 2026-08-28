@@ -6,6 +6,8 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../music/presentation/now_playing_lozenge.dart'
+    show kNowPlayingLozengeHeight;
 
 /// Shared sizing so callers needing clearance above [ZivoBottomBar] (e.g. a
 /// page's scroll padding, or the floating now-playing orb) can derive it
@@ -26,12 +28,26 @@ abstract final class ZivoBottomBarMetrics {
   static double _bottomMargin(double bottomInset) =>
       bottomInset > 0 ? bottomInset : 14;
 
+  /// The now-playing strip fused to the island's top edge, when music is on
+  /// screen. Re-exported from the strip itself so there is exactly one
+  /// definition of how tall it is.
+  static const double lozengeHeight = kNowPlayingLozengeHeight;
+
   /// Total rendered footprint of [ZivoBottomBar] for the current context —
-  /// the floating island plus the margin beneath it — so page content and
-  /// the now-playing orb clear the whole thing.
-  static double height(BuildContext context) {
+  /// the floating island, the fused now-playing strip when [music] is on
+  /// screen, and the margin beneath them — so page content clears the whole
+  /// thing.
+  ///
+  /// Callers inside the shell should read [BottomChrome.of] rather than
+  /// calling this directly: it resolves [music] from the live player state
+  /// and rebuilds them when it changes. This is the raw computation behind
+  /// it, and the fallback for a page mounted outside the shell.
+  static double height(BuildContext context, {bool music = false}) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return islandHeight + _bottomMargin(bottomInset) + 6;
+    return islandHeight +
+        (music ? lozengeHeight : 0) +
+        _bottomMargin(bottomInset) +
+        6;
   }
 }
 
@@ -47,11 +63,19 @@ class ZivoBottomBar extends StatefulWidget {
   const ZivoBottomBar({
     required this.currentIndex,
     required this.onTap,
+    this.fused,
     super.key,
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// An optional slim strip fused to the island's **top edge** — today, the
+  /// now-playing lozenge. It is rendered inside the island's own clip and
+  /// blur, so music reads as part of this one object rather than a second
+  /// slab floating above it. Must be exactly
+  /// [ZivoBottomBarMetrics.lozengeHeight] tall, or page clearance drifts.
+  final Widget? fused;
 
   @override
   State<ZivoBottomBar> createState() => _ZivoBottomBarState();
@@ -124,42 +148,58 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Container(
-              height: ZivoBottomBarMetrics.islandHeight,
               decoration: BoxDecoration(
                 color: const Color(0xF01D160F),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: AppColors.hairline2),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final slot = constraints.maxWidth / _tabs.length;
-                  return AnimatedBuilder(
-                    animation: _pos,
-                    builder: (context, _) {
-                      final pos = _pos.value.clamp(0.0, _tabs.length - 1.0);
-                      return Stack(
-                        children: [
-                          _Capsule(left: pos * slot, width: slot),
-                          Row(
-                            children: [
-                              for (var i = 0; i < _tabs.length; i++)
-                                Expanded(
-                                  child: _Tab(
-                                    spec: _tabs[i],
-                                    // Warmth falls off with distance from the
-                                    // capsule: 1 at its centre, 0 a slot away.
-                                    t: (1 - (pos - i).abs()).clamp(0.0, 1.0),
-                                    onTap: () => widget.onTap(i),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.fused != null) widget.fused!,
+                  SizedBox(
+                    height: ZivoBottomBarMetrics.islandHeight,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final slot = constraints.maxWidth / _tabs.length;
+                          return AnimatedBuilder(
+                            animation: _pos,
+                            builder: (context, _) {
+                              final pos = _pos.value.clamp(
+                                0.0,
+                                _tabs.length - 1.0,
+                              );
+                              return Stack(
+                                children: [
+                                  _Capsule(left: pos * slot, width: slot),
+                                  Row(
+                                    children: [
+                                      for (var i = 0; i < _tabs.length; i++)
+                                        Expanded(
+                                          child: _Tab(
+                                            spec: _tabs[i],
+                                            // Warmth falls off with distance from the
+                                            // capsule: 1 at its centre, 0 a slot away.
+                                            t: (1 - (pos - i).abs()).clamp(
+                                              0.0,
+                                              1.0,
+                                            ),
+                                            onTap: () => widget.onTap(i),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

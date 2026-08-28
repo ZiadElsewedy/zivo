@@ -22,7 +22,7 @@ import '../../expenses/presentation/pages/expenses_list_page.dart';
 import '../../home/presentation/header_builder.dart';
 import '../../moments/domain/moment.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
-import '../../shell/presentation/widgets/zivo_bottom_bar.dart';
+import '../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../workout/domain/live_session.dart';
 import '../../workout/domain/session_status.dart';
 import '../../workout/domain/up_next_selection.dart';
@@ -66,16 +66,18 @@ class HubPage extends StatelessWidget {
           // naturally with nothing clipped. The bottom nav lives in
           // `HomeShell`'s Scaffold, independent of this content; because
           // `extendBody: true` draws the page behind it, the bottom scroll
-          // padding reserves the nav bar's own exact rendered height
-          // (`ZivoBottomBarMetrics.height`, safe-area inset included) so the
-          // last row always clears it with a small, consistent breathing room.
+          // padding reserves the bottom object's exact rendered height
+          // (`BottomChrome`, safe-area inset and the fused now-playing strip
+          // included) so the last row always clears it with a small,
+          // consistent breathing room. Reserving the nav alone used to leave
+          // the last tile behind the music strip whenever a track was on.
           Positioned.fill(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.screen,
                 media.padding.top + 24,
                 AppSpacing.screen,
-                ZivoBottomBarMetrics.height(context),
+                BottomChrome.of(context) + AppSpacing.s,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

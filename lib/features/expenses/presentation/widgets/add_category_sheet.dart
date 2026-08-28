@@ -5,16 +5,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
 import 'category_hue_colors.dart';
+import 'category_icons.dart';
 
-const _curatedEmoji = [
-  '🍔', '☕', '🚕', '🛒', '🛍️', '🎬', '🏠', '💊',
-  '🎓', '✈️', '🐾', '🎁', '💡', '📱', '🎮', '🍺',
-  '🚗', '🏋️', '📚', '💇', '🎵', '🅿️', '🧾', '🧴',
-];
-
-/// Bottom sheet for creating a custom expense category: name, an emoji from
-/// a curated set, and a color from the app's 5-hue palette. Returns the new
-/// category's id on save, or null if cancelled.
+/// Bottom sheet for creating a custom expense category: name, a stroked icon
+/// from the app's category vocabulary, and a color from the 5-hue palette.
+/// Returns the new category's id on save, or null if cancelled.
 class AddCategorySheet extends StatefulWidget {
   const AddCategorySheet({super.key});
 
@@ -36,7 +31,7 @@ class AddCategorySheet extends StatefulWidget {
 
 class _AddCategorySheetState extends State<AddCategorySheet> {
   final _nameController = TextEditingController();
-  String _emoji = _curatedEmoji.first;
+  CategoryIcon _icon = kPickableCategoryIcons.first;
   CategoryHue _hue = CategoryHue.solar;
   bool _saving = false;
 
@@ -54,7 +49,7 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
     final category = ExpenseCategory(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       label: _nameController.text.trim(),
-      emoji: _emoji,
+      icon: _icon,
       hue: _hue,
     );
     await AppScope.of(context).expensesService.addCategory(category);
@@ -94,17 +89,20 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 20),
-          Text('EMOJI', style: AppText.sectionLabel),
+          Text('ICON', style: AppText.sectionLabel),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final emoji in _curatedEmoji)
-                _EmojiOption(
-                  emoji: emoji,
-                  selected: emoji == _emoji,
-                  onTap: () => setState(() => _emoji = emoji),
+              for (final icon in kPickableCategoryIcons)
+                _IconOption(
+                  icon: icon,
+                  selected: icon == _icon,
+                  // Previewed in the hue being chosen below, so the two
+                  // pickers read as one decision about how the chip will look.
+                  tint: hueColor(_hue),
+                  onTap: () => setState(() => _icon = icon),
                 ),
             ],
           ),
@@ -131,15 +129,17 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
   }
 }
 
-class _EmojiOption extends StatelessWidget {
-  const _EmojiOption({
-    required this.emoji,
+class _IconOption extends StatelessWidget {
+  const _IconOption({
+    required this.icon,
     required this.selected,
+    required this.tint,
     required this.onTap,
   });
 
-  final String emoji;
+  final CategoryIcon icon;
   final bool selected;
+  final Color tint;
   final VoidCallback onTap;
 
   @override
@@ -154,9 +154,15 @@ class _EmojiOption extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.solarWash : AppColors.surfaceRaised,
           borderRadius: BorderRadius.circular(12),
-          border: selected ? Border.all(color: AppColors.solar, width: 1.6) : null,
+          border: selected
+              ? Border.all(color: AppColors.solar, width: 1.6)
+              : null,
         ),
-        child: Text(emoji, style: const TextStyle(fontSize: 19)),
+        child: Icon(
+          categoryIcon(icon),
+          size: 19,
+          color: selected ? tint : AppColors.ink3,
+        ),
       ),
     );
   }

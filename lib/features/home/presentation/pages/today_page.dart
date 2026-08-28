@@ -26,14 +26,13 @@ import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
-import '../../../music/music_config.dart';
 import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
-import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
+import '../../../shell/presentation/widgets/bottom_chrome.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -61,7 +60,9 @@ const double _kAskPullThreshold = 80;
 
 /// Vertical room the now-playing strip occupies above the tab bar (the strip
 /// plus its swipe handle and margins) — see the list padding below.
-const double _kNowPlayingAllowance = 86;
+/// Vertical room for the capture FAB that floats over the end of this list.
+/// The FAB is 56 tall and Flutter insets it 16 above the bottom bar.
+const double _kCaptureFabAllowance = 56 + 16;
 
 class _TodayPageState extends State<TodayPage> {
   bool _askTriggered = false;
@@ -111,14 +112,17 @@ class _TodayPageState extends State<TodayPage> {
                       AppSpacing.screen,
                       0,
                       AppSpacing.screen,
-                      ZivoBottomBarMetrics.height(context) +
-                          // The shell runs `extendBody: true`, so the list
-                          // scrolls UNDER the now-playing strip as well as the
-                          // tab bar. Reserved unconditionally (rather than off
-                          // a music stream just to compute a padding) — with
-                          // nothing playing this is a little extra room at the
-                          // end of a scrolling page, which costs nothing.
-                          (kMusicEnabled ? _kNowPlayingAllowance : 0) +
+                      // The shell runs `extendBody: true`, so the list scrolls
+                      // UNDER the whole bottom object — nav island plus the
+                      // fused now-playing strip. [BottomChrome] is that
+                      // object's live measured height, so this tracks music
+                      // appearing and leaving instead of reserving a fixed
+                      // allowance that was right in only one of the two states.
+                      // The FAB floats over this same corner, so its disc
+                      // clears too: without that, "Start Workout" ended up
+                      // underneath it.
+                      BottomChrome.of(context) +
+                          _kCaptureFabAllowance +
                           AppSpacing.base,
                     ),
                     children: [
@@ -366,11 +370,7 @@ class _TimeOfDayChip extends StatelessWidget {
     final h = now.hour;
     final (IconData icon, Color color, String label) = switch (h) {
       >= 6 && < 18 => (Icons.wb_sunny_rounded, TrainColors.ember, 'Daytime'),
-      >= 18 && < 22 => (
-        Icons.wb_twilight_rounded,
-        AppColors.solar,
-        'Evening',
-      ),
+      >= 18 && < 22 => (Icons.wb_twilight_rounded, AppColors.solar, 'Evening'),
       _ => (Icons.nightlight_round, TrainColors.violetGlyph, 'Night'),
     };
     return Semantics(
@@ -417,8 +417,6 @@ class _GreetingRow extends StatelessWidget {
   }
 }
 
-
-
 /// Always shows the active plan's up-next day, resolved by the SAME
 /// `resolveUpNext` (see `up_next_selection.dart`) the Workout tab's own page
 /// reads, so the two surfaces can't drift apart. Deliberately does NOT branch
@@ -458,8 +456,7 @@ class _NextSessionCaption extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const TrainCaption('NEXT SESSION'),
-          if (position != null)
-            TrainCaption(position, tracking: 0.08),
+          if (position != null) TrainCaption(position, tracking: 0.08),
         ],
       ),
     );

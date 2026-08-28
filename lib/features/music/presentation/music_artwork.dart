@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 
-/// Shared artwork tile — `NowPlayingBar`'s mini square and
-/// `MusicPlayerPage`'s big square, just different sizes. Prefers [bytes]
+/// The artwork tile behind `MusicPlayerPage`'s big square. Prefers [bytes]
 /// (what `SpotifyMusicController` actually populates — App Remote's
 /// `getImage` returns raw bytes, not a URL) over [url], falling back to a
 /// flat placeholder icon when neither is set or the source fails to

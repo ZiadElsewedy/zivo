@@ -50,7 +50,7 @@ class NowPlaying {
 
   /// The playhead at the moment this snapshot was taken — NOT kept ticking
   /// live by the model itself. A live progress display (see
-  /// `NowPlayingBar`/`MusicScrubber`) interpolates forward from this
+  /// `NowPlayingLozenge`/`MusicScrubber`) interpolates forward from this
   /// between emissions, same as any other server-timestamped progress
   /// value.
   final Duration position;

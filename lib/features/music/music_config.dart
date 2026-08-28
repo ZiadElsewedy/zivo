@@ -1,7 +1,7 @@
 /// Feature flag + Spotify app config for the music/now-playing feature.
 ///
 /// [kMusicEnabled] gates this feature's UI mounting (see `home_shell.dart`,
-/// which only mounts `NowPlayingBar` when it's true, and
+/// which only mounts the now-playing lozenge when it's true, and
 /// `profile_page.dart`'s "Connect Spotify" row, same gate). The
 /// `MusicController` itself is always wired into [AppScope] regardless of
 /// this flag; `app.dart`'s `_defaultMusic()` picks `SpotifyMusicController`

@@ -23,8 +23,7 @@ import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/session_status.dart';
 import '../../../workout/domain/training_volume.dart';
 import '../../domain/auth_user.dart';
-import '../../../music/music_config.dart';
-import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
+import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/user_profile.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -209,17 +208,16 @@ class ProfilePage extends StatelessWidget {
         builder: (context, snapshot) {
           final profile = snapshot.data;
           return SingleChildScrollView(
-            // The page scrolls UNDER the floating tab bar and the now-playing
-            // strip (the shell runs `extendBody: true`), so it reserves both
-            // — a flat 44 left the SIGN-IN card permanently tucked behind the
-            // music strip.
+            // The page scrolls UNDER the bottom object — the floating tab bar
+            // plus the now-playing strip fused to it (the shell runs
+            // `extendBody: true`). [BottomChrome] is that object's live
+            // measured height, so the SIGN-IN card clears it whether or not
+            // music is playing.
             padding: EdgeInsets.fromLTRB(
               22,
               12,
               22,
-              ZivoBottomBarMetrics.height(context) +
-                  (kMusicEnabled ? 86 : 0) +
-                  16,
+              BottomChrome.of(context) + 16,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

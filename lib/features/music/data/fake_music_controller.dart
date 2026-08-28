@@ -8,7 +8,7 @@ import '../domain/now_playing.dart';
 
 /// One entry in the fake controller's playlist. No `artworkUrl` field — none
 /// of the fixture tracks below have one, deliberately exercising
-/// `NowPlayingBar`/`MusicPlayerPage`'s no-artwork fallback. A real URL
+/// `MusicPlayerPage`'s no-artwork fallback. A real URL
 /// (or bundled placeholder asset) is Ziad's call, not picked here.
 class _FakeTrack {
   const _FakeTrack({
@@ -57,7 +57,7 @@ class FakeMusicController implements MusicController {
   // A handful of placeholder tracks — Ziad's call whether these ship as
   // real seed content or get swapped before the flag ever flips on; picked
   // to be unmistakably fake (no real artist/track names) rather than
-  // accidentally reading as a real catalog. No artwork — `NowPlayingBar`/
+  // accidentally reading as a real catalog. No artwork — the lozenge /
   // `MusicPlayerPage` both already fall back to a placeholder icon, so this
   // also doubles as a check that the no-artwork path actually works.
   static const _playlist = [

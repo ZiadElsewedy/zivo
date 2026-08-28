@@ -18,6 +18,7 @@ import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/zivo_toast.dart';
+import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../../workout/presentation/widgets/staggered_reveal.dart';
 import '../../data/audio_recorder.dart';
 import '../../domain/ai_conversation.dart';
@@ -941,9 +942,14 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     // (matching the iOS keyboard curve), and the message list re-pins to the
     // bottom on every metrics change mid-animation, so content reads as
     // anchored under the composer while it rises — iMessage-style.
+    // With the keyboard down the composer rests on top of the shell's bottom
+    // object — nav island plus the fused now-playing strip — rather than on
+    // the raw safe area, which put it *inside* the nav's band and let the
+    // island paint over its lower edge. With the keyboard up it rides the
+    // keyboard, which already covers the bottom bar.
     final keyboardInset = math.max(
       media.viewInsets.bottom,
-      media.padding.bottom,
+      BottomChrome.of(context),
     );
     return Scaffold(
       resizeToAvoidBottomInset: false,

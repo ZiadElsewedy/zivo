@@ -17,7 +17,7 @@ import 'equalizer_glyph.dart';
 import 'music_artwork.dart';
 import 'music_scrubber.dart';
 
-/// The full-screen **Now Playing** player — pushed from [NowPlayingBar] as a
+/// The full-screen **Now Playing** player — pushed from the now-playing lozenge as a
 /// fullscreen-dialog route (the platform's own symmetric slide-up/down; nothing
 /// bespoke is added here).
 ///

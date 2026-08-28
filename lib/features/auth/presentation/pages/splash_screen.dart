@@ -24,6 +24,11 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _entrance = AnimationController(vsync: this);
 
   void _begin() {
+    // Fires from a post-frame callback, so this State may already be gone:
+    // the splash is torn down the instant auth resolves, and on a warm start
+    // that can happen in the very frame that scheduled this. Touching
+    // `context` (or the disposed controller) then throws.
+    if (!mounted) return;
     if (_entrance.isAnimating || _entrance.value > 0) return;
     // Reduced motion: land instantly instead of animating (or never showing).
     if (reducedMotion(context)) {

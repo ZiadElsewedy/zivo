@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,10 +17,12 @@ import '../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../home/presentation/pages/today_page.dart';
 import '../../hub/presentation/hub_page.dart';
 import '../../moments/presentation/pages/moment_capture_page.dart';
+import '../../music/domain/music_connection.dart';
+import '../../music/domain/now_playing.dart';
 import '../../music/music_config.dart';
-import '../../music/presentation/now_playing_bar.dart';
-import '../../music/presentation/now_playing_orb.dart';
+import '../../music/presentation/now_playing_lozenge.dart';
 import '../../workout/presentation/pages/workout_capture_page.dart';
+import 'widgets/bottom_chrome.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
 
@@ -35,15 +39,67 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  /// Whether the now-playing bar has been swiped down into its floating
-  /// orb. Session-scoped on purpose — a fresh app run restores the full
-  /// bar so playback controls are always obvious again.
-  bool _musicCollapsed = false;
-
   /// One-way channel for shell-initiated composer text (voice quick-log):
   /// the sheet resolves with a transcript, it lands in Ask's composer, and
   /// the tab switches — one Ask instance, no duplicate route.
   final ValueNotifier<String?> _askDraft = ValueNotifier(null);
+
+  /// Whether the now-playing strip is on screen. This is the ONE input that
+  /// changes the bottom chrome's height, so it is tracked here rather than
+  /// read from a `StreamBuilder` wrapped around the shell: the four tab
+  /// bodies then rebuild when music appears or leaves, and not once per
+  /// playback emission.
+  bool _musicVisible = false;
+
+  MusicConnection _connection = MusicConnection.disconnected;
+  NowPlaying? _track;
+  StreamSubscription<MusicConnection>? _connectionSub;
+  StreamSubscription<NowPlaying?>? _trackSub;
+  bool _musicWired = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Wired here, not in initState, because the controller comes from an
+    // InheritedWidget. Guarded so it happens exactly once.
+    if (_musicWired || !kMusicEnabled) return;
+    final music = AppScope.of(context).music;
+    if (music == null) return;
+    _musicWired = true;
+    _connection = music.currentConnection;
+    _track = music.currentNowPlaying;
+    _musicVisible = _resolveVisible();
+    _connectionSub = music.connection.listen((value) {
+      _connection = value;
+      _syncMusicVisibility();
+    });
+    _trackSub = music.nowPlaying.listen((value) {
+      _track = value;
+      _syncMusicVisibility();
+    });
+  }
+
+  /// The same predicate `NowPlayingResolver` renders on — connected AND a
+  /// track loaded — so the reserved height and the strip agree by definition.
+  bool _resolveVisible() =>
+      _connection == MusicConnection.connected && _track != null;
+
+  /// Rebuilds only on the visibility *edge*: the strip appearing or leaving is
+  /// what moves every page's bottom clearance. A track change or an advancing
+  /// playhead does not, and the lozenge watches those itself.
+  void _syncMusicVisibility() {
+    if (!mounted) return;
+    final next = _resolveVisible();
+    if (next == _musicVisible) return;
+    setState(() => _musicVisible = next);
+  }
+
+  @override
+  void dispose() {
+    _connectionSub?.cancel();
+    _trackSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _openQuickLog() async {
     final text = await showQuickLogSheet(context);
@@ -110,51 +166,36 @@ class _HomeShellState extends State<HomeShell> {
       AskPage(incomingDraft: _askDraft),
       const ProfilePage(),
     ];
+    // The bottom is ONE object: the nav island, with the now-playing strip
+    // fused to its top edge while music is on screen. Its total height is
+    // published to every tab through [BottomChrome] so each page's clearance
+    // is derived, never guessed — see that class for what the guessing cost.
+    final chromeHeight = ZivoBottomBarMetrics.height(
+      context,
+      music: _musicVisible,
+    );
+
     return Scaffold(
       extendBody: true,
-      body: Stack(
-        children: [
-          _TabSwitcher(index: _index, children: tabs),
-          // The collapsed now-playing dock: a floating orb above the tab
-          // bar, overlaying whatever the current tab shows (chat included).
-          if (kMusicEnabled && _musicCollapsed)
-            Positioned(
-              left: 14,
-              bottom: ZivoBottomBarMetrics.height(context) + 12,
-              child: MusicOrb(
-                controller: AppScope.of(context).requireMusic,
-                onExpand: () => setState(() => _musicCollapsed = false),
-              ),
-            ),
-        ],
+      body: BottomChrome(
+        height: chromeHeight,
+        child: _TabSwitcher(index: _index, children: tabs),
       ),
       floatingActionButton: _index == 0
           ? CaptureFab(onPressed: _openCapture)
           : null,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Mounted in every connection state; renders nothing until music
-          // is actually connected AND playing. Swipe down to shrink it into
-          // the floating orb (see [_musicCollapsed]).
-          if (kMusicEnabled)
-            NowPlayingBar(
-              controller: AppScope.of(context).requireMusic,
-              collapsed: _musicCollapsed,
-              onCollapse: () {
-                HapticFeedback.lightImpact();
-                setState(() => _musicCollapsed = true);
-              },
-            ),
-          ZivoBottomBar(
-            currentIndex: _index,
-            onTap: (i) {
-              if (i == _index) return;
-              HapticFeedback.selectionClick();
-              setState(() => _index = i);
-            },
-          ),
-        ],
+      bottomNavigationBar: ZivoBottomBar(
+        currentIndex: _index,
+        onTap: (i) {
+          if (i == _index) return;
+          HapticFeedback.selectionClick();
+          setState(() => _index = i);
+        },
+        // Mounted only once there is genuinely something to show, and exactly
+        // as tall as [chromeHeight] just reserved for it.
+        fused: _musicVisible
+            ? NowPlayingLozenge(controller: AppScope.of(context).requireMusic)
+            : null,
       ),
     );
   }
