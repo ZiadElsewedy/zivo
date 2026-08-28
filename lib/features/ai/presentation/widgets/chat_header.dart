@@ -5,13 +5,20 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/ai_response_style.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
-/// squircle actions — reply style, chat history, new chat — all drawn from
-/// the app's single Lucide vocabulary so they sit consistently with every
-/// other surface.
+/// circle actions — reply style, chat history, new chat — all drawn from the
+/// app's single Lucide vocabulary so they sit consistently with every other
+/// surface.
+///
+/// Built to the design handoff's Ask header: Manrope 800/27 title, three
+/// 38px circles on a flat `rgba(255,255,255,.04)` fill inside a hairline.
+/// Circles, not squircles, and no drop shadow — this screen's depth comes
+/// from its one radial glow, not from lifting every control off it
+/// (identity §5).
 class ChatHeader extends StatelessWidget {
   const ChatHeader({
     super.key,
@@ -45,7 +52,18 @@ class ChatHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: Text('Ask', style: AppText.cardTitle)),
+          Expanded(
+            child: Text(
+              'Ask',
+              style: TrainType.ui(
+                size: 27,
+                weight: FontWeight.w800,
+                tracking: -0.025,
+                color: TrainColors.ink,
+                height: 1,
+              ),
+            ),
+          ),
           _ReplyStyleMenu(
             responseStyle: responseStyle,
             onSelect: onSelectStyle,
@@ -99,7 +117,7 @@ class _HeaderAction extends StatelessWidget {
           opacity: disabled ? 0.45 : 1,
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+            shape: const CircleBorder(),
             child: InkWell(
               onTap: disabled
                   ? null
@@ -107,19 +125,15 @@ class _HeaderAction extends StatelessWidget {
                       HapticFeedback.lightImpact();
                       onTap!();
                     },
-              borderRadius: BorderRadius.circular(14),
+              customBorder: const CircleBorder(),
               child: Container(
-                width: 40,
-                height: 40,
-                foregroundDecoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: _glassSheen,
-                ),
+                width: 38,
+                height: 38,
                 decoration: _glassDecoration(),
                 child: Icon(
                   icon,
-                  size: 19,
-                  color: disabled ? AppColors.ink3 : AppColors.ink2,
+                  size: 16,
+                  color: disabled ? TrainColors.ink4 : const Color(0xB2F4F4F0),
                 ),
               ),
             ),
@@ -134,32 +148,13 @@ class _HeaderAction extends StatelessWidget {
 /// from a raised warm charcoal down to card, a hairline edge, a faint top
 /// sheen as if lit from above, and a low soft shadow that lifts it off the
 /// chat's aurora background.
-BoxDecoration _glassDecoration() => BoxDecoration(
-  borderRadius: BorderRadius.circular(14),
-  gradient: const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF33291F), AppColors.card],
-  ),
-  border: Border.all(color: AppColors.hairline2),
-  boxShadow: const [
-    BoxShadow(
-      color: Color(0x59000000),
-      blurRadius: 12,
-      offset: Offset(0, 5),
-      spreadRadius: -2,
-    ),
-  ],
-);
-
-/// A faint light-from-above sheen layered over the glass fill.
-LinearGradient get _glassSheen => LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.center,
-  colors: [
-    Colors.white.withValues(alpha: 0.05),
-    Colors.white.withValues(alpha: 0.0),
-  ],
+/// The shared skin for header controls: a flat glass circle inside a
+/// hairline. No gradient, no shadow — the screen's single radial glow is
+/// what gives this surface its depth.
+BoxDecoration _glassDecoration() => const BoxDecoration(
+  shape: BoxShape.circle,
+  color: Color(0x0AFFFFFF),
+  border: Border.fromBorderSide(BorderSide(color: Color(0x17FFFFFF))),
 );
 
 /// The reply-length picker: a glass squircle opening a small ZIVO-styled
@@ -194,17 +189,13 @@ class _ReplyStyleMenu extends StatelessWidget {
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
         child: Container(
-          width: 40,
-          height: 40,
-          foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: _glassSheen,
-          ),
+          width: 38,
+          height: 38,
           decoration: _glassDecoration(),
           child: const Icon(
             AppIcons.replyStyle,
-            size: 19,
-            color: AppColors.ink2,
+            size: 16,
+            color: Color(0xB2F4F4F0),
           ),
         ),
       ),

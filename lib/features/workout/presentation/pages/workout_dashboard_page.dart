@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,9 +7,11 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_chrome.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -22,10 +23,7 @@ import '../../domain/training_dashboard_stats.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/weight_trend.dart';
 import '../../domain/workout_plan.dart';
-import '../widgets/animated_stat_value.dart';
-import '../widgets/trend_chart.dart';
 import '../widgets/up_next_workout_card.dart';
-import '../widgets/workout_section_label.dart';
 import 'bodyweight_history_page.dart';
 import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
@@ -43,296 +41,176 @@ import 'workout_stats_pages.dart';
 /// away on [WorkoutProgressPage] via the header's Progress action, so this
 /// landing stays calm instead of stacking six similar-looking cards.
 ///
-/// Each block owns a distinct accent hue — sessions pulse-green, streak
-/// ember, duration iris, start solar, bodyweight solar — so the grid scans
-/// as four different signals instead of four identical boxes.
+/// Dressed to the design handoff's **Workout hub** screen (2c): the green
+/// screen wash, a 36px back circle beside the Manrope 800/27 title, the
+/// session slab, a 2×2 grid of stat tiles that each carry the SHAPE of their
+/// own metric where a chevron used to sit, and the bodyweight card with its
+/// hero reading, ghost log action and green area chart.
+///
+/// Each block still owns a distinct accent — sessions green, streak ember,
+/// duration violet, start amber… — but within the handoff's palette rules:
+/// one 13%-tint icon tile per hue, ember reserved for the single committing
+/// action (Start Workout, inside the session card).
+///
+/// One deliberate departure from the prototype's sample data: it shows
+/// Sessions as `3 / 4` (this week), while this tile keeps the ALL-TIME
+/// completed count, because that is what the page it opens headlines — the
+/// two disagreeing is the exact "17 completed workouts but 2 sessions" bug
+/// this tile was fixed for. The week's count keeps its place as the section's
+/// own trailing caption instead, so no information is lost.
 class WorkoutDashboardPage extends StatelessWidget {
   const WorkoutDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _AuraBlob(color: AppColors.pulse, size: 210),
-            ),
-            SafeArea(
-              child: StreamBuilder<WorkoutPlan?>(
-                stream: scope.workoutPlans.watchActivePlan(),
-                initialData: scope.workoutPlans.activePlan,
-                builder: (context, planSnap) {
-                  if (planSnap.hasError) return const _DashboardErrorState();
-                  final plan = planSnap.data;
-                  final loading =
-                      plan == null &&
-                      planSnap.connectionState == ConnectionState.waiting;
-                  if (loading) return const _DashboardLoadingState();
-                  if (plan == null) return const _NoPlanState();
+    // One soft radial glow per screen, tinted toward that screen's meaning
+    // (identity §2) — the hub's is the training green.
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      child: StreamBuilder<WorkoutPlan?>(
+        stream: scope.workoutPlans.watchActivePlan(),
+        initialData: scope.workoutPlans.activePlan,
+        builder: (context, planSnap) {
+          if (planSnap.hasError) return const _DashboardErrorState();
+          final plan = planSnap.data;
+          final loading =
+              plan == null &&
+              planSnap.connectionState == ConnectionState.waiting;
+          if (loading) return const _DashboardLoadingState();
+          if (plan == null) return const _NoPlanState();
 
-                  return StreamBuilder<List<LiveSession>>(
-                    stream: scope.workoutSessions.watchAll(),
-                    initialData: scope.workoutSessions.current,
-                    builder: (context, sessionsSnap) {
-                      if (sessionsSnap.hasError) {
-                        return const _DashboardErrorState();
-                      }
-                      final sessions =
-                          sessionsSnap.data ?? const <LiveSession>[];
-                      final now = DateTime.now();
-                      final stats = computeTrainingDashboardStats(
-                        sessions: sessions,
-                        now: now,
-                      );
-                      final selection = resolveUpNext(
-                        plan,
-                        _firstActive(sessions),
-                      );
+          return StreamBuilder<List<LiveSession>>(
+            stream: scope.workoutSessions.watchAll(),
+            initialData: scope.workoutSessions.current,
+            builder: (context, sessionsSnap) {
+              if (sessionsSnap.hasError) {
+                return const _DashboardErrorState();
+              }
+              final sessions = sessionsSnap.data ?? const <LiveSession>[];
+              final now = DateTime.now();
+              final stats = computeTrainingDashboardStats(
+                sessions: sessions,
+                now: now,
+              );
+              final selection = resolveUpNext(plan, _firstActive(sessions));
 
-                      final bodyWeight = scope.bodyWeight;
-                      return StreamBuilder<List<BodyWeightEntry>>(
-                        stream: bodyWeight?.watchAll() ?? const Stream.empty(),
-                        initialData:
-                            bodyWeight?.current ?? const <BodyWeightEntry>[],
-                        builder: (context, weightSnap) {
-                          final weightTrend = computeWeightTrend(
-                            entries:
-                                weightSnap.data ?? const <BodyWeightEntry>[],
-                            now: now,
-                          );
-                          // Deliberately just three blocks — the training card,
-                          // this week, and bodyweight. Split/progress/recent-
-                          // activity depth lives on `WorkoutProgressPage` (the
-                          // header's Progress action) so this landing stays
-                          // calm and scannable.
-                          return ListView(
-                            // This page is pushed (its own header, no bottom
-                            // nav), so the bottom padding only needs to clear
-                            // the home indicator plus a small margin — not the
-                            // ~110 nav-bar clearance a tab page would reserve,
-                            // which here left a large dead band of blank space
-                            // under the last card.
-                            padding: EdgeInsets.fromLTRB(
-                              22,
-                              12,
-                              22,
-                              MediaQuery.of(context).padding.bottom + 24,
+              final bodyWeight = scope.bodyWeight;
+              return StreamBuilder<List<BodyWeightEntry>>(
+                stream: bodyWeight?.watchAll() ?? const Stream.empty(),
+                initialData: bodyWeight?.current ?? const <BodyWeightEntry>[],
+                builder: (context, weightSnap) {
+                  final weightTrend = computeWeightTrend(
+                    entries: weightSnap.data ?? const <BodyWeightEntry>[],
+                    now: now,
+                  );
+                  // Deliberately just three blocks — the training card,
+                  // this week, and bodyweight. Split/progress/recent-
+                  // activity depth lives on `WorkoutProgressPage` (the
+                  // header's Progress action) so this landing stays
+                  // calm and scannable.
+                  return ListView(
+                    // This page is pushed (its own header, no bottom
+                    // nav), so the bottom padding only needs to clear
+                    // the home indicator plus a small margin — not the
+                    // ~110 nav-bar clearance a tab page would reserve,
+                    // which here left a large dead band of blank space
+                    // under the last card.
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      12,
+                      22,
+                      MediaQuery.of(context).padding.bottom + 24,
+                    ),
+                    // Each block staggers in as its own step (see
+                    // RiseIn) rather than the page popping in all at
+                    // once — the spacers between them are left
+                    // unwrapped so the layout rhythm doesn't shift.
+                    children: [
+                      RiseIn(
+                        child: TrainPageHeader(
+                          title: 'Workout',
+                          action: TrainHeaderAction(
+                            icon: AppIcons.analysis,
+                            semanticLabel: 'Progress',
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const WorkoutProgressPage(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (selection.day != null) ...[
+                        RiseIn(
+                          delay: const Duration(milliseconds: 40),
+                          child: UpNextWorkoutCard(
+                            plan: plan,
+                            day: selection.day!,
+                            resumable: selection.resumable,
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                      ],
+                      RiseIn(
+                        delay: const Duration(milliseconds: 80),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // "TRAINING", not "THIS WEEK" — the grid
+                            // mixes all-time instruments (sessions,
+                            // avg duration, avg start) with the
+                            // rolling streak, so a week-scoped header
+                            // mislabeled every number beneath it. The
+                            // week's own count rides the trailing
+                            // caption instead, where it scopes only
+                            // itself.
+                            TrainSectionLabel(
+                              'Training',
+                              trailing: '${stats.sessionsThisWeek} THIS WEEK',
                             ),
-                            // Each block staggers in as its own step (see
-                            // RiseIn) rather than the page popping in all at
-                            // once — the spacers between them are left
-                            // unwrapped so the layout rhythm doesn't shift.
-                            children: [
-                              RiseIn(
-                                child: _DashboardHeader(
-                                  onOpenProgress: () {
-                                    HapticFeedback.selectionClick();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const WorkoutProgressPage(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              if (selection.day != null) ...[
-                                RiseIn(
-                                  delay: const Duration(milliseconds: 40),
-                                  child: UpNextWorkoutCard(
-                                    plan: plan,
-                                    day: selection.day!,
-                                    resumable: selection.resumable,
-                                  ),
-                                ),
-                                const SizedBox(height: 30),
-                              ],
-                              RiseIn(
-                                delay: const Duration(milliseconds: 80),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // "Training", not "This week" — the grid
-                                    // mixes all-time instruments (sessions,
-                                    // avg duration, avg start) with the
-                                    // rolling streak, so a week-scoped header
-                                    // mislabeled every number beneath it (and
-                                    // made the all-time Sessions tile read as
-                                    // a weekly count).
-                                    const WorkoutSectionLabel('Training'),
-                                    const SizedBox(height: 10),
-                                    _StatsGrid(stats: stats),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 30),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 120),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const WorkoutSectionLabel('Bodyweight'),
-                                    const SizedBox(height: 10),
-                                    _WeightCard(
-                                      trend: weightTrend,
-                                      bodyWeight: bodyWeight,
-                                      onLogWeight: bodyWeight == null
-                                          ? null
-                                          : () => _showLogWeightSheet(
-                                              context,
-                                              bodyWeight,
-                                            ),
+                            const SizedBox(height: 11),
+                            _StatsGrid(stats: stats, sessions: sessions),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 120),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TrainSectionLabel(
+                              'Bodyweight',
+                              trailing: _weightDeltaCaption(weightTrend),
+                              trailingColor: _weightDeltaColor(weightTrend),
+                            ),
+                            const SizedBox(height: 11),
+                            _WeightCard(
+                              trend: weightTrend,
+                              bodyWeight: bodyWeight,
+                              onLogWeight: bodyWeight == null
+                                  ? null
+                                  : () => _showLogWeightSheet(
+                                      context,
+                                      bodyWeight,
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   );
                 },
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page header — back chip, display title, and the Progress action
-/// that leads to [WorkoutProgressPage] (the tooltip is the action's
-/// accessible name, asserted by tests).
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.onOpenProgress});
-
-  final VoidCallback onOpenProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        PressableScale(
-          child: Tooltip(
-            message: 'Back',
-            child: InkWell(
-              onTap: () => Navigator.of(context).maybePop(),
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Workout',
-            style: AppText.greeting.copyWith(fontSize: 30),
-          ),
-        ),
-        const SizedBox(width: 12),
-        PressableScale(
-          child: Tooltip(
-            message: 'Progress',
-            child: InkWell(
-              onTap: onOpenProgress,
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.pulse.withValues(alpha: 0.30),
-                      AppColors.pulse.withValues(alpha: 0.10),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.pulse.withValues(alpha: 0.20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.pulse.withValues(alpha: 0.25),
-                      blurRadius: 18,
-                      spreadRadius: -4,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  AppIcons.analysis,
-                  size: 18,
-                  color: AppColors.pulse,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -529,184 +407,144 @@ class _WeightStepper extends StatelessWidget {
   }
 }
 
+/// The 2×2 grid of training instruments. Every tile is a doorway, not a dead
+/// end — each metric opens the per-session history that produced it — and
+/// each carries the shape of its own metric where the old chevron sat.
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats});
+  const _StatsGrid({required this.stats, required this.sessions});
 
   final TrainingDashboardStats stats;
 
+  /// The raw sessions behind [stats] — the tile sparklines derive their own
+  /// series from these rather than widening the stats record with four more
+  /// chart-shaped fields.
+  final List<LiveSession> sessions;
+
   @override
   Widget build(BuildContext context) {
-    // Every tile is a doorway, not a dead end — each metric opens the
-    // per-session history that produced it.
+    final now = DateTime.now();
+    final weekly = weeklySessionCounts(sessions: sessions, now: now);
+    final daily = dailySessionCounts(sessions: sessions, now: now);
+    final durations = recentSessionDurationMinutes(sessions: sessions);
+
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: AppIcons.sessions,
-                accent: AppColors.pulse,
-                label: 'Sessions',
-                // ALL-TIME completed count, matching the page this tile
-                // opens — it used to show sessionsThisWeek here while
-                // WorkoutSessionsPage headlined the all-time total, so the
-                // tile said one number and its destination another (the
-                // "17 completed workouts but 2 sessions" report).
-                value: '${stats.totalCompletedSessions}',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutSessionsPage()),
+        IntrinsicHeight(
+          // `stretch` needs a bounded height to stretch to; inside a ListView
+          // there isn't one. IntrinsicHeight measures the taller tile first so
+          // the pair matches, instead of one sitting short beside the other.
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: TrainStatTile(
+                  icon: AppIcons.sessions,
+                  accent: TrainColors.green,
+                  // ALL-TIME completed count, matching the page this tile
+                  // opens — it used to show sessionsThisWeek here while
+                  // WorkoutSessionsPage headlined the all-time total, so the
+                  // tile said one number and its destination another (the
+                  // "17 completed workouts but 2 sessions" report).
+                  value: '${stats.totalCompletedSessions}',
+                  unit: 'TOTAL',
+                  label: 'Sessions',
+                  chart: weekly.any((v) => v > 0)
+                      ? TrainSparkline(
+                          values: weekly,
+                          color: TrainColors.green.withValues(alpha: 0.5),
+                        )
+                      : null,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutSessionsPage(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatTile(
-                icon: AppIcons.streak,
-                accent: AppColors.ember,
-                label: 'Day streak',
-                value: '${stats.currentStreakDays}',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutStreakPage()),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TrainStatTile(
+                  icon: AppIcons.streak,
+                  accent: TrainColors.ember,
+                  value: '${stats.currentStreakDays}',
+                  unit: 'DAYS',
+                  label: 'Streak',
+                  // A count of days reads as discrete bars, never a line.
+                  chart: daily.any((v) => v > 0)
+                      ? TrainBarCluster(values: daily, color: TrainColors.ember)
+                      : null,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutStreakPage(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: AppIcons.timer,
-                accent: AppColors.iris,
-                label: 'Avg duration',
-                value: stats.averageSessionDuration == null
-                    ? '—'
-                    : formatDurationShort(stats.averageSessionDuration!),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const WorkoutDurationStatsPage()),
+        IntrinsicHeight(
+          // `stretch` needs a bounded height to stretch to; inside a ListView
+          // there isn't one. IntrinsicHeight measures the taller tile first so
+          // the pair matches, instead of one sitting short beside the other.
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: TrainStatTile(
+                  icon: AppIcons.timer,
+                  accent: TrainColors.violetGlyph,
+                  value: stats.averageSessionDuration == null
+                      ? '—'
+                      : '${stats.averageSessionDuration!.inMinutes}',
+                  unit: stats.averageSessionDuration == null ? null : 'MIN AVG',
+                  label: 'Duration',
+                  chart: durations.length >= 2
+                      ? TrainSparkline(
+                          values: durations,
+                          color: TrainColors.violetGlyph.withValues(alpha: 0.5),
+                          width: 60,
+                        )
+                      : null,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutDurationStatsPage(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatTile(
-                icon: AppIcons.calendarClock,
-                accent: AppColors.solar,
-                label: 'Avg start',
-                value: stats.averageStartMinutesSinceMidnight == null
-                    ? '—'
-                    : formatClockTime(stats.averageStartMinutesSinceMidnight!),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const WorkoutStartTimesPage()),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TrainStatTile(
+                  icon: AppIcons.calendarClock,
+                  accent: TrainColors.amber,
+                  value: stats.averageStartMinutesSinceMidnight == null
+                      ? '—'
+                      : _clock24(stats.averageStartMinutesSinceMidnight!),
+                  label: 'Usual start',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutStartTimesPage(),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-/// One stat tile — a glowing gradient icon chip in the stat's own hue above
-/// the animated value, so each tile reads as a different signal at a glance.
-/// Tapping it drills into that stat's own page (see [_StatsGrid]).
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.icon,
-    required this.accent,
-    required this.label,
-    required this.value,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final Color accent;
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      enabled: onTap != null,
-      child: Material(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap?.call();
-          },
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.hairline),
-              boxShadow: AppShadows.card,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            accent.withValues(alpha: 0.28),
-                            accent.withValues(alpha: 0.10),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: accent.withValues(alpha: 0.18)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withValues(alpha: 0.28),
-                            blurRadius: 16,
-                            spreadRadius: -4,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Icon(icon, size: 16, color: accent),
-                    ),
-                    if (onTap != null)
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: AppColors.ink3,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                AnimatedStatValue(
-                  value: value,
-                  style: AppText.heroNumber.copyWith(
-                    fontSize: 24,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(label, style: AppText.meta.copyWith(color: AppColors.ink3)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+/// The bodyweight block: the reading as the section's hero (mono 300/38 with
+/// a smaller, dimmer `KG` beside it), a ghost `Log weigh-in` opposite it, then
+/// the trend as a green area chart with a dot on the latest reading and the
+/// window's own endpoints captioned beneath.
+///
+/// The whole card is a doorway to the full weigh-in history; the ghost pill
+/// keeps its own tap (nested buttons win the gesture arena).
 class _WeightCard extends StatelessWidget {
   const _WeightCard({
     required this.trend,
@@ -716,18 +554,16 @@ class _WeightCard extends StatelessWidget {
 
   final WeightTrend trend;
 
-  /// Null when the build has no bodyweight repository — the card then hides
-  /// its quick-edit chip (the main Log button already disables itself).
+  /// Null when the build has no bodyweight repository — the card then shows
+  /// its log action disarmed.
   final BodyWeightRepository? bodyWeight;
   final VoidCallback? onLogWeight;
 
   @override
   Widget build(BuildContext context) {
     final latest = trend.latest;
-    final change = trend.changeKgOverWindow;
-    final repo = bodyWeight;
-    // The whole card is a doorway to the full weigh-in history; the Log
-    // action keeps its own tap (nested buttons win the gesture arena).
+    final series = [for (final e in trend.series) e.weightKg];
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -736,103 +572,161 @@ class _WeightCard extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const BodyweightHistoryPage()),
         );
       },
-      child: Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              AnimatedStatValue(
-                value: latest == null
-                    ? '—'
-                    : '${_trimNumber(latest.weightKg)} kg',
-                style: AppText.heroNumber.copyWith(
-                  fontSize: 28,
-                  color: AppColors.ink,
+      child: TrainCard(
+        radius: 22,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: latest == null
+                      // Nothing logged: a 38px em dash reads as a rule drawn
+                      // across the card, so the slot says what's missing
+                      // instead of miming a reading.
+                      ? Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            'NO WEIGH-INS YET',
+                            style: TrainType.mono(
+                              size: 11,
+                              weight: FontWeight.w500,
+                              tracking: 0.14,
+                              color: const Color(0x59F4F4F0),
+                            ),
+                          ),
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _trimNumber(latest.weightKg),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TrainType.mono(
+                                  size: 38,
+                                  weight: FontWeight.w300,
+                                  tracking: -0.05,
+                                  color: const Color(0xFFF9F9F5),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // The unit is always smaller and dimmer than the
+                            // value it belongs to (identity §1.2).
+                            Text(
+                              'KG',
+                              style: TrainType.mono(
+                                size: 11,
+                                weight: FontWeight.w500,
+                                tracking: 0.14,
+                                color: const Color(0x59F4F4F0),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              ),
-              if (change != null) ...[
                 const SizedBox(width: 10),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 5),
-                  // Color here is semantic (gaining vs. losing) — an implicit
-                  // tween is fine per the motion guardrails, folded into the
-                  // same fade+slide via AnimatedSwitcher rather than a bare
-                  // color snap.
-                  child: AnimatedStatValue(
-                    value:
-                        '${change > 0 ? '+' : ''}${_trimNumber(change)}kg / 30d',
-                    style: AppText.meta.copyWith(
-                      color: change > 0 ? AppColors.flare : AppColors.pulse,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                _LogWeighInPill(
+                  enabled: onLogWeight != null,
+                  onTap: onLogWeight ?? () {},
                 ),
               ],
-              const Spacer(),
-              if (latest != null && repo != null)
-                PressableScale(
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      _showLogWeightSheet(
-                        context,
-                        repo,
-                        lastWeight: latest.weightKg,
-                      );
-                    },
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceRaised,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.hairline2),
-                      ),
-                      child: const Icon(
-                        AppIcons.edit,
-                        size: 14,
-                        color: AppColors.ink3,
-                      ),
+            ),
+            if (series.length >= 2) ...[
+              const SizedBox(height: 14),
+              TrainAreaChart(values: series, color: TrainColors.green),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _shortDate(trend.series.first.loggedAt),
+                    style: TrainType.caption(
+                      size: 8,
+                      tracking: 0.14,
+                      color: const Color(0x47F4F4F0),
                     ),
                   ),
+                  Text(
+                    'TODAY',
+                    style: TrainType.caption(
+                      size: 8,
+                      tracking: 0.14,
+                      color: const Color(0x47F4F4F0),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 10),
+              // No chart to draw yet — the slot carries the reason instead of
+              // an empty frame (identity §7).
+              Text(
+                latest == null
+                    ? 'Log one to start the trend.'
+                    : 'Logged ${timeAgo(latest.loggedAt, DateTime.now())} ago '
+                          '· one more reading draws the trend.',
+                style: TrainType.ui(
+                  size: 12.5,
+                  weight: FontWeight.w400,
+                  color: TrainColors.ink4,
+                  height: 1.45,
                 ),
+              ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            latest == null
-                ? 'No weigh-ins logged yet.'
-                : 'Last logged ${timeAgo(latest.loggedAt, DateTime.now())} ago',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
-          ),
-          if (trend.series.length >= 2) ...[
-            const SizedBox(height: 14),
-            TrendChart(
-              values: [for (final e in trend.series) e.weightKg],
-              color: AppColors.solar,
-            ),
           ],
-          const SizedBox(height: 14),
-          PillButton(
-            label: 'Log weight',
-            icon: Icons.add_rounded,
-            color: AppColors.solar,
-            enabled: onLogWeight != null,
-            onTap: onLogWeight ?? () {},
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// The bodyweight card's secondary action — a ghost pill, never ember: on a
+/// screen whose one committing action is Start Workout, logging a weigh-in
+/// doesn't get to compete for it (identity §3).
+class _LogWeighInPill extends StatelessWidget {
+  const _LogWeighInPill({required this.enabled, required this.onTap});
+
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: PressableScale(
+        enabled: enabled,
+        scale: 0.97,
+        child: Material(
+          color: TrainColors.glassStrong,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: enabled
+                ? () {
+                    HapticFeedback.selectionClick();
+                    onTap();
+                  }
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Text(
+                'Log weigh-in',
+                style: TrainType.ui(
+                  size: 11.5,
+                  weight: FontWeight.w700,
+                  color: const Color(0xBFF4F4F0),
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -909,7 +803,7 @@ class _NoPlanState extends StatelessWidget {
           children: [
             const _PhaseIconLike(
               icon: AppIcons.workout,
-              color: AppColors.pulse,
+              color: TrainColors.green,
             ),
             const SizedBox(height: 18),
             Text(
@@ -926,10 +820,13 @@ class _NoPlanState extends StatelessWidget {
             const SizedBox(height: 20),
             SizedBox(
               width: 220,
+              // Ember, not green: with no plan yet this IS the screen's one
+              // committing action, and the hub's ember slot (Start Workout)
+              // is empty until there's a split to start (identity §3).
               child: PillButton(
                 label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.ember,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -1026,4 +923,56 @@ String formatClockTime(double minutesSinceMidnight) {
   final period = h24 < 12 ? 'AM' : 'PM';
   final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
   return '$h12:${minute.toString().padLeft(2, '0')} $period';
+}
+
+/// `19:40` — a mean start time reads as a 24h clock here, not `7:40 PM`: at
+/// 30px mono the meridiem would be a second unit competing with the value,
+/// and the grid's tiles all read as instruments. The drill-down page keeps
+/// [formatClockTime]'s 12-hour label, where there's room for it.
+String _clock24(double minutesSinceMidnight) {
+  final total = minutesSinceMidnight.round() % (24 * 60);
+  return '${(total ~/ 60).toString().padLeft(2, '0')}:'
+      '${(total % 60).toString().padLeft(2, '0')}';
+}
+
+/// `JUL 1` — the trend window's opening reading.
+String _shortDate(DateTime d) {
+  const months = [
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
+  return '${months[d.month - 1]} ${d.day}';
+}
+
+/// The BODYWEIGHT section's trailing caption — a delta always states its own
+/// baseline (identity §7), so it carries the window with it. Null (no
+/// caption) until there are two readings in the window to compare.
+String? _weightDeltaCaption(WeightTrend trend) {
+  final change = trend.changeKgOverWindow;
+  if (change == null) return null;
+  final sign = change > 0
+      ? '+'
+      : change < 0
+      ? '−'
+      : '';
+  return '$sign${_trimNumber(change.abs())} KG · 30D';
+}
+
+/// Losing reads green, gaining ember — the same state/attention split the
+/// rest of the app uses. A flat window stays neutral rather than claiming a
+/// direction it doesn't have.
+Color? _weightDeltaColor(WeightTrend trend) {
+  final change = trend.changeKgOverWindow;
+  if (change == null || change == 0) return null;
+  return change < 0 ? TrainColors.green : TrainColors.ember;
 }

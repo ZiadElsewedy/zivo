@@ -127,7 +127,7 @@ void main() {
 
     expect(find.text('MOMENTUM'), findsOneWidget);
     expect(find.text('3-day streak'), findsOneWidget);
-    expect(find.text('3 sessions · last 7 days'), findsOneWidget);
+    expect(find.text('3 SESSIONS · LAST 7 DAYS'), findsOneWidget);
   });
 
   testWidgets('a brand-new user sees neither momentum nor insights — '
@@ -188,7 +188,9 @@ void main() {
     await tester.pumpWidget(_wrap(bodyWeight: bodyWeight));
     await _settle(tester);
 
-    expect(find.text('−0.8 kg'), findsOneWidget);
-    expect(find.text('· 14d'), findsOneWidget);
+    // The figure and its unit are separate elements now — the unit stays
+    // smaller and dimmer than the value, and the delta states its baseline.
+    expect(find.text('−0.8'), findsOneWidget);
+    expect(find.text('KG · 14D'), findsOneWidget);
   });
 }

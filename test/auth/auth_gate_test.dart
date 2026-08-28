@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/features/shell/presentation/home_shell.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/auth/presentation/auth_gate.dart';
@@ -39,7 +40,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Verify your email'), findsOneWidget);
-      expect(find.text('PULL TO ASK'), findsNothing); // home shell not shown yet
+      expect(find.byType(HomeShell), findsNothing); // home shell not shown yet
 
       // Authenticated → app shell (Today).
       auth.emit(const Authenticated(AuthUser(uid: 'u1')));
@@ -49,7 +50,7 @@ void main() {
       // continuous, always-on repeating animation (`AliveColorDrift`) once
       // there's an active plan, which never settles on its own.
       await tester.pump(const Duration(seconds: 1)); // fire + finish entrance timers
-      expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
+      expect(find.byType(HomeShell), findsOneWidget);
       expect(find.text('Sign in with Apple'), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -76,7 +77,7 @@ void main() {
     await tester.pumpAndSettle(); // completion page RiseIn entrance timers
 
     expect(find.text('Complete your profile'), findsOneWidget);
-    expect(find.text('PULL TO ASK'), findsNothing); // home shell not shown
+    expect(find.byType(HomeShell), findsNothing); // home shell not shown
   });
 
   testWidgets('Authenticated with a complete profile routes to the home shell',
@@ -98,7 +99,7 @@ void main() {
     // always-on `AliveColorDrift` never settles on its own).
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('PULL TO ASK'), findsOneWidget); // home shell (Today)
+    expect(find.byType(HomeShell), findsOneWidget);
     expect(find.text('Complete your profile'), findsNothing);
   });
 }

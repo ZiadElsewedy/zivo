@@ -91,3 +91,16 @@ VolumeTrend weeklyVolume(List<LiveSession> sessions, DateTime now) {
   }
   return (value: kg.round().toString(), unit: 'KG');
 }
+
+/// Every kilogram ever moved, over COMPLETED sessions only — the `412t`
+/// lifetime figure on the You screen. Same exclusion as [weeklyVolume]: a
+/// quit session's sets were logged but the workout wasn't finished, and
+/// counting them would let quitting inflate a lifetime total.
+double lifetimeVolumeKg(List<LiveSession> sessions) {
+  var total = 0.0;
+  for (final session in sessions) {
+    if (session.status != SessionStatus.completed) continue;
+    total += sessionVolumeKg(session);
+  }
+  return total;
+}

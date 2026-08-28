@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../diet/domain/diet_plan.dart';
@@ -293,12 +292,11 @@ class MomentumSection extends StatelessWidget {
           children: [
             const SectionHeader('Momentum'),
             Container(
-              padding: const EdgeInsets.fromLTRB(18, 13, 18, 15),
+              padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
               decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: AppColors.hairline),
-                boxShadow: AppShadows.card,
+                gradient: TrainColors.cardGradient,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: TrainColors.hairline),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,7 +308,7 @@ class MomentumSection extends StatelessWidget {
                   ],
                   if (hasWeight) ...[
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: AppColors.hairline),
+                    const Divider(height: 1, color: TrainColors.hairline),
                     const SizedBox(height: 10),
                     const _WeightRow(),
                   ],
@@ -340,23 +338,28 @@ class _StreakRow extends StatelessWidget {
     return Row(
       children: [
         if (streak >= 2) ...[
-          const Icon(AppIcons.streak, size: 17, color: AppColors.ember),
-          const SizedBox(width: 6),
+          const Icon(AppIcons.streak, size: 16, color: TrainColors.ember),
+          const SizedBox(width: 7),
           Text(
             '$streak-day streak',
-            style: AppText.rowTitle.copyWith(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
+            style: TrainType.ui(
+              size: 14.5,
+              weight: FontWeight.w700,
+              color: TrainColors.ink,
+              height: 1,
             ),
           ),
         ],
         const Spacer(),
         Text(
           weekTotal == 0
-              ? 'no sessions yet'
-              : '$weekTotal session${weekTotal == 1 ? '' : 's'} · last 7 days',
-          style: AppText.meta.copyWith(color: AppColors.ink3),
+              ? 'NO SESSIONS YET'
+              : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
+          style: TrainType.caption(
+            size: 9,
+            tracking: 0.1,
+            color: TrainColors.ink4,
+          ),
         ),
       ],
     );
@@ -417,11 +420,14 @@ class _DayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fraction = count == 0 ? 0.0 : (count / maxCount).clamp(0.35, 1.0);
+    // Green for a trained day, ember for today (the "current position"
+    // marker the identity doc reserves it for), hairline for a rest day so
+    // the week still reads as seven days.
     final hue = count == 0
-        ? AppColors.surfaceRaised
+        ? const Color(0x14FFFFFF)
         : (isToday
-            ? AppColors.pulse
-            : AppColors.pulse.withValues(alpha: 0.45));
+              ? TrainColors.ember
+              : TrainColors.green.withValues(alpha: 0.55));
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -433,13 +439,14 @@ class _DayBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         Text(
           letter,
-          style: AppText.meta.copyWith(
-            fontSize: 10,
-            color: isToday ? AppColors.ink2 : AppColors.ink3,
-            fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+          style: TrainType.caption(
+            size: 9,
+            tracking: 0.1,
+            weight: isToday ? FontWeight.w700 : FontWeight.w500,
+            color: isToday ? TrainColors.ink2 : TrainColors.ink4,
           ),
         ),
       ],
@@ -488,16 +495,24 @@ class _WeightRow extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          '${down ? '−' : '+'}$kg kg',
-          style: AppText.rowTitle.copyWith(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w700,
-            color: down ? AppColors.pulseText : AppColors.solarText,
+          '${down ? '−' : '+'}$kg',
+          style: TrainType.mono(
+            size: 15,
+            tracking: -0.02,
+            color: down ? TrainColors.green : TrainColors.ember,
           ),
         ),
-        const SizedBox(width: 6),
-        Text('· ${trend.spanDays}d',
-            style: AppText.meta.copyWith(color: AppColors.ink3)),
+        const SizedBox(width: 5),
+        // A delta always states its own baseline (identity §7), and the unit
+        // stays smaller and dimmer than the value it belongs to.
+        Text(
+          'KG · ${trend.spanDays}D',
+          style: TrainType.caption(
+            size: 9,
+            tracking: 0.12,
+            color: TrainColors.ink4,
+          ),
+        ),
       ],
     );
   }
@@ -523,9 +538,9 @@ class _SparklinePainter extends CustomPainter {
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..color = AppColors.ink2;
+      ..color = TrainColors.ink3;
     canvas.drawPath(path, paint);
-    canvas.drawCircle(end, 2.5, Paint()..color = AppColors.ink);
+    canvas.drawCircle(end, 2.5, Paint()..color = TrainColors.ink);
   }
 
   @override

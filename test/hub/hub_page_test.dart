@@ -180,13 +180,13 @@ void main() {
       await pumpAt(tester, const Size(1170, 2532));
 
       // Diet: the seeded plan has 3 meals, none eaten yet.
-      expect(find.text('0 of 3 · 1270 kcal'), findsOneWidget);
+      expect(find.text('0 OF 3 · 1270 KCAL'), findsOneWidget);
       // Expenses: the seeded expenses sum to exactly 685 EGP within the trailing week.
-      expect(find.text('EGP 685 this week'), findsOneWidget);
+      expect(find.text('EGP 685 THIS WEEK'), findsOneWidget);
       // Moments: seeded with exactly one.
-      expect(find.text('1 moment'), findsOneWidget);
+      expect(find.text('1 MOMENT'), findsOneWidget);
       // Workout: seeded with a real active plan, so it never falls back to empty copy.
-      expect(find.text('No plan yet'), findsNothing);
+      expect(find.text('NO PLAN YET'), findsNothing);
 
       // Tapping Moments (not Expenses — `ExpensesListPage` separately
       // requires `AppScope.wallet`, which is a wallet-feature concern
@@ -209,7 +209,7 @@ void main() {
       // kcal left" ellipsized to "1270 …" on an actual device at this width.
       await pumpAt(tester, const Size(390, 844));
 
-      final finder = find.text('0 of 3 · 1270 kcal');
+      final finder = find.text('0 OF 3 · 1270 KCAL');
       expect(finder, findsOneWidget);
       expect(tester.widget<Text>(finder).maxLines, 2);
       expect(

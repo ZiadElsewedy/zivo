@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
@@ -14,6 +13,7 @@ import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -74,8 +74,7 @@ class AskPage extends StatefulWidget {
   State<AskPage> createState() => _AskPageState();
 }
 
-class _AskPageState extends State<AskPage>
-    with TickerProviderStateMixin {
+class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
   /// Resolves the initial active conversation once at startup, from the
   /// user's most-recently-updated existing conversation — never creates one.
   /// If there are none, [_activeConversationId] stays null (an unsaved "New
@@ -362,7 +361,7 @@ class _AskPageState extends State<AskPage>
         .length;
     // The first user message in a still-'New chat' conversation earns an
     // auto-title — fired alongside the send, not blocking it. A chat the
-  // user named at creation keeps its name instead.
+    // user named at creation keeps its name instead.
     if (baselineUserCount == 0 && _activeIsUntitled && draftTitle == null) {
       _activeIsUntitled = false;
       unawaited(_autoTitle(conversationId, text));
@@ -408,9 +407,7 @@ class _AskPageState extends State<AskPage>
         _lastPersisted.any((m) => m.role == role && m.clientTurnId == turnId)) {
       return true;
     }
-    final persistedCount = _lastPersisted
-        .where((m) => m.role == role)
-        .length;
+    final persistedCount = _lastPersisted.where((m) => m.role == role).length;
     return role == AiRole.user
         ? persistedCount > _baselineUserCount
         : persistedCount > _baselineAssistantCount;
@@ -950,476 +947,451 @@ class _AskPageState extends State<AskPage>
     );
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: DecoratedBox(
-        // The chat's atmosphere: an iris-tinted radial wash rising from the
-        // top over the ground color, with two soft glow blobs — the same
-        // premium depth language Today and the Workout dashboard use, in
-        // Ask's own hue, instead of a flat plain fill.
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.15),
-            radius: 1.2,
-            colors: [Color(0xFF1D192E), AppColors.ground, Color(0xFF0D0B12)],
-            stops: [0.0, 0.55, 1.0],
-          ),
-        ),
+        // The chat's atmosphere: the ONE soft radial glow this screen gets
+        // (identity §5), violet because violet is the assistant's own hue.
+        // The two extra aura blobs are gone — one glow per screen.
+        decoration: const BoxDecoration(gradient: TrainColors.askTint),
         child: Stack(
           children: [
-            const Positioned(
-              top: -70,
-              right: -60,
-              child: _AskAuraBlob(color: AppColors.iris, size: 230),
-            ),
-            const Positioned(
-              bottom: 120,
-              left: -90,
-              child: _AskAuraBlob(color: Color(0xFF3B2A66), size: 210),
-            ),
             SafeArea(
               bottom: false,
               child: Column(
-          children: [
-            ChatHeader(
-              onNewChat: (!_activeResolved || _sending) ? null : _newChat,
-              onSessions: (!_activeResolved || _sending)
-                  ? null
-                  : () => _openSessions(_activeConversationId),
-              responseStyle: _responseStyle,
-              onSelectStyle: _setResponseStyle,
-            ),
-            Expanded(
-              child: AnimatedPadding(
-                duration: reducedMotion(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 260),
-                curve: Curves.easeOutCubic,
-                padding: EdgeInsets.only(bottom: keyboardInset),
-                // The composer floats OVER the conversation (a Stack), not
-                // docked beneath it (a Column) — so messages scroll under the
-                // frosted island, reading as a layer above the chat. The list
-                // pads its bottom by [_kComposerFloatClearance] so the newest
-                // line still rests just above the composer.
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: FutureBuilder<void>(
-                        future: _initialLoad,
-                        builder: (context, _) {
-                          if (!_activeResolved) return const SizedBox.shrink();
-                          final conversationId = _activeConversationId;
-                          if (conversationId == null) {
-                            // An unsaved "New chat" — nothing persisted yet, so
-                            // there's no message stream to watch.
-                            return _EmptyAsk(onSuggestion: _sendSuggestion);
-                          }
-                          final ai = AppScope.of(context).ai;
-                          if (_messagesStream == null ||
-                              _streamConversationId != conversationId) {
-                            _streamConversationId = conversationId;
-                            _messagesStream = ai.watchMessages(conversationId);
-                          }
-                          return StreamBuilder<List<AiMessage>>(
-                            stream: _messagesStream,
-                            builder: (context, snapshot) {
-                              _lastPersisted =
-                                  snapshot.data ?? const <AiMessage>[];
-                              final displayed = <AiMessage>[..._lastPersisted];
+                children: [
+                  ChatHeader(
+                    onNewChat: (!_activeResolved || _sending) ? null : _newChat,
+                    onSessions: (!_activeResolved || _sending)
+                        ? null
+                        : () => _openSessions(_activeConversationId),
+                    responseStyle: _responseStyle,
+                    onSelectStyle: _setResponseStyle,
+                  ),
+                  Expanded(
+                    child: AnimatedPadding(
+                      duration: reducedMotion(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.only(bottom: keyboardInset),
+                      // The composer floats OVER the conversation (a Stack), not
+                      // docked beneath it (a Column) — so messages scroll under the
+                      // frosted island, reading as a layer above the chat. The list
+                      // pads its bottom by [_kComposerFloatClearance] so the newest
+                      // line still rests just above the composer.
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: FutureBuilder<void>(
+                              future: _initialLoad,
+                              builder: (context, _) {
+                                if (!_activeResolved) {
+                                  return const SizedBox.shrink();
+                                }
+                                final conversationId = _activeConversationId;
+                                if (conversationId == null) {
+                                  // An unsaved "New chat" — nothing persisted yet, so
+                                  // there's no message stream to watch.
+                                  return _EmptyAsk(
+                                    onSuggestion: _sendSuggestion,
+                                  );
+                                }
+                                final ai = AppScope.of(context).ai;
+                                if (_messagesStream == null ||
+                                    _streamConversationId != conversationId) {
+                                  _streamConversationId = conversationId;
+                                  _messagesStream = ai.watchMessages(
+                                    conversationId,
+                                  );
+                                }
+                                return StreamBuilder<List<AiMessage>>(
+                                  stream: _messagesStream,
+                                  builder: (context, snapshot) {
+                                    _lastPersisted =
+                                        snapshot.data ?? const <AiMessage>[];
+                                    final displayed = <AiMessage>[
+                                      ..._lastPersisted,
+                                    ];
 
-                              // The durable ASSISTANT reply landing gates the
-                              // provisional live bubble — the instant it's in
-                              // the snapshot exactly one copy of the reply
-                              // renders (the persisted one). Paired by turn
-                              // id (see [_turnLanded]), so the window where
-                              // the server writes the reply doc slightly
-                              // before the functions stream closes can never
-                              // duplicate the response — nor can a stale or
-                              // reordered snapshot.
-                              final assistantLanded = _turnLanded(
-                                AiRole.assistant,
-                              );
-                              if (_liveText.isNotEmpty && assistantLanded) {
-                                WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => _retireLiveReply(),
-                                );
-                              }
-
-                              // The optimistic USER bubble "lands" the moment
-                              // its own turn's durable user message shows up
-                              // in the snapshot — state-based pairing, not a
-                              // text/id compare, so it can't mismatch or
-                              // double up.
-                              final pendingLanded =
-                                  _pendingText != null &&
-                                  (_turnLanded(AiRole.user) ||
-                                   _lastPersisted.any(
-                                     (m) =>
-                                         m.role == AiRole.user &&
-                                         m.clientTurnId == null &&
-                                         m.content.trim() ==
-                                             _pendingText!.trim(),
-                                   ));
-                              if (pendingLanded) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted && _pendingText != null) {
-                                    setState(() {
-                                      _pendingText = null;
-                                      _sendFailed = false;
-                                    });
-                                  }
-                                });
-                              }
-                              if (_pendingText != null && !pendingLanded) {
-                                displayed.add(
-                                  AiMessage(
-                                    id: '_pending',
-                                    role: AiRole.user,
-                                    content: _pendingText!,
-                                    createdAt: DateTime.now(),
-                                    clientTurnId: _activeTurnId,
-                                  ),
-                                );
-                              }
-
-                              // The provisional live reply rides INSIDE the
-                              // list as a provisional message carrying its
-                              // turn's clientTurnId — the exact identity its
-                              // durable copy will have. When that copy lands,
-                              // the swap is same widget, same slot, same key:
-                              // element reused, entrance NOT replayed. This is
-                              // what kills the "reply pops in twice" effect.
-                              final liveActive =
-                                  !_sendFailed &&
-                                  !assistantLanded &&
-                                  _liveText.isNotEmpty;
-                              if (liveActive) {
-                                displayed.add(
-                                  AiMessage(
-                                    id: '_live',
-                                    role: AiRole.assistant,
-                                    content: _liveText,
-                                    createdAt: DateTime.now(),
-                                    clientTurnId: _activeTurnId,
-                                  ),
-                                );
-                              }
-                              if (displayed.isEmpty &&
-                                  !_sending &&
-                                  !_sendFailed) {
-                                return _EmptyAsk(
-                                  onSuggestion: _sendSuggestion,
-                                );
-                              }
-                              // First snapshot of THIS thread = cold history:
-                              // everything currently persisted is waived from
-                              // entrances so it renders settled — and keeps
-                              // rendering settled on every scroll-back remount.
-                              // Anything arriving AFTER this moment is news
-                              // and rises in exactly once (see itemBuilder).
-                              if (_entranceSeededFor != conversationId) {
-                                _entranceSeededFor = conversationId;
-                                _entrancePlayed.addAll([
-                                  for (final m in displayed) _displayKey(m),
-                                ]);
-                              }
-                              WidgetsBinding.instance.addPostFrameCallback(
-                                (_) => _maybeAutoScroll(),
-                              );
-                              final indexByKey = <String, int>{
-                                for (var j = 0; j < displayed.length; j++)
-                                  _displayKey(displayed[j]): j,
-                              };
-                              return NotificationListener<Notification>(
-                                // Two jobs, one listener (ScrollMetricsNotification
-                                // is a Notification but not a ScrollNotification):
-                                //
-                                // 1. Drag bookkeeping — mark user-driven scrolls
-                                //    so NO automatic pin ever fights the thumb.
-                                // 2. Metrics changes — content growth or the
-                                //    keyboard's animated inset shrinking the
-                                //    viewport re-pins instantly while following,
-                                //    keeping the newest line glued to the
-                                //    composer without drifting.
-                                onNotification: (notification) {
-                                  if (notification is ScrollStartNotification) {
-                                    _userDragging =
-                                        notification.dragDetails != null;
-                                  } else if (notification
-                                      is ScrollUpdateNotification) {
-                                    if (notification.dragDetails != null) {
-                                      _userDragging = true;
-                                    }
-                                  } else if (notification
-                                      is ScrollEndNotification) {
-                                    _userDragging = false;
-                                  } else if (notification
-                                      is ScrollMetricsNotification) {
-                                    WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) {
-                                        if (!mounted ||
-                                            !_autoFollow ||
-                                            _userDragging) {
-                                          return;
-                                        }
-                                        if (!_scroll.hasClients) return;
-                                        final p = _scroll.position;
-                                        if (p.maxScrollExtent > 0) {
-                                          _scroll.jumpTo(p.maxScrollExtent);
-                                        }
-                                      },
+                                    // The durable ASSISTANT reply landing gates the
+                                    // provisional live bubble — the instant it's in
+                                    // the snapshot exactly one copy of the reply
+                                    // renders (the persisted one). Paired by turn
+                                    // id (see [_turnLanded]), so the window where
+                                    // the server writes the reply doc slightly
+                                    // before the functions stream closes can never
+                                    // duplicate the response — nor can a stale or
+                                    // reordered snapshot.
+                                    final assistantLanded = _turnLanded(
+                                      AiRole.assistant,
                                     );
-                                  }
-                                  return false;
-                                },
-                                child: ListView.builder(
-                                  controller: _scroll,
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppSpacing.screen,
-                                    AppSpacing.base,
-                                    AppSpacing.screen,
-                                    // Clear the floating composer that overlays
-                                    // the bottom of the list.
-                                    _kComposerFloatClearance,
-                                  ),
-                                  // Lets the framework FIND an item's existing
-                                  // element after index shifts (an optimistic
-                                  // bubble retiring as durable docs land), so
-                                  // stateful children survive instead of being
-                                  // torn down and re-animated.
-                                  findChildIndexCallback: (key) {
-                                    if (key is ValueKey<String>) {
-                                      return indexByKey[key.value];
+                                    if (_liveText.isNotEmpty &&
+                                        assistantLanded) {
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback(
+                                            (_) => _retireLiveReply(),
+                                          );
                                     }
-                                    return null;
-                                  },
-                                  // A trailing slot holds only the WAITING
-                                  // states now — the phase rail or the retry
-                                  // card. The live reply lives in [displayed]
-                                  // itself (above), so it and its durable copy
-                                  // can never paint as two bubbles.
-                                  itemCount:
-                                      displayed.length +
-                                      ((_sendFailed ||
-                                              (_sending && !liveActive))
-                                          ? 1
-                                          : 0),
-                                  itemBuilder: (context, i) {
-                                    if (i >= displayed.length) {
-                                      Widget trailing;
-                                      if (_sendFailed) {
-                                        trailing = _ErrorRetry(
-                                          onRetry: () =>
-                                              _retry(conversationId),
-                                        );
-                                      } else {
-                                        trailing = _ThinkingRail(
-                                          label: _railLabel(),
-                                          slow: _turnSlow,
-                                        );
-                                      }
-                                      // Grouped under the ZIVO label right after
-                                      // a user send — mirrors runStart below.
-                                      final showIdentity =
-                                          displayed.isEmpty ||
-                                          displayed.last.role !=
-                                              AiRole.assistant;
-                                      if (showIdentity) {
-                                        trailing = Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const _ZivoIdentity(),
-                                            trailing,
-                                          ],
-                                        );
-                                      }
-                                      return RiseIn(child: trailing);
+
+                                    // The optimistic USER bubble "lands" the moment
+                                    // its own turn's durable user message shows up
+                                    // in the snapshot — state-based pairing, not a
+                                    // text/id compare, so it can't mismatch or
+                                    // double up.
+                                    final pendingLanded =
+                                        _pendingText != null &&
+                                        (_turnLanded(AiRole.user) ||
+                                            _lastPersisted.any(
+                                              (m) =>
+                                                  m.role == AiRole.user &&
+                                                  m.clientTurnId == null &&
+                                                  m.content.trim() ==
+                                                      _pendingText!.trim(),
+                                            ));
+                                    if (pendingLanded) {
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                            if (mounted &&
+                                                _pendingText != null) {
+                                              setState(() {
+                                                _pendingText = null;
+                                                _sendFailed = false;
+                                              });
+                                            }
+                                          });
                                     }
-                                    final message = displayed[i];
-                                    final displayKey = _displayKey(message);
-                                    final isLast =
-                                        i == displayed.length - 1;
-                                    // Consume the reveal token ONLY when an
-                                    // assistant text message actually takes
-                                    // it. Earlier code cleared the flag on
-                                    // ANY last-item render — so the
-                                    // optimistic USER bubble (last while the
-                                    // turn ran) silently burned the token,
-                                    // and whether ZIVO's reply ever typed
-                                    // depended on microsecond-level event
-                                    // ordering.
-                                    // `!_streamed` is load-bearing: a reply
-                                    // that already streamed token-by-token must
-                                    // never ALSO typewriter-reveal on its
-                                    // durable copy. Without it, when the
-                                    // persisted assistant doc lands before
-                                    // `_runSend`'s completion resets
-                                    // `_expectReveal`, the same reply animates
-                                    // in twice (streamed, then re-typed) — the
-                                    // "response appears twice" glitch.
-                                    if (isLast &&
-                                        _expectReveal &&
-                                        !_streamed &&
-                                        message.role == AiRole.assistant &&
-                                        message.pendingAction == null) {
-                                      // The decision lives in [_revealActive]
-                                      // until the typewriter FINISHES — not
-                                      // in this frame's flag — so later
-                                      // rebuilds keep the same widget mounted
-                                      // instead of cutting the animation
-                                      // short mid-write.
-                                      _revealActive.add(displayKey);
-                                      _expectReveal = false;
-                                    }
-                                    final revealing = _revealActive.contains(
-                                      displayKey,
-                                    );
-                                    // Groups consecutive assistant messages (a bubble
-                                    // followed by its proposal card, say) under one
-                                    // ZIVO label instead of repeating it per message.
-                                    final runStart =
-                                        message.role == AiRole.assistant &&
-                                        (i == 0 ||
-                                            displayed[i - 1].role !=
-                                                AiRole.assistant);
-                                    final action = message.pendingAction;
-                                    Widget content;
-                                    if (action == null) {
-                                      content = _MessageBubble(
-                                        message,
-                                        animate: revealing,
-                                        onRevealDone: revealing
-                                            ? () {
-                                                if (mounted) {
-                                                  setState(() =>
-                                                      _revealActive
-                                                          .remove(displayKey));
-                                                }
-                                              }
-                                            : null,
-                                        // Only the provisional live bubble
-                                        // carries the writing caret.
-                                        streaming:
-                                            message.id == '_live' &&
-                                            _liveShownChars <
-                                                _liveTargetChars.length,
-                                      );
-                                    } else {
-                                      final effective =
-                                          action.status !=
-                                              AiActionStatus.pending
-                                          ? action.status
-                                          : (_resolved[action.actionId] ??
-                                                AiActionStatus.pending);
-                                      content = _ProposalCard(
-                                        action: action,
-                                        status: effective,
-                                        onConfirm: () => _confirm(
-                                          conversationId,
-                                          action.actionId,
+                                    if (_pendingText != null &&
+                                        !pendingLanded) {
+                                      displayed.add(
+                                        AiMessage(
+                                          id: '_pending',
+                                          role: AiRole.user,
+                                          content: _pendingText!,
+                                          createdAt: DateTime.now(),
+                                          clientTurnId: _activeTurnId,
                                         ),
-                                        onCancel: () =>
-                                            _cancel(conversationId, action.actionId),
                                       );
                                     }
-                                    if (runStart) {
-                                      content = Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const _ZivoIdentity(),
-                                          content,
-                                        ],
+
+                                    // The provisional live reply rides INSIDE the
+                                    // list as a provisional message carrying its
+                                    // turn's clientTurnId — the exact identity its
+                                    // durable copy will have. When that copy lands,
+                                    // the swap is same widget, same slot, same key:
+                                    // element reused, entrance NOT replayed. This is
+                                    // what kills the "reply pops in twice" effect.
+                                    final liveActive =
+                                        !_sendFailed &&
+                                        !assistantLanded &&
+                                        _liveText.isNotEmpty;
+                                    if (liveActive) {
+                                      displayed.add(
+                                        AiMessage(
+                                          id: '_live',
+                                          role: AiRole.assistant,
+                                          content: _liveText,
+                                          createdAt: DateTime.now(),
+                                          clientTurnId: _activeTurnId,
+                                        ),
                                       );
                                     }
-                                    // The stable display key rides the item
-                                    // itself so [findChildIndexCallback] can
-                                    // relocate it after index shifts, and the
-                                    // once-only entrance ledger lives INSIDE
-                                    // the wrapper (see [_RiseOnce]) so the
-                                    // decision never flips between builds.
-                                    return KeyedSubtree(
-                                      key: ValueKey<String>(displayKey),
-                                      child: _RiseOnce(
-                                        ledgerKey: displayKey,
-                                        played: _entrancePlayed,
-                                        child: content,
+                                    if (displayed.isEmpty &&
+                                        !_sending &&
+                                        !_sendFailed) {
+                                      return _EmptyAsk(
+                                        onSuggestion: _sendSuggestion,
+                                      );
+                                    }
+                                    // First snapshot of THIS thread = cold history:
+                                    // everything currently persisted is waived from
+                                    // entrances so it renders settled — and keeps
+                                    // rendering settled on every scroll-back remount.
+                                    // Anything arriving AFTER this moment is news
+                                    // and rises in exactly once (see itemBuilder).
+                                    if (_entranceSeededFor != conversationId) {
+                                      _entranceSeededFor = conversationId;
+                                      _entrancePlayed.addAll([
+                                        for (final m in displayed)
+                                          _displayKey(m),
+                                      ]);
+                                    }
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback(
+                                          (_) => _maybeAutoScroll(),
+                                        );
+                                    final indexByKey = <String, int>{
+                                      for (var j = 0; j < displayed.length; j++)
+                                        _displayKey(displayed[j]): j,
+                                    };
+                                    return NotificationListener<Notification>(
+                                      // Two jobs, one listener (ScrollMetricsNotification
+                                      // is a Notification but not a ScrollNotification):
+                                      //
+                                      // 1. Drag bookkeeping — mark user-driven scrolls
+                                      //    so NO automatic pin ever fights the thumb.
+                                      // 2. Metrics changes — content growth or the
+                                      //    keyboard's animated inset shrinking the
+                                      //    viewport re-pins instantly while following,
+                                      //    keeping the newest line glued to the
+                                      //    composer without drifting.
+                                      onNotification: (notification) {
+                                        if (notification
+                                            is ScrollStartNotification) {
+                                          _userDragging =
+                                              notification.dragDetails != null;
+                                        } else if (notification
+                                            is ScrollUpdateNotification) {
+                                          if (notification.dragDetails !=
+                                              null) {
+                                            _userDragging = true;
+                                          }
+                                        } else if (notification
+                                            is ScrollEndNotification) {
+                                          _userDragging = false;
+                                        } else if (notification
+                                            is ScrollMetricsNotification) {
+                                          WidgetsBinding.instance
+                                              .addPostFrameCallback((_) {
+                                                if (!mounted ||
+                                                    !_autoFollow ||
+                                                    _userDragging) {
+                                                  return;
+                                                }
+                                                if (!_scroll.hasClients) return;
+                                                final p = _scroll.position;
+                                                if (p.maxScrollExtent > 0) {
+                                                  _scroll.jumpTo(
+                                                    p.maxScrollExtent,
+                                                  );
+                                                }
+                                              });
+                                        }
+                                        return false;
+                                      },
+                                      child: ListView.builder(
+                                        controller: _scroll,
+                                        padding: const EdgeInsets.fromLTRB(
+                                          AppSpacing.screen,
+                                          AppSpacing.base,
+                                          AppSpacing.screen,
+                                          // Clear the floating composer that overlays
+                                          // the bottom of the list.
+                                          _kComposerFloatClearance,
+                                        ),
+                                        // Lets the framework FIND an item's existing
+                                        // element after index shifts (an optimistic
+                                        // bubble retiring as durable docs land), so
+                                        // stateful children survive instead of being
+                                        // torn down and re-animated.
+                                        findChildIndexCallback: (key) {
+                                          if (key is ValueKey<String>) {
+                                            return indexByKey[key.value];
+                                          }
+                                          return null;
+                                        },
+                                        // A trailing slot holds only the WAITING
+                                        // states now — the phase rail or the retry
+                                        // card. The live reply lives in [displayed]
+                                        // itself (above), so it and its durable copy
+                                        // can never paint as two bubbles.
+                                        itemCount:
+                                            displayed.length +
+                                            ((_sendFailed ||
+                                                    (_sending && !liveActive))
+                                                ? 1
+                                                : 0),
+                                        itemBuilder: (context, i) {
+                                          if (i >= displayed.length) {
+                                            Widget trailing;
+                                            if (_sendFailed) {
+                                              trailing = _ErrorRetry(
+                                                onRetry: () =>
+                                                    _retry(conversationId),
+                                              );
+                                            } else {
+                                              trailing = _ThinkingRail(
+                                                label: _railLabel(),
+                                                slow: _turnSlow,
+                                              );
+                                            }
+                                            // Grouped under the ZIVO label right after
+                                            // a user send — mirrors runStart below.
+                                            final showIdentity =
+                                                displayed.isEmpty ||
+                                                displayed.last.role !=
+                                                    AiRole.assistant;
+                                            if (showIdentity) {
+                                              trailing = Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const _ZivoIdentity(),
+                                                  trailing,
+                                                ],
+                                              );
+                                            }
+                                            return RiseIn(child: trailing);
+                                          }
+                                          final message = displayed[i];
+                                          final displayKey = _displayKey(
+                                            message,
+                                          );
+                                          final isLast =
+                                              i == displayed.length - 1;
+                                          // Consume the reveal token ONLY when an
+                                          // assistant text message actually takes
+                                          // it. Earlier code cleared the flag on
+                                          // ANY last-item render — so the
+                                          // optimistic USER bubble (last while the
+                                          // turn ran) silently burned the token,
+                                          // and whether ZIVO's reply ever typed
+                                          // depended on microsecond-level event
+                                          // ordering.
+                                          // `!_streamed` is load-bearing: a reply
+                                          // that already streamed token-by-token must
+                                          // never ALSO typewriter-reveal on its
+                                          // durable copy. Without it, when the
+                                          // persisted assistant doc lands before
+                                          // `_runSend`'s completion resets
+                                          // `_expectReveal`, the same reply animates
+                                          // in twice (streamed, then re-typed) — the
+                                          // "response appears twice" glitch.
+                                          if (isLast &&
+                                              _expectReveal &&
+                                              !_streamed &&
+                                              message.role ==
+                                                  AiRole.assistant &&
+                                              message.pendingAction == null) {
+                                            // The decision lives in [_revealActive]
+                                            // until the typewriter FINISHES — not
+                                            // in this frame's flag — so later
+                                            // rebuilds keep the same widget mounted
+                                            // instead of cutting the animation
+                                            // short mid-write.
+                                            _revealActive.add(displayKey);
+                                            _expectReveal = false;
+                                          }
+                                          final revealing = _revealActive
+                                              .contains(displayKey);
+                                          // Groups consecutive assistant messages (a bubble
+                                          // followed by its proposal card, say) under one
+                                          // ZIVO label instead of repeating it per message.
+                                          final runStart =
+                                              message.role ==
+                                                  AiRole.assistant &&
+                                              (i == 0 ||
+                                                  displayed[i - 1].role !=
+                                                      AiRole.assistant);
+                                          final action = message.pendingAction;
+                                          Widget content;
+                                          if (action == null) {
+                                            content = _MessageBubble(
+                                              message,
+                                              animate: revealing,
+                                              onRevealDone: revealing
+                                                  ? () {
+                                                      if (mounted) {
+                                                        setState(
+                                                          () => _revealActive
+                                                              .remove(
+                                                                displayKey,
+                                                              ),
+                                                        );
+                                                      }
+                                                    }
+                                                  : null,
+                                              // Only the provisional live bubble
+                                              // carries the writing caret.
+                                              streaming:
+                                                  message.id == '_live' &&
+                                                  _liveShownChars <
+                                                      _liveTargetChars.length,
+                                            );
+                                          } else {
+                                            final effective =
+                                                action.status !=
+                                                    AiActionStatus.pending
+                                                ? action.status
+                                                : (_resolved[action.actionId] ??
+                                                      AiActionStatus.pending);
+                                            content = _ProposalCard(
+                                              action: action,
+                                              status: effective,
+                                              onConfirm: () => _confirm(
+                                                conversationId,
+                                                action.actionId,
+                                              ),
+                                              onCancel: () => _cancel(
+                                                conversationId,
+                                                action.actionId,
+                                              ),
+                                            );
+                                          }
+                                          if (runStart) {
+                                            content = Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const _ZivoIdentity(),
+                                                content,
+                                              ],
+                                            );
+                                          }
+                                          // The stable display key rides the item
+                                          // itself so [findChildIndexCallback] can
+                                          // relocate it after index shifts, and the
+                                          // once-only entrance ledger lives INSIDE
+                                          // the wrapper (see [_RiseOnce]) so the
+                                          // decision never flips between builds.
+                                          return KeyedSubtree(
+                                            key: ValueKey<String>(displayKey),
+                                            child: _RiseOnce(
+                                              ledgerKey: displayKey,
+                                              played: _entrancePlayed,
+                                              child: content,
+                                            ),
+                                          );
+                                        },
                                       ),
                                     );
                                   },
-                                ),
-                              );
-                            },
-                          );
-                        },
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: VoiceComposer(
+                              controller: _input,
+                              canSend: _canSend,
+                              // Bottom spacing is owned by the AnimatedPadding above —
+                              // both the safe area and the keyboard ride that one
+                              // animated value, never twice.
+                              bottomInset: 0,
+                              onSend: _send,
+                              isRecording: _recording,
+                              transcribing: _transcribing,
+                              sending: _sending,
+                              onMicToggle: _toggleMic,
+                              onCancelRecording: _cancelRecording,
+                              onCancelTranscription: _cancelTranscription,
+                              // Soft-resolved: hosts without a recorder simply get a
+                              // waveform-less composer; [requireRecorder]'s hard
+                              // assert belongs to the mic flow itself, not every
+                              // rebuild.
+                              recorder: AppScope.of(context).recorder,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: VoiceComposer(
-                        controller: _input,
-                        canSend: _canSend,
-                        // Bottom spacing is owned by the AnimatedPadding above —
-                        // both the safe area and the keyboard ride that one
-                        // animated value, never twice.
-                        bottomInset: 0,
-                        onSend: _send,
-                        isRecording: _recording,
-                        transcribing: _transcribing,
-                        sending: _sending,
-                        onMicToggle: _toggleMic,
-                        onCancelRecording: _cancelRecording,
-                        onCancelTranscription: _cancelTranscription,
-                        // Soft-resolved: hosts without a recorder simply get a
-                        // waveform-less composer; [requireRecorder]'s hard
-                        // assert belongs to the mic flow itself, not every
-                        // rebuild.
-                        recorder: AppScope.of(context).recorder,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-      ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color floating behind the chat — the same quiet
-/// "energy glow" the Today and Workout surfaces carry, drawn in Ask's iris
-/// hue family so the conversation reads as a place, not a flat fill.
-/// Purely decorative and pointer-transparent.
-class _AskAuraBlob extends StatelessWidget {
-  const _AskAuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient rather than an ImageFiltered blur — visually
-          // the same soft glow at a fraction of the GPU cost, which matters
-          // in a scrolling message list.
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.16),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
         ),
       ),
     );
@@ -1517,18 +1489,15 @@ class _ZivoIdentity extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            AppIcons.ask,
-            size: 13,
-            color: AppColors.iris,
-          ),
-          const SizedBox(width: 5),
+          const Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
+          const SizedBox(width: 7),
           Text(
             'ZIVO',
-            style: AppText.meta.copyWith(
-              color: AppColors.irisText,
-              fontWeight: FontWeight.w700,
-              letterSpacing: .5,
+            style: TrainType.caption(
+              size: 9,
+              tracking: 0.2,
+              weight: FontWeight.w600,
+              color: TrainColors.violetGlyph.withValues(alpha: 0.85),
             ),
           ),
         ],
@@ -1569,91 +1538,79 @@ class _EmptyAsk extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // The hero: ZIVO's own illustration floating in a soft iris
-                // halo. One graceful play on arrival (not an infinite loop) —
-                // it lands, breathes once, and gets out of the way.
-                Stack(
+                // The hero is a 54px violet glyph tile, not an
+                // illustration: identity §1.4 is "text over imagery", and the
+                // one thing this screen should lead with is ZIVO's VOICE —
+                // the Instrument Serif line below — rather than a picture of
+                // it. The tile marks the assistant; the sentence is the hero.
+                Container(
+                  width: 54,
+                  height: 54,
                   alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 190,
-                      height: 190,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [Color(0x336E5BFF), Color(0x006E5BFF)],
-                        ),
-                      ),
+                  decoration: BoxDecoration(
+                    color: TrainColors.violetGlyph.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: TrainColors.violetGlyph.withValues(alpha: 0.25),
                     ),
-                    SizedBox(
-                      width: 148,
-                      height: 148,
-                      // The asset's opaque white background layer was removed
-                      // so the marks bloom on the dark halo — it used to render
-                      // as a white box (that stray rectangle), which is what
-                      // read as "broken". It plays once and settles (the
-                      // deliberate "breathe once and get out of the way"), now
-                      // that the bloom is actually visible. Reduce-motion gets
-                      // ZIVO's static mark instead of a frozen first frame.
-                      child: still
-                          ? const Center(
-                              child: Icon(
-                                AppIcons.ask,
-                                size: 56,
-                                color: AppColors.iris,
-                              ),
-                            )
-                          : Lottie.asset(
-                              'assets/ai-generate.json',
-                              fit: BoxFit.contain,
-                              repeat: false,
-                            ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // The screen's one warm aside — Fraunces italic, per brand.
-                RiseIn(
-                  delay: still ? Duration.zero : const Duration(milliseconds: 120),
-                  child: Text(
-                    "Hey, I'm ZIVO.",
-                    style: AppText.aside.copyWith(
-                      color: AppColors.ink,
-                      fontSize: 26,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 8),
-                RiseIn(
-                  delay: still ? Duration.zero : const Duration(milliseconds: 200),
-                  child: Text(
-                    'Your training, diet, and spending — ask me anything, or '
-                    'let me log it for you.',
-                    style: AppText.body.copyWith(
-                      color: AppColors.ink2,
-                      height: 1.45,
-                      fontSize: 14.5,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: const Icon(
+                    AppIcons.ask,
+                    size: 24,
+                    color: TrainColors.violetGlyph,
                   ),
                 ),
                 const SizedBox(height: 22),
+                // Instrument Serif italic — the assistant's voice, used here
+                // and in its answers, and nowhere else in the app.
+                RiseIn(
+                  delay: still
+                      ? Duration.zero
+                      : const Duration(milliseconds: 120),
+                  child: Text(
+                    "Hey, I'm ZIVO.",
+                    textAlign: TextAlign.center,
+                    style: TrainType.serif(size: 36, height: 1),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                RiseIn(
+                  delay: still
+                      ? Duration.zero
+                      : const Duration(milliseconds: 200),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    child: Text(
+                      'Training, diet and spending. Ask me anything — or let '
+                      'me log it for you.',
+                      textAlign: TextAlign.center,
+                      style: TrainType.ui(
+                        size: 14,
+                        weight: FontWeight.w400,
+                        color: TrainColors.ink2,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const SizedBox(height: 30),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       for (final (index, prompt) in _suggestions.indexed)
-                        RiseIn(
-                          delay: still
-                              ? Duration.zero
-                              : Duration(milliseconds: 280 + index * 70),
-                          child: _SuggestionChip(
-                            label: prompt,
-                            onTap: () => onSuggestion(prompt),
+                        Padding(
+                          padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
+                          child: RiseIn(
+                            delay: still
+                                ? Duration.zero
+                                : Duration(milliseconds: 280 + index * 70),
+                            child: _SuggestionChip(
+                              label: prompt,
+                              onTap: () => onSuggestion(prompt),
+                            ),
                           ),
                         ),
                     ],
@@ -1680,7 +1637,7 @@ class _SuggestionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: AppColors.card,
+        color: const Color(0x0BFFFFFF),
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: () {
@@ -1689,14 +1646,19 @@ class _SuggestionChip extends StatelessWidget {
           },
           borderRadius: BorderRadius.circular(999),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: const Color(0x17FFFFFF)),
             ),
             child: Text(
               label,
-              style: AppText.meta.copyWith(fontSize: 12.5, color: AppColors.ink2),
+              style: TrainType.ui(
+                size: 13.5,
+                weight: FontWeight.w600,
+                color: TrainColors.inkPlain,
+                height: 1,
+              ),
             ),
           ),
         ),
@@ -1734,11 +1696,17 @@ class _MessageBubble extends StatelessWidget {
     // 14.5) with generous leading makes it easier on the eyes without
     // ballooning the compact user pills.
     final style = isUser
-        ? AppText.body.copyWith(color: Colors.white)
-        : AppText.body.copyWith(
-            fontSize: 16,
-            height: 1.5,
-            color: AppColors.ink,
+        ? TrainType.ui(
+            size: 13.5,
+            weight: FontWeight.w600,
+            color: TrainColors.inkPlain,
+            height: 1.4,
+          )
+        : TrainType.ui(
+            size: 15,
+            weight: FontWeight.w400,
+            color: TrainColors.ink,
+            height: 1.55,
           );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1753,15 +1721,24 @@ class _MessageBubble extends StatelessWidget {
                 horizontal: isUser ? 16 : 2,
                 vertical: isUser ? 12 : 2,
               ),
+              constraints: BoxConstraints(
+                // The handoff caps a user bubble at 74% so a long question
+                // still reads as a quoted aside, not a paragraph.
+                maxWidth: isUser
+                    ? MediaQuery.of(context).size.width * 0.74
+                    : double.infinity,
+              ),
               decoration: isUser
-                  ? BoxDecoration(
-                      color: AppColors.iris,
-                      // A softened bottom-right tail points the pill back
-                      // at its author — small, but it reads as intentional.
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(18),
-                        topRight: Radius.circular(18),
-                        bottomLeft: Radius.circular(18),
+                  // Glass, not a saturated fill: violet is the assistant's
+                  // chrome here, and painting the USER's own words in it
+                  // spends the hue on the wrong speaker. The softened
+                  // bottom-right tail still points the pill at its author.
+                  ? const BoxDecoration(
+                      color: Color(0x12FFFFFF),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
                         bottomRight: Radius.circular(6),
                       ),
                     )
@@ -1827,7 +1804,7 @@ class _StreamCaretState extends State<_StreamCaret>
         height: 14,
         margin: const EdgeInsets.only(left: 2),
         decoration: BoxDecoration(
-          color: AppColors.iris,
+          color: TrainColors.violetGlyph,
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -2101,9 +2078,7 @@ class _ErrorRetry extends StatelessWidget {
                     ),
                     child: Text(
                       'Retry',
-                      style: AppText.button.copyWith(
-                        color: AppColors.irisText,
-                      ),
+                      style: AppText.button.copyWith(color: AppColors.irisText),
                     ),
                   ),
                 ),
@@ -2170,7 +2145,9 @@ class _ProposalCard extends StatelessWidget {
     );
   }
 
-  Widget _pending(({IconData icon, String label, Color tintBg, Color tintFg}) meta) {
+  Widget _pending(
+    ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
+  ) {
     final chips = _chips();
     final confirm = _confirmSpec();
     return Column(
@@ -2233,7 +2210,9 @@ class _ProposalCard extends StatelessWidget {
   /// The resolved receipt: keeps the WHAT (kind, headline, detail chips) so a
   /// confirmation read days later still says exactly what was added, changed,
   /// or removed — with a small status pill instead of the action buttons.
-  Widget _resolved(({IconData icon, String label, Color tintBg, Color tintFg}) meta) {
+  Widget _resolved(
+    ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
+  ) {
     final s = _statusSpec();
     final chips = _chips();
     final applied = status == AiActionStatus.applied;
@@ -2387,10 +2366,9 @@ class _ProposalCard extends StatelessWidget {
         // Each field being changed, shown as its NEW value ("→ 60.00 EGP").
         final amount = f['amount'];
         if (amount != null) {
-          chips.add(_chip(
-            AppIcons.expenses,
-            '→ $amount ${f['currency'] ?? ''}'.trim(),
-          ));
+          chips.add(
+            _chip(AppIcons.expenses, '→ $amount ${f['currency'] ?? ''}'.trim()),
+          );
         }
         if (f['category'] != null) {
           chips.add(_chip(AppIcons.tag, '→ ${f['category']}'));
@@ -2401,10 +2379,9 @@ class _ProposalCard extends StatelessWidget {
       case 'delete_expense':
         final amount = f['amount'];
         if (amount != null) {
-          chips.add(_chip(
-            AppIcons.expenses,
-            '$amount ${f['currency'] ?? ''}'.trim(),
-          ));
+          chips.add(
+            _chip(AppIcons.expenses, '$amount ${f['currency'] ?? ''}'.trim()),
+          );
         }
         if (f['category'] != null) {
           chips.add(_chip(AppIcons.tag, f['category'].toString()));
@@ -2568,7 +2545,8 @@ Future<String?> _promptNewChatName(BuildContext context) {
               label: 'Start chatting',
               color: AppColors.irisText,
               background: AppColors.irisWash,
-              onTap: () => Navigator.of(sheetContext).pop(controller.text.trim()),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(controller.text.trim()),
             ),
           ),
           const SizedBox(height: 8),
@@ -2586,7 +2564,6 @@ Future<String?> _promptNewChatName(BuildContext context) {
     ),
   );
 }
-
 
 final class _ConversationSelected extends _SessionsSelection {
   _ConversationSelected(this.conversation);
@@ -2888,11 +2865,7 @@ class _NewChatPill extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  AppIcons.chatNew,
-                  size: 15,
-                  color: AppColors.iris,
-                ),
+                const Icon(AppIcons.chatNew, size: 15, color: AppColors.iris),
                 const SizedBox(width: 6),
                 Text(
                   'New chat',
@@ -2951,11 +2924,7 @@ class _SessionRow extends StatelessWidget {
               ),
               if (isActive) ...[
                 const SizedBox(width: 8),
-                const Icon(
-                  AppIcons.success,
-                  size: 16,
-                  color: AppColors.iris,
-                ),
+                const Icon(AppIcons.success, size: 16, color: AppColors.iris),
               ],
             ],
           ),

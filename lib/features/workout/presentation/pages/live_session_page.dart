@@ -957,7 +957,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   @override
   Widget build(BuildContext context) {
-    final musicController = kMusicEnabled ? AppScope.of(context).requireMusic : null;
+    final musicController = kMusicEnabled
+        ? AppScope.of(context).requireMusic
+        : null;
     return PopScope(
       // The system/edge-swipe back gesture leaves like the close (X) button —
       // non-destructive, since the session already autosaves as it's played.
@@ -968,108 +970,111 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       },
       child: SessionAmbience(
         controller: musicController,
-        child: Builder(builder: (context) {
-          final accent = SessionAmbience.of(context);
-          return Scaffold(
-            backgroundColor: Colors.transparent,
-            body: AnimatedContainer(
-              // Each phase gets the one soft radial wash the handoff allows
-              // it — ember from below while you're logging, green from the
-              // middle while you rest. The music ambience still breathes
-              // through it, but as a whisper (0.12) rather than the wash it
-              // used to be: at full strength the track color simply replaced
-              // the design's own tint.
-              duration: reducedMotion(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 700),
-              curve: Curves.easeOut,
-              decoration: BoxDecoration(
-                gradient: _screenTint(accent),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
-                      child: Column(
-                        children: [
-                          _SessionHeader(
-                            title: _dayTitle(widget.day).toUpperCase(),
-                            elapsed: _session.isComplete
-                                ? _session.elapsed
-                                : _session.activeElapsed(now: widget.now()),
-                            isPaused: _session.isPaused,
-                            onClose: _onLeave,
-                            onDiscard: _onDiscard,
-                            onTogglePause: _session.isComplete
-                                ? null
-                                : _onTogglePause,
-                          ),
-                          const SizedBox(height: 20),
-                          TrainSegmentBar(
-                            total: _exerciseCount,
-                            completed: _exercisesBehind,
-                            current: _currentExerciseIndex,
-                          ),
-                          const SizedBox(height: 9),
-                          TrainSegmentCaptions(
-                            left: _exerciseCaption,
-                            right: _tallyCaption,
-                            rightColor: _restRemaining != null
-                                ? TrainColors.green.withValues(alpha: 0.75)
-                                : const Color(0x59F4F4F0),
-                          ),
-                          // The walk-back-one-set control — reachable from
-                          // EVERY phase (rest included), and only present
-                          // when there is actually something to undo, so the
-                          // header stays exactly as designed until then.
-                          if (_session.previousResolvedSet != null)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: _BackChip(onTap: _onBack),
+        child: Builder(
+          builder: (context) {
+            final accent = SessionAmbience.of(context);
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: AnimatedContainer(
+                // Each phase gets the one soft radial wash the handoff allows
+                // it — ember from below while you're logging, green from the
+                // middle while you rest. The music ambience still breathes
+                // through it, but as a whisper (0.12) rather than the wash it
+                // used to be: at full strength the track color simply replaced
+                // the design's own tint.
+                duration: reducedMotion(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 700),
+                curve: Curves.easeOut,
+                decoration: BoxDecoration(gradient: _screenTint(accent)),
+                child: SafeArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+                        child: Column(
+                          children: [
+                            _SessionHeader(
+                              title: _dayTitle(widget.day).toUpperCase(),
+                              elapsed: _session.isComplete
+                                  ? _session.elapsed
+                                  : _session.activeElapsed(now: widget.now()),
+                              isPaused: _session.isPaused,
+                              onClose: _onLeave,
+                              onDiscard: _onDiscard,
+                              onTogglePause: _session.isComplete
+                                  ? null
+                                  : _onTogglePause,
                             ),
-                        ],
+                            const SizedBox(height: 20),
+                            TrainSegmentBar(
+                              total: _exerciseCount,
+                              completed: _exercisesBehind,
+                              current: _currentExerciseIndex,
+                            ),
+                            const SizedBox(height: 9),
+                            TrainSegmentCaptions(
+                              left: _exerciseCaption,
+                              right: _tallyCaption,
+                              rightColor: _restRemaining != null
+                                  ? TrainColors.green.withValues(alpha: 0.75)
+                                  : const Color(0x59F4F4F0),
+                            ),
+                            // The walk-back-one-set control — reachable from
+                            // EVERY phase (rest included), and only present
+                            // when there is actually something to undo, so the
+                            // header stays exactly as designed until then.
+                            if (_session.previousResolvedSet != null)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: _BackChip(onTap: _onBack),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      // Paused freezes the rest/elapsed clocks (model state), but a
-                      // paused session is still visually "on hold" — dim the phase
-                      // content and block its taps, no animation (kept minimal —
-                      // prominence here is about info hierarchy, not motion).
-                      child: IgnorePointer(
-                        ignoring: _session.isPaused,
-                        child: Opacity(
-                          opacity: _session.isPaused ? 0.35 : 1,
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 280),
-                            transitionBuilder: (child, animation) =>
-                                reducedMotion(context)
-                                ? FadeTransition(opacity: animation, child: child)
-                                : FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0, 0.03),
-                                        end: Offset.zero,
-                                      ).animate(animation),
+                      Expanded(
+                        // Paused freezes the rest/elapsed clocks (model state), but a
+                        // paused session is still visually "on hold" — dim the phase
+                        // content and block its taps, no animation (kept minimal —
+                        // prominence here is about info hierarchy, not motion).
+                        child: IgnorePointer(
+                          ignoring: _session.isPaused,
+                          child: Opacity(
+                            opacity: _session.isPaused ? 0.35 : 1,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 280),
+                              transitionBuilder: (child, animation) =>
+                                  reducedMotion(context)
+                                  ? FadeTransition(
+                                      opacity: animation,
                                       child: child,
+                                    )
+                                  : FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.03),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
                                     ),
-                                  ),
-                            child: KeyedSubtree(
-                              key: ValueKey(_phaseKey),
-                              child: _buildPhase(accent),
+                              child: KeyedSubtree(
+                                key: ValueKey(_phaseKey),
+                                child: _buildPhase(accent),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          },
+        ),
       ),
     );
   }
@@ -1085,9 +1090,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       center: base.center,
       radius: base.radius,
       stops: base.stops,
-      colors: [
-        for (final c in base.colors) Color.lerp(c, accent, 0.12)!,
-      ],
+      colors: [for (final c in base.colors) Color.lerp(c, accent, 0.12)!],
     );
   }
 
@@ -1337,10 +1340,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   Widget _exerciseHeader(SessionExercise exercise) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const TrainCaption(
-        'NOW',
-        color: Color(0xCCFF5C1A),
-      ),
+      const TrainCaption('NOW', color: Color(0xCCFF5C1A)),
       const SizedBox(height: 11),
       Text(
         exercise.name,
@@ -2150,11 +2150,7 @@ class _BackChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                AppIcons.back,
-                size: 11,
-                color: Color(0x66F4F4F0),
-              ),
+              const Icon(AppIcons.back, size: 11, color: Color(0x66F4F4F0)),
               const SizedBox(width: 5),
               Text(
                 'BACK',
@@ -2177,7 +2173,6 @@ class _BackChip extends StatelessWidget {
 /// (REST, PRE-WORKOUT, COMPLETE).
 class _Eyebrow extends StatelessWidget {
   const _Eyebrow(this.text, {required this.color, this.icon, this.glyph});
-
 
   final String text;
   final Color color;
@@ -2314,10 +2309,7 @@ class _GoalBlock extends StatelessWidget {
           '↓ ${percent.abs()}% VS LAST',
           TrainColors.ember,
         ),
-        ProgressVerdict.matched => (
-          'MATCHING LAST',
-          const Color(0x59F4F4F0),
-        ),
+        ProgressVerdict.matched => ('MATCHING LAST', const Color(0x59F4F4F0)),
       };
     }
     if (prevWeight != null && current != null) {
@@ -2627,7 +2619,6 @@ class _GoalStatCell extends StatelessWidget {
   }
 }
 
-
 /// What's waiting on the other side of the rest — the exercise and the exact
 /// numbers to hit, so the countdown ends with you already knowing what to do
 /// rather than reading the next screen cold.
@@ -2786,7 +2777,6 @@ class _SessionNowPlaying extends StatelessWidget {
   }
 }
 
-
 /// The logging slot's fallback when there's no track to show (disconnected,
 /// connecting, or connected with nothing loaded) — a small always-reachable
 /// way into [MusicPlayerPage]'s connect flow, so the slot never goes fully
@@ -2820,11 +2810,7 @@ class _ConnectMusicChip extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(
-                AppIcons.music,
-                size: 14,
-                color: Color(0x66F4F4F0),
-              ),
+              const Icon(AppIcons.music, size: 14, color: Color(0x66F4F4F0)),
               const SizedBox(width: 10),
               Text(
                 'CONNECT MUSIC',
@@ -3005,10 +2991,7 @@ class _StepperFieldState extends State<_StepperField>
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                         ],
                         cursorColor: TrainColors.ember,
-                        style: TrainType.mono(
-                          size: 20,
-                          color: TrainColors.ink,
-                        ),
+                        style: TrainType.mono(size: 20, color: TrainColors.ink),
                         onChanged: (_) => widget.onChanged(),
                         decoration: InputDecoration(
                           isDense: true,
@@ -3120,9 +3103,7 @@ class _QuickWeightChip extends StatelessWidget {
             style: TrainType.mono(
               size: 11.5,
               weight: FontWeight.w500,
-              color: primary
-                  ? TrainColors.green
-                  : const Color(0x99F4F4F0),
+              color: primary ? TrainColors.green : const Color(0x99F4F4F0),
             ),
           ),
         ),
@@ -3427,11 +3408,7 @@ class _SetChipState extends State<_SetChip>
               ),
               if (widget.state == _ChipState.done) ...[
                 const SizedBox(width: 5),
-                const Icon(
-                  AppIcons.check,
-                  size: 10,
-                  color: TrainColors.green,
-                ),
+                const Icon(AppIcons.check, size: 10, color: TrainColors.green),
               ],
             ],
           ),
@@ -3453,7 +3430,6 @@ class _SetChipState extends State<_SetChip>
     );
   }
 }
-
 
 /// A gentle breathing glow — used behind the current-set indicator to draw
 /// the eye without being distracting.
@@ -3679,33 +3655,42 @@ class _RestTimeLabel extends StatelessWidget {
     return Semantics(
       label: '${time.whole}${time.centis}',
       excludeSemantics: true,
-      child: Row(
-        key: const Key('rest-time-label'),
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _FixedSlot(
-            // Widest realistic rest window: single-digit minutes, "M:SS".
-            reference: '9:59',
-            alignment: Alignment.centerRight,
-            style: _wholeStyle,
-            child: Text(
-              time.whole,
-              key: const Key('rest-time-whole'),
+      // The two slots below reserve their widest content at a FIXED size, so
+      // when the pair can't fit — a large Dynamic Type setting, or a font
+      // whose digits are wider than Azeret's — the whole readout scales down
+      // together rather than overflowing the ring. Scaling down keeps the
+      // slots' relative sizes (74 vs 26) and the no-reflow guarantee intact,
+      // which clipping or wrapping would both destroy.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          key: const Key('rest-time-label'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _FixedSlot(
+              // Widest realistic rest window: single-digit minutes, "M:SS".
+              reference: '9:59',
+              alignment: Alignment.centerRight,
               style: _wholeStyle,
+              child: Text(
+                time.whole,
+                key: const Key('rest-time-whole'),
+                style: _wholeStyle,
+              ),
             ),
-          ),
-          _FixedSlot(
-            reference: '.99',
-            alignment: Alignment.centerLeft,
-            style: _centisStyle,
-            child: Text(
-              time.centis,
-              key: const Key('rest-time-centis'),
+            _FixedSlot(
+              reference: '.99',
+              alignment: Alignment.centerLeft,
               style: _centisStyle,
+              child: Text(
+                time.centis,
+                key: const Key('rest-time-centis'),
+                style: _centisStyle,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -3791,9 +3776,7 @@ class _RestRingPainter extends CustomPainter {
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final sweepColor = accent == null
-        ? hue
-        : Color.lerp(hue, accent, 0.35)!;
+    final sweepColor = accent == null ? hue : Color.lerp(hue, accent, 0.35)!;
 
     // The bloom under the sweep — a `drop-shadow` in the handoff, a wider,
     // softer arc here. It breathes with [glow] so the countdown reads as

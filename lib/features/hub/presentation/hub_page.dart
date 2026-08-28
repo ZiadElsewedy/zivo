@@ -1,17 +1,15 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/scope/app_scope.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
-import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/train_tokens.dart';
 import '../../../core/util/money.dart';
 import '../../../core/util/time_ago.dart';
 import '../../../core/widgets/pressable_scale.dart';
 import '../../../core/widgets/rise_in.dart';
+import '../../../core/widgets/train_surfaces.dart';
 import '../../diet/domain/diet_plan.dart';
 import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
@@ -38,8 +36,12 @@ import '../../workout/presentation/pages/workout_dashboard_page.dart';
 /// (see each `_XTile`) — a snapshot of "what's happening in each area of my
 /// life right now", not just a launcher.
 ///
-/// Shares Today's atmospheric backdrop (radial ground gradient + soft aura
-/// blobs) so the two dashboard surfaces read as one material world.
+/// Not one of the design handoff's eleven screens, but it is the doorway
+/// into four of them — so it runs on the same material: the green screen
+/// wash, single-hue 13%-tint icon tiles instead of glowing gradient chips,
+/// mono captions, and the handoff's list rows for Recent. A launcher in the
+/// old warm v2 skin would have been the one surface that didn't belong to
+/// the world it opens into.
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
@@ -48,28 +50,11 @@ class HubPage extends StatelessWidget {
     final media = MediaQuery.of(context);
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -1.1),
-          radius: 1.15,
-          colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
-          stops: [0.0, 0.52, 1.0],
-        ),
-      ),
+      // The one soft radial glow this surface gets — the same green wash the
+      // Workout hub and Diet carry, since this is where they're opened from.
+      decoration: const BoxDecoration(gradient: TrainColors.hubTint),
       child: Stack(
         children: [
-          // Ambient depth — one warm glow near the title, one cool counterweight
-          // lower-left. Purely decorative (and pointer-transparent).
-          const Positioned(
-            top: -30,
-            right: -70,
-            child: _AuraBlob(color: AppColors.ember, size: 210),
-          ),
-          const Positioned(
-            top: 320,
-            left: -90,
-            child: _AuraBlob(color: AppColors.iris, size: 200),
-          ),
           // The page is a single top-aligned scroll view: header, then the grid
           // directly beneath it. The grid is shrink-wrapped (`shrinkWrap: true`
           // + `NeverScrollableScrollPhysics`) so it sizes to its own content —
@@ -96,7 +81,7 @@ class HubPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _Header(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
                   // The full "Start Workout" training card lives on Today (and
                   // the Workout dashboard) — the Hub deliberately doesn't
                   // duplicate it here, leading with the module grid instead.
@@ -105,10 +90,11 @@ class HubPage extends StatelessWidget {
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
-                    // Taller than the icon+label-only ratio (was 1.32) — the extra
-                    // height is what carries each tile's live stat line without
-                    // cramping it against the label.
-                    childAspectRatio: 1.05,
+                    // The tiles lost their chevron with the redesign, so the
+                    // old 1.05 ratio left a band of dead space between the
+                    // icon tile and the label. 1.22 still clears a two-line
+                    // stat at a large text scale without the hollow middle.
+                    childAspectRatio: 1.22,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: const [
@@ -142,50 +128,27 @@ class _Header extends StatelessWidget {
         children: [
           Text(
             formatTodayDate(DateTime.now()).toUpperCase(),
-            style: AppText.dateLabel,
-          ),
-          const SizedBox(height: 7),
-          Text('Hub', style: AppText.greeting),
-          const SizedBox(height: 5),
-          Text(
-            'Everything, one tap away.',
-            style: AppText.aside.copyWith(
-              fontSize: 16.5,
-              color: AppColors.ink3,
+            style: TrainType.caption(
+              size: 9.5,
+              tracking: 0.2,
+              color: TrainColors.ink4,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color for atmosphere behind the header — the
-/// quiet "energy" glow behind a premium dashboard. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
+          const SizedBox(height: 10),
+          Text(
+            'Hub',
+            style: TrainType.ui(
+              size: 27,
+              weight: FontWeight.w800,
+              tracking: -0.025,
+              color: TrainColors.ink,
+              height: 1,
+            ),
           ),
-        ),
+          // The italic-serif aside is gone: Instrument Serif is the ZIVO
+          // assistant's voice and nothing else in the app (identity §3), and
+          // a launcher doesn't need a tagline to explain four labelled tiles.
+        ],
       ),
     );
   }
@@ -229,7 +192,7 @@ class _WorkoutTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.workout,
-      color: AppColors.pulse,
+      color: TrainColors.green,
       label: 'Workout',
       stat: stat,
       onTap: () => Navigator.of(
@@ -286,7 +249,7 @@ class _DietTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.diet,
-      color: AppColors.pulse,
+      color: TrainColors.violetGlyph,
       label: 'Diet',
       stat: stat,
       onTap: () => Navigator.of(
@@ -342,7 +305,7 @@ class _ExpensesTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.expenses,
-      color: AppColors.solar,
+      color: TrainColors.amber,
       label: 'Expenses',
       stat: stat,
       onTap: () => Navigator.of(
@@ -372,7 +335,7 @@ class _MomentsTile extends StatelessWidget {
               : '$count moment${count == 1 ? '' : 's'}';
           return _ModuleTileShell(
             icon: AppIcons.moments,
-            color: AppColors.ember,
+            color: TrainColors.ember,
             label: 'Moments',
             stat: stat,
             onTap: () => Navigator.of(context).push(
@@ -415,23 +378,12 @@ class _ModuleTileShell extends StatelessWidget {
         color: Colors.transparent,
         child: Ink(
           decoration: BoxDecoration(
-            color: AppColors.card,
-            // A whisper of the module hue pooled into the top-left corner —
-            // identity without noise.
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withValues(alpha: 0.065),
-                color.withValues(alpha: 0.0),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.hairline),
-            boxShadow: AppShadows.card,
+            gradient: TrainColors.cardGradient,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: TrainColors.hairline),
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.card),
+            borderRadius: BorderRadius.circular(20),
             onTap: () {
               HapticFeedback.selectionClick();
               onTap();
@@ -442,25 +394,22 @@ class _ModuleTileShell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _GlowingIconChip(icon: icon, color: color),
-                      Icon(
-                        AppIcons.chevron,
-                        size: 15,
-                        color: AppColors.ink3.withValues(alpha: 0.65),
-                      ),
-                    ],
+                  TrainIconTile(
+                    icon: icon,
+                    accent: color,
+                    size: 34,
+                    iconSize: 17,
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         label,
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                        style: TrainType.ui(
+                          size: 16,
+                          weight: FontWeight.w700,
+                          color: TrainColors.inkPlain,
+                          height: 1.1,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -468,13 +417,14 @@ class _ModuleTileShell extends StatelessWidget {
                           context,
                         ).clamp(maxScaleFactor: 1.3),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 7),
                       Text(
-                        stat,
-                        style: AppText.meta.copyWith(
-                          color: AppColors.ink3,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
+                        stat.toUpperCase(),
+                        style: TrainType.mono(
+                          size: 10,
+                          tracking: 0.06,
+                          color: TrainColors.ink4,
+                          height: 1.35,
                         ),
                         // 2 lines, not 1 — a couple of stats (Diet's "X of Y
                         // meals · N kcal left") run long enough to ellipsize
@@ -496,46 +446,6 @@ class _ModuleTileShell extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The tile's icon mark — a rounded square filled with a diagonal gradient of
-/// the module hue, edged with a faint tinted border and lifted on a soft
-/// colored glow. The single strongest identity carrier on each tile.
-class _GlowingIconChip extends StatelessWidget {
-  const _GlowingIconChip({required this.icon, required this.color});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.30),
-            color.withValues(alpha: 0.10),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.30),
-            blurRadius: 22,
-            spreadRadius: -6,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Icon(icon, size: 23, color: color),
     );
   }
 }
@@ -601,22 +511,22 @@ class _RecentSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 32),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2, bottom: 12),
-                        child: Text('RECENT', style: AppText.sectionLabel),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 11),
+                        child: TrainSectionLabel('Recent'),
                       ),
                       Material(
                         // The rows' own InkWell needs a Material ancestor —
                         // Hub has no Scaffold of its own (only HomeShell's,
                         // in production), same reasoning as `_ModuleTileShell`
                         // above.
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        color: const Color(0x08FFFFFF),
+                        borderRadius: BorderRadius.circular(20),
                         child: Container(
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(AppRadius.card),
-                            border: Border.all(color: AppColors.hairline),
-                            boxShadow: AppShadows.card,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: TrainColors.hairline),
                           ),
                           child: Column(
                             children: [
@@ -661,7 +571,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: completedAt,
         icon: AppIcons.workout,
-        color: AppColors.pulse,
+        color: TrainColors.green,
         text: 'Completed ${s.dayLabel}',
         onTap: () => Navigator.of(
           context,
@@ -675,7 +585,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: e.spentAt,
         icon: AppIcons.expenses,
-        color: AppColors.solar,
+        color: TrainColors.amber,
         text:
             '${formatAmount(e.amountMinor)} ${e.currency} on '
             '${_expenseCategoryLabel(e.categoryId)}',
@@ -692,7 +602,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: m.takenAt,
         icon: AppIcons.moments,
-        color: AppColors.ember,
+        color: TrainColors.ember,
         text: caption.isEmpty
             ? 'Added a moment'
             : (caption.length > 40 ? '${caption.substring(0, 40)}…' : caption),
@@ -738,49 +648,33 @@ class _RecentRow extends StatelessWidget {
         decoration: BoxDecoration(
           border: last
               ? null
-              : const Border(bottom: BorderSide(color: AppColors.hairline)),
+              : const Border(bottom: BorderSide(color: TrainColors.hairline)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
         child: Row(
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    item.color.withValues(alpha: 0.22),
-                    item.color.withValues(alpha: 0.08),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: item.color.withValues(alpha: 0.14)),
-              ),
-              child: Icon(item.icon, size: 16, color: item.color),
-            ),
-            const SizedBox(width: 13),
+            TrainIconTile(icon: item.icon, accent: item.color),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 item.text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.ink,
+                style: TrainType.ui(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: TrainColors.inkPlain,
+                  height: 1.1,
                 ),
               ),
             ),
             const SizedBox(width: 10),
             Text(
-              timeAgo(item.at, DateTime.now()),
-              style: AppText.meta.copyWith(
-                color: AppColors.ink3,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              timeAgo(item.at, DateTime.now()).toUpperCase(),
+              style: TrainType.caption(
+                size: 9,
+                tracking: 0.1,
+                color: TrainColors.ink4,
               ),
             ),
           ],

@@ -4,9 +4,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import 'hue.dart';
 
-/// Uppercase section label above each Today block.
+/// Uppercase section label above each Today block — the handoff's caption:
+/// mono, uppercase, wide-tracked, dim. It labels; it never competes
+/// (identity §6).
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.label, {this.top = AppSpacing.section, super.key});
 
@@ -16,8 +19,15 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(top: top, bottom: AppSpacing.m, left: 2),
-      child: Text(label.toUpperCase(), style: AppText.sectionLabel),
+      padding: EdgeInsets.only(top: top, bottom: 11),
+      child: Text(
+        label.toUpperCase(),
+        style: TrainType.caption(
+          size: 9.5,
+          tracking: 0.2,
+          color: const Color(0x4DF4F4F0),
+        ),
+      ),
     );
   }
 }

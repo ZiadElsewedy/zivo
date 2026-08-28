@@ -17,9 +17,11 @@ import 'package:google_fonts/google_fonts.dart';
 /// * **A cooler, darker base** (`#080908`) with a brighter training green,
 ///   because these screens are looked at in a gym, mid-set, at arm's length.
 ///
-/// Scope: these tokens dress the three handoff screens. The rest of the app
-/// still runs on [AppColors]'s warm v2 surfaces and [AppText]'s Bricolage /
-/// Hanken pairing — rolling this further is a separate pass.
+/// Scope: these tokens dress the **eleven handoff screens** — Today, Active
+/// set, Rest, Workout hub, Ask, You, Diet, Expenses, Moments, Settings and the
+/// Player. Surfaces outside that set (capture flows, plan editing, auth, the
+/// import wizards) still run on [AppColors]'s warm v2 surfaces and [AppText]'s
+/// Bricolage / Hanken pairing — rolling this further is a separate pass.
 ///
 /// The design intent worth protecting (from the handoff, verbatim in spirit):
 /// **one hero number per screen**, everything else demoted to a mono caption;
@@ -38,8 +40,13 @@ abstract final class TrainColors {
   static const ember = Color(0xFFFF5C1A);
 
   /// The violet the Today header's do-not-disturb/night chip carries.
+  /// System/meta only — theme, calendar, assistant chrome.
   static const violet = Color(0xFF8F8BFF);
   static const violetGlyph = Color(0xFFA8A4FF);
+
+  /// Money, and nothing else — the wallet card, expense amounts, the
+  /// Expenses FAB. Never a training or system signal (identity §2).
+  static const amber = Color(0xFFE6BE3C);
 
   // ---- Ink ----
   static const ink = Color(0xFFF7F7F3);
@@ -101,6 +108,65 @@ abstract final class TrainColors {
     stops: [0.0, 0.55, 1.0],
   );
 
+  /// `110% 45% at 50% 22%` — the assistant's violet wash.
+  static const askTint = RadialGradient(
+    center: Alignment(0, -0.56),
+    radius: 1.1,
+    colors: [Color(0xFF1A1834), Color(0xFF0B0B12), base],
+    stops: [0.0, 0.52, 1.0],
+  );
+
+  /// `110% 40% at 50% 0%` — You / profile, warmed toward ember.
+  static const youTint = RadialGradient(
+    center: Alignment(0, -1),
+    radius: 1.1,
+    colors: [Color(0xFF1C1410), Color(0xFF0B0A09), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// `110% 40% at 50% 3%` — the Workout hub and Diet share one green wash.
+  static const hubTint = RadialGradient(
+    center: Alignment(0, -0.94),
+    radius: 1.1,
+    colors: [Color(0xFF10261D), Color(0xFF0A0D0B), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// Diet reads on the same wash as the hub (identity §2).
+  static const dietTint = hubTint;
+
+  /// `110% 50% at 50% 88%` — the Player, lit from below.
+  static const playerTint = RadialGradient(
+    center: Alignment(0, 0.76),
+    radius: 1.1,
+    colors: [Color(0xFF0E2A1F), Color(0xFF0A0C0B), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// `110% 40% at 80% 2%` — Expenses, the one amber-lit screen.
+  static const expensesTint = RadialGradient(
+    center: Alignment(0.6, -0.96),
+    radius: 1.1,
+    colors: [Color(0xFF241D0C), Color(0xFF0C0B09), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// `110% 38% at 50% 2%` — Moments.
+  static const momentsTint = RadialGradient(
+    center: Alignment(0, -0.96),
+    radius: 1.1,
+    colors: [Color(0xFF1B1610), Color(0xFF0B0A09), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// `110% 36% at 50% 2%` — Settings, the coolest of the set.
+  static const settingsTint = RadialGradient(
+    center: Alignment(0, -0.96),
+    radius: 1.1,
+    colors: [Color(0xFF151520), Color(0xFF0A0A0C), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
   /// The colored bloom under a primary pill — the only shadow the handoff
   /// allows (`0 12px 32px <accent>/.3`).
   static List<BoxShadow> actionGlow(Color accent, {double alpha = 0.32}) => [
@@ -151,6 +217,27 @@ abstract final class TrainType {
   }) => GoogleFonts.manrope(
     fontSize: size,
     fontWeight: weight,
+    letterSpacing: tracking * size,
+    height: height,
+    color: color,
+  );
+
+  /// **Instrument Serif, italic — the ZIVO assistant's voice, and nothing
+  /// else in the app** (identity §3).
+  ///
+  /// This is the one place the app speaks rather than reports, so it gets the
+  /// one typeface neither of the other two families can imitate. Using it for
+  /// anything else — a section header, a marketing line, a headline that
+  /// isn't ZIVO talking — would spend the distinction and leave the assistant
+  /// sounding like the rest of the UI.
+  static TextStyle serif({
+    required double size,
+    Color color = const Color(0xFFF9F9F5),
+    double height = 1.25,
+    double tracking = -0.01,
+  }) => GoogleFonts.instrumentSerif(
+    fontSize: size,
+    fontStyle: FontStyle.italic,
     letterSpacing: tracking * size,
     height: height,
     color: color,
