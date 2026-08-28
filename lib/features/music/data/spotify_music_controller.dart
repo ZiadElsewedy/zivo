@@ -1,16 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart' show MissingPluginException, PlatformException, Uint8List;
+import 'package:spotify_sdk/enums/repeat_mode_enum.dart' as sdk;
 import 'package:spotify_sdk/models/connection_status.dart';
 import 'package:spotify_sdk/models/player_state.dart';
 import 'package:spotify_sdk/models/track.dart';
-import 'package:spotify_sdk/spotify_sdk.dart';
+// `hide RepeatMode`: `spotify_sdk` re-exports its own `RepeatMode`, which would
+// otherwise clash with this app's domain `RepeatMode` (from now_playing.dart).
+// The SDK enum is still needed for `setRepeatMode`, imported prefixed as `sdk`.
+import 'package:spotify_sdk/spotify_sdk.dart' hide RepeatMode;
 
 import '../music_config.dart';
 import '../domain/audio_output.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
+import 'audio_route_channel.dart';
 
 /// The real binding — talks to the Spotify app via App Remote
 /// (`spotify_sdk`, wrapping the native iOS/Android App Remote SDKs). Only
@@ -28,14 +33,28 @@ import '../domain/now_playing.dart';
 /// must also be in "Development mode" with the testing account added under
 /// User Management, or auth fails outright.
 class SpotifyMusicController implements MusicController {
+  SpotifyMusicController() {
+    _watchAudioRoute();
+  }
+
   final _nowPlayingController = StreamController<NowPlaying?>.broadcast();
   final _connectionController = StreamController<MusicConnection>.broadcast();
+  final _outputController = StreamController<AudioOutput?>.broadcast();
 
   NowPlaying? _current;
   MusicConnection _connectionState = MusicConnection.disconnected;
+  AudioOutput? _output;
 
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<ConnectionStatus>? _connectionStatusSub;
+
+  /// The OS audio route (headphones / BT / speaker), bridged from a native
+  /// platform channel. Watched for the controller's whole lifetime — the route
+  /// is a system concern independent of the Spotify connection, so we don't gate
+  /// it behind [connect]. Resolves to null off-device / on hosts without the
+  /// native side (see [AudioRouteChannel]).
+  static const _audioRoute = AudioRouteChannel();
+  StreamSubscription<AudioOutput?>? _routeSub;
 
   // getImage() is a real platform call (round-trips to the Spotify app) —
   // only refetched when the track itself actually changes, not on every
@@ -55,16 +74,26 @@ class SpotifyMusicController implements MusicController {
   @override
   MusicConnection get currentConnection => _connectionState;
 
-  // The OS audio route is not exposed by the Spotify App Remote SDK, so this
-  // binding reports "unknown" (null) and the player omits the output row. To
-  // populate it for real, add a platform channel — iOS
-  // `AVAudioSession.currentRoute.outputs`, Android `AudioManager`/`MediaRouter`
-  // — and push an [AudioOutput] onto a broadcast controller here. See HANDOFF §6.
+  // The Spotify App Remote SDK doesn't report the OS audio route, so it comes
+  // from a native platform channel instead (AVAudioSession / AudioManager) via
+  // [AudioRouteChannel]. Null on hosts without the native side.
   @override
-  Stream<AudioOutput?> get output => const Stream.empty();
+  Stream<AudioOutput?> get output => _outputController.stream;
 
   @override
-  AudioOutput? get currentOutput => null;
+  AudioOutput? get currentOutput => _output;
+
+  void _watchAudioRoute() {
+    // Seed with the current route (so `currentOutput`/initialData is populated),
+    // then follow live changes. Both are null-safe off-device.
+    unawaited(_audioRoute.current().then(_setOutput));
+    _routeSub = _audioRoute.changes().listen(_setOutput);
+  }
+
+  void _setOutput(AudioOutput? out) {
+    _output = out;
+    if (!_outputController.isClosed) _outputController.add(out);
+  }
 
   void _setConnection(MusicConnection state) {
     _connectionState = state;
@@ -123,6 +152,12 @@ class SpotifyMusicController implements MusicController {
           duration: Duration(milliseconds: track.duration),
           position: Duration(milliseconds: state.playbackPosition),
           isPaused: state.isPaused,
+          // Real, observed shuffle/repeat straight from the player state, so the
+          // controls reflect Spotify's truth (including changes made on another
+          // device), not an optimistic local toggle. `.name` sidesteps the
+          // package's two same-named `RepeatMode` types (see the import note).
+          isShuffling: state.playbackOptions.isShuffling,
+          repeatMode: _repeatFromName(state.playbackOptions.repeatMode.name),
           // App Remote alone can't see other Spotify Connect devices — that
           // needs the separate Web API's "available devices" endpoint, which
           // this integration doesn't call. True is a safe default until that's
@@ -225,11 +260,50 @@ class SpotifyMusicController implements MusicController {
   Future<void> replay() => seek(Duration.zero);
 
   @override
+  Future<void> setShuffle(bool shuffle) async {
+    try {
+      await SpotifySdk.setShuffle(shuffle: shuffle);
+      // The new value is observed back via subscribePlayerState() (above), the
+      // single source of truth the UI reacts to — same as play/pause.
+    } on Exception {
+      // See the swallow-our-own-errors comment above the transport controls.
+    }
+  }
+
+  @override
+  Future<void> setRepeat(MusicRepeatMode mode) async {
+    try {
+      await SpotifySdk.setRepeatMode(repeatMode: _sdkRepeat(mode));
+    } on Exception {
+      // See the swallow-our-own-errors comment above the transport controls.
+    }
+  }
+
+  /// Domain [MusicRepeatMode] → the App Remote SDK's own repeat enum (the
+  /// prefixed `sdk.RepeatMode` — see the import note). `all` is Spotify's
+  /// `context`.
+  static sdk.RepeatMode _sdkRepeat(MusicRepeatMode mode) => switch (mode) {
+    MusicRepeatMode.off => sdk.RepeatMode.off,
+    MusicRepeatMode.all => sdk.RepeatMode.context,
+    MusicRepeatMode.one => sdk.RepeatMode.track,
+  };
+
+  /// The player state's repeat value, read by name so we don't have to import
+  /// the package's *other* (unprefixed) `RepeatMode`. `context` is our `all`.
+  static MusicRepeatMode _repeatFromName(String name) => switch (name) {
+    'track' => MusicRepeatMode.one,
+    'context' => MusicRepeatMode.all,
+    _ => MusicRepeatMode.off,
+  };
+
+  @override
   void dispose() {
     _playerStateSub?.cancel();
     _connectionStatusSub?.cancel();
+    _routeSub?.cancel();
     _nowPlayingController.close();
     _connectionController.close();
+    _outputController.close();
   }
 
   /// Synchronous cache check — what track-change emissions use so they never

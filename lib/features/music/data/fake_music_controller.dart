@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import '../domain/audio_output.dart';
 import '../domain/music_connection.dart';
@@ -84,7 +85,10 @@ class FakeMusicController implements MusicController {
   Duration _position = Duration.zero;
   bool _isPaused = false;
   bool _connected = true;
+  bool _shuffle = false;
+  MusicRepeatMode _repeatMode = MusicRepeatMode.off;
   Timer? _ticker;
+  final _random = Random();
 
   final _nowPlayingController = StreamController<NowPlaying?>.broadcast();
   final _connectionController = StreamController<MusicConnection>.broadcast();
@@ -130,6 +134,8 @@ class FakeMusicController implements MusicController {
       position: _position,
       isPaused: _isPaused,
       hasControl: true,
+      isShuffling: _shuffle,
+      repeatMode: _repeatMode,
     );
     _nowPlayingController.add(_current);
   }
@@ -144,7 +150,7 @@ class FakeMusicController implements MusicController {
       if (_isPaused) return;
       final next = _position + const Duration(milliseconds: 250);
       if (next >= _track.duration) {
-        _advance();
+        _onNaturalEnd();
       } else {
         _position = next;
         _emit();
@@ -152,8 +158,25 @@ class FakeMusicController implements MusicController {
     });
   }
 
-  void _advance() {
-    _index = (_index + 1) % _playlist.length;
+  /// The current track finished on its own. Repeat-one loops it in place;
+  /// otherwise the queue moves on (respecting shuffle). An explicit
+  /// [next]/[previous] skip is separate — those ignore repeat-one, like a real
+  /// player.
+  void _onNaturalEnd() {
+    if (_repeatMode == MusicRepeatMode.one) {
+      _position = Duration.zero;
+      _emit();
+    } else {
+      _goToNextTrack();
+    }
+  }
+
+  void _goToNextTrack() {
+    _index = (_shuffle && _playlist.length > 1)
+        // A different track at random — never the current one, so it always
+        // audibly progresses.
+        ? (_index + 1 + _random.nextInt(_playlist.length - 1)) % _playlist.length
+        : (_index + 1) % _playlist.length;
     _position = Duration.zero;
     _emit();
   }
@@ -200,7 +223,7 @@ class FakeMusicController implements MusicController {
   @override
   Future<void> next() async {
     if (!_connected) return;
-    _advance();
+    _goToNextTrack();
   }
 
   @override
@@ -230,6 +253,20 @@ class FakeMusicController implements MusicController {
 
   @override
   Future<void> replay() => seek(Duration.zero);
+
+  @override
+  Future<void> setShuffle(bool shuffle) async {
+    if (!_connected) return;
+    _shuffle = shuffle;
+    _emit();
+  }
+
+  @override
+  Future<void> setRepeat(MusicRepeatMode mode) async {
+    if (!_connected) return;
+    _repeatMode = mode;
+    _emit();
+  }
 
   @override
   void dispose() {

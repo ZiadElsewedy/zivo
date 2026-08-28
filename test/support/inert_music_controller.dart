@@ -62,5 +62,11 @@ class InertMusicController implements MusicController {
   Future<void> replay() async {}
 
   @override
+  Future<void> setShuffle(bool shuffle) async {}
+
+  @override
+  Future<void> setRepeat(MusicRepeatMode mode) async {}
+
+  @override
   void dispose() {}
 }

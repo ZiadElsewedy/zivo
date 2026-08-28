@@ -86,6 +86,7 @@ class AppIcons {
   static const music = LucideIcons.music;
   static const shuffle = LucideIcons.shuffle;
   static const repeat = LucideIcons.repeat;
+  static const repeatOne = LucideIcons.repeat1;
   static const headphones = LucideIcons.headphones;
   static const bluetooth = LucideIcons.bluetooth;
   static const speaker = LucideIcons.volume2;

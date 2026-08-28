@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/theme/app_icons.dart';
 import 'package:zivo/core/widgets/train_chrome.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
+import 'package:zivo/features/music/domain/now_playing.dart';
 import 'package:zivo/features/music/presentation/music_player_page.dart';
 
 /// Coverage for the immersive Now Playing screen. `FakeMusicController` starts
@@ -54,6 +55,87 @@ void main() {
         expect(tester.takeException(), isNull);
       } finally {
         music.dispose();
+      }
+    },
+  );
+
+  // The transport's shuffle/repeat are NOT local UI toggles — each tap requests
+  // the change through the controller and the new value flows back on
+  // `nowPlaying` (same contract as play/pause). A tall viewport keeps the whole
+  // single-scroll player on-screen so the controls are tappable without
+  // scrolling first.
+  testWidgets(
+    'shuffle control drives the controller and reflects its state',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      final music = FakeMusicController();
+      try {
+        await tester.pumpWidget(
+          MaterialApp(home: MusicPlayerPage(controller: music)),
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Starts off.
+        expect(music.currentNowPlaying!.isShuffling, isFalse);
+        expect(find.byIcon(AppIcons.shuffle), findsOneWidget);
+
+        await tester.tap(find.byIcon(AppIcons.shuffle));
+        await tester.pump(const Duration(milliseconds: 60));
+
+        // The tap turned shuffle on, observed back through the controller.
+        expect(music.currentNowPlaying!.isShuffling, isTrue);
+
+        // Tapping again turns it back off.
+        await tester.tap(find.byIcon(AppIcons.shuffle));
+        await tester.pump(const Duration(milliseconds: 60));
+        expect(music.currentNowPlaying!.isShuffling, isFalse);
+        expect(tester.takeException(), isNull);
+      } finally {
+        music.dispose();
+        tester.view.reset();
+      }
+    },
+  );
+
+  testWidgets(
+    'repeat control cycles off → all → one → off with the glyph swap',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      final music = FakeMusicController();
+      try {
+        await tester.pumpWidget(
+          MaterialApp(home: MusicPlayerPage(controller: music)),
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Off → the plain repeat glyph, no repeat-one glyph anywhere.
+        expect(music.currentNowPlaying!.repeatMode, MusicRepeatMode.off);
+        expect(find.byIcon(AppIcons.repeat), findsOneWidget);
+        expect(find.byIcon(AppIcons.repeatOne), findsNothing);
+
+        // → all (still the plain glyph, now the active state).
+        await tester.tap(find.byIcon(AppIcons.repeat));
+        await tester.pump(const Duration(milliseconds: 60));
+        expect(music.currentNowPlaying!.repeatMode, MusicRepeatMode.all);
+
+        // → one (the repeat-one glyph swaps in for the plain one).
+        await tester.tap(find.byIcon(AppIcons.repeat));
+        await tester.pump(const Duration(milliseconds: 60));
+        expect(music.currentNowPlaying!.repeatMode, MusicRepeatMode.one);
+        expect(find.byIcon(AppIcons.repeatOne), findsOneWidget);
+        expect(find.byIcon(AppIcons.repeat), findsNothing);
+
+        // → off (back to the plain glyph).
+        await tester.tap(find.byIcon(AppIcons.repeatOne));
+        await tester.pump(const Duration(milliseconds: 60));
+        expect(music.currentNowPlaying!.repeatMode, MusicRepeatMode.off);
+        expect(find.byIcon(AppIcons.repeat), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        music.dispose();
+        tester.view.reset();
       }
     },
   );

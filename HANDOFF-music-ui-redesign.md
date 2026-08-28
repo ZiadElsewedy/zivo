@@ -7,14 +7,21 @@
 > (`AGENTS.md`) and design language (`lib/core/theme/train_tokens.dart`,
 > `assets/design_handoff_workout_tracking 2/IDENTITY.md`).
 
-**Branch:** `version-1` · **Base commit when this work started:** `c191e33` ·
-**Status:** _uncommitted working-tree changes_ (owner Ziad commits himself).
+**Branch:** `version-1` · **HEAD:** `9f15302` (increments 1 & 2 were **committed
+here by the owner**) · original base: `c191e33`. The owner reviews + commits
+himself, so expect committed work to arrive between sessions.
 
-**Increments done so far (all uncommitted, all `make gates`-clean):**
-1. ✅ **Immersive Now-Playing player** — single-scroll, dynamic artwork→neon colours, Spotify branding (§3–§5).
-2. ✅ **Output/Bluetooth device row** (full controller-port seam) **+ mini-bar artwork/colour echo** (§2a, §5).
+**Status:** **increments 3 & 4 are uncommitted** working-tree changes (see §2b/§2c).
+Increments 1 & 2 are already in `9f15302`. All four are `make gates`-clean —
+`flutter analyze` clean; full suite **`+696 -46`** (the 46 pre-existing, see §7).
 
-Next up: wire shuffle/repeat, real native output plumbing, on-device QA, then roll the pass to other screens (§6).
+**Increments done so far:**
+1. ✅ **Immersive Now-Playing player** — single-scroll, dynamic artwork→neon colours, Spotify branding (§3–§5). **Committed** (`9f15302`).
+2. ✅ **Output/Bluetooth device row** (full controller-port seam) **+ mini-bar artwork/colour echo** (§2a, §5). **Committed** (`9f15302`).
+3. ✅ **Real OS audio-route plumbing** — native iOS + Android platform channels feed `SpotifyMusicController.output` the live route (§2b). **Native compiles verified** (debug APK + iOS Runner.app both built); on-device functional test still pending (§7). **UNCOMMITTED.**
+4. ✅ **Shuffle & repeat wired** — real `setShuffle`/`setRepeat` on the `MusicController` port + all 3 impls; shuffle/repeat are now **observed state** on `NowPlaying` (like `isPaused`), not local UI toggles. Spotify reads/writes them via App Remote; repeat cycles off→all→one with a repeat-one glyph (§2c, §5.3). **UNCOMMITTED — this session's delta.**
+
+Next up: **on-device functional check of the audio route** (§6.1) — the one thing still unverified (needs hardware) — then on-device visual QA (§6.3), then roll the pass to other screens (§6.6). Shuffle/repeat wiring (was §6.2) is now done.
 
 ---
 
@@ -38,7 +45,11 @@ Other explicit asks from the brief, and how they're handled here:
 
 ---
 
-## 2. Files changed (all under the working tree, uncommitted)
+## 2. Files changed
+
+> **Commit status:** §2 + §2a (increments 1 & 2) are **committed** in `9f15302`.
+> §2b (increment 3 — the audio-route plumbing) is the **uncommitted** working-tree
+> delta awaiting review. `git status` therefore shows only the §2b files.
 
 | File | Change |
 |---|---|
@@ -63,6 +74,40 @@ Other explicit asks from the brief, and how they're handled here:
 **Deliberately NOT touched:** the `NowPlaying` model, `spotify_strip.dart`,
 `equalizer_glyph.dart`, `music_artwork.dart`, and the collapsed `MusicOrb`
 (`now_playing_orb.dart`) — the orb could get the same echo later if wanted.
+
+### 2b. Increment 3 additions (real OS audio-route plumbing)
+
+Replaces the increment-2 stub (`SpotifyMusicController.output` used to be
+`Stream.empty()`) with a live native route. **No new Dart deps, no Xcode/Gradle
+project edits** — the native code lives inline in the existing entry files.
+
+| File | Change |
+|---|---|
+| `lib/features/music/data/audio_route_channel.dart` | **New.** `AudioRouteChannel` — a `MethodChannel('zivo/audio_route')` (`current`) + `EventChannel('zivo/audio_route/events')` (live changes). Maps the native map `{name, kind, battery?}` → `AudioOutput`. Swallows `MissingPluginException`/stream errors → `null` (so the sim/desktop/tests are safe). |
+| `lib/features/music/data/spotify_music_controller.dart` | Added a constructor that calls `_watchAudioRoute()` — seeds `current()` then subscribes to `changes()`, pushing onto the existing `_outputController`; `output`/`currentOutput` now come from the route; `dispose` cancels the sub + closes the controller. |
+| `ios/Runner/AppDelegate.swift` | Added an inline `AudioRoute: NSObject, FlutterStreamHandler`. Reads `AVAudioSession.sharedInstance().currentRoute.outputs.first`; maps `portType`→kind; observes `routeChangeNotification`. Registered from `didInitializeImplicitFlutterEngine` via the implicit-engine registrar (held on a strong `audioRoute` property). Battery omitted (no public iOS API). |
+| `android/.../MainActivity.kt` | Added `configureFlutterEngine`/`cleanUpFlutterEngine` + an inline `AudioRoute: EventChannel.StreamHandler`. Reads `AudioManager.getDevices(GET_DEVICES_OUTPUTS)`, picks the active output by preference (BT > wired/USB > builtin speaker), maps `AudioDeviceInfo.type`→kind, registers an `AudioDeviceCallback` for live changes. Battery omitted (no stable public API). |
+
+The channel contract (native → Dart) is a map or null:
+`{ "name": String, "kind": "bluetooth"|"headphones"|"speaker"|"phone", "battery": int? }`.
+
+### 2c. Increment 4 additions (shuffle & repeat wired — this session)
+
+Turns the old visual-only shuffle/repeat toggles into real **observed** playback
+state — the same fire-and-observe contract as play/pause: the UI never holds a
+local toggle, it renders `NowPlaying.isShuffling` / `.repeatMode`, and the new
+value flows back on `nowPlaying`. No new deps.
+
+| File | Change |
+|---|---|
+| `lib/features/music/domain/now_playing.dart` | New `enum MusicRepeatMode { off, all, one }` + two `NowPlaying` fields: `isShuffling` (bool) and `repeatMode` (default `off`), threaded through `copyWith`. **Named `MusicRepeatMode`, not `RepeatMode`** — both Flutter Material *and* `spotify_sdk` already export a `RepeatMode`; a distinct name keeps every consumer unambiguous (this bit once, mid-session — leave it renamed). |
+| `lib/features/music/domain/music_controller.dart` | Port gains `Future<void> setShuffle(bool)` + `Future<void> setRepeat(MusicRepeatMode)`. Explicit-target (`setRepeat(mode)`), **not** `cycleRepeat()` — matches `seek`'s style; the UI owns the off→all→one→off cycle order. |
+| `lib/features/music/data/spotify_music_controller.dart` | Reads `state.playbackOptions.isShuffling` / `.repeatMode` off the App Remote player state into `NowPlaying` (so it reflects a change made on any device); `setShuffle`→`SpotifySdk.setShuffle`, `setRepeat`→`SpotifySdk.setRepeatMode`. Import trick: `import '…/spotify_sdk.dart' hide RepeatMode;` + `import '…/enums/repeat_mode_enum.dart' as sdk;` (the package ships *two* same-named `RepeatMode` types); the state is read by `.name` to dodge the other one. `all`↔Spotify `context`, `one`↔`track`. |
+| `lib/features/music/data/fake_music_controller.dart` | Holds `_shuffle`/`_repeatMode`, emits them; `setShuffle`/`setRepeat` update + emit. Playback now honours them: repeat-one restarts the track at natural end (explicit next/prev still skip), shuffle picks a random *other* track. |
+| `test/support/inert_music_controller.dart` | `setShuffle`/`setRepeat` no-ops (keeps the ~30 `wrapWithScope` sites compiling). |
+| `lib/core/theme/app_icons.dart` | Added `repeatOne` (`LucideIcons.repeat1`) for the repeat-one state. |
+| `lib/features/music/presentation/music_player_page.dart` | `_ImmersivePlayer` is now **stateless** (the local `_shuffle`/`_repeat` are gone). `_Controls` renders shuffle/repeat from `playing`, computes the repeat cycle, swaps in the repeat-one glyph, and — new — **disables** shuffle/repeat when `!hasControl` (still showing their state), consistent with prev/next. |
+| `test/music/music_player_page_test.dart` | +2 tests: shuffle drives the controller & reflects state; repeat cycles off→all→one→off with the glyph swap. (Tall viewport so the controls are on-screen to tap; still never `pumpAndSettle`.) |
 
 ---
 
@@ -133,10 +178,12 @@ ticker → dispose it **inside the test body** (`finally`), not via `addTearDown
    **not** inside `SpotifyStrip` — so the in-set `inline`/`rest` strip variants
    (Active-Set/Rest), which a prior pass deliberately stripped of tint, remain
    untouched. Don't push this echo into `SpotifyStrip` itself.
-3. **Shuffle & repeat are visual-only toggles.** The `MusicController` port has no
-   `setShuffle`/`setRepeat`, so they toggle their own highlight but don't change
-   Spotify's queue. Clearly a "90% of the design, honest about the 10%" call —
-   see the `// visual-only` note in `_ImmersivePlayerState`. Wire them in §6.
+3. **Shuffle & repeat are now fully wired (increment 4).** Real `setShuffle` /
+   `setRepeat` on the port, driving Spotify for real; the controls render the
+   **observed** `NowPlaying.isShuffling` / `.repeatMode` (not a local toggle), so
+   they reflect Spotify's truth — including a change made on another device.
+   Repeat is tri-state (off→all→one) with a repeat-one glyph. See §2c. (The old
+   `_ImmersivePlayerState` visual-only toggle is gone — that widget is stateless now.)
 4. **The player now uses `TrainColors`/`TrainType`** (the cool `#080908` handoff
    system), not the old warm `AppColors`. This unifies it with the strips and the
    rest of the workout-tracking surfaces.
@@ -147,21 +194,35 @@ ticker → dispose it **inside the test body** (`finally`), not via `addTearDown
 
 **✅ Done (increment 2):** output/Bluetooth device row (full port seam, `_OutputRow`
 in the player, fixture device in dev) and the mini-bar artwork/colour echo. See §2a.
+**✅ Done (increment 3):** real OS audio-route plumbing (native iOS + Android). See §2b.
+**✅ Done (increment 4):** shuffle/repeat wired — port verbs + observed `NowPlaying` state + tri-state repeat. See §2c.
 
-1. **Populate the REAL output route** (the seam is in place; only the data is
-   stubbed). `SpotifyMusicController.output` currently emits nothing — App Remote
-   doesn't expose the OS audio route. Add a platform channel:
-   - iOS: `AVAudioSession.sharedInstance().currentRoute.outputs` → map
-     `portType` (`.bluetoothA2DP`/`.headphones`/`.builtInSpeaker`…) to
-     `AudioOutputKind`; battery for BT devices isn't generally available.
-   - Android: `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` / `MediaRouter`.
-   - Push `AudioOutput`s onto a broadcast controller in `SpotifyMusicController`.
-     Device-only to verify; the UI + fake already exercise the render path.
-2. **Wire shuffle / repeat** — add `setShuffle(bool)` / `cycleRepeat()` to the
-   port + all 3 impls (`spotify_sdk` support is limited; confirm what 3.0.2
-   exposes — `SpotifySdk.setShuffle`/`setRepeatMode` exist), then replace the
-   local `_shuffle`/`_repeat` state in `_ImmersivePlayerState`. Today they're
-   visual-only toggles (§5.3).
+1. **On-device functional check of the audio route** — the code compiles on both
+   platforms (§7) but has NOT been run on hardware. On a real iPhone/Android with
+   Spotify Premium: connect BT headphones → confirm the player's output row shows
+   the device name + `bluetooth` glyph, unplug/plug wired → confirm it flips live.
+   Watch for these known caveats, and adjust only if they misbehave:
+   - **iOS** reads *this app's* `AVAudioSession.currentRoute`. That reflects the
+     system hardware output in the common case, but the app never activates an
+     audio session (Spotify plays in its own process) — if the route reads
+     stale/empty, set a category once at launch
+     (`try? AVAudioSession.sharedInstance().setCategory(.playback)`).
+   - **Android** has no public "active output" API pre-31, so `pickActive`
+     guesses by preference (BT > wired/USB > builtin speaker). If the guess is
+     wrong on some device, prefer `AudioManager.getDevices` filtered by what's
+     actually routing, or gate on API 31+ `AudioManager.getAudioDevicesForAttributes`.
+   - **Battery %** is intentionally omitted on both (no stable public API). The
+     UI already hides the battery pill when null, so the row reads "AirPods Pro"
+     with no percent — that's expected, not a bug.
+   - Optionally **hide the builtin `phone` kind** (only show external devices) —
+     one-line filter in the player's `StreamBuilder<AudioOutput?>` if desired.
+2. ✅ **Shuffle / repeat — DONE (increment 4).** `setShuffle(bool)` /
+   `setRepeat(MusicRepeatMode)` on the port + all 3 impls; observed state on
+   `NowPlaying`; tri-state repeat with a repeat-one glyph (§2c). The one thing the
+   sim can't confirm: that Spotify actually **applies** them on a real device —
+   verify alongside §6.1/§6.3 (toggle shuffle & cycle repeat on hardware, watch
+   the queue behave and the controls stay in sync if you also change them in the
+   Spotify app).
 3. **On-device visual QA** — run on a real iPhone with Spotify Premium to see the
    dynamic colour + real artwork + real output device, and sanity-check
    spacing/entrance on small (SE) and large (Pro Max) screens. The one thing the
@@ -179,19 +240,25 @@ in the player, fixture device in dev) and the mini-bar artwork/colour echo. See 
 
 ## 7. Verification (current state)
 
-- `flutter analyze` — **clean** (whole project, after both increments).
-- `flutter test test/music/music_player_page_test.dart` — **green** (1 test;
-  now also asserts the output row: `Fixture Buds` / `72%` / bluetooth icon).
-- **Full suite: `+694 -46`** (693 pre-existing passes + this test; the interface
-  change + mini-bar echo added **zero** regressions). The 46 failures are
-  **pre-existing on `version-1` and NOT caused by this work** — proven in
-  increment 1 by stashing the music files back to `HEAD`: the baseline was
-  byte-identical `+693 -46`. None of the failing tests reference
-  music/player/spotify/scrubber/artwork. They span auth/home/workout/ai/diet/
-  expenses/moments and look like fallout from the in-flight Today/live-session
-  redesign — a **separate** cleanup, out of scope here.
+- `flutter analyze` — **clean** (whole project, after all four increments).
+- `flutter test test/music/music_player_page_test.dart` — **green** (3 tests:
+  render/branding/output row `Fixture Buds`/`72%`/bluetooth; shuffle drives the
+  controller & reflects state; repeat cycles off→all→one→off with the glyph swap).
+- **Native compiles verified** (the route plumbing): `flutter build apk --debug`
+  → `✓ Built app-debug.apk` (Kotlin OK) and `flutter build ios --debug
+  --no-codesign` → `✓ Built Runner.app` (Swift OK). **Not** yet run on hardware —
+  the live BT-device behaviour is the outstanding functional check (§6.1).
+- **Full suite: `+696 -46`** (693 pre-existing passes + the 3 music tests; the
+  interface change, mini-bar echo, route plumbing, and shuffle/repeat added
+  **zero** Dart regressions — `SpotifyMusicController`/the channel aren't
+  instantiated in tests). The 46 failures are **pre-existing on `version-1` and
+  NOT caused by this work** — proven in increment 1 by stashing the music files
+  back to `HEAD`: the baseline was byte-identical `+693 -46`. None of the failing
+  tests reference music/player/spotify/scrubber/artwork. They span auth/home/
+  workout/ai/diet/expenses/moments and look like fallout from the in-flight
+  Today/live-session redesign — a **separate** cleanup, out of scope here.
   ```bash
-  flutter test 2>&1 | tail -1   # expect +694 -46 until those are fixed elsewhere
+  flutter test 2>&1 | tail -1   # expect +696 -46 until those are fixed elsewhere
   ```
 - **`docs/STATE.md` NOT updated** (left to whoever commits, per shared-tree
   caution). On commit, add an update-log line and note the music player redesign.

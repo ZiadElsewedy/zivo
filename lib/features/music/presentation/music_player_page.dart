@@ -175,7 +175,7 @@ class _GlowPaint extends StatelessWidget {
 /// the transport, so nothing reads as a detached component. On tall screens the
 /// groups distribute top / centre / bottom; on short ones the whole thing
 /// scrolls as a unit.
-class _ImmersivePlayer extends StatefulWidget {
+class _ImmersivePlayer extends StatelessWidget {
   const _ImmersivePlayer({
     required this.controller,
     required this.playing,
@@ -187,20 +187,8 @@ class _ImmersivePlayer extends StatefulWidget {
   final ArtworkColors colours;
 
   @override
-  State<_ImmersivePlayer> createState() => _ImmersivePlayerState();
-}
-
-class _ImmersivePlayerState extends State<_ImmersivePlayer> {
-  // Visual-only for now: the MusicController seam has no shuffle/repeat verbs
-  // yet, so these toggle their own highlight but do not change Spotify's queue.
-  // See HANDOFF — wiring them needs `setShuffle`/`setRepeat` on the port.
-  bool _shuffle = false;
-  bool _repeat = false;
-
-  @override
   Widget build(BuildContext context) {
-    final playing = widget.playing;
-    final accent = widget.colours.accent;
+    final accent = colours.accent;
     final artworkSide =
         (MediaQuery.of(context).size.width * 0.66).clamp(200.0, 320.0);
 
@@ -245,7 +233,7 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
             child: Column(
               children: [
                 MusicScrubber(
-                  controller: widget.controller,
+                  controller: controller,
                   trackId: playing.trackId,
                   duration: playing.duration,
                   position: playing.position,
@@ -266,27 +254,17 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
                 ],
                 const SizedBox(height: 26),
                 _Controls(
-                  controller: widget.controller,
+                  controller: controller,
                   playing: playing,
                   accent: accent,
-                  shuffle: _shuffle,
-                  repeat: _repeat,
-                  onShuffle: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _shuffle = !_shuffle);
-                  },
-                  onRepeat: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _repeat = !_repeat);
-                  },
                 ),
                 // The output-device row — shown ONLY when the route is known,
                 // so it reclaims its own space rather than sitting empty
                 // (handoff: nothing shifts when a module is absent). Its own
                 // stream so a route change (unplug headphones) updates it live.
                 StreamBuilder<AudioOutput?>(
-                  stream: widget.controller.output,
-                  initialData: widget.controller.currentOutput,
+                  stream: controller.output,
+                  initialData: controller.currentOutput,
                   builder: (context, snap) {
                     final out = snap.data;
                     if (out == null) return const SizedBox.shrink();
@@ -472,37 +450,47 @@ class _TrackMeta extends StatelessWidget {
 }
 
 /// The transport row: shuffle · prev · the one ember action · next · repeat.
+///
+/// Shuffle and repeat render live from the observed [NowPlaying] (never a local
+/// toggle) and request the change through the controller; the new state flows
+/// back on `nowPlaying`, exactly like play/pause. Repeat derives its own
+/// `off → all → one → off` cycle from the current mode. Both are disabled — but
+/// still show their state — when another device owns playback ([hasControl]
+/// false), consistent with prev/next.
 class _Controls extends StatelessWidget {
   const _Controls({
     required this.controller,
     required this.playing,
     required this.accent,
-    required this.shuffle,
-    required this.repeat,
-    required this.onShuffle,
-    required this.onRepeat,
   });
 
   final MusicController controller;
   final NowPlaying playing;
   final Color accent;
-  final bool shuffle;
-  final bool repeat;
-  final VoidCallback onShuffle;
-  final VoidCallback onRepeat;
+
+  static MusicRepeatMode _nextRepeat(MusicRepeatMode mode) => switch (mode) {
+    MusicRepeatMode.off => MusicRepeatMode.all,
+    MusicRepeatMode.all => MusicRepeatMode.one,
+    MusicRepeatMode.one => MusicRepeatMode.off,
+  };
 
   @override
   Widget build(BuildContext context) {
     final enabled = playing.hasControl;
+    final repeat = playing.repeatMode;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _IconControl(
           icon: AppIcons.shuffle,
-          semanticLabel: 'Shuffle',
-          active: shuffle,
+          semanticLabel: playing.isShuffling ? 'Shuffle on' : 'Shuffle off',
+          active: playing.isShuffling,
           activeColor: accent,
-          onTap: onShuffle,
+          enabled: enabled,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            controller.setShuffle(!playing.isShuffling);
+          },
         ),
         _IconControl(
           glyph: const TrainPlayGlyph(
@@ -533,11 +521,19 @@ class _Controls extends StatelessWidget {
           },
         ),
         _IconControl(
-          icon: AppIcons.repeat,
-          semanticLabel: 'Repeat',
-          active: repeat,
+          icon: repeat == MusicRepeatMode.one ? AppIcons.repeatOne : AppIcons.repeat,
+          semanticLabel: switch (repeat) {
+            MusicRepeatMode.off => 'Repeat off',
+            MusicRepeatMode.all => 'Repeat all',
+            MusicRepeatMode.one => 'Repeat one',
+          },
+          active: repeat != MusicRepeatMode.off,
           activeColor: accent,
-          onTap: onRepeat,
+          enabled: enabled,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            controller.setRepeat(_nextRepeat(repeat));
+          },
         ),
       ],
     );

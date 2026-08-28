@@ -1,5 +1,15 @@
 import 'package:flutter/foundation.dart';
 
+/// How the queue repeats. Mirrors the three states every player exposes
+/// (and Spotify's own App Remote repeat enum): [off], [all] (repeat the whole
+/// context / playlist), [one] (repeat the current track). The UI cycles
+/// `off → all → one → off`; see `MusicController.setRepeat`.
+///
+/// Named `MusicRepeatMode`, not `RepeatMode`, because both Flutter's Material
+/// library and `spotify_sdk` already export a `RepeatMode` — a distinct name
+/// keeps every consumer (which imports one or both) unambiguous.
+enum MusicRepeatMode { off, all, one }
+
 /// A snapshot of what's currently loaded in the player — immutable, so
 /// every emission on `MusicController.nowPlaying` is a full,
 /// self-consistent replacement rather than a partial patch callers have to
@@ -16,6 +26,8 @@ class NowPlaying {
     required this.position,
     required this.isPaused,
     required this.hasControl,
+    this.isShuffling = false,
+    this.repeatMode = MusicRepeatMode.off,
   });
 
   final String trackId;
@@ -51,6 +63,16 @@ class NowPlaying {
   /// controls as disabled/read-only rather than hide them.
   final bool hasControl;
 
+  /// Whether shuffle is on. Observed playback state, not a local UI toggle —
+  /// [SpotifyMusicController] reads it from the App Remote player state (so it
+  /// reflects a change made on any device), and the player's shuffle control
+  /// renders from this. Requested via `MusicController.setShuffle`.
+  final bool isShuffling;
+
+  /// The current repeat mode — observed the same way as [isShuffling] and
+  /// requested via `MusicController.setRepeat`.
+  final MusicRepeatMode repeatMode;
+
   NowPlaying copyWith({
     String? trackId,
     String? title,
@@ -61,6 +83,8 @@ class NowPlaying {
     Duration? position,
     bool? isPaused,
     bool? hasControl,
+    bool? isShuffling,
+    MusicRepeatMode? repeatMode,
   }) {
     return NowPlaying(
       trackId: trackId ?? this.trackId,
@@ -72,6 +96,8 @@ class NowPlaying {
       position: position ?? this.position,
       isPaused: isPaused ?? this.isPaused,
       hasControl: hasControl ?? this.hasControl,
+      isShuffling: isShuffling ?? this.isShuffling,
+      repeatMode: repeatMode ?? this.repeatMode,
     );
   }
 }

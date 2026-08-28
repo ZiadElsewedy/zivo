@@ -67,6 +67,21 @@ abstract class MusicController {
   /// dedicated control in the full player, not just an extreme scrub.
   Future<void> replay();
 
+  /// Requests shuffle on/off. Like [play]/[pause], this is fire-and-request:
+  /// the UI does NOT keep its own toggle — it renders [NowPlaying.isShuffling],
+  /// and the new value flows back through [nowPlaying] once the player applies
+  /// it (immediately for [FakeMusicController]; after the App Remote round-trip
+  /// for [SpotifyMusicController], which also reflects changes made on any other
+  /// device). A no-op where the underlying player can't report or set it.
+  Future<void> setShuffle(bool shuffle);
+
+  /// Requests a repeat [mode]. The caller passes the exact target (the player's
+  /// repeat control computes the `off → all → one → off` cycle from the current
+  /// [NowPlaying.repeatMode]), mirroring [seek]'s explicit-target style rather
+  /// than an opaque toggle. Observed back through [nowPlaying], same as
+  /// [setShuffle].
+  Future<void> setRepeat(MusicRepeatMode mode);
+
   /// Releases whatever the implementation is holding open — a polling
   /// timer ([FakeMusicController]), a player-state subscription
   /// ([SpotifyMusicController], once wired). [AppScope]'s `music` lives for
