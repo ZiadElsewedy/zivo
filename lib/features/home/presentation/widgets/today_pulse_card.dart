@@ -13,16 +13,20 @@ import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/session_estimate.dart';
 import '../../../workout/domain/session_status.dart';
+import '../../../workout/domain/training_volume.dart';
 import '../../domain/today_pulse.dart';
 import 'common.dart';
 
 /// The Today dashboard's living sections — the answer layer on top of real
 /// data. Three sections live here:
 ///
-/// * [TodayPulseSection] — "What have I done today?" three thin rings
-///   (train / fuel / move) over the day's signals.
+/// * [TodayPulseSection] — "What have I done today?" three rings — trained,
+///   steps, volume — over the day's signals.
 /// * [MomentumSection] — "How am I doing?" streak, trailing-7-day bars,
 ///   weight trend.
 /// * [InsightsSection] — "What should I know right now?" computed nudges.
@@ -39,23 +43,23 @@ class TodayPulseSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader('Today'),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.hairline),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            children: [
-              Expanded(child: _TrainRing(scope: scope)),
-              const _RingDivider(),
-              Expanded(child: _FuelRing(scope: scope)),
-              const _RingDivider(),
-              Expanded(child: _MoveRing(scope: scope)),
-            ],
+        const Padding(
+          padding: EdgeInsets.only(top: 30, bottom: 12),
+          child: TrainCaption('TODAY'),
+        ),
+        TrainCard(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 6),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _TrainedRing(scope: scope)),
+                const _RingDivider(),
+                Expanded(child: _StepsRing(scope: scope)),
+                const _RingDivider(),
+                Expanded(child: _VolumeRing(scope: scope)),
+              ],
+            ),
           ),
         ),
       ],
@@ -68,19 +72,18 @@ class _RingDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 1,
-        height: 52,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        color: AppColors.hairline,
-      );
+    width: 1,
+    margin: const EdgeInsets.symmetric(vertical: 2),
+    color: TrainColors.hairline,
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Train ring — did a workout complete today?
+// Trained — did a workout complete today, and what was it?
 // ---------------------------------------------------------------------------
 
-class _TrainRing extends StatelessWidget {
-  const _TrainRing({required this.scope});
+class _TrainedRing extends StatelessWidget {
+  const _TrainedRing({required this.scope});
 
   final AppScope scope;
 
@@ -93,70 +96,46 @@ class _TrainRing extends StatelessWidget {
         final sessions = snapshot.data ?? const <LiveSession>[];
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
-        final done = trainedToday(sessions, now);
-        final midSession = !done &&
-            sessions.any(
-              (s) =>
-                  s.status == SessionStatus.active &&
-                  DateTime(s.startedAt.year, s.startedAt.month,
-                          s.startedAt.day) ==
-                      today,
-            );
-        return PulseRing(
-          progress: done ? 1 : (midSession ? 0.5 : 0),
-          hue: AppColors.pulse,
-          icon: AppIcons.workout,
-          centerLabel: midSession ? '…' : null,
-          label: done ? 'Trained' : (midSession ? 'Mid-set' : 'Train'),
-        );
-      },
-    );
-  }
-}
+        final done = trainedTodaySummary(sessions, now);
+        final midSession = done == null
+            ? sessions
+                  .where(
+                    (s) =>
+                        s.status == SessionStatus.active &&
+                        DateTime(
+                              s.startedAt.year,
+                              s.startedAt.month,
+                              s.startedAt.day,
+                            ) ==
+                            today,
+                  )
+                  .firstOrNull
+            : null;
 
-// ---------------------------------------------------------------------------
-// Fuel ring — meals eaten vs planned today
-// ---------------------------------------------------------------------------
-
-class _FuelRing extends StatelessWidget {
-  const _FuelRing({required this.scope});
-
-  final AppScope scope;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<DietPlan?>(
-      stream: scope.diet.watchActivePlan(),
-      initialData: scope.diet.activePlan,
-      builder: (context, planSnapshot) {
-        final plan = planSnapshot.data;
-        final now = DateTime.now();
-        final day = plan == null ? null : dayForDate(plan, now);
-        if (day == null) {
-          return const PulseRing(
-            progress: 0,
-            hue: AppColors.solar,
-            icon: AppIcons.diet,
-            centerLabel: '–',
-            label: 'No plan',
-            muted: true,
-          );
+        final String sub;
+        if (done != null) {
+          sub =
+              '${done.label.toUpperCase()} · '
+              '${done.duration.inMinutes} MIN';
+        } else if (midSession != null) {
+          sub = '${midSession.dayLabel.toUpperCase()} · UNDER WAY';
+        } else {
+          sub = 'NOT YET TODAY';
         }
-        return StreamBuilder<Set<String>>(
-          stream: scope.diet.watchConsumed(now),
-          initialData: const <String>{},
-          builder: (context, consumedSnapshot) {
-            final summary =
-                dietDaySummary(day, consumedSnapshot.data ?? const <String>{});
-            return PulseRing(
-              progress:
-                  summary.total == 0 ? 0 : summary.eaten / summary.total,
-              hue: AppColors.solar,
-              icon: AppIcons.diet,
-              centerLabel: '${summary.eaten}/${summary.total}',
-              label: 'Meals',
-            );
-          },
+
+        return TrainMetricRing(
+          progress: done != null ? 1 : (midSession?.progress ?? 0),
+          color: TrainColors.green,
+          label: 'Trained',
+          sub: sub,
+          subColor: done != null || midSession != null
+              ? TrainColors.green.withValues(alpha: 0.7)
+              : null,
+          glyph: const Icon(
+            AppIcons.workout,
+            size: 24,
+            color: TrainColors.green,
+          ),
         );
       },
     );
@@ -164,26 +143,27 @@ class _FuelRing extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Move ring — device steps toward the daily goal
+// Steps — device steps toward the daily goal
 // ---------------------------------------------------------------------------
 
-class _MoveRing extends StatelessWidget {
-  const _MoveRing({required this.scope});
+class _StepsRing extends StatelessWidget {
+  const _StepsRing({required this.scope});
 
   final AppScope scope;
+
+  static const _goalLabel = 'OF 8K';
 
   @override
   Widget build(BuildContext context) {
     final counter = scope.stepCounter;
     if (counter == null) {
       // No step sensor on this host — an honest dash, never a fake number.
-      return const PulseRing(
+      return const TrainMetricRing(
         progress: 0,
-        hue: AppColors.iris,
-        icon: AppIcons.bolt,
-        centerLabel: '–',
+        color: TrainColors.inkPlain,
         label: 'Steps',
-        muted: true,
+        sub: 'NO SENSOR',
+        value: '–',
       );
     }
     return StreamBuilder<int>(
@@ -191,21 +171,75 @@ class _MoveRing extends StatelessWidget {
       builder: (context, snapshot) {
         final steps = snapshot.data;
         if (steps == null) {
-          return const PulseRing(
+          return const TrainMetricRing(
             progress: 0,
-            hue: AppColors.iris,
-            icon: AppIcons.bolt,
-            centerLabel: '…',
+            color: TrainColors.inkPlain,
             label: 'Steps',
-            muted: true,
+            sub: _goalLabel,
+            value: '…',
           );
         }
-        return PulseRing(
+        final parts = formatStepsParts(steps);
+        return TrainMetricRing(
           progress: (steps / kDefaultStepGoal).clamp(0.0, 1.0),
-          hue: AppColors.iris,
-          icon: AppIcons.bolt,
-          centerLabel: formatSteps(steps),
-          label: 'of ${kDefaultStepGoal ~/ 1000}k steps',
+          color: TrainColors.inkPlain,
+          label: 'Steps',
+          sub: _goalLabel,
+          value: parts.value,
+          unit: parts.unit,
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Volume — tonnage moved this week, and where it's heading
+// ---------------------------------------------------------------------------
+
+class _VolumeRing extends StatelessWidget {
+  const _VolumeRing({required this.scope});
+
+  final AppScope scope;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<LiveSession>>(
+      stream: scope.workoutSessions.watchAll(),
+      initialData: scope.workoutSessions.current,
+      builder: (context, snapshot) {
+        final trend = weeklyVolume(
+          snapshot.data ?? const <LiveSession>[],
+          DateTime.now(),
+        );
+        if (trend.isEmpty) {
+          return const TrainMetricRing(
+            progress: 0,
+            color: TrainColors.ember,
+            label: 'Volume',
+            sub: 'NO SETS YET',
+            value: '–',
+          );
+        }
+        final parts = formatVolume(trend.thisWeekKg);
+        final change = trend.changePercent;
+        // The ring reads as "this week against last" — full when you have
+        // matched last week, over-full clamped when you have beaten it.
+        final progress = trend.lastWeekKg <= 0
+            ? 1.0
+            : (trend.thisWeekKg / trend.lastWeekKg).clamp(0.0, 1.0);
+        return TrainMetricRing(
+          progress: progress,
+          color: TrainColors.ember,
+          label: 'Volume',
+          sub: change == null
+              ? 'FIRST WEEK'
+              : '${change >= 0 ? '+' : ''}${change.round()}% WoW',
+          subColor: change == null
+              ? null
+              : TrainColors.ember.withValues(alpha: 0.75),
+          value: parts.value,
+          unit: parts.unit,
         );
       },
     );
@@ -219,120 +253,17 @@ String formatSteps(int steps) {
   return tenths % 10 == 0 ? '${tenths ~/ 10}k' : '${tenths / 10}k';
 }
 
-// ---------------------------------------------------------------------------
-// The shared ring primitive
-// ---------------------------------------------------------------------------
-
-/// One thin progress arc with a glyph/number core and a caption beneath — the
-/// dashboard's unit of "at a glance".
-class PulseRing extends StatelessWidget {
-  const PulseRing({
-    super.key,
-    required this.progress,
-    required this.hue,
-    required this.icon,
-    required this.centerLabel,
-    required this.label,
-    this.muted = false,
-  });
-
-  final double progress;
-  final Color hue;
-  final IconData icon;
-
-  /// Text in the ring's core (e.g. "2/3" or "8.2k"); null centers [icon].
-  final String? centerLabel;
-  final String label;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    final effectiveHue = muted ? AppColors.ink3 : hue;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 62,
-          height: 62,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _RingPainter(
-                    progress: muted ? 0 : progress,
-                    color: effectiveHue,
-                  ),
-                ),
-              ),
-              if (centerLabel != null)
-                Text(
-                  centerLabel!,
-                  style: AppText.heroNumber.copyWith(
-                    fontSize: centerLabel!.length > 3 ? 12.5 : 15,
-                    letterSpacing: -0.2,
-                    color: muted ? AppColors.ink3 : AppColors.ink,
-                  ),
-                )
-              else
-                Icon(icon, size: 20, color: effectiveHue),
-            ],
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          label,
-          style: AppText.meta.copyWith(
-            fontSize: 10.5,
-            letterSpacing: 0.3,
-            color: muted ? AppColors.ink3 : AppColors.ink2,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
+/// The same number split for the ring's core, where the unit is always
+/// smaller and dimmer than the value it belongs to: 5400 → ("5.4", "K").
+({String value, String unit}) formatStepsParts(int steps) {
+  if (steps < 1000) return (value: '$steps', unit: '');
+  final tenths = (steps / 100).round();
+  return (
+    value: tenths % 10 == 0 ? '${tenths ~/ 10}' : '${tenths / 10}',
+    unit: 'K',
+  );
 }
 
-class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.progress, required this.color});
-
-  final double progress;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 4.5;
-    final inset = stroke / 2 + 1;
-    final arcRect = (Offset.zero & size).deflate(inset);
-    final startAngle = -math.pi / 2;
-
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..color = AppColors.hairline2;
-    canvas.drawArc(arcRect, startAngle, math.pi * 2, false, track);
-
-    if (progress <= 0) return;
-    final fill = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-    canvas.drawArc(
-      arcRect,
-      startAngle,
-      math.pi * 2 * progress.clamp(0.0, 1.0),
-      false,
-      fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.color != color;
-}
 
 // ---------------------------------------------------------------------------
 // Momentum — "How am I doing?"

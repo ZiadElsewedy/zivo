@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/train_tokens.dart';
 
-/// The global Quick Capture entry — one Ember action, reachable from Today.
+/// The global Quick Capture entry, reachable from Today.
+///
+/// Deliberately NOT ember any more: Today's ember belongs to Start Workout,
+/// the one committing action on that screen (see the workout-tracking
+/// handoff). Two ember discs — one of them floating over the other — read as
+/// two equally-primary actions, which is exactly what the rule exists to
+/// prevent. A frosted glass disc keeps capture one tap away without claiming
+/// the screen's accent.
 class CaptureFab extends StatelessWidget {
   const CaptureFab({this.onPressed, super.key});
 
@@ -15,14 +22,15 @@ class CaptureFab extends StatelessWidget {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.ember,
+        color: const Color(0xFF20211F),
         shape: BoxShape.circle,
-        boxShadow: [
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        boxShadow: const [
           BoxShadow(
-            color: AppColors.ember.withValues(alpha: 0.55),
-            blurRadius: 32,
-            spreadRadius: -8,
-            offset: const Offset(0, 16),
+            color: Color(0x66000000),
+            blurRadius: 24,
+            spreadRadius: -6,
+            offset: Offset(0, 12),
           ),
         ],
       ),
@@ -32,7 +40,11 @@ class CaptureFab extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          child: const Icon(AppIcons.add, color: Colors.white, size: 26),
+          child: const Icon(
+            AppIcons.add,
+            color: TrainColors.inkPlain,
+            size: 26,
+          ),
         ),
       ),
     );

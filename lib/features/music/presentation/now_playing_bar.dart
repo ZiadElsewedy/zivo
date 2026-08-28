@@ -1,16 +1,17 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/pressable_scale.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/train_tokens.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
-import 'artwork_palette_service.dart';
-import 'music_artwork.dart';
 import 'music_player_page.dart';
+import 'spotify_strip.dart';
 
 /// How far down (px or velocity) a swipe must travel before the bar hands
 /// playback over to the floating orb instead of springing back.
@@ -143,201 +144,59 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MusicPlayerPage(controller: controller),
-              fullscreenDialog: true,
-            ),
-          ),
-          // The bar's fill adapts to the current cover, kept confined to this
-          // widget — the palette color never leaves the mini bar.
-          child: ArtworkPalette(
-            trackId: playing.trackId,
-            artworkBytes: playing.artworkBytes,
-            builder: (context, background) => Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            padding: const EdgeInsets.fromLTRB(10, 5, 6, 7),
-            decoration: BoxDecoration(
-              // Lift the dark wash toward the raised-surface tone so the bar
-              // still reads as elevated; with no art (fallback) it stays the
-              // original surfaceRaised exactly.
-              color: background == ArtworkPaletteService.defaultBackground
-                  ? AppColors.surfaceRaised
-                  : Color.lerp(background, AppColors.surfaceRaised, 0.35)!,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.hairline2),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    MusicArtwork(
-                      bytes: playing.artworkBytes,
-                      url: playing.artworkUrl,
-                      size: 36,
-                      iconSize: 18,
-                      borderRadius: 8,
+    // Text-first per the workout-tracking handoff: no artwork tile, and so no
+    // artwork-derived background tint either — the strip is instrumentation,
+    // and a cover image (plus the wash pulled off it) competed with the
+    // screen's own numbers. Identity now comes from the live equalizer glyph.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        0,
+        AppSpacing.screen,
+        6,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The shell runs `extendBody: true`, so page content scrolls
+          // BEHIND this bar. The handoff's strip fill is nearly transparent
+          // (by design — nothing sits behind it in the prototype), which here
+          // let headings read straight through it. A frosted plate underneath
+          // keeps the spec's fill on top while giving it something opaque
+          // enough to sit on.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: reducedMotion(context)
+                  ? ImageFilter.blur()
+                  : ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: ColoredBox(
+                color: TrainColors.base.withValues(alpha: 0.82),
+                child: SpotifyStrip.full(
+                  controller: controller,
+                  playing: playing,
+                  onOpen: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MusicPlayerPage(controller: controller),
+                      fullscreenDialog: true,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            playing.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.rowTitle.copyWith(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          Text(
-                            playing.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.meta.copyWith(fontSize: 12, color: AppColors.ink3),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PressableScale(
-                      enabled: playing.hasControl,
-                      child: IconButton(
-                        splashRadius: 20,
-                        onPressed: !playing.hasControl
-                            ? null
-                            : () {
-                                HapticFeedback.lightImpact();
-                                playing.isPaused ? controller.play() : controller.pause();
-                              },
-                        icon: Icon(
-                          playing.isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                          color: playing.hasControl ? AppColors.ink : AppColors.ink3,
-                        ),
-                      ),
-                    ),
-                    PressableScale(
-                      enabled: playing.hasControl,
-                      child: IconButton(
-                        splashRadius: 20,
-                        onPressed: !playing.hasControl
-                            ? null
-                            : () {
-                                HapticFeedback.lightImpact();
-                                controller.next();
-                              },
-                        icon: Icon(
-                          Icons.skip_next_rounded,
-                          color: playing.hasControl ? AppColors.ink : AppColors.ink3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Interpolated so it ticks every frame between the
-                // controller's coarse emissions — same trick as the full
-                // player's scrubber, sized for a hairline.
-                _TickingProgressLine(
-                  key: ValueKey(playing.trackId),
-                  position: playing.position,
-                  duration: playing.duration,
-                  isPaused: playing.isPaused,
-                ),
-                const SizedBox(height: 4),
-                // Quiet grab-handle affordance: this bar can be swiped away.
-                Container(
-                  width: 26,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: AppColors.hairline2,
-                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ],
-            ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 5),
+          // Quiet grab-handle affordance: this bar can be swiped away.
+          Container(
+            width: 26,
+            height: 3,
+            decoration: BoxDecoration(
+              color: AppColors.hairline2,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-/// A 2dp progress line that animates forward in real time between emissions
-/// (jump to the reported fraction, then glide to full over the remaining
-/// track time; emissions re-anchor and correct drift).
-class _TickingProgressLine extends StatefulWidget {
-  const _TickingProgressLine({
-    super.key,
-    required this.position,
-    required this.duration,
-    required this.isPaused,
-  });
-
-  final Duration position;
-  final Duration duration;
-  final bool isPaused;
-
-  @override
-  State<_TickingProgressLine> createState() => _TickingProgressLineState();
-}
-
-class _TickingProgressLineState extends State<_TickingProgressLine>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this)
-    ..value = _fraction;
-
-  double get _fraction {
-    if (widget.duration.inMilliseconds <= 0) return 0;
-    return (widget.position.inMilliseconds / widget.duration.inMilliseconds)
-        .clamp(0.0, 1.0);
-  }
-
-  @override
-  void didUpdateWidget(covariant _TickingProgressLine old) {
-    super.didUpdateWidget(old);
-    _c.stop();
-    _c.value = _fraction;
-    if (!widget.isPaused && !reducedMotion(context)) {
-      final remaining = widget.duration - widget.position;
-      if (remaining > Duration.zero) {
-        _c.animateTo(1, duration: remaining, curve: Curves.linear);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final fraction = _c.value.clamp(0.0, 1.0);
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 2,
-            backgroundColor: AppColors.hairline2,
-            valueColor: const AlwaysStoppedAnimation(AppColors.ember),
-          ),
-        );
-      },
     );
   }
 }
