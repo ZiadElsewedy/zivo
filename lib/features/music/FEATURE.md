@@ -12,6 +12,10 @@
   which `ZivoBottomBarMetrics` imports — see the shell's `bottom_chrome.dart`.
 - `presentation/artwork_palette_service.dart` — extracts the palette from artwork bytes
   (`palette_generator`) that drives the adaptive background.
+- `presentation/spotify_strip.dart` — the three-density now-playing strip used across the
+  workout screens (`full` on Today, `inline` while logging, `rest` between sets). Carries
+  the **album-art tile + Spotify mark**, and takes an `accent` its host supplies so its
+  transport controls follow the current track's colour.
 - `presentation/music_artwork.dart`, `music_scrubber.dart` — pieces.
 
 ## Controller seam (`AppScope.music`, nullable)
@@ -39,4 +43,12 @@
 - **Android real playback is blocked on an owner dashboard task** (package name + SHA-1 +
   User Management registration), not a code bug — see [`docs/STATE.md`](../../../docs/STATE.md).
   iOS works.
-- Use the **official Spotify logo asset** — trademark; don't recreate or recolor it.
+- Use the **official Spotify logo asset** — trademark; don't recreate or recolor it. It
+  appears where a track is genuinely playing *from* Spotify (the strip's artwork tile, the
+  player's source badge) — not on empty/disconnected slots, which would claim a connection
+  that isn't there.
+- **The "no artwork tile" rule is retired** (owner call). The original handoff had the
+  strips text-first with an [EqualizerGlyph] instead of a cover, so nothing competed with
+  each screen's hero number; recognising the track mid-set turned out to matter more. The
+  equalizer survives as an overlay on the tile and as the no-bytes fallback — don't
+  "restore" the text-only strip on the strength of the old comments.

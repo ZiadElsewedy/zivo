@@ -49,3 +49,14 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
 - Import DTOs live under `workout/domain/` (moved off `ai/domain/`) — keep them here.
+- **Warm-up and rest are deliberately the SAME screen** in `live_session_page.dart`
+  (`_buildWarmup` / `_buildResting`): eyebrow → ring → what's-coming card → music strip →
+  ±15s → skip. Only the hue differs (ember vs green). Don't re-specialise one of them.
+- **Both countdown phases pause from three places** — the eyebrow pill, the ring itself,
+  and the header toggle — and while paused the whole phase is `IgnorePointer`'d, so the
+  dimmed area doubles as the resume target (`paused-resume-overlay`). The pill used to
+  *look* like a pause button while being inert decoration inside that dead region; that's
+  the bug this arrangement fixes, so don't collapse it back to a single header control.
+- The rest ring's numeral is centred by a **mirrored invisible spacer** left of it, sized
+  to the hundredths slot on its right — that's what puts the big digits on the ring's true
+  centre. Covered by a geometry test; don't "simplify" the spacer away.

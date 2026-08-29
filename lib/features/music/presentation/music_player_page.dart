@@ -863,8 +863,8 @@ class _ConnectionState extends StatelessWidget {
       // doc comment for why this doesn't name a specific cause.
       MusicConnection.authFailed => (
         Icons.error_outline_rounded,
-        "Couldn't connect to Spotify. Make sure the Spotify app is open "
-            "and you're signed in, then try again.",
+        "Spotify didn't authorize the connection. Make sure you're signed in "
+            "to Spotify, then try again.",
         'Try again',
       ),
       MusicConnection.needsPremium => (

@@ -751,6 +751,59 @@ void main() {
   );
 
   testWidgets(
+    'stepping the weight never resizes the goal card (regression: the card '
+    'grew a row on +2.5 and shunted everything under it)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      await tester.enterText(find.byType(TextField).at(0), '8');
+      await tester.enterText(find.byType(TextField).at(1), '60');
+      await tester.pump();
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+
+      // Set 2. The comparison line is present BEFORE anything is changed —
+      // that's the whole point: it used to appear only once you'd moved the
+      // weight, so the card gained a row (and shoved the steppers, the music
+      // strip and the commit row down with it) the moment you tapped +2.5.
+      expect(find.byKey(const Key('intra-session-delta')), findsOneWidget);
+      // ignore: avoid_print
+      print('BEFORE: ' + tester.widgetList<Text>(find.descendant(
+        of: find.byKey(const Key('goal-card')), matching: find.byType(Text),
+      )).map((t) => t.data).toList().toString());
+      final before = tester.getSize(find.byKey(const Key('goal-card'))).height;
+
+      await tester.enterText(find.byType(TextField).at(1), '65');
+      await tester.pump();
+      await _settle(tester);
+
+      // ignore: avoid_print
+      print('AFTER: ' + tester.widgetList<Text>(find.descendant(
+        of: find.byKey(const Key('goal-card')), matching: find.byType(Text),
+      )).map((t) => t.data).toList().toString());
+      expect(find.text('+5kg from your previous set'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('goal-card'))).height,
+        before,
+      );
+    },
+  );
+
+  testWidgets(
     'Done logs exactly what was typed (8 reps × 80kg), not a generic "Set done"',
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
@@ -1366,6 +1419,118 @@ void main() {
     expect(find.text('go'), findsOneWidget); // popped normally
   });
 
+  testWidgets(
+    'the rest phase pauses from its own pill, and the dimmed screen resumes '
+    '(regression: the pill wore a pause glyph and did nothing)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await _start(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('REST'), findsOneWidget);
+      expect(restWholeSeconds(tester), closeTo(90, 1));
+
+      // The eyebrow pill — the most button-shaped thing on the rest screen,
+      // pause glyph and all — is the pause control now. It used to be inert
+      // decoration inside the IgnorePointer'd region, so tapping it did
+      // nothing and the only way to pause was a header toggle that doesn't
+      // read as a button.
+      await _tap(tester, find.text('REST'));
+      expect(find.byKey(const Key('paused-badge')), findsOneWidget);
+      expect(find.text('PAUSED'), findsOneWidget); // the pill itself flipped
+
+      fakeNow = fakeNow.add(const Duration(seconds: 20));
+      await tester.pump(const Duration(seconds: 20));
+      expect(restWholeSeconds(tester), closeTo(90, 1)); // genuinely frozen
+
+      // ...and because the whole phase goes inert while paused — the pill
+      // included — the dimmed area itself is the way back.
+      await tester.tap(find.byKey(const Key('paused-resume-overlay')));
+      await _settle(tester);
+      expect(find.byKey(const Key('paused-badge')), findsNothing);
+      expect(find.text('REST'), findsOneWidget);
+
+      fakeNow = fakeNow.add(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 5));
+      expect(restWholeSeconds(tester), closeTo(85, 1)); // resumed, not reset
+    },
+  );
+
+  testWidgets('the rest ring is also a pause target', (tester) async {
+    final workouts = _RecordingWorkoutRepository();
+    final plans = _RecordingWorkoutPlanRepository();
+    final sessions = InMemoryWorkoutSessionRepository();
+    final plan = _plan();
+
+    await tester.pumpWidget(
+      _wrap(
+        workouts: workouts,
+        workoutPlans: plans,
+        workoutSessions: sessions,
+        day: plan.days.first,
+        plan: plan,
+      ),
+    );
+    await _start(tester);
+    await _tap(tester, find.byKey(const Key('log-set')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await _tap(tester, find.byKey(const Key('rest-ring-pause')));
+    expect(find.byKey(const Key('paused-badge')), findsOneWidget);
+  });
+
+  testWidgets(
+    'the countdown numeral sits dead-centre in its ring on both axes',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.ensureVisible(find.byKey(const Key('rest-ring-pause')));
+      await tester.pump();
+
+      final ring = tester.getRect(find.byKey(const Key('rest-ring-pause')));
+      final numeral = tester.getRect(find.byKey(const Key('rest-time-whole')));
+
+      // Horizontally: the whole-second digits used to sit RIGHT-aligned in a
+      // slot reserved for the widest possible "9:59", so any rest under a
+      // minute drew them a full character-width right of centre.
+      expect(numeral.center.dx, closeTo(ring.center.dx, 1.5));
+      // Vertically: the numeral used to share a Column with the "OF … PLANNED"
+      // caption, which centred the PAIR — pushing the digits above the middle
+      // by half the caption plus its gap.
+      expect(numeral.center.dy, closeTo(ring.center.dy, 1.5));
+    },
+  );
+
   testWidgets('a pause survives leave and resume (persisted model state)', (
     tester,
   ) async {
@@ -1923,7 +2088,9 @@ void main() {
       await _settle(tester);
 
       expect(find.text('PRE-WORKOUT'), findsOneWidget); // _Eyebrow uppercases
-      expect(find.text('LOOSEN UP BEFORE YOUR FIRST SET'), findsOneWidget);
+      // The phase carries rest's layout now — same eyebrow/ring/what's-next
+      // card/music/adjust/skip stack, ember instead of green.
+      expect(find.text('FIRST UP'), findsOneWidget);
       expect(find.text('Skip warm-up'), findsOneWidget);
       expect(restWholeSeconds(tester), closeTo(300, 1)); // 5:00 default
 
@@ -1960,11 +2127,9 @@ void main() {
       await tester.pump(const Duration(seconds: 45));
       expect(restWholeSeconds(tester), closeTo(255, 1));
 
-      await tester.tap(find.byKey(const Key('warmup-plus-15')));
-      await tester.pump();
+      await _tap(tester, find.byKey(const Key('warmup-plus-15')));
       expect(restWholeSeconds(tester), closeTo(270, 1));
-      await tester.tap(find.byKey(const Key('warmup-minus-15')));
-      await tester.pump();
+      await _tap(tester, find.byKey(const Key('warmup-minus-15')));
       expect(restWholeSeconds(tester), closeTo(255, 1));
     },
   );

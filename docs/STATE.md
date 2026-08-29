@@ -192,6 +192,28 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-29 — **Live-session + music-strip pass (owner list).** Fixed the real bug in it:
+  the rest phase's eyebrow pill wore a **pause glyph and did nothing** — it sat inside the
+  phase's `IgnorePointer`'d region, so the only working pause was the header toggle, which
+  doesn't read as a button. Both countdown phases now pause from the pill, the ring, or the
+  header, and while paused the dimmed phase itself resumes (`paused-resume-overlay`).
+  **Warm-up was rebuilt on the rest layout** (eyebrow → ring → what's-coming card → music →
+  ±15s → skip; ember instead of green) — it was the only screen still speaking a different
+  dialect. The **rest numeral is genuinely centred** now on both axes: it was right-aligned
+  in a slot reserved for "9:59" (so every sub-minute rest drew a character-width right of
+  centre) and shared a Column with the caption (which pushed it above centre); a mirrored
+  invisible spacer and a fractionally-offset caption fix each, with a geometry test.
+  **`SpotifyStrip` gained the album-art tile + Spotify mark** — reversing the handoff's
+  no-artwork rule at the owner's request — plus a track-change transition (artwork/text
+  spring-swap + a bloom of the incoming track's colour) and an `accent` its host feeds it,
+  so the transport controls follow the song. `SessionAmbience` now publishes a second,
+  **foreground-normalised** accent (`vividOf`) for marks drawn ON the ground, and the rest/
+  warm-up ring takes the song's colour outright — blending it with the phase hue walked
+  through grey and rendered tan. Goal card reads as **one expression, `9 REPS × 30 KG`,
+  with the volume under it** instead of two numbers at opposite ends. Back chip moved
+  top-**left**; a hard 18px gap keeps the up-next card off the music strip when the
+  balancing Spacer collapses. Verified on an iPhone 17 simulator against a harness that
+  serves real artwork bytes. 751 tests + 3 new ones green, analyze clean.
 - 2026-08-29 — **Owner UI feedback round.** Fixed a **regression I shipped in the polish
   pass**: Momentum's low-data row overflowed by 20px on a real phone (the left caption I
   added pushed the pair past the edge — both captions are `Flexible` now, copy shortened to

@@ -5,13 +5,17 @@ import 'package:flutter/widgets.dart';
 import '../../../core/motion/springs.dart';
 import '../../../core/theme/train_tokens.dart';
 
-/// The animated equalizer that stands in for album artwork on the
-/// workout-tracking screens.
+/// The animated equalizer that carries "something is playing" (and, frozen,
+/// "it's paused") wherever the music appears.
 ///
-/// The design handoff is explicit about this: **Spotify is text-first, there
-/// is no artwork tile** — a cover image competes with the metrics for
-/// attention, so the music reads as instrumentation instead. This glyph is
-/// what carries "something is playing" (and, frozen, "it's paused").
+/// It began as a *replacement* for album artwork: the design handoff was
+/// explicit that Spotify should be text-first with no cover tile, so nothing
+/// competed with each screen's hero number. The owner has since asked for the
+/// artwork back on the session strips ([SpotifyStrip]), where recognising the
+/// track at a glance matters more than that restraint did — so this glyph is
+/// no longer the stand-in for a cover. It rides ON one now (a small overlay
+/// at the tile's foot), and still stands alone wherever there are no bytes to
+/// show: a track whose artwork hasn't arrived yet, or the lozenge.
 ///
 /// Each bar breathes on its own period (0.9s / 0.7s / 1.1s / 0.8s, staggered
 /// 0.15s apart, exactly as the prototype's CSS) so the group never pulses in
