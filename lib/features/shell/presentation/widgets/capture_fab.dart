@@ -22,9 +22,26 @@ class CaptureFab extends StatelessWidget {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFF20211F),
+        // Presence without a hue. The audit's note was fair — a muted disc on
+        // a black ground barely reads — but the fix can't be an ember fill:
+        // Today's ember belongs to Start Workout (see the class doc), and
+        // "one hue = one meaning" makes ember the single committing action.
+        // So it borrows the chrome's own material instead — the same raised
+        // fill, top-lit gradient and hairline the nav island a few pixels
+        // below it wears — which is what lifts it off the ground here.
+        //
+        // The ramp is baked into opaque stops rather than layering
+        // `cardGradient` over a `color`: in a BoxDecoration a gradient
+        // installs a *shader*, which overrides `color` outright — the two
+        // together would have painted only the 5%-white overlay and left the
+        // disc more transparent than before, not less.
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF292A29), Color(0xFF212221)],
+        ),
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0x24FFFFFF)),
+        border: Border.all(color: TrainColors.hairlineStrong),
         boxShadow: const [
           BoxShadow(
             color: Color(0x66000000),

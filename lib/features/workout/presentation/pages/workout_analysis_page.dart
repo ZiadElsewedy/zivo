@@ -590,7 +590,7 @@ class _ConsistencyRow extends StatelessWidget {
           Expanded(
             child: _ConsistencyStat(
               icon: AppIcons.streak,
-              accent: TrainColors.ember,
+              accent: TrainColors.green,
               value: '${stats.currentStreakDays}',
               label: 'Day streak',
             ),
@@ -599,7 +599,7 @@ class _ConsistencyRow extends StatelessWidget {
           Expanded(
             child: _ConsistencyStat(
               icon: AppIcons.timer,
-              accent: TrainColors.violetGlyph,
+              accent: TrainColors.green,
               value: stats.averageSessionDuration == null
                   ? '—'
                   : _formatDurationShort(stats.averageSessionDuration!),

@@ -129,7 +129,7 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            formatTodayDate(DateTime.now()).toUpperCase(),
+            formatTodayShort(DateTime.now()),
             style: TrainType.caption(
               size: 9.5,
               tracking: 0.2,
@@ -194,7 +194,7 @@ class _WorkoutTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.workout,
-      color: TrainColors.green,
+      color: TrainColors.neutralMark,
       label: 'Workout',
       stat: stat,
       onTap: () => Navigator.of(
@@ -251,7 +251,7 @@ class _DietTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.diet,
-      color: TrainColors.violetGlyph,
+      color: TrainColors.neutralMark,
       label: 'Diet',
       stat: stat,
       onTap: () => Navigator.of(
@@ -307,7 +307,7 @@ class _ExpensesTile extends StatelessWidget {
   Widget _shell(BuildContext context, {required String stat}) {
     return _ModuleTileShell(
       icon: AppIcons.expenses,
-      color: TrainColors.amber,
+      color: TrainColors.neutralMark,
       label: 'Expenses',
       stat: stat,
       onTap: () => Navigator.of(
@@ -337,7 +337,7 @@ class _MomentsTile extends StatelessWidget {
               : '$count moment${count == 1 ? '' : 's'}';
           return _ModuleTileShell(
             icon: AppIcons.moments,
-            color: TrainColors.ember,
+            color: TrainColors.neutralMark,
             label: 'Moments',
             stat: stat,
             onTap: () => Navigator.of(context).push(
@@ -573,7 +573,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: completedAt,
         icon: AppIcons.workout,
-        color: TrainColors.green,
+        color: TrainColors.neutralMark,
         text: 'Completed ${s.dayLabel}',
         onTap: () => Navigator.of(
           context,
@@ -587,7 +587,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: e.spentAt,
         icon: AppIcons.expenses,
-        color: TrainColors.amber,
+        color: TrainColors.neutralMark,
         text:
             '${formatAmount(e.amountMinor)} ${e.currency} on '
             '${_expenseCategoryLabel(e.categoryId)}',
@@ -604,7 +604,7 @@ List<_RecentItem> _mergeRecent(
       _RecentItem(
         at: m.takenAt,
         icon: AppIcons.moments,
-        color: TrainColors.ember,
+        color: TrainColors.neutralMark,
         text: caption.isEmpty
             ? 'Added a moment'
             : (caption.length > 40 ? '${caption.substring(0, 40)}…' : caption),

@@ -12,7 +12,6 @@ import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
 import '../../domain/expense_repository.dart';
 import '../../domain/wallet.dart';
-import '../widgets/category_hue_colors.dart';
 import '../widgets/wallet_balance_sheet.dart';
 import 'expense_capture_page.dart';
 
@@ -622,7 +621,12 @@ class _CategoryBreakdown extends StatelessWidget {
                     label: rows[i].category.label,
                     value: formatAmount(rows[i].minor),
                     progress: rows[i].minor / maxMinor,
-                    color: trainHueColor(rows[i].category.hue),
+                    // Amber, not the category's own hue: this is the money
+                    // screen, amber is the money hue, and "one hue = one
+                    // meaning" means the bars can't spend ember/green/violet
+                    // on telling categories apart. The label already does
+                    // that, and the row's icon does it on the list below.
+                    color: TrainColors.amber,
                     labelStyle: TrainType.ui(
                       size: 12,
                       weight: FontWeight.w600,
@@ -718,7 +722,7 @@ class _ExpenseRow extends StatelessWidget {
                       width: 4,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: trainHueColor(category.hue),
+                        color: TrainColors.amber,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),

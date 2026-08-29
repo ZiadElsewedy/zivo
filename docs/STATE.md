@@ -32,12 +32,20 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
-- **Hue discipline: hold the rule strictly** (owner decision, 2026-08-28, from the design
-  audit's C2). On multi-tile grids, tiles lead with neutral or the screen's own one hue and
-  differentiate **by icon**, not by accent colour — no sanctioned "category palette". Ember
-  stops appearing as decoration; it stays the single committing action. **Not implemented
-  yet:** the Hub, Workout-hub stat tiles, Progress, Expenses category bars and Profile all
-  still use accent hues decoratively. Do this before calling the redesign finished.
+- **One dark system for the chrome** (done 2026-08-28, audit C1). Anything that floats over
+  a screen — nav island, composer, sheets, dialogs — dresses from `TrainColors`, never
+  `AppColors`. **Still on v2 and not yet redressed:** the whole auth/sign-in flow, the diet
+  plan editor + PDF import, moment/expense capture, `storage_sync_page`, and the shared
+  `hue.dart`/`category_hue_colors.dart` data-hue mappers. Those are *consistently* v2
+  rather than mixed, so they read as a separate flow to redress, not a collision.
+- **Hue discipline: hold the rule strictly** (owner decision, 2026-08-28, audit C2 —
+  **implemented**). A hue appears only where it means its thing: green = training/state,
+  ember = the single committing action, amber = money, violet = system/meta. Grids
+  differentiate **by icon**, not colour. In practice: the Hub's module grid and Recent rows
+  lead with `TrainColors.neutralMark` (no hue owns "Diet" or "Moments"); every Workout
+  stat tile and drill-down accent is green (they all measure training — Duration was violet
+  and Usual-start was amber); account rows on You/Settings are violet, with ember left for
+  Delete account alone; and Expenses is all-amber, bars and spines included.
 - **Music/Spotify is IN** — it was briefly deleted in that same pass but the owner
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
@@ -177,6 +185,52 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — **Design audit C4 + C3 — the last two findings.** C4: music's own accent no
+  longer contradicts itself — the player's play/pause disc and the scrubber's fallback
+  accent are green like the rest of the feature (equalizer, strips, Spotify wordmark, and
+  the now-playing lozenge's own transport), with a dark glyph on the filled green the way
+  the other green primaries do it. The orb's ember progress ring, C4's other half, went
+  with the orb in H1. C3: the banned `AppShadows.card` is gone from every surface the audit
+  named — Today's cards and Ask's proposal card went in C1, and expense capture (page +
+  keypad) is redressed here, which also clears the mixed palette H3 left on that screen.
+  **Deliberately not touched:** `storage_sync_page` and `meal_detail_page` still carry it,
+  but they are pure-v2 pages where shadows *are* the elevation model — stripping the shadow
+  without redressing the palette would make them less coherent, not more. They belong to
+  the un-redressed-flows list above, not to C3.
+- 2026-08-28 — **Design audit polish pass (P1–P7), all seven.** P1 capture FAB now wears the
+  chrome's raised material + top-lit ramp (deliberately *not* ember — Today's ember is
+  Start Workout's, and C2 makes ember the single committing action). P2 one date-caption
+  formatter: `formatTodayDate` retired, Hub joined Today on `formatTodayShort` (note:
+  Moments never had a date caption, so the audit's "Hub and Moments" was half right).
+  P3 the skip control is now the secondary in *all three* live-session phases, with the
+  phase hue owning the ring only — it was an ember primary on warm-up and a green primary
+  on rest. P4 no-artwork draws a bare stroked glyph over the player's colour wash instead
+  of a full opaque plate. P5 designed low-data states: Momentum's left slot always renders
+  ("STREAK STARTS AT 2 DAYS" dimmed), the diet ring's track reads at 0%, and a sparse
+  Moments grid fills its first row with dashed add-tiles. P6 Volume ring green (progress,
+  not a committing action). P7 the day's **planned** kcal is always shown and labelled —
+  the mismatch the audit saw was the plan's own *name* ("Balanced — 2200 kcal") versus a
+  day summing to 1270, and the old code hid the real figure whenever the name had one.
+- 2026-08-28 — **Design audit C2 — held the hue rule strictly.** 30-odd decorative accents
+  moved onto the hue that actually owns their meaning (see the standing decision above).
+  Added `TrainColors.neutralMark` for tiles that differentiate by icon.
+  **Consequence to decide:** with Expenses now all-amber, a category's own `CategoryHue`
+  no longer renders anywhere except the colour picker's own preview in
+  `add_category_sheet` — `trainHueColor()` is now dead. Either drop the colour picker (and
+  `CategoryHue`) since H3's stroked icons already tell categories apart, or give colour a
+  surface that doesn't sit on the money screen. Owner's call; nothing was deleted.
+- 2026-08-28 — **Design audit C1 — one dark system for the chrome.** The nav island, the
+  Ask composer/header/quick-log sheet, the whole Ask page, Today's empty + insight cards,
+  and the mixed-palette handoff screens (live session, workout hub, You, Diet, music
+  scrubber, plan page, Settings) are off the warm v2 palette and on `TrainColors`. The two
+  violets are one: `AppColors.iris #6E5BFF` is gone from every chrome surface, leaving the
+  `violet`/`violetGlyph` pair. `TrainColors` gained the tokens the handoff palette lacked
+  for floating chrome — `raised`, `raisedStrong`, `hairlineStrong`, `tabInactive`, and
+  `ember/violet/green/amberWash`. `flare` (the v2 red) maps to **ember** throughout: the
+  handoff has four hues and deliberately no fifth red, and ember already owns "live/now +
+  the committing action + worth noticing". Today's empty cards also lost their banned
+  drop-shadow and their glowing gradient icon-chips (now `TrainIconTile`), which finishes
+  C3 for Today and Ask.
 - 2026-08-28 — **Fixed the 32 long-standing red tests; suite is green (749) and
   `flutter analyze` is clean.** They were stale finders, not regressions: every control
   STATE.md worried had been "renamed *or dropped*" still exists, verified against the

@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 enum KeypadKey { digit, dot, backspace }
 
 /// The amount keypad. Digits raise their own callback; "." and backspace use
 /// [onKey]. Keys are big and lifted for confident, glanceable tapping.
 class AmountKeypad extends StatelessWidget {
-  const AmountKeypad({
-    required this.onDigit,
-    required this.onKey,
-    super.key,
-  });
+  const AmountKeypad({required this.onDigit, required this.onKey, super.key});
 
   final ValueChanged<String> onDigit;
   final ValueChanged<KeypadKey> onKey;
@@ -32,14 +27,22 @@ class AmountKeypad extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _FnKey(child: const Text('.'), onTap: () => onKey(KeypadKey.dot))),
+              Expanded(
+                child: _FnKey(
+                  child: const Text('.'),
+                  onTap: () => onKey(KeypadKey.dot),
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(child: _DigitKey('0', onTap: () => onDigit('0'))),
               const SizedBox(width: 8),
               Expanded(
                 child: _FnKey(
-                  child: const Icon(Icons.backspace_outlined,
-                      size: 22, color: AppColors.ink2),
+                  child: const Icon(
+                    Icons.backspace_outlined,
+                    size: 22,
+                    color: TrainColors.ink2,
+                  ),
                   onTap: () => onKey(KeypadKey.backspace),
                 ),
               ),
@@ -55,7 +58,9 @@ class AmountKeypad extends StatelessWidget {
       children: [
         for (var i = 0; i < digits.length; i++) ...[
           if (i > 0) const SizedBox(width: 8),
-          Expanded(child: _DigitKey(digits[i], onTap: () => onDigit(digits[i]))),
+          Expanded(
+            child: _DigitKey(digits[i], onTap: () => onDigit(digits[i])),
+          ),
         ],
       ],
     );
@@ -71,7 +76,7 @@ class _DigitKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.card,
+      color: TrainColors.raised,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -81,8 +86,7 @@ class _DigitKey extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.hairline),
-            boxShadow: AppShadows.card,
+            border: Border.all(color: TrainColors.hairline),
           ),
           child: Text(
             label,
@@ -115,7 +119,7 @@ class _FnKey extends StatelessWidget {
           style: AppText.cardTitle.copyWith(
             fontSize: 26,
             fontWeight: FontWeight.w500,
-            color: AppColors.ink2,
+            color: TrainColors.ink2,
           ),
           child: child,
         ),

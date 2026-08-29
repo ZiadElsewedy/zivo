@@ -213,7 +213,7 @@ class _VolumeRing extends StatelessWidget {
         if (trend.isEmpty) {
           return const TrainMetricRing(
             progress: 0,
-            color: TrainColors.ember,
+            color: TrainColors.green,
             label: 'Volume',
             sub: 'NO SETS YET',
             value: '–',
@@ -228,7 +228,7 @@ class _VolumeRing extends StatelessWidget {
             : (trend.thisWeekKg / trend.lastWeekKg).clamp(0.0, 1.0);
         return TrainMetricRing(
           progress: progress,
-          color: TrainColors.ember,
+          color: TrainColors.green,
           label: 'Volume',
           sub: change == null
               ? 'FIRST WEEK'
@@ -332,11 +332,21 @@ class _StreakRow extends StatelessWidget {
       sessions,
       now,
     ).fold<int>(0, (s, d) => s + d.workouts);
+    final hasStreak = streak >= 2;
     return Row(
       children: [
-        if (streak >= 2) ...[
-          const Icon(AppIcons.streak, size: 16, color: TrainColors.ember),
-          const SizedBox(width: 7),
+        // The left slot always renders. It used to appear only once a streak
+        // existed, so a real week with one session showed a blank half-row
+        // and read as something failing to load rather than as a life with
+        // one session in it. Dimmed and stating the threshold is honest: it
+        // says what isn't there yet, and what would make it appear.
+        Icon(
+          AppIcons.streak,
+          size: 16,
+          color: hasStreak ? TrainColors.ember : TrainColors.ink4,
+        ),
+        const SizedBox(width: 7),
+        if (hasStreak)
           Text(
             '$streak-day streak',
             style: TrainType.ui(
@@ -345,8 +355,16 @@ class _StreakRow extends StatelessWidget {
               color: TrainColors.ink,
               height: 1,
             ),
+          )
+        else
+          Text(
+            'STREAK STARTS AT 2 DAYS',
+            style: TrainType.caption(
+              size: 9,
+              tracking: 0.1,
+              color: TrainColors.ink4,
+            ),
           ),
-        ],
         const Spacer(),
         Text(
           weekTotal == 0

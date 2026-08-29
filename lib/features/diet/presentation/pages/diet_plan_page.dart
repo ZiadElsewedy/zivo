@@ -193,16 +193,23 @@ class _PlanBody extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 14, 22, 120),
           children: [
-            // The plan's own identity, and what it's aiming at — one mono
-            // caption, not a card.
+            // The plan's own identity, and what TODAY actually plans — one
+            // mono caption, not a card.
+            //
+            // This used to hide the planned figure whenever the plan's *name*
+            // already carried one ("Balanced — 2200 kcal"), to avoid two
+            // calorie numbers on one line. But a name's number is free text:
+            // it's the whole plan's headline, it can be stale, and it often
+            // disagrees with what this particular day sums to — which left the
+            // ring counting down "1270 LEFT" against a header that said 2200,
+            // with nothing on screen explaining which was which. Two numbers
+            // are fine when they're labelled differently; two unlabelled ones
+            // are not. So the day's real planned total is always shown, and
+            // always says that's what it is.
             Text(
               [
                 plan.name.toUpperCase(),
-                // Plan names routinely carry their own figure ("Balanced —
-                // 2200 kcal"); appending the target then puts two different
-                // calorie numbers on one line, which is worse than none.
-                if (target != null && !_mentionsCalories(plan.name))
-                  'TARGET $target KCAL',
+                if (target != null) 'PLANNED $target KCAL',
               ].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -568,11 +575,15 @@ class _CalorieRingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 - 6;
+    // The track carries the whole ring at 0% — nothing else is drawn — so it
+    // has to read as "a ring with nothing in it yet" rather than as a ring
+    // that failed to render. A hairline is the right weight for a card edge
+    // and too quiet for that job.
     canvas.drawCircle(
       center,
       radius,
       Paint()
-        ..color = TrainColors.hairline
+        ..color = TrainColors.hairlineStrong
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5,
     );
@@ -1055,6 +1066,3 @@ class _DaySummaryCard extends StatelessWidget {
 
 /// Whether a plan's own name already states a calorie figure — "Balanced —
 /// 2200 kcal", "1800kcal cut". Used to keep the header caption from stating
-/// two different calorie numbers side by side.
-bool _mentionsCalories(String name) =>
-    RegExp(r'\d\s*k?cal', caseSensitive: false).hasMatch(name);

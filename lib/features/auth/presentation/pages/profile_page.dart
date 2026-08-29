@@ -282,7 +282,7 @@ class ProfilePage extends StatelessWidget {
                         icon: AppIcons.idCard,
                         title: 'Name',
                         value: profile?.name ?? '—',
-                        accent: TrainColors.ember,
+                        accent: TrainColors.violetGlyph,
                         onTap: profile == null
                             ? null
                             : () => _editName(context, profile),
@@ -337,7 +337,7 @@ class ProfilePage extends StatelessWidget {
                           title: 'Email',
                           value: '',
                           trailing: _ConnectedBadge(),
-                          accent: TrainColors.amber,
+                          accent: TrainColors.violetGlyph,
                           last: true,
                         ),
                     ],

@@ -93,6 +93,16 @@ abstract final class TrainColors {
   static const greenWash = Color(0x241FE08A);
   static const amberWash = Color(0x24E6BE3C);
 
+  /// The neutral mark for a grid tile or list row that differentiates by
+  /// **icon**, not colour.
+  ///
+  /// "One hue = one meaning" is a core identity pillar, and the four hues are
+  /// semantic — green is state, ember is the one committing action, amber is
+  /// money, violet is system/meta. None of them means "Diet" or "Moments", so
+  /// a module grid that colours its tiles is spending meaning on decoration.
+  /// Tiles lead with this instead and let the glyph say which one they are.
+  static const neutralMark = Color(0xFFF4F4F0);
+
   /// Inactive tab labels and icons on the nav island: present, not shouting.
   /// Brighter than [ink2] because these are the primary way you navigate.
   static const tabInactive = Color(0xB2F4F4F0);

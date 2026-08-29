@@ -218,7 +218,7 @@ class _SummaryStrip extends StatelessWidget {
           Expanded(
             child: _SummaryStat(
               icon: AppIcons.timer,
-              accent: TrainColors.violetGlyph,
+              accent: TrainColors.green,
               value: totalHours < 1
                   ? '${totalMinutesLabel(totalHours)}m'
                   : '${totalHours.toStringAsFixed(1)}h',
@@ -229,7 +229,7 @@ class _SummaryStrip extends StatelessWidget {
           Expanded(
             child: _SummaryStat(
               icon: AppIcons.streak,
-              accent: TrainColors.ember,
+              accent: TrainColors.green,
               value: '$thisWeek',
               label: 'This week',
             ),

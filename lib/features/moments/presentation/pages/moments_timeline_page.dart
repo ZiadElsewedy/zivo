@@ -40,6 +40,10 @@ extension on MomentFilter {
 /// an empty rest — and explicitly leaves the photo grid for a later pass
 /// ("Moments with a real photo grid"), so the grid here keeps its existing
 /// shape and takes the handoff's material rather than being redrawn to a
+/// The gallery's column count — shared by the grid delegate and the
+/// sparse-row filler so they can't disagree.
+const int _kGridColumns = 3;
+
 /// layout the handoff never specified.
 class MomentsTimelinePage extends StatefulWidget {
   const MomentsTimelinePage({super.key});
@@ -87,6 +91,11 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
         return _media[moment.id]?.source == CaptureSource.library;
     }
   }
+
+  /// How many dashed "add" tiles to append so a sparse grid still fills its
+  /// first row. Zero once there is a full row of real moments.
+  static int _rowFillers(int count) =>
+      count == 0 || count >= _kGridColumns ? 0 : _kGridColumns - count;
 
   Future<void> _newMoment() async {
     await Navigator.of(
@@ -195,12 +204,25 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                               ),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
+                                    crossAxisCount: _kGridColumns,
                                     mainAxisSpacing: 6,
                                     crossAxisSpacing: 6,
                                   ),
-                              itemCount: filtered.length,
+                              // A 3-up grid with one moment in it left a
+                              // single tile marooned in a screenful of black,
+                              // which reads as a gallery that failed to load
+                              // rather than as a life with one moment saved.
+                              // Below a full row, the remaining slots are
+                              // dashed "add" tiles: the row reads as a row,
+                              // and the gap becomes an invitation. They stop
+                              // appearing the moment there's real content.
+                              itemCount:
+                                  filtered.length +
+                                  _rowFillers(filtered.length),
                               itemBuilder: (context, i) {
+                                if (i >= filtered.length) {
+                                  return _AddMomentTile(onTap: _newMoment);
+                                }
                                 final moment = filtered[i];
                                 return _GalleryTile(
                                   moment: moment,
@@ -465,6 +487,27 @@ class _CornerGlyph extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, size: 13, color: Colors.white),
+    );
+  }
+}
+
+/// A dashed slot that completes a sparse first row and offers the next
+/// moment. Uses the same dashed language as the empty state, so a
+/// one-moment grid reads as the same designed surface, not a broken one.
+class _AddMomentTile extends StatelessWidget {
+  const _AddMomentTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TrainDashedCard(
+      radius: 14,
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: const Center(
+        child: Icon(AppIcons.add, size: 20, color: TrainColors.ink4),
+      ),
     );
   }
 }

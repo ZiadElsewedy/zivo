@@ -194,7 +194,7 @@ class WorkoutProgressPage extends StatelessWidget {
                             ),
                             _Destination(
                               icon: AppIcons.history,
-                              accent: TrainColors.violetGlyph,
+                              accent: TrainColors.green,
                               label: 'All history',
                               detail: 'Every session you have logged',
                               onTap: () {
@@ -208,7 +208,7 @@ class WorkoutProgressPage extends StatelessWidget {
                             ),
                             _Destination(
                               icon: AppIcons.splits,
-                              accent: TrainColors.amber,
+                              accent: TrainColors.green,
                               label: 'Splits',
                               detail: 'Switch or edit your training splits',
                               onTap: () {
@@ -261,7 +261,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.streak,
-                accent: TrainColors.ember,
+                accent: TrainColors.green,
                 value: '${stats.currentStreakDays}',
                 label: 'Day streak',
               ),
@@ -274,7 +274,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.analysis,
-                accent: TrainColors.violetGlyph,
+                accent: TrainColors.green,
                 value: '${stats.totalCompletedSessions}',
                 label: 'Total sessions',
               ),
@@ -283,7 +283,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.timer,
-                accent: TrainColors.amber,
+                accent: TrainColors.green,
                 value: stats.averageSessionDuration == null
                     ? '—'
                     : formatDurationShort(stats.averageSessionDuration!),

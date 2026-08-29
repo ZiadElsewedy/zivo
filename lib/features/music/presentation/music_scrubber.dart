@@ -31,7 +31,7 @@ class MusicScrubber extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.isPaused,
-    this.accentColor = TrainColors.ember,
+    this.accentColor = TrainColors.green,
     super.key,
   });
 

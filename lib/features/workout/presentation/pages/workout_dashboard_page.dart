@@ -464,7 +464,7 @@ class _StatsGrid extends StatelessWidget {
               Expanded(
                 child: TrainStatTile(
                   icon: AppIcons.streak,
-                  accent: TrainColors.ember,
+                  accent: TrainColors.green,
                   value: '${stats.currentStreakDays}',
                   unit: 'DAYS',
                   label: 'Streak',
@@ -493,7 +493,7 @@ class _StatsGrid extends StatelessWidget {
               Expanded(
                 child: TrainStatTile(
                   icon: AppIcons.timer,
-                  accent: TrainColors.violetGlyph,
+                  accent: TrainColors.green,
                   value: stats.averageSessionDuration == null
                       ? '—'
                       : '${stats.averageSessionDuration!.inMinutes}',
@@ -517,7 +517,7 @@ class _StatsGrid extends StatelessWidget {
               Expanded(
                 child: TrainStatTile(
                   icon: AppIcons.calendarClock,
-                  accent: TrainColors.amber,
+                  accent: TrainColors.green,
                   value: stats.averageStartMinutesSinceMidnight == null
                       ? '—'
                       : _clock24(stats.averageStartMinutesSinceMidnight!),

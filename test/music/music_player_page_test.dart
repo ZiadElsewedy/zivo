@@ -39,8 +39,9 @@ void main() {
         expect(find.text('SPOTIFY'), findsOneWidget);
         expect(find.text('NOW PLAYING'), findsOneWidget);
 
-        // No cover on the fixture → the placeholder note icon stands in.
-        expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
+        // No cover on the fixture → a bare stroked glyph stands in, with no
+        // opaque tile behind it (the player's colour wash shows through).
+        expect(find.byIcon(AppIcons.music), findsOneWidget);
 
         // Playing → the primary control shows the pause glyph (the one ember
         // action rendered, and proof the transport row laid out).
@@ -65,39 +66,38 @@ void main() {
   // `nowPlaying` (same contract as play/pause). A tall viewport keeps the whole
   // single-scroll player on-screen so the controls are tappable without
   // scrolling first.
-  testWidgets(
-    'shuffle control drives the controller and reflects its state',
-    (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      final music = FakeMusicController();
-      try {
-        await tester.pumpWidget(
-          MaterialApp(home: MusicPlayerPage(controller: music)),
-        );
-        await tester.pump(const Duration(milliseconds: 300));
+  testWidgets('shuffle control drives the controller and reflects its state', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    final music = FakeMusicController();
+    try {
+      await tester.pumpWidget(
+        MaterialApp(home: MusicPlayerPage(controller: music)),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
 
-        // Starts off.
-        expect(music.currentNowPlaying!.isShuffling, isFalse);
-        expect(find.byIcon(AppIcons.shuffle), findsOneWidget);
+      // Starts off.
+      expect(music.currentNowPlaying!.isShuffling, isFalse);
+      expect(find.byIcon(AppIcons.shuffle), findsOneWidget);
 
-        await tester.tap(find.byIcon(AppIcons.shuffle));
-        await tester.pump(const Duration(milliseconds: 60));
+      await tester.tap(find.byIcon(AppIcons.shuffle));
+      await tester.pump(const Duration(milliseconds: 60));
 
-        // The tap turned shuffle on, observed back through the controller.
-        expect(music.currentNowPlaying!.isShuffling, isTrue);
+      // The tap turned shuffle on, observed back through the controller.
+      expect(music.currentNowPlaying!.isShuffling, isTrue);
 
-        // Tapping again turns it back off.
-        await tester.tap(find.byIcon(AppIcons.shuffle));
-        await tester.pump(const Duration(milliseconds: 60));
-        expect(music.currentNowPlaying!.isShuffling, isFalse);
-        expect(tester.takeException(), isNull);
-      } finally {
-        music.dispose();
-        tester.view.reset();
-      }
-    },
-  );
+      // Tapping again turns it back off.
+      await tester.tap(find.byIcon(AppIcons.shuffle));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(music.currentNowPlaying!.isShuffling, isFalse);
+      expect(tester.takeException(), isNull);
+    } finally {
+      music.dispose();
+      tester.view.reset();
+    }
+  });
 
   testWidgets(
     'repeat control cycles off → all → one → off with the glyph swap',
@@ -189,51 +189,47 @@ void main() {
     await gesture.up();
   }
 
-  testWidgets(
-    'a firm pull-down dismisses the player',
-    (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      final music = FakeMusicController();
-      try {
-        await tester.pumpWidget(hostFor(music));
-        await openPlayer(tester);
+  testWidgets('a firm pull-down dismisses the player', (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    final music = FakeMusicController();
+    try {
+      await tester.pumpWidget(hostFor(music));
+      await openPlayer(tester);
 
-        await pullDown(tester, 640); // firm pull, well past the ~116px threshold
-        await tester.pump(); // fire the pop
-        await tester.pump(const Duration(milliseconds: 500)); // pop transition
+      await pullDown(tester, 640); // firm pull, well past the ~116px threshold
+      await tester.pump(); // fire the pop
+      await tester.pump(const Duration(milliseconds: 500)); // pop transition
 
-        // The player route is gone; we're back on the host.
-        expect(find.byType(MusicPlayerPage), findsNothing);
-        expect(find.text('open player'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      } finally {
-        music.dispose();
-        tester.view.reset();
-      }
-    },
-  );
+      // The player route is gone; we're back on the host.
+      expect(find.byType(MusicPlayerPage), findsNothing);
+      expect(find.text('open player'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      music.dispose();
+      tester.view.reset();
+    }
+  });
 
-  testWidgets(
-    'a short pull-down springs back and does NOT dismiss',
-    (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      final music = FakeMusicController();
-      try {
-        await tester.pumpWidget(hostFor(music));
-        await openPlayer(tester);
+  testWidgets('a short pull-down springs back and does NOT dismiss', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    final music = FakeMusicController();
+    try {
+      await tester.pumpWidget(hostFor(music));
+      await openPlayer(tester);
 
-        await pullDown(tester, 100); // a noticeable tug, still under threshold
-        await tester.pump(const Duration(milliseconds: 400)); // spring back
+      await pullDown(tester, 100); // a noticeable tug, still under threshold
+      await tester.pump(const Duration(milliseconds: 400)); // spring back
 
-        // Still here.
-        expect(find.byType(MusicPlayerPage), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      } finally {
-        music.dispose();
-        tester.view.reset();
-      }
-    },
-  );
+      // Still here.
+      expect(find.byType(MusicPlayerPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      music.dispose();
+      tester.view.reset();
+    }
+  });
 }

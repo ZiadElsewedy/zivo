@@ -131,7 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     // it is, and a restated explanation in the value
                     // column is filler, not information.
                     value: '',
-                    accent: TrainColors.green,
+                    accent: TrainColors.violetGlyph,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(

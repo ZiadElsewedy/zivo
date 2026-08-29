@@ -739,12 +739,17 @@ class _BigPlayButton extends StatelessWidget {
       scale: 0.96,
       enabled: enabled,
       child: DecoratedBox(
+        // Green, like the rest of the feature. Music reads green everywhere
+        // — the equalizer, the in-set strips, the Spotify wordmark, and the
+        // now-playing lozenge's own play/pause — so an ember play button here
+        // made the same control two different colours depending on whether
+        // you were looking at the strip or the full player.
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          boxShadow: enabled ? TrainColors.actionGlow(TrainColors.ember) : null,
+          boxShadow: enabled ? TrainColors.actionGlow(TrainColors.green) : null,
         ),
         child: Material(
-          color: enabled ? TrainColors.ember : TrainColors.glassStrong,
+          color: enabled ? TrainColors.green : TrainColors.glassStrong,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -760,11 +765,15 @@ class _BigPlayButton extends StatelessWidget {
               child: Center(
                 child: paused
                     ? TrainPlayGlyph(
-                        color: enabled ? Colors.white : TrainColors.ink3,
+                        color: enabled
+                            ? const Color(0xFF04140D)
+                            : TrainColors.ink3,
                         size: 28,
                       )
                     : TrainPauseGlyph(
-                        color: enabled ? Colors.white : TrainColors.ink3,
+                        color: enabled
+                            ? const Color(0xFF04140D)
+                            : TrainColors.ink3,
                         size: 26,
                       ),
               ),

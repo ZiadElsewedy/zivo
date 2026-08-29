@@ -406,13 +406,13 @@ class WorkoutStreakPage extends StatelessWidget {
                   : streakDays.length == 1
                   ? 'day in your current streak'
                   : 'days in your current streak',
-              accent: TrainColors.ember,
+              accent: TrainColors.green,
             ),
             const SizedBox(height: 10),
             StatHeroValue(
               value: '$best',
               label: best == 1 ? 'best day streak' : 'best day streak ever',
-              accent: TrainColors.ember,
+              accent: TrainColors.green,
             ),
             const SizedBox(height: 18),
             if (streakDays.isNotEmpty)
@@ -546,7 +546,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
               label: avg == null
                   ? 'Complete a workout to see your average.'
                   : 'average completed session',
-              accent: TrainColors.violetGlyph,
+              accent: TrainColors.green,
             ),
             if (durations.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -556,7 +556,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: StatHeroValue(
                       value: _durationLabel(durations.first),
                       label: 'shortest',
-                      accent: TrainColors.violetGlyph,
+                      accent: TrainColors.green,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -564,7 +564,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: StatHeroValue(
                       value: _durationLabel(durations.last),
                       label: 'longest',
-                      accent: TrainColors.violetGlyph,
+                      accent: TrainColors.green,
                     ),
                   ),
                 ],
@@ -587,7 +587,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                       subtitle:
                           '${formatDayLabel(session.startedAt)} · ${timeAgo(session.startedAt, DateTime.now())} ago',
                       trailing: _durationLabel(session.elapsed),
-                      accent: TrainColors.violetGlyph,
+                      accent: TrainColors.green,
                     ),
                   ),
                 ),
@@ -624,7 +624,7 @@ class WorkoutStartTimesPage extends StatelessWidget {
               label: avgStart == null
                   ? 'Complete a workout to see your usual start time.'
                   : 'when you usually start training',
-              accent: TrainColors.amber,
+              accent: TrainColors.green,
             ),
             const SizedBox(height: 18),
             if (completed.isEmpty)
@@ -643,7 +643,7 @@ class WorkoutStartTimesPage extends StatelessWidget {
                       subtitle:
                           '${session.dayLabel} · ${formatDayLabel(session.startedAt)}',
                       trailing: timeAgo(session.startedAt, DateTime.now()),
-                      accent: TrainColors.amber,
+                      accent: TrainColors.green,
                     ),
                   ),
                 ),

@@ -1446,10 +1446,21 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     ],
                   ),
                   const SizedBox(height: 11),
-                  TrainPrimaryButton(
+                  // One rule across all three phases: **skip is always the
+                  // secondary**, and the phase's hue owns the RING only. The
+                  // running phase already worked this way (ghost Skip beside
+                  // the ember Log set); warm-up and rest each promoted their
+                  // skip to a full primary instead, and in two different
+                  // colours — so the screen's most prominent control changed
+                  // hue depending on which phase you were in, for no reason a
+                  // user could feel. Ember stays reserved for the action that
+                  // actually commits something.
+                  TrainGhostButton(
                     label: 'Skip warm-up',
+                    mono: false,
+                    height: 60,
                     icon: const TrainPlayGlyph(
-                      color: Colors.white,
+                      color: Color(0x99F4F4F0),
                       size: 13,
                       bar: true,
                     ),
@@ -1538,13 +1549,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     ],
                   ),
                   const SizedBox(height: 11),
-                  TrainPrimaryButton(
+                  TrainGhostButton(
                     label: 'Skip rest',
-                    color: TrainColors.green,
-                    labelColor: const Color(0xFF04140D),
-                    glowAlpha: 0.25,
+                    mono: false,
+                    height: 60,
                     icon: const TrainPlayGlyph(
-                      color: Color(0xFF04140D),
+                      color: Color(0x99F4F4F0),
                       size: 13,
                       bar: true,
                     ),
