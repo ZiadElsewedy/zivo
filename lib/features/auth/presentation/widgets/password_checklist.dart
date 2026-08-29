@@ -10,13 +10,15 @@ import '../../../../core/theme/train_tokens.dart';
 /// a strength bar with a named level, and the individual rules as chips that
 /// light as they're met.
 ///
-/// This replaces a four-line vertical checklist, which had two problems: it
-/// was taller than the field it described (so it read as loose page content
-/// floating between two inputs rather than as *that field's* feedback), and
-/// four unchecked circles is the least encouraging way to greet someone who
-/// has typed nothing. A bar reads as progress at a glance and the chips wrap
-/// to two short rows, so the panel is roughly half the height and clearly
-/// belongs to the password above it.
+/// It began as a four-line vertical checklist, which was taller than the field
+/// it described and greeted a blank form with four unchecked circles. A bar
+/// reads as progress at a glance, and the chips wrap to two short rows.
+///
+/// It then spent a while inside a bordered, filled card — which put a third
+/// bordered box between two bordered inputs, so it read as another field
+/// rather than as feedback about the one above it. The chrome is gone: this is
+/// inline content under its field, and deliberately the quietest thing on the
+/// screen.
 ///
 /// Every chip keeps the rule's full sentence as its semantic label, so the
 /// compact form costs nothing to a screen reader.
@@ -30,13 +32,12 @@ class PasswordChecklist extends StatelessWidget {
     final rules = PasswordPolicy.rules;
     final met = PasswordPolicy.metCount(password);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
-      decoration: BoxDecoration(
-        color: TrainColors.raised.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TrainColors.hairline),
-      ),
+    // No panel: no fill, no border, no radius. A bordered card sitting between
+    // two bordered fields read as a third input, and it was the single
+    // heaviest block on the sign-up screen. Inline feedback under the field it
+    // describes is quieter and belongs to that field more obviously.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 10, 2, 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -49,10 +50,10 @@ class PasswordChecklist extends StatelessWidget {
               _StrengthLabel(met: met, total: rules.length),
             ],
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 9),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               for (final rule in rules)
                 _RuleChip(rule: rule, met: rule.isSatisfiedBy(password)),
@@ -94,7 +95,7 @@ class _StrengthBar extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 260),
               curve: AppMotion.ease,
-              height: 4,
+              height: 3,
               decoration: BoxDecoration(
                 color: i < met ? tint : TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(2),
@@ -159,7 +160,7 @@ class _RuleChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: AppMotion.ease,
-        padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+        padding: const EdgeInsets.fromLTRB(7, 4, 9, 4),
         decoration: BoxDecoration(
           color: met ? TrainColors.greenWash : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -185,15 +186,15 @@ class _RuleChip extends StatelessWidget {
               child: Icon(
                 met ? Icons.check_rounded : Icons.circle_outlined,
                 key: ValueKey(met),
-                size: 13,
+                size: 11.5,
                 color: met ? TrainColors.green : TrainColors.ink3,
               ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             Text(
               rule.shortLabel,
               style: AppText.meta.copyWith(
-                fontSize: 12,
+                fontSize: 11,
                 color: met ? TrainColors.green : TrainColors.ink3,
               ),
             ),

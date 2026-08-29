@@ -66,11 +66,16 @@ class AuthTextField extends StatefulWidget {
 }
 
 class _AuthTextFieldState extends State<AuthTextField> {
-  static const double _height = 64;
+  /// 64 read as a form control from a settings app rather than a sign-in
+  /// screen: three of these stacked filled most of the viewport, and the
+  /// airiness inside each one made the whole page feel loose. 54 is still a
+  /// comfortable target (well past the 44pt minimum) and lets the stack read
+  /// as one tight group.
+  static const double _height = 54;
 
   /// The label/value column's own box, comfortably inside [_height] less its
   /// border so the border width animating (1.4 → 1.6) can't resize the text.
-  static const double _innerHeight = 60;
+  static const double _innerHeight = 50;
   static const Duration _shift = Duration(milliseconds: 200);
 
   late final FocusNode _focus = widget.focusNode ?? FocusNode();
@@ -133,7 +138,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
         duration: _shift,
         curve: AppMotion.ease,
         height: _height,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 15),
         decoration: BoxDecoration(
           color: focused ? TrainColors.raisedStrong : TrainColors.raised,
           borderRadius: BorderRadius.circular(AppRadius.card),
@@ -157,9 +162,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
               duration: _shift,
               curve: AppMotion.ease,
               builder: (context, color, _) =>
-                  Icon(widget.icon, size: 20, color: color),
+                  Icon(widget.icon, size: 18, color: color),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 11),
             // A fixed inner height, not a stretched one: the icon and the
             // reveal target keep their own sizes while the label/value stack
             // gets the definite box its positioning needs.

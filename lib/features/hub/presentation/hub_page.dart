@@ -9,6 +9,9 @@ import '../../../core/util/money.dart';
 import '../../../core/util/time_ago.dart';
 import '../../../core/widgets/pressable_scale.dart';
 import '../../../core/widgets/rise_in.dart';
+import '../../../core/media/media_service.dart';
+import '../../../core/media/presentation/storage_sync_page.dart';
+import '../../../core/widgets/google_drive_mark.dart';
 import '../../../core/widgets/train_surfaces.dart';
 import '../../diet/domain/diet_plan.dart';
 import '../../diet/domain/diet_summary.dart';
@@ -21,12 +24,17 @@ import '../../expenses/domain/wallet.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
 import '../../home/presentation/header_builder.dart';
 import '../../moments/domain/moment.dart';
+import '../../music/domain/music_connection.dart';
+import '../../music/domain/music_controller.dart';
+import '../../music/domain/now_playing.dart';
+import '../../music/music_config.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../workout/domain/live_session.dart';
 import '../../workout/domain/session_status.dart';
 import '../../workout/domain/up_next_selection.dart';
 import '../../workout/domain/workout_plan.dart';
+import '../../auth/presentation/pages/settings_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 
 /// The Hub — a light dashboard into each module's depth. A two-column grid
@@ -106,6 +114,7 @@ class HubPage extends StatelessWidget {
                       _MomentsTile(),
                     ],
                   ),
+                  const _ConnectedSection(),
                   const _RecentSection(),
                 ],
               ),
@@ -396,11 +405,20 @@ class _ModuleTileShell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // A bigger glyph on a lighter plate. At the shared
+                  // defaults a neutral tile is a grey block with a grey-
+                  // looking glyph on it: the plate and the mark are the same
+                  // colour, so neither reads. Letting the glyph grow and the
+                  // plate recede makes the module identifiable at a glance
+                  // without spending a hue on decoration (see ADR-006).
                   TrainIconTile(
                     icon: icon,
                     accent: color,
-                    size: 34,
-                    iconSize: 17,
+                    size: 44,
+                    iconSize: 22,
+                    radius: 14,
+                    fillAlpha: 0.07,
+                    borderAlpha: 0.14,
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -682,6 +700,151 @@ class _RecentRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The Hub's "Connected" band — the services ZIVO talks to, with their real
+/// brand marks and their **live** state.
+///
+/// This fills what was a screenful of dead space between the module grid and
+/// Recent, and it answers a question the Hub is the natural place to ask: is
+/// my music hooked up, are my photos backed up? Both facts previously lived
+/// only inside Settings, two taps away, with nothing on the Hub hinting they
+/// existed. Each row is a shortcut to the screen that owns the setting.
+class _ConnectedSection extends StatelessWidget {
+  const _ConnectedSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final music = kMusicEnabled ? scope.music : null;
+    final media = scope.media;
+    if (music == null && media == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const TrainSectionLabel('Connected'),
+          const SizedBox(height: 12),
+          TrainListCard(
+            rows: [
+              if (music != null) _SpotifyRow(controller: music),
+              if (media != null) _DriveRow(media: media),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Spotify's live connection, in the same words Settings uses so the two
+/// surfaces can never disagree about what "connected" means.
+class _SpotifyRow extends StatelessWidget {
+  const _SpotifyRow({required this.controller});
+
+  final MusicController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<MusicConnection>(
+      stream: controller.connection,
+      initialData: controller.currentConnection,
+      builder: (context, connSnap) {
+        final state = connSnap.data ?? MusicConnection.disconnected;
+        return StreamBuilder<NowPlaying?>(
+          stream: controller.nowPlaying,
+          initialData: controller.currentNowPlaying,
+          builder: (context, nowSnap) {
+            final playing = nowSnap.data;
+            final value = switch (state) {
+              MusicConnection.connected =>
+                playing == null
+                    ? 'CONNECTED'
+                    : playing.isPaused
+                    ? 'PAUSED'
+                    : 'PLAYING',
+              MusicConnection.connecting => 'CONNECTING…',
+              MusicConnection.authFailed => "COULDN'T CONNECT",
+              MusicConnection.needsPremium => 'PREMIUM REQUIRED',
+              MusicConnection.noSpotifyApp => 'INSTALL SPOTIFY',
+              MusicConnection.disconnected => 'NOT CONNECTED',
+            };
+            final connected = state == MusicConnection.connected;
+            return TrainListRow(
+              icon: AppIcons.music,
+              // Music is green throughout the app; a disconnected service is
+              // a neutral fact, not a warning, so it simply goes quiet.
+              accent: connected ? TrainColors.green : TrainColors.ink3,
+              label: 'Spotify',
+              value: value,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Google Drive backup, read once per build of this row. `isBackupConnected`
+/// is a per-device SharedPreferences fact with no stream behind it, so a
+/// [FutureBuilder] is the honest shape — and it resolves fast enough that the
+/// row never visibly flickers.
+class _DriveRow extends StatelessWidget {
+  const _DriveRow({required this.media});
+
+  final MediaService media;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: media.isBackupConnected(),
+      builder: (context, snap) {
+        final connected = snap.data ?? false;
+        return TrainListRow(
+          icon: AppIcons.driveCloud,
+          accent: connected ? TrainColors.green : TrainColors.ink3,
+          iconTile: const _BrandTile(child: GoogleDriveMark(size: 17)),
+          label: 'Google Drive',
+          value: snap.connectionState == ConnectionState.waiting
+              ? ''
+              : connected
+              ? 'BACKING UP'
+              : 'NOT CONNECTED',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const StorageSyncPage()),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A neutral plate for a **brand** mark. Brand marks carry their own colours,
+/// so unlike [TrainIconTile] this one never tints them.
+class _BrandTile extends StatelessWidget {
+  const _BrandTile({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: TrainColors.glass,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: TrainColors.hairline),
+      ),
+      child: child,
     );
   }
 }

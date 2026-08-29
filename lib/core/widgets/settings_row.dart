@@ -79,6 +79,11 @@ class SettingsRow extends StatelessWidget {
   /// (e.g. a brand logo like the Google or Google Drive mark).
   final Widget? iconWidget;
   final String title;
+
+  /// The right-aligned value. Pass **`''` when [trailing] is a control that
+  /// already shows the state** — a `Switch` next to the word "On" says the
+  /// same thing twice, and the text competes with [title] for the width,
+  /// which truncates it on a phone.
   final String value;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -108,8 +113,7 @@ class SettingsRow extends StatelessWidget {
         ),
       ),
       child:
-          iconWidget ??
-          Icon(icon, size: 15, color: accent ?? TrainColors.ink2),
+          iconWidget ?? Icon(icon, size: 15, color: accent ?? TrainColors.ink2),
     );
 
     final content = Column(
@@ -165,7 +169,11 @@ class SettingsRow extends StatelessWidget {
         if (!last)
           const Padding(
             padding: EdgeInsets.only(left: TrainListRow.dividerInset),
-            child: Divider(height: 1, thickness: 1, color: TrainColors.hairline),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: TrainColors.hairline,
+            ),
           ),
       ],
     );

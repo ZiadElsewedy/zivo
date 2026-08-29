@@ -338,42 +338,56 @@ class _StreakRow extends StatelessWidget {
         // The left slot always renders. It used to appear only once a streak
         // existed, so a real week with one session showed a blank half-row
         // and read as something failing to load rather than as a life with
-        // one session in it. Dimmed and stating the threshold is honest: it
-        // says what isn't there yet, and what would make it appear.
+        // one session in it. Dimmed, and short: the right-hand caption is
+        // already a caption, and two long ones on one line collide.
         Icon(
           AppIcons.streak,
           size: 16,
           color: hasStreak ? TrainColors.ember : TrainColors.ink4,
         ),
         const SizedBox(width: 7),
-        if (hasStreak)
-          Text(
-            '$streak-day streak',
-            style: TrainType.ui(
-              size: 14.5,
-              weight: FontWeight.w700,
-              color: TrainColors.ink,
-              height: 1,
-            ),
-          )
-        else
-          Text(
-            'STREAK STARTS AT 2 DAYS',
+        // Both halves are Flexible: this is a one-line row with two
+        // independent captions in it, so on a narrow screen (or at a large
+        // text scale) they have to give way rather than run past the edge.
+        Flexible(
+          child: hasStreak
+              ? Text(
+                  '$streak-day streak',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.ui(
+                    size: 14.5,
+                    weight: FontWeight.w700,
+                    color: TrainColors.ink,
+                    height: 1,
+                  ),
+                )
+              : Text(
+                  'NO STREAK YET',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.caption(
+                    size: 9,
+                    tracking: 0.1,
+                    color: TrainColors.ink4,
+                  ),
+                ),
+        ),
+        const SizedBox(width: 10),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            weekTotal == 0
+                ? 'NO SESSIONS YET'
+                : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
             style: TrainType.caption(
               size: 9,
               tracking: 0.1,
               color: TrainColors.ink4,
             ),
-          ),
-        const Spacer(),
-        Text(
-          weekTotal == 0
-              ? 'NO SESSIONS YET'
-              : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
-          style: TrainType.caption(
-            size: 9,
-            tracking: 0.1,
-            color: TrainColors.ink4,
           ),
         ),
       ],

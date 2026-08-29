@@ -258,8 +258,14 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                           children: [
                             SettingsRow(
                               icon: AppIcons.bolt,
-                              title: 'Upload to Drive as you capture',
-                              value: prefs.autoUploadToDrive ? 'On' : 'Off',
+                              // "as you capture" lived here and pushed the
+                              // title past the edge; the section label above
+                              // already says INSTANT SYNC.
+                              title: 'Upload to Drive',
+                              // A switch IS the value — printing "On" beside
+                              // one says the same thing twice and steals the
+                              // width the title needs.
+                              value: '',
                               accent: TrainColors.amber,
                               last: true,
                               trailing: Switch.adaptive(
@@ -292,7 +298,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                             SettingsRow(
                               icon: AppIcons.photos,
                               title: 'Save to Photos',
-                              value: prefs.saveToPhotos ? 'On' : 'Off',
+                              value: '',
                               accent: TrainColors.ember,
                               last: true,
                               trailing: Switch.adaptive(

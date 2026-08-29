@@ -192,6 +192,19 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-29 — **Owner UI feedback round.** Fixed a **regression I shipped in the polish
+  pass**: Momentum's low-data row overflowed by 20px on a real phone (the left caption I
+  added pushed the pair past the edge — both captions are `Flexible` now, copy shortened to
+  "NO STREAK YET", covered by a narrow-viewport regression test). Storage & Sync's toggle
+  rows truncated ("Upload to Dr…") because they rendered an On/Off label *and* a switch —
+  the switch is the value, so the label went; convention documented on `SettingsRow.value`.
+  Auth fields 64→54pt with a smaller icon, and the password checklist lost its card chrome
+  (a bordered box between two bordered inputs read as a third field). Hub module tiles got
+  a bigger glyph on a lighter plate (`TrainIconTile` now exposes `fillAlpha`/`borderAlpha`
+  — the defaults are tuned for a saturated accent and a near-white neutral needs different
+  weighting); the tiles stay neutral, so ADR-006's hue rule is untouched. New **Connected**
+  band on the Hub fills the dead mid-band with Spotify + Google Drive live state and their
+  brand marks, each a shortcut into the screen that owns the setting.
 - 2026-08-29 — **Removed the category colour picker, and the v2 palette is now fully
   deleted.** Categories are a label + a stroked icon; `CategoryHue`, the sheet's COLOR
   section, the `hue` Firestore field + rules clause, and `category_hue_colors.dart` are

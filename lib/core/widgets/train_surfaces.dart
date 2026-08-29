@@ -209,6 +209,8 @@ class TrainIconTile extends StatelessWidget {
     this.size = 32,
     this.iconSize = 15,
     this.radius = 10,
+    this.fillAlpha = 0.13,
+    this.borderAlpha = 0.22,
     super.key,
   });
 
@@ -218,6 +220,15 @@ class TrainIconTile extends StatelessWidget {
   final double iconSize;
   final double radius;
 
+  /// Weight of the tinted plate behind the glyph, and of its edge.
+  ///
+  /// Exposed because the defaults are tuned for a *saturated* accent. A
+  /// near-white neutral at the same alphas reads as a flat grey block that
+  /// competes with the glyph sitting on it, so a neutral tile generally wants
+  /// a lighter plate and a larger glyph — see the Hub's module grid.
+  final double fillAlpha;
+  final double borderAlpha;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -225,9 +236,9 @@ class TrainIconTile extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.13),
+        color: accent.withValues(alpha: fillAlpha),
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: accent.withValues(alpha: 0.22)),
+        border: Border.all(color: accent.withValues(alpha: borderAlpha)),
       ),
       child: Icon(icon, size: iconSize, color: accent),
     );

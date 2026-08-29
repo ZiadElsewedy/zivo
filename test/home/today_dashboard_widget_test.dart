@@ -43,10 +43,12 @@ const WorkoutDay _day = WorkoutDay(
   exercises: [],
 );
 
-LiveSession _done(DateTime at, String id) =>
-    LiveSession.start(_day, id: id, planId: 'p', now: at).complete(
-      now: at.add(const Duration(minutes: 40)),
-    );
+LiveSession _done(DateTime at, String id) => LiveSession.start(
+  _day,
+  id: id,
+  planId: 'p',
+  now: at,
+).complete(now: at.add(const Duration(minutes: 40)));
 
 Widget _wrap({
   StepCounterService? stepCounter,
@@ -79,23 +81,25 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('the pulse card answers all three rings with real data',
-      (tester) async {
+  testWidgets('the pulse card answers all three rings with real data', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final now = DateTime.now();
-    final sessions = InMemoryWorkoutSessionRepository(seed: [
-      _done(now.subtract(const Duration(days: 1)), 'y'),
-      _done(now, 't'),
-    ]);
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        _done(now.subtract(const Duration(days: 1)), 'y'),
+        _done(now, 't'),
+      ],
+    );
 
-    await tester.pumpWidget(_wrap(
-      stepCounter: _FakeStepCounter(6500),
-      workoutSessions: sessions,
-    ));
+    await tester.pumpWidget(
+      _wrap(stepCounter: _FakeStepCounter(6500), workoutSessions: sessions),
+    );
     await _settle(tester);
 
     // Train: a session completed today → filled + "Trained".
@@ -117,18 +121,21 @@ void main() {
     expect(find.textContaining('0 of 3 meals eaten'), findsOneWidget);
   });
 
-  testWidgets('momentum appears once history exists and shows the streak',
-      (tester) async {
+  testWidgets('momentum appears once history exists and shows the streak', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final now = DateTime.now();
-    final sessions = InMemoryWorkoutSessionRepository(seed: [
-      for (var i = 0; i < 3; i++)
-        _done(now.subtract(Duration(days: i)), 's$i'),
-    ]);
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        for (var i = 0; i < 3; i++)
+          _done(now.subtract(Duration(days: i)), 's$i'),
+      ],
+    );
 
     await tester.pumpWidget(_wrap(workoutSessions: sessions));
     await _settle(tester);
@@ -137,6 +144,37 @@ void main() {
     expect(find.text('3-day streak'), findsOneWidget);
     expect(find.text('3 SESSIONS · LAST 7 DAYS'), findsOneWidget);
   });
+
+  testWidgets(
+    'the momentum row survives a narrow screen with no streak — two captions '
+    'on one line must ellipsise, never overflow (regression)',
+    (tester) async {
+      // A real phone width, not the roomy 1200 the other tests use: the row
+      // carries a left caption AND a right caption, and when the left one was
+      // added it pushed the pair past the edge on an actual device.
+      tester.view.physicalSize = const Size(375, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Two sessions, but not on consecutive days → no streak, so the left
+      // slot shows its low-data caption beside the busiest right-hand one.
+      final now = DateTime.now();
+      final sessions = InMemoryWorkoutSessionRepository(
+        seed: [
+          _done(now, 'a'),
+          _done(now.subtract(const Duration(days: 3)), 'b'),
+        ],
+      );
+
+      await tester.pumpWidget(_wrap(workoutSessions: sessions));
+      await _settle(tester);
+
+      expect(find.text('NO STREAK YET'), findsOneWidget);
+      expect(find.text('2 SESSIONS · LAST 7 DAYS'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('a brand-new user sees neither momentum nor insights — '
       'nothing bluffs', (tester) async {
@@ -152,8 +190,9 @@ void main() {
     expect(find.text('WORTH KNOWING'), findsNothing);
   });
 
-  testWidgets('device steps feed the insights strip (shortfall nudge)',
-      (tester) async {
+  testWidgets('device steps feed the insights strip (shortfall nudge)', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -182,16 +221,16 @@ void main() {
 
     final now = DateTime.now();
     final bodyWeight = InMemoryBodyWeightRepository();
-    await bodyWeight.save(BodyWeightEntry(
-      id: 'w1',
-      weightKg: 82.4,
-      loggedAt: now.subtract(const Duration(days: 12)),
-    ));
-    await bodyWeight.save(BodyWeightEntry(
-      id: 'w2',
-      weightKg: 81.6,
-      loggedAt: now,
-    ));
+    await bodyWeight.save(
+      BodyWeightEntry(
+        id: 'w1',
+        weightKg: 82.4,
+        loggedAt: now.subtract(const Duration(days: 12)),
+      ),
+    );
+    await bodyWeight.save(
+      BodyWeightEntry(id: 'w2', weightKg: 81.6, loggedAt: now),
+    );
 
     await tester.pumpWidget(_wrap(bodyWeight: bodyWeight));
     await _settle(tester);
