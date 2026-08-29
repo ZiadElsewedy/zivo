@@ -4,7 +4,6 @@ import 'package:lottie/lottie.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -373,7 +372,9 @@ class _BasisNote extends StatelessWidget {
             height: 28,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.irisWash,
+              // Was AppColors.irisWash — a *warm* violet wash behind a cool
+              // violet glyph, two violets inside one 28px tile.
+              color: TrainColors.violetWash,
               borderRadius: BorderRadius.circular(9),
             ),
             child: const Icon(

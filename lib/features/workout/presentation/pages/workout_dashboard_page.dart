@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
@@ -236,7 +235,7 @@ Future<void> _showLogWeightSheet(
   );
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: AppColors.card,
+    backgroundColor: TrainColors.raised,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
@@ -255,7 +254,7 @@ Future<void> _showLogWeightSheet(
           children: [
             Text(
               "Log today's weight",
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
             ),
             const SizedBox(height: 18),
             Row(
@@ -284,13 +283,13 @@ Future<void> _showLogWeightSheet(
                     ],
                     style: AppText.heroNumber.copyWith(
                       fontSize: 40,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
-                    cursorColor: AppColors.pulse,
+                    cursorColor: TrainColors.green,
                     decoration: InputDecoration(
                       suffixText: 'kg',
                       suffixStyle: AppText.meta.copyWith(
-                        color: AppColors.ink3,
+                        color: TrainColors.ink3,
                         fontSize: 16,
                       ),
                       border: InputBorder.none,
@@ -314,7 +313,7 @@ Future<void> _showLogWeightSheet(
                   child: Text(
                     'Last weigh-in: ${_trimNumber(lastWeight)} kg',
                     style: AppText.meta.copyWith(
-                      color: AppColors.ink3,
+                      color: TrainColors.ink3,
                       fontSize: 12,
                     ),
                   ),
@@ -324,7 +323,7 @@ Future<void> _showLogWeightSheet(
             PillButton(
               label: 'Save',
               icon: Icons.check_rounded,
-              color: AppColors.pulse,
+              color: TrainColors.green,
               enabled: true,
               onTap: () {
                 final value = double.tryParse(controller.text);
@@ -352,12 +351,12 @@ Future<void> _showLogWeightSheet(
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         behavior: SnackBarBehavior.floating,
-                        backgroundColor: AppColors.card,
+                        backgroundColor: TrainColors.raised,
                         content: Text(
                           "Couldn't save that weigh-in — check your "
                           'connection and try again.',
                           style: AppText.body.copyWith(
-                            color: AppColors.ink,
+                            color: TrainColors.ink,
                             fontSize: 13.5,
                           ),
                         ),
@@ -396,11 +395,11 @@ class _WeightStepper extends StatelessWidget {
           height: 46,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
+            color: TrainColors.raisedStrong,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.hairline2),
+            border: Border.all(color: TrainColors.hairlineStrong),
           ),
-          child: Icon(icon, size: 20, color: AppColors.ink2),
+          child: Icon(icon, size: 20, color: TrainColors.ink2),
         ),
       ),
     );
@@ -742,12 +741,15 @@ class _DashboardLoadingState extends StatelessWidget {
         width: 140,
         height: 140,
         decoration: const BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: TrainColors.raisedStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(AppColors.ink2, BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(
+            TrainColors.ink2,
+            BlendMode.srcIn,
+          ),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -769,18 +771,18 @@ class _DashboardErrorState extends StatelessWidget {
             const Icon(
               Icons.cloud_off_rounded,
               size: 30,
-              color: AppColors.ink3,
+              color: TrainColors.ink3,
             ),
             const SizedBox(height: 12),
             Text(
               "Couldn't load this.",
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
           ],
@@ -808,13 +810,13 @@ class _NoPlanState extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'No workout plan yet',
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               "Import a PDF or photo and I'll turn it into a real split, or build one from scratch.",
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: AppText.body.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -852,7 +854,7 @@ class _NoPlanState extends StatelessWidget {
                 },
                 child: Text(
                   'Build manually instead',
-                  style: AppText.meta.copyWith(color: AppColors.ink2),
+                  style: AppText.meta.copyWith(color: TrainColors.ink2),
                 ),
               ),
             ),

@@ -10,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/media/domain/media_kind.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -182,12 +181,12 @@ class ProfilePage extends StatelessWidget {
           cropStyle: CropStyle.circle,
           lockAspectRatio: true,
           hideBottomControls: false,
-          toolbarColor: AppColors.ground,
-          toolbarWidgetColor: AppColors.ink,
-          backgroundColor: AppColors.ground,
-          activeControlsWidgetColor: AppColors.ember,
-          cropFrameColor: AppColors.ground,
-          cropGridColor: AppColors.hairline2,
+          toolbarColor: TrainColors.base,
+          toolbarWidgetColor: TrainColors.ink,
+          backgroundColor: TrainColors.base,
+          activeControlsWidgetColor: TrainColors.ember,
+          cropFrameColor: TrainColors.base,
+          cropGridColor: TrainColors.hairlineStrong,
           statusBarLight: false,
         ),
       ],
@@ -1047,7 +1046,7 @@ class _AboutButton extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFF7038), AppColors.ember],
+                colors: [Color(0xFFFF7038), TrainColors.ember],
               ),
               borderRadius: BorderRadius.circular(999),
               boxShadow: AppShadows.ember,
@@ -1066,7 +1065,7 @@ class _AboutButton extends StatelessWidget {
               label,
               style: AppText.button.copyWith(
                 fontSize: 14,
-                color: primary ? Colors.white : AppColors.ink3,
+                color: primary ? Colors.white : TrainColors.ink3,
               ),
             ),
     );
@@ -1143,9 +1142,9 @@ class _EditTextSheetState extends State<_EditTextSheet> {
         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.card.withValues(alpha: 0.94),
+            color: TrainColors.raised.withValues(alpha: 0.94),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-            border: Border.all(color: AppColors.hairline2),
+            border: Border.all(color: TrainColors.hairlineStrong),
           ),
           padding: EdgeInsets.only(
             top: 12,
@@ -1162,7 +1161,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.hairline2,
+                    color: TrainColors.hairlineStrong,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -1183,26 +1182,29 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _submit(),
                 onChanged: (_) => setState(() {}),
-                cursorColor: AppColors.ember,
+                cursorColor: TrainColors.ember,
                 style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   counterStyle: AppText.meta.copyWith(
-                    color: AppColors.ink3,
+                    color: TrainColors.ink3,
                     fontSize: 11,
                   ),
                   border: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.hairline),
+                    borderSide: BorderSide(color: TrainColors.hairline),
                   ),
                   enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.hairline),
+                    borderSide: BorderSide(color: TrainColors.hairline),
                   ),
                   focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.ember, width: 1.6),
+                    borderSide: BorderSide(
+                      color: TrainColors.ember,
+                      width: 1.6,
+                    ),
                   ),
                   hintText: widget.hint,
-                  hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                  hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
                 ),
               ),
               const SizedBox(height: 22),
@@ -1215,7 +1217,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [const Color(0xFFFF7038), AppColors.ember],
+                        colors: [const Color(0xFFFF7038), TrainColors.ember],
                       ),
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: AppShadows.ember,

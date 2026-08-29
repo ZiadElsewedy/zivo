@@ -7,9 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -468,7 +466,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
   Future<void> _openSessions(String? activeConversationId) async {
     final result = await showModalBottomSheet<_SessionsSelection>(
       context: context,
-      backgroundColor: AppColors.card,
+      backgroundColor: TrainColors.raised,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1947,7 +1945,7 @@ class _ThinkingRailState extends State<_ThinkingRail>
                   widget.label,
                   key: ValueKey(widget.label),
                   style: AppText.meta.copyWith(
-                    color: AppColors.irisText,
+                    color: TrainColors.violet,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1968,7 +1966,7 @@ class _ThinkingRailState extends State<_ThinkingRail>
                       style: AppText.meta.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.ink3,
+                        color: TrainColors.ink3,
                       ),
                     ),
                   )
@@ -1996,7 +1994,7 @@ class _GlowOrb extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.iris.withValues(alpha: 0.45),
+            color: TrainColors.violet.withValues(alpha: 0.45),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -2015,7 +2013,7 @@ class _IrisDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: AppColors.iris.withValues(alpha: opacity),
+      color: TrainColors.violet.withValues(alpha: opacity),
       shape: BoxShape.circle,
     ),
   );
@@ -2037,13 +2035,13 @@ class _ErrorRetry extends StatelessWidget {
         key: const Key('error-retry'),
         padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
         decoration: BoxDecoration(
-          color: AppColors.flare.withValues(alpha: 0.07),
+          color: TrainColors.ember.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.flare.withValues(alpha: 0.22)),
+          border: Border.all(color: TrainColors.ember.withValues(alpha: 0.22)),
         ),
         child: Row(
           children: [
-            const Icon(AppIcons.warning, size: 17, color: AppColors.flareText),
+            const Icon(AppIcons.warning, size: 17, color: TrainColors.ember),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -2054,7 +2052,7 @@ class _ErrorRetry extends StatelessWidget {
                     style: AppText.rowTitle.copyWith(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -2063,7 +2061,7 @@ class _ErrorRetry extends StatelessWidget {
                     style: AppText.body.copyWith(
                       fontSize: 13,
                       height: 1.3,
-                      color: AppColors.ink2,
+                      color: TrainColors.ink2,
                     ),
                   ),
                 ],
@@ -2072,7 +2070,7 @@ class _ErrorRetry extends StatelessWidget {
             const SizedBox(width: 10),
             PressableScale(
               child: Material(
-                color: AppColors.irisWash,
+                color: TrainColors.violetWash,
                 borderRadius: BorderRadius.circular(999),
                 child: InkWell(
                   onTap: onRetry,
@@ -2084,7 +2082,7 @@ class _ErrorRetry extends StatelessWidget {
                     ),
                     child: Text(
                       'Retry',
-                      style: AppText.button.copyWith(color: AppColors.irisText),
+                      style: AppText.button.copyWith(color: TrainColors.violet),
                     ),
                   ),
                 ),
@@ -2127,17 +2125,16 @@ class _ProposalCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: TrainColors.raised,
             borderRadius: BorderRadius.circular(20),
             // While it's awaiting a decision the card wears a faint wash of its
             // own hue and a soft lift, so it reads as a live, tappable object;
             // once resolved it settles back to a quiet history receipt.
             border: Border.all(
               color: resolved
-                  ? AppColors.hairline
+                  ? TrainColors.hairline
                   : meta.tintFg.withValues(alpha: 0.22),
             ),
-            boxShadow: resolved ? null : AppShadows.card,
           ),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -2203,7 +2200,7 @@ class _ProposalCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Cancel',
-                  style: AppText.button.copyWith(color: AppColors.ink2),
+                  style: AppText.button.copyWith(color: TrainColors.ink2),
                 ),
               ),
             ),
@@ -2232,11 +2229,11 @@ class _ProposalCard extends StatelessWidget {
           style: AppText.cardTitle.copyWith(
             fontSize: 19,
             letterSpacing: -0.3,
-            color: applied ? AppColors.ink : AppColors.ink3,
+            color: applied ? TrainColors.ink : TrainColors.ink3,
             // A struck-through headline reads instantly as "this did not
             // happen" for a cancelled or expired proposal.
             decoration: applied ? null : TextDecoration.lineThrough,
-            decorationColor: AppColors.ink3,
+            decorationColor: TrainColors.ink3,
           ),
         ),
         if (chips.isNotEmpty) ...[
@@ -2310,22 +2307,22 @@ class _ProposalCard extends StatelessWidget {
         return (
           icon: AppIcons.check,
           label: 'Confirmed',
-          fg: AppColors.pulseText,
-          bg: AppColors.pulseWash,
+          fg: TrainColors.green,
+          bg: TrainColors.greenWash,
         );
       case AiActionStatus.cancelled:
         return (
           icon: AppIcons.close,
           label: 'Cancelled',
-          fg: AppColors.ink3,
-          bg: AppColors.hairline,
+          fg: TrainColors.ink3,
+          bg: TrainColors.hairline,
         );
       default:
         return (
           icon: AppIcons.clock,
           label: 'Expired',
-          fg: AppColors.ink3,
-          bg: AppColors.hairline,
+          fg: TrainColors.ink3,
+          bg: TrainColors.hairline,
         );
     }
   }
@@ -2334,9 +2331,9 @@ class _ProposalCard extends StatelessWidget {
   /// the alert hue and says "Delete" rather than a neutral "Confirm".
   ({String label, Color color}) _confirmSpec() {
     if (action.kind == 'delete_expense') {
-      return (label: 'Delete', color: AppColors.flare);
+      return (label: 'Delete', color: TrainColors.ember);
     }
-    return (label: 'Confirm', color: AppColors.iris);
+    return (label: 'Confirm', color: TrainColors.violet);
   }
 
   String _primaryLine() {
@@ -2407,17 +2404,17 @@ class _ProposalCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: bg ?? AppColors.surfaceRaised,
+        color: bg ?? TrainColors.raisedStrong,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: fg ?? AppColors.ink2),
+          Icon(icon, size: 13, color: fg ?? TrainColors.ink2),
           const SizedBox(width: 5),
           Text(
             label,
-            style: AppText.meta.copyWith(color: fg ?? AppColors.ink2),
+            style: AppText.meta.copyWith(color: fg ?? TrainColors.ink2),
           ),
         ],
       ),
@@ -2432,36 +2429,36 @@ class _ProposalCard extends StatelessWidget {
         return (
           icon: AppIcons.expenses,
           label: 'New expense',
-          tintBg: AppColors.solarWash,
-          tintFg: AppColors.solarText,
+          tintBg: TrainColors.amberWash,
+          tintFg: TrainColors.amber,
         );
       case 'edit_expense':
         return (
           icon: AppIcons.edit,
           label: 'Edit expense',
-          tintBg: AppColors.solarWash,
-          tintFg: AppColors.solarText,
+          tintBg: TrainColors.amberWash,
+          tintFg: TrainColors.amber,
         );
       case 'delete_expense':
         return (
           icon: AppIcons.trash,
           label: 'Delete expense',
-          tintBg: AppColors.flareWash,
-          tintFg: AppColors.flareText,
+          tintBg: TrainColors.emberWash,
+          tintFg: TrainColors.ember,
         );
       case 'mark_meal_eaten':
         return (
           icon: AppIcons.diet,
           label: 'Diet plan',
-          tintBg: AppColors.pulseWash,
-          tintFg: AppColors.pulseText,
+          tintBg: TrainColors.greenWash,
+          tintFg: TrainColors.green,
         );
       default:
         return (
           icon: AppIcons.ask,
           label: 'Suggestion',
-          tintBg: AppColors.hairline,
-          tintFg: AppColors.ink2,
+          tintBg: TrainColors.hairline,
+          tintFg: TrainColors.ink2,
         );
     }
   }
@@ -2480,7 +2477,7 @@ Future<String?> _promptNewChatName(BuildContext context) {
   final controller = TextEditingController();
   return showModalBottomSheet<String>(
     context: context,
-    backgroundColor: AppColors.card,
+    backgroundColor: TrainColors.raised,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2501,7 +2498,7 @@ Future<String?> _promptNewChatName(BuildContext context) {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -2512,7 +2509,7 @@ Future<String?> _promptNewChatName(BuildContext context) {
           Text(
             'Name it so you can find it later — or leave it blank and the '
             'first message will title it.',
-            style: AppText.meta.copyWith(color: AppColors.ink3, height: 1.35),
+            style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.35),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -2521,17 +2518,17 @@ Future<String?> _promptNewChatName(BuildContext context) {
             autofocus: true,
             maxLength: 60,
             textCapitalization: TextCapitalization.sentences,
-            style: AppText.rowTitle.copyWith(color: AppColors.ink),
-            cursorColor: AppColors.iris,
+            style: AppText.rowTitle.copyWith(color: TrainColors.ink),
+            cursorColor: TrainColors.violet,
             decoration: InputDecoration(
               hintText: 'e.g. Workout changes',
-              hintStyle: AppText.body.copyWith(color: AppColors.ink3),
+              hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
               counterStyle: AppText.meta.copyWith(
-                color: AppColors.ink3,
+                color: TrainColors.ink3,
                 fontSize: 11,
               ),
               filled: true,
-              fillColor: AppColors.surfaceRaised,
+              fillColor: TrainColors.raisedStrong,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 12,
@@ -2549,8 +2546,8 @@ Future<String?> _promptNewChatName(BuildContext context) {
             width: double.infinity,
             child: _SheetAction(
               label: 'Start chatting',
-              color: AppColors.irisText,
-              background: AppColors.irisWash,
+              color: TrainColors.violet,
+              background: TrainColors.violetWash,
               onTap: () =>
                   Navigator.of(sheetContext).pop(controller.text.trim()),
             ),
@@ -2560,7 +2557,7 @@ Future<String?> _promptNewChatName(BuildContext context) {
             width: double.infinity,
             child: _SheetAction(
               label: 'Cancel',
-              color: AppColors.ink2,
+              color: TrainColors.ink2,
               background: Colors.transparent,
               onTap: () => Navigator.of(sheetContext).pop(null),
             ),
@@ -2623,7 +2620,7 @@ class _SessionsSheetState extends State<_SessionsSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -2663,7 +2660,7 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                       ),
                       child: Text(
                         'No chats yet.',
-                        style: AppText.aside.copyWith(color: AppColors.ink2),
+                        style: AppText.aside.copyWith(color: TrainColors.ink2),
                       ),
                     );
                   }
@@ -2727,7 +2724,7 @@ class _SessionsSheetState extends State<_SessionsSheet> {
 Future<bool> _confirmDeleteChat(BuildContext context, String title) async {
   final confirmed = await showModalBottomSheet<bool>(
     context: context,
-    backgroundColor: AppColors.card,
+    backgroundColor: TrainColors.raised,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -2747,29 +2744,29 @@ Future<bool> _confirmDeleteChat(BuildContext context, String title) async {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
             Text(
               'Delete this chat?',
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
             ),
             const SizedBox(height: 8),
             Text(
               'This permanently removes "$title" and everything in it. '
               "This can't be undone.",
               textAlign: TextAlign.center,
-              style: AppText.body.copyWith(color: AppColors.ink2),
+              style: AppText.body.copyWith(color: TrainColors.ink2),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: _SheetAction(
                 label: 'Delete chat',
-                color: AppColors.flare,
-                background: AppColors.flareWash,
+                color: TrainColors.ember,
+                background: TrainColors.emberWash,
                 onTap: () => Navigator.pop(context, true),
               ),
             ),
@@ -2778,7 +2775,7 @@ Future<bool> _confirmDeleteChat(BuildContext context, String title) async {
               width: double.infinity,
               child: _SheetAction(
                 label: 'Cancel',
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
                 background: Colors.transparent,
                 onTap: () => Navigator.pop(context, false),
               ),
@@ -2841,10 +2838,10 @@ class _DeleteChatSwipeBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.flare.withValues(alpha: 0.16),
+        color: TrainColors.ember.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(AppIcons.trash, color: AppColors.flare),
+      child: const Icon(AppIcons.trash, color: TrainColors.ember),
     );
   }
 }
@@ -2858,7 +2855,7 @@ class _NewChatPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: AppColors.irisWash,
+        color: TrainColors.violetWash,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: () {
@@ -2871,12 +2868,16 @@ class _NewChatPill extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(AppIcons.chatNew, size: 15, color: AppColors.iris),
+                const Icon(
+                  AppIcons.chatNew,
+                  size: 15,
+                  color: TrainColors.violet,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'New chat',
                   style: AppText.meta.copyWith(
-                    color: AppColors.irisText,
+                    color: TrainColors.violet,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2903,7 +2904,7 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isActive ? AppColors.surfaceRaised : Colors.transparent,
+      color: isActive ? TrainColors.raisedStrong : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -2918,7 +2919,7 @@ class _SessionRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.rowTitle.copyWith(
-                    color: isActive ? AppColors.ink : AppColors.ink2,
+                    color: isActive ? TrainColors.ink : TrainColors.ink2,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
@@ -2926,11 +2927,15 @@ class _SessionRow extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 timeAgo(conversation.updatedAt, DateTime.now()),
-                style: AppText.meta.copyWith(color: AppColors.ink3),
+                style: AppText.meta.copyWith(color: TrainColors.ink3),
               ),
               if (isActive) ...[
                 const SizedBox(width: 8),
-                const Icon(AppIcons.success, size: 16, color: AppColors.iris),
+                const Icon(
+                  AppIcons.success,
+                  size: 16,
+                  color: TrainColors.violet,
+                ),
               ],
             ],
           ),

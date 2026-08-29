@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../data/audio_recorder.dart';
 import '../../domain/stt_error.dart';
@@ -234,9 +234,9 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         margin: const EdgeInsets.all(14),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: TrainColors.raised,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.hairline),
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -246,7 +246,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
             const SizedBox(height: 4),
             Text(
               'Say it once — it lands in Ask ready to send.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
             const SizedBox(height: 18),
             ...switch (_phase) {
@@ -267,7 +267,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         PressableScale(
           child: Material(
             key: const Key('quicklog-mic'),
-            color: AppColors.iris,
+            color: TrainColors.violet,
             borderRadius: BorderRadius.circular(999),
             child: InkWell(
               key: const Key('quicklog-mic-tap'),
@@ -284,11 +284,11 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         const SizedBox(height: 12),
         Text(
           'Tap and speak',
-          style: AppText.body.copyWith(color: AppColors.ink2),
+          style: AppText.body.copyWith(color: TrainColors.ink2),
         ),
         Text(
           '"add 40 EGP parking" · "finished chest day"',
-          style: AppText.meta.copyWith(color: AppColors.ink3),
+          style: AppText.meta.copyWith(color: TrainColors.ink3),
         ),
       ],
     );
@@ -300,10 +300,10 @@ class _QuickLogSheetState extends State<QuickLogSheet>
       width: 11,
       height: 11,
       decoration: const BoxDecoration(
-        color: AppColors.flare,
+        color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Color(0x55FF3D6E), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: Color(0x55FF5C1A), blurRadius: 8, spreadRadius: 1),
         ],
       ),
     );
@@ -319,20 +319,20 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         Expanded(child: _LevelBar(level: _level)),
         Text(
           _elapsedLabel,
-          style: AppText.meta.copyWith(color: AppColors.ink2),
+          style: AppText.meta.copyWith(color: TrainColors.ink2),
         ),
         PressableScale(
           child: IconButton(
             key: const Key('quicklog-cancel'),
             onPressed: _cancelRecording,
-            icon: const Icon(AppIcons.close, size: 20, color: AppColors.ink3),
+            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: 'Discard recording',
           ),
         ),
         PressableScale(
           child: Material(
             key: const Key('quicklog-stop'),
-            color: AppColors.flare,
+            color: TrainColors.ember,
             borderRadius: BorderRadius.circular(999),
             child: InkWell(
               onTap: () {
@@ -356,7 +356,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     return Row(
       children: [
         const SizedBox(width: 4),
-        Icon(AppIcons.waveform, size: 18, color: AppColors.iris),
+        Icon(AppIcons.waveform, size: 18, color: TrainColors.violet),
         const SizedBox(width: 10),
         Text('Transcribing…', style: AppText.rowTitle),
         const Spacer(),
@@ -367,7 +367,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
               _token++;
               _setPhase(_Phase.idle);
             },
-            icon: const Icon(AppIcons.close, size: 20, color: AppColors.ink3),
+            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: 'Discard voice note',
           ),
         ),
@@ -381,13 +381,13 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         Text(
           _failureMessage ?? '',
           textAlign: TextAlign.center,
-          style: AppText.body.copyWith(color: AppColors.flareText),
+          style: AppText.body.copyWith(color: TrainColors.ember),
         ),
         const SizedBox(height: 12),
         PressableScale(
           child: Material(
             key: const Key('quicklog-retry'),
-            color: AppColors.surfaceRaised,
+            color: TrainColors.raisedStrong,
             borderRadius: BorderRadius.circular(999),
             child: InkWell(
               onTap: () => _setPhase(_Phase.idle),
@@ -428,7 +428,7 @@ class _LevelBar extends StatelessWidget {
           width: 120,
           height: 5 + 24 * level.clamp(0.0, 1.0),
           decoration: BoxDecoration(
-            color: AppColors.flare.withValues(alpha: 0.35 + 0.65 * level),
+            color: TrainColors.ember.withValues(alpha: 0.35 + 0.65 * level),
             borderRadius: BorderRadius.circular(2),
           ),
         ),

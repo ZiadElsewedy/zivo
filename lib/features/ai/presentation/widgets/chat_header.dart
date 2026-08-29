@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -176,12 +175,12 @@ class _ReplyStyleMenu extends StatelessWidget {
     return PopupMenuButton<String>(
       key: const Key('header-style'),
       tooltip: 'Reply style',
-      color: AppColors.card,
+      color: TrainColors.raised,
       surfaceTintColor: Colors.transparent,
       elevation: 12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.hairline),
+        side: const BorderSide(color: TrainColors.hairline),
       ),
       position: PopupMenuPosition.under,
       onSelected: onSelect,
@@ -215,13 +214,17 @@ class _ReplyStyleMenu extends StatelessWidget {
                           ? FontWeight.w700
                           : FontWeight.w500,
                       color: style == responseStyle
-                          ? AppColors.ink
-                          : AppColors.ink2,
+                          ? TrainColors.ink
+                          : TrainColors.ink2,
                     ),
                   ),
                 ),
                 if (style == responseStyle)
-                  const Icon(AppIcons.check, size: 15, color: AppColors.iris),
+                  const Icon(
+                    AppIcons.check,
+                    size: 15,
+                    color: TrainColors.violet,
+                  ),
               ],
             ),
           ),

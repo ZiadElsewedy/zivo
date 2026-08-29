@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -263,7 +262,6 @@ String formatSteps(int steps) {
   );
 }
 
-
 // ---------------------------------------------------------------------------
 // Momentum — "How am I doing?"
 // ---------------------------------------------------------------------------
@@ -282,8 +280,7 @@ class MomentumSection extends StatelessWidget {
       initialData: scope.workoutSessions.current,
       builder: (context, sessionsSnapshot) {
         final sessions = sessionsSnapshot.data ?? const <LiveSession>[];
-        final hasWeight =
-            scope.bodyWeight?.current.isNotEmpty ?? false;
+        final hasWeight = scope.bodyWeight?.current.isNotEmpty ?? false;
         if (sessions.isEmpty && !hasWeight) {
           return const SizedBox.shrink();
         }
@@ -377,8 +374,10 @@ class WeekActivityBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activity = weekActivity(sessions, DateTime.now());
-    final maxWorkouts =
-        activity.fold<int>(0, (m, d) => math.max(m, d.workouts));
+    final maxWorkouts = activity.fold<int>(
+      0,
+      (m, d) => math.max(m, d.workouts),
+    );
     const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     // Height must clear the tallest bar (8 + 38 = 46) plus the label gap (6)
     // and the weekday initial's own line box (~14 at 10sp) — 66 in all. The
@@ -459,11 +458,9 @@ class _WeightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = AppScope.of(context)
-        .requireBodyWeight
-        .current
-        .map((e) => (e.loggedAt, e.weightKg))
-        .toList();
+    final entries = AppScope.of(
+      context,
+    ).requireBodyWeight.current.map((e) => (e.loggedAt, e.weightKg)).toList();
     final trend = weightTrend(entries);
     if (trend == null) return const SizedBox.shrink();
     final down = trend.deltaKg < 0;
@@ -474,12 +471,13 @@ class _WeightRow extends StatelessWidget {
     final points = <Offset>[];
     final weights = trend.samples.map((s) => s.$2).toList();
     final minW = weights.reduce(math.min);
-    final spanW = math.max(maxDouble(weights.reduce(math.max) - minW, 0.05), 0.05);
+    final spanW = math.max(
+      maxDouble(weights.reduce(math.max) - minW, 0.05),
+      0.05,
+    );
     for (var i = 0; i < trend.samples.length; i++) {
       final x = 92.0 * i / (trend.samples.length - 1);
-      final y = 30.0 -
-          3 -
-          (30.0 - 6) * ((trend.samples[i].$2 - minW) / spanW);
+      final y = 30.0 - 3 - (30.0 - 6) * ((trend.samples[i].$2 - minW) / spanW);
       lastPoint = Offset(x, y);
       points.add(lastPoint);
     }
@@ -599,11 +597,11 @@ class _InsightsInputsState extends State<_InsightsInputs> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stepsSub ??= AppScope.of(context).stepCounter?.watchStepsToday().listen(
-          (steps) {
-            if (mounted) setState(() => _steps = steps);
-          },
-        );
+    _stepsSub ??= AppScope.of(context).stepCounter?.watchStepsToday().listen((
+      steps,
+    ) {
+      if (mounted) setState(() => _steps = steps);
+    });
   }
 
   @override
@@ -627,8 +625,10 @@ class _InsightsInputsState extends State<_InsightsInputs> {
           stream: scope.diet.watchConsumed(now),
           initialData: const <String>{},
           builder: (context, consumedSnapshot) {
-            final summary =
-                dietDaySummary(day, consumedSnapshot.data ?? const <String>{});
+            final summary = dietDaySummary(
+              day,
+              consumedSnapshot.data ?? const <String>{},
+            );
             return _render(
               kcalLeft: summary.kcalLeft,
               mealsLeft: summary.total - summary.eaten,
@@ -641,7 +641,8 @@ class _InsightsInputsState extends State<_InsightsInputs> {
 
   Widget _render({required int? kcalLeft, required int? mealsLeft}) {
     final scope = AppScope.of(context);
-    final weightEntries = scope.bodyWeight?.current
+    final weightEntries =
+        scope.bodyWeight?.current
             .map((e) => (e.loggedAt, e.weightKg))
             .toList() ??
         const <(DateTime, double)>[];
@@ -680,9 +681,9 @@ class _InsightRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.55),
+        color: TrainColors.glass,
         borderRadius: BorderRadius.circular(AppRadius.chip * 2),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +707,7 @@ class _InsightRow extends StatelessWidget {
                   style: AppText.rowTitle.copyWith(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                    color: TrainColors.ink,
                   ),
                 ),
                 const SizedBox(height: 1),
@@ -715,7 +716,7 @@ class _InsightRow extends StatelessWidget {
                   style: AppText.body.copyWith(
                     fontSize: 12.5,
                     height: 1.3,
-                    color: AppColors.ink2,
+                    color: TrainColors.ink2,
                   ),
                 ),
               ],

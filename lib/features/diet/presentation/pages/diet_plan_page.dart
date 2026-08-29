@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -128,7 +127,7 @@ class _EmptyState extends StatelessWidget {
             const Icon(
               Icons.restaurant_rounded,
               size: 30,
-              color: AppColors.ink3,
+              color: TrainColors.ink3,
             ),
             const SizedBox(height: 12),
             Text('No diet plan yet.', style: AppText.aside),
@@ -136,7 +135,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               "Import a PDF or photo and I'll estimate calories and macros "
               'for you, or build one from scratch.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
@@ -145,7 +144,7 @@ class _EmptyState extends StatelessWidget {
               child: PillButton(
                 label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulseText,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -162,7 +161,7 @@ class _EmptyState extends StatelessWidget {
                 },
                 child: Text(
                   'Create plan manually instead',
-                  style: AppText.meta.copyWith(color: AppColors.ink2),
+                  style: AppText.meta.copyWith(color: TrainColors.ink2),
                 ),
               ),
             ),
@@ -858,7 +857,7 @@ class _SupplementCard extends StatelessWidget {
                     '${meal.items.length} items',
                     style: AppText.meta.copyWith(
                       fontSize: 11.5,
-                      color: AppColors.ink3,
+                      color: TrainColors.ink3,
                     ),
                   ),
                 ],
@@ -875,7 +874,7 @@ class _SupplementCard extends StatelessWidget {
                   icon: const Icon(
                     Icons.chevron_right_rounded,
                     size: 18,
-                    color: AppColors.ink3,
+                    color: TrainColors.ink3,
                   ),
                 ),
               ],

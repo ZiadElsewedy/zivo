@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zivo/core/theme/app_colors.dart';
+import 'package:zivo/core/theme/train_tokens.dart';
 import 'package:zivo/features/expenses/domain/expense.dart';
 import 'package:zivo/features/home/domain/today_pulse.dart';
 import 'package:zivo/features/home/presentation/widgets/today_pulse_card.dart'
@@ -171,7 +171,7 @@ void main() {
         ],
       );
       expect(insights.first.title, contains('streak'));
-      expect(insights.first.hue, AppColors.pulse);
+      expect(insights.first.hue, TrainColors.green);
     });
 
     test('a long rest nudges without guilt', () {
@@ -220,7 +220,7 @@ void main() {
 
     test('late-day step shortfall suggests the easy close', () {
       final stepLine =
-          build(stepsToday: 6500).firstWhere((i) => i.hue == AppColors.iris);
+          build(stepsToday: 6500).firstWhere((i) => i.hue == TrainColors.violet);
       expect(stepLine.title, contains('Steps'));
       expect(stepLine.body, contains('1500'));
     });

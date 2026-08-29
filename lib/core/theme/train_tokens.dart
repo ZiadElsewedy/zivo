@@ -64,6 +64,39 @@ abstract final class TrainColors {
   static const glassSoft = Color(0x09FFFFFF); // .035
   static const glassStrong = Color(0x0FFFFFFF); // .06
 
+  // ---- Floating chrome ----
+  // The bottom nav island, the Ask composer, the voice sheet: objects that
+  // float ABOVE a screen rather than sitting on it. They used to be dressed
+  // from the warm v2 palette, which put a warm-charcoal object on top of a
+  // cool near-black screen — the "two systems on one screen" the design audit
+  // flagged. These are their cool equivalents.
+
+  /// A floating surface. Elevation here comes from light, not shadow
+  /// (identity §5), so a raised surface is [base] lifted toward white rather
+  /// than a different colour family. Near-opaque on purpose: page content
+  /// blurs underneath these, and anything more translucent lets text read
+  /// through the blur.
+  static const raised = Color(0xF0141514);
+
+  /// A step above [raised] — chip fills and active rows inside floating
+  /// chrome.
+  static const raisedStrong = Color(0xFF1D1E1D);
+
+  /// The edge of a floating object, where [hairline] is the edge of a flat
+  /// one.
+  static const hairlineStrong = Color(0x1FFFFFFF);
+
+  /// Translucent washes of the chrome hues — the nav capsule, tinted glyph
+  /// tiles.
+  static const emberWash = Color(0x24FF5C1A);
+  static const violetWash = Color(0x248F8BFF);
+  static const greenWash = Color(0x241FE08A);
+  static const amberWash = Color(0x24E6BE3C);
+
+  /// Inactive tab labels and icons on the nav island: present, not shouting.
+  /// Brighter than [ink2] because these are the primary way you navigate.
+  static const tabInactive = Color(0xB2F4F4F0);
+
   /// The top-lit gradient every metric card carries, in place of a shadow.
   static const cardGradient = LinearGradient(
     begin: Alignment.topCenter,

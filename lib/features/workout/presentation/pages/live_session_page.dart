@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -917,7 +916,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
+        backgroundColor: TrainColors.raised,
         title: Text('Discard this workout?', style: AppText.cardTitle),
         content: Text(
           "You'll lose this session's progress and the plan won't advance.",
@@ -928,14 +927,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Keep going',
-              style: AppText.button.copyWith(color: AppColors.ink3),
+              style: AppText.button.copyWith(color: TrainColors.ink3),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Discard',
-              style: AppText.button.copyWith(color: AppColors.flareText),
+              style: AppText.button.copyWith(color: TrainColors.ember),
             ),
           ),
         ],
@@ -1576,7 +1575,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         Center(
           child: _Eyebrow(
             'Workout complete',
-            color: AppColors.pulse,
+            color: TrainColors.green,
             icon: AppIcons.check,
           ),
         ),
@@ -1586,19 +1585,22 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             child: Icon(
               Icons.check_circle_rounded,
               size: 56,
-              color: AppColors.pulse,
+              color: TrainColors.green,
             ),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           widget.day.label,
-          style: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink),
+          style: AppText.cardTitle.copyWith(
+            fontSize: 24,
+            color: TrainColors.ink,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
           '${_session.completedSetCount} of ${_session.totalSets} sets · ${elapsed.inMinutes} min',
-          style: AppText.meta.copyWith(color: AppColors.pulse),
+          style: AppText.meta.copyWith(color: TrainColors.green),
         ),
         const SizedBox(height: 18),
         // Review — every resolved set, flagging skips. Tap any row to fix
@@ -1624,7 +1626,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           child: PillButton(
             label: 'Finish',
             icon: Icons.check_rounded,
-            color: AppColors.pulse,
+            color: TrainColors.green,
             enabled: !_busy,
             onTap: _onFinish,
           ),
@@ -1793,9 +1795,9 @@ class _ReviewExerciseGroup extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
+        color: TrainColors.raisedStrong,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: TrainColors.hairlineStrong),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1805,7 +1807,7 @@ class _ReviewExerciseGroup extends StatelessWidget {
             style: AppText.rowTitle.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.ink,
+              color: TrainColors.ink,
             ),
           ),
           const SizedBox(height: 4),
@@ -1851,7 +1853,7 @@ class _ReviewSetRow extends StatelessWidget {
                     ? Icons.remove_circle_outline_rounded
                     : Icons.check_circle_rounded,
                 size: 16,
-                color: skipped ? AppColors.ink3 : AppColors.pulse,
+                color: skipped ? TrainColors.ink3 : TrainColors.green,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1859,14 +1861,14 @@ class _ReviewSetRow extends StatelessWidget {
                   'Set $position',
                   style: AppText.body.copyWith(
                     fontSize: 14,
-                    color: AppColors.ink2,
+                    color: TrainColors.ink2,
                   ),
                 ),
               ),
               Text(
                 skipped ? 'Skipped' : _formatSetActuals(set),
                 style: AppText.meta.copyWith(
-                  color: skipped ? AppColors.ink3 : AppColors.ink2,
+                  color: skipped ? TrainColors.ink3 : TrainColors.ink2,
                   fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
@@ -1874,7 +1876,7 @@ class _ReviewSetRow extends StatelessWidget {
               const Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
-                color: AppColors.ink3,
+                color: TrainColors.ink3,
               ),
             ],
           ),
@@ -1939,7 +1941,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: Column(
@@ -1951,7 +1953,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -1961,7 +1963,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
             widget.title,
             style: AppText.cardTitle.copyWith(
               fontSize: 18,
-              color: AppColors.ink,
+              color: TrainColors.ink,
             ),
           ),
           const SizedBox(height: 4),
@@ -1969,7 +1971,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
             widget.wasSkipped
                 ? 'Enter what you actually did to mark this done.'
                 : 'Correct the reps or weight actually logged.',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
           const SizedBox(height: 18),
           Row(
@@ -2984,7 +2986,7 @@ class _StepperFieldState extends State<_StepperField>
                     icon: Icons.remove_rounded,
                     onTap: () => _step(-widget.step),
                   ),
-                  Container(width: 1, color: AppColors.hairline2),
+                  Container(width: 1, color: TrainColors.hairlineStrong),
                   Expanded(
                     child: AnimatedBuilder(
                       animation: _punch,
@@ -3020,7 +3022,7 @@ class _StepperFieldState extends State<_StepperField>
                       ),
                     ),
                   ),
-                  Container(width: 1, color: AppColors.hairline2),
+                  Container(width: 1, color: TrainColors.hairlineStrong),
                   _StepButton(
                     icon: Icons.add_rounded,
                     onTap: () => _step(widget.step),
@@ -3138,12 +3140,12 @@ class _StepButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          splashColor: AppColors.ember.withValues(alpha: 0.18),
-          highlightColor: AppColors.ember.withValues(alpha: 0.10),
+          splashColor: TrainColors.ember.withValues(alpha: 0.18),
+          highlightColor: TrainColors.ember.withValues(alpha: 0.10),
           child: SizedBox(
             width: 46,
             height: 52,
-            child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+            child: Center(child: Icon(icon, size: 18, color: TrainColors.ink2)),
           ),
         ),
       ),

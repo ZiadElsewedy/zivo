@@ -1,10 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/env/app_environment.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
@@ -82,125 +80,122 @@ class _SettingsPageState extends State<SettingsPage> {
     return TrainScreen(
       tint: TrainColors.settingsTint,
       child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const RiseIn(child: TrainPageHeader(title: 'Settings')),
-                    const SizedBox(height: 26),
-                    const RiseIn(
-                      delay: Duration(milliseconds: 50),
-                      child: MediaBackupSection(),
-                    ),
-                    const SizedBox(height: 20),
-                    if (kMusicEnabled) ...[
-                      RiseIn(
-                        delay: const Duration(milliseconds: 90),
-                        child: _MusicSection(
-                          controller: AppScope.of(context).requireMusic,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    RiseIn(
-                      delay: const Duration(milliseconds: 130),
-                      child: SettingsSectionCard(
-                        label: 'App',
-                        children: [
-                          const SettingsRow(
-                            icon: AppIcons.theme,
-                            title: 'Theme',
-                            value: 'Dark',
-                            accent: TrainColors.violetGlyph,
-                          ),
-                          SettingsRow(
-                            icon: AppIcons.version,
-                            title: 'Version',
-                            value: info == null
-                                ? '…'
-                                : '${info.version} (${info.buildNumber})',
-                          ),
-                          if (!AppEnvironment.isRelease)
-                            SettingsRow(
-                              icon: AppIcons.build,
-                              title: 'Build',
-                              value: AppEnvironment.name,
-                            ),
-                          SettingsRow(
-                            icon: AppIcons.privacy,
-                            title: 'Privacy policy',
-                            // No value: the row's own name already says what
-                            // it is, and a restated explanation in the value
-                            // column is filler, not information.
-                            value: '',
-                            accent: TrainColors.green,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const PrivacyPage(),
-                                  fullscreenDialog: true,
-                                ),
-                              );
-                            },
-                            last: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 150),
-                      child: SettingsSectionCard(
-                        label: 'Account',
-                        children: [
-                          if (isPasswordUser)
-                            SettingsRow(
-                              icon: AppIcons.key,
-                              title: 'Change password',
-                              value: '',
-                              accent: TrainColors.violetGlyph,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const ChangePasswordPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          SettingsRow(
-                            icon: AppIcons.trash,
-                            title: 'Delete account',
-                            // The one row on this page that states its own
-                            // consequence — permanence is the fact worth
-                            // knowing before the tap, not after.
-                            value: 'PERMANENT',
-                            accent: TrainColors.ember,
-                            onTap: () => DeleteAccountSheet.show(context),
-                            last: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 170),
-                      child: _SignOutButton(
-                        loading: _signingOut,
-                        onTap: _signOut,
-                      ),
-                    ),
-                    const SizedBox(height: 44),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 220),
-                      child: _BrandFooter(
-                        version: info == null
-                            ? null
-                            : 'Version ${info.version} (${info.buildNumber})',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+        padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const RiseIn(child: TrainPageHeader(title: 'Settings')),
+            const SizedBox(height: 26),
+            const RiseIn(
+              delay: Duration(milliseconds: 50),
+              child: MediaBackupSection(),
+            ),
+            const SizedBox(height: 20),
+            if (kMusicEnabled) ...[
+              RiseIn(
+                delay: const Duration(milliseconds: 90),
+                child: _MusicSection(
+                  controller: AppScope.of(context).requireMusic,
                 ),
+              ),
+              const SizedBox(height: 20),
+            ],
+            RiseIn(
+              delay: const Duration(milliseconds: 130),
+              child: SettingsSectionCard(
+                label: 'App',
+                children: [
+                  const SettingsRow(
+                    icon: AppIcons.theme,
+                    title: 'Theme',
+                    value: 'Dark',
+                    accent: TrainColors.violetGlyph,
+                  ),
+                  SettingsRow(
+                    icon: AppIcons.version,
+                    title: 'Version',
+                    value: info == null
+                        ? '…'
+                        : '${info.version} (${info.buildNumber})',
+                  ),
+                  if (!AppEnvironment.isRelease)
+                    SettingsRow(
+                      icon: AppIcons.build,
+                      title: 'Build',
+                      value: AppEnvironment.name,
+                    ),
+                  SettingsRow(
+                    icon: AppIcons.privacy,
+                    title: 'Privacy policy',
+                    // No value: the row's own name already says what
+                    // it is, and a restated explanation in the value
+                    // column is filler, not information.
+                    value: '',
+                    accent: TrainColors.green,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPage(),
+                          fullscreenDialog: true,
+                        ),
+                      );
+                    },
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            RiseIn(
+              delay: const Duration(milliseconds: 150),
+              child: SettingsSectionCard(
+                label: 'Account',
+                children: [
+                  if (isPasswordUser)
+                    SettingsRow(
+                      icon: AppIcons.key,
+                      title: 'Change password',
+                      value: '',
+                      accent: TrainColors.violetGlyph,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ChangePasswordPage(),
+                          ),
+                        );
+                      },
+                    ),
+                  SettingsRow(
+                    icon: AppIcons.trash,
+                    title: 'Delete account',
+                    // The one row on this page that states its own
+                    // consequence — permanence is the fact worth
+                    // knowing before the tap, not after.
+                    value: 'PERMANENT',
+                    accent: TrainColors.ember,
+                    onTap: () => DeleteAccountSheet.show(context),
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            RiseIn(
+              delay: const Duration(milliseconds: 170),
+              child: _SignOutButton(loading: _signingOut, onTap: _signOut),
+            ),
+            const SizedBox(height: 44),
+            RiseIn(
+              delay: const Duration(milliseconds: 220),
+              child: _BrandFooter(
+                version: info == null
+                    ? null
+                    : 'Version ${info.version} (${info.buildNumber})',
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }
@@ -232,14 +227,17 @@ class _BrandFooter extends StatelessWidget {
             style: AppText.button.copyWith(
               fontSize: 12,
               letterSpacing: 5,
-              color: AppColors.ink2,
+              color: TrainColors.ink2,
             ),
           ),
           if (version != null) ...[
             const SizedBox(height: 5),
             Text(
               version!,
-              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+              style: AppText.meta.copyWith(
+                color: TrainColors.ink3,
+                fontSize: 11,
+              ),
             ),
           ],
         ],
@@ -281,11 +279,12 @@ class _MusicSection extends StatelessWidget {
             final connected = state == MusicConnection.connected;
             final live = connected && playing != null;
             final caption = switch (state) {
-              MusicConnection.connected => playing == null
-                  ? 'CONNECTED'
-                  : playing.isPaused
-                  ? 'CONNECTED · PAUSED'
-                  : 'CONNECTED · PLAYING',
+              MusicConnection.connected =>
+                playing == null
+                    ? 'CONNECTED'
+                    : playing.isPaused
+                    ? 'CONNECTED · PAUSED'
+                    : 'CONNECTED · PLAYING',
               MusicConnection.connecting => 'CONNECTING…',
               MusicConnection.authFailed => "COULDN'T CONNECT",
               MusicConnection.needsPremium => 'PREMIUM REQUIRED',

@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_chrome.dart';
@@ -370,7 +369,11 @@ class _TimeOfDayChip extends StatelessWidget {
     final h = now.hour;
     final (IconData icon, Color color, String label) = switch (h) {
       >= 6 && < 18 => (Icons.wb_sunny_rounded, TrainColors.ember, 'Daytime'),
-      >= 18 && < 22 => (Icons.wb_twilight_rounded, AppColors.solar, 'Evening'),
+      >= 18 && < 22 => (
+        Icons.wb_twilight_rounded,
+        TrainColors.amber,
+        'Evening',
+      ),
       _ => (Icons.nightlight_round, TrainColors.violetGlyph, 'Night'),
     };
     return Semantics(
@@ -573,18 +576,25 @@ class _NoPlanTrainingCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _TrainingIconChip(
-                  icon: Icons.fitness_center_rounded,
-                  color: AppColors.pulse,
+                const TrainIconTile(
+                  icon: AppIcons.workout,
+                  accent: TrainColors.green,
+                  size: 44,
+                  iconSize: 19,
+                  radius: 14,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -592,7 +602,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                     'No training plan yet',
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
                   ),
                 ),
@@ -603,7 +613,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
               'Import your split from a PDF or photo and Zivo turns it into '
               'a real rotating plan — or build one by hand.',
               style: AppText.body.copyWith(
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -614,7 +624,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
               child: PillButton(
                 label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -640,7 +650,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                   },
                   child: Text(
                     'Build manually instead',
-                    style: AppText.meta.copyWith(color: AppColors.ink2),
+                    style: AppText.meta.copyWith(color: TrainColors.ink2),
                   ),
                 ),
               ),
@@ -666,18 +676,25 @@ class _EmptySplitCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _TrainingIconChip(
-                  icon: Icons.post_add_rounded,
-                  color: AppColors.solar,
+                const TrainIconTile(
+                  icon: AppIcons.planDoc,
+                  accent: TrainColors.amber,
+                  size: 44,
+                  iconSize: 19,
+                  radius: 14,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -687,7 +704,7 @@ class _EmptySplitCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
                   ),
                 ),
@@ -698,7 +715,7 @@ class _EmptySplitCard extends StatelessWidget {
               'Add training days and exercises to this split and it will '
               'show up here, ready to start.',
               style: AppText.body.copyWith(
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -709,7 +726,7 @@ class _EmptySplitCard extends StatelessWidget {
               child: PillButton(
                 label: 'Edit split',
                 icon: Icons.edit_rounded,
-                color: AppColors.solar,
+                color: TrainColors.amber,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -731,44 +748,6 @@ class _EmptySplitCard extends StatelessWidget {
 /// The tinted gradient icon chip shared by both Training empty cards — the
 /// same visual unit the Workout tab's phase states use, so the flows read
 /// as one product.
-class _TrainingIconChip extends StatelessWidget {
-  const _TrainingIconChip({required this.icon, required this.color});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.26),
-            color.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.26),
-            blurRadius: 18,
-            spreadRadius: -5,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Icon(icon, size: 22, color: color),
-    );
-  }
-}
-
-/// A brand-new signed-in user's first Today: one calm, actionable card
 /// instead of a bare empty line — two taps to real data, not a wizard.
 class _GetStartedCard extends StatelessWidget {
   const _GetStartedCard();
@@ -779,9 +758,13 @@ class _GetStartedCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,13 +773,16 @@ class _GetStartedCard extends StatelessWidget {
               'Get started',
               style: AppText.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.ink,
+                color: TrainColors.ink,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               "Import a plan or log a spend — Zivo builds Today from there.",
-              style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 14),
+              style: AppText.body.copyWith(
+                color: TrainColors.ink2,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -805,7 +791,7 @@ class _GetStartedCard extends StatelessWidget {
                   child: _GetStartedAction(
                     icon: Icons.upload_file_rounded,
                     label: 'Import a\nworkout plan',
-                    color: AppColors.pulse,
+                    color: TrainColors.green,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const WorkoutPdfImportPage(),
@@ -818,7 +804,7 @@ class _GetStartedCard extends StatelessWidget {
                   child: _GetStartedAction(
                     icon: Icons.receipt_long_rounded,
                     label: 'Add an\nexpense',
-                    color: AppColors.solar,
+                    color: TrainColors.amber,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const ExpenseCapturePage(),
@@ -860,7 +846,7 @@ class _GetStartedAction extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
+            color: TrainColors.raisedStrong,
             borderRadius: BorderRadius.circular(AppRadius.chip * 2),
           ),
           child: Column(
@@ -871,7 +857,7 @@ class _GetStartedAction extends StatelessWidget {
               Text(
                 label,
                 style: AppText.meta.copyWith(
-                  color: AppColors.ink,
+                  color: TrainColors.ink,
                   fontWeight: FontWeight.w600,
                   height: 1.25,
                 ),

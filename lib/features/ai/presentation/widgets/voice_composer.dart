@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../data/audio_recorder.dart';
 
@@ -95,9 +95,9 @@ class VoiceComposer extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppColors.card.withValues(alpha: 0.9),
+                color: TrainColors.raised,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: AppColors.hairline2),
+                border: Border.all(color: TrainColors.hairlineStrong),
               ),
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 240),
@@ -111,10 +111,8 @@ class VoiceComposer extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     children: [...previousChildren, ?currentChild],
                   ),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
                   child: isRecording
                       ? _RecordingBar(
                           key: const ValueKey('recording'),
@@ -184,7 +182,7 @@ class _IdleBar extends StatelessWidget {
                 onSubmitted: (_) {
                   if (canSend) onSend();
                 },
-                cursorColor: AppColors.iris,
+                cursorColor: TrainColors.violet,
                 cursorWidth: 1.6,
                 style: AppText.rowTitle,
                 decoration: const InputDecoration(
@@ -202,7 +200,7 @@ class _IdleBar extends StatelessWidget {
               icon: Icon(
                 AppIcons.mic,
                 size: 22,
-                color: blocked ? AppColors.ink3 : AppColors.iris,
+                color: blocked ? TrainColors.ink3 : TrainColors.violet,
               ),
               tooltip: 'Record a voice note',
             ),
@@ -276,8 +274,8 @@ class _SendCircleState extends State<_SendCircle>
         child: Material(
           key: const Key('composer-send'),
           color: widget.canSend && !widget.blocked
-              ? AppColors.iris
-              : AppColors.surfaceRaised,
+              ? TrainColors.violet
+              : TrainColors.raisedStrong,
           borderRadius: BorderRadius.circular(999),
           child: InkWell(
             onTap: widget.canSend
@@ -295,7 +293,7 @@ class _SendCircleState extends State<_SendCircle>
                 boxShadow: widget.canSend && !widget.blocked
                     ? [
                         BoxShadow(
-                          color: AppColors.iris.withValues(alpha: 0.35),
+                          color: TrainColors.violet.withValues(alpha: 0.35),
                           blurRadius: 14,
                           offset: const Offset(0, 3),
                         ),
@@ -307,7 +305,7 @@ class _SendCircleState extends State<_SendCircle>
                 size: 19,
                 color: widget.canSend && !widget.blocked
                     ? Colors.white
-                    : AppColors.ink3,
+                    : TrainColors.ink3,
               ),
             ),
           ),
@@ -437,7 +435,7 @@ class _RecordingBarState extends State<_RecordingBar>
                   icon: const Icon(
                     AppIcons.close,
                     size: 20,
-                    color: AppColors.ink3,
+                    color: TrainColors.ink3,
                   ),
                   tooltip: 'Discard recording',
                 ),
@@ -456,11 +454,14 @@ class _RecordingBarState extends State<_RecordingBar>
               Expanded(child: _Waveform(bars: _bars)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(_elapsedLabel, style: AppText.meta.copyWith(color: AppColors.ink2)),
+                child: Text(
+                  _elapsedLabel,
+                  style: AppText.meta.copyWith(color: TrainColors.ink2),
+                ),
               ),
               PressableScale(
                 child: Material(
-                  color: AppColors.flare,
+                  color: TrainColors.ember,
                   borderRadius: BorderRadius.circular(999),
                   child: InkWell(
                     key: const Key('composer-stop'),
@@ -508,7 +509,7 @@ class _RecordingBarState extends State<_RecordingBar>
                     style: AppText.meta.copyWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.flareText,
+                      color: TrainColors.ember,
                     ),
                   ),
                 )
@@ -531,10 +532,10 @@ class _RecordDot extends StatelessWidget {
       width: 11,
       height: 11,
       decoration: const BoxDecoration(
-        color: AppColors.flare,
+        color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Color(0x55FF3D6E), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: Color(0x55FF5C1A), blurRadius: 8, spreadRadius: 1),
         ],
       ),
     );
@@ -560,12 +561,14 @@ class _Waveform extends StatelessWidget {
         children: [
           for (final level in bars)
             AnimatedContainer(
-              duration: still ? Duration.zero : const Duration(milliseconds: 90),
+              duration: still
+                  ? Duration.zero
+                  : const Duration(milliseconds: 90),
               curve: Curves.easeOut,
               width: 3,
               height: 5 + 24 * level.clamp(0.0, 1.0),
               decoration: BoxDecoration(
-                color: AppColors.flare.withValues(alpha: 0.35 + 0.65 * level),
+                color: TrainColors.ember.withValues(alpha: 0.35 + 0.65 * level),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -622,7 +625,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
   @override
   Widget build(BuildContext context) {
     final still = MediaQuery.of(context).disableAnimations;
-    final glyph = Icon(AppIcons.waveform, size: 18, color: AppColors.iris);
+    final glyph = Icon(AppIcons.waveform, size: 18, color: TrainColors.violet);
     return SizedBox(
       height: 56,
       child: Row(
@@ -637,7 +640,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
             child: Text(
               ' · ${_seconds}s',
               key: ValueKey(_seconds),
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
           ),
           const Spacer(),
@@ -645,7 +648,11 @@ class _TranscribingBarState extends State<_TranscribingBar>
             child: IconButton(
               key: const Key('composer-cancel-transcribing'),
               onPressed: widget.onCancel,
-              icon: const Icon(AppIcons.close, size: 20, color: AppColors.ink3),
+              icon: const Icon(
+                AppIcons.close,
+                size: 20,
+                color: TrainColors.ink3,
+              ),
               tooltip: 'Discard voice note',
             ),
           ),

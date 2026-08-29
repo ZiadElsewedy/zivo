@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -45,9 +44,9 @@ class WorkoutPlanPage extends StatelessWidget {
         final loading =
             plan == null && snapshot.connectionState == ConnectionState.waiting;
         return Scaffold(
-          backgroundColor: AppColors.ground,
+          backgroundColor: TrainColors.base,
           appBar: AppBar(
-            backgroundColor: AppColors.ground,
+            backgroundColor: TrainColors.base,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             // Pushed from the Hub — the house back chip, not Material's
@@ -157,7 +156,7 @@ List<BoxShadow> _cardGlow(Color color) => [
 ];
 
 /// The Lottie loading mark renders in a dark ink tone of its own — nearly
-/// invisible directly on [AppColors.ground] — so it's recolored to the
+/// invisible directly on [TrainColors.base] — so it's recolored to the
 /// dark palette's muted ink via a color filter, then given a touch of a
 /// lighter (but still dark) backdrop for extra contrast.
 class _PlanLoadingState extends StatelessWidget {

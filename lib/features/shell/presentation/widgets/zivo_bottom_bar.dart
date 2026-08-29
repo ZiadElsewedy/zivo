@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../core/motion/springs.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../music/presentation/now_playing_lozenge.dart'
     show kNowPlayingLozengeHeight;
 
@@ -149,9 +149,12 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
             filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xF01D160F),
+                // Cool, not the old warm charcoal: this island is on screen
+                // over every surface in the app, so it was the single biggest
+                // source of "two palettes on one screen".
+                color: TrainColors.raised,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: AppColors.hairline2),
+                border: Border.all(color: TrainColors.hairlineStrong),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -227,9 +230,9 @@ class _Capsule extends StatelessWidget {
       width: width - inset * 2,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.emberWash,
+          color: TrainColors.emberWash,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.ember.withValues(alpha: 0.28)),
+          border: Border.all(color: TrainColors.ember.withValues(alpha: 0.28)),
         ),
       ),
     );
@@ -255,7 +258,7 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color.lerp(AppColors.tabInactive, AppColors.ember, t)!;
+    final color = Color.lerp(TrainColors.tabInactive, TrainColors.ember, t)!;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
