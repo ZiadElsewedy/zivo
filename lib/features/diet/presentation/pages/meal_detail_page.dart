@@ -3,14 +3,13 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The dedicated view behind a meal card's "View" affordance — everything
 /// IN the meal, and nothing else: its items with quantities, calories and
@@ -35,11 +34,11 @@ class MealDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final diet = AppScope.of(context).diet;
     final now = DateTime.now();
-    final accent = isSupplement ? AppColors.solarText : AppColors.pulseText;
+    final accent = isSupplement ? TrainColors.amber : TrainColors.green;
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       appBar: AppBar(
-        backgroundColor: AppColors.ground,
+        backgroundColor: TrainColors.base,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -75,7 +74,7 @@ class MealDetailPage extends StatelessWidget {
               if (meal.items.isEmpty)
                 Text(
                   'No items listed for this meal.',
-                  style: AppText.body.copyWith(color: AppColors.ink3),
+                  style: AppText.body.copyWith(color: TrainColors.ink3),
                 ),
             ],
           );
@@ -105,8 +104,10 @@ class _MealTotalsCard extends StatefulWidget {
 
 class _MealTotalsCardState extends State<_MealTotalsCard>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _t =
-      AnimationController(vsync: this, value: widget.eaten ? 1 : 0);
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    value: widget.eaten ? 1 : 0,
+  );
 
   @override
   void didUpdateWidget(covariant _MealTotalsCard oldWidget) {
@@ -117,7 +118,10 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
       _t.value = target;
       return;
     }
-    _t.springTo(target, spring: widget.eaten ? AppSprings.bounce : AppSprings.standard);
+    _t.springTo(
+      target,
+      spring: widget.eaten ? AppSprings.bounce : AppSprings.standard,
+    );
   }
 
   @override
@@ -129,10 +133,10 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
   void _toggle() {
     HapticFeedback.mediumImpact();
     AppScope.of(context).diet.setMealEaten(
-          mealId: widget.meal.id,
-          day: DateTime.now(),
-          eaten: !widget.eaten,
-        );
+      mealId: widget.meal.id,
+      day: DateTime.now(),
+      eaten: !widget.eaten,
+    );
   }
 
   @override
@@ -144,16 +148,15 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
           color: Color.lerp(
-            AppColors.hairline,
-            widget.isSupplement ? AppColors.solar : AppColors.pulse,
+            TrainColors.hairline,
+            widget.isSupplement ? TrainColors.amber : TrainColors.green,
             tc,
           )!,
         ),
-        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +170,7 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
                   '${kcal != null ? '${hasEstimate ? ' · ~' : ' · '}$kcal kcal' : ''}',
                   style: AppText.rowTitle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                    color: TrainColors.ink,
                   ),
                 ),
               ),
@@ -188,8 +191,10 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
             width: double.infinity,
             child: Material(
               color: widget.eaten
-                  ? AppColors.surfaceRaised
-                  : (widget.isSupplement ? AppColors.solarWash : AppColors.pulseWash),
+                  ? TrainColors.raisedStrong
+                  : (widget.isSupplement
+                        ? TrainColors.amberWash
+                        : TrainColors.greenWash),
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 onTap: _toggle,
@@ -211,15 +216,19 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
                             key: ValueKey(widget.eaten),
                             size: 17,
                             color: widget.eaten
-                                ? AppColors.ink2
+                                ? TrainColors.ink2
                                 : widget.accent,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.eaten ? 'Mark as not eaten' : 'Done — mark as eaten',
+                          widget.eaten
+                              ? 'Mark as not eaten'
+                              : 'Done — mark as eaten',
                           style: AppText.button.copyWith(
-                            color: widget.eaten ? AppColors.ink2 : widget.accent,
+                            color: widget.eaten
+                                ? TrainColors.ink2
+                                : widget.accent,
                           ),
                         ),
                       ],
@@ -249,13 +258,13 @@ class _Macro extends StatelessWidget {
           TextSpan(
             text: '$label ',
             style: AppText.meta.copyWith(
-              color: AppColors.ink2,
+              color: TrainColors.ink2,
               fontWeight: FontWeight.w700,
             ),
           ),
           TextSpan(
             text: value,
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
         ],
       ),
@@ -276,9 +285,9 @@ class _ItemRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.55),
+        color: TrainColors.raised.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(AppRadius.chip * 2),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
@@ -291,16 +300,16 @@ class _ItemRow extends StatelessWidget {
                   style: AppText.rowTitle.copyWith(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
+                    color: TrainColors.ink,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  [
-                    foodQtyLabel(item),
-                    ?macroLabel(item),
-                  ].join('  ·  '),
-                  style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+                  [foodQtyLabel(item), ?macroLabel(item)].join('  ·  '),
+                  style: AppText.meta.copyWith(
+                    color: TrainColors.ink3,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

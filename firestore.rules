@@ -10,6 +10,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Password-reset OTP records — same lockdown as emailOtps. Written and read
+    // ONLY by the Cloud Functions Admin SDK; the signed-out reset flow never
+    // touches Firestore from the client. Deny everything here.
+    match /passwordResetOtps/{uid} {
+      allow read, write: if false;
+    }
+
     // User profiles: each signed-in user may read and write ONLY their own
     // document. Name + date of birth captured at profile completion; the uid
     // is the doc id, so ownership is `request.auth.uid == userId`.
@@ -91,8 +98,7 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.label is string
-        && request.resource.data.emoji is string
-        && request.resource.data.hue is string;
+        && request.resource.data.iconId is string;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 

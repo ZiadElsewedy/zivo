@@ -20,6 +20,7 @@ import 'package:zivo/features/workout/presentation/pages/workout_dashboard_page.
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/test_app.dart';
+import '../support/inert_music_controller.dart';
 
 /// A fixed-list [ExpenseRepository] — the real `InMemoryExpenseRepository`
 /// always self-seeds its own 5 demo expenses with no override, so this is
@@ -79,6 +80,7 @@ Widget _wrapWithData({
 }) {
   return AppScope(
     media: testMediaService(),
+    music: InertMusicController(),
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: _FixedExpenseRepository(expenses),
@@ -180,13 +182,13 @@ void main() {
       await pumpAt(tester, const Size(1170, 2532));
 
       // Diet: the seeded plan has 3 meals, none eaten yet.
-      expect(find.text('0 of 3 · 1270 kcal'), findsOneWidget);
+      expect(find.text('0 OF 3 · 1270 KCAL'), findsOneWidget);
       // Expenses: the seeded expenses sum to exactly 685 EGP within the trailing week.
-      expect(find.text('EGP 685 this week'), findsOneWidget);
+      expect(find.text('EGP 685 THIS WEEK'), findsOneWidget);
       // Moments: seeded with exactly one.
-      expect(find.text('1 moment'), findsOneWidget);
+      expect(find.text('1 MOMENT'), findsOneWidget);
       // Workout: seeded with a real active plan, so it never falls back to empty copy.
-      expect(find.text('No plan yet'), findsNothing);
+      expect(find.text('NO PLAN YET'), findsNothing);
 
       // Tapping Moments (not Expenses — `ExpensesListPage` separately
       // requires `AppScope.wallet`, which is a wallet-feature concern
@@ -209,7 +211,7 @@ void main() {
       // kcal left" ellipsized to "1270 …" on an actual device at this width.
       await pumpAt(tester, const Size(390, 844));
 
-      final finder = find.text('0 of 3 · 1270 kcal');
+      final finder = find.text('0 OF 3 · 1270 KCAL');
       expect(finder, findsOneWidget);
       expect(tester.widget<Text>(finder).maxLines, 2);
       expect(
@@ -361,4 +363,23 @@ void main() {
       expect(find.text('RECENT'), findsNothing);
     });
   });
+
+  testWidgets(
+    'the Connected band names each service and its live state, and is a '
+    'shortcut into the screen that owns it',
+    (tester) async {
+      await pumpAt(tester, const Size(1200, 3600));
+      await tester.pumpWidget(_wrapWithData());
+      await tester.pumpAndSettle();
+
+      // The tall test viewport fits the whole page, so the band is already
+      // laid out — no scrolling needed to assert on it.
+      expect(find.text('CONNECTED'), findsOneWidget); // the section label
+      expect(find.text('Spotify'), findsOneWidget);
+      expect(find.text('Google Drive'), findsOneWidget);
+      // The inert controller is disconnected and the test media service has no
+      // backup wired, so both read as the honest negative rather than blank.
+      expect(find.text('NOT CONNECTED'), findsNWidgets(2));
+    },
+  );
 }

@@ -78,9 +78,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('ABOUT'));
+    // The prompt itself is the affordance — the ABOUT label sits outside the
+    // card now, as a section header like ACCOUNT and SIGN-IN.
+    await tester.tap(find.text('Add a few words about yourself.'));
     await tester.pumpAndSettle();
-    expect(find.text('About you'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Personal OS builder.');
     await tester.tap(find.text('Save'));

@@ -23,9 +23,18 @@ const _months = [
   'December',
 ];
 
-/// "Saturday · 15 August" for [now]'s calendar date.
-String formatTodayDate(DateTime now) =>
-    '${_weekdays[now.weekday - 1]} · ${now.day} ${_months[now.month - 1]}';
+/// "THU 27 AUG" — **the** page date caption, used by every surface that wears
+/// one (Today's header, the Hub's).
+///
+/// Short and all-caps on purpose: it's a mono micro-caption, on Today sitting
+/// under a 54px hero clock, where a full "Thursday · 27 August" would fight
+/// the line it's tucked beneath. There used to be a second, long-form
+/// `formatTodayDate` as well, so the same element changed shape between Today
+/// and the Hub; one caption, one formatter.
+String formatTodayShort(DateTime now) =>
+    '${_weekdays[now.weekday - 1].substring(0, 3)} ${now.day} '
+            '${_months[now.month - 1].substring(0, 3)}'
+        .toUpperCase();
 
 /// "Morning, Ziad" (time-of-day derived from [now]'s hour) — or a nameless
 /// "Good morning" when [name] is null/blank. Uses only the first word of a

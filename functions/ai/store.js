@@ -569,6 +569,62 @@ class FirestoreStore {
       updatedAt: FieldValue.serverTimestamp(),
     });
   }
+
+  /**
+   * One expense doc by id (uid-scoped), or null. Field names mirror
+   * `listExpenses` / the client `FirestoreExpenseRepository`.
+   * @param {string} uid
+   * @param {string} id
+   * @return {!Promise<?Object>}
+   */
+  async getExpense(uid, id) {
+    const snap = await this._user(uid).collection("expenses").doc(id).get();
+    if (!snap.exists) return null;
+    const d = snap.data();
+    return {
+      id: snap.id,
+      amountMinor: d.amountMinor || 0,
+      currency: d.currency || "",
+      category: d.category || "other",
+      note: d.note || null,
+      spentAt: toDate(d.spentAt),
+    };
+  }
+
+  /**
+   * Edits an existing expense in place, mirroring the client
+   * `FirestoreExpenseRepository.update`. Only the fields present in `patch`
+   * change (a partial merge over the existing doc); `updatedAt` is always
+   * bumped. Uses `.update()` (not `.set(..., {merge})`) so a race where the
+   * doc was deleted between propose and confirm fails loudly rather than
+   * resurrecting a half-populated expense.
+   * @param {string} uid
+   * @param {string} id
+   * @param {!Object} patch amountMinor/currency/category/note/spentAtIso
+   * @return {!Promise<void>}
+   */
+  async updateExpense(uid, id, patch) {
+    const data = {updatedAt: FieldValue.serverTimestamp()};
+    if (patch.amountMinor !== undefined) data.amountMinor = patch.amountMinor;
+    if (patch.currency !== undefined) data.currency = patch.currency;
+    if (patch.category !== undefined) data.category = patch.category;
+    if (patch.note !== undefined) data.note = patch.note;
+    if (patch.spentAtIso !== undefined) {
+      data.spentAt = Timestamp.fromDate(new Date(patch.spentAtIso));
+    }
+    await this._user(uid).collection("expenses").doc(id).update(data);
+  }
+
+  /**
+   * Deletes an expense by id, mirroring the client
+   * `FirestoreExpenseRepository.remove`.
+   * @param {string} uid
+   * @param {string} id
+   * @return {!Promise<void>}
+   */
+  async deleteExpense(uid, id) {
+    await this._user(uid).collection("expenses").doc(id).delete();
+  }
 }
 
 module.exports = {FirestoreStore};

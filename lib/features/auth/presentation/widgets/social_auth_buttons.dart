@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/google_g_mark.dart';
 import 'auth_action_button.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Which auth action, if any, is currently in flight — so the busy button shows
 /// a spinner and the others disable.
@@ -46,9 +46,9 @@ class SocialAuthButtons extends StatelessWidget {
         AuthActionButton(
           label: 'Continue with Google',
           icon: const GoogleGMark(size: 20),
-          background: AppColors.card,
-          foreground: AppColors.ink,
-          border: AppColors.hairline2,
+          background: TrainColors.raised,
+          foreground: TrainColors.ink,
+          border: TrainColors.hairlineStrong,
           loading: inFlight == AuthAction.google,
           enabled: !busy || inFlight == AuthAction.google,
           onTap: onGoogle,

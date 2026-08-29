@@ -88,12 +88,12 @@ void main() {
       expect(find.text('Team lunch'), findsOneWidget);
       expect(find.text('Espresso run'), findsOneWidget);
 
-      expect(find.text('Today'), findsOneWidget);
-      expect(find.text('Yesterday'), findsOneWidget);
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('YESTERDAY'), findsOneWidget);
 
       // Group order: Today before Yesterday.
-      final todayY = tester.getTopLeft(find.text('Today')).dy;
-      final yesterdayY = tester.getTopLeft(find.text('Yesterday')).dy;
+      final todayY = tester.getTopLeft(find.text('TODAY')).dy;
+      final yesterdayY = tester.getTopLeft(find.text('YESTERDAY')).dy;
       expect(todayY, lessThan(yesterdayY));
 
       // Today's row sits above yesterday's row.
@@ -258,7 +258,7 @@ void main() {
     await tester.tap(find.text('Save balance'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1000 EGP'), findsOneWidget);
+    expect(find.text('1000'), findsWidgets); // balance figure; 'EGP' is its own unit
 
     // Logging an expense through the real capture flow deducts it from the
     // wallet automatically.
@@ -271,6 +271,6 @@ void main() {
     await tester.tap(find.text('Save · 45 EGP'));
     await tester.pumpAndSettle();
 
-    expect(find.text('955 EGP'), findsOneWidget);
+    expect(find.text('955'), findsWidgets);
   });
 }

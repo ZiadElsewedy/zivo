@@ -245,7 +245,9 @@ const EXPENSES_TOOL = {
   name: "get_expenses",
   description:
     "List expenses and totals by category. range: 'week' (default) or " +
-    "'month'. category: optional exact-match filter.",
+    "'month'. category: optional exact-match filter. Each item includes its " +
+    "stable `id` — pass that exact id to edit_expense/delete_expense; never " +
+    "guess an id.",
   inputSchema: {
     type: "object",
     properties: {
@@ -284,6 +286,10 @@ const EXPENSES_TOOL = {
       totalMinor,
       totalByCategory,
       items: items.map((e) => ({
+        // The stable doc id — the handle edit_expense/delete_expense need to
+        // target this exact entry. Without it the model can describe an
+        // expense but not point at one.
+        id: e.id,
         amountMinor: e.amountMinor,
         currency: e.currency,
         category: e.category,

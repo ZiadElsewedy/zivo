@@ -98,9 +98,9 @@ const MEAL_SCHEMA = {
     label: {
       type: "string",
       description:
-        'e.g. "Breakfast", "Lunch", "Dinner", "Snack". Vitamins and other ' +
-        'supplements go in a meal labeled exactly "Supplements" — never ' +
-        "inside a real meal.",
+        "e.g. \"Breakfast\", \"Lunch\", \"Dinner\", \"Snack\". Vitamins " +
+        "and other supplements go in a meal labeled exactly " +
+        "\"Supplements\" — never inside a real meal.",
     },
     items: {type: "array", items: FOOD_ITEM_SCHEMA},
   },

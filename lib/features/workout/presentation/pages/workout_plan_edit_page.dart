@@ -6,9 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/rep_target.dart';
@@ -23,10 +22,12 @@ import '../widgets/staggered_reveal.dart';
 
 /// The next cycle slot letter for a plan that already has [count] days: A, B,
 /// C… (falls back to a number past Z).
-String _slotForIndex(int count) => count < 26 ? String.fromCharCode(0x41 + count) : '${count + 1}';
+String _slotForIndex(int count) =>
+    count < 26 ? String.fromCharCode(0x41 + count) : '${count + 1}';
 
 /// "60" / "22.5" — a weight without a trailing ".0".
-String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+String _trimWeight(double v) =>
+    v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
 /// A custom "lift" for drag-reordered items (day tiles, exercise rows) —
 /// scales up slightly, gains elevation/shadow, and dims a touch while being
@@ -37,7 +38,11 @@ String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 
 /// custom spring via the public API, but it's already a smooth transition,
 /// not an instant snap. Reduced motion drops the lift flourish entirely
 /// (the reorder itself stays fully functional either way).
-Widget _liftProxyDecorator(Widget child, Animation<double> animation, {required double radius}) {
+Widget _liftProxyDecorator(
+  Widget child,
+  Animation<double> animation, {
+  required double radius,
+}) {
   return AnimatedBuilder(
     animation: animation,
     builder: (context, builtChild) {
@@ -82,9 +87,13 @@ class _DayDraft {
 /// set spec and generates the working sets). Saving persists the whole plan,
 /// reusing its id when editing so it overwrites idempotently, and preserving
 /// the rotation cursor. Dark, matching the session/plan/history screens on
-/// the app-wide [AppColors] theme.
+/// the app-wide [TrainColors] theme.
 class WorkoutPlanEditPage extends StatefulWidget {
-  const WorkoutPlanEditPage({super.key, this.initialPlan, this.asSplit = false});
+  const WorkoutPlanEditPage({
+    super.key,
+    this.initialPlan,
+    this.asSplit = false,
+  });
 
   final WorkoutPlan? initialPlan;
 
@@ -145,7 +154,10 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     _cursorDayId = (plan == null || plan.days.isEmpty)
         ? null
         : plan.days
-              .firstWhere((d) => d.order == plan.cycleCursor, orElse: () => plan.days.first)
+              .firstWhere(
+                (d) => d.order == plan.cycleCursor,
+                orElse: () => plan.days.first,
+              )
               .id;
     if (plan != null) {
       _days.addAll(
@@ -312,7 +324,10 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
           final exercise = day.exercises[i];
           day.exercises[i] = exercise.copyWith(
             defaultRestSeconds: seconds,
-            sets: [for (final set in exercise.sets) set.copyWith(restSeconds: seconds)],
+            sets: [
+              for (final set in exercise.sets)
+                set.copyWith(restSeconds: seconds),
+            ],
           );
         }
       }
@@ -334,7 +349,8 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
           notes: draft.notes,
           order: i,
           exercises: [
-            for (var j = 0; j < draft.exercises.length; j++) draft.exercises[j].copyWith(order: j),
+            for (var j = 0; j < draft.exercises.length; j++)
+              draft.exercises[j].copyWith(order: j),
           ],
         ),
       );
@@ -376,23 +392,53 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('Delete this $noun?', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+        backgroundColor: const Color(0x08FFFFFF),
+        title: Text(
+          'Delete this $noun?',
+          style: TrainType.ui(
+            size: 20,
+            weight: FontWeight.w800,
+            tracking: -0.025,
+            height: 1.15,
+            color: TrainColors.ink,
+          ),
+        ),
         content: Text(
           'This removes "${plan.name}" and all its days and exercises. This can\'t be undone.',
-          style: AppText.body.copyWith(color: AppColors.ink2),
+          style: TrainType.ui(
+            size: 13.5,
+            weight: FontWeight.w400,
+            height: 1.5,
+            color: TrainColors.ink2,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text(
+              'Cancel',
+              style: TrainType.ui(
+                size: 15,
+                weight: FontWeight.w700,
+                height: 1,
+                color: TrainColors.ink4,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
               HapticFeedback.mediumImpact();
               Navigator.pop(context, true);
             },
-            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flare)),
+            child: Text(
+              'Delete',
+              style: TrainType.ui(
+                size: 15,
+                weight: FontWeight.w700,
+                height: 1,
+                color: TrainColors.ember,
+              ),
+            ),
           ),
         ],
       ),
@@ -409,150 +455,187 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CaptureTopBar(
-              title: _editing
-                  ? (widget.asSplit ? 'Edit split' : 'Edit workout plan')
-                  : (widget.asSplit ? 'New split' : 'New workout plan'),
-              onClose: () => Navigator.of(context).maybePop(),
-              titleColor: AppColors.ink2,
-              iconColor: AppColors.ink2,
-              chipColor: AppColors.surfaceRaised,
-              trailing: _editing
-                  ? CaptureIconButton(
-                      key: const Key('workout-plan-delete'),
-                      icon: Icons.delete_outline_rounded,
-                      onTap: _delete,
-                      semanticLabel: widget.asSplit ? 'Delete split' : 'Delete plan',
-                      iconColor: AppColors.flare,
-                      chipColor: AppColors.surfaceRaised,
-                    )
-                  : null,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 6),
-              child: TextField(
-                key: const Key('plan-name-field'),
-                controller: _name,
-                textInputAction: TextInputAction.done,
-                cursorColor: AppColors.pulse,
-                style: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
-                  hintText: 'Plan name',
-                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink3),
+      backgroundColor: TrainColors.base,
+      body: DecoratedBox(
+        // The same wash the Workout hub carries — a capture flow belongs to
+        // the surface that launched it, not to a flat void.
+        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CaptureTopBar(
+                title: _editing
+                    ? (widget.asSplit ? 'Edit split' : 'Edit workout plan')
+                    : (widget.asSplit ? 'New split' : 'New workout plan'),
+                onClose: () => Navigator.of(context).maybePop(),
+                titleColor: TrainColors.ink2,
+                iconColor: TrainColors.ink2,
+                chipColor: TrainColors.glassStrong,
+                trailing: _editing
+                    ? CaptureIconButton(
+                        key: const Key('workout-plan-delete'),
+                        icon: Icons.delete_outline_rounded,
+                        onTap: _delete,
+                        semanticLabel: widget.asSplit
+                            ? 'Delete split'
+                            : 'Delete plan',
+                        iconColor: TrainColors.ember,
+                        chipColor: TrainColors.glassStrong,
+                      )
+                    : null,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 6),
+                child: TextField(
+                  key: const Key('plan-name-field'),
+                  controller: _name,
+                  textInputAction: TextInputAction.done,
+                  cursorColor: TrainColors.green,
+                  style: TrainType.ui(
+                    size: 24,
+                    weight: FontWeight.w800,
+                    tracking: -0.025,
+                    height: 1.15,
+                    color: TrainColors.ink,
+                  ),
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    border: InputBorder.none,
+                    hintText: 'Plan name',
+                    hintStyle: TrainType.ui(
+                      size: 24,
+                      weight: FontWeight.w800,
+                      tracking: -0.025,
+                      height: 1.15,
+                      color: TrainColors.ink4,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 10, 24, 4),
-              child: _DefaultRestRow(
-                seconds: _currentSeedRest(),
-                onTap: _pickDefaultRest,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 4),
+                child: _DefaultRestRow(
+                  seconds: _currentSeedRest(),
+                  onTap: _pickDefaultRest,
+                ),
               ),
-            ),
-            Expanded(
-              child: _days.isEmpty
-                  ? _EmptyDays(onAdd: _addDay)
-                  : ReorderableListView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
-                      itemCount: _days.length + 1,
-                      // Default handles would make the WHOLE row (including
-                      // the trailing "Add day" button) a drag target; days
-                      // opt in individually via ReorderableDelayedDragStartListener
-                      // below instead, and the add-button — outside that
-                      // wrapper — is never draggable.
-                      buildDefaultDragHandles: false,
-                      proxyDecorator: (child, index, animation) =>
-                          _liftProxyDecorator(child, animation, radius: 18),
-                      onReorderStart: (_) => HapticFeedback.selectionClick(),
-                      onReorderEnd: (_) => HapticFeedback.lightImpact(),
-                      onReorderItem: (oldIndex, newIndex) {
-                        // Guards the trailing "Add day" item defensively —
-                        // it always sits at _days.length and, since only
-                        // day items are wrapped in a drag-start listener
-                        // (see buildDefaultDragHandles above), never
-                        // actually starts a drag in the first place.
-                        if (oldIndex >= _days.length) return;
-                        _reorderDays(oldIndex, newIndex);
-                      },
-                      itemBuilder: (context, i) {
-                        if (i == _days.length) {
-                          return _AddButton(
-                            key: const ValueKey('add-day-button'),
-                            label: 'Add day',
-                            onTap: _addDay,
-                          );
-                        }
-                        final day = _days[i];
-                        final removing = _removingDayIds.contains(day.id);
-                        final reduced = reducedMotion(context);
-                        return Padding(
-                          // Keyed on the day's stable id so both its expand
-                          // state (owned by _DayCardState) and its
-                          // reorderable identity survive parent rebuilds
-                          // from unrelated edits, rather than being
-                          // recreated fresh (and re-collapsed) every time.
-                          key: ValueKey(day.id),
-                          padding: const EdgeInsets.only(bottom: 10),
-                          // Collapse-before-remove (see _removeDay) — the
-                          // AnimatedSize/AnimatedOpacity pair the removal
-                          // itself is timed against. StaggeredReveal handles
-                          // the opposite edge (a freshly-added day easing in
-                          // rather than popping), reusing the same widget
-                          // every other list on this feature already uses.
-                          child: AnimatedSize(
-                            duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
-                            curve: Curves.easeIn,
-                            alignment: Alignment.topCenter,
-                            child: AnimatedOpacity(
-                              opacity: removing ? 0 : 1,
-                              duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
-                              child: removing
-                                  ? const SizedBox(width: double.infinity)
-                                  : StaggeredReveal(
-                                      index: i,
-                                      child: ReorderableDelayedDragStartListener(
+              Expanded(
+                child: _days.isEmpty
+                    ? _EmptyDays(onAdd: _addDay)
+                    : ReorderableListView.builder(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
+                        itemCount: _days.length + 1,
+                        // Default handles would make the WHOLE row (including
+                        // the trailing "Add day" button) a drag target; days
+                        // opt in individually via ReorderableDelayedDragStartListener
+                        // below instead, and the add-button — outside that
+                        // wrapper — is never draggable.
+                        buildDefaultDragHandles: false,
+                        proxyDecorator: (child, index, animation) =>
+                            _liftProxyDecorator(child, animation, radius: 18),
+                        onReorderStart: (_) => HapticFeedback.selectionClick(),
+                        onReorderEnd: (_) => HapticFeedback.lightImpact(),
+                        onReorderItem: (oldIndex, newIndex) {
+                          // Guards the trailing "Add day" item defensively —
+                          // it always sits at _days.length and, since only
+                          // day items are wrapped in a drag-start listener
+                          // (see buildDefaultDragHandles above), never
+                          // actually starts a drag in the first place.
+                          if (oldIndex >= _days.length) return;
+                          _reorderDays(oldIndex, newIndex);
+                        },
+                        itemBuilder: (context, i) {
+                          if (i == _days.length) {
+                            return _AddButton(
+                              key: const ValueKey('add-day-button'),
+                              label: 'Add day',
+                              onTap: _addDay,
+                            );
+                          }
+                          final day = _days[i];
+                          final removing = _removingDayIds.contains(day.id);
+                          final reduced = reducedMotion(context);
+                          return Padding(
+                            // Keyed on the day's stable id so both its expand
+                            // state (owned by _DayCardState) and its
+                            // reorderable identity survive parent rebuilds
+                            // from unrelated edits, rather than being
+                            // recreated fresh (and re-collapsed) every time.
+                            key: ValueKey(day.id),
+                            padding: const EdgeInsets.only(bottom: 10),
+                            // Collapse-before-remove (see _removeDay) — the
+                            // AnimatedSize/AnimatedOpacity pair the removal
+                            // itself is timed against. StaggeredReveal handles
+                            // the opposite edge (a freshly-added day easing in
+                            // rather than popping), reusing the same widget
+                            // every other list on this feature already uses.
+                            child: AnimatedSize(
+                              duration: reduced
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 200),
+                              curve: Curves.easeIn,
+                              alignment: Alignment.topCenter,
+                              child: AnimatedOpacity(
+                                opacity: removing ? 0 : 1,
+                                duration: reduced
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 200),
+                                child: removing
+                                    ? const SizedBox(width: double.infinity)
+                                    : StaggeredReveal(
                                         index: i,
-                                        child: _DayCard(
-                                          day: day,
-                                          onRemoveDay: () => _removeDay(i),
-                                          onAddExercise: () => _addExercise(i),
-                                          onEditExercise: (ei) => _editExercise(i, ei),
-                                          onRemoveExercise: (ei) => _removeExercise(i, ei),
-                                          onReorderExercise: (oi, ni) => _reorderExercises(i, oi, ni),
-                                          removingExerciseIds: _removingExerciseIds,
-                                          initiallyExpanded: _autoExpandDayIds.contains(day.id),
-                                        ),
+                                        child:
+                                            ReorderableDelayedDragStartListener(
+                                              index: i,
+                                              child: _DayCard(
+                                                day: day,
+                                                onRemoveDay: () =>
+                                                    _removeDay(i),
+                                                onAddExercise: () =>
+                                                    _addExercise(i),
+                                                onEditExercise: (ei) =>
+                                                    _editExercise(i, ei),
+                                                onRemoveExercise: (ei) =>
+                                                    _removeExercise(i, ei),
+                                                onReorderExercise: (oi, ni) =>
+                                                    _reorderExercises(
+                                                      i,
+                                                      oi,
+                                                      ni,
+                                                    ),
+                                                removingExerciseIds:
+                                                    _removingExerciseIds,
+                                                initiallyExpanded:
+                                                    _autoExpandDayIds.contains(
+                                                      day.id,
+                                                    ),
+                                              ),
+                                            ),
                                       ),
-                                    ),
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                18,
-                8,
-                18,
-                MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
+                          );
+                        },
+                      ),
               ),
-              child: PillButton(
-                label: 'Save plan',
-                icon: Icons.check_rounded,
-                color: AppColors.pulse,
-                enabled: _canSave,
-                onTap: _save,
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  8,
+                  18,
+                  MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
+                ),
+                child: PillButton(
+                  label: 'Save plan',
+                  icon: Icons.check_rounded,
+                  color: TrainColors.ember,
+                  enabled: _canSave,
+                  onTap: _save,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -570,9 +653,21 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const Icon(
+            Icons.fitness_center_rounded,
+            size: 30,
+            color: TrainColors.ink4,
+          ),
           const SizedBox(height: 12),
-          Text('No days yet.', style: AppText.aside.copyWith(color: AppColors.ink2)),
+          Text(
+            'No days yet.',
+            style: TrainType.ui(
+              size: 14,
+              weight: FontWeight.w400,
+              height: 1.5,
+              color: TrainColors.ink2,
+            ),
+          ),
           const SizedBox(height: 14),
           _AddButton(label: 'Add day', onTap: onAdd),
         ],
@@ -582,7 +677,12 @@ class _EmptyDays extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.label, required this.onTap, this.compact = false, super.key});
+  const _AddButton({
+    required this.label,
+    required this.onTap,
+    this.compact = false,
+    super.key,
+  });
 
   final String label;
   final VoidCallback onTap;
@@ -595,21 +695,33 @@ class _AddButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 12 : 18,
+            vertical: compact ? 8 : 12,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.hairline2, width: 1.4),
+            border: Border.all(color: TrainColors.hairline, width: 1.4),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, size: compact ? 14 : 17, color: AppColors.pulse),
+              // Quiet, not green: "Add day"/"Add exercise" sit above this
+              // screen's real commit ("Save plan"), and two coloured actions
+              // competing is the "one committing action" rule being broken.
+              Icon(
+                Icons.add_rounded,
+                size: compact ? 14 : 17,
+                color: const Color(0x99F4F4F0),
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: AppText.button.copyWith(
-                  fontSize: compact ? 12.5 : 14,
-                  color: AppColors.pulse,
+                style: TrainType.ui(
+                  size: compact ? 12.5 : 14,
+                  weight: FontWeight.w700,
+                  height: 1,
+                  color: const Color(0xCCF4F4F0),
                 ),
               ),
             ],
@@ -640,29 +752,44 @@ class _DefaultRestRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: const Color(0x08FFFFFF),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: TrainColors.hairline),
             ),
             child: Row(
               children: [
-                const Icon(Icons.timer_outlined, size: 18, color: AppColors.pulse),
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 18,
+                  color: TrainColors.green,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Default rest · ${restLabel(seconds)}',
-                    style: AppText.rowTitle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                    style: TrainType.ui(
+                      size: 15,
+                      weight: FontWeight.w600,
+                      height: 1.1,
+                      color: TrainColors.ink,
                     ),
                   ),
                 ),
                 Text(
                   'Set all',
-                  style: AppText.meta.copyWith(color: AppColors.pulse, fontWeight: FontWeight.w600),
+                  style: TrainType.mono(
+                    size: 10.5,
+                    weight: FontWeight.w600,
+                    tracking: 0.06,
+                    color: TrainColors.green,
+                  ),
                 ),
                 const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: TrainColors.ink4,
+                ),
               ],
             ),
           ),
@@ -695,7 +822,12 @@ class _DefaultRestSheetState extends State<_DefaultRestSheet> {
         Text(
           'Sets every exercise in this plan to this rest. Editing one exercise '
           'afterward still overrides it individually.',
-          style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 13.5),
+          style: TrainType.ui(
+            size: 13.5,
+            weight: FontWeight.w400,
+            height: 1.5,
+            color: TrainColors.ink2,
+          ),
         ),
         const SizedBox(height: 16),
         _RestPicker(initialSeconds: _seconds, onChanged: (v) => _seconds = v),
@@ -703,7 +835,7 @@ class _DefaultRestSheetState extends State<_DefaultRestSheet> {
         PillButton(
           label: 'Set all',
           icon: Icons.check_rounded,
-          color: AppColors.pulse,
+          color: TrainColors.ember,
           enabled: true,
           onTap: () => Navigator.of(context).pop(_seconds),
         ),
@@ -757,7 +889,8 @@ class _DayCard extends StatefulWidget {
   State<_DayCard> createState() => _DayCardState();
 }
 
-class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin {
+class _DayCardState extends State<_DayCard>
+    with SingleTickerProviderStateMixin {
   late bool _expanded = widget.initiallyExpanded;
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -791,9 +924,9 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -812,33 +945,45 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                         children: [
                           Text(
                             'Day ${day.slot} · ${day.label}',
-                            style: AppText.rowTitle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.ink,
+                            style: TrainType.ui(
+                              size: 15,
+                              weight: FontWeight.w600,
+                              height: 1.1,
+                              color: TrainColors.ink,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '$count exercise${count == 1 ? '' : 's'}',
-                            style: AppText.meta.copyWith(color: AppColors.ink3),
+                            style: TrainType.mono(
+                              size: 10.5,
+                              tracking: 0.06,
+                              color: TrainColors.ink4,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     AnimatedBuilder(
                       animation: _controller,
-                      builder: (context, child) =>
-                          Transform.rotate(angle: _controller.value * math.pi, child: child),
+                      builder: (context, child) => Transform.rotate(
+                        angle: _controller.value * math.pi,
+                        child: child,
+                      ),
                       child: const Icon(
                         Icons.expand_more_rounded,
                         size: 22,
-                        color: AppColors.ink3,
+                        color: TrainColors.ink4,
                       ),
                     ),
                     PressableScale(
                       child: IconButton(
                         onPressed: widget.onRemoveDay,
-                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: TrainColors.ink4,
+                        ),
                         splashRadius: 20,
                         tooltip: 'Remove day',
                       ),
@@ -858,7 +1003,9 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
               // `!_controller.isAnimating`, not an exact `value == 0` check
               // — a settled SpringSimulation can land at a tiny residual
               // (within its tolerance) rather than precisely 0.
-              if (!_expanded && !_controller.isAnimating) return const SizedBox.shrink();
+              if (!_expanded && !_controller.isAnimating) {
+                return const SizedBox.shrink();
+              }
               return ClipRect(
                 child: Align(
                   alignment: Alignment.topCenter,
@@ -874,7 +1021,14 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                 if (day.notes != null && day.notes!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(day.notes!, style: AppText.meta.copyWith(color: AppColors.ink3)),
+                    child: Text(
+                      day.notes!,
+                      style: TrainType.mono(
+                        size: 10.5,
+                        tracking: 0.06,
+                        color: TrainColors.ink4,
+                      ),
+                    ),
                   ),
                 if (day.exercises.isNotEmpty)
                   ReorderableListView.builder(
@@ -893,7 +1047,9 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                     itemCount: day.exercises.length,
                     itemBuilder: (context, ei) {
                       final exercise = day.exercises[ei];
-                      final removing = widget.removingExerciseIds.contains(exercise.id);
+                      final removing = widget.removingExerciseIds.contains(
+                        exercise.id,
+                      );
                       final reduced = reducedMotion(context);
                       return Padding(
                         key: ValueKey(exercise.id),
@@ -901,12 +1057,16 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                         // Same collapse-before-remove / stagger-in pair as
                         // the day list above (see its comment).
                         child: AnimatedSize(
-                          duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                          duration: reduced
+                              ? Duration.zero
+                              : const Duration(milliseconds: 200),
                           curve: Curves.easeIn,
                           alignment: Alignment.topCenter,
                           child: AnimatedOpacity(
                             opacity: removing ? 0 : 1,
-                            duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+                            duration: reduced
+                                ? Duration.zero
+                                : const Duration(milliseconds: 200),
                             child: removing
                                 ? const SizedBox(width: double.infinity)
                                 : StaggeredReveal(
@@ -916,7 +1076,8 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                                       child: _ExerciseRow(
                                         exercise: exercise,
                                         onEdit: () => widget.onEditExercise(ei),
-                                        onRemove: () => widget.onRemoveExercise(ei),
+                                        onRemove: () =>
+                                            widget.onRemoveExercise(ei),
                                       ),
                                     ),
                                   ),
@@ -926,7 +1087,11 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
                     },
                   ),
                 const SizedBox(height: 10),
-                _AddButton(label: 'Add exercise', onTap: widget.onAddExercise, compact: true),
+                _AddButton(
+                  label: 'Add exercise',
+                  onTap: widget.onAddExercise,
+                  compact: true,
+                ),
               ],
             ),
           ),
@@ -940,7 +1105,11 @@ class _DayCardState extends State<_DayCard> with SingleTickerProviderStateMixin 
 /// pre-filled for editing in place; the trailing X stays a separate, direct
 /// remove action.
 class _ExerciseRow extends StatelessWidget {
-  const _ExerciseRow({required this.exercise, required this.onEdit, required this.onRemove});
+  const _ExerciseRow({
+    required this.exercise,
+    required this.onEdit,
+    required this.onRemove,
+  });
 
   final PlannedExercise exercise;
   final VoidCallback onEdit;
@@ -957,7 +1126,7 @@ class _ExerciseRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.glassStrong,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -970,14 +1139,23 @@ class _ExerciseRow extends StatelessWidget {
                         exercise.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                        style: TrainType.ui(
+                          size: 13.5,
+                          weight: FontWeight.w600,
+                          height: 1.5,
+                          color: TrainColors.ink,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _setSpecLabel(exercise),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.meta.copyWith(color: AppColors.pulse),
+                        style: TrainType.mono(
+                          size: 10.5,
+                          tracking: 0.06,
+                          color: TrainColors.green,
+                        ),
                       ),
                     ],
                   ),
@@ -985,7 +1163,11 @@ class _ExerciseRow extends StatelessWidget {
                 PressableScale(
                   child: IconButton(
                     onPressed: onRemove,
-                    icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.ink3),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: TrainColors.ink4,
+                    ),
                     splashRadius: 18,
                     tooltip: 'Remove exercise',
                   ),
@@ -1005,7 +1187,8 @@ class _ExerciseRow extends StatelessWidget {
     final first = e.sets.first;
     final parts = <String>[
       '${e.sets.length} × ${repTargetLabel(first.repTarget)}',
-      if (first.targetWeightKg != null) '${_trimWeight(first.targetWeightKg!)}kg',
+      if (first.targetWeightKg != null)
+        '${_trimWeight(first.targetWeightKg!)}kg',
       'rest ${restLabel(first.restSeconds)}',
     ];
     return parts.join(' · ');
@@ -1023,7 +1206,9 @@ class _DaySheet extends StatefulWidget {
 }
 
 class _DaySheetState extends State<_DaySheet> {
-  late final TextEditingController _slot = TextEditingController(text: widget.suggestedSlot);
+  late final TextEditingController _slot = TextEditingController(
+    text: widget.suggestedSlot,
+  );
   final TextEditingController _label = TextEditingController();
   final TextEditingController _notes = TextEditingController();
   bool _canAdd = false;
@@ -1047,7 +1232,9 @@ class _DaySheetState extends State<_DaySheet> {
 
   void _submit() {
     if (!_canAdd) return;
-    final slot = _slot.text.trim().isEmpty ? widget.suggestedSlot : _slot.text.trim();
+    final slot = _slot.text.trim().isEmpty
+        ? widget.suggestedSlot
+        : _slot.text.trim();
     final notes = _notes.text.trim();
     Navigator.of(context).pop(
       _DayDraft(
@@ -1090,7 +1277,7 @@ class _DaySheetState extends State<_DaySheet> {
         PillButton(
           label: 'Add day',
           icon: Icons.add_rounded,
-          color: AppColors.pulse,
+          color: TrainColors.green,
           enabled: _canAdd,
           onTap: _submit,
         ),
@@ -1145,8 +1332,12 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           RepTargetKind.toFailure => _RepMode.toFailure,
         };
         if (first.repTarget.min != null) _reps.text = '${first.repTarget.min}';
-        if (first.repTarget.max != null) _repsMax.text = '${first.repTarget.max}';
-        if (first.targetWeightKg != null) _weight.text = _trimWeight(first.targetWeightKg!);
+        if (first.repTarget.max != null) {
+          _repsMax.text = '${first.repTarget.max}';
+        }
+        if (first.targetWeightKg != null) {
+          _weight.text = _trimWeight(first.targetWeightKg!);
+        }
         _restSeconds = first.restSeconds;
       } else {
         _restSeconds = initial.defaultRestSeconds;
@@ -1228,12 +1419,19 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           autofocus: !_editing,
         ),
         const SizedBox(height: 14),
-        _LabeledField(label: 'Muscle group (optional)', controller: _muscle, hint: 'Chest'),
+        _LabeledField(
+          label: 'Muscle group (optional)',
+          controller: _muscle,
+          hint: 'Chest',
+        ),
         const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 76, child: _NumberField(label: 'Sets', controller: _sets)),
+            SizedBox(
+              width: 76,
+              child: _NumberField(label: 'Sets', controller: _sets),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1241,7 +1439,11 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
                 children: [
                   Text(
                     'REP TARGET',
-                    style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+                    style: TrainType.mono(
+                      size: 10.5,
+                      tracking: 0.06,
+                      color: TrainColors.ink4,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -1300,7 +1502,9 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
               ),
               if (_mode == _RepMode.range) ...[
                 const SizedBox(width: 12),
-                Expanded(child: _NumberField(label: 'Max reps', controller: _repsMax)),
+                Expanded(
+                  child: _NumberField(label: 'Max reps', controller: _repsMax),
+                ),
               ],
             ],
           ),
@@ -1316,14 +1520,20 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: _NumberField(label: 'Weight (kg)', controller: _weight, hint: '—')),
+            Expanded(
+              child: _NumberField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                hint: '—',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 22),
         PillButton(
           label: _editing ? 'Save changes' : 'Add exercise',
           icon: _editing ? Icons.check_rounded : Icons.add_rounded,
-          color: AppColors.pulse,
+          color: TrainColors.ember,
           enabled: _canAdd,
           onTap: _submit,
         ),
@@ -1350,9 +1560,11 @@ class _RestPickerState extends State<_RestPicker> {
   static const _stepSeconds = 5;
   static const _maxSeconds = 300;
 
-  late final FixedExtentScrollController _controller = FixedExtentScrollController(
-    initialItem: widget.initialSeconds.clamp(0, _maxSeconds) ~/ _stepSeconds,
-  );
+  late final FixedExtentScrollController _controller =
+      FixedExtentScrollController(
+        initialItem:
+            widget.initialSeconds.clamp(0, _maxSeconds) ~/ _stepSeconds,
+      );
 
   @override
   void dispose() {
@@ -1365,12 +1577,19 @@ class _RestPickerState extends State<_RestPicker> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('REST', style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6)),
+        Text(
+          'REST',
+          style: TrainType.mono(
+            size: 10.5,
+            tracking: 0.06,
+            color: TrainColors.ink4,
+          ),
+        ),
         const SizedBox(height: 6),
         Container(
           height: 132,
           decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
+            color: TrainColors.glassStrong,
             borderRadius: BorderRadius.circular(14),
           ),
           child: CupertinoPicker(
@@ -1382,7 +1601,7 @@ class _RestPickerState extends State<_RestPicker> {
             selectionOverlay: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairline,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -1395,7 +1614,12 @@ class _RestPickerState extends State<_RestPicker> {
                 Center(
                   child: Text(
                     restLabel(s),
-                    style: AppText.rowTitle.copyWith(color: AppColors.ink),
+                    style: TrainType.ui(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      height: 1.1,
+                      color: TrainColors.ink,
+                    ),
                   ),
                 ),
             ],
@@ -1417,9 +1641,11 @@ class _SheetShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: Color(0x08FFFFFF),
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: SingleChildScrollView(
@@ -1439,7 +1665,7 @@ class _SheetShell extends StatelessWidget {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.hairline2,
+                  color: TrainColors.hairline,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1447,7 +1673,16 @@ class _SheetShell extends StatelessWidget {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.only(left: 2, bottom: 12),
-              child: Text(title, style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+              child: Text(
+                title,
+                style: TrainType.ui(
+                  size: 20,
+                  weight: FontWeight.w800,
+                  tracking: -0.025,
+                  height: 1.15,
+                  color: TrainColors.ink,
+                ),
+              ),
             ),
             ...children,
           ],
@@ -1482,7 +1717,11 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+          style: TrainType.mono(
+            size: 10.5,
+            tracking: 0.06,
+            color: TrainColors.ink4,
+          ),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -1491,20 +1730,32 @@ class _LabeledField extends StatelessWidget {
           autofocus: autofocus,
           textInputAction: TextInputAction.next,
           onSubmitted: onSubmitted,
-          cursorColor: AppColors.pulse,
-          style: AppText.rowTitle.copyWith(color: AppColors.ink),
+          cursorColor: TrainColors.green,
+          style: TrainType.ui(
+            size: 15,
+            weight: FontWeight.w700,
+            height: 1.1,
+            color: TrainColors.ink,
+          ),
           decoration: InputDecoration(
             isCollapsed: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline2)),
+            border: const UnderlineInputBorder(
+              borderSide: BorderSide(color: TrainColors.hairline),
+            ),
             enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.hairline2),
+              borderSide: BorderSide(color: TrainColors.hairline),
             ),
             focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+              borderSide: BorderSide(color: TrainColors.green, width: 1.6),
             ),
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+            hintStyle: TrainType.ui(
+              size: 15,
+              weight: FontWeight.w700,
+              height: 1.1,
+              color: TrainColors.ink4,
+            ),
           ),
         ),
       ],
@@ -1513,7 +1764,11 @@ class _LabeledField extends StatelessWidget {
 }
 
 class _NumberField extends StatelessWidget {
-  const _NumberField({required this.label, required this.controller, this.hint});
+  const _NumberField({
+    required this.label,
+    required this.controller,
+    this.hint,
+  });
 
   final String label;
   final TextEditingController controller;
@@ -1526,29 +1781,51 @@ class _NumberField extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+          style: TrainType.mono(
+            size: 10.5,
+            tracking: 0.06,
+            color: TrainColors.ink4,
+          ),
         ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-          cursorColor: AppColors.pulse,
-          style: AppText.rowTitle.copyWith(color: AppColors.ink),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+          ],
+          cursorColor: TrainColors.green,
+          style: TrainType.ui(
+            size: 15,
+            weight: FontWeight.w700,
+            height: 1.1,
+            color: TrainColors.ink,
+          ),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
-            hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            hintStyle: TrainType.ui(
+              size: 15,
+              weight: FontWeight.w700,
+              height: 1.1,
+              color: TrainColors.ink4,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 10,
+              horizontal: 12,
+            ),
             filled: true,
-            fillColor: AppColors.surfaceRaised,
+            fillColor: TrainColors.glassStrong,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.pulse, width: 1.4),
+              borderSide: const BorderSide(
+                color: TrainColors.green,
+                width: 1.4,
+              ),
             ),
           ),
         ),

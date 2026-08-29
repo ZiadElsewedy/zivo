@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/moment.dart';
 import '../moment_metadata.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// A full-screen, swipeable, pinch-zoomable photo viewer — the "open a photo"
 /// half of the gallery. Swipe left/right between photos, pinch or double-tap to
@@ -86,20 +86,29 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('Delete moment?', style: AppText.cardTitle.copyWith(fontSize: 18)),
+        backgroundColor: TrainColors.raised,
+        title: Text(
+          'Delete moment?',
+          style: AppText.cardTitle.copyWith(fontSize: 18),
+        ),
         content: Text(
           'This removes it from your moments. The photo on your device is also removed.',
-          style: AppText.body.copyWith(color: AppColors.ink2),
+          style: AppText.body.copyWith(color: TrainColors.ink2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink2)),
+            child: Text(
+              'Cancel',
+              style: AppText.button.copyWith(color: TrainColors.ink2),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flareText)),
+            child: Text(
+              'Delete',
+              style: AppText.button.copyWith(color: TrainColors.ember),
+            ),
           ),
         ],
       ),
@@ -209,11 +218,14 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 260))
-      ..addListener(() {
-        final value = _zoomAnim?.value;
-        if (value != null) _controller.value = value;
-      });
+    _anim =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 260),
+        )..addListener(() {
+          final value = _zoomAnim?.value;
+          if (value != null) _controller.value = value;
+        });
   }
 
   @override
@@ -224,8 +236,10 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
   }
 
   void _animateTo(Matrix4 target) {
-    _zoomAnim = Matrix4Tween(begin: _controller.value, end: target)
-        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
+    _zoomAnim = Matrix4Tween(
+      begin: _controller.value,
+      end: target,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _anim.forward(from: 0);
   }
 
@@ -239,7 +253,12 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
     if (position == null) return;
     const scale = 2.6;
     final target = Matrix4.identity()
-      ..translateByDouble(-position.dx * (scale - 1), -position.dy * (scale - 1), 0, 1)
+      ..translateByDouble(
+        -position.dx * (scale - 1),
+        -position.dy * (scale - 1),
+        0,
+        1,
+      )
       ..scaleByDouble(scale, scale, scale, 1);
     _animateTo(target);
   }
@@ -267,8 +286,10 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
                 child: SizedBox(
                   width: 26,
                   height: 26,
-                  child:
-                      CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white24,
+                  ),
                 ),
               ),
             ),
@@ -281,7 +302,11 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto>
 
 /// Fades + slides the chrome in/out from the matching edge.
 class _AnimatedChrome extends StatelessWidget {
-  const _AnimatedChrome({required this.visible, required this.top, required this.child});
+  const _AnimatedChrome({
+    required this.visible,
+    required this.top,
+    required this.child,
+  });
 
   final bool visible;
   final bool top;
@@ -321,7 +346,12 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 6, bottom: 14, left: 6, right: 6),
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 6,
+        bottom: 14,
+        left: 6,
+        right: 6,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -339,7 +369,11 @@ class _TopBar extends StatelessWidget {
               style: AppText.meta.copyWith(color: Colors.white),
             ),
           ),
-          _GlyphButton(icon: AppIcons.trash, onTap: onDelete, semantic: 'Delete'),
+          _GlyphButton(
+            icon: AppIcons.trash,
+            onTap: onDelete,
+            semantic: 'Delete',
+          ),
         ],
       ),
     );
@@ -371,7 +405,12 @@ class _BottomBar extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           width: double.infinity,
-          padding: EdgeInsets.fromLTRB(20, 16, 12, MediaQuery.of(context).padding.bottom + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            12,
+            MediaQuery.of(context).padding.bottom + 16,
+          ),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
@@ -388,8 +427,13 @@ class _BottomBar extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      moment.caption.isEmpty ? 'Untitled moment' : moment.caption,
-                      style: AppText.cardTitle.copyWith(fontSize: 18, color: Colors.white),
+                      moment.caption.isEmpty
+                          ? 'Untitled moment'
+                          : moment.caption,
+                      style: AppText.cardTitle.copyWith(
+                        fontSize: 18,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   _GlyphButton(
@@ -401,7 +445,9 @@ class _BottomBar extends StatelessWidget {
               ),
               AnimatedCrossFade(
                 duration: const Duration(milliseconds: 220),
-                crossFadeState: infoOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                crossFadeState: infoOpen
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
                 firstChild: const SizedBox(width: double.infinity),
                 secondChild: Padding(
                   padding: const EdgeInsets.only(top: 14, right: 8),
@@ -450,7 +496,10 @@ class _MetaLine extends StatelessWidget {
             width: 110,
             child: Text(
               row.label,
-              style: AppText.meta.copyWith(color: Colors.white54, letterSpacing: 0.2),
+              style: AppText.meta.copyWith(
+                color: Colors.white54,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -467,7 +516,11 @@ class _MetaLine extends StatelessWidget {
 }
 
 class _GlyphButton extends StatelessWidget {
-  const _GlyphButton({required this.icon, required this.onTap, required this.semantic});
+  const _GlyphButton({
+    required this.icon,
+    required this.onTap,
+    required this.semantic,
+  });
 
   final IconData icon;
   final VoidCallback onTap;

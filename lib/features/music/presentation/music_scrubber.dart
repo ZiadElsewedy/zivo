@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/train_tokens.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 
@@ -32,10 +31,16 @@ class MusicScrubber extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.isPaused,
+    this.accentColor = TrainColors.green,
     super.key,
   });
 
   final MusicController controller;
+
+  /// The colour of the played track, its thumb and glow. Defaults to ember;
+  /// the immersive player passes the current track's neon accent so the scrub
+  /// line reacts to the artwork alongside the rest of the screen.
+  final Color accentColor;
 
   /// Identifies the current track — a change resets the bar to zero instantly
   /// instead of animating from the previous song's last position.
@@ -65,7 +70,8 @@ class _MusicScrubberState extends State<MusicScrubber>
   }
 
   bool _seekable(Duration duration) =>
-      duration.inMilliseconds > 0 && widget.controller.currentConnection == MusicConnection.connected;
+      duration.inMilliseconds > 0 &&
+      widget.controller.currentConnection == MusicConnection.connected;
 
   @override
   void didUpdateWidget(covariant MusicScrubber old) {
@@ -146,6 +152,12 @@ class _MusicScrubberState extends State<MusicScrubber>
     _commitSeek(_progress.value);
   }
 
+  static final _timecode = TrainType.mono(
+    size: 11,
+    tracking: 0.02,
+    color: const Color(0x73F4F4F0),
+  );
+
   String _format(double fraction) {
     final d = Duration(
       milliseconds: (widget.duration.inMilliseconds * fraction).round(),
@@ -171,9 +183,11 @@ class _MusicScrubberState extends State<MusicScrubber>
                 const trackHeight = 4.0;
                 final activeTrackHeight = _dragging ? 6.0 : trackHeight;
                 final thumbSize = _dragging ? 20.0 : 14.0;
-                final thumbLeft =
-                    ((_trackWidth * fraction) - thumbSize / 2)
-                        .clamp(0.0, (_trackWidth - thumbSize).clamp(0.0, double.infinity));
+                final thumbLeft = ((_trackWidth * fraction) - thumbSize / 2)
+                    .clamp(
+                      0.0,
+                      (_trackWidth - thumbSize).clamp(0.0, double.infinity),
+                    );
                 return Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.centerLeft,
@@ -199,10 +213,7 @@ class _MusicScrubberState extends State<MusicScrubber>
                       onHorizontalDragCancel: seekable
                           ? () => setState(() => _dragging = false)
                           : null,
-                      child: SizedBox(
-                        height: 30,
-                        width: double.infinity,
-                      ),
+                      child: SizedBox(height: 30, width: double.infinity),
                     ),
                     // Track + thumb render BELOW the gesture surface so the
                     // finger never occludes them mid-drag.
@@ -217,7 +228,7 @@ class _MusicScrubberState extends State<MusicScrubber>
                                 Container(
                                   height: trackHeight,
                                   decoration: BoxDecoration(
-                                    color: AppColors.hairline2,
+                                    color: TrainColors.hairlineStrong,
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
@@ -225,7 +236,7 @@ class _MusicScrubberState extends State<MusicScrubber>
                                   height: activeTrackHeight,
                                   width: _trackWidth * fraction,
                                   decoration: BoxDecoration(
-                                    color: AppColors.ember,
+                                    color: widget.accentColor,
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
@@ -245,11 +256,13 @@ class _MusicScrubberState extends State<MusicScrubber>
                           width: thumbSize,
                           height: thumbSize,
                           decoration: BoxDecoration(
-                            color: AppColors.ember,
+                            color: widget.accentColor,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.ember.withValues(alpha: 0.35),
+                                color: widget.accentColor.withValues(
+                                  alpha: 0.35,
+                                ),
                                 blurRadius: _dragging ? 10 : 4,
                                 spreadRadius: -1,
                               ),
@@ -263,8 +276,10 @@ class _MusicScrubberState extends State<MusicScrubber>
                     // still down.
                     if (_dragging)
                       Positioned(
-                        left: (thumbLeft + thumbSize / 2)
-                            .clamp(24.0, _trackWidth - 24.0),
+                        left: (thumbLeft + thumbSize / 2).clamp(
+                          24.0,
+                          _trackWidth - 24.0,
+                        ),
                         top: -22,
                         child: FractionalTranslation(
                           translation: const Offset(-0.5, 0),
@@ -275,14 +290,12 @@ class _MusicScrubberState extends State<MusicScrubber>
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_format(fraction),
-                    style: AppText.meta.copyWith(color: AppColors.ink3)),
-                Text('-${_format(remainingFraction)}',
-                    style: AppText.meta.copyWith(color: AppColors.ink3)),
+                Text(_format(fraction), style: _timecode),
+                Text('-${_format(remainingFraction)}', style: _timecode),
               ],
             ),
           ],
@@ -303,13 +316,13 @@ class _TimeBubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
+        color: TrainColors.raisedStrong,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: TrainColors.hairlineStrong),
       ),
       child: Text(
         label,
-        style: AppText.meta.copyWith(color: AppColors.ink, fontSize: 11.5),
+        style: TrainType.mono(size: 11.5, color: TrainColors.ink),
       ),
     );
   }

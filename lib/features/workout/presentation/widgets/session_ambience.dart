@@ -4,10 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../music/domain/music_connection.dart';
 import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The whole-session music ambience — the workout player's answer to "the
 /// screen should feel the music, not just the Spotify card".
@@ -25,7 +25,11 @@ import '../../../music/domain/now_playing.dart';
 /// to the pre-music look. Extraction is cached per track key
 /// (`title|artist`), so skipping back and forth doesn't re-run the palette.
 class SessionAmbience extends StatefulWidget {
-  const SessionAmbience({required this.controller, required this.child, super.key});
+  const SessionAmbience({
+    required this.controller,
+    required this.child,
+    super.key,
+  });
 
   final MusicController? controller;
   final Widget child;
@@ -33,8 +37,30 @@ class SessionAmbience extends StatefulWidget {
   /// The current track's accent color for the nearest [SessionAmbience]
   /// above [context], or null when there is none (no music / no artwork yet).
   /// Subscribing: an accent change (track change, artwork resolved) rebuilds.
+  ///
+  /// This is the **ambient** accent — pulled most of the way toward the
+  /// session's ground tone, so it can wash a whole background without
+  /// glare. For anything drawn ON that ground (a ring sweep, a transport
+  /// glyph, a label) use [vividOf] instead: this one is deliberately too
+  /// close to the background to read as a foreground mark.
   static Color? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_AmbienceScope>()?.data.accent;
+
+  /// The same track accent, normalised for use as a **foreground** color on
+  /// the session's near-black ground — saturation and lightness clamped into
+  /// a band that stays legible whatever the album art happens to be (a
+  /// near-black cover would otherwise hand the transport controls a color
+  /// indistinguishable from the background, and a white one would blow out).
+  static Color? vividOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_AmbienceScope>()?.data.vivid;
+
+  /// The identity of whatever is playing right now — changes exactly when
+  /// the track does. Consumers key their track-change motion off this so a
+  /// mere artwork/position update doesn't re-trigger it.
+  static String? trackKeyOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_AmbienceScope>()
+      ?.data
+      .trackKey;
 
   @override
   State<SessionAmbience> createState() => _SessionAmbienceState();
@@ -42,6 +68,7 @@ class SessionAmbience extends StatefulWidget {
 
 class _SessionAmbienceState extends State<SessionAmbience> {
   Color? _accent;
+  Color? _vivid;
 
   @override
   void didChangeDependencies() {
@@ -69,7 +96,7 @@ class _SessionAmbienceState extends State<SessionAmbience> {
     if (bytes == null || bytes.isEmpty) return;
     final cached = _accentCache[key];
     if (cached != null) {
-      if (_accent != cached) _apply(cached);
+      if (_accent != cached.ambient) _apply(cached);
       return;
     }
     unawaited(_runExtraction(bytes, key));
@@ -81,42 +108,73 @@ class _SessionAmbienceState extends State<SessionAmbience> {
         MemoryImage(bytes),
         size: const Size(96, 96),
       );
-      Color? chosen = palette.vibrantColor?.color ?? palette.dominantColor?.color;
+      Color? chosen =
+          palette.vibrantColor?.color ?? palette.dominantColor?.color;
       chosen ??= palette.colors.isEmpty ? null : palette.colors.first;
       if (chosen == null || !mounted) return;
-      // Pull most of the way toward the session's own ground tone so the
-      // accent reads as ambient light, never glare — text on any surface
-      // stays readable.
-      final tinted = Color.lerp(chosen, AppColors.ground, 0.55)!;
-      _accentCache[key] = tinted;
-      _apply(tinted);
+      // Two derivations of the same swatch, for the two jobs it has to do.
+      // Ambient: pulled most of the way toward the session's own ground tone
+      // so it reads as light in the room, never glare. Vivid: clamped into a
+      // legible band (see [SessionAmbience.vividOf]) for marks drawn on top
+      // of that ground.
+      final accent = (
+        ambient: Color.lerp(chosen, TrainColors.base, 0.55)!,
+        vivid: _legible(chosen),
+      );
+      _accentCache[key] = accent;
+      _apply(accent);
     } catch (_) {
       // Artwork failed to decode — neutral fallback is fine.
     }
   }
 
-  void _apply(Color accent) {
+  void _apply(_Accent accent) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _accent != accent) setState(() => _accent = accent);
+      if (!mounted || _accent == accent.ambient) return;
+      setState(() {
+        _accent = accent.ambient;
+        _vivid = accent.vivid;
+      });
     });
+  }
+
+  /// Clamps an arbitrary album-art swatch into the saturation/lightness band
+  /// that stays readable as a foreground on [TrainColors.base]. Hue — the
+  /// part that actually carries the track's identity — is left untouched.
+  static Color _legible(Color raw) {
+    final hsl = HSLColor.fromColor(raw);
+    return hsl
+        .withSaturation(hsl.saturation.clamp(0.42, 0.95))
+        .withLightness(hsl.lightness.clamp(0.58, 0.76))
+        .toColor();
   }
 
   /// Per-track extraction cache — shared across phase rebuilds so a track's
   /// palette runs exactly once per process.
-  static final Map<String, Color> _accentCache = {};
+  static final Map<String, _Accent> _accentCache = {};
 
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
     if (controller == null) {
-      return _AmbienceScope(data: _AmbienceData(accent: null), child: widget.child);
+      return _AmbienceScope(
+        data: const _AmbienceData(accent: null, vivid: null, trackKey: null),
+        child: widget.child,
+      );
     }
     return StreamBuilder<MusicConnection>(
       stream: controller.connection,
       initialData: controller.currentConnection,
       builder: (context, connSnap) {
         if (connSnap.data != MusicConnection.connected) {
-          return _AmbienceScope(data: _AmbienceData(accent: null), child: widget.child);
+          return _AmbienceScope(
+            data: const _AmbienceData(
+              accent: null,
+              vivid: null,
+              trackKey: null,
+            ),
+            child: widget.child,
+          );
         }
         return StreamBuilder<NowPlaying?>(
           stream: controller.nowPlaying,
@@ -125,11 +183,22 @@ class _SessionAmbienceState extends State<SessionAmbience> {
             final playing = nowSnap.data;
             // A track swap invalidates immediately (the new accent lands
             // when extraction finishes); nothing loaded clears to neutral.
-            final accentForTrack =
-                playing == null ? null : (_accentCache[_keyOf(playing)] ?? _accent);
+            final cached = playing == null
+                ? null
+                : _accentCache[_keyOf(playing)];
+            final accentForTrack = playing == null
+                ? null
+                : (cached?.ambient ?? _accent);
+            final vividForTrack = playing == null
+                ? null
+                : (cached?.vivid ?? _vivid);
             if (playing != null) _extractAccent(playing);
             return _AmbienceScope(
-              data: _AmbienceData(accent: accentForTrack),
+              data: _AmbienceData(
+                accent: accentForTrack,
+                vivid: vividForTrack,
+                trackKey: playing?.trackId,
+              ),
               child: widget.child,
             );
           },
@@ -139,10 +208,20 @@ class _SessionAmbienceState extends State<SessionAmbience> {
   }
 }
 
+/// The two derivations of one album-art swatch — see
+/// [SessionAmbience.of] (ambient) and [SessionAmbience.vividOf] (vivid).
+typedef _Accent = ({Color ambient, Color vivid});
+
 class _AmbienceData {
-  const _AmbienceData({required this.accent});
+  const _AmbienceData({
+    required this.accent,
+    required this.vivid,
+    required this.trackKey,
+  });
 
   final Color? accent;
+  final Color? vivid;
+  final String? trackKey;
 }
 
 class _AmbienceScope extends InheritedWidget {
@@ -151,5 +230,8 @@ class _AmbienceScope extends InheritedWidget {
   final _AmbienceData data;
 
   @override
-  bool updateShouldNotify(_AmbienceScope oldWidget) => oldWidget.data.accent != data.accent;
+  bool updateShouldNotify(_AmbienceScope oldWidget) =>
+      oldWidget.data.accent != data.accent ||
+      oldWidget.data.vivid != data.vivid ||
+      oldWidget.data.trackKey != data.trackKey;
 }

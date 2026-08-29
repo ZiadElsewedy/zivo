@@ -2,15 +2,21 @@
 
 > A **workout-anchored** Spotify now-playing companion (not a standalone tab) + an
 > immersive **Now Playing** screen with an album-artwork **color-adaptive background** and
-> a subtle mini-bar tint. Restored + reshaped per [ADR-004](../../../docs/DECISIONS/ADR-004-scope-specialization.md).
+> a subtle tint on the strip fused to the nav island. Restored + reshaped per [ADR-004](../../../docs/DECISIONS/ADR-004-scope-specialization.md).
 
 ## Start here
 
 - `presentation/music_player_page.dart` — the full Now Playing screen (color-adaptive bg).
-- `presentation/now_playing_bar.dart` — the compact mini-bar (album-color echo).
+- `presentation/now_playing_lozenge.dart` — the slim now-playing strip **fused to the top
+  edge of the shell's nav island** (album-color echo). Owns `kNowPlayingLozengeHeight`,
+  which `ZivoBottomBarMetrics` imports — see the shell's `bottom_chrome.dart`.
 - `presentation/artwork_palette_service.dart` — extracts the palette from artwork bytes
   (`palette_generator`) that drives the adaptive background.
-- `presentation/music_artwork.dart`, `music_scrubber.dart`, `now_playing_orb.dart` — pieces.
+- `presentation/spotify_strip.dart` — the three-density now-playing strip used across the
+  workout screens (`full` on Today, `inline` while logging, `rest` between sets). Carries
+  the **album-art tile + Spotify mark**, and takes an `accent` its host supplies so its
+  transport controls follow the current track's colour.
+- `presentation/music_artwork.dart`, `music_scrubber.dart` — pieces.
 
 ## Controller seam (`AppScope.music`, nullable)
 
@@ -26,9 +32,23 @@
 
 ## Gotchas
 
+- **The strip is part of the bottom chrome, not a layer above it.** It renders inside
+  `ZivoBottomBar`'s clip via that widget's `fused` slot, and its height is reserved on
+  every page through `BottomChrome`. Changing `kNowPlayingLozengeHeight` changes every
+  surface's bottom padding — that coupling is deliberate. There is no longer a
+  swipe-to-collapse orb: it existed only to shrink a too-tall bar, and it collided with
+  the Ask composer and with list rows.
 - **App Remote can't run in a simulator/emulator** — real playback needs a physical device
   with the Spotify app + Premium. `FakeMusicController` is what you develop against.
 - **Android real playback is blocked on an owner dashboard task** (package name + SHA-1 +
   User Management registration), not a code bug — see [`docs/STATE.md`](../../../docs/STATE.md).
   iOS works.
-- Use the **official Spotify logo asset** — trademark; don't recreate or recolor it.
+- Use the **official Spotify logo asset** — trademark; don't recreate or recolor it. It
+  appears where a track is genuinely playing *from* Spotify (the strip's artwork tile, the
+  player's source badge) — not on empty/disconnected slots, which would claim a connection
+  that isn't there.
+- **The "no artwork tile" rule is retired** (owner call). The original handoff had the
+  strips text-first with an [EqualizerGlyph] instead of a cover, so nothing competed with
+  each screen's hero number; recognising the track mid-set turned out to matter more. The
+  equalizer survives as an overlay on the tile and as the no-bytes fallback — don't
+  "restore" the text-only strip on the strength of the old comments.

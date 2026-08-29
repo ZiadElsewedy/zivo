@@ -92,23 +92,22 @@ void main() {
     );
     await tester.pump();
 
-    Opacity opacityOf() => tester.widget<Opacity>(
-          find.descendant(
-            of: find.byType(AuthActionButton),
-            matching: find.byType(Opacity),
-          ),
-        );
+    // Assert the button's own state rather than the opacity it happens to be
+    // painted with — how "disabled" looks is the button's business, whether
+    // it's disabled until the code is complete is this page's.
+    bool isEnabled() =>
+        tester.widget<AuthActionButton>(find.byType(AuthActionButton)).enabled;
 
     // No digits yet: disabled.
-    expect(opacityOf().opacity, 0.5);
+    expect(isEnabled(), isFalse);
 
     await tester.enterText(find.byType(TextField), '12345');
     await tester.pump();
-    expect(opacityOf().opacity, 0.5);
+    expect(isEnabled(), isFalse);
 
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
-    expect(opacityOf().opacity, 1);
+    expect(isEnabled(), isTrue);
 
     await teardownPage(tester);
   });

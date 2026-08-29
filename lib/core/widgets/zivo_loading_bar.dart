@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../motion/springs.dart';
-import '../theme/app_colors.dart';
+import '../theme/train_tokens.dart';
 
 /// ZIVO's loading indicator: a hairline-thin capsule with a warm ember→solar
 /// light sweeping through it. Deliberately quiet — one moving element, no
@@ -127,7 +127,7 @@ class _ZivoLoadingBarState extends State<ZivoLoadingBar>
       height: widget.height,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.hairline2,
+          color: TrainColors.hairlineStrong,
           borderRadius: BorderRadius.circular(widget.height),
         ),
         child: ClipRRect(
@@ -153,9 +153,9 @@ class _Light extends StatelessWidget {
           end: Alignment.centerRight,
           colors: [
             Color(0x00FF5A1F), // transparent ember
-            AppColors.ember,
-            AppColors.solar,
-            AppColors.ember,
+            TrainColors.ember,
+            TrainColors.amber,
+            TrainColors.ember,
             Color(0x00FF5A1F), // transparent ember
           ],
           stops: [0.0, 0.25, 0.5, 0.75, 1.0],

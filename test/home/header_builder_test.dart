@@ -2,13 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/home/presentation/header_builder.dart';
 
 void main() {
-  group('formatTodayDate', () {
-    test('formats as "Weekday · D Month"', () {
-      expect(formatTodayDate(DateTime(2026, 8, 15)), 'Saturday · 15 August');
+  group('formatTodayShort', () {
+    test('formats as clipped, all-caps "DDD D MMM"', () {
+      expect(formatTodayShort(DateTime(2026, 8, 15)), 'SAT 15 AUG');
     });
 
     test('formats a different weekday and month', () {
-      expect(formatTodayDate(DateTime(2026, 1, 1)), 'Thursday · 1 January');
+      expect(formatTodayShort(DateTime(2026, 1, 1)), 'THU 1 JAN');
     });
   });
 

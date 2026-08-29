@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/day_progress_analysis.dart';
@@ -47,296 +46,191 @@ class WorkoutProgressPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF182016), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _AuraBlob(color: AppColors.pulse, size: 200),
-            ),
-            SafeArea(
-              child: StreamBuilder<WorkoutPlan?>(
-                stream: scope.workoutPlans.watchActivePlan(),
-                initialData: scope.workoutPlans.activePlan,
-                builder: (context, planSnap) {
-                  final plan = planSnap.data;
-                  return StreamBuilder<List<LiveSession>>(
-                    stream: scope.workoutSessions.watchAll(),
-                    initialData: scope.workoutSessions.current,
-                    builder: (context, sessionsSnap) {
-                      final sessions =
-                          sessionsSnap.data ?? const <LiveSession>[];
-                      final now = DateTime.now();
-                      final stats = computeTrainingDashboardStats(
-                        sessions: sessions,
-                        now: now,
-                      );
-                      final selection = plan == null
-                          ? null
-                          : resolveUpNext(plan, _firstActive(sessions));
-                      final analysis = (plan == null || selection?.day == null)
-                          ? null
-                          : analyzeDayProgress(
-                              day: selection!.day!,
-                              planId: plan.id,
-                              allSessions: sessions,
-                            );
+    return TrainScreen(
+      tint: TrainColors.hubTint,
+      child: StreamBuilder<WorkoutPlan?>(
+        stream: scope.workoutPlans.watchActivePlan(),
+        initialData: scope.workoutPlans.activePlan,
+        builder: (context, planSnap) {
+          final plan = planSnap.data;
+          return StreamBuilder<List<LiveSession>>(
+            stream: scope.workoutSessions.watchAll(),
+            initialData: scope.workoutSessions.current,
+            builder: (context, sessionsSnap) {
+              final sessions = sessionsSnap.data ?? const <LiveSession>[];
+              final now = DateTime.now();
+              final stats = computeTrainingDashboardStats(
+                sessions: sessions,
+                now: now,
+              );
+              final selection = plan == null
+                  ? null
+                  : resolveUpNext(plan, _firstActive(sessions));
+              final analysis = (plan == null || selection?.day == null)
+                  ? null
+                  : analyzeDayProgress(
+                      day: selection!.day!,
+                      planId: plan.id,
+                      allSessions: sessions,
+                    );
 
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
+                children: [
+                  StaggeredReveal(
+                    index: 0,
+                    child: const TrainPageHeader(title: 'Progress'),
+                  ),
+                  const SizedBox(height: 24),
+                  // ---- HOW MUCH ---------------------------------
+                  StaggeredReveal(
+                    index: 0,
+                    child: _OverviewStrip(stats: stats),
+                  ),
+                  const SizedBox(height: 32),
+                  // ---- HOW WELL ---------------------------------
+                  if (analysis != null) ...[
+                    StaggeredReveal(
+                      index: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          StaggeredReveal(
-                            index: 0,
-                            child: const _ProgressHeader(),
-                          ),
-                          const SizedBox(height: 24),
-                          // ---- HOW MUCH ---------------------------------
-                          StaggeredReveal(
-                            index: 0,
-                            child: _OverviewStrip(stats: stats),
-                          ),
-                          const SizedBox(height: 32),
-                          // ---- HOW WELL ---------------------------------
-                          if (analysis != null) ...[
-                            StaggeredReveal(
-                              index: 1,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const WorkoutSectionLabel('Progress'),
-                                  const SizedBox(height: 10),
-                                  ProgressSummaryCard(analysis: analysis),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 30),
-                          ],
-                          if (plan != null) ...[
-                            StaggeredReveal(
-                              index: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const WorkoutSectionLabel('Current split'),
-                                  const SizedBox(height: 10),
-                                  SplitBreakdownCard(plan: plan, stats: stats),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 30),
-                          ],
-                          // ---- WHAT HAPPENED ----------------------------
-                          StaggeredReveal(
-                            index: 3,
-                            child: Row(
-                              children: [
-                                const Expanded(
-                                  child: WorkoutSectionLabel('Recent activity'),
-                                ),
-                                if (stats.recentSessions.isNotEmpty)
-                                  _SeeAllLink(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const WorkoutHistoryPage(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
+                          const WorkoutSectionLabel('Progress'),
                           const SizedBox(height: 10),
-                          if (stats.recentSessions.isEmpty)
-                            StaggeredReveal(
-                              index: 4,
-                              child: const _EmptyCard(
-                                label: "You haven't logged a session yet.",
-                              ),
-                            )
-                          else
-                            for (final (i, session)
-                                in stats.recentSessions.indexed)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: StaggeredReveal(
-                                  index: 4 + i,
-                                  child: _RecentSessionRow(
-                                    session: session,
-                                    now: now,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => SessionDetailsPage(
-                                            session: session,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                          const SizedBox(height: 30),
-                          StaggeredReveal(
-                            index: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const WorkoutSectionLabel('Go deeper'),
-                                const SizedBox(height: 10),
-                                _DestinationCard(
-                                  destinations: [
-                                    _Destination(
-                                      icon: AppIcons.analysis,
-                                      accent: AppColors.pulse,
-                                      label: 'Full analysis',
-                                      detail:
-                                          'Exercise-by-exercise, per training day',
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const WorkoutAnalysisPage(),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    _Destination(
-                                      icon: AppIcons.history,
-                                      accent: AppColors.iris,
-                                      label: 'All history',
-                                      detail: 'Every session you have logged',
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const WorkoutHistoryPage(),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    _Destination(
-                                      icon: AppIcons.splits,
-                                      accent: AppColors.solar,
-                                      label: 'Splits',
-                                      detail:
-                                          'Switch or edit your training splits',
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const SplitManagementPage(),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                          ProgressSummaryCard(analysis: analysis),
                         ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                  if (plan != null) ...[
+                    StaggeredReveal(
+                      index: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const WorkoutSectionLabel('Current split'),
+                          const SizedBox(height: 10),
+                          SplitBreakdownCard(plan: plan, stats: stats),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                  // ---- WHAT HAPPENED ----------------------------
+                  StaggeredReveal(
+                    index: 3,
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: WorkoutSectionLabel('Recent activity'),
+                        ),
+                        if (stats.recentSessions.isNotEmpty)
+                          _SeeAllLink(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const WorkoutHistoryPage(),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (stats.recentSessions.isEmpty)
+                    StaggeredReveal(
+                      index: 4,
+                      child: const _EmptyCard(
+                        label: "You haven't logged a session yet.",
+                      ),
+                    )
+                  else
+                    for (final (i, session) in stats.recentSessions.indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: StaggeredReveal(
+                          index: 4 + i,
+                          child: _RecentSessionRow(
+                            session: session,
+                            now: now,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      SessionDetailsPage(session: session),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                  const SizedBox(height: 30),
+                  StaggeredReveal(
+                    index: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const WorkoutSectionLabel('Go deeper'),
+                        const SizedBox(height: 10),
+                        _DestinationCard(
+                          destinations: [
+                            _Destination(
+                              icon: AppIcons.analysis,
+                              accent: TrainColors.green,
+                              label: 'Full analysis',
+                              detail: 'Exercise-by-exercise, per training day',
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const WorkoutAnalysisPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _Destination(
+                              icon: AppIcons.history,
+                              accent: TrainColors.green,
+                              label: 'All history',
+                              detail: 'Every session you have logged',
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const WorkoutHistoryPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _Destination(
+                              icon: AppIcons.splits,
+                              accent: TrainColors.green,
+                              label: 'Splits',
+                              detail: 'Switch or edit your training splits',
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SplitManagementPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page header — back chip and display title.
-class _ProgressHeader extends StatelessWidget {
-  const _ProgressHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        PressableScale(
-          child: Tooltip(
-            message: 'Back',
-            child: InkWell(
-              onTap: () => Navigator.of(context).maybePop(),
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
-                ),
-                child: const Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: AppColors.ink2,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Progress',
-            style: AppText.greeting.copyWith(fontSize: 30),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -358,7 +252,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.sessions,
-                accent: AppColors.pulse,
+                accent: TrainColors.green,
                 value: '${stats.sessionsThisWeek}',
                 label: 'This week',
               ),
@@ -367,7 +261,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.streak,
-                accent: AppColors.ember,
+                accent: TrainColors.green,
                 value: '${stats.currentStreakDays}',
                 label: 'Day streak',
               ),
@@ -380,7 +274,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.analysis,
-                accent: AppColors.iris,
+                accent: TrainColors.green,
                 value: '${stats.totalCompletedSessions}',
                 label: 'Total sessions',
               ),
@@ -389,7 +283,7 @@ class _OverviewStrip extends StatelessWidget {
             Expanded(
               child: _OverviewTile(
                 icon: AppIcons.timer,
-                accent: AppColors.solar,
+                accent: TrainColors.green,
                 value: stats.averageSessionDuration == null
                     ? '—'
                     : formatDurationShort(stats.averageSessionDuration!),
@@ -421,59 +315,39 @@ class _OverviewTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        gradient: TrainColors.cardGradient,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent.withValues(alpha: 0.28),
-                  accent.withValues(alpha: 0.10),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: accent.withValues(alpha: 0.18)),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.26),
-                  blurRadius: 14,
-                  spreadRadius: -3,
-                  offset: const Offset(0, 5),
+          TrainIconTile(icon: icon, accent: accent),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedStatValue(
+                  value: value,
+                  style: TrainType.mono(
+                    size: 21,
+                    tracking: -0.03,
+                    color: const Color(0xFFF9F9F5),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.caption(
+                    size: 8.5,
+                    tracking: 0.14,
+                    color: TrainColors.ink4,
+                  ),
                 ),
               ],
             ),
-            child: Icon(icon, size: 16, color: accent),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedStatValue(
-                value: value,
-                style: AppText.heroNumber.copyWith(
-                  fontSize: 21,
-                  color: AppColors.ink,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                label,
-                style: AppText.meta.copyWith(
-                  color: AppColors.ink3,
-                  fontSize: 11.5,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -501,11 +375,11 @@ class ProgressSummaryCard extends StatelessWidget {
     final (headline, color) = switch (overall) {
       null => (
         analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
-        AppColors.ink2,
+        TrainColors.ink2,
       ),
-      ProgressVerdict.progressing => ('Progressing', AppColors.pulse),
-      ProgressVerdict.matched => ('Holding steady', AppColors.ink2),
-      ProgressVerdict.down => ('Slipping', AppColors.flare),
+      ProgressVerdict.progressing => ('Progressing', TrainColors.green),
+      ProgressVerdict.matched => ('Holding steady', TrainColors.ink2),
+      ProgressVerdict.down => ('Slipping', TrainColors.ember),
     };
     return PressableScale(
       child: Material(
@@ -521,7 +395,7 @@ class ProgressSummaryCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: const Color(0x08FFFFFF),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -532,14 +406,6 @@ class ProgressSummaryCard extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: color.withValues(alpha: 0.14)),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.10),
-                  blurRadius: 28,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 14),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,9 +445,11 @@ class ProgressSummaryCard extends StatelessWidget {
                         analysis.day.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
+                        style: TrainType.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          color: TrainColors.inkPlain,
+                          height: 1.1,
                         ),
                       ),
                     ),
@@ -592,9 +460,12 @@ class ProgressSummaryCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   headline,
-                  style: AppText.cardTitle.copyWith(
-                    fontSize: 24,
-                    color: AppColors.ink,
+                  style: TrainType.ui(
+                    size: 24,
+                    weight: FontWeight.w800,
+                    tracking: -0.025,
+                    color: TrainColors.ink,
+                    height: 1.1,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -605,23 +476,29 @@ class ProgressSummaryCard extends StatelessWidget {
                             : "Log ${analysis.day.label} once more to see how you're trending.")
                       : '${analysis.improvedCount} improved · ${analysis.matchedCount} matched · '
                             '${analysis.regressedCount} regressed',
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
+                  style: TrainType.mono(
+                    size: 10.5,
+                    tracking: 0.06,
+                    color: TrainColors.ink4,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'See full analysis',
-                      style: AppText.meta.copyWith(
-                        color: AppColors.pulse,
-                        fontWeight: FontWeight.w600,
+                      'SEE FULL ANALYSIS',
+                      style: TrainType.mono(
+                        size: 9.5,
+                        color: TrainColors.green,
+                        weight: FontWeight.w600,
+                        tracking: 0.1,
                       ),
                     ),
                     const Icon(
                       AppIcons.chevron,
                       size: 16,
-                      color: AppColors.pulse,
+                      color: TrainColors.green,
                     ),
                   ],
                 ),
@@ -657,10 +534,11 @@ class _AnalysisVerdictBadge extends StatelessWidget {
           // the label rather than snapping when a new session re-verdicts.
           AnimatedStatValue(
             value: label,
-            style: AppText.meta.copyWith(
+            style: TrainType.mono(
               color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
+              weight: FontWeight.w600,
+              tracking: 0.12,
+              size: 9.5,
             ),
           ),
         ],
@@ -702,10 +580,9 @@ class SplitBreakdownCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: const Color(0x08FFFFFF),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.hairline),
-              boxShadow: AppShadows.card,
+              border: Border.all(color: TrainColors.hairline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,27 +598,19 @@ class SplitBreakdownCard extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppColors.pulse.withValues(alpha: 0.28),
-                            AppColors.pulse.withValues(alpha: 0.10),
+                            TrainColors.green.withValues(alpha: 0.28),
+                            TrainColors.green.withValues(alpha: 0.10),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.pulse.withValues(alpha: 0.18),
+                          color: TrainColors.green.withValues(alpha: 0.18),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.pulse.withValues(alpha: 0.24),
-                            blurRadius: 16,
-                            spreadRadius: -4,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
                       ),
                       child: const Icon(
                         AppIcons.splits,
                         size: 19,
-                        color: AppColors.pulse,
+                        color: TrainColors.green,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -753,16 +622,22 @@ class SplitBreakdownCard extends StatelessWidget {
                             plan.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppText.rowTitle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.ink,
+                            style: TrainType.ui(
+                              size: 15,
+                              weight: FontWeight.w700,
+                              color: TrainColors.inkPlain,
+                              height: 1.1,
                             ),
                           ),
                           const SizedBox(height: 2),
                           AnimatedStatValue(
                             value:
                                 '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
-                            style: AppText.meta.copyWith(color: AppColors.ink3),
+                            style: TrainType.mono(
+                              size: 10.5,
+                              tracking: 0.06,
+                              color: TrainColors.ink4,
+                            ),
                           ),
                         ],
                       ),
@@ -781,7 +656,7 @@ class SplitBreakdownCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     const Icon(
                       AppIcons.chevron,
-                      color: AppColors.ink3,
+                      color: TrainColors.ink4,
                       size: 20,
                     ),
                   ],
@@ -830,7 +705,12 @@ class _DayDistributionRow extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12.5),
+            style: TrainType.ui(
+              size: 12.5,
+              weight: FontWeight.w400,
+              color: TrainColors.ink2,
+              height: 1.45,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -839,7 +719,7 @@ class _DayDistributionRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: Stack(
               children: [
-                Container(height: 7, color: AppColors.hairline),
+                Container(height: 7, color: TrainColors.hairline),
                 FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: fraction.clamp(0.06, 1.0),
@@ -847,7 +727,7 @@ class _DayDistributionRow extends StatelessWidget {
                     height: 7,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF2BD99B), AppColors.pulse],
+                        colors: [Color(0xFF2BD99B), TrainColors.green],
                       ),
                     ),
                   ),
@@ -862,10 +742,10 @@ class _DayDistributionRow extends StatelessWidget {
           child: Text(
             '$count',
             textAlign: TextAlign.right,
-            style: AppText.meta.copyWith(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
+            style: TrainType.mono(
+              color: TrainColors.ink,
+              tracking: -0.02,
+              size: 12.5,
             ),
           ),
         ),
@@ -886,7 +766,7 @@ class _PlanLinkButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: AppColors.surfaceRaised,
+        color: TrainColors.glassStrong,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -895,10 +775,10 @@ class _PlanLinkButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Text(
               'Plan',
-              style: AppText.meta.copyWith(
-                color: AppColors.ink2,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+              style: TrainType.ui(
+                color: TrainColors.ink2,
+                weight: FontWeight.w600,
+                size: 12,
               ),
             ),
           ),
@@ -927,13 +807,16 @@ class _SeeAllLink extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'See all',
-                  style: AppText.meta.copyWith(
-                    color: AppColors.ink2,
-                    fontWeight: FontWeight.w600,
+                  'SEE ALL',
+                  style: TrainType.mono(
+                    size: 9.5,
+                    weight: FontWeight.w600,
+                    tracking: 0.1,
+                    color: TrainColors.ink2,
                   ),
                 ),
-                const Icon(AppIcons.chevron, size: 15, color: AppColors.ink3),
+                const SizedBox(width: 4),
+                const Icon(AppIcons.chevron, size: 12, color: TrainColors.ink4),
               ],
             ),
           ),
@@ -957,9 +840,9 @@ class _RecentSessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', AppColors.pulse),
-      SessionStatus.active => ('In progress', AppColors.solar),
-      SessionStatus.abandoned => ('Not completed', AppColors.ink3),
+      SessionStatus.completed => ('Completed', TrainColors.green),
+      SessionStatus.active => ('In progress', TrainColors.amber),
+      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
     };
     return PressableScale(
       child: Material(
@@ -970,10 +853,9 @@ class _RecentSessionRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: const Color(0x08FFFFFF),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.hairline),
-              boxShadow: AppShadows.card,
+              border: Border.all(color: TrainColors.hairline),
             ),
             child: Row(
               children: [
@@ -999,7 +881,7 @@ class _RecentSessionRow extends StatelessWidget {
                       SessionStatus.abandoned => AppIcons.minus,
                     },
                     size: 16,
-                    color: color == AppColors.ink3 ? AppColors.ink2 : color,
+                    color: color == TrainColors.ink4 ? TrainColors.ink2 : color,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1009,9 +891,11 @@ class _RecentSessionRow extends StatelessWidget {
                     children: [
                       Text(
                         session.dayLabel,
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
+                        style: TrainType.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          color: TrainColors.inkPlain,
+                          height: 1.1,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1019,7 +903,11 @@ class _RecentSessionRow extends StatelessWidget {
                         session.status == SessionStatus.completed
                             ? '${timeAgo(session.startedAt, now)} ago · ${formatDurationShort(session.elapsed)}'
                             : '${timeAgo(session.startedAt, now)} ago',
-                        style: AppText.meta.copyWith(color: AppColors.ink3),
+                        style: TrainType.mono(
+                          size: 10.5,
+                          tracking: 0.06,
+                          color: TrainColors.ink4,
+                        ),
                       ),
                     ],
                   ),
@@ -1038,15 +926,16 @@ class _RecentSessionRow extends StatelessWidget {
                   // color rides along with the label instead of snapping.
                   child: AnimatedStatValue(
                     value: label,
-                    style: AppText.meta.copyWith(
+                    style: TrainType.mono(
                       color: color,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+                      weight: FontWeight.w600,
+                      tracking: 0.12,
+                      size: 9.5,
                     ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(AppIcons.chevron, color: AppColors.ink3, size: 18),
+                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 18),
               ],
             ),
           ),
@@ -1067,12 +956,19 @@ class _EmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
-      child: Text(label, style: AppText.aside.copyWith(color: AppColors.ink2)),
+      child: Text(
+        label,
+        style: TrainType.ui(
+          size: 13.5,
+          weight: FontWeight.w400,
+          color: TrainColors.ink2,
+          height: 1.5,
+        ),
+      ),
     );
   }
 }
@@ -1105,10 +1001,9 @@ class _DestinationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         children: [
@@ -1153,7 +1048,7 @@ class _DestinationRow extends StatelessWidget {
               border: Border(
                 top: first
                     ? BorderSide.none
-                    : const BorderSide(color: AppColors.hairline),
+                    : const BorderSide(color: TrainColors.hairline),
               ),
             ),
             child: Row(
@@ -1175,14 +1070,6 @@ class _DestinationRow extends StatelessWidget {
                     border: Border.all(
                       color: destination.accent.withValues(alpha: 0.18),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: destination.accent.withValues(alpha: 0.26),
-                        blurRadius: 14,
-                        spreadRadius: -3,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
                   ),
                   child: Icon(
                     destination.icon,
@@ -1197,24 +1084,29 @@ class _DestinationRow extends StatelessWidget {
                     children: [
                       Text(
                         destination.label,
-                        style: AppText.rowTitle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
-                          fontSize: 15.5,
+                        style: TrainType.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          color: TrainColors.inkPlain,
+                          height: 1.1,
                         ),
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 4),
                       Text(
+                        // A sentence, not a label — Manrope. Mono is for
+                        // figures and captions (identity §6).
                         destination.detail,
-                        style: AppText.meta.copyWith(
-                          color: AppColors.ink3,
-                          fontWeight: FontWeight.w500,
+                        style: TrainType.ui(
+                          size: 12,
+                          weight: FontWeight.w400,
+                          color: TrainColors.ink4,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(AppIcons.chevron, color: AppColors.ink3, size: 20),
+                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 20),
               ],
             ),
           ),

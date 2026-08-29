@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+
+/// The chrome every capture and edit flow shares — the close/title top bar,
+/// its icon chips, the commit pill, and the selectable chip.
+///
+/// On the design handoff's material, because these screens are opened FROM
+/// handoff screens: the capture flow is the same world as the surface that
+/// launched it, so it uses the same glass, hairlines, Manrope and mono.
 
 /// A close button + centred title, shared by the capture screens.
 class CaptureTopBar extends StatelessWidget {
@@ -10,9 +16,9 @@ class CaptureTopBar extends StatelessWidget {
     required this.title,
     required this.onClose,
     this.trailing,
-    this.titleColor = AppColors.ink2,
-    this.iconColor = AppColors.ink2,
-    this.chipColor = AppColors.surfaceRaised,
+    this.titleColor = TrainColors.ink2,
+    this.iconColor = TrainColors.ink2,
+    this.chipColor = TrainColors.glassStrong,
     super.key,
   });
 
@@ -42,7 +48,20 @@ class CaptureTopBar extends StatelessWidget {
           ),
           Expanded(
             child: Center(
-              child: Text(title, style: AppText.button.copyWith(color: titleColor)),
+              child: Text(
+                // A screen title stays a title: Manrope, sentence case. The
+                // handoff's mono-uppercase caption rule is for LABELS on a
+                // screen, not for the screen's own name.
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TrainType.ui(
+                  size: 14.5,
+                  weight: FontWeight.w700,
+                  color: titleColor,
+                  height: 1,
+                ),
+              ),
             ),
           ),
           SizedBox(
@@ -66,8 +85,8 @@ class CaptureIconButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.iconColor = AppColors.ink2,
-    this.chipColor = AppColors.surfaceRaised,
+    this.iconColor = TrainColors.ink2,
+    this.chipColor = TrainColors.glassStrong,
     super.key,
   });
 
@@ -77,8 +96,8 @@ class CaptureIconButton extends StatelessWidget {
   final Color iconColor;
   final Color chipColor;
 
-  /// The visible chip diameter.
-  static const double chipSize = 34;
+  /// The visible chip diameter — the handoff's 36px circular control.
+  static const double chipSize = 36;
 
   /// The tap target the chip is centred within — the accessible minimum.
   static const double targetSize = 44;
@@ -98,8 +117,12 @@ class CaptureIconButton extends StatelessWidget {
               child: Container(
                 width: chipSize,
                 height: chipSize,
-                decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
-                child: Icon(icon, size: 18, color: iconColor),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: chipColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
             ),
           ),
@@ -116,7 +139,7 @@ class PillButton extends StatelessWidget {
     required this.icon,
     required this.enabled,
     required this.onTap,
-    this.color = AppColors.ember,
+    this.color = TrainColors.ember,
     this.textColor = Colors.white,
     super.key,
   });
@@ -134,30 +157,47 @@ class PillButton extends StatelessWidget {
       enabled: enabled,
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
-        child: Material(
-          color: color,
-          borderRadius: BorderRadius.circular(999),
-          child: InkWell(
-            onTap: enabled ? onTap : null,
+        // The one shadow the identity doc allows: the colored bloom under a
+        // primary pill (§5). Only when enabled — a disabled action shouldn't
+        // glow like a committing one.
+        child: DecoratedBox(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 18, color: textColor),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.button.copyWith(fontSize: 16, color: textColor),
+            boxShadow: enabled
+                ? TrainColors.actionGlow(color, alpha: 0.30)
+                : null,
+          ),
+          child: Material(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              onTap: enabled ? onTap : null,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 17),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: textColor),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TrainType.ui(
+                          size: 16.5,
+                          weight: FontWeight.w800,
+                          tracking: -0.01,
+                          color: textColor,
+                          height: 1,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -167,6 +207,9 @@ class PillButton extends StatelessWidget {
   }
 }
 
+/// [ChipTone.flare] keeps its name for its call sites, but on the handoff's
+/// palette it is ember — the colour reserved for the thing that wants your
+/// attention. There is no separate red.
 enum ChipTone { neutral, flare }
 
 /// A selectable pill chip (due dates, priority, time, etc.).
@@ -192,27 +235,29 @@ class SelectChip extends StatelessWidget {
     final Color fg;
     final Color border;
     if (selected && tone == ChipTone.flare) {
-      bg = AppColors.flare;
-      fg = AppColors.ground;
-      border = AppColors.flare;
+      bg = TrainColors.ember;
+      fg = Colors.white;
+      border = TrainColors.ember;
     } else if (selected) {
-      bg = AppColors.ink;
-      fg = AppColors.ground;
-      border = AppColors.ink;
+      bg = TrainColors.ink;
+      fg = TrainColors.base;
+      border = TrainColors.ink;
     } else {
-      bg = Colors.transparent;
-      fg = tone == ChipTone.flare ? AppColors.flareText : AppColors.ink2;
-      border = tone == ChipTone.flare ? const Color(0x59FF3D6E) : AppColors.hairline2;
+      bg = TrainColors.glass;
+      fg = tone == ChipTone.flare ? TrainColors.ember : TrainColors.ink2;
+      border = tone == ChipTone.flare
+          ? TrainColors.ember.withValues(alpha: 0.35)
+          : TrainColors.hairline;
     }
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: border, width: 1.4),
+          border: Border.all(color: border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -221,7 +266,15 @@ class SelectChip extends StatelessWidget {
               Icon(icon, size: 13, color: fg),
               const SizedBox(width: 6),
             ],
-            Text(label, style: AppText.button.copyWith(fontSize: 13.5, color: fg)),
+            Text(
+              label,
+              style: TrainType.ui(
+                size: 13,
+                weight: FontWeight.w700,
+                color: fg,
+                height: 1,
+              ),
+            ),
           ],
         ),
       ),

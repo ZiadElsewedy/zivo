@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Azeret+Mono:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0c0b;font-family:Manrope,system-ui,sans-serif}
+a{color:#1FE08A;text-decoration:none}a:hover{color:#5cf0b0}
+@keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+@keyframes glow{0%,100%{opacity:.55}50%{opacity:.9}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.06);opacity:.15}}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t4" style="padding:44px 48px 40px;border-bottom:1px solid rgba(255,255,255,.08);font-family:Manrope,system-ui,sans-serif">
+  <div style="display:flex;align-items:baseline;gap:12px;margin:0 0 6px">
+    <span style="font:700 10px/1 'Azeret Mono',monospace;letter-spacing:.14em;padding:5px 8px;background:#1a1b1a;color:#f4f4f0;border-radius:5px">4</span>
+    <span style="font:700 14px/1.2 Manrope,sans-serif;color:#f4f4f0">Your five screens, in the system</span>
+  </div>
+  <p style="margin:0 0 30px;max-width:1000px;font:400 12.5px/1.65 Manrope,sans-serif;color:rgba(244,244,240,.5)">
+    Player, Diet, Expenses, Moments, Settings — rebuilt on the same rules as <a class="dv-oid" href="#t1" style="color:#1FE08A">turn 1</a>: one hero number per screen, tabular mono for every figure, units dimmer and smaller than values, ember for the single committing action.
+    Three specific fixes to the originals: the player drops the empty artwork tile for a <strong style="color:rgba(244,244,240,.75);font-weight:700">type-led hero</strong> (title at 40px, live waveform, mono timecodes) — nothing is a placeholder waiting on data;
+    Diet's ring shows <strong style="color:rgba(244,244,240,.75);font-weight:700">one number</strong> with macros as bars beneath it instead of three competing fractions, and ticking a meal updates it live;
+    Expenses replaces the per-row saturated icon tiles with one hairline row + colored bar, so the eye reads amounts down a single mono column. Amber stays exclusive to money.
+  </p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start">
+
+    <div class="dv-opt" id="4a" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">4a</span>Now playing</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 50% at 50% 88%,#0e2a1f 0%,#0a0c0b 55%,#080908 100%);display:flex;flex-direction:column;padding:60px 26px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+              <svg width="13" height="9" viewBox="0 0 14 9" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6 6-6"/></svg>
+            </div>
+            <div style="text-align:center">
+              <div style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.35)">PLAYING FROM</div>
+              <div style="font:700 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.75);margin-top:7px">Pull Day · Heavy</div>
+            </div>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(244,244,240,.7)"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </div>
+          </div>
+
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:10px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:20px;width:24px">
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .8s ease-in-out infinite .45s"></span>
+              </div>
+              <span style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(31,224,138,.8)">SPOTIFY · TRACK 07</span>
+            </div>
+            <div style="font:800 40px/1.08 Manrope,sans-serif;letter-spacing:-.035em;color:#f9f9f5;margin-top:22px;text-wrap:pretty">{{ trackTitle }}</div>
+            <div style="font:400 15px/1 'Azeret Mono',monospace;letter-spacing:.01em;color:rgba(244,244,240,.45);margin-top:14px">{{ trackArtist }}</div>
+            <div style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.28);margin-top:16px">ALBUM · SINGLE · 2024</div>
+
+            <svg width="100%" height="66" viewBox="0 0 320 66" preserveAspectRatio="none" style="margin-top:34px">
+              <g fill="rgba(255,255,255,.13)">
+                <rect x="0" y="26" width="3" height="14" rx="1.5"/><rect x="8" y="18" width="3" height="30" rx="1.5"/><rect x="16" y="10" width="3" height="46" rx="1.5"/><rect x="24" y="22" width="3" height="22" rx="1.5"/><rect x="32" y="6" width="3" height="54" rx="1.5"/><rect x="40" y="20" width="3" height="26" rx="1.5"/><rect x="48" y="28" width="3" height="10" rx="1.5"/><rect x="56" y="14" width="3" height="38" rx="1.5"/><rect x="64" y="8" width="3" height="50" rx="1.5"/><rect x="72" y="24" width="3" height="18" rx="1.5"/><rect x="80" y="16" width="3" height="34" rx="1.5"/><rect x="88" y="27" width="3" height="12" rx="1.5"/><rect x="96" y="12" width="3" height="42" rx="1.5"/><rect x="104" y="20" width="3" height="26" rx="1.5"/><rect x="112" y="4" width="3" height="58" rx="1.5"/><rect x="120" y="22" width="3" height="22" rx="1.5"/><rect x="128" y="26" width="3" height="14" rx="1.5"/><rect x="136" y="14" width="3" height="38" rx="1.5"/><rect x="144" y="18" width="3" height="30" rx="1.5"/><rect x="152" y="10" width="3" height="46" rx="1.5"/><rect x="160" y="24" width="3" height="18" rx="1.5"/><rect x="168" y="6" width="3" height="54" rx="1.5"/><rect x="176" y="28" width="3" height="10" rx="1.5"/><rect x="184" y="16" width="3" height="34" rx="1.5"/><rect x="192" y="21" width="3" height="24" rx="1.5"/><rect x="200" y="12" width="3" height="42" rx="1.5"/><rect x="208" y="26" width="3" height="14" rx="1.5"/><rect x="216" y="18" width="3" height="30" rx="1.5"/><rect x="224" y="8" width="3" height="50" rx="1.5"/><rect x="232" y="24" width="3" height="18" rx="1.5"/><rect x="240" y="20" width="3" height="26" rx="1.5"/><rect x="248" y="27" width="3" height="12" rx="1.5"/><rect x="256" y="14" width="3" height="38" rx="1.5"/><rect x="264" y="22" width="3" height="22" rx="1.5"/><rect x="272" y="10" width="3" height="46" rx="1.5"/><rect x="280" y="26" width="3" height="14" rx="1.5"/><rect x="288" y="17" width="3" height="32" rx="1.5"/><rect x="296" y="24" width="3" height="18" rx="1.5"/><rect x="304" y="20" width="3" height="26" rx="1.5"/><rect x="312" y="28" width="3" height="10" rx="1.5"/>
+              </g>
+              <clipPath id="wavclip"><rect x="0" y="0" width="{{ trackPctCss }}" height="66"/></clipPath>
+              <g fill="#1FE08A" clip-path="url(#wavclip)">
+                <rect x="0" y="26" width="3" height="14" rx="1.5"/><rect x="8" y="18" width="3" height="30" rx="1.5"/><rect x="16" y="10" width="3" height="46" rx="1.5"/><rect x="24" y="22" width="3" height="22" rx="1.5"/><rect x="32" y="6" width="3" height="54" rx="1.5"/><rect x="40" y="20" width="3" height="26" rx="1.5"/><rect x="48" y="28" width="3" height="10" rx="1.5"/><rect x="56" y="14" width="3" height="38" rx="1.5"/><rect x="64" y="8" width="3" height="50" rx="1.5"/><rect x="72" y="24" width="3" height="18" rx="1.5"/><rect x="80" y="16" width="3" height="34" rx="1.5"/><rect x="88" y="27" width="3" height="12" rx="1.5"/><rect x="96" y="12" width="3" height="42" rx="1.5"/><rect x="104" y="20" width="3" height="26" rx="1.5"/><rect x="112" y="4" width="3" height="58" rx="1.5"/><rect x="120" y="22" width="3" height="22" rx="1.5"/><rect x="128" y="26" width="3" height="14" rx="1.5"/><rect x="136" y="14" width="3" height="38" rx="1.5"/><rect x="144" y="18" width="3" height="30" rx="1.5"/><rect x="152" y="10" width="3" height="46" rx="1.5"/>
+              </g>
+            </svg>
+            <div style="display:flex;justify-content:space-between;margin-top:12px">
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.5);font-variant-numeric:tabular-nums">{{ trackPos }}</span>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.5);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-top:34px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.5)" stroke-width="1.8" stroke-linecap="round" style="cursor:pointer"><path d="M4 7h11a5 5 0 0 1 0 10H8"/><path d="M7 4L4 7l3 3"/><path d="M17 14l3 3-3 3"/></svg>
+              <svg onClick="{{ prevTrack }}" width="20" height="17" viewBox="0 0 15 13" fill="#f4f4f0" style="cursor:pointer;transform:rotate(180deg)"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              <div onClick="{{ togglePlay }}" style="width:76px;height:76px;border-radius:50%;background:#FF5C1A;box-shadow:0 12px 34px rgba(255,92,26,.35);display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(.97)">
+                <sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}">
+                  <svg width="19" height="23" viewBox="0 0 14 15" fill="#fff"><rect x="1" y="0" width="4" height="15" rx="1.2"/><rect x="9" y="0" width="4" height="15" rx="1.2"/></svg>
+                </sc-if>
+                <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+                  <svg width="20" height="23" viewBox="0 0 13 15" fill="#fff"><path d="M0 0l13 7.5L0 15z"/></svg>
+                </sc-if>
+              </div>
+              <svg onClick="{{ nextTrack }}" width="20" height="17" viewBox="0 0 15 13" fill="#f4f4f0" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.5)" stroke-width="1.8" stroke-linecap="round" style="cursor:pointer"><path d="M17 4l3 3-3 3M20 7H9a5 5 0 0 0 0 10h11"/><path d="M7 14l-3 3 3 3"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.07);border-radius:16px;background:rgba(255,255,255,.03);padding:12px 15px;margin-bottom:34px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(31,224,138,.85)" stroke-width="1.8" stroke-linecap="round"><path d="M6 18v-6a6 6 0 0 1 12 0v6"/><rect x="3" y="14" width="4" height="7" rx="2"/><rect x="17" y="14" width="4" height="7" rx="2"/></svg>
+            <span style="flex:1;font:600 12.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.7)">AirPods Pro</span>
+            <span style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.35);font-variant-numeric:tabular-nums">72%</span>
+            <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="4b" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">4b</span>Diet</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 40% at 50% 2%,#10261d 0%,#0a0d0b 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box;position:relative">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 7l5 6M1 7h12"/></svg>
+            </div>
+            <span style="flex:1;font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Diet</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16l-1.6 12.5H5.6z"/><path d="M9 6a3 3 0 0 1 6 0"/></svg>
+            </div>
+          </div>
+          <div style="font:400 11.5px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.4);margin-top:14px">BALANCED · TARGET 2200 KCAL</div>
+
+          <div style="margin-top:18px;border:1px solid rgba(255,255,255,.07);border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:20px 20px 18px">
+            <div style="display:flex;align-items:center;gap:20px">
+              <div style="position:relative;width:104px;height:104px;flex:none">
+                <svg width="104" height="104" viewBox="0 0 104 104" style="transform:rotate(-90deg)">
+                  <circle cx="52" cy="52" r="46" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/>
+                  <circle cx="52" cy="52" r="46" fill="none" stroke="#1FE08A" stroke-width="5" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="{{ dietRingOffset }}"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font:300 30px/1 'Azeret Mono',monospace;letter-spacing:-.05em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ kcalLeft }}</span>
+                  <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.35);margin-top:6px">KCAL LEFT</span>
+                </div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 17px/1.2 Manrope,sans-serif;color:#f4f4f0">{{ mealsEatenLabel }}</div>
+                <div style="font:400 10.5px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.38);margin-top:8px">{{ kcalEaten }} EATEN · PLAN 1270</div>
+                <div style="margin-top:15px;display:flex;flex-direction:column;gap:9px">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                      <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">PROTEIN</span>
+                      <span style="font:400 9.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.6);font-variant-numeric:tabular-nums">{{ pEaten }}/114g</span>
+                    </div>
+                    <div style="height:3px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="height:100%;border-radius:3px;background:#1FE08A;width:{{ pPctCss }}"></div></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                      <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">CARBS</span>
+                      <span style="font:400 9.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.6);font-variant-numeric:tabular-nums">{{ cEaten }}/116g</span>
+                    </div>
+                    <div style="height:3px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="height:100%;border-radius:3px;background:rgba(143,139,255,.9);width:{{ cPctCss }}"></div></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                      <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">FAT</span>
+                      <span style="font:400 9.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.6);font-variant-numeric:tabular-nums">{{ fEaten }}/33g</span>
+                    </div>
+                    <div style="height:3px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="height:100%;border-radius:3px;background:rgba(230,190,60,.9);width:{{ fPctCss }}"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:24px 0 11px">MEALS</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ toggleBreakfast }}" style="display:flex;align-items:center;gap:14px;border:1px solid {{ b1Border }};border-radius:20px;background:{{ b1Bg }};padding:15px 17px;cursor:pointer">
+              <div style="width:24px;height:24px;border-radius:50%;border:1.5px solid {{ b1Ring }};background:{{ b1Fill }};display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="11" height="9" viewBox="0 0 15 12" fill="none" stroke="{{ b1Check }}" stroke-width="2.4" stroke-linecap="round"><path d="M1 6.5L5.5 11L14 1.5"/></svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Breakfast</div>
+                <div style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.38);margin-top:7px">OATS · BANANA</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font:400 15px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">310</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.32);margin-top:7px">KCAL · P 8G</div>
+              </div>
+            </div>
+            <div onClick="{{ toggleLunch }}" style="display:flex;align-items:center;gap:14px;border:1px solid {{ b2Border }};border-radius:20px;background:{{ b2Bg }};padding:15px 17px;cursor:pointer">
+              <div style="width:24px;height:24px;border-radius:50%;border:1.5px solid {{ b2Ring }};background:{{ b2Fill }};display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="11" height="9" viewBox="0 0 15 12" fill="none" stroke="{{ b2Check }}" stroke-width="2.4" stroke-linecap="round"><path d="M1 6.5L5.5 11L14 1.5"/></svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Lunch</div>
+                <div style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.38);margin-top:7px">RICE · CHICKEN BREAST</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font:400 15px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">540</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.32);margin-top:7px">KCAL · P 66G</div>
+              </div>
+            </div>
+            <div onClick="{{ toggleDinner }}" style="display:flex;align-items:center;gap:14px;border:1px solid {{ b3Border }};border-radius:20px;background:{{ b3Bg }};padding:15px 17px;cursor:pointer">
+              <div style="width:24px;height:24px;border-radius:50%;border:1.5px solid {{ b3Ring }};background:{{ b3Fill }};display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="11" height="9" viewBox="0 0 15 12" fill="none" stroke="{{ b3Check }}" stroke-width="2.4" stroke-linecap="round"><path d="M1 6.5L5.5 11L14 1.5"/></svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Dinner</div>
+                <div style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.38);margin-top:7px">SALMON · BROCCOLI</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font:400 15px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">420</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.32);margin-top:7px">KCAL · P 40G</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:24px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">FULL PLAN</span>
+            <span style="font:600 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(31,224,138,.8);cursor:pointer">EDIT</span>
+          </div>
+          <div style="margin-top:11px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);padding:16px 18px 14px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font:700 14px/1 Manrope,sans-serif;color:#f4f4f0">Every day</span>
+              <span style="font:400 13px/1 'Azeret Mono',monospace;color:#1FE08A;font-variant-numeric:tabular-nums">1270 kcal</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin:13px 0 12px"></div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex"><span style="width:86px;font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.32)">BREAKFAST</span><span style="flex:1;font:400 12px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.65)">Oats, Banana</span></div>
+              <div style="display:flex"><span style="width:86px;font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.32)">LUNCH</span><span style="flex:1;font:400 12px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.65)">Rice, Chicken breast</span></div>
+              <div style="display:flex"><span style="width:86px;font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.32)">DINNER</span><span style="flex:1;font:400 12px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.65)">Salmon, Broccoli</span></div>
+            </div>
+          </div>
+
+          <div style="position:absolute;right:22px;bottom:38px;width:58px;height:58px;border-radius:20px;background:#FF5C1A;box-shadow:0 12px 30px rgba(255,92,26,.35);display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(.96)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="4c" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">4c</span>Expenses</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 40% at 80% 2%,#241d0c 0%,#0c0b09 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box;position:relative;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 7l5 6M1 7h12"/></svg>
+            </div>
+            <span style="flex:1;font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Expenses</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;border-radius:24px;padding:20px;background:linear-gradient(155deg,rgba(230,190,60,.16),rgba(230,190,60,.05) 60%,rgba(255,255,255,.02));border:1px solid rgba(230,190,60,.28)">
+            <div style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:#e6be3c">SET UP YOUR WALLET</div>
+            <div style="font:800 20px/1.25 Manrope,sans-serif;letter-spacing:-.02em;color:#f9f9f5;margin-top:14px;text-wrap:pretty">How much do you have right now?</div>
+            <div style="font:400 12.5px/1.5 Manrope,sans-serif;color:rgba(244,244,240,.5);margin-top:10px;text-wrap:pretty">Every expense you log deducts from it automatically.</div>
+            <div style="margin-top:18px;height:52px;border-radius:99px;background:#e6be3c;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(.985)">
+              <span style="font:800 15px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#1a1505">Set starting balance</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:24px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">THIS WEEK</span>
+            <div style="display:flex;align-items:baseline;gap:5px">
+              <span style="font:400 17px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">685</span>
+              <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.35)">EGP</span>
+            </div>
+          </div>
+          <div style="margin-top:11px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:16px 18px 14px;display:flex;flex-direction:column;gap:13px">
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px">
+                <span style="font:600 12px/1 Manrope,sans-serif;color:#f4f4f0">Food</span>
+                <span style="font:400 12px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">430</span>
+              </div>
+              <div style="height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:#FF5C1A;width:63%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px">
+                <span style="font:600 12px/1 Manrope,sans-serif;color:#f4f4f0">Groceries</span>
+                <span style="font:400 12px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">120</span>
+              </div>
+              <div style="height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:#1FE08A;width:18%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px">
+                <span style="font:600 12px/1 Manrope,sans-serif;color:#f4f4f0">Transport</span>
+                <span style="font:400 12px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">90</span>
+              </div>
+              <div style="height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:rgba(143,139,255,.9);width:13%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px">
+                <span style="font:600 12px/1 Manrope,sans-serif;color:#f4f4f0">Coffee</span>
+                <span style="font:400 12px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">45</span>
+              </div>
+              <div style="height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:#e6be3c;width:7%"></div></div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:24px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">TODAY</span>
+            <span style="font:400 11px/1 'Azeret Mono',monospace;color:#e6be3c;font-variant-numeric:tabular-nums">45 EGP</span>
+          </div>
+          <div style="margin-top:10px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.03);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+              <span style="width:4px;height:22px;border-radius:4px;background:#e6be3c;flex:none"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 13.5px/1 Manrope,sans-serif;color:#f4f4f0">Coffee</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.35);margin-top:6px">08:40 · CARD</div>
+              </div>
+              <span style="font:400 14px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">45</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:20px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">YESTERDAY</span>
+            <span style="font:400 11px/1 'Azeret Mono',monospace;color:#e6be3c;font-variant-numeric:tabular-nums">120 EGP</span>
+          </div>
+          <div style="margin-top:10px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.03);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+              <span style="width:4px;height:22px;border-radius:4px;background:#1FE08A;flex:none"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 13.5px/1 Manrope,sans-serif;color:#f4f4f0">Groceries</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.35);margin-top:6px">19:12 · CASH</div>
+              </div>
+              <span style="font:400 14px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">120</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin-left:32px"></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+              <span style="width:4px;height:22px;border-radius:4px;background:#FF5C1A;flex:none"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 13.5px/1 Manrope,sans-serif;color:#f4f4f0">Lunch out</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.35);margin-top:6px">13:05 · CARD</div>
+              </div>
+              <span style="font:400 14px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">180</span>
+            </div>
+          </div>
+
+          <div style="position:absolute;right:22px;bottom:38px;width:58px;height:58px;border-radius:20px;background:#e6be3c;box-shadow:0 12px 30px rgba(230,190,60,.3);display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(.96)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1505" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="4d" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">4d</span>Moments — first entry</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 38% at 50% 2%,#1b1610 0%,#0b0a09 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box;position:relative;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 7l5 6M1 7h12"/></svg>
+            </div>
+            <span style="flex:1;font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Moments</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M12 16V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:20px">
+            <div style="padding:9px 15px;border-radius:99px;background:#FF5C1A;font:700 12px/1 Manrope,sans-serif;color:#fff;cursor:pointer">All</div>
+            <div style="padding:9px 15px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);font:600 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.65);cursor:pointer" style-hover="background:rgba(255,255,255,.07)">Photos</div>
+            <div style="padding:9px 15px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);font:600 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.65);cursor:pointer" style-hover="background:rgba(255,255,255,.07)">Notes</div>
+            <div style="padding:9px 15px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);font:600 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.65);cursor:pointer" style-hover="background:rgba(255,255,255,.07)">PRs</div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:26px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">YESTERDAY</span>
+            <span style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.3)">1 ENTRY</span>
+          </div>
+          <div style="margin-top:11px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:17px 18px 15px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.45)" stroke-width="1.8" stroke-linecap="round"><path d="M5 5h14M12 5v14M8.5 19h7"/></svg>
+              <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.32)">NOTE · 1D AGO</span>
+            </div>
+            <div style="font:400 16px/1.45 Manrope,sans-serif;color:#f4f4f0;margin-top:13px;text-wrap:pretty">First sketch of the ZIVO home screen.</div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin:15px 0 13px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.35)">PULL DAY 1 · WEEK 3</span>
+              <span style="font:600 10px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(31,224,138,.75);cursor:pointer">OPEN</span>
+            </div>
+          </div>
+
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 20px 60px">
+            <div style="width:52px;height:52px;border-radius:18px;border:1px dashed rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.35)" stroke-width="1.6" stroke-linecap="round"><path d="M4 8.5h3l1.5-2h7L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3"/></svg>
+            </div>
+            <div style="font:700 16px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.6);margin-top:18px;text-align:center">Nothing else logged yet</div>
+            <div style="font:400 12.5px/1.55 Manrope,sans-serif;color:rgba(244,244,240,.38);margin-top:9px;text-align:center;max-width:250px;text-wrap:pretty">Snap a lift, a meal, or a scale reading — moments attach to the session you were in.</div>
+          </div>
+
+          <div style="position:absolute;right:22px;bottom:38px;width:58px;height:58px;border-radius:20px;background:#FF5C1A;box-shadow:0 12px 30px rgba(255,92,26,.35);display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(.96)">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"><path d="M4 8.5h3l1.5-2h7L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3"/></svg>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="4e" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">4e</span>Settings</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 36% at 50% 2%,#151520 0%,#0a0a0c 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 7l5 6M1 7h12"/></svg>
+            </div>
+            <span style="flex:1;font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Settings</span>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:26px 0 11px">MEDIA</div>
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.05)">
+            <div style="width:32px;height:32px;border-radius:10px;background:rgba(31,224,138,.13);border:1px solid rgba(31,224,138,.22);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1FE08A" stroke-width="1.7" stroke-linecap="round"><path d="M7 17a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.5 1.5A3.5 3.5 0 0 1 17.5 17z"/><path d="M12 15V9M9.5 11.5L12 9l2.5 2.5"/></svg>
+            </div>
+            <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Storage &amp; sync</span>
+            <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4)">1.2 GB</span>
+            <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:22px 0 11px">MUSIC</div>
+          <div style="border:1px solid rgba(31,224,138,.2);border-radius:20px;background:rgba(31,224,138,.05);padding:15px 17px 14px;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(31,224,138,.14);border:1px solid rgba(31,224,138,.24);display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="display:flex;align-items:flex-end;gap:2px;height:13px;width:14px">
+                  <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+                  <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+                  <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+                </div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Spotify</div>
+                <div style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(31,224,138,.75);margin-top:7px">CONNECTED · PLAYING</div>
+              </div>
+              <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin:13px 0 11px"></div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="flex:1;min-width:0;font:600 12px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</span>
+              <span style="font:400 10px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.35);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:22px 0 11px">APP</div>
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.03)">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(143,139,255,.13);border:1px solid rgba(143,139,255,.22);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.7" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Theme</span>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4)">Dark</span>
+              <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin-left:63px"></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.6)" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 8h.01"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Version</span>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">1.0.0 (1)</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin-left:63px"></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.6)" stroke-width="1.7" stroke-linecap="round"><path d="M14.5 4.5l5 5-9 9H5.5v-5z"/><path d="M13 6l5 5"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Build</span>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4)">Development</span>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin-left:63px"></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.03)">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.6)" stroke-width="1.7" stroke-linecap="round"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2.2 2.2L15 10.5"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Privacy policy</span>
+              <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:22px 0 11px">ACCOUNT</div>
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.05)">
+            <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,92,26,.12);border:1px solid rgba(255,92,26,.22);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Delete account</div>
+              <div style="font:400 10px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(244,244,240,.32);margin-top:7px">PERMANENT · 128 SESSIONS</div>
+            </div>
+            <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="height:54px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:34px;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M14 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8"/><path d="M17 8l4 4-4 4M21 12h-9"/></svg>
+            <span style="font:700 15px/1 Manrope,sans-serif;color:rgba(244,244,240,.8)">Sign out</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+
+  <p style="margin:26px 0 0;font:400 12px/1.6 Manrope,sans-serif;color:rgba(244,244,240,.42)">
+    Try next: "add the wallet-set-up sheet for Expenses" · "show Diet with all three meals eaten" · "Moments with a real photo grid"
+  </p>
+</section>
+
+<section class="dv-turn" id="t3" style="padding:44px 48px 40px;border-bottom:1px solid rgba(255,255,255,.08);font-family:Manrope,system-ui,sans-serif">
+  <div style="display:flex;align-items:baseline;gap:12px;margin:0 0 6px">
+    <span style="font:700 10px/1 'Azeret Mono',monospace;letter-spacing:.14em;padding:5px 8px;background:#1a1b1a;color:#f4f4f0;border-radius:5px">3</span>
+    <span style="font:700 14px/1.2 Manrope,sans-serif;color:#f4f4f0">Music off — the strip's space earns its keep</span>
+  </div>
+  <p style="margin:0 0 30px;max-width:940px;font:400 12.5px/1.65 Manrope,sans-serif;color:rgba(244,244,240,.5)">
+    Spotify is optional, so these are the same two screens with it gone. The rule: <strong style="color:rgba(244,244,240,.75);font-weight:700">nothing shifts</strong> — every element above the footer keeps its exact position, and the ~74px the strip occupied is reclaimed by data the lifter actually wants mid-set, not by empty space or a bigger button.
+    In <a class="dv-oid" href="#3a" style="color:#1FE08A">3a</a> it becomes the set ledger — every logged set of this exercise as mono rows, so you can see the drop-off pattern while deciding the next load.
+    In <a class="dv-oid" href="#3b" style="color:#1FE08A">3b</a> it becomes the recovery readout: heart rate falling, and the volume this set added. A single dim <span style="font-family:'Azeret Mono',monospace;font-size:11px;color:rgba(244,244,240,.7)">♪ CONNECT MUSIC</span> affordance sits in the header — one tap away, never in the way.
+  </p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start">
+
+    <div class="dv-opt" id="3a" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">3a</span>Active set · no music</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(120% 55% at 50% 100%,#1a0d06 0%,#0a0908 60%,#080908 100%);display:flex;flex-direction:column;padding:60px 22px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="12" height="12" viewBox="0 0 12 12" stroke="rgba(244,244,240,.75)" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l10 10M11 1L1 11"/></svg>
+            </div>
+            <div style="text-align:center">
+              <div style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.4)">DAY 2 · PULL DAY 1</div>
+              <div style="font:400 13px/1 'Azeret Mono',monospace;color:#f4f4f0;margin-top:7px;font-variant-numeric:tabular-nums">{{ elapsed }}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:400 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.5)">♪</span>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.42)">CONNECT</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:3px;margin-top:20px">
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,92,26,.85)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:9px">
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">EXERCISE 4 / 10</span>
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">{{ setsDoneLabel }} SETS LOGGED</span>
+          </div>
+
+          <div style="margin-top:26px">
+            <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(255,92,26,.8)">NOW</div>
+            <div style="font:800 34px/1.06 Manrope,sans-serif;letter-spacing:-.03em;color:#f7f7f3;margin-top:11px">Lat Pull Down</div>
+            <div style="font:400 11.5px/1 'Azeret Mono',monospace;letter-spacing:.04em;color:rgba(244,244,240,.4);margin-top:9px">LATS · BICEPS · WIDE GRIP</div>
+          </div>
+
+          <div style="margin-top:22px;border:1px solid rgba(255,255,255,.07);border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:20px 20px 16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between">
+              <div>
+                <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(31,224,138,.85)">GOAL</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:14px">
+                  <span style="font:300 62px/.9 'Azeret Mono',monospace;letter-spacing:-.06em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ reps }}</span>
+                  <span style="font:500 12px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">REPS</span>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="display:flex;align-items:baseline;gap:6px;justify-content:flex-end">
+                  <span style="font:300 42px/.9 'Azeret Mono',monospace;letter-spacing:-.05em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ weight }}</span>
+                  <span style="font:500 11px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">KG</span>
+                </div>
+                <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:{{ deltaColor }};margin-top:10px">{{ deltaLabel }}</div>
+              </div>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.08);margin:18px 0 14px"></div>
+            <div style="display:flex">
+              <div style="flex:1">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">LAST TIME</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#f4f4f0;margin-top:8px">8 × 45 kg</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+              <div style="flex:1;padding-left:16px">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">TARGET RANGE</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#1FE08A;margin-top:8px">8–10 reps</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+              <div style="flex:1;padding-left:16px">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">RPE</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#f4f4f0;margin-top:8px">8.0</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <div style="flex:1">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-bottom:8px">REPS</div>
+              <div style="display:flex;align-items:center;height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);overflow:hidden">
+                <div onClick="{{ repsDown }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">−</div>
+                <div style="flex:1;text-align:center;font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">{{ reps }}</div>
+                <div onClick="{{ repsUp }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">+</div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-bottom:8px">WEIGHT · KG</div>
+              <div style="display:flex;align-items:center;height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);overflow:hidden">
+                <div onClick="{{ weightDown }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">−</div>
+                <div style="flex:1;text-align:center;font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">{{ weight }}</div>
+                <div onClick="{{ weightUp }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">+</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.03);padding:13px 16px 11px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.32)">THIS EXERCISE</span>
+              <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(31,224,138,.7)">1.08t VOLUME</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:11px">
+              <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3);width:34px">SET 1</span>
+              <div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:rgba(31,224,138,.75);width:100%"></div></div>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75);font-variant-numeric:tabular-nums;width:56px;text-align:right">10 × 40</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3);width:34px">SET 2</span>
+              <div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:rgba(31,224,138,.75);width:90%"></div></div>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75);font-variant-numeric:tabular-nums;width:56px;text-align:right">9 × 40</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:#FF5C1A;width:34px">SET 3</span>
+              <div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;border-radius:4px;background:#FF5C1A;width:{{ ledgerPctCss }}"></div></div>
+              <span style="font:400 11.5px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums;width:56px;text-align:right">{{ set1Label }}</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:11px;margin-top:12px;margin-bottom:34px">
+            <div style="width:112px;height:60px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <svg width="11" height="9" viewBox="0 0 15 13" fill="rgba(244,244,240,.6)"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              <span style="font:700 14px/1 Manrope,sans-serif;color:rgba(244,244,240,.7)">Skip</span>
+            </div>
+            <div onClick="{{ logSet }}" style="flex:1;height:60px;border-radius:99px;background:#FF5C1A;box-shadow:0 12px 32px rgba(255,92,26,.32);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(.985)">
+              <svg width="15" height="12" viewBox="0 0 15 12" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M1 6.5L5.5 11L14 1.5"/></svg>
+              <span style="font:800 16.5px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#fff">{{ logLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="3b" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">3b</span>Rest · no music</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(100% 50% at 50% 42%,#0d2b21 0%,#0a0f0d 55%,#080908 100%);display:flex;flex-direction:column;padding:60px 22px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="12" height="12" viewBox="0 0 12 12" stroke="rgba(244,244,240,.75)" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l10 10M11 1L1 11"/></svg>
+            </div>
+            <div style="text-align:center">
+              <div style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.4)">DAY 2 · PULL DAY 1</div>
+              <div style="font:400 13px/1 'Azeret Mono',monospace;color:#f4f4f0;margin-top:7px;font-variant-numeric:tabular-nums">{{ elapsed }}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:400 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.5)">♪</span>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.42)">CONNECT</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:3px;margin-top:20px">
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:9px">
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">EXERCISE 4 / 10</span>
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.75)">SET LOGGED · 8 × 45</span>
+          </div>
+
+          <div style="display:flex;justify-content:center;margin-top:34px">
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:99px;border:1px solid rgba(31,224,138,.3);background:rgba(31,224,138,.08)">
+              <svg width="10" height="11" viewBox="0 0 10 11" fill="#1FE08A"><rect x="0" y="0" width="3.4" height="11" rx="1"/><rect x="6.6" y="0" width="3.4" height="11" rx="1"/></svg>
+              <span style="font:600 10px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:#1FE08A">REST</span>
+            </div>
+          </div>
+
+          <div style="position:relative;width:290px;height:290px;margin:26px auto 0">
+            <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle,rgba(31,224,138,.16),transparent 66%);animation:pulse 2.4s ease-in-out infinite"></div>
+            <svg width="290" height="290" viewBox="0 0 290 290" style="position:absolute;inset:0;transform:rotate(-90deg)">
+              <circle cx="145" cy="145" r="132" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="7"/>
+              <circle cx="145" cy="145" r="132" fill="none" stroke="#1FE08A" stroke-width="7" stroke-linecap="round" stroke-dasharray="829.4" stroke-dashoffset="{{ ringOffset }}" ref="{{ refRing2 }}" style="filter:drop-shadow(0 0 12px rgba(31,224,138,.45))"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="display:flex;align-items:baseline">
+                <span style="font:200 74px/1 'Azeret Mono',monospace;letter-spacing:-.06em;color:#fbfbf7;font-variant-numeric:tabular-nums" ref="{{ refRestMain2 }}">{{ restMain }}</span>
+                <span style="font:400 26px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:rgba(244,244,240,.35);font-variant-numeric:tabular-nums" ref="{{ refRestCs2 }}">{{ restCs }}</span>
+              </div>
+              <div style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.24em;color:rgba(244,244,240,.3);margin-top:16px">OF {{ restTotalLabel }} PLANNED</div>
+            </div>
+          </div>
+
+          <div style="margin-top:26px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:16px 18px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.32)">UP NEXT</div>
+                <div style="font:700 16px/1.2 Manrope,sans-serif;color:#f4f4f0;margin-top:9px">Seated Row · Wide Grip</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">10 × 40</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.32);margin-top:8px">SET 1 · KG</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.03);padding:12px 15px 11px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(255,92,26,.9)"><path d="M12 20s-7-4.6-7-9.4A4.1 4.1 0 0 1 12 7.4a4.1 4.1 0 0 1 7 3.2C19 15.4 12 20 12 20z"/></svg>
+                <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">HEART RATE</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:10px">
+                <span style="font:400 22px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f7f7f3;font-variant-numeric:tabular-nums">118</span>
+                <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3)">BPM</span>
+                <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.06em;color:rgba(31,224,138,.8);margin-left:2px">↓ 26</span>
+              </div>
+              <svg width="100%" height="16" viewBox="0 0 110 16" preserveAspectRatio="none" style="margin-top:9px"><path d="M0 3 L18 5 L36 4 L54 8 L72 9 L90 12 L110 13" fill="none" stroke="rgba(255,92,26,.6)" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div style="flex:1;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.03);padding:12px 15px 11px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(31,224,138,.9)" stroke-width="2" stroke-linecap="round"><path d="M6.5 8v8M4 10v4M17.5 8v8M20 10v4M6.5 12h11"/></svg>
+                <span style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">SET VOLUME</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:10px">
+                <span style="font:400 22px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f7f7f3;font-variant-numeric:tabular-nums">360</span>
+                <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3)">KG</span>
+              </div>
+              <div style="font:500 8.5px/1.4 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.32);margin-top:11px">1.08t THIS EXERCISE</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:11px;margin-top:12px">
+            <div onClick="{{ restMinus }}" style="flex:1;height:52px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:500 14px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75)">−15s</span>
+            </div>
+            <div onClick="{{ restPlus }}" style="flex:1;height:52px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:500 14px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75)">+15s</span>
+            </div>
+          </div>
+          <div onClick="{{ skipRest }}" style="height:60px;border-radius:99px;background:#1FE08A;box-shadow:0 12px 32px rgba(31,224,138,.25);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:11px;margin-bottom:34px;cursor:pointer" style-active="transform:scale(.985)">
+            <svg width="13" height="11" viewBox="0 0 15 13" fill="#04140d"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+            <span style="font:800 16.5px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#04140d">Skip rest</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+
+  <p style="margin:26px 0 0;font:400 12px/1.6 Manrope,sans-serif;color:rgba(244,244,240,.42)">
+    Try next: "make music-off the default and put Spotify behind the header chip everywhere" · "add the diet + expenses screens in this system"
+  </p>
+</section>
+
+<section class="dv-turn" id="t2" style="padding:44px 48px 40px;border-bottom:1px solid rgba(255,255,255,.08);font-family:Manrope,system-ui,sans-serif">
+  <div style="display:flex;align-items:baseline;gap:12px;margin:0 0 6px">
+    <span style="font:700 10px/1 'Azeret Mono',monospace;letter-spacing:.14em;padding:5px 8px;background:#1a1b1a;color:#f4f4f0;border-radius:5px">2</span>
+    <span style="font:700 14px/1.2 Manrope,sans-serif;color:#f4f4f0">Ask · You · Workout — same system, three more screens</span>
+  </div>
+  <p style="margin:0 0 30px;max-width:940px;font:400 12.5px/1.65 Manrope,sans-serif;color:rgba(244,244,240,.5)">
+    Carried over from <a class="dv-oid" href="#t1" style="color:#1FE08A">turn 1</a>: hero-number hierarchy, mono captions, ember for the one committing action, the text-first Spotify strip.
+    New rules here — ZIVO speaks in <em style="font-family:'Instrument Serif',serif;font-style:italic;color:rgba(244,244,240,.8)">Instrument Serif italic</em> and nothing else in the app does, so the assistant has its own voice;
+    answers come back as <strong style="color:rgba(244,244,240,.75);font-weight:700">metric cards, not paragraphs</strong> (numbers first, one sentence of context under);
+    stat tiles get a sparkline instead of a chevron so the tile itself carries the trend; icon tiles are 1-color tints at 12% rather than saturated gradients, so the accent stays meaningful. Tap the chips in <a class="dv-oid" href="#2a" style="color:#1FE08A">2a</a>.
+  </p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start">
+
+    <div class="dv-opt" id="2a" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">2a</span>Ask — ZIVO</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 45% at 50% 22%,#1a1834 0%,#0b0b12 52%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Ask</span>
+            <div style="display:flex;gap:9px">
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 4v6M8 14v6"/></svg>
+              </div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
+              </div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.7)" stroke-width="1.7" stroke-linecap="round"><path d="M4 5.5h16v10H12l-5 3.5v-3.5H4z"/><path d="M12 8v5M9.5 10.5h5"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <sc-if value="{{ askEmpty }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding-bottom:18px">
+              <div style="width:54px;height:54px;border-radius:18px;background:rgba(143,139,255,.12);border:1px solid rgba(143,139,255,.25);display:flex;align-items:center;justify-content:center;margin-bottom:22px">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.6" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 16v4M16.5 18h4"/></svg>
+              </div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:36px;line-height:1;color:#f9f9f5;letter-spacing:-.01em">Hey, I’m ZIVO.</div>
+              <div style="font:400 14px/1.5 Manrope,sans-serif;color:rgba(244,244,240,.5);text-align:center;margin-top:14px;max-width:280px;text-wrap:pretty">Training, diet and spending. Ask me anything — or let me log it for you.</div>
+              <div style="display:flex;flex-direction:column;gap:9px;align-items:center;margin-top:30px;width:100%">
+                <div onClick="{{ askTraining }}" style="padding:13px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);font:600 13.5px/1 Manrope,sans-serif;color:#f4f4f0;cursor:pointer" style-hover="background:rgba(255,255,255,.08)">How is my training going?</div>
+                <div onClick="{{ askSpend }}" style="padding:13px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);font:600 13.5px/1 Manrope,sans-serif;color:#f4f4f0;cursor:pointer" style-hover="background:rgba(255,255,255,.08)">What did I spend this week?</div>
+                <div onClick="{{ askDiet }}" style="padding:13px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);font:600 13.5px/1 Manrope,sans-serif;color:#f4f4f0;cursor:pointer" style-hover="background:rgba(255,255,255,.08)">What’s left on my diet today?</div>
+                <div onClick="{{ askWeek }}" style="padding:13px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);font:600 13.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.75);cursor:pointer" style-hover="background:rgba(255,255,255,.08)">Summarise my week</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ askAnswered }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding-top:26px;overflow:hidden">
+              <div style="align-self:flex-end;max-width:74%;padding:12px 16px;border-radius:20px 20px 6px 20px;background:rgba(255,255,255,.07);font:600 13.5px/1.4 Manrope,sans-serif;color:#f4f4f0">{{ askQuestion }}</div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:4px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+                <span style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(168,164,255,.85)">ZIVO</span>
+                <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.28)">· {{ askLatency }}</span>
+              </div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:23px;line-height:1.25;color:#f9f9f5;text-wrap:pretty">{{ askHeadline }}</div>
+              <div style="border:1px solid rgba(255,255,255,.07);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:18px 18px 16px">
+                <div style="display:flex">
+                  <div style="flex:1">
+                    <div style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ askM1 }}</div>
+                    <div style="font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35);margin-top:9px">{{ askL1 }}</div>
+                  </div>
+                  <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+                  <div style="flex:1;padding-left:16px">
+                    <div style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ askM2 }}</div>
+                    <div style="font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35);margin-top:9px">{{ askL2 }}</div>
+                  </div>
+                  <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+                  <div style="flex:1;padding-left:16px">
+                    <div style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:{{ askM3Color }};font-variant-numeric:tabular-nums">{{ askM3 }}</div>
+                    <div style="font:500 8.5px/1.3 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35);margin-top:9px">{{ askL3 }}</div>
+                  </div>
+                </div>
+                <div style="height:1px;background:rgba(255,255,255,.08);margin:18px 0 14px"></div>
+                <svg width="100%" height="46" viewBox="0 0 300 46" preserveAspectRatio="none">
+                  <path d="M0 34 L50 30 L100 33 L150 22 L200 25 L250 14 L300 8" fill="none" stroke="#1FE08A" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M0 34 L50 30 L100 33 L150 22 L200 25 L250 14 L300 8 L300 46 L0 46 Z" fill="url(#zg)" opacity=".5"/>
+                  <defs><linearGradient id="zg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1FE08A" stop-opacity=".35"/><stop offset="1" stop-color="#1FE08A" stop-opacity="0"/></linearGradient></defs>
+                </svg>
+                <div style="display:flex;justify-content:space-between;margin-top:8px">
+                  <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.28)">6 WEEKS AGO</span>
+                  <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.28)">THIS WEEK</span>
+                </div>
+              </div>
+              <div style="font:400 13px/1.55 Manrope,sans-serif;color:rgba(244,244,240,.6);text-wrap:pretty">{{ askBody }}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <div onClick="{{ askWeek }}" style="padding:10px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);font:600 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.8);cursor:pointer" style-hover="background:rgba(255,255,255,.08)">Compare to last block</div>
+                <div onClick="{{ askReset }}" style="padding:10px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);font:600 12px/1 Manrope,sans-serif;color:rgba(244,244,240,.8);cursor:pointer" style-hover="background:rgba(255,255,255,.08)">New question</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;align-items:center;gap:12px;height:58px;padding:0 8px 0 20px;border-radius:99px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.05);margin-bottom:11px">
+            <span style="flex:1;font:400 14.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.4)">Ask ZIVO…</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg>
+            <div style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="2" stroke-linecap="round"><path d="M12 20V5M6 11l6-6 6 6"/></svg>
+            </div>
+          </div>
+
+          <div style="border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.03);padding:11px 14px">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="display:flex;align-items:flex-end;gap:2.5px;height:15px;width:17px">
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 12.5px/1.2 Manrope,sans-serif;color:#f4f4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</div>
+                <div style="font:400 10px/1.2 'Azeret Mono',monospace;color:rgba(244,244,240,.38);margin-top:3px">{{ trackArtist }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:15px">
+                <svg onClick="{{ togglePlay }}" width="12" height="14" viewBox="0 0 14 15" fill="#f4f4f0" style="cursor:pointer"><rect x="1" y="0" width="4" height="15" rx="1.2"/><rect x="9" y="0" width="4" height="15" rx="1.2"/></svg>
+                <svg onClick="{{ nextTrack }}" width="14" height="12" viewBox="0 0 15 13" fill="#f4f4f0" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:10px">
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackPos }}</span>
+              <div style="flex:1;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden"><div style="height:100%;border-radius:2px;background:#1FE08A;width:{{ trackPctCss }}"></div></div>
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+              <span style="font:600 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.6)">SPOTIFY</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 6px 30px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">TODAY</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">HUB</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18 16.5v4M16 18.5h4"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:#FF5C1A">ASK</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 21c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">YOU</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2b" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">2b</span>You — profile</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 40% at 50% 0%,#1c1410 0%,#0b0a09 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div style="position:relative;width:96px;height:96px">
+              <svg width="96" height="96" viewBox="0 0 96 96" style="position:absolute;inset:0;transform:rotate(-90deg)">
+                <circle cx="48" cy="48" r="45" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="2"/>
+                <circle cx="48" cy="48" r="45" fill="none" stroke="#FF5C1A" stroke-width="2" stroke-linecap="round" stroke-dasharray="282.7" stroke-dashoffset="70"/>
+              </svg>
+              <div style="position:absolute;inset:8px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font:700 32px/1 Manrope,sans-serif;color:#f7f7f3">Z</div>
+              <div style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:50%;background:#FF5C1A;border:2.5px solid #0b0a09;display:flex;align-items:center;justify-content:center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 8.5h3l1.5-2h7L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3"/></svg>
+              </div>
+            </div>
+            <div style="font:800 26px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3;margin-top:16px">Ziad</div>
+            <div style="display:flex;align-items:center;gap:7px;margin-top:9px">
+              <span style="font:400 12px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.45)">you@zivo.app</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#1FE08A"><path d="M12 2l2.2 1.6 2.7-.3 1 2.5 2.3 1.4-.6 2.7.6 2.7-2.3 1.4-1 2.5-2.7-.3L12 18l-2.2-1.6-2.7.3-1-2.5L3.8 12.8l.6-2.7-.6-2.7 2.3-1.4 1-2.5 2.7.3z"/><path d="M8.6 10.2l2.4 2.4 4.2-4.2" stroke="#0b0a09" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.75)">VERIFIED</span>
+            </div>
+          </div>
+
+          <div style="display:flex;margin-top:26px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:17px 4px">
+            <div style="flex:1;text-align:center">
+              <div style="font:400 22px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f9f9f5;font-variant-numeric:tabular-nums">128</div>
+              <div style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-top:9px">SESSIONS</div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+            <div style="flex:1;text-align:center">
+              <div style="font:400 22px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f9f9f5;font-variant-numeric:tabular-nums">14</div>
+              <div style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-top:9px">MONTHS IN</div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+            <div style="flex:1;text-align:center">
+              <div style="font:400 22px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#1FE08A;font-variant-numeric:tabular-nums">412t</div>
+              <div style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-top:9px">LIFETIME</div>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:26px 0 11px">ABOUT</div>
+          <div style="border:1px dashed rgba(255,255,255,.11);border-radius:18px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" style-hover="background:rgba(255,255,255,.03)">
+            <span style="font:400 13.5px/1.4 Manrope,sans-serif;color:rgba(244,244,240,.42)">Add a few words about yourself.</span>
+            <div style="width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="11" height="11" viewBox="0 0 24 24" stroke="rgba(244,244,240,.6)" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:24px 0 11px">ACCOUNT</div>
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.03)">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,92,26,.13);border:1px solid rgba(255,92,26,.22);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M5.5 16c.8-1.6 2-2.3 3.5-2.3s2.7.7 3.5 2.3M15.5 10.5h3M15.5 13.5h3"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Name</span>
+              <span style="font:400 12.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.42)">Ziad</span>
+              <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.07);margin-left:63px"></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 17px;cursor:pointer" style-hover="background:rgba(255,255,255,.03)">
+              <div style="width:32px;height:32px;border-radius:10px;background:rgba(143,139,255,.13);border:1px solid rgba(143,139,255,.22);display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+              </div>
+              <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Date of birth</span>
+              <span style="font:400 12.5px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.42);font-variant-numeric:tabular-nums">1 JAN 1990 · 36</span>
+              <svg width="7" height="12" viewBox="0 0 8 14" fill="none" stroke="rgba(244,244,240,.3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l6 6-6 6"/></svg>
+            </div>
+          </div>
+
+          <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3);margin:24px 0 11px">SIGN-IN</div>
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.03);display:flex;align-items:center;gap:14px;padding:15px 17px">
+            <div style="width:32px;height:32px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;font:700 16px/1 Manrope,sans-serif;color:#4285F4">G</div>
+            <span style="flex:1;font:700 15px/1 Manrope,sans-serif;color:#f4f4f0">Google</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span style="width:5px;height:5px;border-radius:50%;background:#1FE08A"></span>
+              <span style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.8)">CONNECTED</span>
+            </span>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.03);padding:11px 14px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="display:flex;align-items:flex-end;gap:2.5px;height:15px;width:17px">
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 12.5px/1.2 Manrope,sans-serif;color:#f4f4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</div>
+                <div style="font:400 10px/1.2 'Azeret Mono',monospace;color:rgba(244,244,240,.38);margin-top:3px">{{ trackArtist }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:15px">
+                <svg onClick="{{ togglePlay }}" width="12" height="14" viewBox="0 0 14 15" fill="#f4f4f0" style="cursor:pointer"><rect x="1" y="0" width="4" height="15" rx="1.2"/><rect x="9" y="0" width="4" height="15" rx="1.2"/></svg>
+                <svg onClick="{{ nextTrack }}" width="14" height="12" viewBox="0 0 15 13" fill="#f4f4f0" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:10px">
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackPos }}</span>
+              <div style="flex:1;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden"><div style="height:100%;border-radius:2px;background:#1FE08A;width:{{ trackPctCss }}"></div></div>
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+              <span style="font:600 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.6)">SPOTIFY</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 30px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">TODAY</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">HUB</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18 16.5v4M16 18.5h4"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">ASK</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 21c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:#FF5C1A">YOU</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2c" style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">2c</span>Workout hub</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+        <div style="height:100%;background:radial-gradient(110% 40% at 50% 4%,#10261d 0%,#0a0d0b 55%,#080908 100%);display:flex;flex-direction:column;padding:58px 22px 0;box-sizing:border-box;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(244,244,240,.75)" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 7l5 6M1 7h12"/></svg>
+            </div>
+            <span style="flex:1;font:800 27px/1 Manrope,sans-serif;letter-spacing:-.025em;color:#f7f7f3">Workout</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(31,224,138,.1);border:1px solid rgba(31,224,138,.22);display:flex;align-items:center;justify-content:center;flex:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1FE08A" stroke-width="1.9" stroke-linecap="round"><path d="M4 19V9M9 19V5M14 19v-7M19 19v-11"/></svg>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;border-radius:26px;padding:22px 20px 20px;background:linear-gradient(155deg,#0f5f3f 0%,#0a3a29 58%,#0b2a20 100%);border:1px solid rgba(31,224,138,.22);position:relative;overflow:hidden">
+            <div style="position:absolute;top:-70px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(31,224,138,.26),transparent 68%)"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;position:relative">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#1FE08A;box-shadow:0 0 10px #1FE08A"></span>
+                <span style="font:600 9.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:#7ef0bb">DAY A · PUSH</span>
+              </div>
+              <div style="padding:7px 13px;border-radius:99px;border:1px solid rgba(255,255,255,.22);font:700 11.5px/1 Manrope,sans-serif;color:#eafff4;cursor:pointer">Change</div>
+            </div>
+            <div style="font:800 30px/1.05 Manrope,sans-serif;letter-spacing:-.025em;color:#fff;margin-top:16px;position:relative">Push</div>
+            <div style="display:flex;gap:22px;margin-top:16px;position:relative">
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">7</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">EXERCISES</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.16)"></div>
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">14</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">SETS</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.16)"></div>
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">~21</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">MINUTES</div>
+              </div>
+            </div>
+            <div onClick="{{ startWorkout }}" style="margin-top:22px;height:56px;border-radius:99px;background:#FF5C1A;box-shadow:0 10px 30px rgba(255,92,26,.35);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;position:relative" style-active="transform:scale(.98)">
+              <svg width="13" height="15" viewBox="0 0 13 15" fill="#fff"><path d="M0 0l13 7.5L0 15z"/></svg>
+              <span style="font:800 16px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#fff">{{ startLabel }}</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:24px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">TRAINING</span>
+            <span style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.3)">LAST 7 DAYS</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:11px">
+            <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:15px 16px 13px;position:relative;overflow:hidden;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">
+              <div style="width:30px;height:30px;border-radius:10px;background:rgba(31,224,138,.13);border:1px solid rgba(31,224,138,.2);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1FE08A" stroke-width="1.9" stroke-linecap="round"><path d="M3 13h4l2-6 3 11 2.5-7h6.5"/></svg>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:16px">
+                <span style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">3</span>
+                <span style="font:500 10px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3)">/ 4</span>
+              </div>
+              <div style="font:600 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.5);margin-top:9px">Sessions</div>
+              <svg width="72" height="20" viewBox="0 0 72 20" style="position:absolute;right:14px;bottom:13px"><path d="M0 16 L12 13 L24 15 L36 8 L48 10 L60 4 L72 6" fill="none" stroke="rgba(31,224,138,.5)" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:15px 16px 13px;position:relative;overflow:hidden;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">
+              <div style="width:30px;height:30px;border-radius:10px;background:rgba(255,92,26,.13);border:1px solid rgba(255,92,26,.2);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.8" stroke-linecap="round"><path d="M12 3c3 4 5 6 5 9a5 5 0 0 1-10 0c0-3 2-5 5-9z"/></svg>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:16px">
+                <span style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">6</span>
+                <span style="font:500 10px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3)">DAYS</span>
+              </div>
+              <div style="font:600 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.5);margin-top:9px">Streak</div>
+              <div style="position:absolute;right:14px;bottom:14px;display:flex;gap:2.5px;align-items:flex-end">
+                <span style="width:5px;height:8px;border-radius:1px;background:rgba(255,92,26,.55)"></span>
+                <span style="width:5px;height:12px;border-radius:1px;background:rgba(255,92,26,.55)"></span>
+                <span style="width:5px;height:7px;border-radius:1px;background:rgba(255,92,26,.55)"></span>
+                <span style="width:5px;height:15px;border-radius:1px;background:rgba(255,92,26,.55)"></span>
+                <span style="width:5px;height:18px;border-radius:1px;background:#FF5C1A"></span>
+              </div>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:15px 16px 13px;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">
+              <div style="width:30px;height:30px;border-radius:10px;background:rgba(143,139,255,.13);border:1px solid rgba(143,139,255,.2);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/></svg>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:16px">
+                <span style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">52</span>
+                <span style="font:500 10px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.3)">MIN AVG</span>
+              </div>
+              <div style="font:600 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.5);margin-top:9px">Duration</div>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:15px 16px 13px;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">
+              <div style="width:30px;height:30px;border-radius:10px;background:rgba(230,190,60,.13);border:1px solid rgba(230,190,60,.2);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e6be3c" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:5px;margin-top:16px">
+                <span style="font:400 30px/1 'Azeret Mono',monospace;letter-spacing:-.04em;color:#f9f9f5;font-variant-numeric:tabular-nums">19:40</span>
+              </div>
+              <div style="font:600 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.5);margin-top:9px">Usual start</div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:24px">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.3)">BODYWEIGHT</span>
+            <span style="font:600 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(31,224,138,.8)">−1.4 KG · 8 WKS</span>
+          </div>
+          <div style="margin-top:11px;border:1px solid rgba(255,255,255,.07);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:18px 18px 14px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between">
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <span style="font:300 38px/1 'Azeret Mono',monospace;letter-spacing:-.05em;color:#f9f9f5;font-variant-numeric:tabular-nums">78.6</span>
+                <span style="font:500 11px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">KG</span>
+              </div>
+              <div style="padding:7px 12px;border-radius:99px;background:rgba(255,255,255,.06);font:700 11.5px/1 Manrope,sans-serif;color:rgba(244,244,240,.75);cursor:pointer" style-hover="background:rgba(255,255,255,.1)">Log weigh-in</div>
+            </div>
+            <svg width="100%" height="52" viewBox="0 0 300 52" preserveAspectRatio="none" style="margin-top:14px">
+              <path d="M0 12 L43 16 L86 13 L129 22 L172 20 L215 30 L258 27 L300 36" fill="none" stroke="#1FE08A" stroke-width="2" stroke-linecap="round"/>
+              <path d="M0 12 L43 16 L86 13 L129 22 L172 20 L215 30 L258 27 L300 36 L300 52 L0 52 Z" fill="url(#bg2)"/>
+              <defs><linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1FE08A" stop-opacity=".3"/><stop offset="1" stop-color="#1FE08A" stop-opacity="0"/></linearGradient></defs>
+              <circle cx="300" cy="36" r="3.4" fill="#1FE08A"/>
+            </svg>
+            <div style="display:flex;justify-content:space-between;margin-top:6px">
+              <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.28)">JUL 1</span>
+              <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.28)">TODAY</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+
+  <p style="margin:26px 0 0;font:400 12px/1.6 Manrope,sans-serif;color:rgba(244,244,240,.42)">
+    Try next: "give ZIVO a streaming answer state" · "show the Workout hub with an empty first-week state" · "add a diet screen in this system"
+  </p>
+</section>
+
+<section class="dv-turn" id="t1" style="padding:44px 48px 40px;font-family:Manrope,system-ui,sans-serif">
+  <div style="display:flex;align-items:baseline;gap:12px;margin:0 0 6px">
+    <span style="font:700 10px/1 'Azeret Mono',monospace;letter-spacing:.14em;padding:5px 8px;background:#1a1b1a;color:#f4f4f0;border-radius:5px">1</span>
+    <span style="font:700 14px/1.2 Manrope,sans-serif;color:#f4f4f0">Workout tracking — premium pass</span>
+  </div>
+  <p style="margin:0 0 30px;max-width:940px;font:400 12.5px/1.65 Manrope,sans-serif;color:rgba(244,244,240,.5)">
+    Metrics get one job each: one hero number per screen, everything else demoted to mono captions. Digits are tabular
+    <span style="font-family:'Azeret Mono',monospace;color:rgba(244,244,240,.8)">Azeret Mono</span> so timers never jitter; units and decimals ride smaller and dimmer than the value.
+    Ember (#FF5C1A) is reserved for the single committing action, green for state and progress. Spotify is text-first — no artwork tile:
+    a live equalizer glyph, the track set in the app's own type, and mono timecodes, so it reads as instrumentation rather than a widget.
+    All three panels are live: the timers run, the steppers count, sets advance.
+  </p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start">
+
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">01</span>Today</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+        <div style="height:100%;background:radial-gradient(120% 60% at 15% 0%,#12251c 0%,#0a0b0a 55%,#080908 100%);display:flex;flex-direction:column;padding:62px 22px 0;box-sizing:border-box;position:relative;overflow:hidden">
+          <div style="position:absolute;top:-90px;right:-70px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(31,224,138,.16),transparent 70%);animation:glow 6s ease-in-out infinite;pointer-events:none"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font:500 10px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.42)">THU 27 AUG</div>
+              <div style="display:flex;align-items:baseline;gap:6px;margin-top:12px">
+                <span style="font:300 54px/1 'Azeret Mono',monospace;letter-spacing:-.045em;color:#f7f7f3;font-variant-numeric:tabular-nums">{{ clock }}</span>
+                <span style="font:500 13px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:rgba(244,244,240,.4);padding-bottom:6px">{{ meridiem }}</span>
+              </div>
+              <div style="font:800 27px/1.1 Manrope,sans-serif;letter-spacing:-.02em;color:#f7f7f3;margin-top:10px">Evening, Ziad</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
+              <div style="width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8f8bff" stroke-width="1.7" stroke-linecap="round"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg>
+              </div>
+              <div style="width:40px;height:40px;border-radius:50%;border:1px solid rgba(143,139,255,.22);background:rgba(143,139,255,.1);display:flex;align-items:center;justify-content:center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a4ff" stroke-width="1.7" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:30px;font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.32)">TODAY</div>
+          <div style="margin-top:12px;border:1px solid rgba(255,255,255,.07);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));display:flex;align-items:stretch;overflow:hidden">
+            <div style="flex:1;padding:20px 6px 16px;display:flex;flex-direction:column;align-items:center;gap:11px">
+              <div style="position:relative;width:74px;height:74px">
+                <svg width="74" height="74" viewBox="0 0 74 74" style="transform:rotate(-90deg)">
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/>
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="#1FE08A" stroke-width="3" stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="0"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1FE08A" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 8v8M4 10v4M17.5 8v8M20 10v4M6.5 12h11"/></svg>
+                </div>
+              </div>
+              <div style="text-align:center">
+                <div style="font:700 12.5px/1 Manrope,sans-serif;color:#f4f4f0">Trained</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(31,224,138,.7);margin-top:5px">PULL · 62 MIN</div>
+              </div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,.07);margin:18px 0"></div>
+            <div style="flex:1;padding:20px 6px 16px;display:flex;flex-direction:column;align-items:center;gap:11px">
+              <div style="position:relative;width:74px;height:74px">
+                <svg width="74" height="74" viewBox="0 0 74 74" style="transform:rotate(-90deg)">
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/>
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="#f4f4f0" stroke-width="3" stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="63"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font:400 20px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f7f7f3;font-variant-numeric:tabular-nums">5.4</span>
+                  <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.38);margin-top:2px">K</span>
+                </div>
+              </div>
+              <div style="text-align:center">
+                <div style="font:700 12.5px/1 Manrope,sans-serif;color:#f4f4f0">Steps</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.38);margin-top:5px">OF 8K</div>
+              </div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,.07);margin:18px 0"></div>
+            <div style="flex:1;padding:20px 6px 16px;display:flex;flex-direction:column;align-items:center;gap:11px">
+              <div style="position:relative;width:74px;height:74px">
+                <svg width="74" height="74" viewBox="0 0 74 74" style="transform:rotate(-90deg)">
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/>
+                  <circle cx="37" cy="37" r="32" fill="none" stroke="#FF5C1A" stroke-width="3" stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="38"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font:400 20px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:#f7f7f3;font-variant-numeric:tabular-nums">7.2</span>
+                  <span style="font:500 8px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.38);margin-top:2px">T</span>
+                </div>
+              </div>
+              <div style="text-align:center">
+                <div style="font:700 12.5px/1 Manrope,sans-serif;color:#f4f4f0">Volume</div>
+                <div style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(255,92,26,.75);margin-top:5px">+12% WoW</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:26px;display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.32)">NEXT SESSION</span>
+            <span style="font:400 9.5px/1 'Azeret Mono',monospace;letter-spacing:.08em;color:rgba(244,244,240,.32)">WEEK 4 · DAY 2</span>
+          </div>
+          <div style="margin-top:12px;border-radius:26px;padding:22px 20px 20px;background:linear-gradient(155deg,#0f5f3f 0%,#0a3a29 58%,#0b2a20 100%);border:1px solid rgba(31,224,138,.22);position:relative;overflow:hidden">
+            <div style="position:absolute;top:-60px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(31,224,138,.28),transparent 68%)"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;position:relative">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#1FE08A;box-shadow:0 0 10px #1FE08A"></span>
+                <span style="font:600 9.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:#7ef0bb">PULL</span>
+              </div>
+              <div style="padding:7px 13px;border-radius:99px;border:1px solid rgba(255,255,255,.22);font:700 11.5px/1 Manrope,sans-serif;color:#eafff4">Change</div>
+            </div>
+            <div style="font:800 30px/1.05 Manrope,sans-serif;letter-spacing:-.025em;color:#fff;margin-top:16px;position:relative">Pull Day 1</div>
+            <div style="display:flex;gap:22px;margin-top:16px;position:relative">
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">10</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">EXERCISES</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.16)"></div>
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">24</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">SETS</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.16)"></div>
+              <div>
+                <div style="font:400 18px/1 'Azeret Mono',monospace;color:#fff;font-variant-numeric:tabular-nums">~65</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(234,255,244,.55);margin-top:6px">MINUTES</div>
+              </div>
+            </div>
+            <div onClick="{{ startWorkout }}" style="margin-top:22px;height:56px;border-radius:99px;background:#FF5C1A;box-shadow:0 10px 30px rgba(255,92,26,.35);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;position:relative" style-active="transform:scale(.98)">
+              <svg width="13" height="15" viewBox="0 0 13 15" fill="#fff"><path d="M0 0l13 7.5L0 15z"/></svg>
+              <span style="font:800 16px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#fff">{{ startLabel }}</span>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="border:1px solid rgba(255,255,255,.07);border-radius:20px;background:rgba(255,255,255,.045);padding:13px 15px 12px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="display:flex;align-items:flex-end;gap:2.5px;height:19px;width:20px">
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+                <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .8s ease-in-out infinite .45s"></span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 13px/1.2 Manrope,sans-serif;color:#f4f4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</div>
+                <div style="font:400 10.5px/1.2 'Azeret Mono',monospace;letter-spacing:.02em;color:rgba(244,244,240,.42);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackArtist }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;padding-left:6px">
+                <svg onClick="{{ togglePlay }}" width="14" height="15" viewBox="0 0 14 15" fill="#f4f4f0" style="cursor:pointer"><rect x="1" y="0" width="4" height="15" rx="1.2"/><rect x="9" y="0" width="4" height="15" rx="1.2"/></svg>
+                <svg onClick="{{ nextTrack }}" width="15" height="13" viewBox="0 0 15 13" fill="#f4f4f0" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:11px">
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackPos }}</span>
+              <div style="flex:1;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden">
+                <div style="height:100%;border-radius:2px;background:#1FE08A;width:{{ trackPctCss }}"></div>
+              </div>
+              <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+              <span style="font:600 8px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.6)">SPOTIFY</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 30px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FF5C1A" stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:#FF5C1A">TODAY</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">HUB</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18 16.5v4M16 18.5h4"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">ASK</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.4)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 21c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2"/></svg>
+              <span style="font:600 8.5px/1 'Azeret Mono',monospace;letter-spacing:.12em;color:rgba(244,244,240,.4)">YOU</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">02</span>Active set — logging</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+        <div style="height:100%;background:radial-gradient(120% 55% at 50% 100%,#1a0d06 0%,#0a0908 60%,#080908 100%);display:flex;flex-direction:column;padding:60px 22px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="12" height="12" viewBox="0 0 12 12" stroke="rgba(244,244,240,.75)" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l10 10M11 1L1 11"/></svg>
+            </div>
+            <div style="text-align:center">
+              <div style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.4)">DAY 2 · PULL DAY 1</div>
+              <div style="font:400 13px/1 'Azeret Mono',monospace;color:#f4f4f0;margin-top:7px;font-variant-numeric:tabular-nums">{{ elapsed }}</div>
+            </div>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.6)" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:3px;margin-top:20px">
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,92,26,.85)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:9px">
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">EXERCISE 4 / 10</span>
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">{{ setsDoneLabel }} SETS LOGGED</span>
+          </div>
+
+          <div style="margin-top:26px">
+            <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(255,92,26,.8)">NOW</div>
+            <div style="font:800 34px/1.06 Manrope,sans-serif;letter-spacing:-.03em;color:#f7f7f3;margin-top:11px">Lat Pull Down</div>
+            <div style="font:400 11.5px/1 'Azeret Mono',monospace;letter-spacing:.04em;color:rgba(244,244,240,.4);margin-top:9px">LATS · BICEPS · WIDE GRIP</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:22px">
+            <div style="flex:1;border-radius:14px;padding:11px 12px;background:rgba(255,92,26,.12);border:1px solid rgba(255,92,26,.35)">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(255,168,124,.9)">SET 1</div>
+              <div style="font:400 14px/1 'Azeret Mono',monospace;color:#fff;margin-top:8px;font-variant-numeric:tabular-nums">{{ set1Label }}</div>
+            </div>
+            <div style="flex:1;border-radius:14px;padding:11px 12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">SET 2</div>
+              <div style="font:400 14px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.4);margin-top:8px">{{ set2Label }}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;border:1px solid rgba(255,255,255,.07);border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));padding:20px 20px 16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between">
+              <div>
+                <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(31,224,138,.85)">GOAL</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:14px">
+                  <span style="font:300 62px/.9 'Azeret Mono',monospace;letter-spacing:-.06em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ reps }}</span>
+                  <span style="font:500 12px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">REPS</span>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="display:flex;align-items:baseline;gap:6px;justify-content:flex-end">
+                  <span style="font:300 42px/.9 'Azeret Mono',monospace;letter-spacing:-.05em;color:#f9f9f5;font-variant-numeric:tabular-nums">{{ weight }}</span>
+                  <span style="font:500 11px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">KG</span>
+                </div>
+                <div style="font:500 9.5px/1 'Azeret Mono',monospace;letter-spacing:.1em;color:{{ deltaColor }};margin-top:10px">{{ deltaLabel }}</div>
+              </div>
+            </div>
+            <div style="height:1px;background:rgba(255,255,255,.08);margin:18px 0 14px"></div>
+            <div style="display:flex">
+              <div style="flex:1">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">LAST TIME</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#f4f4f0;margin-top:8px">8 × 45 kg</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+              <div style="flex:1;padding-left:16px">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">TARGET RANGE</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#1FE08A;margin-top:8px">8–10 reps</div>
+              </div>
+              <div style="width:1px;background:rgba(255,255,255,.08)"></div>
+              <div style="flex:1;padding-left:16px">
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32)">RPE</div>
+                <div style="font:600 13px/1 Manrope,sans-serif;color:#f4f4f0;margin-top:8px">8.0</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <div style="flex:1">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-bottom:8px">REPS</div>
+              <div style="display:flex;align-items:center;height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);overflow:hidden">
+                <div onClick="{{ repsDown }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">−</div>
+                <div style="flex:1;text-align:center;font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">{{ reps }}</div>
+                <div onClick="{{ repsUp }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">+</div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.16em;color:rgba(244,244,240,.32);margin-bottom:8px">WEIGHT · KG</div>
+              <div style="display:flex;align-items:center;height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);overflow:hidden">
+                <div onClick="{{ weightDown }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">−</div>
+                <div style="flex:1;text-align:center;font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">{{ weight }}</div>
+                <div onClick="{{ weightUp }}" style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(244,244,240,.65);font:400 20px/1 'Azeret Mono',monospace" style-hover="background:rgba(255,255,255,.06)">+</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="display:flex;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.03);padding:11px 14px">
+            <div style="display:flex;align-items:flex-end;gap:2.5px;height:15px;width:17px">
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px">
+              <span style="font:700 12px/1.2 Manrope,sans-serif;color:#f4f4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</span>
+              <span style="font:400 10px/1.2 'Azeret Mono',monospace;color:rgba(244,244,240,.38);white-space:nowrap">{{ trackArtist }}</span>
+            </div>
+            <span style="font:400 9px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.35);font-variant-numeric:tabular-nums">{{ trackRem }}</span>
+            <svg onClick="{{ nextTrack }}" width="13" height="11" viewBox="0 0 15 13" fill="rgba(244,244,240,.75)" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+          </div>
+
+          <div style="display:flex;gap:11px;margin-top:12px;margin-bottom:34px">
+            <div style="width:112px;height:60px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <svg width="11" height="9" viewBox="0 0 15 13" fill="rgba(244,244,240,.6)"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              <span style="font:700 14px/1 Manrope,sans-serif;color:rgba(244,244,240,.7)">Skip</span>
+            </div>
+            <div onClick="{{ logSet }}" style="flex:1;height:60px;border-radius:99px;background:#FF5C1A;box-shadow:0 12px 32px rgba(255,92,26,.32);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(.985)">
+              <svg width="15" height="12" viewBox="0 0 15 12" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M1 6.5L5.5 11L14 1.5"/></svg>
+              <span style="font:800 16.5px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#fff">{{ logLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:baseline;gap:9px;font:400 11px/1.3 Manrope,sans-serif;color:rgba(244,244,240,.45)">
+        <span style="font:600 10.5px/1 'Azeret Mono',monospace;padding:4px 7px;background:rgba(255,255,255,.08);color:#f4f4f0;border-radius:5px">03</span>Rest</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+        <div style="height:100%;background:radial-gradient(100% 50% at 50% 42%,#0d2b21 0%,#0a0f0d 55%,#080908 100%);display:flex;flex-direction:column;padding:60px 22px 0;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="12" height="12" viewBox="0 0 12 12" stroke="rgba(244,244,240,.75)" stroke-width="1.6" stroke-linecap="round"><path d="M1 1l10 10M11 1L1 11"/></svg>
+            </div>
+            <div style="text-align:center">
+              <div style="font:600 9px/1 'Azeret Mono',monospace;letter-spacing:.18em;color:rgba(244,244,240,.4)">DAY 2 · PULL DAY 1</div>
+              <div style="font:400 13px/1 'Azeret Mono',monospace;color:#f4f4f0;margin-top:7px;font-variant-numeric:tabular-nums">{{ elapsed }}</div>
+            </div>
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,240,.6)" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:3px;margin-top:20px">
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:#1FE08A"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+            <div style="flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.1)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:9px">
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.35)">EXERCISE 4 / 10</span>
+            <span style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(31,224,138,.75)">SET LOGGED · 8 × 45</span>
+          </div>
+
+          <div style="display:flex;justify-content:center;margin-top:34px">
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:99px;border:1px solid rgba(31,224,138,.3);background:rgba(31,224,138,.08)">
+              <svg width="10" height="11" viewBox="0 0 10 11" fill="#1FE08A"><rect x="0" y="0" width="3.4" height="11" rx="1"/><rect x="6.6" y="0" width="3.4" height="11" rx="1"/></svg>
+              <span style="font:600 10px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:#1FE08A">REST</span>
+            </div>
+          </div>
+
+          <div style="position:relative;width:290px;height:290px;margin:26px auto 0">
+            <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle,rgba(31,224,138,.16),transparent 66%);animation:pulse 2.4s ease-in-out infinite"></div>
+            <svg width="290" height="290" viewBox="0 0 290 290" style="position:absolute;inset:0;transform:rotate(-90deg)">
+              <circle cx="145" cy="145" r="132" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="7"/>
+              <circle cx="145" cy="145" r="132" fill="none" stroke="#1FE08A" stroke-width="7" stroke-linecap="round" stroke-dasharray="829.4" stroke-dashoffset="{{ ringOffset }}" ref="{{ refRing }}" style="filter:drop-shadow(0 0 12px rgba(31,224,138,.45))"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="display:flex;align-items:baseline">
+                <span style="font:200 74px/1 'Azeret Mono',monospace;letter-spacing:-.06em;color:#fbfbf7;font-variant-numeric:tabular-nums" ref="{{ refRestMain }}">{{ restMain }}</span>
+                <span style="font:400 26px/1 'Azeret Mono',monospace;letter-spacing:-.03em;color:rgba(244,244,240,.35);font-variant-numeric:tabular-nums" ref="{{ refRestCs }}">{{ restCs }}</span>
+              </div>
+              <div style="font:500 9px/1 'Azeret Mono',monospace;letter-spacing:.24em;color:rgba(244,244,240,.3);margin-top:16px">OF {{ restTotalLabel }} PLANNED</div>
+            </div>
+          </div>
+
+          <div style="margin-top:26px;border:1px solid rgba(255,255,255,.07);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));padding:16px 18px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.2em;color:rgba(244,244,240,.32)">UP NEXT</div>
+                <div style="font:700 16px/1.2 Manrope,sans-serif;color:#f4f4f0;margin-top:9px">Seated Row · Wide Grip</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font:400 20px/1 'Azeret Mono',monospace;color:#f7f7f3;font-variant-numeric:tabular-nums">10 × 40</div>
+                <div style="font:500 8.5px/1 'Azeret Mono',monospace;letter-spacing:.14em;color:rgba(244,244,240,.32);margin-top:8px">SET 1 · KG</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="display:flex;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(255,255,255,.03);padding:11px 14px">
+            <div style="display:flex;align-items:flex-end;gap:2.5px;height:15px;width:17px">
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .9s ease-in-out infinite"></span>
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq .7s ease-in-out infinite .15s"></span>
+              <span style="flex:1;background:#1FE08A;border-radius:1px;height:100%;transform-origin:bottom;animation:eq 1.1s ease-in-out infinite .3s"></span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font:700 12px/1.2 Manrope,sans-serif;color:#f4f4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ trackTitle }}</div>
+              <div style="font:400 9.5px/1.2 'Azeret Mono',monospace;color:rgba(244,244,240,.38);margin-top:3px">{{ trackArtist }} · {{ trackRem }} LEFT</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:15px">
+              <svg onClick="{{ prevTrack }}" width="13" height="11" viewBox="0 0 15 13" fill="rgba(244,244,240,.75)" style="cursor:pointer;transform:rotate(180deg)"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+              <svg onClick="{{ togglePlay }}" width="11" height="13" viewBox="0 0 14 15" fill="#1FE08A" style="cursor:pointer"><rect x="1" y="0" width="4" height="15" rx="1.2"/><rect x="9" y="0" width="4" height="15" rx="1.2"/></svg>
+              <svg onClick="{{ nextTrack }}" width="13" height="11" viewBox="0 0 15 13" fill="rgba(244,244,240,.75)" style="cursor:pointer"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:11px;margin-top:12px">
+            <div onClick="{{ restMinus }}" style="flex:1;height:52px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:500 14px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75)">−15s</span>
+            </div>
+            <div onClick="{{ restPlus }}" style="flex:1;height:52px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+              <span style="font:500 14px/1 'Azeret Mono',monospace;color:rgba(244,244,240,.75)">+15s</span>
+            </div>
+          </div>
+          <div onClick="{{ skipRest }}" style="height:60px;border-radius:99px;background:#1FE08A;box-shadow:0 12px 32px rgba(31,224,138,.25);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:11px;margin-bottom:34px;cursor:pointer" style-active="transform:scale(.985)">
+            <svg width="13" height="11" viewBox="0 0 15 13" fill="#04140d"><path d="M0 0l10 6.5L0 13z"/><rect x="11.5" y="0" width="3" height="13" rx="1"/></svg>
+            <span style="font:800 16.5px/1 Manrope,sans-serif;letter-spacing:-.01em;color:#04140d">Skip rest</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+
+  <p style="margin:26px 0 0;font:400 12px/1.6 Manrope,sans-serif;color:rgba(244,244,240,.42)">
+    Try next: "make the rest ring show heart rate too" · "try a light theme for the set screen" · "show me a variant where Spotify is a full-width now-playing header"
+  </p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:1100}}">
+const TRACKS = [
+  { t: 'Intro', a: 'DizzyTooSkinny', d: 214 },
+  { t: 'No Idea (Slowed)', a: 'Don Toliver', d: 188 },
+  { t: 'Runaway — Live', a: 'Kanye West', d: 331 },
+  { t: 'Sicko Mode', a: 'Travis Scott', d: 312 },
+];
+const mmss = (s) => {
+  s = Math.max(0, Math.floor(s));
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+};
+
+class Component extends DCLogic {
+  state = {
+    now: new Date(),
+    reps: 8, weight: 45, setIdx: 0, set1: null,
+    started: false,
+    ask: null,
+    meals: [false, false, false],
+  };
+
+  MEALS = [
+    { kcal: 310, p: 8, c: 52, f: 6 },
+    { kcal: 540, p: 66, c: 44, f: 12 },
+    { kcal: 420, p: 40, c: 20, f: 15 },
+  ];
+
+  // live values mutated by the fast loop; painted straight into refs so the
+  // six phone screens never reconcile at 60ms
+  live = { restMs: 89460, restTotal: 120000, pos: 37, trackIdx: 0, playing: true };
+  els = {};
+
+  reg = (k) => (el) => { if (el) this.els[k] = el; };
+
+  paint() {
+    const l = this.live;
+    const secs = Math.floor(l.restMs / 1000);
+    const main = mmss(secs), cs = '.' + String(Math.floor((l.restMs % 1000) / 10)).padStart(2, '0');
+    const off = 829.4 * (1 - Math.min(1, l.restMs / l.restTotal));
+    ['restMain', 'restMain2'].forEach((k) => { if (this.els[k]) this.els[k].textContent = main; });
+    ['restCs', 'restCs2'].forEach((k) => { if (this.els[k]) this.els[k].textContent = cs; });
+    ['ring', 'ring2'].forEach((k) => { if (this.els[k]) this.els[k].setAttribute('stroke-dashoffset', off); });
+  }
+
+  componentDidMount() {
+    this.fast = setInterval(() => {
+      const l = this.live;
+      l.restMs = Math.max(0, l.restMs - 60);
+      if (l.playing) {
+        l.pos += 0.06;
+        if (l.pos >= TRACKS[l.trackIdx].d) { l.pos = 0; l.trackIdx = (l.trackIdx + 1) % TRACKS.length; }
+      }
+      this.paint();
+    }, 60);
+    this.slow = setInterval(() => this.setState({ now: new Date() }), 1000);
+  }
+  componentWillUnmount() { clearInterval(this.fast); clearInterval(this.slow); }
+
+  renderVals() {
+    const s = this.state;
+    const d = s.now;
+    let h = d.getHours();
+    const mer = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const l = this.live;
+    const trk = TRACKS[l.trackIdx];
+    const totalSec = Math.floor(l.restMs / 1000);
+    const cs = String(Math.floor((l.restMs % 1000) / 10)).padStart(2, '0');
+    const set1 = s.set1;
+
+    return {
+      clock: h + ':' + String(d.getMinutes()).padStart(2, '0'),
+      meridiem: mer,
+      startLabel: s.started ? 'Resume Workout' : 'Start Workout',
+      startWorkout: () => this.setState({ started: true }),
+
+      elapsed: '1:35:' + String(d.getSeconds()).padStart(2, '0'),
+
+      restMain: mmss(totalSec),
+      restCs: '.' + cs,
+      restTotalLabel: mmss(l.restTotal / 1000),
+      ringOffset: 829.4 * (1 - Math.min(1, l.restMs / l.restTotal)),
+      refRestMain: this.reg('restMain'),
+      refRestCs: this.reg('restCs'),
+      refRing: this.reg('ring'),
+      refRestMain2: this.reg('restMain2'),
+      refRestCs2: this.reg('restCs2'),
+      refRing2: this.reg('ring2'),
+      ledgerPctCss: Math.round(100 * Math.min(1, (s.reps * s.weight) / 400)) + '%',
+      restMinus: () => { l.restMs = Math.max(0, l.restMs - 15000); this.paint(); },
+      restPlus: () => { l.restMs += 15000; l.restTotal = Math.max(l.restTotal, l.restMs); this.paint(); },
+      skipRest: () => { l.restMs = 120000; l.restTotal = 120000; this.paint(); },
+
+      reps: s.reps,
+      weight: s.weight,
+      repsUp: () => this.setState((p) => ({ reps: Math.min(30, p.reps + 1) })),
+      repsDown: () => this.setState((p) => ({ reps: Math.max(1, p.reps - 1) })),
+      weightUp: () => this.setState((p) => ({ weight: p.weight + 2.5 })),
+      weightDown: () => this.setState((p) => ({ weight: Math.max(0, p.weight - 2.5) })),
+      deltaLabel: s.weight > 45 ? '↑ ' + (s.weight - 45) + ' KG VS LAST' : s.weight < 45 ? '↓ ' + (45 - s.weight) + ' KG VS LAST' : 'MATCHING LAST',
+      deltaColor: s.weight > 45 ? '#1FE08A' : s.weight < 45 ? 'rgba(255,92,26,.85)' : 'rgba(244,244,240,.35)',
+      set1Label: set1 ? set1.reps + ' × ' + set1.weight : s.reps + ' × ' + s.weight,
+      set2Label: set1 ? 'Active' : '— × —',
+      setsDoneLabel: set1 ? '08' : '07',
+      logLabel: set1 ? 'Logged' : 'Log set',
+      logSet: () => this.setState((p) => ({ set1: { reps: p.reps, weight: p.weight } })),
+
+      askEmpty: !s.ask,
+      askAnswered: !!s.ask,
+      askQuestion: s.ask ? s.ask.q : '',
+      askLatency: '0.6s',
+      askHeadline: s.ask ? s.ask.head : '',
+      askBody: s.ask ? s.ask.body : '',
+      askM1: s.ask ? s.ask.m1 : '', askL1: s.ask ? s.ask.l1 : '',
+      askM2: s.ask ? s.ask.m2 : '', askL2: s.ask ? s.ask.l2 : '',
+      askM3: s.ask ? s.ask.m3 : '', askL3: s.ask ? s.ask.l3 : '',
+      askM3Color: s.ask ? s.ask.c3 : '#f9f9f5',
+      askReset: () => this.setState({ ask: null }),
+      askTraining: () => this.setState({ ask: {
+        q: 'How is my training going?',
+        head: 'Strong block — volume is up seven weeks running.',
+        body: 'Pull days are carrying it: lat pulldown and seated row both moved +5 kg. Push volume is flat, so I’d add one set to incline press next session.',
+        m1: '3/4', l1: 'SESSIONS THIS WK', m2: '7.2t', l2: 'WEEKLY VOLUME', m3: '+12%', l3: 'VS LAST WEEK', c3: '#1FE08A' } }),
+      askSpend: () => this.setState({ ask: {
+        q: 'What did I spend this week?',
+        head: 'Under budget, and mostly on food.',
+        body: 'Groceries £62, supplements £24, gym £0 (annual plan). You’re £31 under your weekly average — the eating-out line is what changed.',
+        m1: '£118', l1: 'SPENT THIS WK', m2: '£62', l2: 'GROCERIES', m3: '−21%', l3: 'VS AVERAGE', c3: '#1FE08A' } }),
+      askDiet: () => this.setState({ ask: {
+        q: 'What’s left on my diet today?',
+        head: 'You have room for one solid meal.',
+        body: 'Protein is the gap: 48 g left with 620 kcal to spend. A 200 g chicken bowl closes both almost exactly.',
+        m1: '620', l1: 'KCAL LEFT', m2: '48g', l2: 'PROTEIN LEFT', m3: '82%', l3: 'TARGET HIT', c3: '#FF5C1A' } }),
+      askWeek: () => this.setState({ ask: {
+        q: 'Summarise my week',
+        head: 'Three sessions, one skipped, weight trending down.',
+        body: 'Best lift was the seated row at 8 × 45 kg. You missed Thursday’s pull day — it’s rescheduled to tomorrow if you want it.',
+        m1: '3', l1: 'SESSIONS', m2: '2:41', l2: 'TIME TRAINED', m3: '−0.4', l3: 'KG BODYWEIGHT', c3: '#1FE08A' } }),
+
+      playing: l.playing,
+      paused: !l.playing,
+
+      ...(() => {
+        const eaten = this.MEALS.reduce((a, m, i) => s.meals[i] ? {
+          kcal: a.kcal + m.kcal, p: a.p + m.p, c: a.c + m.c, f: a.f + m.f } : a, { kcal: 0, p: 0, c: 0, f: 0 });
+        const n = s.meals.filter(Boolean).length;
+        const chip = (on) => on
+          ? { Border: 'rgba(31,224,138,.3)', Bg: 'rgba(31,224,138,.07)', Ring: '#1FE08A', Fill: '#1FE08A', Check: '#04140d' }
+          : { Border: 'rgba(255,255,255,.07)', Bg: 'rgba(255,255,255,.03)', Ring: 'rgba(255,255,255,.16)', Fill: 'transparent', Check: 'transparent' };
+        const c1 = chip(s.meals[0]), c2 = chip(s.meals[1]), c3 = chip(s.meals[2]);
+        const toggle = (i) => () => this.setState((p) => {
+          const m = p.meals.slice(); m[i] = !m[i]; return { meals: m };
+        });
+        return {
+          kcalLeft: 2200 - eaten.kcal,
+          kcalEaten: eaten.kcal,
+          mealsEatenLabel: n + ' of 3 meals eaten',
+          dietRingOffset: 289 * (1 - eaten.kcal / 2200),
+          pEaten: eaten.p, cEaten: eaten.c, fEaten: eaten.f,
+          pPctCss: Math.round(100 * eaten.p / 114) + '%',
+          cPctCss: Math.round(100 * eaten.c / 116) + '%',
+          fPctCss: Math.round(100 * eaten.f / 33) + '%',
+          toggleBreakfast: toggle(0), toggleLunch: toggle(1), toggleDinner: toggle(2),
+          b1Border: c1.Border, b1Bg: c1.Bg, b1Ring: c1.Ring, b1Fill: c1.Fill, b1Check: c1.Check,
+          b2Border: c2.Border, b2Bg: c2.Bg, b2Ring: c2.Ring, b2Fill: c2.Fill, b2Check: c2.Check,
+          b3Border: c3.Border, b3Bg: c3.Bg, b3Ring: c3.Ring, b3Fill: c3.Fill, b3Check: c3.Check,
+        };
+      })(),
+
+      trackTitle: trk.t,
+      trackArtist: trk.a,
+      trackPos: mmss(l.pos),
+      trackRem: '-' + mmss(trk.d - l.pos),
+      trackPctCss: (100 * l.pos / trk.d).toFixed(2) + '%',
+      togglePlay: () => { l.playing = !l.playing; this.forceUpdate(); },
+      nextTrack: () => { l.trackIdx = (l.trackIdx + 1) % TRACKS.length; l.pos = 0; this.forceUpdate(); },
+      prevTrack: () => { l.trackIdx = (l.trackIdx + TRACKS.length - 1) % TRACKS.length; l.pos = 0; this.forceUpdate(); },
+    };
+  }
+}
+</script>
+</body>
+</html>

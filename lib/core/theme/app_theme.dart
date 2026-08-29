@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
+import 'train_tokens.dart';
 
-/// The ZIVO app theme (dark & warm, Brand System v2).
+/// The ZIVO app theme.
+///
+/// The defaults here are the app's *ground floor*: anything that doesn't paint
+/// its own background or pick its own ink inherits them. They used to be the
+/// warm v2 values, which quietly put a warm cast under every screen —
+/// including the cool handoff ones — so a screen only looked cool where it had
+/// explicitly overridden something.
 abstract final class AppTheme {
   static ThemeData get dark {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.ground,
+      scaffoldBackgroundColor: TrainColors.base,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.ember,
-        surface: AppColors.card,
-        onSurface: AppColors.ink,
+        primary: TrainColors.ember,
+        surface: TrainColors.raised,
+        onSurface: TrainColors.ink,
       ),
       splashFactory: InkRipple.splashFactory,
     );

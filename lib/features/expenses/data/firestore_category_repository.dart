@@ -59,12 +59,12 @@ class FirestoreCategoryRepository implements CategoryRepository {
       _emit(const []);
       return;
     }
-    _querySub = _categoriesCollection(uid).orderBy('createdAt').snapshots().listen(
-      (snapshot) {
-        _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-      },
-      onError: (e, s) => _controller?.addError(e, s),
-    );
+    _querySub = _categoriesCollection(uid)
+        .orderBy('createdAt')
+        .snapshots()
+        .listen((snapshot) {
+          _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
+        }, onError: (e, s) => _controller?.addError(e, s));
   }
 
   void _emit(List<ExpenseCategory> categories) {
@@ -78,8 +78,10 @@ class FirestoreCategoryRepository implements CategoryRepository {
     final uid = _requireUid();
     return _categoriesCollection(uid).doc(category.id).set({
       'label': category.label,
-      'emoji': category.emoji,
-      'hue': category.hue.name,
+      // The stable enum name, never a glyph — see [CategoryIcon]. Documents
+      // written before this change carry `emoji` instead and are read through
+      // the legacy path in [_fromDoc]; nothing writes `emoji` any more.
+      'iconId': category.icon.name,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -98,16 +100,19 @@ class FirestoreCategoryRepository implements CategoryRepository {
   ExpenseCategory _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     final label = data['label'];
-    final emoji = data['emoji'];
-    final hue = data['hue'];
     return ExpenseCategory(
       id: doc.id,
       label: label is String ? label : 'Category',
-      emoji: emoji is String ? emoji : '',
-      hue: CategoryHue.values.firstWhere(
-        (h) => h.name == hue,
-        orElse: () => CategoryHue.solar,
-      ),
+      // Documents written before categories lost their colour still carry a
+      // `hue` field. It is read by nothing and validated by nothing, so it
+      // just sits there harmlessly until the doc is next rewritten.
+      //
+      // Prefer the current field; fall back to interpreting a pre-migration
+      // `emoji` so categories saved before the switch keep their mark instead
+      // of all collapsing onto the neutral one.
+      icon: data.containsKey('iconId')
+          ? categoryIconFromName(data['iconId'])
+          : categoryIconFromLegacyEmoji(data['emoji']),
     );
   }
 }

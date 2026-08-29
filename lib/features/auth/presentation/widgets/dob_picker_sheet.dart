@@ -2,17 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Opens the shared ZIVO date-of-birth wheel and resolves to the picked date
 /// (or null if dismissed). Used by both first-run onboarding and profile-edit
 /// so the two surfaces present the identical warm picker — no stock Material
 /// calendar anywhere.
-Future<DateTime?> showDobPicker(
-  BuildContext context, {
-  DateTime? initial,
-}) {
+Future<DateTime?> showDobPicker(BuildContext context, {DateTime? initial}) {
   return showModalBottomSheet<DateTime>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -22,7 +19,7 @@ Future<DateTime?> showDobPicker(
 }
 
 /// A native-feeling wheel date picker for date of birth — three synced
-/// scrolling columns (month / day / year): dark [AppColors.surfaceRaised]
+/// scrolling columns (month / day / year): dark [TrainColors.raisedStrong]
 /// track, a hairline selection band, and a scroll-tick haptic on every settled
 /// value. Changing month or year clamps an out-of-range day (e.g. leaving 31
 /// when moving off a 31-day month) rather than allowing an invalid date.
@@ -41,8 +38,18 @@ class DobPickerSheet extends StatefulWidget {
 
 class _DobPickerSheetState extends State<DobPickerSheet> {
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   late final int _minYear = DateTime.now().year - 120;
@@ -58,7 +65,9 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   late int _month = _start.month;
   late int _day = _start.day;
 
-  late final _dayController = FixedExtentScrollController(initialItem: _day - 1);
+  late final _dayController = FixedExtentScrollController(
+    initialItem: _day - 1,
+  );
 
   int get _daysInMonth => DateTime(_year, _month + 1, 0).day;
 
@@ -84,10 +93,15 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      padding: EdgeInsets.only(top: 12, left: 22, right: 22, bottom: MediaQuery.of(context).padding.bottom + 24),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 22,
+        right: 22,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,7 +110,10 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
             child: Container(
               width: 38,
               height: 4,
-              decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                color: TrainColors.hairlineStrong,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -107,7 +124,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
           Container(
             height: 190,
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.raisedStrong,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -116,7 +133,9 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                   flex: 5,
                   child: CupertinoPicker(
                     key: const Key('dob-picker-month'),
-                    scrollController: FixedExtentScrollController(initialItem: _month - 1),
+                    scrollController: FixedExtentScrollController(
+                      initialItem: _month - 1,
+                    ),
                     itemExtent: 40,
                     diameterRatio: 1.3,
                     backgroundColor: Colors.transparent,
@@ -130,7 +149,15 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                     },
                     children: [
                       for (final m in _months)
-                        Center(child: Text(m, style: AppText.rowTitle.copyWith(color: AppColors.ink, fontSize: 16))),
+                        Center(
+                          child: Text(
+                            m,
+                            style: AppText.rowTitle.copyWith(
+                              color: TrainColors.ink,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -149,7 +176,14 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                     },
                     children: [
                       for (var d = 1; d <= 31; d++)
-                        Center(child: Text('$d', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
+                        Center(
+                          child: Text(
+                            '$d',
+                            style: AppText.rowTitle.copyWith(
+                              color: TrainColors.ink,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -157,7 +191,9 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                   flex: 4,
                   child: CupertinoPicker(
                     key: const Key('dob-picker-year'),
-                    scrollController: FixedExtentScrollController(initialItem: _year - _minYear),
+                    scrollController: FixedExtentScrollController(
+                      initialItem: _year - _minYear,
+                    ),
                     itemExtent: 40,
                     diameterRatio: 1.3,
                     backgroundColor: Colors.transparent,
@@ -171,7 +207,14 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                     },
                     children: [
                       for (var y = _minYear; y <= _maxYear; y++)
-                        Center(child: Text('$y', style: AppText.rowTitle.copyWith(color: AppColors.ink))),
+                        Center(
+                          child: Text(
+                            '$y',
+                            style: AppText.rowTitle.copyWith(
+                              color: TrainColors.ink,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -180,7 +223,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
           ),
           const SizedBox(height: 22),
           Material(
-            color: AppColors.ember,
+            color: TrainColors.ember,
             borderRadius: BorderRadius.circular(999),
             child: InkWell(
               onTap: _submit,
@@ -192,9 +235,19 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                    const Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 8),
-                    Text('Save', style: AppText.button.copyWith(fontSize: 16, color: Colors.white)),
+                    Text(
+                      'Save',
+                      style: AppText.button.copyWith(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -210,7 +263,10 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
   Widget _selectionBand({required bool edge}) {
     return Container(
       margin: EdgeInsets.only(left: 2, right: edge ? 6 : 2),
-      decoration: BoxDecoration(color: AppColors.hairline2, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: TrainColors.hairlineStrong,
+        borderRadius: BorderRadius.circular(10),
+      ),
     );
   }
 }

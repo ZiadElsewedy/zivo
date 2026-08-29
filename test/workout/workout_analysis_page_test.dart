@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/core/theme/train_tokens.dart';
 import 'package:zivo/core/scope/app_scope.dart';
-import 'package:zivo/core/theme/app_colors.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -262,7 +262,7 @@ void main() {
     expect(find.text('Down'), findsOneWidget);
     expect(find.text('Slipping'), findsOneWidget);
     final chart = tester.widget<TrendChart>(find.byType(TrendChart));
-    expect(chart.color, AppColors.flare);
+    expect(chart.color, TrainColors.ember);
   });
 
   testWidgets('the consistency row reflects real training-dashboard stats, not placeholders', (tester) async {
@@ -314,7 +314,7 @@ void main() {
     expect(find.textContaining('1 improved · 0 matched · 0 regressed'), findsOneWidget);
   });
 
-  testWidgets('a Progressing verdict keeps the trend chart pulse-green', (tester) async {
+  testWidgets('a Progressing verdict keeps the trend chart green', (tester) async {
     _useTallViewport(tester);
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
@@ -326,6 +326,6 @@ void main() {
     await tester.pump();
 
     final chart = tester.widget<TrendChart>(find.byType(TrendChart));
-    expect(chart.color, AppColors.pulse);
+    expect(chart.color, TrainColors.green);
   });
 }

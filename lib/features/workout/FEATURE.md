@@ -49,3 +49,28 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
 - Import DTOs live under `workout/domain/` (moved off `ai/domain/`) — keep them here.
+- **Warm-up and rest are deliberately the SAME screen** in `live_session_page.dart`
+  (`_buildWarmup` / `_buildResting`): eyebrow → ring → what's-coming card → music strip →
+  ±15s → skip. Only the hue differs (ember vs green). Don't re-specialise one of them.
+- **Both countdown phases pause from three places** — the eyebrow pill, the ring itself,
+  and the header toggle — and while paused the whole phase is `IgnorePointer`'d, so the
+  dimmed area doubles as the resume target (`paused-resume-overlay`). The pill used to
+  *look* like a pause button while being inert decoration inside that dead region; that's
+  the bug this arrangement fixes, so don't collapse it back to a single header control.
+- The rest ring's numeral is centred by being the ring Stack's **only sizing child**; the
+  hundredths hang off its right edge at zero layout width. Both type sizes are set against
+  the *circle*, not against each other — at the original 74/26 the readout crossed the
+  stroke. Covered by a geometry test; don't restore a mirrored spacer or bump the sizes.
+- **`AnimatedSize` cannot be used inside a phase.** `_phaseScroll` wraps its column in
+  `IntrinsicHeight` so the `Spacer`s can distribute slack; `AnimatedSize` reports its
+  child's intrinsic height while laying out an animated one, so the column gets pinned
+  short and overflows. Animate the *contents*, or hold the height fixed instead.
+- The goal card is a **fixed height for a given set**, on purpose: the comparison chip and
+  the volume line are always rendered (the chip says "matching your previous set"; the
+  volume line is a reserved 14px). They used to appear only once you moved the weight,
+  which resized the card under your thumb. Regression-tested via `Key('goal-card')`.
+- The logging screen's commit row **floats over** the scroll area rather than splitting the
+  height with it, so it is never below the fold; the scroll reserves `_commitRowSpace` and
+  fades into it. Below `minPinnableHeight` (a keyboard on a very short device) it falls
+  back to scrolling everything — that fallback is what keeps the keyboard-overflow stress
+  test green.

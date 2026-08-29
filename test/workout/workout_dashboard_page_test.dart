@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/widgets/train_surfaces.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -141,7 +142,7 @@ void main() {
     expect(find.text('0'), findsNWidgets(2)); // sessions + day streak
     expect(find.text('—'), findsWidgets); // avg duration / avg start
 
-    expect(find.text('No weigh-ins logged yet.'), findsOneWidget);
+    expect(find.text('NO WEIGH-INS YET'), findsOneWidget);
     // The recent-activity empty card lives on the Progress screen now, not here.
     expect(find.text("You haven't logged a session yet."), findsNothing);
   });
@@ -170,8 +171,12 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('1'), findsNWidgets(2)); // sessions + day streak (trained today)
-    expect(find.text('82.5 kg'), findsOneWidget);
+    expect(_tileValue(tester, 'Sessions'), '1');
+    expect(_tileValue(tester, 'Streak'), '1'); // trained today
+    // The reading and its unit are separate elements now — the unit is always
+    // smaller and dimmer than the value it belongs to.
+    expect(find.text('82.5'), findsOneWidget);
+    expect(find.text('KG'), findsOneWidget);
   });
 
   testWidgets(
@@ -352,7 +357,7 @@ void main() {
     // Not pumpAndSettle — the up-next card's `AliveColorDrift` wash is a
     // continuous, always-on repeating animation that never settles on its
     // own (see `up_next_workout_card.dart`). Bounded pumps instead.
-    await tester.tap(find.text('Log weight'));
+    await tester.tap(find.text('Log weigh-in'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -412,23 +417,34 @@ void main() {
     await expectDrillDown(tester, 'Sessions', WorkoutSessionsPage);
   });
 
-  testWidgets('the Day streak tile opens the streak history page', (tester) async {
+  testWidgets('the Streak tile opens the streak history page', (tester) async {
     await pumpDashboard(tester);
-    await expectDrillDown(tester, 'Day streak', WorkoutStreakPage);
+    await expectDrillDown(tester, 'Streak', WorkoutStreakPage);
   });
 
-  testWidgets('the Avg duration tile opens the duration stats page', (tester) async {
+  testWidgets('the Duration tile opens the duration stats page', (tester) async {
     await pumpDashboard(tester);
-    await expectDrillDown(tester, 'Avg duration', WorkoutDurationStatsPage);
+    await expectDrillDown(tester, 'Duration', WorkoutDurationStatsPage);
   });
 
-  testWidgets('the Avg start tile opens the start-times stats page', (tester) async {
+  testWidgets('the Usual start tile opens the start-times stats page', (tester) async {
     await pumpDashboard(tester);
-    await expectDrillDown(tester, 'Avg start', WorkoutStartTimesPage);
+    await expectDrillDown(tester, 'Usual start', WorkoutStartTimesPage);
   });
 
   testWidgets('the Bodyweight card opens the weigh-in history page', (tester) async {
     await pumpDashboard(tester);
-    await expectDrillDown(tester, 'No weigh-ins logged yet.', BodyweightHistoryPage);
+    await expectDrillDown(tester, 'Log one to start the trend.', BodyweightHistoryPage);
   });
 }
+
+/// The value a [TrainStatTile] is showing, found by its label — the tiles
+/// render value, unit and label as separate elements, so a bare `find.text`
+/// on a digit would sweep up every other tile on the page.
+String _tileValue(WidgetTester tester, String label) =>
+    tester.widget<TrainStatTile>(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(TrainStatTile),
+      ),
+    ).value;

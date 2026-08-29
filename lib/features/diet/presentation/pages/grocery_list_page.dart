@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/grocery_list.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The shopping view for the active diet plan — every food across every day
 /// and meal, quantities summed into one list ("what one shop looks like").
@@ -49,9 +49,9 @@ class _GroceryListPageState extends State<GroceryListPage> {
   Widget build(BuildContext context) {
     final items = _items;
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       appBar: AppBar(
-        backgroundColor: AppColors.ground,
+        backgroundColor: TrainColors.base,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text('Groceries', style: AppText.cardTitle),
@@ -70,7 +70,7 @@ class _GroceryListPageState extends State<GroceryListPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
                   "This plan has no foods to shop for yet.",
-                  style: AppText.body.copyWith(color: AppColors.ink3),
+                  style: AppText.body.copyWith(color: TrainColors.ink3),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -102,9 +102,10 @@ class _GroceryListPageState extends State<GroceryListPage> {
                         child: Text(
                           _line(item),
                           style: AppText.body.copyWith(
-                            color: checked ? AppColors.ink3 : AppColors.ink,
-                            decoration:
-                                checked ? TextDecoration.lineThrough : null,
+                            color: checked ? TrainColors.ink3 : TrainColors.ink,
+                            decoration: checked
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                         ),
                       ),

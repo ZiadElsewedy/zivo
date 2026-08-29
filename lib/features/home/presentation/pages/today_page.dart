@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../../auth/domain/user_profile.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
@@ -19,7 +20,9 @@ import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/presentation/pages/expense_capture_page.dart';
 import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/session_estimate.dart';
 import '../../../workout/domain/up_next_selection.dart';
+import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
 import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
@@ -28,7 +31,7 @@ import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
-import '../../../shell/presentation/widgets/zivo_bottom_bar.dart';
+import '../../../shell/presentation/widgets/bottom_chrome.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -53,6 +56,12 @@ class TodayPage extends StatefulWidget {
 /// — before a pull-down is treated as "open Ask" rather than an incidental
 /// rubber-band wobble.
 const double _kAskPullThreshold = 80;
+
+/// Vertical room the now-playing strip occupies above the tab bar (the strip
+/// plus its swipe handle and margins) — see the list padding below.
+/// Vertical room for the capture FAB that floats over the end of this list.
+/// The FAB is 56 tall and Flutter insets it 16 above the bottom bar.
+const double _kCaptureFabAllowance = 56 + 16;
 
 class _TodayPageState extends State<TodayPage> {
   bool _askTriggered = false;
@@ -79,39 +88,41 @@ class _TodayPageState extends State<TodayPage> {
     final media = MediaQuery.of(context);
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -1.1),
-          radius: 1.1,
-          colors: [Color(0xFF241C15), AppColors.ground, Color(0xFF0E0B08)],
-          stops: [0.0, 0.5, 1.0],
-        ),
-      ),
+      decoration: const BoxDecoration(gradient: TrainColors.todayTint),
       child: Stack(
         children: [
+          // The handoff allows exactly one soft radial glow per screen — a
+          // green bloom off the top-right corner, breathing slowly.
           const Positioned(
-            top: -40,
-            right: -60,
-            child: _AuraBlob(color: AppColors.ember, size: 220),
-          ),
-          const Positioned(
-            top: 160,
-            left: -80,
-            child: _AuraBlob(color: AppColors.iris, size: 200),
+            top: -90,
+            right: -70,
+            child: _AuraBlob(color: TrainColors.green, size: 280),
           ),
           Column(
             children: [
-              SizedBox(height: media.padding.top + 6),
-              _AskHint(onTap: _openAsk),
+              // 62px from the top of the safe area to the date caption, per
+              // the handoff's screen padding.
+              SizedBox(height: media.padding.top + 14),
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: _handleScroll,
                   child: ListView(
                     padding: EdgeInsets.fromLTRB(
                       AppSpacing.screen,
-                      AppSpacing.s,
+                      0,
                       AppSpacing.screen,
-                      ZivoBottomBarMetrics.height(context) + AppSpacing.base,
+                      // The shell runs `extendBody: true`, so the list scrolls
+                      // UNDER the whole bottom object — nav island plus the
+                      // fused now-playing strip. [BottomChrome] is that
+                      // object's live measured height, so this tracks music
+                      // appearing and leaving instead of reserving a fixed
+                      // allowance that was right in only one of the two states.
+                      // The FAB floats over this same corner, so its disc
+                      // clears too: without that, "Start Workout" ended up
+                      // underneath it.
+                      BottomChrome.of(context) +
+                          _kCaptureFabAllowance +
+                          AppSpacing.base,
                     ),
                     children: [
                       RiseIn(
@@ -178,49 +189,12 @@ class _AuraBlob extends StatelessWidget {
           // during page transitions (blur layers repaint per frame).
           gradient: RadialGradient(
             colors: [
-              color.withValues(alpha: 0.14),
+              color.withValues(alpha: 0.16),
               color.withValues(alpha: 0.0),
             ],
+            stops: const [0.0, 0.7],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The pull-to-ask handle — also the discoverable, tappable fallback for
-/// anyone who doesn't try the drag (see [_TodayPageState._handleScroll] for
-/// the gesture itself).
-class _AskHint extends StatelessWidget {
-  const _AskHint({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 34,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.hairline2,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'PULL TO ASK',
-            style: AppText.tabLabel.copyWith(
-              color: AppColors.ink3,
-              letterSpacing: 1.9,
-            ),
-          ),
-          const SizedBox(height: 6),
-        ],
       ),
     );
   }
@@ -234,31 +208,52 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(child: Text(formatTodayDate(now).toUpperCase(), style: AppText.dateLabel)),
-            // Voice quick-log — one tap from the command centre to a logged
-            // expense/workout via Ask's proposal flow.
-            if (onQuickLog != null) _QuickLogButton(onTap: onQuickLog!),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                formatTodayShort(now),
+                style: TrainType.mono(
+                  size: 10,
+                  weight: FontWeight.w500,
+                  tracking: 0.18,
+                  color: const Color(0x6BF4F4F0),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // The live clock is the header's anchor and this screen's one
+              // hero number — a glance answers "what time is it" before
+              // anything else on Today does.
+              const _LiveTime(),
+              const SizedBox(height: 10),
+              _GreetingRow(now: now),
+            ],
+          ),
         ),
-        const SizedBox(height: 6),
-        // The live clock is the header's anchor — the biggest thing on the
-        // screen, so a glance answers "what time is it" before anything else.
-        const _LiveTime(),
-        const SizedBox(height: 10),
-        _GreetingRow(now: now),
+        const SizedBox(width: 12),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Column(
+            children: [
+              // Voice quick-log — one tap from the command centre to a logged
+              // expense/workout via Ask's proposal flow.
+              if (onQuickLog != null) _QuickLogButton(onTap: onQuickLog!),
+              const SizedBox(height: 6),
+              _TimeOfDayChip(now: now),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-/// The header's compact mic affordance for the voice quick-log sheet.
+/// The header's mic affordance for the voice quick-log sheet — a 40px glass
+/// circle, the handoff's control shape.
 class _QuickLogButton extends StatelessWidget {
   const _QuickLogButton({required this.onTap});
 
@@ -266,37 +261,25 @@ class _QuickLogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      child: Material(
-        key: const Key('today-quicklog'),
-        color: AppColors.card,
-        shape: const CircleBorder(
-          side: BorderSide(color: AppColors.hairline),
-        ),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
-          customBorder: const CircleBorder(),
-          child: const SizedBox(
-            width: 38,
-            height: 38,
-            child: Icon(AppIcons.mic, size: 18, color: AppColors.iris),
-          ),
-        ),
-      ),
+    return TrainCircleButton(
+      key: const Key('today-quicklog'),
+      size: 40,
+      fill: const Color(0x0AFFFFFF),
+      border: const Color(0x1AFFFFFF),
+      semanticLabel: 'Quick log by voice',
+      onTap: onTap,
+      child: const Icon(AppIcons.mic, size: 16, color: TrainColors.violet),
     );
   }
 }
 
-/// A live wall clock (`H:MM` + AM/PM), the Today header's visual anchor.
+/// A live wall clock (`H:MM` + AM/PM), Today's hero number.
 ///
 /// Ticks on each minute boundary rather than every second — a calm, premium
 /// cadence that still stays exactly accurate (the first timer is aligned to
-/// the next whole minute, then it repeats every minute). Tabular figures
-/// (inherited from [AppText.heroNumber]) keep the digits from shifting width
-/// as the time changes, so the clock never jitters.
+/// the next whole minute, then it repeats every minute). Tabular figures keep
+/// the digits from shifting width as the time changes, so the clock never
+/// jitters — the whole reason the handoff puts numbers in mono.
 class _LiveTime extends StatefulWidget {
   const _LiveTime();
 
@@ -345,64 +328,67 @@ class _LiveTimeState extends State<_LiveTime> {
       children: [
         Text(
           '$h12:$minute',
-          style: AppText.heroNumber.copyWith(fontSize: 58, letterSpacing: -1.6),
-        ),
-        const SizedBox(width: 9),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 11),
-          child: Text(
-            period,
-            style: AppText.meta.copyWith(
-              fontSize: 17,
-              color: AppColors.ink3,
-              letterSpacing: 0.6,
-            ),
+          style: TrainType.mono(
+            size: 54,
+            weight: FontWeight.w300,
+            tracking: -0.045,
+            color: TrainColors.ink,
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 6),
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: _TimeOfDayOrb(now: _now),
+          child: Text(
+            period,
+            style: TrainType.mono(
+              size: 13,
+              weight: FontWeight.w500,
+              tracking: 0.1,
+              color: const Color(0x66F4F4F0),
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-/// The soft glowing orb beside the clock — sun by day, twilight at dusk, moon
-/// at night — so the header carries the feel of the actual hour, not a fixed
-/// icon. Purely atmospheric.
-class _TimeOfDayOrb extends StatelessWidget {
-  const _TimeOfDayOrb({required this.now});
+/// The glass chip beside the mic — sun by day, twilight at dusk, moon at
+/// night — so the header carries the feel of the actual hour.
+///
+/// Deliberately not a control: the handoff draws a do-not-disturb toggle
+/// here, and ZIVO has no such mode, so this stays the read-only marker it
+/// already was rather than promising an action it can't perform.
+class _TimeOfDayChip extends StatelessWidget {
+  const _TimeOfDayChip({required this.now});
 
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final h = now.hour;
-    final IconData icon;
-    final Color color;
-    if (h >= 6 && h < 18) {
-      icon = Icons.wb_sunny_rounded;
-      color = AppColors.ember;
-    } else if (h >= 18 && h < 22) {
-      icon = Icons.wb_twilight_rounded;
-      color = AppColors.solar;
-    } else {
-      icon = Icons.nightlight_round;
-      color = AppColors.iris;
-    }
-    return Container(
-      width: 46,
-      height: 46,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color.withValues(alpha: 0.24), color.withValues(alpha: 0)],
-        ),
+    final (IconData icon, Color color, String label) = switch (h) {
+      >= 6 && < 18 => (Icons.wb_sunny_rounded, TrainColors.ember, 'Daytime'),
+      >= 18 && < 22 => (
+        Icons.wb_twilight_rounded,
+        TrainColors.amber,
+        'Evening',
       ),
-      child: Icon(icon, color: color, size: 26),
+      _ => (Icons.nightlight_round, TrainColors.violetGlyph, 'Night'),
+    };
+    return Semantics(
+      label: label,
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.10),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Icon(icon, color: color, size: 15),
+      ),
     );
   }
 }
@@ -421,7 +407,13 @@ class _GreetingRow extends StatelessWidget {
       builder: (context, snapshot) {
         return Text(
           greetingFor(now, snapshot.data?.name),
-          style: AppText.greeting,
+          style: TrainType.ui(
+            size: 27,
+            weight: FontWeight.w800,
+            tracking: -0.02,
+            height: 1.1,
+            color: TrainColors.ink,
+          ),
         );
       },
     );
@@ -440,13 +432,36 @@ class _TrainingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader('Training'),
-        _TrainingUpNext(scope: scope),
-      ],
+    return _TrainingUpNext(scope: AppScope.of(context));
+  }
+}
+
+/// The section's caption row — `NEXT SESSION` on the left, and where that
+/// session sits in the split (`WEEK 4 · DAY 2`) on the right. Both are real:
+/// the week counts from the split's creation date, the day is its position
+/// in the rotation.
+class _NextSessionCaption extends StatelessWidget {
+  const _NextSessionCaption({this.plan, this.day});
+
+  final WorkoutPlan? plan;
+  final WorkoutDay? day;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = plan == null || day == null
+        ? null
+        : 'WEEK ${planWeekNumber(plan!, DateTime.now())} '
+              '· DAY ${planDayNumber(day!)}';
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.section, bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const TrainCaption('NEXT SESSION'),
+          if (position != null) TrainCaption(position, tracking: 0.08),
+        ],
+      ),
     );
   }
 }
@@ -474,7 +489,10 @@ class _TrainingUpNext extends StatelessWidget {
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
         if (plan == null) {
-          return const _TrainingEmptyFallback();
+          return const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [_NextSessionCaption(), _TrainingEmptyFallback()],
+          );
         }
         // Nested under the plan so the session stream — the source of truth for
         // a running workout — drives the card. Kept inside (not merged with the
@@ -488,15 +506,21 @@ class _TrainingUpNext extends StatelessWidget {
             // `up_next_selection.dart`) so the two surfaces can't drift apart.
             final selection = resolveUpNext(plan, sessionSnapshot.data);
             final day = selection.day;
-            if (day == null) {
-              // A plan whose days were all removed still resolves here —
-              // that's a split to fix, not "nothing logged today".
-              return _EmptySplitCard(plan: plan);
-            }
-            return UpNextWorkoutCard(
-              plan: plan,
-              day: day,
-              resumable: selection.resumable,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _NextSessionCaption(plan: plan, day: day),
+                if (day == null)
+                  // A plan whose days were all removed still resolves here —
+                  // that's a split to fix, not "nothing logged today".
+                  _EmptySplitCard(plan: plan)
+                else
+                  UpNextWorkoutCard(
+                    plan: plan,
+                    day: day,
+                    resumable: selection.resumable,
+                  ),
+              ],
             );
           },
         );
@@ -552,18 +576,25 @@ class _NoPlanTrainingCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _TrainingIconChip(
-                  icon: Icons.fitness_center_rounded,
-                  color: AppColors.pulse,
+                const TrainIconTile(
+                  icon: AppIcons.workout,
+                  accent: TrainColors.green,
+                  size: 44,
+                  iconSize: 19,
+                  radius: 14,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -571,7 +602,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                     'No training plan yet',
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
                   ),
                 ),
@@ -582,7 +613,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
               'Import your split from a PDF or photo and Zivo turns it into '
               'a real rotating plan — or build one by hand.',
               style: AppText.body.copyWith(
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -593,7 +624,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
               child: PillButton(
                 label: 'Import a plan',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -619,7 +650,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                   },
                   child: Text(
                     'Build manually instead',
-                    style: AppText.meta.copyWith(color: AppColors.ink2),
+                    style: AppText.meta.copyWith(color: TrainColors.ink2),
                   ),
                 ),
               ),
@@ -645,18 +676,25 @@ class _EmptySplitCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _TrainingIconChip(
-                  icon: Icons.post_add_rounded,
-                  color: AppColors.solar,
+                const TrainIconTile(
+                  icon: AppIcons.planDoc,
+                  accent: TrainColors.amber,
+                  size: 44,
+                  iconSize: 19,
+                  radius: 14,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -666,7 +704,7 @@ class _EmptySplitCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
+                      color: TrainColors.ink,
                     ),
                   ),
                 ),
@@ -677,7 +715,7 @@ class _EmptySplitCard extends StatelessWidget {
               'Add training days and exercises to this split and it will '
               'show up here, ready to start.',
               style: AppText.body.copyWith(
-                color: AppColors.ink2,
+                color: TrainColors.ink2,
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -688,7 +726,7 @@ class _EmptySplitCard extends StatelessWidget {
               child: PillButton(
                 label: 'Edit split',
                 icon: Icons.edit_rounded,
-                color: AppColors.solar,
+                color: TrainColors.amber,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -710,44 +748,6 @@ class _EmptySplitCard extends StatelessWidget {
 /// The tinted gradient icon chip shared by both Training empty cards — the
 /// same visual unit the Workout tab's phase states use, so the flows read
 /// as one product.
-class _TrainingIconChip extends StatelessWidget {
-  const _TrainingIconChip({required this.icon, required this.color});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.26),
-            color.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.26),
-            blurRadius: 18,
-            spreadRadius: -5,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Icon(icon, size: 22, color: color),
-    );
-  }
-}
-
-/// A brand-new signed-in user's first Today: one calm, actionable card
 /// instead of a bare empty line — two taps to real data, not a wizard.
 class _GetStartedCard extends StatelessWidget {
   const _GetStartedCard();
@@ -758,9 +758,13 @@ class _GetStartedCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          // The handoff card: a flat glass fill over the screen's own tint
+          // with a hairline edge. Depth comes from light, not shadow
+          // (identity §5) — this used to be an opaque warm-charcoal plate
+          // with a soft drop shadow under it, on a cool screen.
+          color: TrainColors.glass,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: AppShadows.card,
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,13 +773,16 @@ class _GetStartedCard extends StatelessWidget {
               'Get started',
               style: AppText.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.ink,
+                color: TrainColors.ink,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               "Import a plan or log a spend — Zivo builds Today from there.",
-              style: AppText.body.copyWith(color: AppColors.ink2, fontSize: 14),
+              style: AppText.body.copyWith(
+                color: TrainColors.ink2,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -784,7 +791,7 @@ class _GetStartedCard extends StatelessWidget {
                   child: _GetStartedAction(
                     icon: Icons.upload_file_rounded,
                     label: 'Import a\nworkout plan',
-                    color: AppColors.pulse,
+                    color: TrainColors.green,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const WorkoutPdfImportPage(),
@@ -797,7 +804,7 @@ class _GetStartedCard extends StatelessWidget {
                   child: _GetStartedAction(
                     icon: Icons.receipt_long_rounded,
                     label: 'Add an\nexpense',
-                    color: AppColors.solar,
+                    color: TrainColors.amber,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const ExpenseCapturePage(),
@@ -839,7 +846,7 @@ class _GetStartedAction extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
+            color: TrainColors.raisedStrong,
             borderRadius: BorderRadius.circular(AppRadius.chip * 2),
           ),
           child: Column(
@@ -850,7 +857,7 @@ class _GetStartedAction extends StatelessWidget {
               Text(
                 label,
                 style: AppText.meta.copyWith(
-                  color: AppColors.ink,
+                  color: TrainColors.ink,
                   fontWeight: FontWeight.w600,
                   height: 1.25,
                 ),

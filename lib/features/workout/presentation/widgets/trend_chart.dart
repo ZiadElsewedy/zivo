@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/motion/springs.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// A small, self-contained sparkline/line chart for an exercise's recent
 /// trend (top-set weight or volume) — no external chart package, just a
@@ -14,7 +14,12 @@ import '../../../../core/theme/app_typography.dart';
 /// motion — the chart just appears complete), and gives the newest point a
 /// slightly larger, ringed dot so "where we are now" reads at a glance.
 class TrendChart extends StatelessWidget {
-  const TrendChart({super.key, required this.values, this.color = AppColors.pulse, this.height = 52});
+  const TrendChart({
+    super.key,
+    required this.values,
+    this.color = TrainColors.green,
+    this.height = 52,
+  });
 
   final List<double?> values;
   final Color color;
@@ -29,7 +34,7 @@ class TrendChart extends StatelessWidget {
         child: Center(
           child: Text(
             real.isEmpty ? 'No data yet' : '${_trim(real.single)} kg',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
         ),
       );
@@ -43,16 +48,27 @@ class TrendChart extends StatelessWidget {
       builder: (context, progress, _) => SizedBox(
         width: double.infinity,
         height: height,
-        child: CustomPaint(painter: _TrendPainter(values: values, color: color, progress: progress)),
+        child: CustomPaint(
+          painter: _TrendPainter(
+            values: values,
+            color: color,
+            progress: progress,
+          ),
+        ),
       ),
     );
   }
 
-  static String _trim(double v) => v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+  static String _trim(double v) =>
+      v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 }
 
 class _TrendPainter extends CustomPainter {
-  _TrendPainter({required this.values, required this.color, required this.progress});
+  _TrendPainter({
+    required this.values,
+    required this.color,
+    required this.progress,
+  });
 
   final List<double?> values;
   final Color color;
@@ -75,7 +91,10 @@ class _TrendPainter extends CustomPainter {
 
     double xOf(int i) => lastIndex == 0 ? 0 : (i / lastIndex) * size.width;
     double yOf(double v) =>
-        topPad + (span == 0 ? plotHeight / 2 : plotHeight - ((v - minV) / span) * plotHeight);
+        topPad +
+        (span == 0
+            ? plotHeight / 2
+            : plotHeight - ((v - minV) / span) * plotHeight);
 
     final points = [for (final (i, v) in indexed) Offset(xOf(i), yOf(v))];
 
@@ -95,7 +114,10 @@ class _TrendPainter extends CustomPainter {
     final metrics = line.computeMetrics().toList();
     final drawn = Path();
     for (final metric in metrics) {
-      drawn.addPath(metric.extractPath(0, metric.length * progress), Offset.zero);
+      drawn.addPath(
+        metric.extractPath(0, metric.length * progress),
+        Offset.zero,
+      );
     }
 
     final fill = Path.from(drawn)
@@ -123,18 +145,31 @@ class _TrendPainter extends CustomPainter {
     );
 
     // Dots only for the portion of the line already revealed.
-    final visibleCount = (points.length * progress).ceil().clamp(0, points.length);
+    final visibleCount = (points.length * progress).ceil().clamp(
+      0,
+      points.length,
+    );
     for (var i = 0; i < visibleCount; i++) {
       final isNewest = i == points.length - 1;
       final radius = isNewest ? 4.5 : 2.6;
       if (isNewest) {
-        canvas.drawCircle(points[i], radius + 2.5, Paint()..color = AppColors.ground);
+        canvas.drawCircle(
+          points[i],
+          radius + 2.5,
+          Paint()..color = TrainColors.base,
+        );
       }
-      canvas.drawCircle(points[i], radius, Paint()..color = isNewest ? color : color.withValues(alpha: 0.55));
+      canvas.drawCircle(
+        points[i],
+        radius,
+        Paint()..color = isNewest ? color : color.withValues(alpha: 0.55),
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant _TrendPainter oldDelegate) =>
-      oldDelegate.values != values || oldDelegate.color != color || oldDelegate.progress != progress;
+      oldDelegate.values != values ||
+      oldDelegate.color != color ||
+      oldDelegate.progress != progress;
 }

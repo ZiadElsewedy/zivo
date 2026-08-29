@@ -1,3 +1,4 @@
+import 'package:zivo/features/music/domain/audio_output.dart';
 import 'package:zivo/features/music/domain/music_connection.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/music/domain/now_playing.dart';
@@ -10,7 +11,7 @@ import 'package:zivo/features/music/domain/now_playing.dart';
 /// instance with no `dispose()` hook available would leak a pending timer
 /// past each test's teardown (`flutter_test`'s "timer still pending"
 /// invariant — the exact bug `app.dart`'s `_ZivoAppState.dispose()` exists
-/// to avoid for the real app). Since `NowPlayingBar` only ever mounts once
+/// to avoid for the real app). Since the now-playing lozenge only ever mounts once
 /// connected, staying `disconnected` also means it renders nothing —
 /// existing tests that don't care about music see no new UI.
 ///
@@ -29,6 +30,12 @@ class InertMusicController implements MusicController {
 
   @override
   MusicConnection get currentConnection => MusicConnection.disconnected;
+
+  @override
+  Stream<AudioOutput?> get output => const Stream.empty();
+
+  @override
+  AudioOutput? get currentOutput => null;
 
   @override
   Future<void> connect() async {}
@@ -53,6 +60,12 @@ class InertMusicController implements MusicController {
 
   @override
   Future<void> replay() async {}
+
+  @override
+  Future<void> setShuffle(bool shuffle) async {}
+
+  @override
+  Future<void> setRepeat(MusicRepeatMode mode) async {}
 
   @override
   void dispose() {}

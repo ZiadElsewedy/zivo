@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/core/widgets/train_surfaces.dart';
 import 'package:lottie/lottie.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/core/widgets/reactive_state_views.dart';
@@ -91,15 +92,16 @@ void main() {
     expect(find.text('Rice'), findsNothing,
         reason: 'item names belong to the meal detail page now');
 
-    // Tapping the Lunch card marks it eaten reactively.
-    await tester.tap(find.text('Lunch'));
+    // Ticking the Lunch row's check marks it eaten reactively. (The row
+    // BODY opens the meal now — check ticks, body opens.)
+    await tester.tap(find.byKey(const Key('meal-tick-seed-meal-lunch')));
     await tester.pump();
 
     final consumed = await diet.watchConsumed(DateTime.now()).first;
     expect(consumed, contains('seed-meal-lunch'));
   });
 
-  testWidgets('a meal\u2019s View affordance opens its dedicated detail page '
+  testWidgets('tapping a meal row opens its dedicated detail page '
       'with the full item breakdown', (tester) async {
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
@@ -107,8 +109,8 @@ void main() {
     await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
     await tester.pump();
 
-    // Open the LUNCH card's View chip (second meal in seed order).
-    await tester.tap(find.text('View').at(1));
+    // The row body is the "open" affordance; the check beside it is the tick.
+    await tester.tap(find.text('Lunch'));
     await tester.pumpAndSettle();
 
     // The detail page shows exactly what's in Lunch — items included.
@@ -159,10 +161,11 @@ void main() {
     await tester.pump();
     // Let the consumed-set stream resolve so the hero states real counts.
     await tester.pump(const Duration(milliseconds: 50));
-    // Own section header + own row (both say "Supplements").
-    expect(find.text('Supplements'), findsNWidgets(2));
+    // Own section header (mono, uppercase) + own row.
+    expect(find.text('SUPPLEMENTS'), findsOneWidget);
+    expect(find.text('Supplements'), findsOneWidget);
     expect(find.text('Vitamin D3'), findsNothing,
-        reason: 'supplement items live behind View too');
+        reason: 'supplement items live on the detail page too');
     // The hero count excludes supplements: 3 real meals, not 4.
     expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
 
@@ -184,7 +187,7 @@ void main() {
     expect(find.byType(Lottie), findsOneWidget);
     expect(find.text('No diet plan yet.'), findsNothing);
     // No FAB while the real active plan isn't known yet.
-    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byType(TrainFab), findsNothing);
 
     diet.emit(
       DietPlan(
@@ -200,7 +203,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('Cut'), findsOneWidget);
+    expect(find.text('CUT'), findsOneWidget);
   });
 
   testWidgets('shows the empty state once the plan stream settles with no data', (tester) async {
@@ -214,7 +217,7 @@ void main() {
 
     expect(find.byType(Lottie), findsNothing);
     expect(find.text('No diet plan yet.'), findsOneWidget);
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byType(TrainFab), findsOneWidget);
   });
 
   testWidgets('shows the error view and hides the FAB when the plan stream errors', (tester) async {
@@ -230,7 +233,7 @@ void main() {
     expect(find.byType(Lottie), findsNothing);
     expect(find.text('No diet plan yet.'), findsNothing);
     // Can't edit a plan that failed to load, so no FAB.
-    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byType(TrainFab), findsNothing);
   });
 
   testWidgets('deleting the plan from the editor returns to the empty state', (tester) async {
@@ -241,7 +244,7 @@ void main() {
     await tester.pump();
 
     // Open the editor for the existing (seeded) plan via the FAB.
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byType(TrainFab));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('diet-plan-delete')), findsOneWidget);

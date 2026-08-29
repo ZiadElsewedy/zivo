@@ -10,12 +10,12 @@ import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/moment.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Moment capture — a photo, a line, or both (either alone is enough to save).
 /// Off-by-default privacy: no
@@ -124,7 +124,9 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   Future<void> _editPhoto() async {
     var path = _pickedTempPath;
     if (path == null && _imageRef != null) {
-      final file = await AppScope.of(context).requireMedia.resolveOrFetch(_imageRef);
+      final file = await AppScope.of(
+        context,
+      ).requireMedia.resolveOrFetch(_imageRef);
       path = file?.path;
     }
     if (path == null || !mounted) return;
@@ -141,12 +143,12 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
         ),
         AndroidUiSettings(
           toolbarTitle: 'Edit Photo',
-          toolbarColor: AppColors.ground,
-          toolbarWidgetColor: AppColors.ink,
-          backgroundColor: AppColors.ground,
-          activeControlsWidgetColor: AppColors.ember,
-          cropFrameColor: AppColors.ink,
-          cropGridColor: AppColors.hairline2,
+          toolbarColor: TrainColors.base,
+          toolbarWidgetColor: TrainColors.ink,
+          backgroundColor: TrainColors.base,
+          activeControlsWidgetColor: TrainColors.ember,
+          cropFrameColor: TrainColors.ink,
+          cropGridColor: TrainColors.hairlineStrong,
           statusBarLight: false,
           lockAspectRatio: false,
         ),
@@ -243,7 +245,10 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
     // The moment's photo dies with it — everywhere it lives (see
     // [MediaService.deleteMedia]).
     if (initial.imagePath != null) {
-      await scope.requireMedia.deleteMedia(id: initial.id, ref: initial.imagePath);
+      await scope.requireMedia.deleteMedia(
+        id: initial.id,
+        ref: initial.imagePath,
+      );
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -251,7 +256,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +270,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
                       semanticLabel: 'Delete moment',
-                      iconColor: AppColors.flareText,
+                      iconColor: TrainColors.ember,
                     )
                   : null,
             ),
@@ -288,13 +293,16 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
                 autofocus: true,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _save(),
-                cursorColor: AppColors.ember,
+                cursorColor: TrainColors.ember,
                 style: AppText.cardTitle.copyWith(fontSize: 22),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
                   hintText: 'Say something…',
-                  hintStyle: AppText.cardTitle.copyWith(fontSize: 22, color: AppColors.ink3),
+                  hintStyle: AppText.cardTitle.copyWith(
+                    fontSize: 22,
+                    color: TrainColors.ink3,
+                  ),
                 ),
               ),
             ),
@@ -359,17 +367,24 @@ class _PhotoArea extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.card, AppColors.surfaceRaised],
+                colors: [TrainColors.raised, TrainColors.raisedStrong],
               ),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: TrainColors.hairlineStrong),
             ),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(AppIcons.camera, size: 30, color: AppColors.ink3),
+                  const Icon(
+                    AppIcons.camera,
+                    size: 30,
+                    color: TrainColors.ink3,
+                  ),
                   const SizedBox(height: 10),
-                  Text('Add a photo', style: AppText.body.copyWith(color: AppColors.ink3)),
+                  Text(
+                    'Add a photo',
+                    style: AppText.body.copyWith(color: TrainColors.ink3),
+                  ),
                 ],
               ),
             ),
@@ -386,10 +401,16 @@ class _PhotoArea extends StatelessWidget {
             aspectRatio: 3 / 2,
             child: Container(
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: pickedTempPath != null
                   ? Image.file(File(pickedTempPath!), fit: BoxFit.cover)
-                  : MediaImage(service: service, ref: imageRef, fit: BoxFit.cover),
+                  : MediaImage(
+                      service: service,
+                      ref: imageRef,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
         ),
@@ -398,13 +419,17 @@ class _PhotoArea extends StatelessWidget {
           children: [
             _PhotoAction(icon: AppIcons.crop, label: 'Edit', onTap: onEdit),
             const SizedBox(width: 10),
-            _PhotoAction(icon: AppIcons.retake, label: 'Retake', onTap: onRetake),
+            _PhotoAction(
+              icon: AppIcons.retake,
+              label: 'Retake',
+              onTap: onRetake,
+            ),
             const SizedBox(width: 10),
             _PhotoAction(
               icon: AppIcons.trash,
               label: 'Remove',
               onTap: onRemove,
-              tint: AppColors.flareText,
+              tint: TrainColors.ember,
             ),
           ],
         ),
@@ -428,7 +453,7 @@ class _PhotoAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tint ?? AppColors.ink;
+    final color = tint ?? TrainColors.ink;
     return Expanded(
       child: PressableScale(
         child: GestureDetector(
@@ -437,16 +462,19 @@ class _PhotoAction extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: TrainColors.raised,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: TrainColors.hairlineStrong),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 17, color: color),
                 const SizedBox(width: 7),
-                Text(label, style: AppText.button.copyWith(fontSize: 13.5, color: color)),
+                Text(
+                  label,
+                  style: AppText.button.copyWith(fontSize: 13.5, color: color),
+                ),
               ],
             ),
           ),

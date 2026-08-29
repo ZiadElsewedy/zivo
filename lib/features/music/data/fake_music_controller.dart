@@ -1,12 +1,14 @@
 import 'dart:async';
+import 'dart:math';
 
+import '../domain/audio_output.dart';
 import '../domain/music_connection.dart';
 import '../domain/music_controller.dart';
 import '../domain/now_playing.dart';
 
 /// One entry in the fake controller's playlist. No `artworkUrl` field — none
 /// of the fixture tracks below have one, deliberately exercising
-/// `NowPlayingBar`/`MusicPlayerPage`'s no-artwork fallback. A real URL
+/// `MusicPlayerPage`'s no-artwork fallback. A real URL
 /// (or bundled placeholder asset) is Ziad's call, not picked here.
 class _FakeTrack {
   const _FakeTrack({
@@ -38,12 +40,24 @@ class FakeMusicController implements MusicController {
     _connectionController.add(MusicConnection.connected);
     _startTicker();
     _emit();
+    _emitOutput();
   }
+
+  /// An obviously-fake output device — same "unmistakably fixture, never reads
+  /// as a real product" spirit as the playlist above — so the player's output
+  /// row is demoable off-device (real routes need a platform channel that only
+  /// runs on hardware; see `MusicController.output`). Mirrors the prototype's
+  /// Bluetooth + battery case.
+  static const _fixtureOutput = AudioOutput(
+    name: 'Fixture Buds',
+    kind: AudioOutputKind.bluetooth,
+    batteryPercent: 72,
+  );
 
   // A handful of placeholder tracks — Ziad's call whether these ship as
   // real seed content or get swapped before the flag ever flips on; picked
   // to be unmistakably fake (no real artist/track names) rather than
-  // accidentally reading as a real catalog. No artwork — `NowPlayingBar`/
+  // accidentally reading as a real catalog. No artwork — the lozenge /
   // `MusicPlayerPage` both already fall back to a placeholder icon, so this
   // also doubles as a check that the no-artwork path actually works.
   static const _playlist = [
@@ -71,13 +85,18 @@ class FakeMusicController implements MusicController {
   Duration _position = Duration.zero;
   bool _isPaused = false;
   bool _connected = true;
+  bool _shuffle = false;
+  MusicRepeatMode _repeatMode = MusicRepeatMode.off;
   Timer? _ticker;
+  final _random = Random();
 
   final _nowPlayingController = StreamController<NowPlaying?>.broadcast();
   final _connectionController = StreamController<MusicConnection>.broadcast();
+  final _outputController = StreamController<AudioOutput?>.broadcast();
 
   NowPlaying? _current;
   MusicConnection _connectionState = MusicConnection.connected;
+  AudioOutput? _output;
 
   @override
   Stream<NowPlaying?> get nowPlaying => _nowPlayingController.stream;
@@ -86,10 +105,22 @@ class FakeMusicController implements MusicController {
   Stream<MusicConnection> get connection => _connectionController.stream;
 
   @override
+  Stream<AudioOutput?> get output => _outputController.stream;
+
+  @override
   NowPlaying? get currentNowPlaying => _current;
 
   @override
   MusicConnection get currentConnection => _connectionState;
+
+  @override
+  AudioOutput? get currentOutput => _output;
+
+  void _emitOutput() {
+    // No device when disconnected — the route belongs to the connection.
+    _output = _connected ? _fixtureOutput : null;
+    _outputController.add(_output);
+  }
 
   _FakeTrack get _track => _playlist[_index];
 
@@ -103,6 +134,8 @@ class FakeMusicController implements MusicController {
       position: _position,
       isPaused: _isPaused,
       hasControl: true,
+      isShuffling: _shuffle,
+      repeatMode: _repeatMode,
     );
     _nowPlayingController.add(_current);
   }
@@ -117,7 +150,7 @@ class FakeMusicController implements MusicController {
       if (_isPaused) return;
       final next = _position + const Duration(milliseconds: 250);
       if (next >= _track.duration) {
-        _advance();
+        _onNaturalEnd();
       } else {
         _position = next;
         _emit();
@@ -125,8 +158,25 @@ class FakeMusicController implements MusicController {
     });
   }
 
-  void _advance() {
-    _index = (_index + 1) % _playlist.length;
+  /// The current track finished on its own. Repeat-one loops it in place;
+  /// otherwise the queue moves on (respecting shuffle). An explicit
+  /// [next]/[previous] skip is separate — those ignore repeat-one, like a real
+  /// player.
+  void _onNaturalEnd() {
+    if (_repeatMode == MusicRepeatMode.one) {
+      _position = Duration.zero;
+      _emit();
+    } else {
+      _goToNextTrack();
+    }
+  }
+
+  void _goToNextTrack() {
+    _index = (_shuffle && _playlist.length > 1)
+        // A different track at random — never the current one, so it always
+        // audibly progresses.
+        ? (_index + 1 + _random.nextInt(_playlist.length - 1)) % _playlist.length
+        : (_index + 1) % _playlist.length;
     _position = Duration.zero;
     _emit();
   }
@@ -142,6 +192,7 @@ class FakeMusicController implements MusicController {
     _connectionController.add(_connectionState);
     _startTicker();
     _emit();
+    _emitOutput();
   }
 
   @override
@@ -152,6 +203,7 @@ class FakeMusicController implements MusicController {
     _connectionController.add(_connectionState);
     _current = null;
     _nowPlayingController.add(null);
+    _emitOutput();
   }
 
   @override
@@ -171,7 +223,7 @@ class FakeMusicController implements MusicController {
   @override
   Future<void> next() async {
     if (!_connected) return;
-    _advance();
+    _goToNextTrack();
   }
 
   @override
@@ -203,9 +255,24 @@ class FakeMusicController implements MusicController {
   Future<void> replay() => seek(Duration.zero);
 
   @override
+  Future<void> setShuffle(bool shuffle) async {
+    if (!_connected) return;
+    _shuffle = shuffle;
+    _emit();
+  }
+
+  @override
+  Future<void> setRepeat(MusicRepeatMode mode) async {
+    if (!_connected) return;
+    _repeatMode = mode;
+    _emit();
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
     _nowPlayingController.close();
     _connectionController.close();
+    _outputController.close();
   }
 }

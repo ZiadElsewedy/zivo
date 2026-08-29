@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import 'hue.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// One glance line, like [SpendingGlanceRow] — "2 of 5 meals eaten · 1400
 /// kcal left". Values are live from the diet repository.
@@ -30,7 +30,7 @@ class DietGlanceRow extends StatelessWidget {
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: AppText.amount.copyWith(color: AppColors.ink),
+                style: AppText.amount.copyWith(color: TrainColors.ink),
                 children: [
                   TextSpan(text: '$eaten of $total meals eaten'),
                   TextSpan(
@@ -38,14 +38,18 @@ class DietGlanceRow extends StatelessWidget {
                     style: AppText.body.copyWith(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.ink3,
+                      color: TrainColors.ink3,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: TrainColors.ink3,
+          ),
         ],
       ),
     );

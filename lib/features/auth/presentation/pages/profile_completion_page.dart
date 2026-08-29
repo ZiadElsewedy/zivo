@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_user.dart';
 import '../widgets/auth_action_button.dart';
 import '../widgets/dob_picker_sheet.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Collects the missing Name / Date of birth for a signed-in user with an
 /// incomplete profile.
@@ -17,7 +17,11 @@ import '../widgets/dob_picker_sheet.dart';
 /// shell — so this page only owns loading and error presentation and never
 /// navigates itself.
 class ProfileCompletionPage extends StatefulWidget {
-  const ProfileCompletionPage({required this.user, this.suggestedName, super.key});
+  const ProfileCompletionPage({
+    required this.user,
+    this.suggestedName,
+    super.key,
+  });
 
   final AuthUser user;
   final String? suggestedName;
@@ -27,7 +31,9 @@ class ProfileCompletionPage extends StatefulWidget {
 }
 
 class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
-  late final TextEditingController _name = TextEditingController(text: _initialName);
+  late final TextEditingController _name = TextEditingController(
+    text: _initialName,
+  );
 
   DateTime? _dob;
   bool _saving = false;
@@ -107,12 +113,12 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       appBar: AppBar(
-        backgroundColor: AppColors.ground,
+        backgroundColor: TrainColors.base,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          icon: const Icon(Icons.arrow_back_rounded, color: TrainColors.ink),
           tooltip: 'Use another account',
           onPressed: _saving ? null : _useAnotherAccount,
         ),
@@ -128,8 +134,10 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Complete your profile',
-                        style: AppText.greeting.copyWith(fontSize: 28)),
+                    Text(
+                      'Complete your profile',
+                      style: AppText.greeting.copyWith(fontSize: 28),
+                    ),
                     const SizedBox(height: 10),
                     Text(
                       'A couple of details to personalise ZIVO.',
@@ -159,7 +167,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
                       _error ?? '',
-                      style: AppText.meta.copyWith(color: AppColors.flareText),
+                      style: AppText.meta.copyWith(color: TrainColors.ember),
                     ),
                   ),
                 ),
@@ -169,7 +177,6 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                 delay: const Duration(milliseconds: 120),
                 child: AuthActionButton(
                   label: 'Continue',
-                  icon: const SizedBox.shrink(),
                   loading: _saving,
                   enabled: !_saving && _canSubmit,
                   onTap: _submit,
@@ -200,25 +207,35 @@ class _NameField extends StatelessWidget {
       textCapitalization: TextCapitalization.words,
       textInputAction: TextInputAction.done,
       style: AppText.rowTitle,
-      cursorColor: AppColors.ember,
+      cursorColor: TrainColors.ember,
       decoration: InputDecoration(
         hintText: 'Name',
-        hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: AppColors.ink3),
+        hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
+        prefixIcon: const Icon(
+          Icons.person_outline_rounded,
+          size: 20,
+          color: TrainColors.ink3,
+        ),
         filled: true,
-        fillColor: AppColors.card,
+        fillColor: TrainColors.raised,
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.hairline2, width: 1.4),
+          borderSide: const BorderSide(
+            color: TrainColors.hairlineStrong,
+            width: 1.4,
+          ),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.hairline2, width: 1.4),
+          borderSide: const BorderSide(
+            color: TrainColors.hairlineStrong,
+            width: 1.4,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          borderSide: const BorderSide(color: AppColors.ember, width: 1.6),
+          borderSide: const BorderSide(color: TrainColors.ember, width: 1.6),
         ),
       ),
     );
@@ -229,24 +246,39 @@ class _NameField extends StatelessWidget {
 /// displays the selected date (or a placeholder) — no `intl` dependency, so
 /// the date is formatted with a tiny local month-name lookup.
 class _DobField extends StatelessWidget {
-  const _DobField({required this.date, required this.enabled, required this.onTap});
+  const _DobField({
+    required this.date,
+    required this.enabled,
+    required this.onTap,
+  });
 
   final DateTime? date;
   final bool enabled;
   final VoidCallback onTap;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
-  static String _format(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
+  static String _format(DateTime d) =>
+      '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   @override
   Widget build(BuildContext context) {
     final hasDate = date != null;
     return Material(
-      color: AppColors.card,
+      color: TrainColors.raised,
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: InkWell(
         onTap: enabled ? onTap : null,
@@ -255,16 +287,20 @@ class _DobField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.hairline2, width: 1.4),
+            border: Border.all(color: TrainColors.hairlineStrong, width: 1.4),
           ),
           child: Row(
             children: [
-              const Icon(Icons.cake_outlined, size: 20, color: AppColors.ink3),
+              const Icon(
+                Icons.cake_outlined,
+                size: 20,
+                color: TrainColors.ink3,
+              ),
               const SizedBox(width: 12),
               Text(
                 hasDate ? _format(date!) : 'Date of birth',
                 style: AppText.rowTitle.copyWith(
-                  color: hasDate ? AppColors.ink : AppColors.ink3,
+                  color: hasDate ? TrainColors.ink : TrainColors.ink3,
                 ),
               ),
             ],

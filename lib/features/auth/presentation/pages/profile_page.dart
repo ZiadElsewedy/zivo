@@ -1,4 +1,4 @@
-
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/cupertino.dart';
@@ -10,14 +10,18 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/media/domain/media_kind.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_chrome.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../workout/domain/live_session.dart';
+import '../../../workout/domain/session_status.dart';
+import '../../../workout/domain/training_volume.dart';
 import '../../domain/auth_user.dart';
+import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/user_profile.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -29,10 +33,15 @@ import 'settings_page.dart';
 /// (email + sign-in provider) so every real piece of data ZIVO holds about
 /// the signed-in person has a home here.
 ///
-/// Shares Today & Hub's atmospheric backdrop (radial ground gradient + soft
-/// aura blobs) so all the app's dashboard-grade surfaces read as one world,
-/// and presents the identity as a hero: a gradient-ringed avatar glowing in
-/// its own hue over the name it belongs to.
+/// Dressed to the design handoff's **You** screen (2b): the warm screen wash,
+/// a centred 96px avatar inside an ember progress ring with its camera badge,
+/// the name, the verified email line, then a 3-up mono stat card, the dashed
+/// About prompt, and the ACCOUNT / SIGN-IN lists.
+///
+/// The ring is not decoration — it reads how complete this profile is (see
+/// [_profileCompleteness]), which is exactly what the sections beneath it
+/// invite you to finish. Ember, because filling it in IS the one committing
+/// action this screen offers.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -171,12 +180,12 @@ class ProfilePage extends StatelessWidget {
           cropStyle: CropStyle.circle,
           lockAspectRatio: true,
           hideBottomControls: false,
-          toolbarColor: AppColors.ground,
-          toolbarWidgetColor: AppColors.ink,
-          backgroundColor: AppColors.ground,
-          activeControlsWidgetColor: AppColors.ember,
-          cropFrameColor: AppColors.ground,
-          cropGridColor: AppColors.hairline2,
+          toolbarColor: TrainColors.base,
+          toolbarWidgetColor: TrainColors.ink,
+          backgroundColor: TrainColors.base,
+          activeControlsWidgetColor: TrainColors.ember,
+          cropFrameColor: TrainColors.base,
+          cropGridColor: TrainColors.hairlineStrong,
           statusBarLight: false,
         ),
       ],
@@ -189,161 +198,154 @@ class ProfilePage extends StatelessWidget {
     final AuthUser? user = scope.auth.currentUser;
     if (user == null) return const SizedBox.shrink();
 
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Ambient depth — a warm glow behind the identity hero, a cool
-            // counterweight lower down. Purely decorative.
-            const Positioned(
-              top: -50,
-              right: -70,
-              child: _AuraBlob(color: AppColors.ember, size: 230),
+    return TrainScreen(
+      tint: TrainColors.youTint,
+      child: StreamBuilder<UserProfile?>(
+        stream: scope.profiles.watchProfile(user.uid),
+        initialData: null,
+        builder: (context, snapshot) {
+          final profile = snapshot.data;
+          return SingleChildScrollView(
+            // The page scrolls UNDER the bottom object — the floating tab bar
+            // plus the now-playing strip fused to it (the shell runs
+            // `extendBody: true`). [BottomChrome] is that object's live
+            // measured height, so the SIGN-IN card clears it whether or not
+            // music is playing.
+            padding: EdgeInsets.fromLTRB(
+              22,
+              12,
+              22,
+              BottomChrome.of(context) + 16,
             ),
-            const Positioned(
-              top: 340,
-              left: -90,
-              child: _AuraBlob(color: AppColors.iris, size: 190),
-            ),
-            SafeArea(
-              child: StreamBuilder<UserProfile?>(
-                stream: scope.profiles.watchProfile(user.uid),
-                initialData: null,
-                builder: (context, snapshot) {
-                  final profile = snapshot.data;
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        RiseIn(
-                          child: Row(
-                            children: [
-                              Text('You', style: AppText.greeting),
-                              const Spacer(),
-                              _IconButton(
-                                icon: AppIcons.settings,
-                                semanticLabel: 'Settings',
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SettingsPage(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 26),
-                        RiseIn(
-                          delay: const Duration(milliseconds: 50),
-                          child: _ProfileHeader(
-                            user: user,
-                            profile: profile,
-                            onTapAvatar: profile == null
-                                ? null
-                                : () => _changePhoto(context, profile),
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        RiseIn(
-                          delay: const Duration(milliseconds: 90),
-                          child: _AboutSection(
-                            bio: profile?.bio,
-                            onSave: profile == null
-                                ? null
-                                : (bio) => AppScope.of(context)
-                                      .profiles
-                                      .saveProfile(
-                                        uid: profile.uid,
-                                        name: profile.name,
-                                        dateOfBirth: profile.dateOfBirth,
-                                        photoPath: profile.photoPath,
-                                        bio: bio,
-                                      ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        RiseIn(
-                          delay: const Duration(milliseconds: 130),
-                          child: SettingsSectionCard(
-                            label: 'ACCOUNT',
-                            children: [
-                              SettingsRow(
-                                icon: AppIcons.idCard,
-                                title: 'Name',
-                                value: profile?.name ?? '—',
-                                accent: AppColors.ember,
-                                onTap: profile == null
-                                    ? null
-                                    : () => _editName(context, profile),
-                              ),
-                              SettingsRow(
-                                icon: AppIcons.cake,
-                                title: 'Date of birth',
-                                value: profile == null
-                                    ? '—'
-                                    : _formatDob(profile.dateOfBirth),
-                                accent: AppColors.flare,
-                                last: true,
-                                onTap: profile == null
-                                    ? null
-                                    : () => _editDob(context, profile),
-                              ),
-                              // Email intentionally NOT repeated here — it's
-                              // the hero line under the name (with its
-                              // verification badge); a second copy below read
-                              // as filler, not information.
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        RiseIn(
-                          delay: const Duration(milliseconds: 170),
-                          child: SettingsSectionCard(
-                            label: 'SIGN-IN',
-                            children: [
-                              for (var i = 0; i < user.providerIds.length; i++)
-                                SettingsRow(
-                                  icon: _providerIcon(user.providerIds[i]),
-                                  iconWidget: _providerLogo(user.providerIds[i]),
-                                  title: _providerLabel(user.providerIds[i]),
-                                  value: 'Connected',
-                                  // The gold key is the one sign-in mark that
-                                  // owns a hue of its own; brand marks stay on
-                                  // the neutral chip so no fake branding.
-                                  accent: user.providerIds[i] == 'password'
-                                      ? AppColors.solar
-                                      : null,
-                                  last: i == user.providerIds.length - 1,
-                                ),
-                              if (user.providerIds.isEmpty)
-                                const SettingsRow(
-                                  icon: AppIcons.key,
-                                  title: 'Email',
-                                  value: 'Connected',
-                                  accent: AppColors.solar,
-                                  last: true,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // No screen title here: on this one surface the
+                // avatar IS the header, so the row above it carries
+                // nothing but the single way out to Settings.
+                RiseIn(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TrainCircleButton(
+                      semanticLabel: 'Settings',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SettingsPage()),
+                      ),
+                      child: const Icon(
+                        AppIcons.settings,
+                        size: 16,
+                        color: Color(0xB2F4F4F0),
+                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                RiseIn(
+                  delay: const Duration(milliseconds: 50),
+                  child: _ProfileHeader(
+                    user: user,
+                    profile: profile,
+                    onTapAvatar: profile == null
+                        ? null
+                        : () => _changePhoto(context, profile),
+                  ),
+                ),
+                const SizedBox(height: 26),
+                RiseIn(
+                  delay: const Duration(milliseconds: 70),
+                  child: _LifetimeStats(user: user),
+                ),
+                const SizedBox(height: 26),
+                RiseIn(
+                  delay: const Duration(milliseconds: 90),
+                  child: _AboutSection(
+                    bio: profile?.bio,
+                    onSave: profile == null
+                        ? null
+                        : (bio) => AppScope.of(context).profiles.saveProfile(
+                            uid: profile.uid,
+                            name: profile.name,
+                            dateOfBirth: profile.dateOfBirth,
+                            photoPath: profile.photoPath,
+                            bio: bio,
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                RiseIn(
+                  delay: const Duration(milliseconds: 130),
+                  child: SettingsSectionCard(
+                    label: 'ACCOUNT',
+                    children: [
+                      SettingsRow(
+                        icon: AppIcons.idCard,
+                        title: 'Name',
+                        value: profile?.name ?? '—',
+                        accent: TrainColors.violetGlyph,
+                        onTap: profile == null
+                            ? null
+                            : () => _editName(context, profile),
+                      ),
+                      SettingsRow(
+                        icon: AppIcons.cake,
+                        title: 'Date of birth',
+                        value: profile == null
+                            ? '—'
+                            : _formatDob(profile.dateOfBirth),
+                        accent: TrainColors.violetGlyph,
+                        last: true,
+                        onTap: profile == null
+                            ? null
+                            : () => _editDob(context, profile),
+                      ),
+                      // Email intentionally NOT repeated here — it's
+                      // the hero line under the name (with its
+                      // verification badge); a second copy below read
+                      // as filler, not information.
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                RiseIn(
+                  delay: const Duration(milliseconds: 170),
+                  child: SettingsSectionCard(
+                    label: 'SIGN-IN',
+                    children: [
+                      for (var i = 0; i < user.providerIds.length; i++)
+                        SettingsRow(
+                          icon: _providerIcon(user.providerIds[i]),
+                          iconWidget: _providerLogo(user.providerIds[i]),
+                          title: _providerLabel(user.providerIds[i]),
+                          // The state badge replaces the value
+                          // column outright: "connected" is a state,
+                          // and green is what state looks like here.
+                          value: '',
+                          trailing: const _ConnectedBadge(),
+                          // The amber key is the one sign-in mark
+                          // that owns a hue of its own; brand marks
+                          // stay on the neutral tile so no fake
+                          // branding.
+                          accent: user.providerIds[i] == 'password'
+                              ? TrainColors.amber
+                              : null,
+                          last: i == user.providerIds.length - 1,
+                        ),
+                      if (user.providerIds.isEmpty)
+                        const SettingsRow(
+                          icon: AppIcons.key,
+                          title: 'Email',
+                          value: '',
+                          trailing: _ConnectedBadge(),
+                          accent: TrainColors.violetGlyph,
+                          last: true,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -395,86 +397,16 @@ class ProfilePage extends StatelessWidget {
     final now = DateTime.now();
     var age = now.year - d.year;
     if (now.month < d.month || (now.month == d.month && now.day < d.day)) age--;
-    return '${d.day} ${months[d.month - 1]} ${d.year} · $age yrs';
+    return '${d.day} ${months[d.month - 1].toUpperCase()} ${d.year} · $age';
   }
 }
 
 enum _PhotoAction { choose, remove }
 
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared with Today and Hub. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              // Softened so the ambient glow never competes with content.
-              color.withValues(alpha: 0.10),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A small circular icon button — the same 34px chip language as
-/// `CaptureIconButton`, kept local since this page's chip is neutral
-/// (surfaceRaised + hairline edge) rather than capture-flow-branded.
-class _IconButton extends StatelessWidget {
-  const _IconButton({
-    required this.icon,
-    required this.semanticLabel,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String semanticLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Tooltip(
-        message: semanticLabel,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.hairline2),
-            ),
-            child: Icon(icon, size: 19, color: AppColors.ink2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Avatar + name + verified email — the identity hero above the account
-/// details. The email carries its verification state as a small meaningful
-/// badge (pulse check when verified, solar alert when not).
+/// Avatar + name + verified email — the identity hero. The email carries its
+/// verification state as a small green check and a `VERIFIED` caption; an
+/// unverified address says so in amber instead, because "unverified" is
+/// something to act on, not a neutral fact.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.user,
@@ -496,38 +428,59 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final verified = user.isEmailVerified;
     return Column(
       children: [
         _Avatar(
           name: _name,
           photoPath: profile?.photoPath,
           onTap: onTapAvatar,
+          completeness: _profileCompleteness(user, profile),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         Text(
           _name,
-          style: AppText.cardTitle.copyWith(fontSize: 24),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
+          style: TrainType.ui(
+            size: 26,
+            weight: FontWeight.w800,
+            tracking: -0.025,
+            color: TrainColors.ink,
+            height: 1,
+          ),
         ),
         if (user.email != null) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 9),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
                 child: Text(
                   user.email!,
-                  style: AppText.body.copyWith(fontSize: 14),
-                  textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TrainType.mono(size: 12, color: TrainColors.ink2),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 7),
               Icon(
-                user.isEmailVerified ? AppIcons.success : AppIcons.warning,
-                size: 15,
-                color: user.isEmailVerified ? AppColors.pulse : AppColors.solar,
+                verified ? AppIcons.success : AppIcons.warning,
+                size: 13,
+                color: verified ? TrainColors.green : TrainColors.amber,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                verified ? 'VERIFIED' : 'UNVERIFIED',
+                style: TrainType.caption(
+                  size: 8.5,
+                  tracking: 0.14,
+                  weight: FontWeight.w600,
+                  color: (verified ? TrainColors.green : TrainColors.amber)
+                      .withValues(alpha: 0.78),
+                ),
               ),
             ],
           ),
@@ -537,23 +490,139 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-/// The identity avatar. Shows the saved photo when one exists; otherwise a
-/// monogram over a calm, warm-charcoal disc — no colored ring, no glow, so
-/// the person (not a hue) is the hero. A single hairline edge and a soft
-/// neutral shadow give it just enough lift. A small ember camera badge marks
-/// it tappable — the standard iOS "edit photo" affordance.
+/// How much of this profile is actually filled in, 0..1 — what the avatar's
+/// ember ring reports. Five equal parts: a name, a date of birth, a photo, a
+/// bio, and a verified email. Every one of them is something a section
+/// further down this same screen can complete, so the ring always points at
+/// work the screen itself can finish.
+double _profileCompleteness(AuthUser user, UserProfile? profile) {
+  var filled = user.isEmailVerified ? 1 : 0;
+  if (profile != null) {
+    if (profile.name.trim().isNotEmpty) filled++;
+    if (profile.photoPath != null) filled++;
+    if ((profile.bio ?? '').trim().isNotEmpty) filled++;
+    // A default-constructed profile carries today's date; treat a DOB that
+    // isn't plausibly a birthday as unset rather than claiming credit for it.
+    if (DateTime.now().difference(profile.dateOfBirth).inDays > 366) filled++;
+  }
+  return filled / 5;
+}
+
+/// The green `CONNECTED` state badge on a sign-in row — a dot plus a mono
+/// caption, which is what "state" looks like everywhere else in this system.
+class _ConnectedBadge extends StatelessWidget {
+  const _ConnectedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 5,
+          height: 5,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: TrainColors.green,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'CONNECTED',
+          style: TrainType.caption(
+            size: 9,
+            tracking: 0.14,
+            weight: FontWeight.w600,
+            color: TrainColors.green.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The 3-up lifetime readout under the identity: sessions trained, months
+/// since the account was created, and every kilogram ever moved.
+///
+/// Reads the sessions stream directly rather than taking a snapshot — this
+/// card sits on a tab that stays mounted, so a session finished elsewhere in
+/// the app should be reflected here without a remount.
+class _LifetimeStats extends StatelessWidget {
+  const _LifetimeStats({required this.user});
+
+  final AuthUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return StreamBuilder<List<LiveSession>>(
+      stream: scope.workoutSessions.watchAll(),
+      initialData: scope.workoutSessions.current,
+      builder: (context, snapshot) {
+        final sessions = snapshot.data ?? const <LiveSession>[];
+        final completed = sessions
+            .where((s) => s.status == SessionStatus.completed)
+            .length;
+        final volume = formatVolume(lifetimeVolumeKg(sessions));
+        final months = _monthsSince(user.createdAt);
+
+        return TrainCard(
+          radius: 20,
+          padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
+          child: TrainStatStrip(
+            items: [
+              TrainStat('$completed', 'Sessions'),
+              TrainStat(months == null ? '—' : '$months', 'Months in'),
+              // The one figure here that means progress rather than
+              // description, so it gets the green.
+              TrainStat(
+                '${volume.value}${volume.unit.toLowerCase()}',
+                'Lifetime',
+                color: TrainColors.green,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Whole months between [since] and now, or null when the account's creation
+/// date isn't known (some providers withhold it) — a dash beats a zero that
+/// looks like a real reading.
+int? _monthsSince(DateTime? since) {
+  if (since == null) return null;
+  final now = DateTime.now();
+  final months = (now.year - since.year) * 12 + (now.month - since.month);
+  return months < 0 ? 0 : months;
+}
+
+/// The identity avatar, inside its own ember progress ring.
+///
+/// The photo (or a monogram disc) fills the ring's inside; the ring itself
+/// reports [completeness] — how much of the profile is filled in — and the
+/// ember camera badge marks the whole thing tappable, the standard iOS
+/// "edit photo" affordance.
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.name,
     required this.photoPath,
     required this.onTap,
+    required this.completeness,
   });
 
   final String name;
   final String? photoPath;
   final VoidCallback? onTap;
 
+  /// 0..1 — the fraction of the ember ring that is drawn.
+  final double completeness;
+
   static const double _size = 96;
+
+  /// The disc inside the ring, inset so the stroke never touches the photo.
+  static const double _inset = 8;
 
   String get _initials {
     final words = name
@@ -577,37 +646,25 @@ class _Avatar extends StatelessWidget {
     // present, paints over it. A missing/stale ref falls back to the monogram.
     final monogram = Text(
       _initials,
-      style: AppText.cardTitle.copyWith(fontSize: 34, color: AppColors.ink),
+      style: TrainType.ui(
+        size: 32,
+        weight: FontWeight.w700,
+        color: TrainColors.ink,
+        height: 1,
+      ),
     );
-    final circle = Container(
-      width: _size,
-      height: _size,
+    final disc = Container(
+      width: _size - _inset * 2,
+      height: _size - _inset * 2,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        // A calm warm-charcoal disc (surface step lighter at the top-left),
-        // a single hairline edge, and a soft *neutral* lift — no hue, no glow.
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.surfaceRaised, AppColors.card],
-        ),
-        border: Border.all(color: AppColors.hairline2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 28,
-            spreadRadius: -10,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        color: TrainColors.glassStrong,
       ),
       child: path == null
           ? monogram
-          : SizedBox(
-              width: _size,
-              height: _size,
+          : SizedBox.expand(
               child: MediaImage(
                 service: AppScope.of(context).requireMedia,
                 ref: path,
@@ -621,43 +678,92 @@ class _Avatar extends StatelessWidget {
       enabled: onTap != null,
       child: GestureDetector(
         onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            circle,
-            if (onTap != null)
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.ember,
-                    border: Border.all(color: AppColors.ground, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        spreadRadius: -2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    AppIcons.camera,
-                    size: 14,
-                    color: Colors.white,
-                  ),
+        child: SizedBox(
+          width: _size,
+          height: _size,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: completeness.clamp(0.0, 1.0)),
+                  duration: const Duration(milliseconds: 620),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, t, _) =>
+                      CustomPaint(painter: _AvatarRingPainter(t)),
                 ),
               ),
-          ],
+              disc,
+              if (onTap != null)
+                Positioned(
+                  right: 2,
+                  bottom: 2,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: TrainColors.ember,
+                      // The badge punches a hole in the ring rather than
+                      // floating over it — the border is the page's own
+                      // ground colour, not a shadow.
+                      border: Border.all(
+                        color: const Color(0xFF0B0A09),
+                        width: 2.5,
+                      ),
+                    ),
+                    child: const Icon(
+                      AppIcons.camera,
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// The 2px ember arc around the avatar: a hairline track with the completed
+/// fraction drawn over it, round-capped, starting at 12 o'clock.
+class _AvatarRingPainter extends CustomPainter {
+  const _AvatarRingPainter(this.progress);
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 3;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = TrainColors.hairline,
+    );
+    if (progress <= 0) return;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..color = TrainColors.ember,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_AvatarRingPainter old) => old.progress != progress;
 }
 
 /// The "About" section — a short bio the person writes about themselves,
@@ -740,64 +846,107 @@ class _AboutSectionState extends State<_AboutSection> {
     final trimmed = widget.bio?.trim();
     final hasBio = trimmed != null && trimmed.isNotEmpty;
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 11),
+          child: TrainSectionLabel('About'),
+        ),
+        // Empty and unfilled, the card is DASHED — an outline, not a surface.
+        // A solid card with a prompt inside reads as a real container waiting
+        // on data, which the identity doc rules out (§8).
+        if (!hasBio && !_editing)
+          TrainDashedCard(
+            onTap: editable ? _startEditing : null,
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Add a few words about yourself.',
+                    style: TrainType.ui(
+                      size: 13.5,
+                      weight: FontWeight.w400,
+                      color: TrainColors.ink4,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                if (editable) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0x24FFFFFF)),
+                    ),
+                    child: const Icon(
+                      AppIcons.add,
+                      size: 12,
+                      color: Color(0x99F4F4F0),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          )
+        else
+          _buildFilledCard(editable: editable, bio: trimmed ?? ''),
+      ],
+    );
+  }
+
+  /// The written (or being-written) state: a real card, because now there IS
+  /// something in it. Editing tints the edge ember — the one moment on this
+  /// screen with an action waiting to be committed.
+  Widget _buildFilledCard({required bool editable, required String bio}) {
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
+        gradient: TrainColors.cardGradient,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _editing
-              ? AppColors.ember.withValues(alpha: 0.55)
-              : AppColors.hairline,
+              ? TrainColors.ember.withValues(alpha: 0.45)
+              : TrainColors.hairline,
         ),
-        boxShadow: AppShadows.card,
       ),
       child: AnimatedSize(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         alignment: Alignment.topCenter,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text('ABOUT', style: AppText.sectionLabel),
-                const Spacer(),
-                if (editable && !_editing)
-                  Container(
-                    width: 28,
-                    height: 28,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceRaised,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.hairline2),
-                    ),
-                    child: Icon(
-                      hasBio ? AppIcons.edit : AppIcons.add,
-                      size: 13,
-                      color: AppColors.ink3,
+        child: _editing
+            ? _buildEditor()
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      bio,
+                      style: TrainType.ui(
+                        size: 13.5,
+                        weight: FontWeight.w400,
+                        color: TrainColors.ink2,
+                        height: 1.55,
+                      ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (_editing)
-              _buildEditor()
-            else
-              Text(
-                hasBio ? trimmed : 'Add a few words about yourself.',
-                style: AppText.body.copyWith(
-                  color: hasBio ? AppColors.ink2 : AppColors.ink3,
-                  fontSize: 14.5,
-                  height: 1.55,
-                ),
+                  if (editable) ...[
+                    const SizedBox(width: 12),
+                    const Icon(
+                      AppIcons.edit,
+                      size: 13,
+                      color: Color(0x66F4F4F0),
+                    ),
+                  ],
+                ],
               ),
-          ],
-        ),
       ),
     );
 
@@ -805,10 +954,14 @@ class _AboutSectionState extends State<_AboutSection> {
     // while the profile is still loading (no save handler).
     if (!editable || _editing) return card;
     return PressableScale(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: _startEditing,
-        child: card,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: _startEditing,
+          child: card,
+        ),
       ),
     );
   }
@@ -824,11 +977,12 @@ class _AboutSectionState extends State<_AboutSection> {
           minLines: 2,
           maxLength: _maxLength,
           textCapitalization: TextCapitalization.sentences,
-          cursorColor: AppColors.ember,
+          cursorColor: TrainColors.ember,
           onChanged: (_) => setState(() {}),
-          style: AppText.body.copyWith(
-            color: AppColors.ink,
-            fontSize: 14.5,
+          style: TrainType.ui(
+            size: 13.5,
+            weight: FontWeight.w400,
+            color: TrainColors.ink,
             height: 1.55,
           ),
           decoration: InputDecoration(
@@ -836,9 +990,10 @@ class _AboutSectionState extends State<_AboutSection> {
             counterText: '',
             border: InputBorder.none,
             hintText: 'A few words about yourself…',
-            hintStyle: AppText.body.copyWith(
-              color: AppColors.ink3,
-              fontSize: 14.5,
+            hintStyle: TrainType.ui(
+              size: 13.5,
+              weight: FontWeight.w400,
+              color: TrainColors.ink4,
               height: 1.55,
             ),
           ),
@@ -848,7 +1003,7 @@ class _AboutSectionState extends State<_AboutSection> {
           children: [
             Text(
               '${_controller.text.length} / $_maxLength',
-              style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 11),
+              style: TrainType.mono(size: 10.5, color: TrainColors.ink4),
             ),
             const Spacer(),
             _AboutButton(label: 'Cancel', onTap: _saving ? null : _cancel),
@@ -890,10 +1045,10 @@ class _AboutButton extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFF7038), AppColors.ember],
+                colors: [Color(0xFFFF7038), TrainColors.ember],
               ),
               borderRadius: BorderRadius.circular(999),
-              boxShadow: AppShadows.ember,
+              boxShadow: TrainColors.actionGlow(TrainColors.ember),
             )
           : null,
       child: busy
@@ -909,7 +1064,7 @@ class _AboutButton extends StatelessWidget {
               label,
               style: AppText.button.copyWith(
                 fontSize: 14,
-                color: primary ? Colors.white : AppColors.ink3,
+                color: primary ? Colors.white : TrainColors.ink3,
               ),
             ),
     );
@@ -986,9 +1141,9 @@ class _EditTextSheetState extends State<_EditTextSheet> {
         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.card.withValues(alpha: 0.94),
+            color: TrainColors.raised.withValues(alpha: 0.94),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-            border: Border.all(color: AppColors.hairline2),
+            border: Border.all(color: TrainColors.hairlineStrong),
           ),
           padding: EdgeInsets.only(
             top: 12,
@@ -1005,7 +1160,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.hairline2,
+                    color: TrainColors.hairlineStrong,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -1026,26 +1181,29 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _submit(),
                 onChanged: (_) => setState(() {}),
-                cursorColor: AppColors.ember,
+                cursorColor: TrainColors.ember,
                 style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   counterStyle: AppText.meta.copyWith(
-                    color: AppColors.ink3,
+                    color: TrainColors.ink3,
                     fontSize: 11,
                   ),
                   border: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.hairline),
+                    borderSide: BorderSide(color: TrainColors.hairline),
                   ),
                   enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.hairline),
+                    borderSide: BorderSide(color: TrainColors.hairline),
                   ),
                   focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.ember, width: 1.6),
+                    borderSide: BorderSide(
+                      color: TrainColors.ember,
+                      width: 1.6,
+                    ),
                   ),
                   hintText: widget.hint,
-                  hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+                  hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
                 ),
               ),
               const SizedBox(height: 22),
@@ -1058,10 +1216,10 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [const Color(0xFFFF7038), AppColors.ember],
+                        colors: [const Color(0xFFFF7038), TrainColors.ember],
                       ),
                       borderRadius: BorderRadius.circular(999),
-                      boxShadow: AppShadows.ember,
+                      boxShadow: TrainColors.actionGlow(TrainColors.ember),
                     ),
                     child: InkWell(
                       onTap: _canSave ? _submit : null,

@@ -140,7 +140,7 @@ class AppScope extends InheritedWidget {
   final MusicController? music;
 
   /// The music controller, asserting it was provided. Use from
-  /// `NowPlayingBar`/`MusicPlayerPage` — production always wires it.
+  /// `NowPlayingLozenge`/`MusicPlayerPage` — production always wires it.
   MusicController get requireMusic {
     assert(music != null, 'AppScope.music was not provided to this scope');
     return music!;

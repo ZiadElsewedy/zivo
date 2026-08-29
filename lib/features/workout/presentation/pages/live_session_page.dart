@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -9,11 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
@@ -35,8 +35,9 @@ import '../../../music/domain/music_connection.dart';
 import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
-import '../../../music/presentation/music_artwork.dart';
 import '../../../music/presentation/music_player_page.dart';
+import '../../../music/presentation/spotify_strip.dart';
+import '../widgets/animated_stat_value.dart';
 import '../widgets/session_ambience.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
@@ -916,7 +917,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
+        backgroundColor: TrainColors.raised,
         title: Text('Discard this workout?', style: AppText.cardTitle),
         content: Text(
           "You'll lose this session's progress and the plan won't advance.",
@@ -927,14 +928,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Keep going',
-              style: AppText.button.copyWith(color: AppColors.ink3),
+              style: AppText.button.copyWith(color: TrainColors.ink3),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Discard',
-              style: AppText.button.copyWith(color: AppColors.flareText),
+              style: AppText.button.copyWith(color: TrainColors.ember),
             ),
           ),
         ],
@@ -956,7 +957,9 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   @override
   Widget build(BuildContext context) {
-    final musicController = kMusicEnabled ? AppScope.of(context).requireMusic : null;
+    final musicController = kMusicEnabled
+        ? AppScope.of(context).requireMusic
+        : null;
     return PopScope(
       // The system/edge-swipe back gesture leaves like the close (X) button —
       // non-destructive, since the session already autosaves as it's played.
@@ -967,111 +970,218 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       },
       child: SessionAmbience(
         controller: musicController,
-        child: Builder(builder: (context) {
-          final accent = SessionAmbience.of(context);
-          return Scaffold(
-            backgroundColor: Colors.transparent,
-            body: AnimatedContainer(
-              // The whole session surface breathes with the music: a soft
-              // wash of the track's own accent bleeding down from the top of
-              // an otherwise-unchanged ground. Track changes cross-fade the
-              // wash rather than snapping; no music → plain ground.
-              duration: reducedMotion(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 700),
-              curve: Curves.easeOut,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.55],
-                  colors: [
-                    accent == null
-                        ? AppColors.ground
-                        : Color.lerp(AppColors.ground, accent, 0.28)!,
-                    AppColors.ground,
-                  ],
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FrostedTopBar(
-                      child: CaptureTopBar(
-                        title: _dayTitle(widget.day),
-                        onClose: _onLeave,
-                        titleColor: AppColors.ink2,
-                        iconColor: AppColors.ink2,
-                        chipColor: AppColors.surfaceRaised,
-                        trailing: CaptureIconButton(
-                          icon: Icons.delete_outline_rounded,
-                          onTap: _onDiscard,
-                          semanticLabel: 'Discard workout',
-                          // Neutral, same weight as Close — a destructive action
-                          // still gated behind its own confirm dialog shouldn't
-                          // also be the loudest, most eye-catching thing in the
-                          // bar. Flare stays reserved for the confirm dialog's
-                          // actual "Discard" button, where committing to it is
-                          // the whole point.
-                          iconColor: AppColors.ink3,
-                          chipColor: AppColors.surfaceRaised,
+        child: Builder(
+          builder: (context) {
+            final accent = SessionAmbience.of(context);
+            // The same swatch, normalised for foreground use — the strips'
+            // transport controls draw with this one. Read HERE (inside the
+            // ambience's own Builder) rather than deep in a phase builder:
+            // those run against the State's context, which sits ABOVE
+            // SessionAmbience and would resolve to null.
+            final vivid = SessionAmbience.vividOf(context);
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: AnimatedContainer(
+                // Each phase gets the one soft radial wash the handoff allows
+                // it — ember from below while you're logging, green from the
+                // middle while you rest. The music ambience still breathes
+                // through it, but as a whisper (0.12) rather than the wash it
+                // used to be: at full strength the track color simply replaced
+                // the design's own tint.
+                duration: reducedMotion(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 700),
+                curve: Curves.easeOut,
+                decoration: BoxDecoration(gradient: _screenTint(accent)),
+                child: SafeArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+                        child: Column(
+                          children: [
+                            _SessionHeader(
+                              title: _dayTitle(widget.day).toUpperCase(),
+                              elapsed: _session.isComplete
+                                  ? _session.elapsed
+                                  : _session.activeElapsed(now: widget.now()),
+                              isPaused: _session.isPaused,
+                              onClose: _onLeave,
+                              onDiscard: _onDiscard,
+                              onTogglePause: _session.isComplete
+                                  ? null
+                                  : _onTogglePause,
+                            ),
+                            const SizedBox(height: 20),
+                            TrainSegmentBar(
+                              total: _exerciseCount,
+                              completed: _exercisesBehind,
+                              current: _currentExerciseIndex,
+                            ),
+                            const SizedBox(height: 9),
+                            TrainSegmentCaptions(
+                              left: _exerciseCaption,
+                              right: _tallyCaption,
+                              rightColor: _restRemaining != null
+                                  ? TrainColors.green.withValues(alpha: 0.75)
+                                  : const Color(0x59F4F4F0),
+                            ),
+                            // The walk-back-one-set control — reachable from
+                            // EVERY phase (rest included), and only present
+                            // when there is actually something to undo, so the
+                            // header stays exactly as designed until then.
+                            // Top-LEFT, under the segment bar: back is a
+                            // navigation control and every other one on this
+                            // screen (Close, the system edge-swipe) lives on
+                            // that side. It sat on the right purely because
+                            // the handoff had nothing there.
+                            if (_session.previousResolvedSet != null)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: _BackChip(
+                                  key: const Key('back-chip'),
+                                  onTap: _onBack,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    ),
-                    _ProgressBar(value: _session.progress, accent: accent),
-                    _ElapsedLabel(
-                      elapsed: _session.isComplete
-                          ? _session.elapsed
-                          : _session.activeElapsed(now: widget.now()),
-                      isPaused: _session.isPaused,
-                      onTogglePause: _session.isComplete ? null : _onTogglePause,
-                      // The walk-back-one-set control lives here — directly under
-                      // the workout name, reachable from EVERY phase (rest
-                      // included), not buried in the running screen's bottom
-                      // action cluster.
-                      onBack: _session.previousResolvedSet != null ? _onBack : null,
-                    ),
-                    Expanded(
-                      // Paused freezes the rest/elapsed clocks (model state), but a
-                      // paused session is still visually "on hold" — dim the phase
-                      // content and block its taps, no animation (kept minimal —
-                      // prominence here is about info hierarchy, not motion).
-                      child: IgnorePointer(
-                        ignoring: _session.isPaused,
-                        child: Opacity(
-                          opacity: _session.isPaused ? 0.35 : 1,
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 280),
-                            transitionBuilder: (child, animation) =>
-                                reducedMotion(context)
-                                ? FadeTransition(opacity: animation, child: child)
-                                : FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0, 0.03),
-                                        end: Offset.zero,
-                                      ).animate(animation),
-                                      child: child,
+                      Expanded(
+                        // Paused freezes the rest/elapsed clocks (model state), but a
+                        // paused session is still visually "on hold" — dim the phase
+                        // content and block its taps, no animation (kept minimal —
+                        // prominence here is about info hierarchy, not motion).
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                ignoring: _session.isPaused,
+                                child: Opacity(
+                                  opacity: _session.isPaused ? 0.35 : 1,
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 280),
+                                    transitionBuilder: (child, animation) =>
+                                        reducedMotion(context)
+                                        ? FadeTransition(
+                                            opacity: animation,
+                                            child: child,
+                                          )
+                                        : FadeTransition(
+                                            opacity: animation,
+                                            child: SlideTransition(
+                                              position: Tween<Offset>(
+                                                begin: const Offset(0, 0.03),
+                                                end: Offset.zero,
+                                              ).animate(animation),
+                                              child: child,
+                                            ),
+                                          ),
+                                    child: KeyedSubtree(
+                                      key: ValueKey(_phaseKey),
+                                      child: _buildPhase(accent, vivid),
                                     ),
                                   ),
-                            child: KeyedSubtree(
-                              key: ValueKey(_phaseKey),
-                              child: _buildPhase(accent),
+                                ),
+                              ),
                             ),
-                          ),
+                            // Paused, the whole phase is inert — so the dimmed
+                            // area itself becomes the way back. The rest and
+                            // warm-up phases now carry their own pause control
+                            // (the eyebrow pill and the ring), and BOTH live
+                            // inside that inert region: without this, tapping
+                            // the thing you just used to pause did nothing,
+                            // and the only exit was a header toggle that
+                            // doesn't look like a button.
+                            if (_session.isPaused && !_session.isComplete)
+                              Positioned.fill(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Resume workout',
+                                  child: GestureDetector(
+                                    key: const Key('paused-resume-overlay'),
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      _onTogglePause();
+                                    },
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  /// The screen's background wash for the current phase, with the live
+  /// track's accent blended in as a whisper.
+  RadialGradient _screenTint(Color? accent) {
+    final base = _restRemaining != null
+        ? TrainColors.restTint
+        : TrainColors.setTint;
+    if (accent == null) return base;
+    return RadialGradient(
+      center: base.center,
+      radius: base.radius,
+      stops: base.stops,
+      colors: [for (final c in base.colors) Color.lerp(c, accent, 0.12)!],
+    );
+  }
+
+  // ---- Header derivations -------------------------------------------------
+  //
+  // The segment bar counts EXERCISES, not sets: "exercise 4 of 10" is the
+  // unit that actually means something mid-workout, and a continuous bar
+  // over every set never told you how much of the session was left in a way
+  // you could feel.
+
+  int get _exerciseCount => _session.exercises.length;
+
+  /// The index of the exercise holding the current pending set, or null once
+  /// everything is resolved.
+  int? get _currentExerciseIndex {
+    final index = _session.exercises.indexWhere(
+      (e) => e.sets.any((s) => s.pending),
+    );
+    return index < 0 ? null : index;
+  }
+
+  int get _exercisesBehind => _currentExerciseIndex ?? _exerciseCount;
+
+  String get _exerciseCaption {
+    if (_exerciseCount == 0) return 'NO EXERCISES';
+    final position = (_currentExerciseIndex ?? _exerciseCount - 1) + 1;
+    return 'EXERCISE $position / $_exerciseCount';
+  }
+
+  /// The running tally on the right of the caption row. During rest it
+  /// switches to echoing the set you just logged — the confirmation that
+  /// what you did was recorded, right where you last looked.
+  String get _tallyCaption {
+    if (_restRemaining != null) {
+      final previous = _session.previousResolvedSet;
+      final set = previous?.$2;
+      if (set != null && set.done) {
+        final reps = set.actualReps;
+        final weight = set.actualWeightKg;
+        if (reps != null) {
+          final load = weight == null ? '' : ' × ${_trimWeight(weight)}';
+          return 'SET LOGGED · $reps$load';
+        }
+      }
+      return 'SET LOGGED';
+    }
+    final done = _session.completedSetCount;
+    return '${done.toString().padLeft(2, '0')} SETS LOGGED';
   }
 
   String get _phaseKey {
@@ -1081,14 +1191,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     return 'running:${_session.currentSet?.id}';
   }
 
-  Widget _buildPhase(Color? accent) {
+  Widget _buildPhase(Color? accent, Color? vivid) {
     if (_session.isComplete) return _buildCompleted();
-    if (_warmupRemaining != null) return _buildWarmup();
-    if (_restRemaining != null) return _buildResting(accent);
-    return _buildRunning(accent);
+    if (_warmupRemaining != null) return _buildWarmup(vivid);
+    if (_restRemaining != null) return _buildResting(vivid);
+    return _buildRunning(accent, vivid);
   }
 
-  Widget _buildRunning(Color? accent) {
+  Widget _buildRunning(Color? accent, Color? vivid) {
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) {
@@ -1117,89 +1227,57 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       actualReps: int.tryParse(_reps.text.trim()),
       actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
     );
-    // Working-only position — warm-up ramp steps (if any) sit before this
-    // in `exercise.sets` but aren't part of the numbered working sequence.
-    final workingSetCount = exercise.sets
-        .where((s) => s.type == SetType.working)
-        .length;
-    final workingIndex = workingSetIndexOf(exercise, set);
-
     return _runningScaffold(
       top: [
-        // The workout's now-playing companion. Index 0 is reserved for it
-        // unconditionally (rather than only when it will actually render a
-        // card) so the indices below never have to branch on
-        // `kMusicEnabled` — an empty stagger slot is invisible. Unlike
-        // `_RestPhase`'s graceful degrade to nothing, this slot renders on
-        // every working set, so it always shows the card or a connect chip
-        // — see `_SessionNowPlaying`.
-        if (kMusicEnabled) ...[
-          StaggeredReveal(
-            index: 0,
-            child: _SessionNowPlaying(
-              controller: AppScope.of(context).requireMusic,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.m),
-        ],
-        // Exercise header — consolidated: the name is the hero title, the
-        // muscle group a quiet pill beside it. No standalone "Target: X"
-        // line (that's now context inside the Goal card) and no separate
-        // "SET N OF M" eyebrow (the chip row below is the one set-position
-        // indicator).
-        StaggeredReveal(index: 1, child: _exerciseHeader(exercise)),
-        const SizedBox(height: AppSpacing.l),
+        // NOW — the ember caption that names what this screen is for. The
+        // exercise name is the hero; the muscle line is a mono caption under
+        // it, not a chip, so nothing competes with the goal card below.
+        StaggeredReveal(index: 0, child: _exerciseHeader(exercise)),
+        const SizedBox(height: 22),
         StaggeredReveal(
-          index: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Set ${workingIndex + 1} of $workingSetCount',
-                style: AppText.meta.copyWith(
-                  color: AppColors.ink3,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _SetChipRow(exercise: exercise, currentSetId: set.id),
-            ],
+          index: 1,
+          child: _SetChipRow(
+            exercise: exercise,
+            currentSetId: set.id,
+            liveReps: _reps.text.trim(),
+            liveWeight: _weight.text.trim(),
           ),
         ),
       ],
       hero: [
-        // The hero: a lifted card carrying the computed goal, the point of
-        // this whole screen — everything above just orients the user to it.
+        // The hero: the goal card carrying reps × weight, the point of this
+        // whole screen — everything above just orients you to it.
         StaggeredReveal(
-          index: 3,
+          index: 2,
           child: _GoalBlock(
             lastTimeLabel: lastTimeLabel,
             goal: goal,
             targetText: targetText,
             comparison: comparison,
-            intraSessionDeltaLabel: intraSessionDelta,
+            intraSessionDelta: intraSessionDelta,
             previous: previousSet,
+            restSeconds: exercise.restSeconds,
+            liveReps: _reps.text.trim(),
+            liveWeight: _weight.text.trim(),
             accent: accent,
           ),
         ),
-        const SizedBox(height: AppSpacing.l),
+        const SizedBox(height: 16),
         StaggeredReveal(
-          index: 4,
+          index: 3,
           child: Column(
             children: [
               Row(
                 children: [
                   _StepperField(
-                    label: 'Reps',
+                    label: 'REPS',
                     controller: _reps,
                     step: 1,
                     onChanged: _onActualChanged,
                   ),
-                  const SizedBox(width: AppSpacing.m),
+                  const SizedBox(width: 10),
                   _StepperField(
-                    label: 'Weight (kg)',
+                    label: 'WEIGHT · KG',
                     controller: _weight,
                     step: 2.5,
                     hint: '—',
@@ -1231,10 +1309,23 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           ),
         ),
       ],
+      // The music sits at the foot of the SCROLLING content, not in the
+      // pinned row: it's a companion, and reserving its height at the bottom
+      // of every screen pushed the quick-weight chips out of view. The
+      // handoff keeps the top of this screen entirely for what you're about
+      // to lift, which this still respects.
+      musicSlot: kMusicEnabled
+          ? StaggeredReveal(
+              index: 4,
+              child: _SessionNowPlaying(
+                controller: AppScope.of(context).requireMusic,
+                density: SpotifyStripDensity.inline,
+                accent: vivid,
+              ),
+            )
+          : null,
       done: StaggeredReveal(
-        index: 5,
-        // Back moved to the header row (under the workout name) so it's
-        // reachable from every phase — the cluster stays Skip/Done only.
+        index: 4,
         child: _ActionCluster(onSkip: _onSetSkip, onDone: _onSetDone),
       ),
     );
@@ -1253,36 +1344,137 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required List<Widget> top,
     required List<Widget> hero,
     required Widget done,
+    Widget? musicSlot,
   }) {
+    // The commit row is PINNED, not scrolled with everything else.
+    //
+    // It used to be the last child of the scroll column, which meant the
+    // screen's primary action moved whenever anything above it grew — and the
+    // goal card grows for ordinary reasons (a delta line, a progression hint,
+    // a two-line exercise name), so "Log set" could sit below the fold on the
+    // one screen you tap most. Pinning it also makes the card's height
+    // changes harmless: they consume scroll, not the button.
     return LayoutBuilder(
       key: const ValueKey('running-list'),
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.l,
-            AppSpacing.m,
-            AppSpacing.l,
-            AppSpacing.l,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: math.max(
-                0,
-                constraints.maxHeight - AppSpacing.m - AppSpacing.l,
+        // Below this there is no room to pin anything — a keyboard up on a
+        // very short device — and reserving the commit row's full height out
+        // of what's left would leave the content nothing at all. Scroll the
+        // whole column instead, which is what this screen always did.
+        const minPinnableHeight = 260.0;
+        final content = [
+          ...top,
+          // A hard floor under the balancing gap. The `Spacer` collapses to
+          // zero the instant content outgrows the viewport, and when it does
+          // the set chips weld to the goal card — one extra line inside the
+          // card is enough to trigger it, so the layout visibly tightened as
+          // a side effect of nudging the weight.
+          const SizedBox(height: AppSpacing.l),
+          const Spacer(),
+          ...hero,
+          if (musicSlot != null) ...[
+            const SizedBox(height: AppSpacing.m),
+            musicSlot,
+          ],
+        ];
+        if (constraints.maxHeight < minPinnableHeight) {
+          return _phaseScroll(
+            key: const ValueKey('running-scroll'),
+            cross: CrossAxisAlignment.start,
+            children: [
+              ...content,
+              const SizedBox(height: AppSpacing.base),
+              done,
+            ],
+          );
+        }
+        // The scroll runs the FULL height and the commit row floats over its
+        // last stretch, rather than the two splitting the space between them.
+        // Splitting it sliced whatever happened to land on the seam clean in
+        // half — a card cut by an invisible line, which reads as a rendering
+        // bug rather than as "there's more below". Reserved padding keeps
+        // content out from under the buttons, and the fade turns the seam
+        // into an edge.
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: _FadeOutBottom(
+                reserved: _commitRowSpace,
+                child: _phaseScroll(
+                  key: const ValueKey('running-scroll'),
+                  cross: CrossAxisAlignment.start,
+                  padding: _phasePadding.copyWith(bottom: _commitRowSpace),
+                  children: content,
+                ),
               ),
             ),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...top,
-                  const Spacer(flex: 3),
-                  ...hero,
-                  const Spacer(flex: 2),
-                  done,
-                ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  0,
+                  AppSpacing.screen,
+                  AppSpacing.l,
+                ),
+                child: done,
               ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The scroll shell every phase is built in.
+  ///
+  /// "Fill the viewport, or scroll if you can't": [ConstrainedBox] gives the
+  /// column at least the visible height so the `Spacer`s have something to
+  /// distribute, and [IntrinsicHeight] lets them collapse gracefully past that
+  /// instead of overflowing.
+  ///
+  /// Shared because the three phases had drifted apart — the logging screen
+  /// padded 24/12/24/24 and the two countdowns 22/20/22/20, so the same
+  /// content sat at different heights and different insets depending on which
+  /// phase you were in, and the logging screen's 24 didn't line up with the
+  /// header's own 22 either. The physics are always-scrollable on purpose: a
+  /// surface that ignores a drag whenever its content happens to fit reads as
+  /// broken scrolling rather than as "nothing to scroll".
+  /// What the floating commit row occupies at the foot of the logging
+  /// screen: the button's own 60, its bottom inset, and a gap above it that
+  /// content fades into.
+  static const _commitRowSpace = 60.0 + AppSpacing.l + AppSpacing.base;
+
+  static const _phasePadding = EdgeInsets.fromLTRB(
+    AppSpacing.screen,
+    AppSpacing.base,
+    AppSpacing.screen,
+    AppSpacing.l,
+  );
+
+  Widget _phaseScroll({
+    required Key key,
+    required List<Widget> children,
+    CrossAxisAlignment cross = CrossAxisAlignment.stretch,
+    EdgeInsets? padding,
+  }) {
+    final insets = padding ?? _phasePadding;
+    return LayoutBuilder(
+      key: key,
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: insets,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: math.max(0, constraints.maxHeight - insets.vertical),
+            ),
+            child: IntrinsicHeight(
+              child: Column(crossAxisAlignment: cross, children: children),
             ),
           ),
         );
@@ -1293,194 +1485,226 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   Widget _exerciseHeader(SessionExercise exercise) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      const TrainCaption('NOW', color: Color(0xCCFF5C1A)),
+      const SizedBox(height: 11),
       Text(
         exercise.name,
-        style: AppText.cardTitle.copyWith(fontSize: 30, color: AppColors.ink),
+        style: TrainType.ui(
+          size: 34,
+          weight: FontWeight.w800,
+          tracking: -0.03,
+          height: 1.06,
+          color: TrainColors.ink,
+        ),
       ),
       if (exercise.muscleGroup != null) ...[
-        const SizedBox(height: AppSpacing.s),
-        _MuscleGroupPill(label: exercise.muscleGroup!),
+        const SizedBox(height: 9),
+        Text(
+          exercise.muscleGroup!.toUpperCase(),
+          style: TrainType.mono(
+            size: 11.5,
+            tracking: 0.04,
+            color: const Color(0x66F4F4F0),
+          ),
+        ),
       ],
     ],
   );
 
   /// The pre-workout warm-up phase — shown once, before the first set of a
-  /// genuinely fresh session (see [initState]). Deliberately reuses
-  /// [_RestRing]/[_RestAdjustButton] wholesale rather than a parallel
-  /// implementation: same fixed-size, sub-second, wall-clock countdown,
-  /// distinct only in its eyebrow/copy/duration and the color it hangs off
-  /// (Ember — this app's warm-up hue — instead of Rest's neutral ink3). This
-  /// is the app's one warm-up (owner decision) — the old per-exercise ramp
-  /// warm-up SETS have been retired.
-  Widget _buildWarmup() {
-    // Same scroll-safe shell `_runningScaffold` uses (LayoutBuilder +
-    // SingleChildScrollView + IntrinsicHeight, `Spacer`s collapsing to 0
-    // when content doesn't fit) — this phase has no text input so a
-    // keyboard is never the trigger, but a very short device on its own
-    // could otherwise overflow a bare `Spacer`-filled Column with no
-    // fallback at all.
-    return LayoutBuilder(
+  /// genuinely fresh session (see [initState]). This is the app's one warm-up
+  /// (owner decision) — the old per-exercise ramp warm-up SETS have been
+  /// retired.
+  ///
+  /// It is deliberately the SAME screen as [_buildResting], element for
+  /// element: eyebrow → ring → what's coming → music → adjust → skip. The two
+  /// phases are the same job (a countdown you can nudge, skip, or pause while
+  /// something else is on deck), and warm-up used to state that in a different
+  /// dialect — no card, no music, a ring that ignored the ambience — which
+  /// made the first thing you saw in a session look like a different app from
+  /// the screen you then spent the whole workout on. Ember instead of green
+  /// stays: the hue is the phase's identity, and it's the only difference left.
+  Widget _buildWarmup(Color? vivid) {
+    return _phaseScroll(
       key: const ValueKey('warmup'),
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: math.max(0, constraints.maxHeight - 32),
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(
-                    child: _Eyebrow(
-                      'Pre-workout',
-                      color: AppColors.ember,
-                      icon: AppIcons.streak,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'Loosen up before your first set',
-                      style: AppText.meta.copyWith(color: AppColors.ink3),
-                    ),
-                  ),
-                  const Spacer(),
-                  Center(
-                    child: _RestRing(
-                      remaining: _warmupRemaining ?? Duration.zero,
-                      total: _warmupTotalSeconds ?? 1,
-                      animate: !_session.isPaused,
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _RestAdjustButton(
-                          label: '-15s',
-                          onTap: () => _adjustWarmup(-15),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _RestAdjustButton(
-                          label: '+15s',
-                          onTap: () => _adjustWarmup(15),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  PillButton(
-                    label: 'Skip warm-up',
-                    icon: Icons.skip_next_rounded,
-                    color: AppColors.ember,
-                    enabled: true,
-                    onTap: _endWarmup,
-                  ),
-                ],
+      children: [
+        Center(
+          child: _Eyebrow(
+            _session.isPaused ? 'Paused' : 'Pre-workout',
+            color: TrainColors.ember,
+            icon: _session.isPaused ? null : AppIcons.streak,
+            glyph: _session.isPaused
+                ? const TrainPlayGlyph(color: TrainColors.ember, size: 11)
+                : null,
+            onTap: _onTogglePause,
+            semanticLabel: _session.isPaused
+                ? 'Resume workout'
+                : 'Pause workout',
+          ),
+        ),
+        const SizedBox(height: 26),
+        Center(
+          child: _RestRing(
+            remaining: _warmupRemaining ?? Duration.zero,
+            total: _warmupTotalSeconds ?? 1,
+            animate: !_session.isPaused,
+            hue: TrainColors.ember,
+            accent: vivid,
+            onTap: _onTogglePause,
+            isPaused: _session.isPaused,
+          ),
+        ),
+        const SizedBox(height: 26),
+        _UpNextCard(
+          label: 'FIRST UP',
+          exercise: _session.currentExercise,
+          set: _session.currentSet,
+        ),
+        // A hard minimum gap, not just the Spacer below it: on a
+        // short screen the Spacer collapses to zero and the card
+        // ends up welded to the music strip, reading as one
+        // two-storey slab.
+        const SizedBox(height: 18),
+        const Spacer(),
+        if (kMusicEnabled) ...[
+          _SessionNowPlaying(
+            controller: AppScope.of(context).requireMusic,
+            density: SpotifyStripDensity.rest,
+            connectFallback: false,
+            accent: vivid,
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: TrainGhostButton(
+                key: const Key('warmup-minus-15'),
+                label: '−15s',
+                onTap: () => _adjustWarmup(-15),
               ),
             ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: TrainGhostButton(
+                key: const Key('warmup-plus-15'),
+                label: '+15s',
+                onTap: () => _adjustWarmup(15),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 11),
+        // One rule across all three phases: **skip is always the
+        // secondary**, and the phase's hue owns the RING only. The
+        // running phase already worked this way (ghost Skip beside
+        // the ember Log set); warm-up and rest each promoted their
+        // skip to a full primary instead, and in two different
+        // colours — so the screen's most prominent control changed
+        // hue depending on which phase you were in, for no reason a
+        // user could feel. Ember stays reserved for the action that
+        // actually commits something.
+        TrainGhostButton(
+          label: 'Skip warm-up',
+          mono: false,
+          height: 60,
+          icon: const TrainPlayGlyph(
+            color: Color(0x99F4F4F0),
+            size: 13,
+            bar: true,
           ),
-        );
-      },
+          onTap: _endWarmup,
+        ),
+      ],
     );
   }
 
-  Widget _buildResting(Color? accent) {
-    final nextLabel = _nextUpLabel();
-    // Same scroll-safe shell as `_buildWarmup`/`_runningScaffold` — see
-    // `_buildWarmup`'s comment.
-    return LayoutBuilder(
+  Widget _buildResting(Color? vivid) {
+    return _phaseScroll(
       key: const ValueKey('resting'),
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: math.max(0, constraints.maxHeight - 32),
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(
-                    child: _Eyebrow(
-                      'REST',
-                      color: AppColors.ink2,
-                      icon: AppIcons.pause,
-                    ),
-                  ),
-                  // The ring is the centerpiece — split the space between the
-                  // eyebrow and the bottom controls evenly around it, rather
-                  // than letting it float high with all the slack dumped
-                  // below "Next:".
-                  const Spacer(),
-                  // Song-on-top-of-ring when music is connected + playing —
-                  // one cohesive unit, not two stacked cards (see
-                  // `_RestPhase`'s doc comment). Byte-identical to the plain
-                  // `Center(child: _RestRing(...))` this replaces whenever
-                  // there's nothing to show above it — no music, no gap, no
-                  // chip (unlike the logging slot, this screen is
-                  // Spacer-balanced around the ring, and a chip would nag
-                  // during rest).
-                  _RestPhase(
-                    ring: _RestRing(
-                      remaining: _restRemaining ?? Duration.zero,
-                      total: _restTotalSeconds ?? 1,
-                      animate: !_session.isPaused,
-                      accent: accent,
-                    ),
-                    controller: kMusicEnabled
-                        ? AppScope.of(context).requireMusic
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Next: $nextLabel',
-                    textAlign: TextAlign.center,
-                    style: AppText.rowTitle.copyWith(
-                      color: AppColors.ink2,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _RestAdjustButton(
-                          label: '-15s',
-                          onTap: () => _adjustRest(-15),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _RestAdjustButton(
-                          label: '+15s',
-                          onTap: () => _adjustRest(15),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  PillButton(
-                    label: 'Skip rest',
-                    icon: Icons.skip_next_rounded,
-                    color: AppColors.pulse,
-                    enabled: true,
-                    onTap: _endRest,
-                  ),
-                ],
+      children: [
+        // The pill carried a pause GLYPH and did nothing — the
+        // most button-shaped thing on the screen, inert. It's the
+        // real pause control now (so is the ring); the glyph flips
+        // to a play mark while held.
+        Center(
+          child: _Eyebrow(
+            _session.isPaused ? 'PAUSED' : 'REST',
+            color: TrainColors.green,
+            glyph: _session.isPaused
+                ? const TrainPlayGlyph(color: TrainColors.green, size: 11)
+                : const TrainPauseGlyph(color: TrainColors.green, size: 11),
+            onTap: _onTogglePause,
+            semanticLabel: _session.isPaused
+                ? 'Resume workout'
+                : 'Pause workout',
+          ),
+        ),
+        const SizedBox(height: 26),
+        // The ring is the screen's one hero number.
+        Center(
+          child: _RestRing(
+            remaining: _restRemaining ?? Duration.zero,
+            total: _restTotalSeconds ?? 1,
+            animate: !_session.isPaused,
+            accent: vivid,
+            onTap: _onTogglePause,
+            isPaused: _session.isPaused,
+          ),
+        ),
+        const SizedBox(height: 26),
+        _UpNextCard(
+          exercise: _session.currentExercise,
+          set: _session.currentSet,
+        ),
+        // See the warm-up's copy of this: the Spacer alone lets the
+        // card and the music strip fuse on a short screen.
+        const SizedBox(height: 18),
+        const Spacer(),
+        if (kMusicEnabled) ...[
+          // Degrades to nothing when there's no music — unlike the
+          // logging slot, this screen is Spacer-balanced and a
+          // "connect" chip would just nag mid-rest.
+          _SessionNowPlaying(
+            controller: AppScope.of(context).requireMusic,
+            density: SpotifyStripDensity.rest,
+            connectFallback: false,
+            accent: vivid,
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: TrainGhostButton(
+                key: const Key('rest-minus-15'),
+                label: '−15s',
+                onTap: () => _adjustRest(-15),
               ),
             ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: TrainGhostButton(
+                key: const Key('rest-plus-15'),
+                label: '+15s',
+                onTap: () => _adjustRest(15),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 11),
+        TrainGhostButton(
+          label: 'Skip rest',
+          mono: false,
+          height: 60,
+          icon: const TrainPlayGlyph(
+            color: Color(0x99F4F4F0),
+            size: 13,
+            bar: true,
           ),
-        );
-      },
+          onTap: _endRest,
+        ),
+      ],
     );
   }
 
@@ -1500,7 +1724,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         Center(
           child: _Eyebrow(
             'Workout complete',
-            color: AppColors.pulse,
+            color: TrainColors.green,
             icon: AppIcons.check,
           ),
         ),
@@ -1510,19 +1734,22 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             child: Icon(
               Icons.check_circle_rounded,
               size: 56,
-              color: AppColors.pulse,
+              color: TrainColors.green,
             ),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           widget.day.label,
-          style: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink),
+          style: AppText.cardTitle.copyWith(
+            fontSize: 24,
+            color: TrainColors.ink,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
           '${_session.completedSetCount} of ${_session.totalSets} sets · ${elapsed.inMinutes} min',
-          style: AppText.meta.copyWith(color: AppColors.pulse),
+          style: AppText.meta.copyWith(color: TrainColors.green),
         ),
         const SizedBox(height: 18),
         // Review — every resolved set, flagging skips. Tap any row to fix
@@ -1548,7 +1775,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           child: PillButton(
             label: 'Finish',
             icon: Icons.check_rounded,
-            color: AppColors.pulse,
+            color: TrainColors.green,
             enabled: !_busy,
             onTap: _onFinish,
           ),
@@ -1594,14 +1821,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   /// What the user will do when the current rest ends — the (already
   /// advanced) current set/exercise, or Finish if the session is complete.
-  String _nextUpLabel() {
-    if (_session.isComplete) return 'Finish';
-    final exercise = _session.currentExercise;
-    final set = _session.currentSet;
-    if (exercise == null || set == null) return 'Finish';
-    final workingIndex = workingSetIndexOf(exercise, set);
-    return 'Set ${workingIndex + 1} · ${exercise.name}';
-  }
 }
 
 // ---- Formatting -------------------------------------------------------------
@@ -1634,7 +1853,18 @@ String _formatElapsed(Duration d) {
 /// week). Weight wins when both changed — the more meaningful signal on a
 /// loaded exercise — reps only when weight didn't change or isn't tracked.
 /// Null when there's no previous set yet, or nothing actually changed.
-String? _intraSessionDeltaLabel({
+/// How what you're about to log compares to your OWN previous set in this
+/// exercise, today.
+///
+/// Null only when there is no previous set in the session to compare against
+/// (the first working set) — otherwise it always says something, including
+/// when nothing has changed. That "matching" case used to return null, which
+/// meant the chip popped into existence the moment you tapped +2.5 and popped
+/// back out when you undid it: the goal card changed height under your thumb,
+/// shunting the whole layout, for the smallest edit on the screen. Present
+/// from set two onward keeps the card one height while you step, and
+/// "matching your previous set" is worth saying on its own.
+({String label, bool changed})? _intraSessionDeltaLabel({
   required LoggedSet? previous,
   required int? actualReps,
   required double? actualWeightKg,
@@ -1645,25 +1875,35 @@ String? _intraSessionDeltaLabel({
       actualWeightKg != null &&
       actualWeightKg != prevWeight) {
     final delta = actualWeightKg - prevWeight;
-    return '${delta > 0 ? '+' : ''}${_trimWeight(delta)}kg from your previous set';
+    return (
+      label:
+          '${delta > 0 ? '+' : ''}${_trimWeight(delta)}kg from your previous set',
+      changed: true,
+    );
   }
   final prevReps = previous.actualReps;
   if (prevReps != null && actualReps != null && actualReps != prevReps) {
     final delta = actualReps - prevReps;
-    return '${delta > 0 ? '+' : ''}$delta rep${delta.abs() == 1 ? '' : 's'} from your previous set';
+    return (
+      label:
+          '${delta > 0 ? '+' : ''}$delta rep${delta.abs() == 1 ? '' : 's'} from your previous set',
+      changed: true,
+    );
   }
-  return null;
+  return (label: 'Matching your previous set', changed: false);
 }
 
 /// "60kg × 8" — omits either half when unset; "First time" when there's no
 /// previous performance to show at all (never trained, or never logged).
 String _formatLastTime(LoggedSet? previous) {
-  final parts = <String>[
-    if (previous?.actualWeightKg != null)
-      '${_trimWeight(previous!.actualWeightKg!)}kg',
-    if (previous?.actualReps != null) '× ${previous!.actualReps}',
-  ];
-  return parts.isEmpty ? 'First time' : parts.join(' ');
+  // Reps first, then load — the same reading order as the set chips and the
+  // goal card's hero, so the eye never has to re-orient between them.
+  final reps = previous?.actualReps;
+  final weight = previous?.actualWeightKg;
+  if (reps == null && weight == null) return 'First time';
+  if (reps == null) return '${_trimWeight(weight!)} kg';
+  if (weight == null) return '$reps reps';
+  return '$reps × ${_trimWeight(weight)} kg';
 }
 
 /// "60kg × 8" for a set's OWN actuals — omits either half when unset, "—"
@@ -1690,7 +1930,7 @@ int _ceilSeconds(Duration d) =>
 const int _warmupSeconds = 300;
 
 /// A restrained, low-opacity lift for the Goal/Warm-up cards on dark — the
-/// shared [AppShadows.pulse]/[AppShadows.ember] (tuned for light-mode pill
+/// shared [TrainColors.actionGlow(TrainColors.green)]/[TrainColors.actionGlow(TrainColors.ember)] (tuned for light-mode pill
 /// buttons) read as a bright neon halo against near-black, which isn't the
 /// premium feel this screen wants. This is a much softer glow paired with a
 /// plain neutral hairline border, so the color reads as a subtle accent
@@ -1723,9 +1963,9 @@ class _ReviewExerciseGroup extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
+        color: TrainColors.raisedStrong,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: TrainColors.hairlineStrong),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1735,7 +1975,7 @@ class _ReviewExerciseGroup extends StatelessWidget {
             style: AppText.rowTitle.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.ink,
+              color: TrainColors.ink,
             ),
           ),
           const SizedBox(height: 4),
@@ -1781,7 +2021,7 @@ class _ReviewSetRow extends StatelessWidget {
                     ? Icons.remove_circle_outline_rounded
                     : Icons.check_circle_rounded,
                 size: 16,
-                color: skipped ? AppColors.ink3 : AppColors.pulse,
+                color: skipped ? TrainColors.ink3 : TrainColors.green,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1789,14 +2029,14 @@ class _ReviewSetRow extends StatelessWidget {
                   'Set $position',
                   style: AppText.body.copyWith(
                     fontSize: 14,
-                    color: AppColors.ink2,
+                    color: TrainColors.ink2,
                   ),
                 ),
               ),
               Text(
                 skipped ? 'Skipped' : _formatSetActuals(set),
                 style: AppText.meta.copyWith(
-                  color: skipped ? AppColors.ink3 : AppColors.ink2,
+                  color: skipped ? TrainColors.ink3 : TrainColors.ink2,
                   fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
@@ -1804,7 +2044,7 @@ class _ReviewSetRow extends StatelessWidget {
               const Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
-                color: AppColors.ink3,
+                color: TrainColors.ink3,
               ),
             ],
           ),
@@ -1869,7 +2109,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: Column(
@@ -1881,7 +2121,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -1891,7 +2131,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
             widget.title,
             style: AppText.cardTitle.copyWith(
               fontSize: 18,
-              color: AppColors.ink,
+              color: TrainColors.ink,
             ),
           ),
           const SizedBox(height: 4),
@@ -1899,7 +2139,7 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
             widget.wasSkipped
                 ? 'Enter what you actually did to mark this done.'
                 : 'Correct the reps or weight actually logged.',
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
           const SizedBox(height: 18),
           Row(
@@ -1940,329 +2180,366 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
 /// (unblurred) surface when reduced motion is on, since blur is itself a
 /// subtle, continuous visual effect best paired with the rest of the
 /// session's motion.
-class _FrostedTopBar extends StatelessWidget {
-  const _FrostedTopBar({required this.child});
+/// The session header: close on the left, the day and the running clock in
+/// the middle, discard on the right.
+///
+/// The clock doubles as the pause control — the handoff draws no separate
+/// pause button, and tapping the time is where a hand already goes to check
+/// it. Paused swaps the day caption for a PAUSED badge, so the state is
+/// unmissable rather than a small icon change.
+class _SessionHeader extends StatelessWidget {
+  const _SessionHeader({
+    required this.title,
+    required this.elapsed,
+    required this.isPaused,
+    required this.onClose,
+    required this.onDiscard,
+    required this.onTogglePause,
+  });
 
-  final Widget child;
+  final String title;
+  final Duration elapsed;
+  final bool isPaused;
+  final VoidCallback onClose;
+  final VoidCallback onDiscard;
+
+  /// Null once the session completes — nothing left to pause.
+  final VoidCallback? onTogglePause;
 
   @override
   Widget build(BuildContext context) {
-    if (reducedMotion(context)) {
-      return ColoredBox(color: AppColors.ground, child: child);
-    }
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: ColoredBox(
-          color: AppColors.ground.withValues(alpha: 0.72),
-          child: child,
+    return Row(
+      children: [
+        TrainCircleButton(
+          semanticLabel: 'Close',
+          onTap: onClose,
+          child: const Icon(
+            Icons.close_rounded,
+            size: 15,
+            color: Color(0xBFF4F4F0),
+          ),
+        ),
+        Expanded(
+          child: Semantics(
+            button: onTogglePause != null,
+            label: isPaused ? 'Resume workout' : 'Pause workout',
+            child: GestureDetector(
+              key: const Key('pause-toggle'),
+              behavior: HitTestBehavior.opaque,
+              onTap: onTogglePause == null
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      onTogglePause!();
+                    },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isPaused)
+                    Container(
+                      key: const Key('paused-badge'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: TrainColors.ember.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: TrainColors.ember.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        'PAUSED · TAP TO RESUME',
+                        style: TrainType.mono(
+                          size: 8.5,
+                          weight: FontWeight.w600,
+                          tracking: 0.16,
+                          color: TrainColors.ember,
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TrainType.mono(
+                        size: 9,
+                        weight: FontWeight.w600,
+                        tracking: 0.18,
+                        color: const Color(0x66F4F4F0),
+                      ),
+                    ),
+                  const SizedBox(height: 7),
+                  Text(
+                    _formatElapsed(elapsed),
+                    key: const Key('elapsed-timer'),
+                    style: TrainType.mono(
+                      size: 13,
+                      color: isPaused
+                          ? const Color(0x66F4F4F0)
+                          : TrainColors.inkPlain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        TrainCircleButton(
+          semanticLabel: 'Discard workout',
+          onTap: onDiscard,
+          // Neutral, same weight as Close — a destructive action still gated
+          // behind its own confirm dialog shouldn't also be the loudest thing
+          // in the bar. Flare stays reserved for the confirm dialog's actual
+          // "Discard" button, where committing to it is the whole point.
+          child: const Icon(
+            Icons.delete_outline_rounded,
+            size: 16,
+            color: Color(0x99F4F4F0),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Walk back one set. Only rendered once something has actually been
+/// resolved, so the header matches the design exactly until there's a reason
+/// for it not to.
+class _BackChip extends StatelessWidget {
+  const _BackChip({required this.onTap, super.key});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8, right: 12, bottom: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(AppIcons.back, size: 11, color: Color(0x66F4F4F0)),
+              const SizedBox(width: 5),
+              Text(
+                'BACK',
+                style: TrainType.mono(
+                  size: 8.5,
+                  weight: FontWeight.w600,
+                  tracking: 0.16,
+                  color: const Color(0x66F4F4F0),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+/// A phase eyebrow — the pill that names what the screen is doing right now
+/// (REST, PRE-WORKOUT, COMPLETE).
 class _Eyebrow extends StatelessWidget {
-  const _Eyebrow(this.text, {required this.color, this.icon});
+  const _Eyebrow(
+    this.text, {
+    required this.color,
+    this.icon,
+    this.glyph,
+    this.onTap,
+    this.semanticLabel,
+  });
 
   final String text;
   final Color color;
 
-  /// An optional mark inside the chip — the phase's identity at a glance
-  /// (flame for warm-up, pause for rest, check for complete).
+  /// An optional mark inside the chip — the phase's identity at a glance.
   final IconData? icon;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.20)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            text.toUpperCase(),
-            style: AppText.meta.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              fontSize: 11.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+  /// A custom-painted mark, used where the handoff draws a filled glyph
+  /// rather than a stroked icon (rest's pause bars).
+  final Widget? glyph;
 
-/// The session's overall progress — springs to [value] from wherever it
-/// currently sits (rather than a fixed-duration tween restarting from 0 each
-/// time), so a set completing right after a previous spring settled doesn't
-/// visibly reset before re-animating. Tints toward the live track's accent
-/// when music is playing, so even the chrome breathes with the song.
-class _ProgressBar extends StatefulWidget {
-  const _ProgressBar({required this.value, this.accent});
+  /// Makes the pill a real control. The rest phase uses it to pause/resume:
+  /// the chip already wore a pause glyph, so anything less than an actual
+  /// button there was a lie.
+  final VoidCallback? onTap;
 
-  final double value;
-
-  /// The music ambience accent, or null (→ the pulse training hue).
-  final Color? accent;
-
-  @override
-  State<_ProgressBar> createState() => _ProgressBarState();
-}
-
-class _ProgressBarState extends State<_ProgressBar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    value: widget.value,
-  );
-
-  @override
-  void didUpdateWidget(covariant _ProgressBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value == widget.value) return;
-    if (reducedMotion(context)) {
-      _controller.value = widget.value;
-    } else {
-      _controller.springTo(widget.value);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    final tint = widget.accent == null
-        ? AppColors.pulse
-        : Color.lerp(AppColors.pulse, widget.accent, 0.55)!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) => LinearProgressIndicator(
-            value: _controller.value,
-            minHeight: 5,
-            backgroundColor: AppColors.hairline,
-            valueColor: AlwaysStoppedAnimation<Color>(tint),
-          ),
+    final chip = _chip();
+    if (onTap == null) return chip;
+    return PressableScale(
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap!();
+          },
+          child: chip,
         ),
       ),
     );
   }
-}
 
-/// The "time in workout" label — a small, tasteful clock + mm:ss just under
-/// the progress bar, visible in every phase while the session is active and
-/// frozen once it completes. Deliberately subtle; folded into the fuller
-/// redesign later.
-class _ElapsedLabel extends StatelessWidget {
-  const _ElapsedLabel({
-    required this.elapsed,
-    required this.isPaused,
-    required this.onTogglePause,
-    this.onBack,
-  });
-
-  final Duration elapsed;
-  final bool isPaused;
-
-  /// Null hides the pause/resume control entirely (once the session is
-  /// complete — nothing left to pause).
-  final VoidCallback? onTogglePause;
-
-  /// Walk back one set — shown once anything has been resolved, from any
-  /// phase, directly under the workout name.
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+  Widget _chip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (onBack != null) ...[
-            PressableScale(
-              child: Tooltip(
-                message: 'Back one set',
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onBack!();
-                  },
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceRaised,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: AppColors.hairline2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          AppIcons.back,
-                          size: 13,
-                          color: AppColors.ink2,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Back',
-                          style: AppText.meta.copyWith(
-                            color: AppColors.ink2,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
+          if (glyph != null) ...[glyph!, const SizedBox(width: 8)],
+          if (glyph == null && icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 8),
           ],
-          Icon(Icons.timer_outlined, size: 13, color: AppColors.ink3),
-          const SizedBox(width: 5),
           Text(
-            _formatElapsed(elapsed),
-            key: const Key('elapsed-timer'),
-            style: AppText.meta.copyWith(color: AppColors.ink3),
+            text.toUpperCase(),
+            style: TrainType.mono(
+              size: 10,
+              weight: FontWeight.w600,
+              tracking: 0.2,
+              color: color,
+            ),
           ),
-          if (isPaused) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.hairline2,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'PAUSED',
-                key: const Key('paused-badge'),
-                style: AppText.meta.copyWith(
-                  color: AppColors.ink2,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ),
-          ],
-          const Spacer(),
-          if (onTogglePause != null)
-            PressableScale(
-              child: InkWell(
-                key: const Key('pause-toggle'),
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onTogglePause!();
-                },
-                borderRadius: BorderRadius.circular(999),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isPaused
-                            ? Icons.play_arrow_rounded
-                            : Icons.pause_rounded,
-                        size: 16,
-                        color: isPaused ? AppColors.pulse : AppColors.ink3,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isPaused ? 'Resume' : 'Pause',
-                        style: AppText.meta.copyWith(
-                          color: isPaused ? AppColors.pulse : AppColors.ink3,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 }
 
-/// The Last-time + Goal card — the point of the running phase per the
-/// "genuinely smarter" pass. Redesigned as one scannable unit:
+/// The goal card — the hero of the logging screen.
 ///
-/// - a compact header row (GOAL eyebrow, cross-session verdict badge
-///   right-aligned where it reads as status, not content),
-/// - the computed goal as the hero number,
-/// - the progression engine's "why" as a single quiet line under it,
-/// - then LAST TIME / TARGET as two equal stat cells split by a hairline —
-///   replacing the stacked "Last time: …" / "Target: …" prose lines.
+/// One hero number per screen, and here it is **reps × weight**: reps at
+/// 62px, weight at 42px beside it, with the units always smaller and dimmer
+/// than the values they belong to. Both track the steppers live, so the card
+/// is always showing what you are about to log — it starts at the
+/// progression engine's suggestion (see [computeGoal], which seeds the
+/// steppers) and follows every edit from there.
 ///
-/// An elevated dark card (a plain hairline border plus [_cardGlow]'s
-/// restrained lift, music-accented when a track is live) so Goal reads as the
-/// dominant element through hierarchy. No animation beyond the shared
-/// entrance stagger.
+/// Under a hairline sit three supporting cells: what you did LAST TIME, the
+/// plan's TARGET RANGE, and the REST this exercise prescribes.
+///
+/// (The handoff's third cell is RPE. ZIVO has no RPE anywhere in the domain —
+/// no field, no capture, nothing to read — so rather than print a plausible
+/// fiction the cell carries rest, which is real, is the other number you act
+/// on between sets, and is otherwise buried in the plan.)
 class _GoalBlock extends StatelessWidget {
   const _GoalBlock({
     required this.lastTimeLabel,
     required this.goal,
+    required this.liveReps,
+    required this.liveWeight,
+    required this.restSeconds,
     this.targetText,
     this.comparison,
-    this.intraSessionDeltaLabel,
+    this.intraSessionDelta,
     this.previous,
     this.accent,
   });
 
-  /// Just the value ("30kg × 5", or "First time") — rendered inside the
+  /// Just the value ("5 × 30 kg", or "First time") — rendered inside the
   /// card's LAST TIME stat cell.
   final String lastTimeLabel;
   final ProgressionGoal goal;
+
+  /// The live stepper values, as typed. Empty renders as a dash.
+  final String liveReps;
+  final String liveWeight;
+
+  /// This exercise's prescribed rest, for the third stat cell.
+  final int restSeconds;
+
   final String? targetText;
 
   /// Today's in-progress verdict against [lastTimeLabel] (see
   /// [compareToLastTime]) — null whenever there's nothing real to compare
-  /// yet (first time ever, or no rep count typed in), in which case no
-  /// badge shows at all.
+  /// yet (first time ever, or no rep count typed in).
   final SetProgressComparison? comparison;
 
-  /// "+2.5kg from your previous set" — this session's own previous set in
-  /// the same exercise, distinct from [comparison]'s cross-session verdict.
-  /// Null when there's no previous set yet or nothing changed.
-  final String? intraSessionDeltaLabel;
+  /// How this set compares to this session's own previous set in the same
+  /// exercise, distinct from [comparison]'s cross-session verdict. Null only
+  /// on the first set, where there is nothing to compare against yet — see
+  /// [_intraSessionDeltaLabel] for why it is NOT also null when unchanged.
+  final ({String label, bool changed})? intraSessionDelta;
 
   /// The index-aligned set from last time — the "why" behind the goal's
-  /// suggestion is derived from it (weight stepped up because the rep target
-  /// was met, one more rep at the same weight, …).
+  /// suggestion is derived from it.
   final LoggedSet? previous;
 
   /// The live track's accent color (whole-screen ambience) — tints the
-  /// card's glow so the hero element breathes with the music too. Null when
-  /// nothing is playing; falls back to the pulse accent.
+  /// card's glow so the hero element breathes with the music too.
   final Color? accent;
+
+  /// The one caption under the weight: how what you're about to log compares
+  /// to the same set last time. Dim when matched, green when up, ember when
+  /// down — down is not a failure, but it IS the one worth noticing.
+  ///
+  /// Load leads when it moved (that's the decision you just made); otherwise
+  /// it falls back to [comparison]'s overall verdict, which folds reps in —
+  /// so "same weight, one more rep" still reads as progress rather than as
+  /// "matching last". This replaces the separate verdict badge the card used
+  /// to carry: one caption, one place to look.
+  (String, Color)? get _delta {
+    final prevWeight = previous?.actualWeightKg;
+    final current = double.tryParse(liveWeight.replaceAll(',', '.'));
+    if (prevWeight != null && current != null && current != prevWeight) {
+      final diff = current - prevWeight;
+      final magnitude = _trimWeight(diff.abs());
+      return diff > 0
+          ? ('↑ $magnitude KG VS LAST', TrainColors.green)
+          : ('↓ $magnitude KG VS LAST', TrainColors.ember);
+    }
+    final verdict = comparison;
+    if (verdict != null) {
+      final percent = verdict.overallChangePercent.round();
+      return switch (verdict.verdict) {
+        ProgressVerdict.progressing => (
+          '↑ $percent% VS LAST',
+          TrainColors.green,
+        ),
+        ProgressVerdict.down => (
+          '↓ ${percent.abs()}% VS LAST',
+          TrainColors.ember,
+        ),
+        ProgressVerdict.matched => ('MATCHING LAST', const Color(0x59F4F4F0)),
+      };
+    }
+    if (prevWeight != null && current != null) {
+      return ('MATCHING LAST', const Color(0x59F4F4F0));
+    }
+    return null;
+  }
+
+  /// The product the two factors make — the number progressive overload is
+  /// actually measured in, and the reason the card spells the goal out as a
+  /// multiplication rather than as two readouts that happen to sit together.
+  /// Null for body-weight work (no load to multiply by) or before anything
+  /// is typed.
+  String? get _volume {
+    final reps = int.tryParse(liveReps.trim());
+    final weight = double.tryParse(liveWeight.trim().replaceAll(',', '.'));
+    if (reps == null || weight == null || reps <= 0 || weight <= 0) return null;
+    return '${_trimWeight(reps * weight)} KG THIS SET';
+  }
 
   /// The one-line "why" under the goal — makes the progression engine's
   /// decision legible instead of a number appearing from nowhere.
@@ -2288,119 +2565,218 @@ class _GoalBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glowColor = accent ?? AppColors.pulse;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+    final glowColor = accent ?? TrainColors.green;
+    final delta = _delta;
+    return AnimatedContainer(
+      key: const Key('goal-card'),
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline2),
+        gradient: TrainColors.cardGradientTight,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: TrainColors.hairline),
         boxShadow: _cardGlow(glowColor),
       ),
+      // A +2.5 can add a whole row to this card (the intra-session delta
+      // chip, the "why" hint). Without this the card — and everything the
+      // Spacers position around it — jumped to its new height in one frame,
+      // which reads as the screen refreshing rather than as the number you
+      // just nudged.
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.flag_rounded, size: 14, color: AppColors.pulse),
-              const SizedBox(width: 6),
-              Text(
-                'GOAL',
-                style: AppText.meta.copyWith(
-                  color: AppColors.pulse,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const Spacer(),
-              if (comparison != null) _ProgressVerdictBadge(comparison: comparison!),
-            ],
+          TrainCaption(
+            'GOAL',
+            color: TrainColors.green.withValues(alpha: 0.85),
           ),
-          const SizedBox(height: AppSpacing.s + 4),
-          Text(
-            goal.label,
-            key: const Key('goal-label'),
-            style: AppText.heroNumber.copyWith(
-              fontSize: 40,
-              color: AppColors.ink,
-              fontWeight: FontWeight.w800,
-              height: 1.05,
+          const SizedBox(height: 14),
+          // ONE expression, read straight across: reps × weight. The two
+          // numbers used to sit at opposite ends of the card — reps far left,
+          // weight far right, nothing between them — which read as two
+          // unrelated readouts that happened to share a row rather than as
+          // the multiplication they are. `scaleDown` keeps a wide one
+          // ("15 REPS × 102.5 KG") on a single line instead of letting the
+          // operator wrap away from its operands.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                _RollingNumber(
+                  text: liveReps,
+                  whole: true,
+                  textKey: const Key('goal-reps'),
+                  style: TrainType.mono(
+                    size: 62,
+                    weight: FontWeight.w300,
+                    tracking: -0.06,
+                    height: 0.9,
+                    color: const Color(0xFFF9F9F5),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'REPS',
+                  style: TrainType.mono(
+                    size: 12,
+                    weight: FontWeight.w500,
+                    tracking: 0.14,
+                    color: const Color(0x59F4F4F0),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  child: Text(
+                    '×',
+                    style: TrainType.mono(
+                      size: 22,
+                      weight: FontWeight.w300,
+                      color: const Color(0x4DF4F4F0),
+                    ),
+                  ),
+                ),
+                _RollingNumber(
+                  text: liveWeight,
+                  textKey: const Key('goal-weight'),
+                  style: TrainType.mono(
+                    size: 42,
+                    weight: FontWeight.w300,
+                    tracking: -0.05,
+                    height: 0.9,
+                    color: const Color(0xFFF9F9F5),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'KG',
+                  style: TrainType.mono(
+                    size: 11,
+                    weight: FontWeight.w500,
+                    tracking: 0.14,
+                    color: const Color(0x59F4F4F0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Always rendered, even with nothing to put in it. Both halves come
+          // and go with what you type — the volume needs a load to multiply
+          // by, the verdict needs something to compare against — and letting
+          // the row itself appear and disappear resized the card the first
+          // time you entered a weight, which is the same "it moves under your
+          // thumb" problem the delta chip had. A fixed line costs 14px and
+          // makes the card one height for a given set, whatever you type.
+          SizedBox(
+            height: 14,
+            child: Row(
+              children: [
+                if (_volume != null)
+                  AnimatedStatValue(
+                    key: const Key('goal-volume'),
+                    value: _volume!,
+                    style: TrainType.mono(
+                      size: 9.5,
+                      weight: FontWeight.w500,
+                      tracking: 0.12,
+                      color: const Color(0x66F4F4F0),
+                    ),
+                  ),
+                const Spacer(),
+                if (delta != null)
+                  AnimatedStatValue(
+                    value: delta.$1,
+                    style: TrainType.mono(
+                      size: 9.5,
+                      weight: FontWeight.w500,
+                      tracking: 0.1,
+                      color: delta.$2,
+                    ),
+                  ),
+              ],
             ),
           ),
           if (_hint != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(AppIcons.trendUp, size: 13, color: AppColors.pulse),
-                const SizedBox(width: 5),
+                const Icon(
+                  AppIcons.trendUp,
+                  size: 12,
+                  color: TrainColors.green,
+                ),
+                const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     _hint!,
-                    style: AppText.meta.copyWith(
-                      color: AppColors.pulse,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                    style: TrainType.ui(
+                      size: 11.5,
+                      weight: FontWeight.w600,
+                      height: 1.2,
+                      color: TrainColors.green.withValues(alpha: 0.85),
                     ),
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: AppSpacing.m + 4),
-          Container(height: 1, color: AppColors.hairline),
-          const SizedBox(height: AppSpacing.m + 2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _GoalStatCell(
-                  label: 'LAST TIME',
-                  value: lastTimeLabel,
-                  valueKey: const Key('last-time-label'),
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 34,
-                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-                color: AppColors.hairline2,
-              ),
-              Expanded(
-                child: _GoalStatCell(
-                  label: 'TARGET',
-                  value: targetText ?? '—',
-                  valueKey: const Key('target-label'),
-                  accent: AppColors.pulse,
-                ),
-              ),
-            ],
+          Container(
+            height: 1,
+            margin: const EdgeInsets.fromLTRB(0, 18, 0, 14),
+            color: const Color(0x14FFFFFF),
           ),
-          if (intraSessionDeltaLabel != null) ...[
-            const SizedBox(height: AppSpacing.m),
-            Container(
-              key: const Key('intra-session-delta'),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.emberWash,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.bolt_rounded, size: 13, color: AppColors.ember),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      intraSessionDeltaLabel!,
-                      style: AppText.meta.copyWith(
-                        color: AppColors.ember,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _GoalStatCell(
+                    label: 'LAST TIME',
+                    value: lastTimeLabel,
+                    valueKey: const Key('last-time-label'),
                   ),
-                ],
-              ),
+                ),
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Color(0x14FFFFFF),
+                ),
+                Expanded(
+                  child: _GoalStatCell(
+                    label: 'TARGET RANGE',
+                    value: targetText ?? '—',
+                    valueKey: const Key('target-label'),
+                    accent: TrainColors.green,
+                    inset: true,
+                  ),
+                ),
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Color(0x14FFFFFF),
+                ),
+                Expanded(
+                  child: _GoalStatCell(
+                    label: 'REST',
+                    value: _formatRest(restSeconds),
+                    valueKey: const Key('rest-label'),
+                    inset: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (intraSessionDelta != null) ...[
+            const SizedBox(height: AppSpacing.m),
+            _IntraSessionChip(
+              key: const Key('intra-session-delta'),
+              delta: intraSessionDelta!,
             ),
           ],
         ],
@@ -2409,14 +2785,178 @@ class _GoalBlock extends StatelessWidget {
   }
 }
 
+/// "+2.5kg from your previous set" — how this set compares to your own
+/// previous one today.
+///
+/// Present for every set after the first, changed or not (see
+/// [_intraSessionDeltaLabel]), so the goal card holds one height while you
+/// step the weight. Only its colour and copy move: ember with a bolt when
+/// you've actually changed something, quiet neutral when you're repeating the
+/// load — the accent has to mean "this is different", or it stops meaning
+/// anything.
+class _IntraSessionChip extends StatelessWidget {
+  const _IntraSessionChip({required this.delta, super.key});
+
+  final ({String label, bool changed}) delta;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = delta.changed ? TrainColors.ember : TrainColors.ink3;
+    return AnimatedContainer(
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: delta.changed
+            ? TrainColors.ember.withValues(alpha: 0.12)
+            : TrainColors.glass,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            delta.changed ? Icons.bolt_rounded : Icons.remove_rounded,
+            size: 13,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              delta.label,
+              style: TrainType.ui(
+                size: 11.5,
+                weight: FontWeight.w700,
+                height: 1.2,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One of the goal card's two hero numerals, **rolled** to its new value
+/// rather than replaced.
+///
+/// These mirror the steppers live, and a stepper is the one place a
+/// cross-fade is the wrong motion: you pressed +2.5, so the number should
+/// travel the 2.5 rather than dissolve into a different one. Tapping used to
+/// repaint it in a single frame, which read as the screen refreshing instead
+/// of as the value you just changed.
+///
+/// Falls back to a plain [Text] whenever there is nothing numeric to
+/// interpolate — an empty field mid-edit, or a body-weight set with no load —
+/// and under reduced motion.
+class _RollingNumber extends StatelessWidget {
+  const _RollingNumber({
+    required this.text,
+    required this.style,
+    required this.textKey,
+    this.whole = false,
+  });
+
+  /// The raw stepper text, exactly as typed.
+  final String text;
+  final TextStyle style;
+
+  /// Kept on the rendered [Text] itself so the card's two numerals stay
+  /// addressable (`goal-reps` / `goal-weight`) mid-roll.
+  final Key textKey;
+
+  /// Reps are counted, not measured — rounded every frame so the roll never
+  /// shows "9.4 REPS". Weight keeps [_trimWeight]'s single decimal.
+  final bool whole;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = double.tryParse(text.trim().replaceAll(',', '.'));
+    if (value == null || reducedMotion(context)) {
+      return Text(text.isEmpty ? '—' : text, key: textKey, style: style);
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: value),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) => Text(
+        whole ? v.round().toString() : _trimWeight(v),
+        key: textKey,
+        style: style,
+      ),
+    );
+  }
+}
+
+/// Dissolves the last stretch of a scroll area instead of letting the
+/// content be cut by a hard line where the floating commit row begins.
+///
+/// [reserved] is how much of the bottom the row occupies; content is fully
+/// transparent below that line and fades into it over [fade] above it. Uses
+/// `dstIn` so the content fades to *transparent*, not to a guessed colour —
+/// the screen behind it is a live radial wash that shifts with the phase and
+/// the current track, and no fixed scrim colour could sit on it invisibly.
+class _FadeOutBottom extends StatelessWidget {
+  const _FadeOutBottom({required this.child, required this.reserved});
+
+  final Widget child;
+  final double reserved;
+
+  /// How far above [reserved] the dissolve starts.
+  static const fade = 26.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) {
+        final height = rect.height;
+        if (height <= reserved + fade) {
+          // Too short to fade anything without eating the content itself.
+          return const LinearGradient(
+            colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
+          ).createShader(rect);
+        }
+        final end = 1 - reserved / height;
+        final start = end - fade / height;
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: const [
+            Color(0xFFFFFFFF),
+            Color(0xFFFFFFFF),
+            Color(0x00FFFFFF),
+            Color(0x00FFFFFF),
+          ],
+          stops: [0, start, end, 1],
+        ).createShader(rect);
+      },
+      child: child,
+    );
+  }
+}
+
+/// "2:00" / "45s" — a rest window at a glance.
+String _formatRest(int seconds) {
+  if (seconds <= 0) return '—';
+  if (seconds < 60) return '${seconds}s';
+  final minutes = seconds ~/ 60;
+  final rest = seconds % 60;
+  return '$minutes:${rest.toString().padLeft(2, '0')}';
+}
+
 /// One labelled value cell in the goal card's stat strip — the quiet
-/// supporting numbers under the hero goal.
+/// supporting numbers under the hero.
 class _GoalStatCell extends StatelessWidget {
   const _GoalStatCell({
     required this.label,
     required this.value,
     this.valueKey,
     this.accent,
+    this.inset = false,
   });
 
   final String label;
@@ -2426,68 +2966,156 @@ class _GoalStatCell extends StatelessWidget {
   /// Tints the VALUE when this cell is the "pointing forward" one (TARGET).
   final Color? accent;
 
+  /// Cells after the first sit off their divider.
+  final bool inset;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppText.meta.copyWith(
-            color: AppColors.ink3,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
+    return Padding(
+      padding: EdgeInsets.only(left: inset ? 16 : 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TrainType.mono(
+              size: 8.5,
+              weight: FontWeight.w500,
+              tracking: 0.16,
+              color: const Color(0x52F4F4F0),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          key: valueKey,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.rowTitle.copyWith(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: accent ?? AppColors.ink2,
+          const SizedBox(height: 8),
+          Text(
+            value,
+            key: valueKey,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TrainType.ui(
+              size: 13,
+              weight: FontWeight.w600,
+              height: 1,
+              color: accent ?? TrainColors.inkPlain,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// A quiet pill for the exercise's muscle group — beside the hero title
-/// rather than a bare line under it.
-class _MuscleGroupPill extends StatelessWidget {
-  const _MuscleGroupPill({required this.label});
+/// What's waiting on the other side of the rest — the exercise and the exact
+/// numbers to hit, so the countdown ends with you already knowing what to do
+/// rather than reading the next screen cold.
+class _UpNextCard extends StatelessWidget {
+  const _UpNextCard({
+    required this.exercise,
+    required this.set,
+    this.label = 'UP NEXT',
+  });
 
+  final SessionExercise? exercise;
+  final LoggedSet? set;
+
+  /// 'UP NEXT' during rest, 'FIRST UP' during the warm-up — the same card
+  /// answering the same question at two different points in the session.
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.hairline2),
-      ),
-      child: Text(
-        label,
-        style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 12),
+    final exercise = this.exercise;
+    final set = this.set;
+    if (exercise == null || set == null) {
+      // Everything's resolved — rest is the last thing between here and the
+      // summary.
+      return TrainCard(
+        radius: 20,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        gradient: TrainColors.cardGradient,
+        child: Row(
+          children: [
+            TrainCaption(label),
+            const Spacer(),
+            Text(
+              'Finish',
+              style: TrainType.ui(
+                size: 16,
+                weight: FontWeight.w700,
+                color: TrainColors.inkPlain,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final workingIndex = workingSetIndexOf(exercise, set);
+    final reps = repTargetLabel(set.target);
+    final weight = set.targetWeightKg;
+    return TrainCard(
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      gradient: TrainColors.cardGradient,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TrainCaption(label),
+                const SizedBox(height: 9),
+                Text(
+                  exercise.muscleGroup == null
+                      ? exercise.name
+                      : '${exercise.name} · ${exercise.muscleGroup}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.ui(
+                    size: 16,
+                    weight: FontWeight.w700,
+                    height: 1.2,
+                    color: TrainColors.inkPlain,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                weight == null ? reps : '$reps × ${_trimWeight(weight)}',
+                style: TrainType.mono(size: 20, color: TrainColors.ink),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'SET ${workingIndex + 1}${weight == null ? '' : ' · KG'}',
+                style: TrainType.mono(
+                  size: 8.5,
+                  weight: FontWeight.w500,
+                  tracking: 0.14,
+                  color: const Color(0x52F4F4F0),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// The workout's now-playing companion, pinned to the top-of-logging slot
-/// (`StaggeredReveal(index: 0)`) — renders on every working set, so unlike
-/// [_RestPhase] it never degrades to nothing: connected+playing shows
-/// [_NowPlayingCard], anything else (disconnected, connecting, nothing
-/// loaded) shows [_ConnectMusicChip]. That keeps "don't hide music
-/// mid-workout" true without nagging elsewhere — the rest-phase slot below
-/// keeps the old graceful degrade instead.
+/// The workout's now-playing companion.
+///
+/// Renders the handoff's text-first [SpotifyStrip] at the density the host
+/// phase asks for — one line while logging, a two-line one with full
+/// transport during rest. When nothing is playable it degrades to
+/// [_ConnectMusicChip] (logging) or to nothing at all (rest, which is
+/// Spacer-balanced around the ring and shouldn't nag).
 ///
 /// "Change the song" here is next/previous only (`MusicController.next`/
 /// `previous`, wired to App Remote's `skipNext`/`skipPrevious`) — there's no
@@ -2495,9 +3123,27 @@ class _MuscleGroupPill extends StatelessWidget {
 /// without building real Web API search UI, which is a materially bigger
 /// feature than this pass.
 class _SessionNowPlaying extends StatelessWidget {
-  const _SessionNowPlaying({required this.controller});
+  const _SessionNowPlaying({
+    required this.controller,
+    required this.density,
+    this.connectFallback = true,
+    this.accent,
+  });
 
   final MusicController controller;
+  final SpotifyStripDensity density;
+
+  /// False during rest, where an empty slot beats a connect prompt.
+  final bool connectFallback;
+
+  /// The current track's foreground colour (`SessionAmbience.vividOf`) —
+  /// what makes the strip's own play/pause and skip controls follow the song
+  /// along with the rest of the screen.
+  final Color? accent;
+
+  Widget get _empty => connectFallback
+      ? _ConnectMusicChip(controller: controller)
+      : const SizedBox.shrink();
 
   @override
   Widget build(BuildContext context) {
@@ -2505,71 +3151,24 @@ class _SessionNowPlaying extends StatelessWidget {
       stream: controller.connection,
       initialData: controller.currentConnection,
       builder: (context, connSnap) {
-        if (connSnap.data != MusicConnection.connected) {
-          return _ConnectMusicChip(controller: controller);
-        }
+        if (connSnap.data != MusicConnection.connected) return _empty;
         return StreamBuilder<NowPlaying?>(
           stream: controller.nowPlaying,
           initialData: controller.currentNowPlaying,
           builder: (context, nowSnap) {
             final playing = nowSnap.data;
-            if (playing == null) {
-              return _ConnectMusicChip(controller: controller);
-            }
-            return _NowPlayingCard(controller: controller, playing: playing);
-          },
-        );
-      },
-    );
-  }
-}
-
-/// Composes [ring] with [_NowPlayingCard] as one cohesive unit — song on
-/// top, rest ring below — whenever [controller] is connected and something's
-/// loaded. Falls back to exactly `Center(child: ring)` otherwise (no
-/// controller, disconnected, or nothing playing), so a rest phase with no
-/// music present is pixel-identical to before this existed — never an empty
-/// gap where the song card would have been, and never a connect chip
-/// (unlike [_SessionNowPlaying]'s slot, this screen is Spacer-balanced
-/// around the ring).
-class _RestPhase extends StatelessWidget {
-  const _RestPhase({required this.ring, required this.controller});
-
-  final Widget ring;
-  final MusicController? controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final music = controller;
-    if (music == null) return Center(child: ring);
-    return StreamBuilder<MusicConnection>(
-      stream: music.connection,
-      initialData: music.currentConnection,
-      builder: (context, connSnap) {
-        // Rest is the right place for music — hands are free, attention is.
-        // Disconnected: one calm invite (never a nag — it vanishes once
-        // connected). Connected: the now-playing card rides above the ring.
-        if (connSnap.data != MusicConnection.connected) {
-          return Column(
-            children: [
-              _ConnectMusicChip(controller: music),
-              const SizedBox(height: 18),
-              Center(child: ring),
-            ],
-          );
-        }
-        return StreamBuilder<NowPlaying?>(
-          stream: music.nowPlaying,
-          initialData: music.currentNowPlaying,
-          builder: (context, nowSnap) {
-            final playing = nowSnap.data;
-            if (playing == null) return Center(child: ring);
-            return Column(
-              children: [
-                _NowPlayingCard(controller: music, playing: playing),
-                const SizedBox(height: 16),
-                Center(child: ring),
-              ],
+            if (playing == null) return _empty;
+            return SpotifyStrip(
+              controller: controller,
+              playing: playing,
+              density: density,
+              accent: accent,
+              onOpen: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MusicPlayerPage(controller: controller),
+                  fullscreenDialog: true,
+                ),
+              ),
             );
           },
         );
@@ -2578,165 +3177,13 @@ class _RestPhase extends StatelessWidget {
   }
 }
 
-/// The actual now-playing card — shared by [_SessionNowPlaying] (standalone,
-/// top of the running screen) and [_RestPhase] (composed above the rest
-/// ring). The card itself (everything but the prev/pause/next buttons,
-/// which keep their own taps via their own `InkWell`) opens
-/// [MusicPlayerPage] — nested `InkWell`s resolve taps to whichever one sits
-/// directly under the finger, so no manual hit-test carve-out is needed.
-///
-/// Adaptive, Spotify-style: the card's tint comes from the shared
-/// [SessionAmbience] accent (extracted from the track's artwork once per
-/// track for the WHOLE session surface), so this card and the background/
-/// progress bar/ring all share one identity per song — falling back to the
-/// neutral raised surface until artwork resolves.
-class _NowPlayingCard extends StatelessWidget {
-  const _NowPlayingCard({required this.controller, required this.playing});
-
-  final MusicController controller;
-  final NowPlaying playing;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = SessionAmbience.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        HapticFeedback.selectionClick();
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => MusicPlayerPage(controller: controller),
-            fullscreenDialog: true,
-          ),
-        );
-      },
-      child: AnimatedContainer(
-        duration: reducedMotion(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 360),
-        curve: Curves.easeOut,
-        width: double.infinity,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: accent == null
-              ? AppColors.surfaceRaised
-              // The track's own color, pulled most of the way to the
-              // card's brightness — identity without glare.
-              : Color.lerp(AppColors.surfaceRaised, accent, 0.65),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: (accent ?? AppColors.pulse).withValues(alpha: 0.22),
-          ),
-          boxShadow: accent == null
-              ? null
-              : [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.35),
-                    blurRadius: 22,
-                    spreadRadius: -6,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-        ),
-        child: Row(
-          children: [
-            MusicArtwork(
-              bytes: playing.artworkBytes,
-              url: playing.artworkUrl,
-              size: 40,
-              iconSize: 18,
-              borderRadius: 10,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    playing.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.rowTitle.copyWith(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  Text(
-                    playing.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.meta.copyWith(
-                      fontSize: 11.5,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _MusicIconButton(
-              icon: Icons.skip_previous_rounded,
-              onTap: controller.previous,
-            ),
-            _MusicIconButton(
-              icon: playing.isPaused
-                  ? Icons.play_arrow_rounded
-                  : Icons.pause_rounded,
-              onTap: () => playing.isPaused
-                  ? controller.play()
-                  : controller.pause(),
-              primary: true,
-            ),
-            _MusicIconButton(
-              icon: Icons.skip_next_rounded,
-              onTap: controller.next,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One prev/play-pause/next control in [_NowPlayingCard] — deliberately
-/// small (this card is a companion, not the primary content) but still a
-/// real tap target via [IconButton]'s built-in min-size.
-class _MusicIconButton extends StatelessWidget {
-  const _MusicIconButton({
-    required this.icon,
-    required this.onTap,
-    this.primary = false,
-  });
-
-  final IconData icon;
-  final Future<void> Function() onTap;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: IconButton(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        icon: Icon(icon, size: primary ? 22 : 18),
-        color: primary ? AppColors.pulse : AppColors.ink2,
-        splashRadius: 18,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      ),
-    );
-  }
-}
-
-/// The logging slot's fallback when there's no [_NowPlayingCard] to show
-/// (disconnected, connecting, or connected with nothing loaded) — a small
-/// always-reachable way into [MusicPlayerPage]'s connect flow, so this slot
-/// never goes fully blank the way [_RestPhase] does. Generic Lucide glyph,
-/// deliberately no brand mark here — the Spotify logo appears in exactly
-/// one place (Settings' MUSIC row).
+/// The logging slot's fallback when there's no track to show (disconnected,
+/// connecting, or connected with nothing loaded) — a small always-reachable
+/// way into [MusicPlayerPage]'s connect flow, so the slot never goes fully
+/// blank the way rest's does. Generic glyph, no brand mark: the Spotify logo
+/// marks a track that is genuinely playing FROM Spotify (the strips' artwork
+/// tile, the player's source badge), and stamping it on a dead slot would
+/// claim a connection that isn't there.
 class _ConnectMusicChip extends StatelessWidget {
   const _ConnectMusicChip({required this.controller});
 
@@ -2746,7 +3193,7 @@ class _ConnectMusicChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: InkWell(
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.selectionClick();
           Navigator.of(context).push(
@@ -2757,20 +3204,24 @@ class _ConnectMusicChip extends StatelessWidget {
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           decoration: BoxDecoration(
-            color: AppColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.hairline2),
+            color: const Color(0x08FFFFFF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0x0FFFFFFF)),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(AppIcons.music, size: 14, color: AppColors.ink2),
-              const SizedBox(width: 6),
+              const Icon(AppIcons.music, size: 14, color: Color(0x66F4F4F0)),
+              const SizedBox(width: 10),
               Text(
-                'Connect Music',
-                style: AppText.meta.copyWith(color: AppColors.ink2),
+                'CONNECT MUSIC',
+                style: TrainType.mono(
+                  size: 9,
+                  weight: FontWeight.w500,
+                  tracking: 0.16,
+                  color: const Color(0x66F4F4F0),
+                ),
               ),
             ],
           ),
@@ -2780,53 +3231,6 @@ class _ConnectMusicChip extends StatelessWidget {
   }
 }
 
-class _RestAdjustButton extends StatelessWidget {
-  const _RestAdjustButton({required this.label, required this.onTap});
-
-  /// The signed adjustment itself ("-15s" / "+15s") — the sign lives in the
-  /// label and nowhere else. The previous icon-plus-label pairing rendered
-  /// as "＋ +15s", a doubled sign that read as a rendering bug; one clean
-  /// signed pill per direction is the whole control.
-  final String label;
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceRaised.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.hairline2, width: 1.2),
-          ),
-          child: Text(
-            label,
-            style: AppText.button.copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The bottom action zone as one coherent unit rather than floating
-/// buttons: a hairline top border separates it from the content above,
-/// [onBack] (only when there's something to walk back to) sits centered
-/// above the primary row, and Skip/Done keep their established hierarchy —
-/// Skip small and muted, Done unmistakably primary.
 class _ActionCluster extends StatelessWidget {
   const _ActionCluster({required this.onSkip, required this.onDone});
 
@@ -2835,43 +3239,41 @@ class _ActionCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(top: AppSpacing.m),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.hairline2)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              // Deliberately smaller and visually muted next to Done — Skip
-              // is the exception path, Done is the expected one; an
-              // accidental tap should default toward the common case.
-              Expanded(
-                child: PillButton(
-                  label: 'Skip',
-                  icon: Icons.skip_next_rounded,
-                  color: AppColors.surfaceRaised,
-                  textColor: AppColors.ink2,
-                  enabled: true,
-                  onTap: onSkip,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s),
-              Expanded(
-                flex: 2,
-                child: PillButton(
-                  label: 'Done',
-                  icon: Icons.check_rounded,
-                  enabled: true,
-                  onTap: onDone,
-                ),
-              ),
-            ],
+    return Row(
+      children: [
+        // Deliberately fixed-width and muted next to Log set — Skip is the
+        // exception path, logging is the expected one, and an accidental tap
+        // should default toward the common case.
+        SizedBox(
+          width: 112,
+          height: 60,
+          child: TrainGhostButton(
+            key: const Key('skip-set'),
+            label: 'Skip',
+            mono: false,
+            height: 60,
+            icon: const TrainPlayGlyph(
+              color: Color(0x99F4F4F0),
+              size: 11,
+              bar: true,
+            ),
+            onTap: onSkip,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: TrainPrimaryButton(
+            key: const Key('log-set'),
+            label: 'Log set',
+            icon: const Icon(
+              Icons.check_rounded,
+              size: 19,
+              color: Colors.white,
+            ),
+            onTap: onDone,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2947,25 +3349,27 @@ class _StepperFieldState extends State<_StepperField>
     // One bordered pill housing minus/value/plus — a single tactile unit
     // with hairline dividers marking its three regions, rather than three
     // separate floating chips with gaps between them.
-    final radius = BorderRadius.circular(AppRadius.chip + 6);
+    final radius = BorderRadius.circular(16);
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             widget.label.toUpperCase(),
-            style: AppText.meta.copyWith(
-              color: AppColors.ink3,
-              letterSpacing: 0.6,
+            style: TrainType.mono(
+              size: 8.5,
+              weight: FontWeight.w500,
+              tracking: 0.16,
+              color: const Color(0x52F4F4F0),
             ),
           ),
-          const SizedBox(height: AppSpacing.s),
+          const SizedBox(height: 8),
           Container(
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.glassSoft,
               borderRadius: radius,
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: const Color(0x14FFFFFF)),
             ),
             child: ClipRRect(
               borderRadius: radius,
@@ -2975,7 +3379,7 @@ class _StepperFieldState extends State<_StepperField>
                     icon: Icons.remove_rounded,
                     onTap: () => _step(-widget.step),
                   ),
-                  Container(width: 1, color: AppColors.hairline2),
+                  Container(width: 1, color: TrainColors.hairlineStrong),
                   Expanded(
                     child: AnimatedBuilder(
                       animation: _punch,
@@ -2990,18 +3394,15 @@ class _StepperFieldState extends State<_StepperField>
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                         ],
-                        cursorColor: AppColors.ember,
-                        style: AppText.rowTitle.copyWith(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
+                        cursorColor: TrainColors.ember,
+                        style: TrainType.mono(size: 20, color: TrainColors.ink),
                         onChanged: (_) => widget.onChanged(),
                         decoration: InputDecoration(
                           isDense: true,
                           hintText: widget.hint,
-                          hintStyle: AppText.rowTitle.copyWith(
-                            color: AppColors.ink3,
+                          hintStyle: TrainType.mono(
+                            size: 20,
+                            color: const Color(0x59F4F4F0),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 14,
@@ -3014,7 +3415,7 @@ class _StepperFieldState extends State<_StepperField>
                       ),
                     ),
                   ),
-                  Container(width: 1, color: AppColors.hairline2),
+                  Container(width: 1, color: TrainColors.hairlineStrong),
                   _StepButton(
                     icon: Icons.add_rounded,
                     onTap: () => _step(widget.step),
@@ -3091,20 +3492,22 @@ class _QuickWeightChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            color: primary ? AppColors.pulseWash : Colors.transparent,
+            color: primary
+                ? TrainColors.green.withValues(alpha: 0.08)
+                : TrainColors.glassSoft,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: primary
-                  ? AppColors.pulse.withValues(alpha: 0.35)
-                  : AppColors.hairline2,
+                  ? TrainColors.green.withValues(alpha: 0.30)
+                  : const Color(0x14FFFFFF),
             ),
           ),
           child: Text(
             label,
-            style: AppText.meta.copyWith(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: primary ? AppColors.pulseText : AppColors.ink2,
+            style: TrainType.mono(
+              size: 11.5,
+              weight: FontWeight.w500,
+              color: primary ? TrainColors.green : const Color(0x99F4F4F0),
             ),
           ),
         ),
@@ -3130,12 +3533,12 @@ class _StepButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          splashColor: AppColors.ember.withValues(alpha: 0.18),
-          highlightColor: AppColors.ember.withValues(alpha: 0.10),
+          splashColor: TrainColors.ember.withValues(alpha: 0.18),
+          highlightColor: TrainColors.ember.withValues(alpha: 0.10),
           child: SizedBox(
             width: 46,
             height: 52,
-            child: Center(child: Icon(icon, size: 18, color: AppColors.ink2)),
+            child: Center(child: Icon(icon, size: 18, color: TrainColors.ink2)),
           ),
         ),
       ),
@@ -3230,41 +3633,109 @@ class _ProgressVerdictBadgeState extends State<_ProgressVerdictBadge>
 
 enum _ChipState { done, current, upcoming }
 
-/// The current exercise's sets as a row of chips — Pulse green filled +
-/// checkmark for done, a pulsing Ember disc for the current set, and a warm
-/// gray outline for what's still upcoming.
+/// The exercise's sets as a row of value chips.
+///
+/// Each chip carries its own numbers, not just a position: the current one
+/// mirrors the steppers live (ember tint, ember border), a finished one shows
+/// what was actually logged in green, and one still ahead shows `— × —`. So
+/// the row answers "what have I done on this exercise so far" at a glance,
+/// which a row of numbered dots never could.
 class _SetChipRow extends StatelessWidget {
-  const _SetChipRow({required this.exercise, required this.currentSetId});
+  const _SetChipRow({
+    required this.exercise,
+    required this.currentSetId,
+    required this.liveReps,
+    required this.liveWeight,
+  });
 
   final SessionExercise exercise;
   final String currentSetId;
 
+  /// The steppers' live values, echoed into the current chip.
+  final String liveReps;
+  final String liveWeight;
+
+  /// Past four, equal-width chips get too narrow for "12 × 42.5", so the row
+  /// scrolls instead of squeezing.
+  static const _maxInlineChips = 4;
+
+  String _labelFor(LoggedSet set, _ChipState state) {
+    if (state == _ChipState.current) {
+      if (liveReps.isEmpty && liveWeight.isEmpty) return '— × —';
+      return '${liveReps.isEmpty ? '—' : liveReps} × '
+          '${liveWeight.isEmpty ? '—' : liveWeight}';
+    }
+    if (state == _ChipState.done) {
+      final reps = set.actualReps;
+      final weight = set.actualWeightKg;
+      if (reps == null) return 'SKIPPED';
+      return '$reps × ${weight == null ? '—' : _trimWeight(weight)}';
+    }
+    return '— × —';
+  }
+
   @override
   Widget build(BuildContext context) {
-    var workingNumber = 0;
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        for (final s in exercise.sets)
-          _SetChip(
-            number: ++workingNumber,
-            state: s.done
-                ? _ChipState.done
-                : s.id == currentSetId
-                ? _ChipState.current
-                : _ChipState.upcoming,
-          ),
-      ],
+    var number = 0;
+    final chips = <Widget>[];
+    for (final s in exercise.sets) {
+      number++;
+      final state = s.done
+          ? _ChipState.done
+          : s.id == currentSetId
+          ? _ChipState.current
+          : _ChipState.upcoming;
+      chips.add(
+        _SetChip(
+          // The key carries both the position and the state, so a test can
+          // assert *which* set is current without coupling to the chip's copy
+          // — the coupling that left this screen's suite stale after the
+          // redesign renamed "Set 1 of 2" into this row.
+          key: Key('set-chip-$number-${state.name}'),
+          number: number,
+          state: state,
+          label: _labelFor(s, state),
+        ),
+      );
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    if (chips.length <= _maxInlineChips) {
+      return Row(
+        children: [
+          for (final (i, chip) in chips.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: chip),
+          ],
+        ],
+      );
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (final (i, chip) in chips.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            SizedBox(width: 104, child: chip),
+          ],
+        ],
+      ),
     );
   }
 }
 
 class _SetChip extends StatefulWidget {
-  const _SetChip({required this.number, required this.state});
+  const _SetChip({
+    required this.number,
+    required this.state,
+    required this.label,
+    super.key,
+  });
 
   final int number;
   final _ChipState state;
+  final String label;
 
   @override
   State<_SetChip> createState() => _SetChipState();
@@ -3274,27 +3745,20 @@ class _SetChipState extends State<_SetChip>
     with SingleTickerProviderStateMixin {
   late final AnimationController _scale = AnimationController(
     vsync: this,
-    value: _targetScale(widget.state),
+    value: 1,
   );
-
-  double _targetScale(_ChipState state) =>
-      state == _ChipState.current ? 1.1 : 1.0;
 
   @override
   void didUpdateWidget(covariant _SetChip oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state == widget.state) return;
-    final target = _targetScale(widget.state);
-    if (reducedMotion(context)) {
-      _scale.value = target;
-      return;
-    }
+    if (reducedMotion(context)) return;
     // A set completing is the one momentum moment here — a set going
     // current/upcoming just settles, no overshoot earned.
-    final spring = widget.state == _ChipState.done
-        ? AppSprings.bounce
-        : AppSprings.standard;
-    _scale.springTo(target, spring: spring);
+    if (widget.state == _ChipState.done) {
+      _scale.value = 0.94;
+      _scale.springTo(1, spring: AppSprings.bounce);
+    }
   }
 
   @override
@@ -3303,67 +3767,81 @@ class _SetChipState extends State<_SetChip>
     super.dispose();
   }
 
+  ({Color fill, Color border, Color label, Color value}) get _tone =>
+      switch (widget.state) {
+        _ChipState.done => (
+          fill: TrainColors.green.withValues(alpha: 0.10),
+          border: TrainColors.green.withValues(alpha: 0.30),
+          label: TrainColors.green.withValues(alpha: 0.85),
+          value: TrainColors.inkPlain,
+        ),
+        _ChipState.current => (
+          fill: TrainColors.ember.withValues(alpha: 0.12),
+          border: TrainColors.ember.withValues(alpha: 0.35),
+          label: const Color(0xE6FFA87C),
+          value: Colors.white,
+        ),
+        _ChipState.upcoming => (
+          fill: TrainColors.glassSoft,
+          border: TrainColors.hairline,
+          label: const Color(0x59F4F4F0),
+          value: const Color(0x66F4F4F0),
+        ),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final state = widget.state;
-    final dot = AnimatedContainer(
+    final tone = _tone;
+    final chip = AnimatedContainer(
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOut,
-      width: 38,
-      height: 38,
-      alignment: Alignment.center,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: switch (state) {
-          _ChipState.done => const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2BD99B), AppColors.pulse],
-          ),
-          _ChipState.current => const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFF7A45), AppColors.ember],
-          ),
-          _ChipState.upcoming => null,
-        },
-        color: state == _ChipState.upcoming ? Colors.transparent : null,
-        border: state == _ChipState.upcoming
-            ? Border.all(color: AppColors.hairline2, width: 1.4)
-            : null,
-        boxShadow: state == _ChipState.done
-            ? [
-                BoxShadow(
-                  color: AppColors.pulse.withValues(alpha: 0.30),
-                  blurRadius: 12,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+        color: tone.fill,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tone.border),
       ),
-      child: state == _ChipState.done
-          ? const Icon(AppIcons.check, size: 18, color: Colors.white)
-          : Text(
-              '${widget.number}',
-              style: AppText.meta.copyWith(
-                color: state == _ChipState.current
-                    ? Colors.white
-                    : AppColors.ink3,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'SET ${widget.number}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TrainType.mono(
+                    size: 8.5,
+                    weight: FontWeight.w500,
+                    tracking: 0.14,
+                    color: tone.label,
+                  ),
+                ),
               ),
-            ),
+              if (widget.state == _ChipState.done) ...[
+                const SizedBox(width: 5),
+                const Icon(AppIcons.check, size: 10, color: TrainColors.green),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TrainType.mono(size: 14, color: tone.value),
+          ),
+        ],
+      ),
     );
-    final popped = AnimatedBuilder(
+    return AnimatedBuilder(
       animation: _scale,
       builder: (context, child) =>
           Transform.scale(scale: _scale.value, child: child),
-      child: dot,
+      child: chip,
     );
-    return state == _ChipState.current
-        ? _PulsingGlow(color: AppColors.ember, child: popped)
-        : popped;
   }
 }
 
@@ -3433,6 +3911,9 @@ class _RestRing extends StatefulWidget {
     required this.total,
     this.animate = true,
     this.accent,
+    this.hue = TrainColors.green,
+    this.onTap,
+    this.isPaused = false,
   });
 
   final Duration remaining;
@@ -3443,9 +3924,25 @@ class _RestRing extends StatefulWidget {
   /// read as "the pause button doesn't work").
   final bool animate;
 
-  /// The live track's ambience accent — tints the sweep so the countdown
-  /// shares the song's identity. Null → the neutral warm-ivory sweep.
+  /// The live track's colour, foreground-normalised
+  /// (`SessionAmbience.vividOf`) — tints the sweep so the countdown carries
+  /// the song's identity. Deliberately NOT the ambient accent: that one is
+  /// pulled most of the way to the background on purpose, so blending the
+  /// arc into it would read as the ring dimming, not as the ring changing
+  /// colour. Null → the phase's own [hue].
   final Color? accent;
+
+  /// The phase's colour: green while resting, ember during the warm-up.
+  final Color hue;
+
+  /// Pause/resume. The ring is the biggest, most obvious target on either
+  /// countdown screen, so it's the one people reach for first.
+  final VoidCallback? onTap;
+
+  /// Only reaches the Semantics label — the visible paused state is the
+  /// eyebrow pill above the ring (and the header badge). Screen readers get
+  /// it here because the ring is itself the toggle.
+  final bool isPaused;
 
   @override
   State<_RestRing> createState() => _RestRingState();
@@ -3506,41 +4003,96 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  /// The sweep's colour: the track's, outright, whenever there is one.
+  ///
+  /// It used to be a blend of the phase hue and the track's, which is what a
+  /// "keep both identities" instinct suggests — but RGB-lerping between two
+  /// distant hues walks through grey, so green rest + a red song rendered a
+  /// muddy tan that was neither. There is no blend weight that fixes that in
+  /// general; the mud is the interpolation, not the ratio. So the ring simply
+  /// IS the song (which is what was asked for), and the phase keeps its
+  /// identity where colour can't be hijacked: the eyebrow pill, the skip
+  /// button's label, and the card above the strip. [hue] is the fallback for
+  /// no music / no artwork, where the ring is green for rest and ember for
+  /// warm-up exactly as before.
+  Color get _sweep => widget.accent ?? widget.hue;
+
   @override
   Widget build(BuildContext context) {
     _lastProgress ??= _trueProgress;
     final time = _restTimeParts(widget.remaining);
-    // The outer box is wider than the drawn ring (still 240x240, unchanged)
-    // to give the fixed-width label ([_RestTimeLabel]) headroom for its
-    // widest case ("M:SS.CC") without ever needing to reflow or clip.
-    return SizedBox(
-      width: 300,
-      height: 250,
+    final ring = SizedBox(
+      width: 290,
+      height: 290,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          AnimatedBuilder(
-            animation: Listenable.merge([_glow, _correction]),
-            builder: (context, _) {
-              final t = widget.animate
-                  ? Curves.easeInOut.transform(_glow.value)
-                  : 0.0;
-              final progress = (_trueProgress + _correction.value).clamp(
-                0.0,
-                1.0,
-              );
-              return CustomPaint(
-                size: const Size(240, 240),
-                painter: _RestRingPainter(
-                  progress: progress,
-                  glow: t,
-                  accent: widget.accent,
-                ),
-              );
-            },
+          // The colour GLIDES between tracks rather than cutting: a hard swap
+          // on a 290px ring reads as a glitch, a half-second ease reads as
+          // the screen responding to the skip.
+          TweenAnimationBuilder<Color?>(
+            tween: ColorTween(end: _sweep),
+            duration: reducedMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 650),
+            curve: Curves.easeOut,
+            builder: (context, sweep, _) => AnimatedBuilder(
+              animation: Listenable.merge([_glow, _correction]),
+              builder: (context, _) {
+                final t = widget.animate
+                    ? Curves.easeInOut.transform(_glow.value)
+                    : 0.0;
+                final progress = (_trueProgress + _correction.value).clamp(
+                  0.0,
+                  1.0,
+                );
+                return CustomPaint(
+                  size: const Size(290, 290),
+                  painter: _RestRingPainter(
+                    progress: progress,
+                    glow: t,
+                    sweep: sweep ?? _sweep,
+                  ),
+                );
+              },
+            ),
           ),
+          // The numeral owns the ring's exact centre. It used to share a
+          // Column with the caption below it, which centred the PAIR — so the
+          // digits sat half a caption plus its gap ABOVE the circle's middle.
+          // The caption hangs from its own offset now and can't move it.
           _RestTimeLabel(time: time),
+          Positioned.fill(
+            child: Align(
+              alignment: const Alignment(0, 0.44),
+              child: Text(
+                'OF ${_formatRest(widget.total)} PLANNED',
+                style: TrainType.mono(
+                  size: 9,
+                  weight: FontWeight.w500,
+                  tracking: 0.24,
+                  color: const Color(0x4DF4F4F0),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+
+    final onTap = widget.onTap;
+    if (onTap == null) return ring;
+    return Semantics(
+      button: true,
+      label: widget.isPaused ? 'Resume workout' : 'Pause workout',
+      child: GestureDetector(
+        key: const Key('rest-ring-pause'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: ring,
       ),
     );
   }
@@ -3557,13 +4109,24 @@ class _RestTimeLabel extends StatelessWidget {
 
   final ({String whole, String centis}) time;
 
-  static final _wholeStyle = AppText.heroNumber.copyWith(
-    fontSize: 50,
-    color: AppColors.ink,
+  // Both sizes are set against the CIRCLE, not against each other. At the
+  // original 74/26 a "3:48.02" ran from the ring's left stroke clean through
+  // its right one — the four-character numeral alone nearly spans the inner
+  // width, so anything beside it lands on the stroke, and the hundredths sit
+  // BELOW centre where the available chord is already shorter than the
+  // diameter. 64/17 clears the inner edge by ~17pt at the widest value this
+  // can ever show ("9:59.99"), with the numeral still the obvious hero of a
+  // 290pt ring.
+  static final _wholeStyle = TrainType.mono(
+    size: 64,
+    weight: FontWeight.w200,
+    tracking: -0.06,
+    color: const Color(0xFFFBFBF7),
   );
-  static final _centisStyle = AppText.heroNumber.copyWith(
-    fontSize: 26,
-    color: AppColors.ink2,
+  static final _centisStyle = TrainType.mono(
+    size: 17,
+    tracking: -0.03,
+    color: const Color(0x59F4F4F0),
   );
 
   @override
@@ -3571,63 +4134,62 @@ class _RestTimeLabel extends StatelessWidget {
     return Semantics(
       label: '${time.whole}${time.centis}',
       excludeSemantics: true,
-      child: Row(
-        key: const Key('rest-time-label'),
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _FixedSlot(
-            // Widest realistic rest window: single-digit minutes, "M:SS".
-            reference: '9:59',
-            alignment: Alignment.centerRight,
-            style: _wholeStyle,
-            child: Text(
+      // The two slots below reserve their widest content at a FIXED size, so
+      // when the pair can't fit — a large Dynamic Type setting, or a font
+      // whose digits are wider than Azeret's — the whole readout scales down
+      // together rather than overflowing the ring. Scaling down keeps the
+      // slots' relative sizes (74 vs 26) and the no-reflow guarantee intact,
+      // which clipping or wrapping would both destroy.
+      // Centring done in layout rather than by eye, and without pushing the
+      // readout out of its circle.
+      //
+      // The whole-second numeral is the ONLY thing that sizes this widget, so
+      // the ring's Stack centres it exactly — it's the mass the eye reads as
+      // "the number". The hundredths then hang off its right edge as a
+      // zero-width overhang, contributing nothing to the layout.
+      //
+      // Two earlier arrangements both failed: the original right-aligned the
+      // numeral inside a slot reserved for the widest possible "9:59", so
+      // every rest under a minute (most of them) drew its digits a full
+      // character-width right of centre; balancing that with a mirrored
+      // spacer on the left centred it correctly but made the row wide enough
+      // that the hundredths crossed the ring's stroke. Overhanging costs
+      // neither.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Stack(
+          key: const Key('rest-time-label'),
+          clipBehavior: Clip.none,
+          children: [
+            // Tabular figures (see TrainType.mono) hold this steady per tick;
+            // only crossing a minute boundary changes its width, and that
+            // re-centres symmetrically.
+            Text(
               time.whole,
               key: const Key('rest-time-whole'),
               style: _wholeStyle,
             ),
-          ),
-          _FixedSlot(
-            reference: '.99',
-            alignment: Alignment.centerLeft,
-            style: _centisStyle,
-            child: Text(
-              time.centis,
-              key: const Key('rest-time-centis'),
-              style: _centisStyle,
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                // Right by 100% of its OWN width, so it starts where the
+                // numeral ends rather than overlapping it; up by a third of
+                // its height to sit near the numeral's baseline instead of
+                // hanging off its descender — which also buys back a few
+                // points of chord, since the circle is widest at its middle.
+                child: FractionalTranslation(
+                  translation: const Offset(1, -0.32),
+                  child: Text(
+                    time.centis,
+                    key: const Key('rest-time-centis'),
+                    style: _centisStyle,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-}
-
-/// Reserves layout width for [reference] (the slot's widest possible
-/// content) and aligns [child] within it per [alignment] — so [child] can
-/// grow/shrink its own character count without the slot itself, or anything
-/// laid out around it, reflowing.
-class _FixedSlot extends StatelessWidget {
-  const _FixedSlot({
-    required this.reference,
-    required this.child,
-    required this.style,
-    required this.alignment,
-  });
-
-  final String reference;
-  final Widget child;
-  final TextStyle style;
-  final Alignment alignment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: alignment,
-      children: [
-        Opacity(opacity: 0, child: Text(reference, style: style)),
-        child,
-      ],
     );
   }
 }
@@ -3649,7 +4211,11 @@ class _FixedSlot extends StatelessWidget {
 }
 
 class _RestRingPainter extends CustomPainter {
-  const _RestRingPainter({required this.progress, required this.glow, this.accent});
+  const _RestRingPainter({
+    required this.progress,
+    required this.glow,
+    required this.sweep,
+  });
 
   /// 1.0 = the full rest window remains, 0.0 = rest is over.
   final double progress;
@@ -3658,57 +4224,51 @@ class _RestRingPainter extends CustomPainter {
   /// timer's "alive" pulse. Never affects layout size, only paint.
   final double glow;
 
-  /// The music ambience accent, or null for the neutral ivory sweep.
-  final Color? accent;
+  /// The already-resolved arc colour — the phase's hue carried toward the
+  /// current track's (see `_RestRingState._sweep`), and tweened by the
+  /// caller so a song change glides rather than cuts.
+  final Color sweep;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2 - 12;
+    final radius = size.shortestSide / 2 - 13;
     final track = Paint()
-      ..color = AppColors.hairline
+      ..color = TrainColors.hairline
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = 7;
     canvas.drawCircle(center, radius, track);
 
     final clamped = progress.clamp(0.0, 1.0);
     if (clamped <= 0) return;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final sweepColor = accent ?? AppColors.ink2;
-    final sweepTip = accent == null ? AppColors.ink : Color.lerp(accent!, Colors.white, 0.35)!;
+    final sweepColor = sweep;
 
-    // A soft halo under the sweep — the ring's "alive" breathing reads as
-    // light, not just a thicker stroke.
+    // The bloom under the sweep — a `drop-shadow` in the handoff, a wider,
+    // softer arc here. It breathes with [glow] so the countdown reads as
+    // alive without anything moving.
     canvas.drawArc(
       rect,
       -math.pi / 2,
       2 * math.pi * clamped,
       false,
       Paint()
-        ..color = sweepColor.withValues(alpha: 0.10 + 0.10 * glow)
+        ..color = sweepColor.withValues(alpha: 0.16 + 0.10 * glow)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 22 + 4 * glow
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 7
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 + 3 * glow),
     );
 
-    // The sweep itself: a gradient (brighter at the leading cap) so the ring
-    // reads as lit rather than flat — warm ivory in neutral, the track's own
-    // color when music drives the session.
     canvas.drawArc(
       rect,
       -math.pi / 2,
       2 * math.pi * clamped,
       false,
       Paint()
-        ..shader = SweepGradient(
-          startAngle: -math.pi / 2,
-          endAngle: -math.pi / 2 + 2 * math.pi * clamped,
-          colors: [sweepColor.withValues(alpha: 0.70), sweepTip],
-          transform: const GradientRotation(-math.pi / 2),
-        ).createShader(rect)
+        ..color = sweepColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 11 + 1.5 * glow
+        ..strokeWidth = 7
         ..strokeCap = StrokeCap.round,
     );
   }
@@ -3717,7 +4277,7 @@ class _RestRingPainter extends CustomPainter {
   bool shouldRepaint(covariant _RestRingPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.glow != glow ||
-      oldDelegate.accent != accent;
+      oldDelegate.sweep != sweep;
 }
 
 /// A one-shot scale-in — used for the completion checkmark.

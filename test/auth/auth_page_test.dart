@@ -46,11 +46,40 @@ void main() {
 
   testWidgets('toggling to create-account reveals the name field', (tester) async {
     await pumpAuthPage(tester);
-    await tester.tap(find.byType(TextButton)); // "New to ZIVO? Create account"
+    // The mode toggle is the last TextButton (the "Forgot password?" link,
+    // shown in sign-in mode, is the first). It sits below the fold now, so
+    // scroll it into view first.
+    final toggle = find.byType(TextButton).last; // "New to ZIVO? Create..."
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(find.text('Create account'), findsOneWidget);
     // name + email + password + confirm password
     expect(find.byType(TextField), findsNWidgets(4));
+  });
+
+  testWidgets('forgot-password link shows in sign-in mode only', (tester) async {
+    await pumpAuthPage(tester);
+    expect(find.text('Forgot password?'), findsOneWidget);
+    // Toggle to create-account — there is no password to recover yet.
+    final toggle = find.byType(TextButton).last;
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('Forgot password?'), findsNothing);
+  });
+
+  testWidgets('forgot-password link opens the reset flow', (tester) async {
+    await pumpAuthPage(tester);
+    final link = find.text('Forgot password?');
+    await tester.ensureVisible(link);
+    await tester.pumpAndSettle();
+    await tester.tap(link);
+    await tester.pumpAndSettle();
+    expect(find.text('Reset your password'), findsOneWidget);
+    expect(find.text('Send code'), findsOneWidget);
   });
 
   testWidgets('email sign-in failure surfaces the error message',

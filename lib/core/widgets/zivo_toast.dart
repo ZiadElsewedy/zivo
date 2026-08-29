@@ -3,9 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_typography.dart';
+import '../theme/train_tokens.dart';
 
 /// The tone of a [showZivoToast] message — sets its accent and glyph.
 enum ToastKind { success, info, error }
@@ -63,7 +63,8 @@ class _ZivoToast extends StatefulWidget {
   State<_ZivoToast> createState() => _ZivoToastState();
 }
 
-class _ZivoToastState extends State<_ZivoToast> with SingleTickerProviderStateMixin {
+class _ZivoToastState extends State<_ZivoToast>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _anim;
   Timer? _timer;
   bool _leaving = false;
@@ -99,10 +100,10 @@ class _ZivoToastState extends State<_ZivoToast> with SingleTickerProviderStateMi
   }
 
   (Color, IconData) get _accent => switch (widget.kind) {
-        ToastKind.success => (AppColors.pulse, AppIcons.success),
-        ToastKind.error => (AppColors.flare, AppIcons.warning),
-        ToastKind.info => (AppColors.ink2, AppIcons.infoFill),
-      };
+    ToastKind.success => (TrainColors.green, AppIcons.success),
+    ToastKind.error => (TrainColors.ember, AppIcons.warning),
+    ToastKind.info => (TrainColors.ink2, AppIcons.infoFill),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +125,10 @@ class _ZivoToastState extends State<_ZivoToast> with SingleTickerProviderStateMi
             final t = curved.value.clamp(0.0, 1.0);
             return Opacity(
               opacity: _anim.value.clamp(0.0, 1.0),
-              child: Transform.translate(offset: Offset(0, -24 * (1 - t)), child: child),
+              child: Transform.translate(
+                offset: Offset(0, -24 * (1 - t)),
+                child: child,
+              ),
             );
           },
           child: Center(
@@ -135,11 +139,17 @@ class _ZivoToastState extends State<_ZivoToast> with SingleTickerProviderStateMi
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.card.withValues(alpha: 0.86),
+                      color: TrainColors.raised.withValues(alpha: 0.86),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.hairline2, width: 1),
+                      border: Border.all(
+                        color: TrainColors.hairlineStrong,
+                        width: 1,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x66000000),
@@ -158,7 +168,7 @@ class _ZivoToastState extends State<_ZivoToast> with SingleTickerProviderStateMi
                           child: Text(
                             widget.message,
                             style: AppText.button.copyWith(
-                              color: AppColors.ink,
+                              color: TrainColors.ink,
                               fontSize: 14,
                               height: 1.25,
                             ),

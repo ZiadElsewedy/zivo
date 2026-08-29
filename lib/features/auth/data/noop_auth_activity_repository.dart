@@ -30,6 +30,9 @@ class NoopAuthActivityRepository implements AuthActivityRepository {
   Future<void> recordSignOut({required String uid}) async {}
 
   @override
+  Future<void> recordPasswordChanged({required String uid}) async {}
+
+  @override
   Future<void> recordEvent({
     required String uid,
     required AuthEventType type,
@@ -38,8 +41,7 @@ class NoopAuthActivityRepository implements AuthActivityRepository {
   }) async {}
 
   @override
-  Stream<AccountAuthMetadata?> watchAccount(String uid) =>
-      const Stream.empty();
+  Stream<AccountAuthMetadata?> watchAccount(String uid) => const Stream.empty();
 
   @override
   Future<AccountAuthMetadata?> fetchAccount(String uid) async => null;

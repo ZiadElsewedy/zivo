@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/media_resolution.dart';
 import '../media_service.dart';
+import '../../theme/train_tokens.dart';
 
 /// Displays a stored media reference honestly. Resolves the [ref] through
 /// [MediaService.resolveWithStatus] and renders exactly what that answer
@@ -135,16 +135,19 @@ class _MediaImageState extends State<MediaImage>
               _selfRetry?.cancel();
               _pulse.stop();
               return Image.file(
-              file,
-              fit: widget.fit,
-              cacheWidth: widget.decodeWidth,
-            );
+                file,
+                fit: widget.fit,
+                cacheWidth: widget.decodeWidth,
+              );
             }
             switch (resolution?.availability) {
               case MediaAvailability.cloudOnly || null:
                 _scheduleSelfRetry();
                 _pulse.repeat(reverse: true);
-                return _PulsingSurface(pulse: _pulse, icon: AppIcons.driveCloud);
+                return _PulsingSurface(
+                  pulse: _pulse,
+                  icon: AppIcons.driveCloud,
+                );
               case MediaAvailability.nowhere:
                 _pulse.stop();
                 return _LivesElsewhere(onRetry: widget.onRetry);
@@ -172,14 +175,14 @@ class _PulsingSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.surfaceRaised,
+      color: TrainColors.raisedStrong,
       child: Center(
         child: FadeTransition(
           opacity: pulse,
           child: Icon(
             icon ?? AppIcons.image,
             size: 22,
-            color: AppColors.ink3,
+            color: TrainColors.ink3,
           ),
         ),
       ),
@@ -201,17 +204,17 @@ class _LivesElsewhere extends StatelessWidget {
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(AppIcons.driveCloud, size: 20, color: AppColors.ink3),
+        Icon(AppIcons.driveCloud, size: 20, color: TrainColors.ink3),
         const SizedBox(height: 6),
         Text(
           'Captured on another device',
-          style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 10),
+          style: AppText.meta.copyWith(color: TrainColors.ink3, fontSize: 10),
           textAlign: TextAlign.center,
         ),
       ],
     );
     final content = ColoredBox(
-      color: AppColors.surfaceRaised,
+      color: TrainColors.raisedStrong,
       child: Center(child: body),
     );
     if (onRetry == null) return content;

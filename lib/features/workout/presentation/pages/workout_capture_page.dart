@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise.dart';
 import '../../domain/workout.dart';
@@ -99,75 +98,90 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CaptureTopBar(
-              title: _editing ? 'Edit workout' : 'New workout',
-              onClose: () => Navigator.of(context).maybePop(),
-              trailing: _editing
-                  ? CaptureIconButton(
-                      key: const Key('workout-delete'),
-                      icon: Icons.delete_outline_rounded,
-                      onTap: _delete,
-                      semanticLabel: 'Delete workout',
-                      iconColor: AppColors.flareText,
-                    )
-                  : null,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),
-              child: TextField(
-                controller: _title,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                cursorColor: AppColors.pulse,
-                style: AppText.cardTitle.copyWith(fontSize: 27),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
-                  hintText: 'Name this session',
-                  hintStyle:
-                      AppText.cardTitle.copyWith(fontSize: 27, color: AppColors.ink3),
+      backgroundColor: TrainColors.base,
+      body: DecoratedBox(
+        // The same wash the Workout hub carries — a capture flow belongs to
+        // the surface that launched it, not to a flat void.
+        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CaptureTopBar(
+                title: _editing ? 'Edit workout' : 'New workout',
+                onClose: () => Navigator.of(context).maybePop(),
+                trailing: _editing
+                    ? CaptureIconButton(
+                        key: const Key('workout-delete'),
+                        icon: Icons.delete_outline_rounded,
+                        onTap: _delete,
+                        semanticLabel: 'Delete workout',
+                        iconColor: TrainColors.ember,
+                      )
+                    : null,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 30, 24, 6),
+                child: TextField(
+                  controller: _title,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  cursorColor: TrainColors.green,
+                  style: TrainType.ui(
+                    size: 27,
+                    weight: FontWeight.w800,
+                    tracking: -0.025,
+                    height: 1.15,
+                  ),
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    border: InputBorder.none,
+                    hintText: 'Name this session',
+                    hintStyle: TrainType.ui(
+                      size: 27,
+                      weight: FontWeight.w800,
+                      tracking: -0.025,
+                      height: 1.15,
+                      color: TrainColors.ink4,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: _exercises.isEmpty
-                  ? _EmptyExercises(onAdd: _addExercise)
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
-                      itemCount: _exercises.length + 1,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, i) {
-                        if (i == _exercises.length) {
-                          return _AddExerciseButton(onTap: _addExercise);
-                        }
-                        return _ExerciseRow(
-                          exercise: _exercises[i],
-                          onRemove: () => _removeExercise(i),
-                        );
-                      },
-                    ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                18,
-                8,
-                18,
-                MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
+              Expanded(
+                child: _exercises.isEmpty
+                    ? _EmptyExercises(onAdd: _addExercise)
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
+                        itemCount: _exercises.length + 1,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          if (i == _exercises.length) {
+                            return _AddExerciseButton(onTap: _addExercise);
+                          }
+                          return _ExerciseRow(
+                            exercise: _exercises[i],
+                            onRemove: () => _removeExercise(i),
+                          );
+                        },
+                      ),
               ),
-              child: PillButton(
-                label: 'Save workout',
-                icon: Icons.check_rounded,
-                color: AppColors.pulseText,
-                enabled: _canSave,
-                onTap: _save,
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  8,
+                  18,
+                  MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
+                ),
+                child: PillButton(
+                  label: 'Save workout',
+                  icon: Icons.check_rounded,
+                  color: TrainColors.ember,
+                  enabled: _canSave,
+                  onTap: _save,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -185,9 +199,21 @@ class _EmptyExercises extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fitness_center_rounded, size: 30, color: AppColors.ink3),
+          const Icon(
+            Icons.fitness_center_rounded,
+            size: 30,
+            color: TrainColors.ink4,
+          ),
           const SizedBox(height: 12),
-          Text('No exercises yet.', style: AppText.aside),
+          Text(
+            'No exercises yet.',
+            style: TrainType.ui(
+              size: 14,
+              weight: FontWeight.w400,
+              color: TrainColors.ink2,
+              height: 1.5,
+            ),
+          ),
           const SizedBox(height: 14),
           _AddExerciseButton(onTap: onAdd),
         ],
@@ -210,16 +236,21 @@ class _AddExerciseButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.hairline2, width: 1.4),
+          border: Border.all(color: TrainColors.hairline, width: 1.4),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.add_rounded, size: 17, color: AppColors.pulseText),
+            const Icon(Icons.add_rounded, size: 17, color: TrainColors.green),
             const SizedBox(width: 7),
             Text(
               'Add exercise',
-              style: AppText.button.copyWith(fontSize: 14, color: AppColors.pulseText),
+              style: TrainType.ui(
+                size: 14,
+                weight: FontWeight.w700,
+                height: 1,
+                color: TrainColors.green,
+              ),
             ),
           ],
         ),
@@ -239,9 +270,9 @@ class _ExerciseRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
@@ -253,19 +284,31 @@ class _ExerciseRow extends StatelessWidget {
                   exercise.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+                  style: TrainType.ui(
+                    size: 15,
+                    weight: FontWeight.w600,
+                    height: 1.1,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   setRepLabel(exercise),
-                  style: AppText.meta.copyWith(color: AppColors.pulseText),
+                  style: TrainType.mono(
+                    size: 10.5,
+                    tracking: 0.06,
+                    color: TrainColors.green,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: TrainColors.ink4,
+            ),
             splashRadius: 20,
             tooltip: 'Remove',
           ),
@@ -327,7 +370,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: Color(0x08FFFFFF),
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -345,7 +388,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairline,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -353,29 +396,43 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add exercise', style: AppText.cardTitle),
+            child: Text(
+              'Add exercise',
+              style: TrainType.ui(
+                size: 20,
+                weight: FontWeight.w800,
+                tracking: -0.025,
+                color: TrainColors.ink,
+                height: 1.15,
+              ),
+            ),
           ),
           TextField(
             controller: _name,
             autofocus: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
-            cursorColor: AppColors.pulse,
-            style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
+            cursorColor: TrainColors.green,
+            style: TrainType.ui(size: 15, weight: FontWeight.w600, height: 1.1),
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
               border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
+                borderSide: BorderSide(color: TrainColors.hairline),
               ),
               enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
+                borderSide: BorderSide(color: TrainColors.hairline),
               ),
               focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+                borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: 'Exercise name',
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+              hintStyle: TrainType.ui(
+                size: 15,
+                weight: FontWeight.w700,
+                height: 1.1,
+                color: TrainColors.ink4,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -385,14 +442,18 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
               const SizedBox(width: 12),
               _NumberField(label: 'Reps', controller: _reps),
               const SizedBox(width: 12),
-              _NumberField(label: 'Weight (kg)', controller: _weight, hint: '—'),
+              _NumberField(
+                label: 'Weight (kg)',
+                controller: _weight,
+                hint: '—',
+              ),
             ],
           ),
           const SizedBox(height: 22),
           PillButton(
             label: 'Add exercise',
             icon: Icons.add_rounded,
-            color: AppColors.pulseText,
+            color: TrainColors.ember,
             enabled: _canAdd,
             onTap: _submit,
           ),
@@ -421,7 +482,11 @@ class _NumberField extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+            style: TrainType.mono(
+              size: 10.5,
+              tracking: 0.06,
+              color: TrainColors.ink4,
+            ),
           ),
           const SizedBox(height: 6),
           TextField(
@@ -430,22 +495,38 @@ class _NumberField extends StatelessWidget {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
-            cursorColor: AppColors.pulse,
-            style: AppText.rowTitle,
+            cursorColor: TrainColors.green,
+            style: TrainType.ui(
+              size: 15,
+              weight: FontWeight.w700,
+              color: TrainColors.inkPlain,
+              height: 1.1,
+            ),
             decoration: InputDecoration(
               isDense: true,
               hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              hintStyle: TrainType.ui(
+                size: 15,
+                weight: FontWeight.w700,
+                height: 1.1,
+                color: TrainColors.ink4,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 10,
+                horizontal: 12,
+              ),
               filled: true,
-              fillColor: AppColors.ground,
+              fillColor: TrainColors.base,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.pulse, width: 1.4),
+                borderSide: const BorderSide(
+                  color: TrainColors.green,
+                  width: 1.4,
+                ),
               ),
             ),
           ),

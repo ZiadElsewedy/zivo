@@ -11,7 +11,12 @@
 const {test} = require("node:test");
 const assert = require("node:assert/strict");
 
-const {markEmailSent, markEmailVerified, recordAuthEvent} = require("./activity");
+const {
+  markEmailSent,
+  markEmailVerified,
+  markPasswordChanged,
+  recordAuthEvent,
+} = require("./activity");
 
 /**
  * A minimal Firestore stub capturing collection/doc/set/add calls.
@@ -77,6 +82,23 @@ test("markEmailVerified writes emailVerifiedAt + an emailVerified event",
       const event = writes.adds[0];
       assert.equal(event.path, "users/u2/authEvents");
       assert.equal(event.data.type, "emailVerified");
+    });
+
+test("markPasswordChanged writes lastPasswordChangeAt + a passwordChanged event",
+    async () => {
+      const {db, writes} = stubDb();
+
+      await markPasswordChanged(db, "u5");
+
+      const set = writes.sets[0];
+      assert.equal(set.path, "users/u5/auth/account");
+      assert.ok(set.data.lastPasswordChangeAt instanceof Date);
+      assert.equal(set.data.emailVerifiedAt, undefined);
+
+      const event = writes.adds[0];
+      assert.equal(event.path, "users/u5/authEvents");
+      assert.equal(event.data.type, "passwordChanged");
+      assert.equal(event.data.provider, "password");
     });
 
 test("recordAuthEvent carries an optional provider", async () => {

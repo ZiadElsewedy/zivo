@@ -6,9 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/zivo_toast.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_import_outcome.dart';
@@ -74,8 +73,10 @@ Future<({Uint8List bytes, String mimeType})?> _defaultPickFile() async {
 /// the [_ImportPhase.selecting] screen behind it is what a cancel or a retry
 /// lands back on.
 class WorkoutPdfImportPage extends StatefulWidget {
-  const WorkoutPdfImportPage({super.key, Future<({Uint8List bytes, String mimeType})?> Function()? pickFile})
-    : pickFile = pickFile ?? _defaultPickFile;
+  const WorkoutPdfImportPage({
+    super.key,
+    Future<({Uint8List bytes, String mimeType})?> Function()? pickFile,
+  }) : pickFile = pickFile ?? _defaultPickFile;
 
   /// Overridable for tests — defaults to the real file picker.
   final Future<({Uint8List bytes, String mimeType})?> Function() pickFile;
@@ -125,7 +126,10 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     _analyzingTimer?.cancel();
     _analyzingTimer = Timer.periodic(const Duration(milliseconds: 1600), (_) {
       if (!mounted) return;
-      setState(() => _analyzingStatusIndex = (_analyzingStatusIndex + 1) % _analyzingStatusLines.length);
+      setState(
+        () => _analyzingStatusIndex =
+            (_analyzingStatusIndex + 1) % _analyzingStatusLines.length,
+      );
     });
   }
 
@@ -167,7 +171,8 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage = 'That file is too large — please choose one under '
+        _errorMessage =
+            'That file is too large — please choose one under '
             '7 MB.';
       });
       return;
@@ -264,7 +269,9 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     // active — so when it returns a SAVED plan, finish the job here. A null
     // return means deleted or closed: nothing to activate.
     final saved = await Navigator.of(context).push<WorkoutPlan>(
-      MaterialPageRoute(builder: (_) => WorkoutPlanEditPage(initialPlan: draft, asSplit: true)),
+      MaterialPageRoute(
+        builder: (_) => WorkoutPlanEditPage(initialPlan: draft, asSplit: true),
+      ),
     );
     if (saved != null) await _activate(saved.id);
     // Whether the review ended in Save, Delete, or just closing — the import
@@ -274,7 +281,9 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
 
   Future<void> _buildManually() async {
     final saved = await Navigator.of(context).push<WorkoutPlan>(
-      MaterialPageRoute(builder: (_) => const WorkoutPlanEditPage(asSplit: true)),
+      MaterialPageRoute(
+        builder: (_) => const WorkoutPlanEditPage(asSplit: true),
+      ),
     );
     if (saved != null) await _activate(saved.id);
     if (mounted) Navigator.of(context).pop();
@@ -283,25 +292,32 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CaptureTopBar(
-              title: _phase == _ImportPhase.preview ? 'Review import' : 'Import Plan',
-              onClose: () => Navigator.of(context).maybePop(),
-              titleColor: AppColors.ink2,
-              iconColor: AppColors.ink2,
-              chipColor: AppColors.surfaceRaised,
-            ),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                child: KeyedSubtree(key: ValueKey(_phase), child: _body()),
+      backgroundColor: TrainColors.base,
+      body: DecoratedBox(
+        // The same wash the Workout hub carries — a capture flow belongs to
+        // the surface that launched it, not to a flat void.
+        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CaptureTopBar(
+                title: _phase == _ImportPhase.preview
+                    ? 'Review import'
+                    : 'Import Plan',
+                onClose: () => Navigator.of(context).maybePop(),
+                titleColor: TrainColors.ink2,
+                iconColor: TrainColors.ink2,
+                chipColor: TrainColors.glassStrong,
               ),
-            ),
-          ],
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  child: KeyedSubtree(key: ValueKey(_phase), child: _body()),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -312,7 +328,9 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       case _ImportPhase.selecting:
         return const _SelectingState();
       case _ImportPhase.analyzing:
-        return _AnalyzingState(statusLine: _analyzingStatusLines[_analyzingStatusIndex]);
+        return _AnalyzingState(
+          statusLine: _analyzingStatusLines[_analyzingStatusIndex],
+        );
       case _ImportPhase.preview:
         return _PreviewState(
           plan: _draft!,
@@ -322,7 +340,10 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
           onChooseDifferentFile: _pickAndImport,
         );
       case _ImportPhase.done:
-        return _DoneState(plan: _draft!, onDone: () => Navigator.of(context).pop());
+        return _DoneState(
+          plan: _draft!,
+          onDone: () => Navigator.of(context).pop(),
+        );
       case _ImportPhase.rejected:
         return _RejectedState(
           reason: _rejectionReason!,
@@ -330,7 +351,11 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
           onBuildManually: _buildManually,
         );
       case _ImportPhase.error:
-        return _ErrorMessage(message: _errorMessage!, detail: _errorDetail, onRetry: _pickAndImport);
+        return _ErrorMessage(
+          message: _errorMessage!,
+          detail: _errorDetail,
+          onRetry: _pickAndImport,
+        );
     }
   }
 }
@@ -396,7 +421,10 @@ class _PhaseIcon extends StatelessWidget {
     return Container(
       width: 72,
       height: 72,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(22)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(22),
+      ),
       child: Icon(icon, size: 32, color: color),
     );
   }
@@ -413,18 +441,32 @@ class _SelectingState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIcon(icon: Icons.upload_file_rounded, color: AppColors.pulse),
+            const _PhaseIcon(
+              icon: Icons.upload_file_rounded,
+              color: TrainColors.green,
+            ),
             const SizedBox(height: 18),
             Text(
               'Select your training plan',
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: TrainType.ui(
+                size: 20,
+                weight: FontWeight.w800,
+                tracking: -0.025,
+                height: 1.15,
+                color: TrainColors.ink,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               "Choose a PDF or a photo of your plan and I'll map it into a "
               'real, editable split.',
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: TrainType.ui(
+                size: 13.5,
+                weight: FontWeight.w400,
+                height: 1.5,
+                color: TrainColors.ink4,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -448,22 +490,42 @@ class _AnalyzingState extends StatelessWidget {
           Container(
             width: 120,
             height: 120,
-            decoration: const BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: TrainColors.glassStrong,
+              shape: BoxShape.circle,
+            ),
             padding: const EdgeInsets.all(10),
             child: ColorFiltered(
-              colorFilter: const ColorFilter.mode(AppColors.pulse, BlendMode.srcIn),
+              colorFilter: const ColorFilter.mode(
+                TrainColors.green,
+                BlendMode.srcIn,
+              ),
               child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
             ),
           ),
           const SizedBox(height: 20),
-          Text('Analyzing your plan', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+          Text(
+            'Analyzing your plan',
+            style: TrainType.ui(
+              size: 20,
+              weight: FontWeight.w800,
+              tracking: -0.025,
+              height: 1.15,
+              color: TrainColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             child: Text(
               statusLine,
               key: ValueKey(statusLine),
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: TrainType.ui(
+                size: 13.5,
+                weight: FontWeight.w400,
+                height: 1.5,
+                color: TrainColors.ink4,
+              ),
             ),
           ),
         ],
@@ -489,7 +551,10 @@ class _PreviewState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final exerciseCount = plan.days.fold<int>(0, (sum, d) => sum + d.exercises.length);
+    final exerciseCount = plan.days.fold<int>(
+      0,
+      (sum, d) => sum + d.exercises.length,
+    );
     return Column(
       children: [
         Expanded(
@@ -498,25 +563,42 @@ class _PreviewState extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.pulse),
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 16,
+                    color: TrainColors.green,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     "HERE'S WHAT I FOUND",
-                    style: AppText.meta.copyWith(
-                      color: AppColors.pulse,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                    style: TrainType.mono(
+                      size: 10.5,
+                      weight: FontWeight.w700,
+                      tracking: 0.06,
+                      color: TrainColors.green,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Text(plan.name, style: AppText.heroNumber.copyWith(fontSize: 26, color: AppColors.ink)),
+              Text(
+                plan.name,
+                style: TrainType.mono(
+                  size: 26,
+                  weight: FontWeight.w300,
+                  tracking: -0.05,
+                  color: TrainColors.ink,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 '${plan.days.length} day${plan.days.length == 1 ? '' : 's'} · '
                 '$exerciseCount exercise${exerciseCount == 1 ? '' : 's'} total',
-                style: AppText.meta.copyWith(color: AppColors.ink3),
+                style: TrainType.mono(
+                  size: 10.5,
+                  tracking: 0.06,
+                  color: TrainColors.ink4,
+                ),
               ),
               const SizedBox(height: 20),
               for (final day in plan.days)
@@ -530,15 +612,15 @@ class _PreviewState extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(22, 14, 22, 18),
           decoration: const BoxDecoration(
-            color: AppColors.ground,
-            border: Border(top: BorderSide(color: AppColors.hairline2)),
+            color: TrainColors.base,
+            border: Border(top: BorderSide(color: TrainColors.hairline)),
           ),
           child: Column(
             children: [
               PillButton(
                 label: saving ? 'Importing…' : 'Import this split',
                 icon: Icons.check_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.ember,
                 enabled: !saving,
                 onTap: onImport,
               ),
@@ -548,12 +630,33 @@ class _PreviewState extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: saving ? null : onEdit,
-                    child: Text('Edit before importing', style: AppText.meta.copyWith(color: AppColors.ink2)),
+                    child: Text(
+                      'Edit before importing',
+                      style: TrainType.mono(
+                        size: 10.5,
+                        tracking: 0.06,
+                        color: TrainColors.ink2,
+                      ),
+                    ),
                   ),
-                  Text('·', style: AppText.meta.copyWith(color: AppColors.ink3)),
+                  Text(
+                    '·',
+                    style: TrainType.mono(
+                      size: 10.5,
+                      tracking: 0.06,
+                      color: TrainColors.ink4,
+                    ),
+                  ),
                   TextButton(
                     onPressed: saving ? null : onChooseDifferentFile,
-                    child: Text('Choose a different file', style: AppText.meta.copyWith(color: AppColors.ink2)),
+                    child: Text(
+                      'Choose a different file',
+                      style: TrainType.mono(
+                        size: 10.5,
+                        tracking: 0.06,
+                        color: TrainColors.ink2,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -575,9 +678,9 @@ class _PreviewDayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: const Color(0x08FFFFFF),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline2),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,15 +690,34 @@ class _PreviewDayCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Day ${day.slot} · ${day.label}',
-                  style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                  style: TrainType.ui(
+                    size: 15,
+                    weight: FontWeight.w600,
+                    height: 1.1,
+                    color: TrainColors.ink,
+                  ),
                 ),
               ),
-              Text(workoutDayMeta(day), style: AppText.meta.copyWith(color: AppColors.ink3)),
+              Text(
+                workoutDayMeta(day),
+                style: TrainType.mono(
+                  size: 10.5,
+                  tracking: 0.06,
+                  color: TrainColors.ink4,
+                ),
+              ),
             ],
           ),
           if (day.exercises.isEmpty) ...[
             const SizedBox(height: 8),
-            Text('No exercises found for this day.', style: AppText.meta.copyWith(color: AppColors.ink3)),
+            Text(
+              'No exercises found for this day.',
+              style: TrainType.mono(
+                size: 10.5,
+                tracking: 0.06,
+                color: TrainColors.ink4,
+              ),
+            ),
           ] else
             for (final exercise in day.exercises)
               Padding(
@@ -606,13 +728,22 @@ class _PreviewDayCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         exercise.name,
-                        style: AppText.body.copyWith(fontSize: 14, color: AppColors.ink2),
+                        style: TrainType.ui(
+                          size: 14,
+                          weight: FontWeight.w400,
+                          height: 1.5,
+                          color: TrainColors.ink2,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       collapsedSetSummaries(exercise.sets).join(' · '),
-                      style: AppText.meta.copyWith(color: AppColors.ink3, fontSize: 12),
+                      style: TrainType.mono(
+                        size: 12,
+                        tracking: 0.06,
+                        color: TrainColors.ink4,
+                      ),
                       textAlign: TextAlign.right,
                     ),
                   ],
@@ -632,21 +763,41 @@ class _DoneState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final exerciseCount = plan.days.fold<int>(0, (sum, d) => sum + d.exercises.length);
+    final exerciseCount = plan.days.fold<int>(
+      0,
+      (sum, d) => sum + d.exercises.length,
+    );
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIcon(icon: Icons.check_rounded, color: AppColors.pulse),
+            const _PhaseIcon(
+              icon: Icons.check_rounded,
+              color: TrainColors.green,
+            ),
             const SizedBox(height: 18),
-            Text('Import complete', style: AppText.cardTitle.copyWith(color: AppColors.ink)),
+            Text(
+              'Import complete',
+              style: TrainType.ui(
+                size: 20,
+                weight: FontWeight.w800,
+                tracking: -0.025,
+                height: 1.15,
+                color: TrainColors.ink,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               '"${plan.name}" added to your splits — ${plan.days.length} day'
               '${plan.days.length == 1 ? '' : 's'}, $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}.',
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: TrainType.ui(
+                size: 13.5,
+                weight: FontWeight.w400,
+                height: 1.5,
+                color: TrainColors.ink4,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),
@@ -655,7 +806,7 @@ class _DoneState extends StatelessWidget {
               child: PillButton(
                 label: 'Done',
                 icon: Icons.arrow_forward_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.ember,
                 enabled: true,
                 onTap: onDone,
               ),
@@ -686,22 +837,40 @@ class _RejectedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIcon(icon: Icons.description_outlined, color: AppColors.flare),
+            const _PhaseIcon(
+              icon: Icons.description_outlined,
+              color: TrainColors.ember,
+            ),
             const SizedBox(height: 18),
             Text(
               "This doesn't look like a workout plan",
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: TrainType.ui(
+                size: 20,
+                weight: FontWeight.w800,
+                tracking: -0.025,
+                height: 1.15,
+                color: TrainColors.ink,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(reason, style: AppText.body.copyWith(color: AppColors.ink3), textAlign: TextAlign.center),
+            Text(
+              reason,
+              style: TrainType.ui(
+                size: 13.5,
+                weight: FontWeight.w400,
+                height: 1.5,
+                color: TrainColors.ink4,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 22),
             SizedBox(
               width: 220,
               child: PillButton(
                 label: 'Choose a different file',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.ember,
                 enabled: true,
                 onTap: onChooseDifferentFile,
               ),
@@ -709,7 +878,14 @@ class _RejectedState extends StatelessWidget {
             const SizedBox(height: 10),
             TextButton(
               onPressed: onBuildManually,
-              child: Text('Build manually instead', style: AppText.meta.copyWith(color: AppColors.ink2)),
+              child: Text(
+                'Build manually instead',
+                style: TrainType.mono(
+                  size: 10.5,
+                  tracking: 0.06,
+                  color: TrainColors.ink2,
+                ),
+              ),
             ),
           ],
         ),
@@ -719,10 +895,15 @@ class _RejectedState extends StatelessWidget {
 }
 
 class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({required this.message, required this.onRetry, this.detail});
+  const _ErrorMessage({
+    required this.message,
+    required this.onRetry,
+    this.detail,
+  });
 
   final String message;
   final VoidCallback onRetry;
+
   /// Raw failure text (debug builds only) — the real backend cause, shown
   /// small and dim under the friendly line.
   final String? detail;
@@ -735,14 +916,31 @@ class _ErrorMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIcon(icon: Icons.cloud_off_rounded, color: AppColors.ink3),
+            const _PhaseIcon(
+              icon: Icons.cloud_off_rounded,
+              color: TrainColors.ink4,
+            ),
             const SizedBox(height: 18),
-            Text(message, style: AppText.aside.copyWith(color: AppColors.ink2), textAlign: TextAlign.center),
+            Text(
+              message,
+              style: TrainType.ui(
+                size: 14,
+                weight: FontWeight.w400,
+                height: 1.5,
+                color: TrainColors.ink2,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (detail != null) ...[
               const SizedBox(height: 10),
               Text(
                 detail!,
-                style: AppText.aside.copyWith(color: AppColors.ink3, fontSize: 11),
+                style: TrainType.ui(
+                  size: 11,
+                  weight: FontWeight.w400,
+                  height: 1.5,
+                  color: TrainColors.ink4,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -752,7 +950,7 @@ class _ErrorMessage extends StatelessWidget {
               child: PillButton(
                 label: 'Try again',
                 icon: Icons.refresh_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.ember,
                 enabled: true,
                 onTap: onRetry,
               ),

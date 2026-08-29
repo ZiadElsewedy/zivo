@@ -1,29 +1,34 @@
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/money.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
 import '../../domain/expense_repository.dart';
 import '../../domain/wallet.dart';
-import '../widgets/category_hue_colors.dart';
 import '../widgets/wallet_balance_sheet.dart';
 import 'expense_capture_page.dart';
 
-/// The Expenses history — a wallet balance up top (deducted automatically as
-/// expenses are logged), a this-week category breakdown, then the full log
-/// grouped by day (Today, Yesterday, then dated headers), each day a grouped
-/// card in the inset-list style with its subtotal in the header. Newest
-/// first. The calm Solar sibling of the sub-5-second capture flow.
+/// The Expenses history, built to the design handoff's **Expenses** screen
+/// (4c): the amber screen wash, a wallet card up top (deducted automatically
+/// as expenses are logged), a this-week category breakdown, then the full log
+/// grouped by day — Today, Yesterday, then dated headers — each day a hairline
+/// card with its subtotal beside the header. Newest first.
+///
+/// Amber is money and only money here (identity §2), which is why this is the
+/// one amber-lit screen in the app and the one amber FAB.
+///
+/// The handoff is explicit that per-row saturated icon tiles go: a column of
+/// them turns the log into a colour chart and pulls the eye off the amounts.
+/// Each row carries a 4px spine in its category's hue instead, and the
+/// amounts line up in a single right-hand mono column you can read straight
+/// down. That also retires the emoji chips — identity §8 rules emoji out.
 class ExpensesListPage extends StatefulWidget {
   const ExpensesListPage({super.key});
 
@@ -45,147 +50,109 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
   @override
   Widget build(BuildContext context) {
     final service = _service;
-    return Scaffold(
-      backgroundColor: AppColors.ground,
-      floatingActionButton: FloatingActionButton(
+    return TrainScreen(
+      tint: TrainColors.expensesTint,
+      floatingActionButton: TrainFab(
         key: const Key('new-expense-fab'),
-        backgroundColor: AppColors.solar,
-        elevation: 3,
-        tooltip: 'New expense',
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        onPressed: () => Navigator.of(
+        icon: AppIcons.add,
+        semanticLabel: 'New expense',
+        // Amber, not ember: on this screen the committing action is a money
+        // action, and money is the one thing amber marks.
+        color: TrainColors.amber,
+        iconColor: const Color(0xFF1A1505),
+        onTap: () => Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const ExpenseCapturePage())),
-        child: const Icon(AppIcons.add, color: Color(0xFF2A2205), size: 26),
       ),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -50,
-              right: -70,
-              child: _AuraBlob(color: AppColors.solar, size: 210),
-            ),
-            SafeArea(
-              child: StreamBuilder<List<ExpenseCategory>>(
-                stream: _categoriesStream,
-                initialData: service.allCategories(),
-                builder: (context, categorySnapshot) {
-                  final categories =
-                      categorySnapshot.data ?? kBuiltInCategories;
-                  return StreamBuilder<Wallet?>(
-                    stream: _walletStream,
-                    initialData: service.wallet.current,
-                    builder: (context, walletSnapshot) {
-                      final wallet = walletSnapshot.data;
-                      return StreamBuilder<List<Expense>>(
-                        stream: _expensesStream,
-                        initialData: service.expenses.current,
-                        builder: (context, expenseSnapshot) {
-                          if (expenseSnapshot.hasError) {
-                            return const ErrorStateView();
-                          }
-                          final items =
-                              expenseSnapshot.data ?? const <Expense>[];
-                          if (items.isEmpty &&
-                              expenseSnapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                            return const LoadingStateView();
-                          }
-                          final now = DateTime.now();
-                          final currency = wallet?.currency ?? 'EGP';
-                          final todayMinor = todayTotalMinor(items, now);
-                          final weekMinor = weekTotalMinor(items, now);
-                          final byCategory = _byCategory(
-                            items,
-                            now,
-                            categories,
-                          );
-                          return ListView(
-                            padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+      child: StreamBuilder<List<ExpenseCategory>>(
+        stream: _categoriesStream,
+        initialData: service.allCategories(),
+        builder: (context, categorySnapshot) {
+          final categories = categorySnapshot.data ?? kBuiltInCategories;
+          return StreamBuilder<Wallet?>(
+            stream: _walletStream,
+            initialData: service.wallet.current,
+            builder: (context, walletSnapshot) {
+              final wallet = walletSnapshot.data;
+              return StreamBuilder<List<Expense>>(
+                stream: _expensesStream,
+                initialData: service.expenses.current,
+                builder: (context, expenseSnapshot) {
+                  if (expenseSnapshot.hasError) {
+                    return const ErrorStateView();
+                  }
+                  final items = expenseSnapshot.data ?? const <Expense>[];
+                  if (items.isEmpty &&
+                      expenseSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                    return const LoadingStateView();
+                  }
+                  final now = DateTime.now();
+                  final currency = wallet?.currency ?? 'EGP';
+                  final todayMinor = todayTotalMinor(items, now);
+                  final weekMinor = weekTotalMinor(items, now);
+                  final byCategory = _byCategory(items, now, categories);
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+                    children: [
+                      const RiseIn(child: TrainPageHeader(title: 'Expenses')),
+                      const SizedBox(height: 18),
+                      RiseIn(
+                        delay: const Duration(milliseconds: 50),
+                        child: _WalletCard(
+                          wallet: wallet,
+                          todayMinor: todayMinor,
+                          currency: currency,
+                        ),
+                      ),
+                      if (byCategory.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        RiseIn(
+                          delay: const Duration(milliseconds: 90),
+                          child: _CategoryBreakdown(
+                            rows: byCategory,
+                            weekMinor: weekMinor,
+                            currency: currency,
+                          ),
+                        ),
+                      ],
+                      if (items.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 40),
+                          child: EmptyStateView(
+                            'Nothing spent yet — a calm start.',
+                          ),
+                        )
+                      else
+                        RiseIn(
+                          delay: const Duration(milliseconds: 130),
+                          child: Column(
                             children: [
-                              RiseIn(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const _BackButton(),
-                                    const SizedBox(height: 20),
-                                    Text('Expenses', style: AppText.greeting),
-                                  ],
+                              for (final group in _groupByDay(items)) ...[
+                                _DayHeader(
+                                  label: _dayLabel(group.day, now),
+                                  subtotalMinor: group.subtotalMinor,
+                                  currency: group.expenses.first.currency,
                                 ),
-                              ),
-                              const SizedBox(height: 22),
-                              RiseIn(
-                                delay: const Duration(milliseconds: 50),
-                                child: _WalletCard(
-                                  wallet: wallet,
-                                  todayMinor: todayMinor,
-                                  currency: currency,
-                                ),
-                              ),
-                              if (byCategory.isNotEmpty) ...[
-                                const SizedBox(height: 24),
-                                RiseIn(
-                                  delay: const Duration(milliseconds: 90),
-                                  child: _CategoryBreakdown(
-                                    rows: byCategory,
-                                    weekMinor: weekMinor,
-                                    currency: currency,
-                                  ),
+                                _DayCard(
+                                  group: group,
+                                  categories: categories,
+                                  onTap: (expense) =>
+                                      _openEdit(context, expense),
+                                  onDelete: (expense) =>
+                                      service.removeExpense(expense),
                                 ),
                               ],
-                              if (items.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 40),
-                                  child: EmptyStateView(
-                                    'Nothing spent yet — a calm start.',
-                                  ),
-                                )
-                              else
-                                RiseIn(
-                                  delay: const Duration(milliseconds: 130),
-                                  child: Column(
-                                    children: [
-                                      for (final group in _groupByDay(
-                                        items,
-                                      )) ...[
-                                        _DayHeader(
-                                          label: _dayLabel(group.day, now),
-                                          subtotalMinor: group.subtotalMinor,
-                                          currency:
-                                              group.expenses.first.currency,
-                                        ),
-                                        _DayCard(
-                                          group: group,
-                                          categories: categories,
-                                          onTap: (expense) =>
-                                              _openEdit(context, expense),
-                                          onDelete: (expense) =>
-                                              service.removeExpense(expense),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
                             ],
-                          );
-                        },
-                      );
-                    },
+                          ),
+                        ),
+                    ],
                   );
                 },
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -218,13 +185,12 @@ class _DayCard extends StatelessWidget {
     final expenses = group.expenses;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        color: const Color(0x08FFFFFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.card),
+        borderRadius: BorderRadius.circular(18),
         child: Column(
           children: [
             for (var i = 0; i < expenses.length; i++)
@@ -316,67 +282,10 @@ String _dayLabel(DateTime day, DateTime now) {
   return '${weekdays[day.weekday - 1]} ${day.day} ${months[day.month - 1]}';
 }
 
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page back affordance — the same 38px chip language as the
-/// Settings header.
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Tooltip(
-        message: 'Back',
-        child: InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.hairline2),
-            ),
-            child: const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+/// The wallet slab — the one saturated amber surface on the page, and the
+/// only place a balance is stated. Before a starting balance is set it
+/// carries the setup prompt instead; the "Set starting balance" pill is the
+/// solid-amber committing action the handoff draws.
 class _WalletCard extends StatelessWidget {
   const _WalletCard({
     required this.wallet,
@@ -393,32 +302,20 @@ class _WalletCard extends StatelessWidget {
     final balance = wallet?.balanceMinor;
     final negative = balance != null && balance < 0;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.card,
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: const Alignment(-0.7, -1),
+          end: const Alignment(0.7, 1),
           colors: [
-            AppColors.solar.withValues(alpha: 0.16),
-            AppColors.solar.withValues(alpha: 0.04),
+            TrainColors.amber.withValues(alpha: 0.16),
+            TrainColors.amber.withValues(alpha: 0.05),
+            const Color(0x05FFFFFF),
           ],
+          stops: const [0.0, 0.6, 1.0],
         ),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.solar.withValues(alpha: 0.14)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0FA9760A),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Color(0x1FA9760A),
-            blurRadius: 30,
-            spreadRadius: -18,
-            offset: Offset(0, 14),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: TrainColors.amber.withValues(alpha: 0.28)),
       ),
       child: balance == null
           ? _WalletSetupPrompt(currency: currency)
@@ -429,8 +326,11 @@ class _WalletCard extends StatelessWidget {
                   children: [
                     Text(
                       'WALLET',
-                      style: AppText.sectionLabel.copyWith(
-                        color: AppColors.solarText,
+                      style: TrainType.caption(
+                        size: 9,
+                        tracking: 0.2,
+                        weight: FontWeight.w600,
+                        color: TrainColors.amber,
                       ),
                     ),
                     const Spacer(),
@@ -445,22 +345,52 @@ class _WalletCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${formatAmount(balance)} $currency',
-                  style: AppText.heroNumber.copyWith(
-                    fontSize: 42,
-                    color: negative ? AppColors.flareText : AppColors.ink,
-                  ),
+                const SizedBox(height: 14),
+                // The screen's one hero number, with its currency smaller and
+                // dimmer beside it.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        formatAmount(balance),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TrainType.mono(
+                          size: 40,
+                          weight: FontWeight.w300,
+                          tracking: -0.05,
+                          color: negative
+                              ? TrainColors.ember
+                              : const Color(0xFFF9F9F5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      currency,
+                      style: TrainType.mono(
+                        size: 11,
+                        weight: FontWeight.w500,
+                        tracking: 0.14,
+                        color: const Color(0x59F4F4F0),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
-                        '${formatAmount(todayMinor)} $currency spent today',
-                        style: AppText.meta.copyWith(
-                          color: AppColors.solarText,
+                        '${formatAmount(todayMinor)} $currency SPENT TODAY',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TrainType.mono(
+                          size: 10,
+                          tracking: 0.08,
+                          color: TrainColors.amber.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
@@ -491,55 +421,61 @@ class _WalletSetupPrompt extends StatelessWidget {
       children: [
         Text(
           'SET UP YOUR WALLET',
-          style: AppText.sectionLabel.copyWith(color: AppColors.solarText),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'How much money do you have right now?',
-          style: AppText.cardTitle.copyWith(fontSize: 19),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Every expense you log will deduct from it automatically.',
-          style: AppText.body,
+          style: TrainType.caption(
+            size: 9,
+            tracking: 0.2,
+            weight: FontWeight.w600,
+            color: TrainColors.amber,
+          ),
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
+        Text(
+          'How much do you have right now?',
+          style: TrainType.ui(
+            size: 20,
+            weight: FontWeight.w800,
+            tracking: -0.02,
+            color: const Color(0xFFF9F9F5),
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Every expense you log deducts from it automatically.',
+          style: TrainType.ui(
+            size: 12.5,
+            weight: FontWeight.w400,
+            color: TrainColors.ink2,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 18),
+        PressableScale(
+          scale: 0.985,
           child: Material(
-            color: Colors.transparent,
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFC933), AppColors.solar],
-                ),
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.solar.withValues(alpha: 0.35),
-                    blurRadius: 24,
-                    spreadRadius: -6,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+            color: TrainColors.amber,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => WalletBalanceSheet.show(
+                context,
+                mode: WalletSheetMode.setBalance,
+                currency: currency,
               ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => WalletBalanceSheet.show(
-                  context,
-                  mode: WalletSheetMode.setBalance,
-                  currency: currency,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  child: Center(
-                    child: Text(
-                      'Set starting balance',
-                      style: AppText.button.copyWith(
-                        color: const Color(0xFF2A2205),
-                      ),
+              child: SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: Center(
+                  child: Text(
+                    'Set starting balance',
+                    style: TrainType.ui(
+                      size: 15,
+                      weight: FontWeight.w800,
+                      tracking: -0.01,
+                      // A dark label on a light fill — amber is too bright to
+                      // carry white text at this weight.
+                      color: const Color(0xFF1A1505),
+                      height: 1,
                     ),
                   ),
                 ),
@@ -568,11 +504,11 @@ class _IconPill extends StatelessWidget {
         height: 28,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: TrainColors.glassStrong,
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.hairline2),
+          border: Border.all(color: TrainColors.hairline),
         ),
-        child: Icon(icon, size: 14, color: AppColors.ink2),
+        child: Icon(icon, size: 13, color: TrainColors.ink2),
       ),
     );
   }
@@ -589,22 +525,24 @@ class _TopUpButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: TrainColors.glassStrong,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.hairline2),
+          border: Border.all(color: TrainColors.hairline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.add, size: 13, color: AppColors.ink),
-            const SizedBox(width: 4),
+            const Icon(AppIcons.add, size: 12, color: TrainColors.inkPlain),
+            const SizedBox(width: 5),
             Text(
               'Top up',
-              style: AppText.button.copyWith(
-                fontSize: 12,
-                color: AppColors.ink,
+              style: TrainType.ui(
+                size: 11.5,
+                weight: FontWeight.w700,
+                color: TrainColors.inkPlain,
+                height: 1,
               ),
             ),
           ],
@@ -614,6 +552,13 @@ class _TopUpButton extends StatelessWidget {
   }
 }
 
+/// This week's spend, split by category: the section caption with the week's
+/// total right-aligned, then one hairline card of label + mono amount rows,
+/// each over a 4px bar in that category's hue.
+///
+/// Every amount sits in the same right-hand mono column, so the card is read
+/// down the numbers rather than across four different marks. The emoji chips
+/// that used to lead each row are gone with them (identity §8).
 class _CategoryBreakdown extends StatelessWidget {
   const _CategoryBreakdown({
     required this.rows,
@@ -631,94 +576,66 @@ class _CategoryBreakdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, right: 2),
-          child: Row(
-            children: [
-              Text('THIS WEEK BY CATEGORY', style: AppText.sectionLabel),
-              const Spacer(),
-              Text(
-                '${formatAmount(weekMinor)} $currency',
-                style: AppText.sectionLabel.copyWith(color: AppColors.ink2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              'THIS WEEK',
+              style: TrainType.caption(
+                size: 9.5,
+                tracking: 0.2,
+                color: const Color(0x4DF4F4F0),
               ),
-            ],
-          ),
+            ),
+            const Spacer(),
+            Text(
+              formatAmount(weekMinor),
+              style: TrainType.mono(size: 17, color: TrainColors.ink),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              currency,
+              style: TrainType.caption(
+                size: 9,
+                tracking: 0.12,
+                color: const Color(0x59F4F4F0),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        for (final row in rows) ...[
-          _CategoryBar(
-            row: row,
-            currency: currency,
-            fraction: row.minor / maxMinor,
+        const SizedBox(height: 11),
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+          decoration: BoxDecoration(
+            gradient: TrainColors.cardGradient,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: TrainColors.hairline),
           ),
-          const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
-
-class _CategoryBar extends StatelessWidget {
-  const _CategoryBar({
-    required this.row,
-    required this.currency,
-    required this.fraction,
-  });
-
-  final _CategorySpend row;
-  final String currency;
-  final double fraction;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = hueColor(row.category.hue);
-    return Row(
-      children: [
-        _CategoryMark(
-          category: row.category,
-          size: 26,
-          radius: 8,
-          emojiSize: 12,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            row.category.label,
-            style: AppText.meta.copyWith(color: AppColors.ink2, fontSize: 13.5),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 110,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: Stack(
-              children: [
-                Container(height: 6, color: AppColors.hairline),
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: fraction.clamp(0.03, 1.0),
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [color, Color.lerp(color, Colors.black, 0.28)!],
-                      ),
-                      borderRadius: BorderRadius.circular(999),
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++)
+                Padding(
+                  padding: EdgeInsets.only(top: i == 0 ? 0 : 13),
+                  child: TrainBarRow(
+                    label: rows[i].category.label,
+                    value: formatAmount(rows[i].minor),
+                    progress: rows[i].minor / maxMinor,
+                    // Amber, not the category's own hue: this is the money
+                    // screen, amber is the money hue, and "one hue = one
+                    // meaning" means the bars can't spend ember/green/violet
+                    // on telling categories apart. The label already does
+                    // that, and the row's icon does it on the list below.
+                    color: TrainColors.amber,
+                    labelStyle: TrainType.ui(
+                      size: 12,
+                      weight: FontWeight.w600,
+                      color: TrainColors.inkPlain,
+                      height: 1,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 78,
-          child: Text(
-            '${formatAmount(row.minor)} $currency',
-            textAlign: TextAlign.right,
-            style: AppText.meta.copyWith(color: AppColors.ink, fontSize: 13),
+            ],
           ),
         ),
       ],
@@ -726,49 +643,8 @@ class _CategoryBar extends StatelessWidget {
   }
 }
 
-/// A category's mark — its emoji inside a rounded chip tinted with the
-/// category's own hue. Shared by the breakdown and the log rows so the same
-/// category reads identically everywhere on the page.
-class _CategoryMark extends StatelessWidget {
-  const _CategoryMark({
-    required this.category,
-    required this.size,
-    required this.radius,
-    required this.emojiSize,
-  });
-
-  final ExpenseCategory category;
-  final double size;
-  final double radius;
-  final double emojiSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = hueColor(category.hue);
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.24),
-            color.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        category.emoji.isEmpty ? '•' : category.emoji,
-        style: TextStyle(fontSize: emojiSize, height: 1),
-      ),
-    );
-  }
-}
-
+/// A day group's caption: `TODAY` / `YESTERDAY` / a date on the left, that
+/// day's subtotal in amber on the right.
 class _DayHeader extends StatelessWidget {
   const _DayHeader({
     required this.label,
@@ -783,33 +659,23 @@ class _DayHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 9),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: AppText.meta.copyWith(
-              color: AppColors.ink3,
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            '${formatAmount(subtotalMinor)} $currency',
-            style: AppText.meta.copyWith(
-              color: AppColors.solarText,
-              fontWeight: FontWeight.w700,
-              fontSize: 12.5,
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(0, 22, 0, 10),
+      child: TrainSectionLabel(
+        label,
+        trailing: '${formatAmount(subtotalMinor)} $currency',
+        trailingColor: TrainColors.amber,
       ),
     );
   }
 }
 
+/// One logged expense: a 4px spine in the category's hue, the category (or
+/// its note) as the title, the time and method as a mono caption, and the
+/// amount in the day card's single right-hand mono column.
+///
+/// The spine replaces the saturated emoji chip this row used to lead with —
+/// it still says which category at a glance, in a shape that doesn't compete
+/// with the amount (identity §8, and the handoff's note on this screen).
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow(
     this.expense, {
@@ -827,14 +693,16 @@ class _ExpenseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final note = expense.note?.trim();
+    final hasNote = note != null && note.isNotEmpty;
     return Dismissible(
       key: Key('expense-row-${expense.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: AppColors.flare.withValues(alpha: 0.14),
-        child: const Icon(AppIcons.trash, size: 20, color: AppColors.flareText),
+        color: TrainColors.ember.withValues(alpha: 0.14),
+        child: const Icon(AppIcons.trash, size: 19, color: TrainColors.ember),
       ),
       onDismissed: (_) => onDelete(),
       child: Column(
@@ -845,54 +713,56 @@ class _ExpenseRow extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 11,
+                  vertical: 14,
                   horizontal: 16,
                 ),
                 child: Row(
                   children: [
-                    _CategoryMark(
-                      category: category,
-                      size: 32,
-                      radius: 10,
-                      emojiSize: 15,
+                    Container(
+                      width: 4,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: TrainColors.amber,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // The note is the specific thing bought; the
+                          // category is the bucket. Lead with whichever is
+                          // more informative, and let the other demote.
                           Text(
-                            category.label,
+                            hasNote ? note : category.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppText.rowTitle.copyWith(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            style: TrainType.ui(
+                              size: 13.5,
+                              weight: FontWeight.w700,
+                              color: TrainColors.inkPlain,
+                              height: 1,
                             ),
                           ),
-                          if (expense.note != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              expense.note!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.meta.copyWith(
-                                color: AppColors.ink3,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _rowCaption(expense, category, hasNote: hasNote),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TrainType.mono(
+                              size: 9.5,
+                              tracking: 0.08,
+                              color: const Color(0x59F4F4F0),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      '${formatAmount(expense.amountMinor)} ${expense.currency}',
-                      style: AppText.amount.copyWith(
-                        color: AppColors.solarText,
-                        fontSize: 15,
-                      ),
+                      formatAmount(expense.amountMinor),
+                      style: TrainType.mono(size: 14, color: TrainColors.ink),
                     ),
                   ],
                 ),
@@ -900,13 +770,31 @@ class _ExpenseRow extends StatelessWidget {
             ),
           ),
           if (!last)
-            Container(
-              margin: const EdgeInsets.only(left: 60),
-              height: 1,
-              color: AppColors.hairline,
+            const Padding(
+              padding: EdgeInsets.only(left: 32),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: TrainColors.hairline,
+              ),
             ),
         ],
       ),
     );
   }
+}
+
+/// `08:40 · FOOD` — when the row's title is the note, the caption carries the
+/// category; when the title is already the category, the caption is just the
+/// time. Never a caption that restates the line above it.
+String _rowCaption(
+  Expense expense,
+  ExpenseCategory category, {
+  required bool hasNote,
+}) {
+  final at = expense.spentAt;
+  final time =
+      '${at.hour.toString().padLeft(2, '0')}:'
+      '${at.minute.toString().padLeft(2, '0')}';
+  return hasNote ? '$time · ${category.label.toUpperCase()}' : time;
 }

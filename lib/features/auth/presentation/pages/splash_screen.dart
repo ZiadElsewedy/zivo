@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/motion/springs.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/zivo_loading_bar.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The branded surface shown while the persisted session is being restored on
 /// launch (and while the profile stream resolves). Quiet by design — the ZIVO
@@ -24,6 +24,11 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _entrance = AnimationController(vsync: this);
 
   void _begin() {
+    // Fires from a post-frame callback, so this State may already be gone:
+    // the splash is torn down the instant auth resolves, and on a warm start
+    // that can happen in the very frame that scheduled this. Touching
+    // `context` (or the disposed controller) then throws.
+    if (!mounted) return;
     if (_entrance.isAnimating || _entrance.value > 0) return;
     // Reduced motion: land instantly instead of animating (or never showing).
     if (reducedMotion(context)) {
@@ -46,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _begin());
 
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: Center(
         child: AnimatedBuilder(
           animation: _entrance,
@@ -75,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
               Text(
                 'your whole day, in one place',
                 style: AppText.meta.copyWith(
-                  color: AppColors.ink3,
+                  color: TrainColors.ink3,
                   fontWeight: FontWeight.w500,
                 ),
               ),

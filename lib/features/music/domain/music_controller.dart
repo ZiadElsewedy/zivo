@@ -1,3 +1,4 @@
+import 'audio_output.dart';
 import 'music_connection.dart';
 import 'now_playing.dart';
 
@@ -29,6 +30,22 @@ abstract class MusicController {
   /// `initialData` role as [currentNowPlaying].
   MusicConnection get currentConnection;
 
+  /// The audio output the current track is routing through (AirPods, buds, the
+  /// phone speaker…), or null when unknown. Emits on route changes. Optional by
+  /// design — a controller with no way to know the route stays on `null`, and
+  /// the player simply omits the output row (nothing shifts when it's absent).
+  ///
+  /// NOTE: the OS audio route is NOT something the Spotify App Remote SDK
+  /// reports, so [SpotifyMusicController] currently emits `null`; populating it
+  /// for real needs a platform channel (iOS `AVAudioSession.currentRoute`,
+  /// Android `AudioManager`/`MediaRouter`). [FakeMusicController] emits a
+  /// fixture device so the row is demoable off-device. See HANDOFF §6.
+  Stream<AudioOutput?> get output;
+
+  /// The last value [output] emitted, read synchronously — same `initialData`
+  /// role as [currentNowPlaying]/[currentConnection].
+  AudioOutput? get currentOutput;
+
   /// Starts (or retries) connecting to the underlying player. A no-op if
   /// already connected/connecting.
   Future<void> connect();
@@ -49,6 +66,21 @@ abstract class MusicController {
   /// `seek(Duration.zero)`, surfaced separately since "replay" is its own
   /// dedicated control in the full player, not just an extreme scrub.
   Future<void> replay();
+
+  /// Requests shuffle on/off. Like [play]/[pause], this is fire-and-request:
+  /// the UI does NOT keep its own toggle — it renders [NowPlaying.isShuffling],
+  /// and the new value flows back through [nowPlaying] once the player applies
+  /// it (immediately for [FakeMusicController]; after the App Remote round-trip
+  /// for [SpotifyMusicController], which also reflects changes made on any other
+  /// device). A no-op where the underlying player can't report or set it.
+  Future<void> setShuffle(bool shuffle);
+
+  /// Requests a repeat [mode]. The caller passes the exact target (the player's
+  /// repeat control computes the `off → all → one → off` cycle from the current
+  /// [NowPlaying.repeatMode]), mirroring [seek]'s explicit-target style rather
+  /// than an opaque toggle. Observed back through [nowPlaying], same as
+  /// [setShuffle].
+  Future<void> setRepeat(MusicRepeatMode mode);
 
   /// Releases whatever the implementation is holding open — a polling
   /// timer ([FakeMusicController]), a player-state subscription

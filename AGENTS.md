@@ -57,7 +57,10 @@ spirit. Owner: Ziad.
 - **Respect the design system.** Hue ownership (each area owns one color; Ember = Now/Next
   + the single primary action), the spacing/radius/typography/motion tokens in
   [`lib/core/theme/`](lib/core/theme) and [`lib/core/motion/springs.dart`](lib/core/motion/springs.dart),
-  and the shared capture widgets. See [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md).
+  and the shared capture widgets. **One palette only — `TrainColors`; `AppColors`/`AppShadows`
+  are deleted and must not come back** ([ADR-006](docs/DECISIONS/ADR-006-one-design-system.md)).
+  See also [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) for intent (superseded for
+  colour values by ADR-006).
 - **Security is deny-by-default, owner-scoped.** All persistence goes through Firestore
   with per-collection field validation in [`firestore.rules`](firestore.rules), covered by
   the emulator suite in [`firestore-tests/`](firestore-tests). A new collection needs a
@@ -167,7 +170,7 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference | reference |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits · sessions · progression engine | reference |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction/screen blueprints | design intent |
-| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Color hues · type · motion identity | reference |
+| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Type · motion · tone identity (colour superseded by ADR-006) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

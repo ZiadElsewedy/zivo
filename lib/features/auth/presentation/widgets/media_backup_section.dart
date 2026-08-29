@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/media/presentation/storage_sync_page.dart';
 import '../../../../core/widgets/settings_row.dart';
@@ -14,13 +14,13 @@ class MediaBackupSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      label: 'MEDIA',
+      label: 'Media',
       children: [
         SettingsRow(
           icon: AppIcons.backupNow,
-          title: 'Storage & Sync',
-          value: 'Photos, backup, Drive',
-          accent: AppColors.pulse,
+          title: 'Storage & sync',
+          value: 'Photos · Drive',
+          accent: TrainColors.green,
           last: true,
           onTap: () => Navigator.of(
             context,

@@ -52,13 +52,15 @@ void main() {
       ),
     );
 
-    final appleMaterial = tester.widget<Material>(
+    // The fill lives on the button's animated decoration (it eases between
+    // the enabled and recessed states), not on the Material behind it.
+    final appleBox = tester.widget<AnimatedContainer>(
       find.ancestor(
         of: find.text('Sign in with Apple'),
-        matching: find.byType(Material),
+        matching: find.byType(AnimatedContainer),
       ).first,
     );
-    expect(appleMaterial.color, Colors.white);
+    expect((appleBox.decoration! as BoxDecoration).color, Colors.white);
 
     final appleIcon = tester.widget<Icon>(find.byIcon(Icons.apple));
     expect(appleIcon.color, Colors.black);

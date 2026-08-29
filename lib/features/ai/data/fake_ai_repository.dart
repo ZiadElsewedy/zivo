@@ -534,10 +534,17 @@ class FakeAiRepository implements AiRepository {
   }
 
   String _resultLine(AiPendingAction a) {
+    final f = a.fields;
     switch (a.kind) {
       case 'create_expense':
-        return 'Logged expense · ${a.fields['amount']} ${a.fields['currency']} · '
-            '${a.fields['category']}';
+        return 'Logged expense · ${f['amount']} ${f['currency']} · '
+            '${f['category']}';
+      case 'edit_expense':
+        return 'Updated expense${f['target'] != null ? ' · ${f['target']}' : ''}';
+      case 'delete_expense':
+        return 'Deleted expense${f['target'] != null ? ' · ${f['target']}' : ''}';
+      case 'mark_meal_eaten':
+        return 'Marked ${f['meal']} ${f['state']}.';
       default:
         return 'Done.';
     }

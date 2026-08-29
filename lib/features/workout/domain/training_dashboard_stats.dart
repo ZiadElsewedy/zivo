@@ -217,3 +217,70 @@ List<LiveSession> sessionsOnDay(List<LiveSession> sessions, DateTime day) {
       )
       .toList();
 }
+
+// ---- Tile sparklines ------------------------------------------------------
+//
+// The dashboard's stat tiles carry the SHAPE of their own metric instead of a
+// chevron (design handoff §"Workout hub"), so each of these returns a plain
+// oldest-first series a sparkline can normalise over its own range. All three
+// count COMPLETED sessions only, for the same reason the averages above do —
+// an abandoned session was quit, not trained.
+
+/// Completed sessions per calendar week for the last [weeks] weeks, oldest
+/// first and including the current (partial) week — the Sessions tile's
+/// sparkline. Always exactly [weeks] entries, so a quiet stretch reads as a
+/// dip rather than shortening the line.
+List<double> weeklySessionCounts({
+  required List<LiveSession> sessions,
+  required DateTime now,
+  int weeks = 8,
+}) {
+  final trained = <DateTime, int>{};
+  for (final s in sessions) {
+    if (s.status != SessionStatus.completed) continue;
+    final week = _weekStart(s.startedAt);
+    trained[week] = (trained[week] ?? 0) + 1;
+  }
+  final thisWeek = _weekStart(now);
+  return [
+    for (var i = weeks - 1; i >= 0; i--)
+      (trained[thisWeek.subtract(Duration(days: 7 * i))] ?? 0).toDouble(),
+  ];
+}
+
+/// Completed sessions per day for the last [days] days, oldest first and
+/// including today — the Streak tile's bar cluster, where the last bar is
+/// today and carries the full accent.
+List<double> dailySessionCounts({
+  required List<LiveSession> sessions,
+  required DateTime now,
+  int days = 7,
+}) {
+  final trained = <DateTime, int>{};
+  for (final s in sessions) {
+    if (s.status != SessionStatus.completed) continue;
+    final day = _dayStart(s.startedAt);
+    trained[day] = (trained[day] ?? 0) + 1;
+  }
+  final today = _dayStart(now);
+  return [
+    for (var i = days - 1; i >= 0; i--)
+      (trained[today.subtract(Duration(days: i))] ?? 0).toDouble(),
+  ];
+}
+
+/// The last [limit] completed sessions' durations in minutes, oldest first —
+/// the Duration tile's sparkline. Shorter than [limit] (or empty) when there
+/// isn't that much history; the sparkline hides itself below two points.
+List<double> recentSessionDurationMinutes({
+  required List<LiveSession> sessions,
+  int limit = 8,
+}) {
+  final completed =
+      sessions.where((s) => s.status == SessionStatus.completed).toList()
+        ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+  final window = completed.length <= limit
+      ? completed
+      : completed.sublist(completed.length - limit);
+  return [for (final s in window) s.elapsed.inSeconds / 60];
+}

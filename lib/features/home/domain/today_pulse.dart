@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/train_tokens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../expenses/domain/expense.dart';
 import '../../workout/domain/live_session.dart';
@@ -69,8 +69,11 @@ List<DayActivity> weekActivity(
   int days = 7,
 }) {
   final counts = List<int>.filled(days, 0);
-  final start = DateTime(now.year, now.month, now.day)
-      .subtract(Duration(days: days - 1));
+  final start = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(Duration(days: days - 1));
   for (final s in sessions) {
     if (s.status != SessionStatus.completed) continue;
     final done = s.completedAt ?? s.startedAt;
@@ -80,7 +83,10 @@ List<DayActivity> weekActivity(
   }
   return [
     for (var i = 0; i < days; i++)
-      DayActivity(day: start.add(Duration(days: i)), workouts: counts[i]),
+      DayActivity(
+        day: start.add(Duration(days: i)),
+        workouts: counts[i],
+      ),
   ];
 }
 
@@ -88,9 +94,11 @@ List<DayActivity> weekActivity(
 /// yesterday if today's session hasn't happened yet — a streak never reads
 /// as broken before the day is over).
 int trainingStreakDays(List<LiveSession> sessions, DateTime now) {
-  final active = weekActivity(sessions, now, days: 400)
-      .reversed
-      .toList(); // newest first
+  final active = weekActivity(
+    sessions,
+    now,
+    days: 400,
+  ).reversed.toList(); // newest first
   var i = 0;
   if (active.isNotEmpty && active.first.workouts == 0) i = 1;
   var streak = 0;
@@ -135,8 +143,7 @@ WeightTrend? weightTrend(List<(DateTime, double)> entries, {int span = 14}) {
 }
 
 /// Total spent (minor units) between [from] (inclusive) and [to] (exclusive).
-int spendBetween(List<Expense> items, DateTime now,
-    {required Duration ago}) {
+int spendBetween(List<Expense> items, DateTime now, {required Duration ago}) {
   final to = DateTime(now.year, now.month, now.day);
   final from = to.subtract(ago);
   return items.fold<int>(0, (sum, e) {
@@ -171,83 +178,99 @@ List<PulseInsight> buildInsights({
   // -- Training ------------------------------------------------------------
   final activity = weekActivity(sessions, now);
   final streak = trainingStreakDays(sessions, now);
-  final lastDone = activity
-      .lastWhere((d) => d.workouts > 0, orElse: () => activity.last);
+  final lastDone = activity.lastWhere(
+    (d) => d.workouts > 0,
+    orElse: () => activity.last,
+  );
   final gapDays = now.difference(lastDone.day).inDays;
   if (streak >= 3) {
-    result.add(PulseInsight(
-      icon: AppIcons.streak,
-      hue: AppColors.pulse,
-      title: '$streak-day training streak',
-      body: 'Momentum is real right now — protect it with today\'s session.',
-    ));
+    result.add(
+      PulseInsight(
+        icon: AppIcons.streak,
+        hue: TrainColors.green,
+        title: '$streak-day training streak',
+        body: 'Momentum is real right now — protect it with today\'s session.',
+      ),
+    );
   } else if (gapDays >= 3) {
-    result.add(PulseInsight(
-      icon: AppIcons.timer,
-      hue: AppColors.solar,
-      title: 'Rest has stretched to $gapDays days',
-      body: 'No guilt — just the next small session whenever you\'re ready.',
-    ));
+    result.add(
+      PulseInsight(
+        icon: AppIcons.timer,
+        hue: TrainColors.amber,
+        title: 'Rest has stretched to $gapDays days',
+        body: 'No guilt — just the next small session whenever you\'re ready.',
+      ),
+    );
   }
 
   // -- Diet ------------------------------------------------------------------
   if (mealsLeft != null && mealsLeft > 0 && now.hour >= 19) {
-    result.add(PulseInsight(
-      icon: AppIcons.diet,
-      hue: AppColors.pulse,
-      title: 'Evening check-in',
-      body: mealsLeft == 1
-          ? 'One meal still open today'
-                '${kcalLeft != null ? ' (~$kcalLeft kcal)' : ''} — worth '
-                'closing it out.'
-          : '$mealsLeft meals still open today'
-                '${kcalLeft != null ? ' (~$kcalLeft kcal left)' : ''}.',
-    ));
+    result.add(
+      PulseInsight(
+        icon: AppIcons.diet,
+        hue: TrainColors.green,
+        title: 'Evening check-in',
+        body: mealsLeft == 1
+            ? 'One meal still open today'
+                  '${kcalLeft != null ? ' (~$kcalLeft kcal)' : ''} — worth '
+                  'closing it out.'
+            : '$mealsLeft meals still open today'
+                  '${kcalLeft != null ? ' (~$kcalLeft kcal left)' : ''}.',
+      ),
+    );
   }
 
   // -- Money -----------------------------------------------------------------
   final thisWeek = spendBetween(expenses, now, ago: const Duration(days: 7));
-  final lastWeekSameSpan =
-      spendBetween(expenses, now.subtract(const Duration(days: 7)),
-          ago: const Duration(days: 7));
+  final lastWeekSameSpan = spendBetween(
+    expenses,
+    now.subtract(const Duration(days: 7)),
+    ago: const Duration(days: 7),
+  );
   if (thisWeek > 0 && lastWeekSameSpan > 0) {
     final ratio = thisWeek / lastWeekSameSpan;
     if (ratio >= 1.25) {
       final pct = ((ratio - 1) * 100).round();
-      result.add(PulseInsight(
-        icon: AppIcons.expenses,
-        hue: AppColors.solar,
-        title: 'Spending is running ~$pct% hot',
-        body: 'This week vs the same stretch last week — worth a glance.',
-      ));
+      result.add(
+        PulseInsight(
+          icon: AppIcons.expenses,
+          hue: TrainColors.amber,
+          title: 'Spending is running ~$pct% hot',
+          body: 'This week vs the same stretch last week — worth a glance.',
+        ),
+      );
     }
   }
 
   // -- Movement ----------------------------------------------------------------
   if (stepsToday != null && now.hour >= 16 && stepsToday < kDefaultStepGoal) {
     final left = kDefaultStepGoal - stepsToday;
-    result.add(PulseInsight(
-      icon: AppIcons.bolt,
-      hue: AppColors.iris,
-      title: 'Steps are behind today',
-      body: left <= 2000
-          ? 'Only $left steps from the goal — an easy walk closes it.'
-          : '$left steps to go — even ten minutes helps.',
-    ));
+    result.add(
+      PulseInsight(
+        icon: AppIcons.bolt,
+        hue: TrainColors.violet,
+        title: 'Steps are behind today',
+        body: left <= 2000
+            ? 'Only $left steps from the goal — an easy walk closes it.'
+            : '$left steps to go — even ten minutes helps.',
+      ),
+    );
   }
 
   // -- Weight ------------------------------------------------------------------
   if (weight != null && weight.deltaKg.abs() >= 0.3) {
     final dir = weight.deltaKg < 0 ? 'down' : 'up';
     final kg = weight.deltaKg.abs().toStringAsFixed(1);
-    result.add(PulseInsight(
-      icon: AppIcons.scale,
-      hue: AppColors.pulseText,
-      title: 'Weight $dir ${kg}kg over ${weight.spanDays} days',
-      body: dir == 'down'
-          ? 'Steady progress — keep eating enough to train hard.'
-          : 'Nothing dramatic — watch the trend, not any single day.',
-    ));
+    result.add(
+      PulseInsight(
+        icon: AppIcons.scale,
+        hue: TrainColors.green,
+        title: 'Weight $dir ${kg}kg over ${weight.spanDays} days',
+        body: dir == 'down'
+            ? 'Steady progress — keep eating enough to train hard.'
+            : 'Nothing dramatic — watch the trend, not any single day.',
+      ),
+    );
   }
 
   return result.take(max).toList();

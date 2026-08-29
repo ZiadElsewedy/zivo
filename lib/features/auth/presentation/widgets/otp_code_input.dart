@@ -3,8 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// A premium 6-digit verification-code field.
 ///
@@ -64,6 +65,9 @@ class _OtpCodeInputState extends State<OtpCodeInput>
     super.didUpdateWidget(old);
     // Shake when we newly enter the error state.
     if (widget.hasError && !old.hasError) {
+      // Motion + haptic on the same frame — a rejected code is exactly the
+      // kind of meaningful, causal moment haptics are for.
+      HapticFeedback.mediumImpact();
       _shake.forward(from: 0);
     }
   }
@@ -151,57 +155,94 @@ class _OtpCodeInputState extends State<OtpCodeInput>
     return amplitude * (1 - t) * math.sin(t * 3 * 2 * math.pi);
   }
 
+  /// One code cell.
+  ///
+  /// Every cell is a real filled surface rather than an outline on the ground:
+  /// six hairline rectangles on a near-black screen read as an empty wireframe,
+  /// where six warm tiles read as slots waiting to be filled. The active cell
+  /// carries the ember border *and* the ember glow — the same light the focused
+  /// field and the primary action use — so where you're typing is obvious from
+  /// across the screen, and each digit springs in at the moment it lands.
   Widget _buildCell(int i) {
     final text = widget.controller.text;
     final hasFocus = widget.focusNode.hasFocus;
     final filled = i < text.length;
     // The "active" cell is where the next digit will go.
-    final isActive = hasFocus && i == text.length && text.length < widget.length;
+    final isActive =
+        hasFocus && i == text.length && text.length < widget.length;
 
     final Color borderColor;
     final double borderWidth;
+    final Color fill;
     if (widget.hasError) {
-      borderColor = AppColors.flare;
+      borderColor = TrainColors.ember;
       borderWidth = 1.6;
+      fill = TrainColors.ember.withValues(alpha: 0.08);
     } else if (isActive) {
-      borderColor = AppColors.ember;
+      borderColor = TrainColors.ember;
       borderWidth = 1.8;
+      fill = TrainColors.raisedStrong;
     } else if (filled) {
-      borderColor = AppColors.hairline2;
+      borderColor = TrainColors.hairlineStrong;
       borderWidth = 1.4;
+      fill = TrainColors.raisedStrong;
     } else {
-      borderColor = AppColors.hairline;
+      borderColor = TrainColors.hairlineStrong;
       borderWidth = 1.2;
+      fill = TrainColors.raised;
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      width: 46,
-      height: 58,
+      duration: const Duration(milliseconds: 180),
+      curve: AppMotion.ease,
+      width: 48,
+      height: 62,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: widget.hasError
-            ? const Color(0x0FFF3D6E)
-            : (filled ? AppColors.card : AppColors.ground),
-        borderRadius: BorderRadius.circular(14),
+        color: fill,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: isActive && !widget.hasError
+            ? const [
+                BoxShadow(
+                  color: Color(0x33FF5A1F),
+                  blurRadius: 20,
+                  spreadRadius: -6,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
-      child: filled
-          ? Text(
-              text[i],
-              style: AppText.cardTitle.copyWith(
-                fontSize: 24,
-                color: widget.hasError ? AppColors.flareText : AppColors.ink,
-              ),
-            )
-          : (isActive ? const _Caret() : const SizedBox.shrink()),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 160),
+        switchInCurve: AppMotion.ease,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.55, end: 1).animate(animation),
+            child: child,
+          ),
+        ),
+        child: filled
+            ? Text(
+                text[i],
+                key: ValueKey('$i:${text[i]}'),
+                style: AppText.cardTitle.copyWith(
+                  fontSize: 25,
+                  color: widget.hasError ? TrainColors.ember : TrainColors.ink,
+                ),
+              )
+            : (isActive
+                  ? const _Caret(key: ValueKey('caret'))
+                  : const SizedBox.shrink(key: ValueKey('empty'))),
+      ),
     );
   }
 }
 
 /// A slim blinking caret shown in the active, empty cell.
 class _Caret extends StatefulWidget {
-  const _Caret();
+  const _Caret({super.key});
 
   @override
   State<_Caret> createState() => _CaretState();
@@ -227,7 +268,7 @@ class _CaretState extends State<_Caret> with SingleTickerProviderStateMixin {
         width: 2,
         height: 26,
         decoration: BoxDecoration(
-          color: AppColors.ember,
+          color: TrainColors.ember,
           borderRadius: BorderRadius.circular(1),
         ),
       ),

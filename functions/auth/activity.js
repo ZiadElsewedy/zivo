@@ -91,9 +91,31 @@ const markEmailVerified = async (db, uid) => {
   ]);
 };
 
+/**
+ * Records that the password was set/changed: stamps `lastPasswordChangeAt` on
+ * the summary and appends a `passwordChanged` event. Called only after a
+ * password actually changed server-side (the OTP-based reset flow). The
+ * in-app "change password" flow records the client-side equivalent itself.
+ * @param {!Firestore} db
+ * @param {string} uid
+ * @return {!Promise<void>}
+ */
+const markPasswordChanged = async (db, uid) => {
+  const now = new Date();
+  await Promise.all([
+    recordAuthEvent(db, uid, "passwordChanged", {provider: "password"}),
+    accountRef(db, uid).set({
+      schemaVersion: SCHEMA_VERSION,
+      lastPasswordChangeAt: now,
+      updatedAt: now,
+    }, {merge: true}),
+  ]);
+};
+
 module.exports = {
   SCHEMA_VERSION,
   recordAuthEvent,
   markEmailSent,
   markEmailVerified,
+  markPasswordChanged,
 };

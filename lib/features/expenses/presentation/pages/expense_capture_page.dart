@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/money.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/expense.dart';
@@ -60,8 +60,18 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
     if (day == today) return 'Today';
     if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${day.day} ${months[day.month - 1]}';
   }
@@ -101,7 +111,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
+        backgroundColor: TrainColors.raised,
         title: Text('Note', style: AppText.cardTitle),
         content: TextField(
           controller: controller,
@@ -112,11 +122,17 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text(
+              'Cancel',
+              style: AppText.button.copyWith(color: TrainColors.ink3),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: Text('Done', style: AppText.button.copyWith(color: AppColors.emberText)),
+            child: Text(
+              'Done',
+              style: AppText.button.copyWith(color: TrainColors.ember),
+            ),
           ),
         ],
       ),
@@ -162,7 +178,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: SafeArea(
         child: Column(
           children: [
@@ -175,7 +191,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
                       semanticLabel: 'Delete expense',
-                      iconColor: AppColors.flareText,
+                      iconColor: TrainColors.ember,
                     )
                   : null,
             ),
@@ -187,8 +203,12 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
                     _AmountDisplay(digits: _digits, currency: _currency),
                     const SizedBox(height: 18),
                     StreamBuilder<List<ExpenseCategory>>(
-                      stream: AppScope.of(context).expensesService.watchCategories(),
-                      initialData: AppScope.of(context).expensesService.allCategories(),
+                      stream: AppScope.of(
+                        context,
+                      ).expensesService.watchCategories(),
+                      initialData: AppScope.of(
+                        context,
+                      ).expensesService.allCategories(),
                       builder: (context, snapshot) {
                         return CategoryChips(
                           categories: snapshot.data ?? kBuiltInCategories,
@@ -199,7 +219,11 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
                       },
                     ),
                     const SizedBox(height: 14),
-                    _MetaRow(note: _note, onEditNote: _editNote, dateLabel: _dateLabel),
+                    _MetaRow(
+                      note: _note,
+                      onEditNote: _editNote,
+                      dateLabel: _dateLabel,
+                    ),
                   ],
                 ),
               ),
@@ -246,7 +270,7 @@ class _AmountDisplay extends StatelessWidget {
             Text(
               digits.isEmpty ? '0' : digits,
               style: AppText.heroNumber.copyWith(
-                color: digits.isEmpty ? AppColors.ink3 : AppColors.ink,
+                color: digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
               ),
             ),
             Container(
@@ -254,7 +278,7 @@ class _AmountDisplay extends StatelessWidget {
               height: 52,
               margin: const EdgeInsets.only(left: 5),
               decoration: BoxDecoration(
-                color: AppColors.solar,
+                color: TrainColors.amber,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -314,7 +338,7 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.ink : AppColors.ink3;
+    final color = active ? TrainColors.ink : TrainColors.ink3;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -323,7 +347,7 @@ class _MetaChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? AppColors.hairline2 : AppColors.hairline,
+            color: active ? TrainColors.hairlineStrong : TrainColors.hairline,
             width: 1.4,
           ),
         ),
@@ -367,7 +391,7 @@ class _SaveButton extends StatelessWidget {
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: Material(
-        color: AppColors.solar,
+        color: TrainColors.amber,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: enabled ? onTap : null,
@@ -379,7 +403,11 @@ class _SaveButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_rounded, size: 17, color: Color(0xFF2A2205)),
+                const Icon(
+                  Icons.check_rounded,
+                  size: 17,
+                  color: Color(0xFF2A2205),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   label,

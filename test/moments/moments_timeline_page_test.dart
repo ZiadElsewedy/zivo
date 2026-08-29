@@ -306,7 +306,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('No moments yet.'), findsOneWidget);
+    expect(find.text('Nothing logged yet'), findsOneWidget);
   });
 
   testWidgets('shows the error view when the stream errors', (tester) async {

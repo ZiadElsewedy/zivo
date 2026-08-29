@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/live_session.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The result of picking from the change-workout sheet: the [day] to train
 /// instead, plus the plan's active [resumable] session when that day is
@@ -29,12 +29,13 @@ Future<ChangeWorkoutSelection?> showChangeWorkoutSheet(
 }) {
   return showModalBottomSheet<ChangeWorkoutSelection>(
     context: context,
-    backgroundColor: AppColors.card,
+    backgroundColor: TrainColors.raised,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => _ChangeWorkoutSheet(plan: plan, activeSession: activeSession),
+    builder: (_) =>
+        _ChangeWorkoutSheet(plan: plan, activeSession: activeSession),
   );
 }
 
@@ -60,7 +61,7 @@ class _ChangeWorkoutSheet extends StatelessWidget {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.hairline2,
+                  color: TrainColors.hairlineStrong,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -78,7 +79,7 @@ class _ChangeWorkoutSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Text(
                 plan.name,
-                style: AppText.meta.copyWith(color: AppColors.ink3),
+                style: AppText.meta.copyWith(color: TrainColors.ink3),
               ),
             ),
             const SizedBox(height: 12),
@@ -98,11 +99,16 @@ class _ChangeWorkoutSheet extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: PressableScale(
                       child: Material(
-                        color: isNext ? AppColors.surfaceRaised : Colors.transparent,
+                        color: isNext
+                            ? TrainColors.raisedStrong
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(14),
                         child: InkWell(
                           onTap: () => Navigator.of(context).pop(
-                            ChangeWorkoutSelection(day: day, resumable: resumable),
+                            ChangeWorkoutSelection(
+                              day: day,
+                              resumable: resumable,
+                            ),
                           ),
                           borderRadius: BorderRadius.circular(14),
                           child: Padding(
@@ -116,16 +122,22 @@ class _ChangeWorkoutSheet extends StatelessWidget {
                                   child: Text(
                                     day.label,
                                     style: AppText.rowTitle.copyWith(
-                                      color: AppColors.ink,
+                                      color: TrainColors.ink,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 if (isNext)
-                                  const _Badge(label: 'Next up', color: AppColors.pulse)
+                                  const _Badge(
+                                    label: 'Next up',
+                                    color: TrainColors.green,
+                                  )
                                 else if (resumable != null)
-                                  const _Badge(label: 'In progress', color: AppColors.solar),
+                                  const _Badge(
+                                    label: 'In progress',
+                                    color: TrainColors.amber,
+                                  ),
                               ],
                             ),
                           ),
@@ -164,7 +176,9 @@ class _Badge extends StatelessWidget {
         style: AppText.meta.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: color == AppColors.pulse ? AppColors.pulseText : AppColors.solarText,
+          color: color == TrainColors.green
+              ? TrainColors.green
+              : TrainColors.amber,
         ),
       ),
     );

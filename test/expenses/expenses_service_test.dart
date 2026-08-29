@@ -90,8 +90,7 @@ void main() {
     const custom = ExpenseCategory(
       id: 'subs',
       label: 'Subscriptions',
-      emoji: '📺',
-      hue: CategoryHue.iris,
+      icon: CategoryIcon.entertainment,
     );
     await service.addCategory(custom);
 

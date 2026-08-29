@@ -56,6 +56,7 @@ class AppIcons {
   static const info = LucideIcons.info;
   static const infoFill = LucideIcons.info;
   static const chevron = LucideIcons.chevronRight;
+  static const chevronDown = LucideIcons.chevronDown;
   static const edit = LucideIcons.pencil;
   static const tag = LucideIcons.tag;
   static const location = LucideIcons.mapPin;
@@ -83,6 +84,12 @@ class AppIcons {
 
   // Music.
   static const music = LucideIcons.music;
+  static const shuffle = LucideIcons.shuffle;
+  static const repeat = LucideIcons.repeat;
+  static const repeatOne = LucideIcons.repeat1;
+  static const headphones = LucideIcons.headphones;
+  static const bluetooth = LucideIcons.bluetooth;
+  static const speaker = LucideIcons.volume2;
 
   // Settings · media & backup.
   static const theme = LucideIcons.moon;
@@ -100,4 +107,35 @@ class AppIcons {
   // Toast / status glyphs.
   static const success = LucideIcons.badgeCheck;
   static const warning = LucideIcons.circleAlert;
+
+  // Expense categories — the vocabulary a category (built-in or user-created)
+  // picks its mark from. These replaced literal emoji, which identity §4/§8
+  // rule out twice: emoji render differently per-OS and instantly break the
+  // otherwise-custom feel. Mapped from `CategoryIcon` in the expenses feature's
+  // `category_icons.dart`, the same way hues map through `category_hue_colors`.
+  static const catFood = LucideIcons.utensils;
+  static const catCoffee = LucideIcons.coffee;
+  static const catTransport = LucideIcons.carTaxiFront;
+  static const catGroceries = LucideIcons.shoppingCart;
+  static const catShopping = LucideIcons.shoppingBag;
+  static const catEntertainment = LucideIcons.clapperboard;
+  static const catHome = LucideIcons.house;
+  static const catHealth = LucideIcons.pill;
+  static const catEducation = LucideIcons.graduationCap;
+  static const catTravel = LucideIcons.plane;
+  static const catPets = LucideIcons.pawPrint;
+  static const catGifts = LucideIcons.gift;
+  static const catUtilities = LucideIcons.lightbulb;
+  static const catPhone = LucideIcons.smartphone;
+  static const catGames = LucideIcons.gamepad2;
+  static const catDrinks = LucideIcons.beer;
+  static const catCar = LucideIcons.car;
+  static const catFitness = LucideIcons.dumbbell;
+  static const catBooks = LucideIcons.bookOpen;
+  static const catGrooming = LucideIcons.scissors;
+  static const catMusic = LucideIcons.music;
+  static const catParking = LucideIcons.circleParking;
+  static const catBills = LucideIcons.receipt;
+  static const catPersonalCare = LucideIcons.showerHead;
+  static const catOther = LucideIcons.tag;
 }
