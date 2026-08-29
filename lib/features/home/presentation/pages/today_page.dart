@@ -903,6 +903,7 @@ class _DietSection extends StatelessWidget {
                   eaten: summary.eaten,
                   total: summary.total,
                   kcalLeft: summary.kcalLeft,
+                  kcalEstimated: summary.kcalLeftEstimated,
                 ),
               ],
             );

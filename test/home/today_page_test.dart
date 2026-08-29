@@ -12,6 +12,7 @@ import 'package:zivo/features/diet/data/firestore_diet_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -590,7 +591,37 @@ class _TestDietRepository implements DietRepository {
     required bool eaten,
   }) async {}
 
-  void dispose() => _controller.close();
+  @override
+  NutritionTargets? get currentTargets => _targets;
+
+  @override
+  Stream<NutritionTargets?> watchTargets() async* {
+    yield _targets;
+    yield* _targetsController.stream;
+  }
+
+  @override
+  Future<void> saveTargets(NutritionTargets targets) async {
+    _targets = targets;
+    _targetsController.add(_targets);
+  }
+
+  @override
+  Future<void> clearTargets() async {
+    _targets = null;
+    _targetsController.add(null);
+  }
+
+
+
+  NutritionTargets? _targets;
+  final StreamController<NutritionTargets?> _targetsController =
+      StreamController<NutritionTargets?>.broadcast();
+
+  void dispose() {
+    _controller.close();
+    _targetsController.close();
+  }
 }
 
 /// An [ExpenseRepository] that starts with (or without) items and

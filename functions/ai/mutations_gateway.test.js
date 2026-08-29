@@ -48,6 +48,8 @@ function makeStore(overrides) {
       return `msg-${messages.length}`;
     },
     touchConversation: async () => {},
+    getActiveDietPlan: async () => null,
+    listDietEntries: async () => [],
     getTodayUsageTotals: async () => ({turns: 0, tokens: 0}),
     getRecentMessages: async () => [],
     logUsage: async () => {},
@@ -292,20 +294,42 @@ test("confirmAction performs the write and is idempotent", async () => {
   assert.equal(store.writes.expenses.length, 1);
 });
 
+// A plan with one every-day slot, so it resolves on any date.
+const DIET_PLAN = {
+  name: "Cut",
+  status: "active",
+  days: [{
+    weekday: null,
+    label: "Every day",
+    meals: [
+      {id: "lunch-2", label: "Lunch", items: []},
+      {id: "dinner-3", label: "Dinner", items: []},
+    ],
+  }],
+};
+
+/** @return {!Object} A store whose active plan is DIET_PLAN. */
+function dietStore(overrides) {
+  return makeStore(Object.assign(
+      {getActiveDietPlan: async () => DIET_PLAN}, overrides || {}));
+}
+
 test("confirmAction applies mark_meal_eaten through the store", async () => {
   const writes = {entries: []};
-  const store = makeStore({
+  const store = dietStore({
     setDietEntry: async (uid, dayKey, mealId, eaten) => {
       writes.entries.push({uid, dayKey, mealId, eaten});
     },
   });
   const callModel = scriptedModel([
+    // The model claims the meal is called "Brunch"; the plan says "Lunch".
     toolUse("mark_meal_eaten",
-        {mealId: "lunch-2", label: "Lunch", date: "2026-08-17T00:00:00.000Z"}),
+        {mealId: "lunch-2", label: "Brunch", date: "2026-08-17T00:00:00.000Z"}),
   ]);
   const {actionId} = await runAiTurn({
     store, callModel, uid: UID, conversationId: CONVERSATION_ID,
     message: "I had lunch", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
   });
 
   const confirmed = await confirmAction({
@@ -316,7 +340,112 @@ test("confirmAction applies mark_meal_eaten through the store", async () => {
   assert.deepEqual(writes.entries, [{
     uid: UID, dayKey: "2026-08-17", mealId: "lunch-2", eaten: true,
   }]);
+  // The card and the result line name the meal the PLAN names, not the one
+  // the model remembered.
   assert.match(confirmed.assistantText, /Marked Lunch eaten/);
+});
+
+test("a meal id that isn't in the plan never becomes a proposal", async () => {
+  // `validate` can only prove the id is a string — and a string is exactly
+  // what a model can invent. Before the verify hook, a hallucinated id sailed
+  // through Confirm and wrote an orphan dietEntries doc: invisible in the app,
+  // and quietly wrong in every "meals eaten" count afterwards.
+  const writes = {entries: []};
+  const store = dietStore({
+    setDietEntry: async (...args) => {
+      writes.entries.push(args);
+    },
+  });
+  const callModel = scriptedModel([
+    toolUse("mark_meal_eaten", {mealId: "second-breakfast", label: "Brunch"}),
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "I couldn't find that meal in your plan."}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "mark my second breakfast eaten", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.actionId, null);
+  assert.equal(store.pendingActions.size, 0);
+  assert.deepEqual(writes.entries, []);
+
+  // The rejection goes back to the model as a tool error it can correct from,
+  // and names the ids that DO exist rather than just saying no.
+  const followUp = callModel.requests[1];
+  const toolResult = followUp.messages[followUp.messages.length - 1].content[0];
+  assert.equal(toolResult.is_error, true);
+  assert.match(toolResult.content, /second-breakfast/);
+  assert.match(toolResult.content, /lunch-2/);
+});
+
+test("mark_meal_eaten is refused when there is no active plan", async () => {
+  const store = makeStore(); // getActiveDietPlan → null
+  const callModel = scriptedModel([
+    toolUse("mark_meal_eaten", {mealId: "lunch-2", label: "Lunch"}),
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "You don't have an active diet plan."}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+
+  const result = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "mark lunch eaten", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+
+  assert.equal(result.actionId, null);
+  assert.equal(store.pendingActions.size, 0);
+});
+
+test("confirm re-checks the plan: a meal deleted after the proposal is " +
+    "refused and writes nothing", async () => {
+  // A proposal can wait an hour for a tap, and the plan can change in that
+  // window. The write itself is the last moment the reference can be proven.
+  const writes = {entries: []};
+  let plan = DIET_PLAN;
+  const store = makeStore({
+    getActiveDietPlan: async () => plan,
+    setDietEntry: async (...args) => {
+      writes.entries.push(args);
+    },
+  });
+  const callModel = scriptedModel([
+    toolUse("mark_meal_eaten", {mealId: "lunch-2", label: "Lunch"}),
+  ]);
+  const {actionId} = await runAiTurn({
+    store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+    message: "I had lunch", now: makeClock(1000),
+    clientClock: {offsetMinutes: 0},
+  });
+  assert.ok(actionId);
+
+  // The user edits their plan; that meal is gone.
+  plan = {
+    name: "Cut",
+    status: "active",
+    days: [{weekday: null, label: "Every day", meals: [
+      {id: "dinner-3", label: "Dinner", items: []},
+    ]}],
+  };
+
+  await assert.rejects(
+      () => confirmAction({
+        store, uid: UID, conversationId: CONVERSATION_ID, actionId,
+        now: makeClock(2000),
+      }),
+      (err) => err instanceof GatewayError &&
+        err.code === "failed-precondition");
+  assert.deepEqual(writes.entries, []);
+  assert.equal(store.pendingActions.get(actionId).status, "pending");
 });
 
 test("edit_expense: propose then confirm patches only the changed fields", async () => {

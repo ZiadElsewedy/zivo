@@ -12,12 +12,18 @@ class DietGlanceRow extends StatelessWidget {
     required this.eaten,
     required this.total,
     required this.kcalLeft,
+    required this.kcalEstimated,
     super.key,
   });
 
   final int eaten;
   final int total;
   final int kcalLeft;
+
+  /// Whether [kcalLeft] rests on AI-estimated figures — shown as the same "~"
+  /// the Diet screen uses, so Today never states as fact what Diet marks as a
+  /// guess.
+  final bool kcalEstimated;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +40,9 @@ class DietGlanceRow extends StatelessWidget {
                 children: [
                   TextSpan(text: '$eaten of $total meals eaten'),
                   TextSpan(
-                    text: '  ·  $kcalLeft kcal left',
+                    text: kcalEstimated
+                        ? '  ·  ~$kcalLeft kcal left'
+                        : '  ·  $kcalLeft kcal left',
                     style: AppText.body.copyWith(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,

@@ -48,48 +48,6 @@ class FirestoreStore {
 
   /**
    * @param {string} uid
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listTasks(uid) {
-    const snap = await this._user(uid).collection("tasks").get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        done: !!d.done,
-        priority: !!d.priority,
-        due: toDate(d.due),
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
-   * @param {{fromMs: number, toMs: number}} range
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listSchedule(uid, range) {
-    const snap = await this._user(uid)
-        .collection("schedule")
-        .where("start", ">=", Timestamp.fromMillis(range.fromMs))
-        .where("start", "<", Timestamp.fromMillis(range.toMs))
-        .get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        start: toDate(d.start),
-        end: toDate(d.end),
-        location: d.location || null,
-        label: d.label || null,
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
    * @param {{fromMs: number, toMs: number}} range
    * @return {!Promise<!Array<Object>>}
    */
@@ -108,25 +66,6 @@ class FirestoreStore {
         category: d.category || "other",
         note: d.note || null,
         spentAt: toDate(d.spentAt),
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listUniversity(uid) {
-    const snap = await this._user(uid).collection("universityItems").get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        type: d.type || "assignment",
-        due: toDate(d.due),
-        courseName: d.courseName || null,
-        done: !!d.done,
       };
     });
   }
@@ -152,30 +91,6 @@ class FirestoreStore {
         exercises: d.exercises || [],
       };
     });
-  }
-
-  /**
-   * Case-insensitive substring match over note bodies — Firestore has no
-   * native substring query, so this fetches the (personal-scale) note set
-   * and filters in memory, mirroring `search_notes`'s "naive search" scope.
-   * @param {string} uid
-   * @param {string} query
-   * @return {!Promise<!Array<Object>>}
-   */
-  async searchNotes(uid, query) {
-    const snap = await this._user(uid).collection("notes").get();
-    const lowerQuery = query.toLowerCase();
-    return snap.docs
-        .map((doc) => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            title: d.title || null,
-            body: d.body || "",
-            updatedAt: toDate(d.updatedAt),
-          };
-        })
-        .filter((n) => n.body.toLowerCase().includes(lowerQuery));
   }
 
   /**

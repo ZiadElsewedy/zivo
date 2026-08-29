@@ -7,6 +7,7 @@ import '../domain/diet_repository.dart';
 import '../domain/diet_source.dart';
 import '../domain/food_item.dart';
 import '../domain/meal.dart';
+import '../domain/nutrition_targets.dart';
 
 /// 'yyyy-MM-dd' for [day]'s local calendar date.
 String _dayKey(DateTime day) {
@@ -27,6 +28,14 @@ class InMemoryDietRepository implements DietRepository {
 
   DietPlan? _plan;
   final Map<String, Set<String>> _consumed = {};
+
+  /// Deliberately null at seed. The demo plan exists so the page has something
+  /// to render; a demo *target* would be a number the user never chose, which
+  /// is the one thing this feature must never show.
+  NutritionTargets? _targets;
+
+  final StreamController<NutritionTargets?> _targetsController =
+      StreamController<NutritionTargets?>.broadcast();
 
   final StreamController<DietPlan?> _planController =
       StreamController<DietPlan?>.broadcast();
@@ -135,6 +144,27 @@ class InMemoryDietRepository implements DietRepository {
   }
 
   @override
+  NutritionTargets? get currentTargets => _targets;
+
+  @override
+  Stream<NutritionTargets?> watchTargets() async* {
+    yield _targets;
+    yield* _targetsController.stream;
+  }
+
+  @override
+  Future<void> saveTargets(NutritionTargets targets) async {
+    _targets = targets;
+    _targetsController.add(_targets);
+  }
+
+  @override
+  Future<void> clearTargets() async {
+    _targets = null;
+    _targetsController.add(null);
+  }
+
+  @override
   Stream<Set<String>> watchConsumed(DateTime day) async* {
     final key = _dayKey(day);
     yield Set.unmodifiable(_consumed[key] ?? const <String>{});
@@ -162,5 +192,6 @@ class InMemoryDietRepository implements DietRepository {
   void dispose() {
     _planController.close();
     _consumedController.close();
+    _targetsController.close();
   }
 }

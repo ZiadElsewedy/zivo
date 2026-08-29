@@ -37,6 +37,24 @@ import '../domain/stt_outcome.dart';
 /// no `uid` of its own — it resolves the signed-in user from an injected
 /// [UidSource] instead, which re-scopes [watchMessages] whenever the uid
 /// changes (including to/from signed-out).
+/// The device's own clock, as the `aiChat` gateway needs it: the UTC offset in
+/// whole minutes plus the short zone name ("EEST") for the coach to quote.
+///
+/// Cloud Functions run in UTC, but this app writes `dietEntries.dayKey` from
+/// the **device's** calendar date. Without this the server resolved a
+/// different "today" from the one on screen for every user east or west of
+/// UTC — a UTC+3 user asking anything between local midnight and 03:00 got
+/// yesterday's diet entries and yesterday's weekday plan slot. Sent per turn
+/// rather than stored, so it follows the user across timezones and DST with
+/// no dependency on a timezone package.
+Map<String, Object?> clientClockFields([DateTime? now]) {
+  final at = now ?? DateTime.now();
+  return {
+    'utcOffsetMinutes': at.timeZoneOffset.inMinutes,
+    'timeZoneName': at.timeZoneName,
+  };
+}
+
 class FirebaseAiRepository implements AiRepository {
   FirebaseAiRepository({
     FirebaseFirestore? firestore,
@@ -143,6 +161,7 @@ class FirebaseAiRepository implements AiRepository {
         'message': message,
         'responseStyle': responseStyle,
         'clientTurnId': ?clientTurnId,
+        ...clientClockFields(),
       });
     };
   }
@@ -174,6 +193,7 @@ class FirebaseAiRepository implements AiRepository {
         'responseStyle': responseStyle,
         'acceptsStreaming': true,
         'clientTurnId': ?clientTurnId,
+        ...clientClockFields(),
       });
       await for (final response in stream) {
         if (response is Chunk) {

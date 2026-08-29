@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-08-29 · **Active branch:** `version-1`
+**Last updated:** 2026-08-30 · **Active branch:** `version-1`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -137,7 +137,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
-  - **Pending now:** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
+  - **Pending now (2):** the **Diet Coach Phase 0** hardening (`gateway.js`, `tools.js`,
+    `dates.js`, `mutations.js`, `store.js`, `index.js` **+ `firestore.rules`**) — see
+    [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md). Until deployed the live coach keeps the old
+    prompt (which licensed invented calories), has no idea what day it is, and can write an
+    unverified meal id. **Deploy functions and rules together with the client build** — the
+    tightened `dietEntries` rule rejects writes from older app builds. Command:
+    `firebase deploy --only functions,firestore:rules`.
+  - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
     edit/delete proposals once the backend proposes them). Command: `firebase deploy --only functions`.
@@ -192,6 +199,28 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach trust audit + Phase 0.** Audited the whole diet/AI path against
+  one question: *where does each number come from?* Answer: every calorie in ZIVO is
+  model-generated (`diet_import.js` makes calories/macros **required** schema fields so the
+  model fills them), there is no nutrition database, no goal, no target, no real food log,
+  and nothing validated the coach's output. Full findings + the phased plan:
+  [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md) — findings are id'd `T1`…`T15` and referenced
+  from the phases, so keep the ids stable.
+  **Phase 0 landed** (labelling + dates + verified ids; no new deps, no migration): the turn
+  now carries a `CONTEXT` block with the user's local date (the model previously had **no
+  way to know what day it was**); `dates.js` resolves every day key/range in the user's
+  timezone from a `utcOffsetMinutes` the client sends, fixing the UTC-vs-device split that
+  fed the coach yesterday's diet entries for the first hours of every local day; the prompt's
+  estimation licence is replaced by a `NUMBERS` rule (no figure that didn't come from a tool
+  result, and it says outright there is no food database); mutating tools gained an async
+  `verify` hook and `mark_meal_eaten` now proves its meal id against the real plan at propose
+  **and** confirm time (a hallucinated id used to write an orphan `dietEntries` doc); the
+  four tools for deleted features are gone; `get_today` puts diet before workouts so
+  truncation can't eat it; and `estimated` became load-bearing — carried into the AI payloads
+  and aggregated into a "~" on the Diet hero (`EST. KCAL LEFT`), macro bars, meal rows,
+  Today's glance and the Hub tile. `dietEntries` rules tightened.
+  `flutter analyze` clean · Flutter **765 pass** · functions **231 pass** · rules **81 pass**.
+  **Needs a deploy** — see the owner action items above.
 - 2026-08-29 — **App-wide scrolling pass + the Spotify mark (owner report).** The scroll
   complaint ("gets stuck, feels restricted, indicator in the wrong place") was three
   separate causes, all now fixed at a seam rather than per page.

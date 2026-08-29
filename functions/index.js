@@ -623,6 +623,17 @@ exports.aiChat = onCall(
       // Client-generated idempotency key — makes a retried turn safe.
       const clientTurnId =
         (data.clientTurnId || "").toString() || undefined;
+      // The device's own clock. Functions run in UTC but the app writes diet
+      // entries against the DEVICE's calendar date, so without this the
+      // server's "today" is a different day from the user's for anyone east
+      // or west of UTC. Untrusted, like every other field here — `./ai/dates`
+      // range-checks the offset and falls back to server-local if it's off.
+      const clientClock = {
+        offsetMinutes: Number.isFinite(data.utcOffsetMinutes) ?
+          Math.trunc(data.utcOffsetMinutes) : undefined,
+        zoneLabel: (data.timeZoneName || "").toString().slice(0, 40) ||
+          undefined,
+      };
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -650,6 +661,7 @@ exports.aiChat = onCall(
           message,
           responseStyle,
           clientTurnId,
+          clientClock,
           now: () => new Date(),
         });
       } catch (err) {

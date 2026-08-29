@@ -13,6 +13,7 @@ import '../../../core/media/media_service.dart';
 import '../../../core/media/presentation/storage_sync_page.dart';
 import '../../../core/widgets/google_drive_mark.dart';
 import '../../../core/widgets/train_surfaces.dart';
+import '../../diet/domain/diet_format.dart';
 import '../../diet/domain/diet_plan.dart';
 import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
@@ -248,7 +249,8 @@ class _DietTile extends StatelessWidget {
                     // (measured in hub_page_test.dart) — "of 3" vs "3/3"
                     // barely moved the needle, "left" alone was the
                     // difference between fitting in 2 lines and not.
-                    '${summary.eaten} of ${summary.total} · ${summary.kcalLeft} kcal',
+                    '${summary.eaten} of ${summary.total} · '
+                    '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft} kcal',
               );
             },
           );

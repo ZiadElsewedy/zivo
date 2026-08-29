@@ -40,7 +40,7 @@ const valid = {
   workouts: { title: 'W', performedAt: ts(), exercises: [], schemaVersion: 1 },
   moments: { caption: 'M', takenAt: ts(), schemaVersion: 1 },
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
-  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
+  dietEntries: { dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: true, schemaVersion: 1 },
   workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
   workoutMeta: { activeSplitId: 'plan1' },
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
@@ -55,7 +55,7 @@ const invalid = {
   workouts: { title: 'W', performedAt: ts(), exercises: 'nope', schemaVersion: 1 }, // exercises not a list
   moments: { caption: 'M', takenAt: ts() }, // missing schemaVersion
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
-  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
+  dietEntries: { dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
   workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
   workoutMeta: { activeSplitId: 123 }, // activeSplitId neither string nor null
   workoutSessions: { dayLabel: 'Push', status: 'paused', startedAt: ts(), exercises: [], schemaVersion: 1 }, // status not in enum
@@ -375,3 +375,39 @@ describe('users/{uid}/authEvents is an append-only audit log', () => {
   });
 });
 
+// The consumption log is what every "meals eaten" and "kcal left" figure in
+// the app is computed from, so its shape is validated tightly. These cover the
+// clauses added when the AI write path was hardened: a malformed entry is not
+// a loud failure, it is a quietly wrong number on the Diet screen.
+describe('dietEntries shape validation', () => {
+  const entry = (patch = {}) => ({
+    dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: true,
+    schemaVersion: 1, ...patch,
+  });
+  const write = (data, id = 'e1') =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/dietEntries/${id}`), data);
+
+  it('accepts the shape the app actually writes', async () => {
+    await assertSucceeds(write(entry({ createdAt: ts(), updatedAt: ts() })));
+  });
+
+  it('rejects a dayKey that is not a yyyy-MM-dd calendar date', async () => {
+    await assertFails(write(entry({ dayKey: '2026-1-1' })));
+    await assertFails(write(entry({ dayKey: 'today' })));
+  });
+
+  it('rejects an empty or oversized mealId', async () => {
+    await assertFails(write(entry({ mealId: '' })));
+    await assertFails(write(entry({ mealId: 'm'.repeat(201) })));
+  });
+
+  it('rejects a missing or non-timestamp date', async () => {
+    await assertFails(write(entry({ date: '2026-01-01' })));
+    const { date, ...noDate } = entry();
+    await assertFails(write(noDate));
+  });
+
+  it('rejects unknown fields smuggled onto the entry', async () => {
+    await assertFails(write(entry({ calories: 9999 })));
+  });
+});

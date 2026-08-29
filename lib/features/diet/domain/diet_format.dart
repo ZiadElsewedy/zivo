@@ -27,6 +27,26 @@ String? macroLabel(FoodItem item) {
   return parts.join(' · ');
 }
 
+/// Whether any of [items] carries AI-estimated calories/macros.
+///
+/// The aggregate form of [FoodItem.estimated]. A total built from even one
+/// estimated item IS an estimate — rendering it as a bare number claims a
+/// precision the value doesn't have, which is the whole reason the flag
+/// exists. Every screen that sums food should ask this and prefix "~".
+bool anyEstimated(Iterable<FoodItem> items) => items.any((i) => i.estimated);
+
+/// Whether [meal]'s calorie/macro total rests on any estimated item.
+bool mealEstimated(Meal meal) => anyEstimated(meal.items);
+
+/// Whether [day]'s calorie total rests on any estimated item. Supplements are
+/// excluded, matching [dayCalories] — the two must agree about which meals
+/// they're talking about.
+bool dayEstimated(DietDay day) => regularMeals(day.meals).any(mealEstimated);
+
+/// The "~" that marks a figure as estimated rather than measured, or "" when
+/// it isn't. One convention, used everywhere a food total is printed.
+String approx(bool estimated) => estimated ? '~' : '';
+
 /// Sum of item calories in [meal]; null if none of its items carry calories.
 int? mealCalories(Meal meal) {
   final withCalories = meal.items.where((i) => i.calories != null);

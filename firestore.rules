@@ -225,12 +225,26 @@ service cloud.firestore {
     // Diet entries: the "did I eat this meal today" consumption log, one doc per
     // (day, meal). Rules do not cascade from the parent /users/{userId} match, so
     // this is explicit.
+    // Shape is validated tightly here because this log is what every "meals
+    // eaten" and "kcal left" figure in the app is computed from. A malformed
+    // or unbounded entry doesn't fail loudly — it quietly makes those numbers
+    // wrong. Note what rules CANNOT do: they can't check that `mealId` names a
+    // real meal in the user's plan (no joins), so that check lives server-side
+    // in the AI write path (`functions/ai/mutations.js` verify +
+    // `gateway.js` requireMealInPlan). This is the shape half of it.
     match /users/{userId}/dietEntries/{entryId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(
+             ['dayKey', 'date', 'mealId', 'eaten', 'schemaVersion',
+              'createdAt', 'updatedAt'])
         && request.resource.data.dayKey is string
+        && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && request.resource.data.mealId is string
+        && request.resource.data.mealId.size() > 0
+        && request.resource.data.mealId.size() <= 200
         && request.resource.data.eaten is bool
+        && request.resource.data.date is timestamp
         && request.resource.data.schemaVersion is int;
     }
 

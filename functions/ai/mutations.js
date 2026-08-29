@@ -21,6 +21,8 @@
  * the user's Confirm before any write happens.
  */
 
+const {dayKeyFor, resolveDietDay} = require("./dates");
+
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
 const DEFAULT_CURRENCY = "EGP";
 const MAX_NOTE_CHARS = 500;
@@ -210,6 +212,61 @@ const MARK_MEAL_EATEN = {
       eaten: input.eaten === undefined ? true : input.eaten === true,
       dateIso: optionalIso(input.date, "date"),
     };
+  },
+  /**
+   * Checks the proposed `mealId` against the user's ACTUAL active plan before
+   * the proposal is ever shown, and returns the facts the write should use
+   * rather than the ones the model claimed.
+   *
+   * `validate` can only prove the id is a non-empty string — and a string is
+   * exactly what a model can invent. Without this, a hallucinated or stale id
+   * survived Confirm and wrote a `dietEntries` doc referencing a meal that
+   * doesn't exist: an orphan that counts toward nothing, shows up nowhere in
+   * the app, and silently makes "2 of 4 meals eaten" wrong. The Firestore
+   * rules can't catch it either (they type-check fields, they can't join
+   * against the plan), so this is the only place the check can live.
+   *
+   * Two things are taken from the plan rather than the model: the resolved
+   * `dayKey` (so the write can't drift to another day between propose and
+   * confirm) and the meal's real `label` (so the confirmation card names the
+   * meal the plan names, not the one the model remembered).
+   *
+   * @param {!Object} args
+   * @param {!Object} args.store
+   * @param {string} args.uid
+   * @param {!Object} args.validated
+   * @param {!Date} args.now
+   * @param {number=} args.offsetMinutes
+   * @return {!Promise<!Object>} A patch merged into the validated payload.
+   */
+  async verify({store, uid, validated, now, offsetMinutes}) {
+    const date = validated.dateIso ? new Date(validated.dateIso) : now;
+    const dayKey = dayKeyFor(date, offsetMinutes);
+
+    const plan = await store.getActiveDietPlan(uid);
+    if (!plan) {
+      throw new ValidationError(
+          "There's no active diet plan, so there's no meal to mark. Tell " +
+          "the user that instead of guessing a meal.");
+    }
+    const day = resolveDietDay(plan.days || [], date, offsetMinutes);
+    if (!day) {
+      throw new ValidationError(
+          `The plan "${plan.name}" has no meals for ${dayKey}. Say so ` +
+          "instead of picking a meal from another day.");
+    }
+    const meals = Array.isArray(day.meals) ? day.meals : [];
+    const meal = meals.find((m) => m && m.id === validated.mealId);
+    if (!meal) {
+      const available = meals
+          .map((m) => `${m.label} (id ${m.id})`)
+          .join("; ") || "none";
+      throw new ValidationError(
+          `No meal with id "${validated.mealId}" exists in the plan for ` +
+          `${dayKey}. Call get_diet and use an exact id from it. Meals ` +
+          `that day: ${available}.`);
+    }
+    return {dayKey, label: meal.label};
   },
   fields(v) {
     return {

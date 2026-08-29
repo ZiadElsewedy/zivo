@@ -6,6 +6,17 @@
  * directly, so it runs offline under `node --test`.
  *
  * Strictly READ-ONLY: no tool writes, creates, or deletes anything.
+ *
+ * Two rules this registry holds to, both about trust rather than mechanics:
+ *
+ * 1. **Every payload states its own date.** Nothing else in a turn tells the
+ *    model what day it is. A tool that resolves "today" says which day that
+ *    was, in the user's timezone (`offsetMinutes`, forwarded from the client
+ *    by `aiChat` — see `./dates.js`).
+ * 2. **Nutrition carries its provenance.** A calorie/macro figure that was
+ *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
+ *    flag, per item and aggregated onto the day totals, so the coach can say
+ *    "about" where the number is a guess instead of quoting it as measured.
  */
 
 const {
@@ -23,37 +34,6 @@ const {
  */
 function iso(date) {
   return date ? date.toISOString() : null;
-}
-
-/**
- * A short excerpt of `body` centered on the first case-insensitive match of
- * `query`, ellipsized at either end when truncated.
- * @param {string} body
- * @param {string} query
- * @return {string}
- */
-function snippetAround(body, query) {
-  const lower = body.toLowerCase();
-  const idx = lower.indexOf(query.toLowerCase());
-  if (idx === -1) return body.slice(0, 140);
-  const radius = 60;
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(body.length, idx + query.length + radius);
-  const prefix = start > 0 ? "…" : "";
-  const suffix = end < body.length ? "…" : "";
-  return `${prefix}${body.slice(start, end)}${suffix}`;
-}
-
-/**
- * `tasks` filtered by 'open' (default, not done) | 'done' | 'all'.
- * @param {!Array<Object>} tasks
- * @param {string} filter
- * @return {!Array<Object>}
- */
-function filterTasks(tasks, filter) {
-  if (filter === "done") return tasks.filter((t) => t.done);
-  if (filter === "all") return tasks;
-  return tasks.filter((t) => !t.done);
 }
 
 /**
@@ -77,11 +57,22 @@ function sumItemField(items, field) {
 }
 
 /**
+ * Whether any of `items` carries AI-estimated nutrition — the aggregate form
+ * of `FoodItem.estimated`. A total built from even one estimated item is
+ * itself an estimate, and must not be quoted as a measured value.
+ * @param {!Array<Object>} items
+ * @return {boolean}
+ */
+function anyEstimated(items) {
+  return items.some((item) => item && item.estimated === true);
+}
+
+/**
  * Aggregates a set of planned meals into day-level nutrition totals — the
  * target side when fed every meal, the consumed side when fed only the eaten
  * ones. Each component is null when no contributing item states it.
  * @param {!Array<Object>} meals Planned meals (label/items shape).
- * @return {!Object} `{calories, proteinG, carbsG, fatG}` totals or nulls.
+ * @return {!Object} `{kcal, proteinG, carbsG, fatG, estimated}`.
  */
 function dayNutrition(meals) {
   const items = meals.flatMap(
@@ -91,6 +82,9 @@ function dayNutrition(meals) {
     proteinG: sumItemField(items, "proteinG"),
     carbsG: sumItemField(items, "carbsG"),
     fatG: sumItemField(items, "fatG"),
+    // True when at least one contributing item's figures were AI-estimated
+    // rather than stated by the user's own plan document.
+    estimated: anyEstimated(items),
   };
 }
 
@@ -110,133 +104,94 @@ function adherenceFor(meals, eatenMealIds) {
   };
 }
 
+/**
+ * One planned meal projected for the model: its id (the handle
+ * `mark_meal_eaten` needs), its label, whether it's eaten, its kcal, and
+ * whether that kcal figure is estimated.
+ * @param {!Object} meal
+ * @param {!Set<string>} eaten
+ * @return {!Object}
+ */
+function mealSummary(meal, eaten) {
+  const items = Array.isArray(meal.items) ? meal.items : [];
+  return {
+    id: meal.id,
+    label: meal.label,
+    eaten: eaten.has(meal.id),
+    kcal: sumItemField(items, "calories"),
+    estimated: anyEstimated(items),
+  };
+}
+
+/**
+ * Loads the active plan's resolved day for `date` plus that day's eaten-meal
+ * ids — the shared read behind `get_diet` and `get_today`'s diet block.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {!Date} date
+ * @param {number=} offsetMinutes
+ * @return {!Promise<?{plan: !Object, dietDay: !Object, eaten: !Set<string>}>}
+ */
+async function loadDietDay(store, uid, date, offsetMinutes) {
+  const plan = await store.getActiveDietPlan(uid);
+  if (!plan) return {plan: null, dietDay: null, eaten: new Set()};
+  const dietDay = resolveDietDay(plan.days, date, offsetMinutes);
+  if (!dietDay) return {plan, dietDay: null, eaten: new Set()};
+  const entries = await store.listDietEntries(
+      uid, dayKeyFor(date, offsetMinutes));
+  return {
+    plan,
+    dietDay,
+    eaten: new Set(entries.filter((e) => e.eaten).map((e) => e.mealId)),
+  };
+}
+
 const TODAY_TOOL = {
   name: "get_today",
   description:
-    "A composed snapshot of 'today': schedule events, tasks due today or " +
-    "overdue (and still open), university items due today, today's " +
-    "workout(s), and today's diet plan with which meals are eaten and " +
-    "target-vs-consumed nutrition totals.",
+    "A composed snapshot of 'today' in the user's own timezone: the date, " +
+    "today's diet plan (which meals are eaten, target-vs-consumed nutrition " +
+    "totals, and whether those figures are estimated), and today's " +
+    "workout(s).",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const {fromMs, toMs} = dayRangeMs(now);
-    const [schedule, tasks, university, workouts, plan] = await Promise.all([
-      store.listSchedule(uid, {fromMs, toMs}),
-      store.listTasks(uid),
-      store.listUniversity(uid),
+  async execute(store, uid, input, now, offsetMinutes) {
+    const {fromMs, toMs} = dayRangeMs(now, offsetMinutes);
+    const [workouts, dietDay] = await Promise.all([
       store.listWorkouts(uid, {fromMs, toMs}),
-      store.getActiveDietPlan(uid),
+      loadDietDay(store, uid, now, offsetMinutes),
     ]);
 
-    const tasksDueTodayOrOverdue = tasks.filter(
-        (t) => !t.done && t.due && t.due.getTime() < toMs,
-    );
-    const universityDueToday = university.filter(
-        (u) =>
-          !u.done && u.due && u.due.getTime() >= fromMs &&
-          u.due.getTime() < toMs,
-    );
-
-    const dietDay = resolveDietDay(plan ? plan.days : [], now);
+    const {plan, dietDay: day, eaten} = dietDay;
     let diet = null;
-    if (plan && dietDay) {
-      const entries = await store.listDietEntries(uid, dayKeyFor(now));
-      const eaten = new Set(
-          entries.filter((e) => e.eaten).map((e) => e.mealId),
-      );
+    if (plan && day) {
       diet = {
         planName: plan.name,
-        dayLabel: dietDay.label,
-        nutrition: adherenceFor(dietDay.meals, eaten),
-        meals: dietDay.meals.map((m) => ({
-          id: m.id,
-          label: m.label,
-          eaten: eaten.has(m.id),
-          kcal: sumItemField(
-              Array.isArray(m.items) ? m.items : [], "calories"),
-        })),
+        dayLabel: day.label,
+        nutrition: adherenceFor(day.meals, eaten),
+        meals: day.meals.map((m) => mealSummary(m, eaten)),
       };
     }
 
+    // `diet` leads the payload deliberately. Tool results are capped at
+    // `maxToolResultChars` and truncated from the END, so whatever is
+    // serialized last is what disappears on a rich plan — nutrition is the
+    // one block that must never be silently half-delivered.
     return {
-      schedule: schedule.map((e) => ({title: e.title, start: iso(e.start)})),
-      tasksDueOrOverdue: tasksDueTodayOrOverdue.map((t) => ({
-        title: t.title,
-        priority: t.priority,
-        due: iso(t.due),
-      })),
-      universityDueToday: universityDueToday.map((u) => ({
-        title: u.title,
-        type: u.type,
-        due: iso(u.due),
-        courseName: u.courseName,
-      })),
+      date: dayKeyFor(now, offsetMinutes),
+      diet,
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
         durationMinutes: w.durationMinutes,
       })),
-      diet,
-    };
-  },
-};
-
-const TASKS_TOOL = {
-  name: "get_tasks",
-  description:
-    "List the user's tasks. filter: 'open' (default, not done), 'done', " +
-    "or 'all'.",
-  inputSchema: {
-    type: "object",
-    properties: {filter: {type: "string", enum: ["open", "done", "all"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input) {
-    const tasks = await store.listTasks(uid);
-    const filtered = filterTasks(tasks, input.filter || "open");
-    return {
-      tasks: filtered.map((t) => ({
-        title: t.title,
-        done: t.done,
-        priority: t.priority,
-        due: iso(t.due),
-      })),
-    };
-  },
-};
-
-const SCHEDULE_TOOL = {
-  name: "get_schedule",
-  description: "List schedule events. range: 'today' (default) or 'week'.",
-  inputSchema: {
-    type: "object",
-    properties: {range: {type: "string", enum: ["today", "week"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @param {Date} now
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input, now) {
-    const range = input.range === "week" ? weekRangeMs(now) : dayRangeMs(now);
-    const events = await store.listSchedule(uid, range);
-    return {
-      range: input.range === "week" ? "week" : "today",
-      events: events.map((e) => ({title: e.title, start: iso(e.start)})),
     };
   },
 };
@@ -260,11 +215,12 @@ const EXPENSES_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const range =
-      input.range === "month" ? monthRangeMs(now) : weekRangeMs(now);
+  async execute(store, uid, input, now, offsetMinutes) {
+    const range = input.range === "month" ?
+      monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
     const all = await store.listExpenses(uid, range);
     const items = input.category ?
       all.filter((e) => e.category === input.category) :
@@ -282,6 +238,7 @@ const EXPENSES_TOOL = {
 
     return {
       range: input.range === "month" ? "month" : "week",
+      today: dayKeyFor(now, offsetMinutes),
       currency,
       totalMinor,
       totalByCategory,
@@ -295,37 +252,6 @@ const EXPENSES_TOOL = {
         category: e.category,
         note: e.note || null,
         spentAt: iso(e.spentAt),
-      })),
-    };
-  },
-};
-
-const UNIVERSITY_TOOL = {
-  name: "get_university",
-  description:
-    "List university items (assignments/exams). filter: 'open' " +
-    "(default, not done) or 'all'.",
-  inputSchema: {
-    type: "object",
-    properties: {filter: {type: "string", enum: ["open", "all"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input) {
-    const items = await store.listUniversity(uid);
-    const filtered =
-      input.filter === "all" ? items : items.filter((i) => !i.done);
-    return {
-      items: filtered.map((i) => ({
-        title: i.title,
-        type: i.type,
-        due: iso(i.due),
-        courseName: i.courseName,
-        done: i.done,
       })),
     };
   },
@@ -345,14 +271,16 @@ const WORKOUTS_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const range =
-      input.range === "month" ? monthRangeMs(now) : weekRangeMs(now);
+  async execute(store, uid, input, now, offsetMinutes) {
+    const range = input.range === "month" ?
+      monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
     const workouts = await store.listWorkouts(uid, range);
     return {
       range: input.range === "month" ? "month" : "week",
+      today: dayKeyFor(now, offsetMinutes),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -371,9 +299,11 @@ const WORKOUTS_TOOL = {
 const DIET_TOOL = {
   name: "get_diet",
   description:
-    "The active diet plan's meals for a day (default today), with " +
-    "calories/macros, which meals are already eaten, and target-vs-consumed " +
-    "nutrition totals. day: optional 'yyyy-MM-dd'.",
+    "The active diet plan's meals for a day (default today, in the user's " +
+    "own timezone), with calories/macros, which meals are already eaten, " +
+    "and target-vs-consumed nutrition totals. Every figure carries an " +
+    "`estimated` flag: true means it was AI-estimated when the plan was " +
+    "imported, not stated by the plan itself. day: optional 'yyyy-MM-dd'.",
   inputSchema: {
     type: "object",
     properties: {day: {type: "string"}},
@@ -383,29 +313,32 @@ const DIET_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const date = input.day ? new Date(`${input.day}T00:00:00`) : now;
-    const plan = await store.getActiveDietPlan(uid);
-    if (!plan) return {plan: null};
+  async execute(store, uid, input, now, offsetMinutes) {
+    // An explicit `day` is a bare calendar date with no timezone of its own;
+    // anchor it at the user's local midnight so it resolves to that same
+    // calendar day rather than sliding into a neighbouring one.
+    const requested = typeof input.day === "string" ?
+      /^\d{4}-\d{2}-\d{2}$/.exec(input.day.trim()) : null;
+    const date = requested ?
+      new Date(`${requested[0]}T12:00:00Z`) : now;
+    const dateOffset = requested ? 0 : offsetMinutes;
 
-    const dietDay = resolveDietDay(plan.days, date);
-    if (!dietDay) return {plan: plan.name, day: null};
-
-    const entries = await store.listDietEntries(uid, dayKeyFor(date));
-    const eaten = new Set(
-        entries.filter((e) => e.eaten).map((e) => e.mealId),
-    );
+    const {plan, dietDay, eaten} =
+      await loadDietDay(store, uid, date, dateOffset);
+    const dateKey = dayKeyFor(date, dateOffset);
+    if (!plan) return {date: dateKey, plan: null};
+    if (!dietDay) return {date: dateKey, plan: plan.name, day: null};
 
     return {
+      date: dateKey,
       plan: plan.name,
       day: dietDay.label,
       nutrition: adherenceFor(dietDay.meals, eaten),
       meals: dietDay.meals.map((m) => ({
-        id: m.id,
-        label: m.label,
-        eaten: eaten.has(m.id),
+        ...mealSummary(m, eaten),
         items: m.items.map((it) => ({
           name: it.name,
           quantity: it.quantity,
@@ -414,37 +347,11 @@ const DIET_TOOL = {
           proteinG: it.proteinG,
           carbsG: it.carbsG,
           fatG: it.fatG,
+          // Provenance, not decoration: true means this item's figures came
+          // from an AI estimate at import time, never from a measurement or
+          // the plan document itself.
+          estimated: it.estimated === true,
         })),
-      })),
-    };
-  },
-};
-
-const SEARCH_NOTES_TOOL = {
-  name: "search_notes",
-  description:
-    "Case-insensitive substring search over the user's note bodies (not " +
-    "full-text). Returns matching snippets.",
-  inputSchema: {
-    type: "object",
-    properties: {query: {type: "string"}},
-    required: ["query"],
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input) {
-    const query = (input.query || "").trim();
-    if (!query) return {matches: []};
-    const matches = await store.searchNotes(uid, query);
-    return {
-      matches: matches.map((n) => ({
-        title: n.title || null,
-        snippet: snippetAround(n.body || "", query),
-        updatedAt: iso(n.updatedAt),
       })),
     };
   },
@@ -453,38 +360,24 @@ const SEARCH_NOTES_TOOL = {
 const SUMMARIZE_WEEK_TOOL = {
   name: "summarize_week",
   description:
-    "A composed digest of the current week across schedule, tasks, " +
-    "university, expenses, workouts, and diet.",
+    "A composed digest of the current week (in the user's own timezone) " +
+    "across workouts, expenses, and the active diet plan.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const week = weekRangeMs(now);
-    const [schedule, tasks, university, expenses, workouts, plan] =
-      await Promise.all([
-        store.listSchedule(uid, week),
-        store.listTasks(uid),
-        store.listUniversity(uid),
-        store.listExpenses(uid, week),
-        store.listWorkouts(uid, week),
-        store.getActiveDietPlan(uid),
-      ]);
-
-    const openTasksDueThisWeek = tasks.filter(
-        (t) =>
-          !t.done && t.due && t.due.getTime() >= week.fromMs &&
-          t.due.getTime() < week.toMs,
-    );
-    const universityDueThisWeek = university.filter(
-        (u) =>
-          !u.done && u.due && u.due.getTime() >= week.fromMs &&
-          u.due.getTime() < week.toMs,
-    );
+  async execute(store, uid, input, now, offsetMinutes) {
+    const week = weekRangeMs(now, offsetMinutes);
+    const [expenses, workouts, plan] = await Promise.all([
+      store.listExpenses(uid, week),
+      store.listWorkouts(uid, week),
+      store.getActiveDietPlan(uid),
+    ]);
 
     let totalMinor = 0;
     const totalByCategory = {};
@@ -497,38 +390,32 @@ const SUMMARIZE_WEEK_TOOL = {
     }
 
     return {
-      schedule: schedule.map((e) => ({title: e.title, start: iso(e.start)})),
-      openTasksDueThisWeek: openTasksDueThisWeek.map((t) => ({
-        title: t.title,
-        due: iso(t.due),
-      })),
-      universityDueThisWeek: universityDueThisWeek.map((u) => ({
-        title: u.title,
-        type: u.type,
-        due: iso(u.due),
-      })),
-      expenses: {currency, totalMinor, totalByCategory},
+      today: dayKeyFor(now, offsetMinutes),
+      weekStart: dayKeyFor(new Date(week.fromMs), offsetMinutes),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
       })),
+      expenses: {currency, totalMinor, totalByCategory},
       dietPlan: plan ? plan.name : null,
     };
   },
 };
 
+// Read tools, in the order the model sees them. `get_tasks`, `get_schedule`,
+// `get_university` and `search_notes` were removed in 2026-08 together with
+// the Schedule/Tasks/University/Notes features themselves (ADR-004): they
+// read collections the app no longer writes, so they could only ever return
+// empty — while still costing a schema in every cached prefix and, in
+// `get_today`'s case, four awaited reads per call.
 const tools = [
   TODAY_TOOL,
-  TASKS_TOOL,
-  SCHEDULE_TOOL,
   EXPENSES_TOOL,
-  UNIVERSITY_TOOL,
   WORKOUTS_TOOL,
   DIET_TOOL,
-  SEARCH_NOTES_TOOL,
   SUMMARIZE_WEEK_TOOL,
 ];
 
 const toolsByName = new Map(tools.map((t) => [t.name, t]));
 
-module.exports = {tools, toolsByName, dayNutrition};
+module.exports = {tools, toolsByName, dayNutrition, anyEstimated};

@@ -15,11 +15,15 @@ import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
+import '../../domain/diet_goal.dart';
 import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
+import '../../domain/nutrition_targets.dart';
+import '../../domain/target_progress.dart';
 import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
+import 'diet_targets_page.dart';
 import 'grocery_list_page.dart';
 import 'meal_detail_page.dart';
 
@@ -182,6 +186,44 @@ class _PlanBody extends StatelessWidget {
     final diet = AppScope.of(context).diet;
     final now = DateTime.now();
     final today = dayForDate(plan, now);
+    return StreamBuilder<NutritionTargets?>(
+      stream: diet.watchTargets(),
+      initialData: diet.currentTargets,
+      builder: (context, targetsSnapshot) {
+        return _PlanBodyForTargets(
+          plan: plan,
+          today: today,
+          now: now,
+          targets: targetsSnapshot.data,
+        );
+      },
+    );
+  }
+}
+
+/// The plan body once the user's targets are known. Split out so the
+/// consumed-stream builder below doesn't nest three deep.
+class _PlanBodyForTargets extends StatelessWidget {
+  const _PlanBodyForTargets({
+    required this.plan,
+    required this.today,
+    required this.now,
+    required this.targets,
+  });
+
+  final DietPlan plan;
+  final DietDay? today;
+  final DateTime now;
+
+  /// Null when the user hasn't set an objective. **Not defaulted** — the
+  /// screen says "not set" rather than quietly treating the plan's own total
+  /// as a target nobody chose.
+  final NutritionTargets? targets;
+
+  @override
+  Widget build(BuildContext context) {
+    final diet = AppScope.of(context).diet;
+    final today = this.today;
     return StreamBuilder<Set<String>>(
       stream: diet.watchConsumed(now),
       initialData: const <String>{},
@@ -214,7 +256,14 @@ class _PlanBody extends StatelessWidget {
             Text(
               [
                 plan.name.toUpperCase(),
-                if (target != null) 'PLANNED $target KCAL',
+                // Two figures, each labelled — the target the user set, and
+                // what this particular day's plan adds up to. They are
+                // different things and routinely disagree; an unlabelled pair
+                // is what makes a screen unreadable.
+                if (targets != null)
+                  'TARGET ${targets!.calories} KCAL',
+                if (target != null)
+                  'PLANNED ${approx(dayEstimated(today!))}$target KCAL',
               ].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -239,8 +288,19 @@ class _PlanBody extends StatelessWidget {
                 day: today,
                 consumed: consumed,
                 loading: consumedLoading,
+                targets: targets,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              if (targets == null)
+                _NoTargetCard(
+                  onSet: () => _openTargets(context, null),
+                )
+              else
+                _TargetSummaryRow(
+                  targets: targets!,
+                  onEdit: () => _openTargets(context, targets),
+                ),
+              const SizedBox(height: 20),
               const TrainSectionLabel('Meals'),
               const SizedBox(height: 11),
               for (final meal in [
@@ -304,6 +364,123 @@ class _PlanBody extends StatelessWidget {
   }
 }
 
+/// Opens the target editor. Kept as one function so the empty-state card and
+/// the summary row can't drift apart.
+void _openTargets(BuildContext context, NutritionTargets? current) {
+  Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => DietTargetsPage(initial: current)),
+  );
+}
+
+/// Shown when the user has no target. Says plainly what the coach can't do
+/// without one, rather than filling the gap with the plan's own total and
+/// letting the user believe someone chose it for them.
+class _NoTargetCard extends StatelessWidget {
+  const _NoTargetCard({required this.onSet});
+
+  final VoidCallback onSet;
+
+  @override
+  Widget build(BuildContext context) {
+    return TrainDashedCard(
+      key: const Key('no-target-card'),
+      onTap: onSet,
+      child: Row(
+        children: [
+          const Icon(
+            Icons.flag_outlined,
+            size: 18,
+            color: TrainColors.ink2,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No daily target set', style: AppText.rowTitle),
+                const SizedBox(height: 3),
+                Text(
+                  "Set one and the numbers above become progress toward a "
+                  "goal — and your coach can tell you where you stand.",
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: TrainColors.ink3,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The one-line statement of what the user is working toward, under the hero:
+/// the goal, the calorie target, and where the number came from. Provenance is
+/// on the surface here for the same reason "~" is on an estimated calorie —
+/// a target the user typed and one a formula proposed are different things.
+class _TargetSummaryRow extends StatelessWidget {
+  const _TargetSummaryRow({required this.targets, required this.onEdit});
+
+  final NutritionTargets targets;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final low = targetIsBelowSafetyFloor(targets.calories);
+    return PressableScale(
+      scale: 0.99,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onEdit,
+        child: Padding(
+          key: const Key('target-summary-row'),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${dietGoalLabel(targets.goal).toUpperCase()} · '
+                      '${targets.calories} KCAL/DAY',
+                      style: TrainType.mono(
+                        size: 11.5,
+                        tracking: 0.06,
+                        color: TrainColors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      low
+                          ? '${targetSourceLabel(targets.source)} · below '
+                                '$kMinimumSafeCalories kcal — worth checking '
+                                'with a professional'
+                          : targetSourceLabel(targets.source),
+                      style: AppText.meta.copyWith(
+                        color: low ? TrainColors.ember : TrainColors.ink3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: TrainColors.ink3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The Diet hero — the screen's **one hero number**: calories left, inside a
 /// 104px green ring. Everything else demotes: the meals-eaten line, the mono
 /// eaten/plan caption, and the three macros as bars.
@@ -315,16 +492,26 @@ class _PlanBody extends StatelessWidget {
 ///
 /// Degrades calmly when the plan carries no calorie or macro data yet — see
 /// [dayCalories]/[macroTotals]'s null-means-absent semantics.
+///
+/// **It measures against whichever yardstick actually exists.** With
+/// [targets] set, the ring counts down the user's own daily objective and the
+/// bars use their macro targets. Without them, it falls back to the day's plan
+/// total — clearly labelled as "of plan", because a plan's sum is not a goal
+/// anyone chose. The two are never mixed in one figure.
 class _DietHero extends StatefulWidget {
   const _DietHero({
     required this.day,
     required this.consumed,
     required this.loading,
+    required this.targets,
   });
 
   final DietDay day;
   final Set<String> consumed;
   final bool loading;
+
+  /// The user's objective, or null when unset.
+  final NutritionTargets? targets;
 
   @override
   State<_DietHero> createState() => _DietHeroState();
@@ -337,7 +524,23 @@ class _DietHeroState extends State<_DietHero>
     value: _target(),
   );
 
+  /// Today's progress, as it should be built for the user's own targets.
+  /// Null when they have none.
+  TargetProgress? get _progressAgainstTargets {
+    final targets = widget.targets;
+    if (targets == null) return null;
+    return buildTargetProgress(
+      targets: targets,
+      day: widget.day,
+      consumed: widget.consumed,
+    );
+  }
+
   double _target() {
+    final progress = _progressAgainstTargets;
+    if (progress != null) {
+      return progress.calorieFraction.clamp(0.0, 1.0);
+    }
     final total = dayCalories(widget.day);
     if (total == null || total <= 0) return 0;
     final kcalLeft = dietDaySummary(widget.day, widget.consumed).kcalLeft;
@@ -373,6 +576,9 @@ class _DietHeroState extends State<_DietHero>
           .where((m) => widget.consumed.contains(m.id))
           .expand((m) => m.items),
     );
+    // Macro totals sum every item on the day (supplements included), so ask
+    // the same set whether any of it was estimated.
+    final macrosEstimated = anyEstimated(day.meals.expand((m) => m.items));
     final hasMacros =
         targetMacros.proteinG != null ||
         targetMacros.carbsG != null ||
@@ -402,7 +608,10 @@ class _DietHeroState extends State<_DietHero>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          widget.loading ? '…' : '${summary.kcalLeft}',
+                          widget.loading
+                              ? '…'
+                              : '${approx(summary.kcalLeftEstimated)}'
+                                    '${summary.kcalLeft}',
                           style: TrainType.mono(
                             size: 30,
                             weight: FontWeight.w300,
@@ -412,7 +621,13 @@ class _DietHeroState extends State<_DietHero>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'KCAL LEFT',
+                          // The one hero number says out loud when it rests on
+                          // AI-estimated values — a bare "1400" claims a
+                          // precision an imported plan's guessed figures don't
+                          // have.
+                          summary.kcalLeftEstimated
+                              ? 'EST. KCAL LEFT'
+                              : 'KCAL LEFT',
                           style: TrainType.caption(
                             size: 8,
                             tracking: 0.16,
@@ -476,6 +691,7 @@ class _DietHeroState extends State<_DietHero>
                       label: 'PROTEIN',
                       eaten: consumedMacros.proteinG ?? 0,
                       target: targetMacros.proteinG!,
+                      estimated: macrosEstimated,
                       color: TrainColors.green,
                       loading: widget.loading,
                     ),
@@ -484,6 +700,7 @@ class _DietHeroState extends State<_DietHero>
                       label: 'CARBS',
                       eaten: consumedMacros.carbsG ?? 0,
                       target: targetMacros.carbsG!,
+                      estimated: macrosEstimated,
                       color: TrainColors.violetGlyph,
                       loading: widget.loading,
                     ),
@@ -492,6 +709,7 @@ class _DietHeroState extends State<_DietHero>
                       label: 'FAT',
                       eaten: consumedMacros.fatG ?? 0,
                       target: targetMacros.fatG!,
+                      estimated: macrosEstimated,
                       color: TrainColors.amber,
                       loading: widget.loading,
                     ),
@@ -515,6 +733,7 @@ class _MacroBar extends StatelessWidget {
     required this.target,
     required this.color,
     required this.loading,
+    required this.estimated,
   });
 
   final String label;
@@ -525,6 +744,10 @@ class _MacroBar extends StatelessWidget {
   final double eaten;
   final double target;
   final Color color;
+
+  /// Whether the target grams rest on any AI-estimated item — rendered as the
+  /// same "~" the calorie figures use, so one convention covers both.
+  final bool estimated;
 
   /// While the consumed set is still resolving, a dash beats a "0g" that
   /// might be wrong the moment the stream lands.
@@ -550,7 +773,8 @@ class _MacroBar extends StatelessWidget {
                 ),
               ),
               Text(
-                '${loading ? '–' : eaten.round()}/${target.round()}g',
+                '${loading ? '–' : eaten.round()}'
+                    '/${approx(estimated)}${target.round()}g',
                 style: TrainType.mono(
                   size: 9.5,
                   color: const Color(0x99F4F4F0),
@@ -756,7 +980,7 @@ class _MealRowState extends State<_MealRow>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '$kcal',
+                          '${approx(mealEstimated(meal))}$kcal',
                           style: TrainType.mono(
                             size: 15,
                             color: TrainColors.ink,
@@ -1012,7 +1236,7 @@ class _DaySummaryCard extends StatelessWidget {
               ),
               if (kcal != null)
                 Text(
-                  '$kcal kcal',
+                  '${approx(dayEstimated(day))}$kcal kcal',
                   style: TrainType.mono(size: 13, color: TrainColors.green),
                 ),
             ],

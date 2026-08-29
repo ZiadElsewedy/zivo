@@ -35,7 +35,8 @@
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)**, confirm/execute dispatch (`applyProposedAction`) |
-| `tools.js` | uid-scoped **read** tools — `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`. Every payload states the **date** it resolved, and diet figures carry their `estimated` provenance. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
 | `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten` |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
@@ -49,6 +50,19 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   the empty-`thinking`-block signature issue fixed in `gateway.js`'s `stripEmptyThinking`);
   validate real changes against the emulator + real API, not just `node --test`.
 - **Any prompt/tool change needs a `functions` deploy** (owner's creds — see `docs/STATE.md`).
+- **The model may not invent numbers.** The system prompt's NUMBERS section forbids
+  stating any figure about the user's data that didn't come from a tool result in that
+  turn, and says outright that there is **no food database** behind it — so "I ate two
+  eggs and rice" must be answered with what the app knows, not a guess. `gateway.test.js`
+  asserts the prompt still says this; don't soften it without reading
+  [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+- **The turn carries the date.** Nothing else does — the prompt is static and cached, the
+  history is undated. `runAiTurn` appends an uncached `CONTEXT` system block with the
+  user's local date/weekday/time, built from the `utcOffsetMinutes` the client sends.
+- **Mutating tools may declare `verify`** (see `mark_meal_eaten`): an async check of the
+  proposed input against the user's real stored data, run *before* a card is shown, whose
+  return value patches the payload. `validate` proves shape; `verify` proves the thing
+  actually exists.
 - Writes are **always** confirmation-gated (ADR-003) — never make the AI execute a mutation
   without the propose→confirm step. This holds for edits/deletes too (ADR-005): the model must
   identify the exact record by its real `id` (from a read tool) and still wait on Confirm.
