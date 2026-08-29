@@ -447,7 +447,7 @@ class _StartConfirmSheetState extends State<_StartConfirmSheet>
   }
 }
 
-/// The confirm card itself, on the shared [AppColors] dark theme — a
+/// The confirm card itself, on the shared [TrainColors] dark theme — a
 /// translucent glass surface (paired with the sheet's own backdrop blur
 /// above it, see [_StartConfirmSheetState.build]) rather than a flat solid
 /// card, so the materializing blur reads through it.

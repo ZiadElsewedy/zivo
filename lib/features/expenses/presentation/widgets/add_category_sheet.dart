@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
-import 'category_hue_colors.dart';
 import 'category_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
 
-/// Bottom sheet for creating a custom expense category: name, a stroked icon
-/// from the app's category vocabulary, and a color from the 5-hue palette.
-/// Returns the new category's id on save, or null if cancelled.
+/// Bottom sheet for creating a custom expense category: a name and a stroked
+/// icon from the app's category vocabulary. Returns the new category's id on
+/// save, or null if cancelled.
+///
+/// There is no colour picker. Categories used to carry one, but a stroked
+/// glyph already tells them apart and every money surface is amber, so the
+/// swatch you chose was never rendered anywhere — see [ExpenseCategory].
 class AddCategorySheet extends StatefulWidget {
   const AddCategorySheet({super.key});
 
@@ -32,7 +35,6 @@ class AddCategorySheet extends StatefulWidget {
 class _AddCategorySheetState extends State<AddCategorySheet> {
   final _nameController = TextEditingController();
   CategoryIcon _icon = kPickableCategoryIcons.first;
-  CategoryHue _hue = CategoryHue.solar;
   bool _saving = false;
 
   bool get _canSave => _nameController.text.trim().isNotEmpty && !_saving;
@@ -50,7 +52,6 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       label: _nameController.text.trim(),
       icon: _icon,
-      hue: _hue,
     );
     await AppScope.of(context).expensesService.addCategory(category);
     if (mounted) Navigator.of(context).pop(category.id);
@@ -99,26 +100,12 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
                 _IconOption(
                   icon: icon,
                   selected: icon == _icon,
-                  // Previewed in the hue being chosen below, so the two
-                  // pickers read as one decision about how the chip will look.
-                  tint: hueColor(_hue),
+                  // Amber: the money hue every expense surface wears. The
+                  // preview shows exactly how the chip will look, because
+                  // there is nothing else left to choose.
+                  tint: TrainColors.amber,
                   onTap: () => setState(() => _icon = icon),
                 ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text('COLOR', style: AppText.sectionLabel),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              for (final hue in CategoryHue.values) ...[
-                _HueOption(
-                  hue: hue,
-                  selected: hue == _hue,
-                  onTap: () => setState(() => _hue = hue),
-                ),
-                const SizedBox(width: 12),
-              ],
             ],
           ),
           const SizedBox(height: 26),
@@ -162,43 +149,6 @@ class _IconOption extends StatelessWidget {
           categoryIcon(icon),
           size: 19,
           color: selected ? tint : TrainColors.ink3,
-        ),
-      ),
-    );
-  }
-}
-
-class _HueOption extends StatelessWidget {
-  const _HueOption({
-    required this.hue,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CategoryHue hue;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = hueColor(hue);
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: selected
-              ? Border.all(color: TrainColors.ink, width: 2)
-              : null,
-        ),
-        child: Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
       ),
     );

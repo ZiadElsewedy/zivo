@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-08-28 · **Active branch:** `version-1`
-(`version-1` is 27 commits ahead of `main`).
+**Last updated:** 2026-08-29 · **Active branch:** `version-1`
+(`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
 
@@ -32,7 +32,7 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
-- **One dark system, app-wide** (done 2026-08-28, audit C1 + the v2-flow redress).
+- **One dark system, app-wide** (done 2026-08-29, audit C1 + the v2-flow redress).
   Everything dresses from `TrainColors`. `AppShadows` is **deleted** — the v2 elevation
   system is gone; depth comes from light (identity §5), and the only shadows left are the
   coloured `TrainColors.actionGlow` under primary pills. `AppColors` survives in exactly
@@ -41,7 +41,7 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   The two foundational edits did the most work: `AppText`'s default ink and
   `AppTheme`'s `scaffoldBackgroundColor` were warm, so every screen that didn't override
   them inherited a warm cast — including the cool handoff ones.
-- **Hue discipline: hold the rule strictly** (owner decision, 2026-08-28, audit C2 —
+- **Hue discipline: hold the rule strictly** (owner decision, 2026-08-29, audit C2 —
   **implemented**). A hue appears only where it means its thing: green = training/state,
   ember = the single committing action, amber = money, violet = system/meta. Grids
   differentiate **by icon**, not colour. In practice: the Hub's module grid and Recent rows
@@ -140,12 +140,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     live AI keeps the old create-only backend (the app's redesigned cards already render
     edit/delete proposals once the backend proposes them). Command: `firebase deploy --only functions`.
 - **Firestore rules deploy — REQUIRED before creating a category works against the real
-  backend.** The emoji→stroked-icon change (design audit H3) makes the client write
-  `iconId` where it used to write `emoji`, and `firestore.rules` was updated to match. The
-  **live** rule still requires `emoji`, so until it is deployed every "Add category" write
-  is rejected with permission-denied. Reads and existing categories are unaffected
-  (rules validate writes only, and the repo still understands legacy `emoji` docs).
-  Command (owner creds): `firebase deploy --only firestore:rules`.
+  backend.** Two schema changes land in one deploy: categories now write `iconId` instead
+  of `emoji` (audit H3), and no longer write `hue` at all (the colour picker was removed —
+  see below). `firestore.rules` matches; the **live** rule still demands `emoji` *and*
+  `hue`, so until it is deployed every "Add category" write is rejected with
+  permission-denied. Reads and existing categories are unaffected — rules validate writes
+  only, legacy `emoji` docs still resolve their icon, and a leftover `hue` field on an old
+  document is simply ignored. Command (owner creds):
+  `firebase deploy --only firestore:rules`.
 - **Manual E2E:** real-PDF-in-app import → review → confirm for both workout and diet.
 - **Auth callables deploy:** the new `sendPasswordResetOtp` / `resetPasswordWithOtp` /
   `deleteAccount` callables need `firebase deploy --only functions` (owner creds) before the
@@ -188,7 +190,17 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
-- 2026-08-28 — **Redressed the remaining v2 flows — the app is on one palette now.** ~44
+- 2026-08-29 — **Removed the category colour picker, and the v2 palette is now fully
+  deleted.** Categories are a label + a stroked icon; `CategoryHue`, the sheet's COLOR
+  section, the `hue` Firestore field + rules clause, and `category_hue_colors.dart` are
+  gone. Rationale: H3 gave every category a distinct glyph and C2 made every money surface
+  amber, so the chosen swatch had nowhere to render — a picker that sets an invisible
+  value is worse than no picker. Folded into the already-pending rules deploy rather than
+  needing a second one. Old documents keep a harmless `hue` field; nothing reads it.
+  With that file gone, `app_colors.dart` had no importers either — **`AppColors` and
+  `AppShadows` are both deleted; `TrainColors` is the only palette in the app.** Also
+  deleted the dead `ZCard`. Rules suite 76 green against the emulator.
+- 2026-08-29 — **Redressed the remaining v2 flows — the app is on one palette now.** ~44
   files / ~430 references: the whole auth flow (which also closes the audit's warm→cool
   jump on sign-in), the diet plan editor + PDF import + meal detail + grocery list,
   storage & sync, moment capture + photo viewer, quick capture, the workout sheets, the
@@ -200,7 +212,7 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   **Correction:** C2's Expenses *chip* change never actually applied (a `dart format`
   line-wrap defeated the string match and the edit was reported as done); the chips are
   amber now for real. Bars and spines were correct.
-- 2026-08-28 — **Design audit C4 + C3 — the last two findings.** C4: music's own accent no
+- 2026-08-29 — **Design audit C4 + C3 — the last two findings.** C4: music's own accent no
   longer contradicts itself — the player's play/pause disc and the scrubber's fallback
   accent are green like the rest of the feature (equalizer, strips, Spotify wordmark, and
   the now-playing lozenge's own transport), with a dark glyph on the filled green the way
@@ -212,7 +224,7 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   but they are pure-v2 pages where shadows *are* the elevation model — stripping the shadow
   without redressing the palette would make them less coherent, not more. They belong to
   the un-redressed-flows list above, not to C3.
-- 2026-08-28 — **Design audit polish pass (P1–P7), all seven.** P1 capture FAB now wears the
+- 2026-08-29 — **Design audit polish pass (P1–P7), all seven.** P1 capture FAB now wears the
   chrome's raised material + top-lit ramp (deliberately *not* ember — Today's ember is
   Start Workout's, and C2 makes ember the single committing action). P2 one date-caption
   formatter: `formatTodayDate` retired, Hub joined Today on `formatTodayShort` (note:
@@ -226,15 +238,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   not a committing action). P7 the day's **planned** kcal is always shown and labelled —
   the mismatch the audit saw was the plan's own *name* ("Balanced — 2200 kcal") versus a
   day summing to 1270, and the old code hid the real figure whenever the name had one.
-- 2026-08-28 — **Design audit C2 — held the hue rule strictly.** 30-odd decorative accents
+- 2026-08-29 — **Design audit C2 — held the hue rule strictly.** 30-odd decorative accents
   moved onto the hue that actually owns their meaning (see the standing decision above).
   Added `TrainColors.neutralMark` for tiles that differentiate by icon.
-  **Consequence to decide:** with Expenses now all-amber, a category's own `CategoryHue`
-  no longer renders anywhere except the colour picker's own preview in
-  `add_category_sheet` — `trainHueColor()` is now dead. Either drop the colour picker (and
-  `CategoryHue`) since H3's stroked icons already tell categories apart, or give colour a
-  surface that doesn't sit on the money screen. Owner's call; nothing was deleted.
-- 2026-08-28 — **Design audit C1 — one dark system for the chrome.** The nav island, the
+  **Consequence, now resolved (2026-08-28):** the colour picker is gone. With Expenses
+  all-amber a category's `CategoryHue` rendered nowhere, so the picker was setting a value
+  the app never showed. `CategoryHue`, the picker's COLOR section, the `hue` Firestore
+  field and its rules clause, and `category_hue_colors.dart` are all deleted.
+- 2026-08-29 — **Design audit C1 — one dark system for the chrome.** The nav island, the
   Ask composer/header/quick-log sheet, the whole Ask page, Today's empty + insight cards,
   and the mixed-palette handoff screens (live session, workout hub, You, Diet, music
   scrubber, plan page, Settings) are off the warm v2 palette and on `TrainColors`. The two
@@ -246,7 +257,7 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   the committing action + worth noticing". Today's empty cards also lost their banned
   drop-shadow and their glowing gradient icon-chips (now `TrainIconTile`), which finishes
   C3 for Today and Ask.
-- 2026-08-28 — **Fixed the 32 long-standing red tests; suite is green (749) and
+- 2026-08-29 — **Fixed the 32 long-standing red tests; suite is green (749) and
   `flutter analyze` is clean.** They were stale finders, not regressions: every control
   STATE.md worried had been "renamed *or dropped*" still exists, verified against the
   source. Root causes were six renames (`Done`→`Log set`, `Back`→`BACK`, `-15s`→`−15s`,

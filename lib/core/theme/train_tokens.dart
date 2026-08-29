@@ -17,11 +17,13 @@ import 'package:google_fonts/google_fonts.dart';
 /// * **A cooler, darker base** (`#080908`) with a brighter training green,
 ///   because these screens are looked at in a gym, mid-set, at arm's length.
 ///
-/// Scope: these tokens dress the **eleven handoff screens** — Today, Active
-/// set, Rest, Workout hub, Ask, You, Diet, Expenses, Moments, Settings and the
-/// Player. Surfaces outside that set (capture flows, plan editing, auth, the
-/// import wizards) still run on [AppColors]'s warm v2 surfaces and [AppText]'s
-/// Bricolage / Hanken pairing — rolling this further is a separate pass.
+/// Scope: **the whole app.** These began as the dress for the eleven handoff
+/// screens, with capture flows, plan editing, auth and the import wizards left
+/// on the warm v2 palette. That split was the "two systems on one screen"
+/// problem the design audit named, so the rest of the app was rolled onto
+/// these tokens and the v2 colour/elevation files were deleted. There is no
+/// second palette to fall back to — if something needs a colour, it belongs
+/// here.
 ///
 /// The design intent worth protecting (from the handoff, verbatim in spirit):
 /// **one hero number per screen**, everything else demoted to a mono caption;

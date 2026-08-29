@@ -1,16 +1,10 @@
-/// A hue from the app's fixed 5-color brand palette (see `AppColors`). Every
-/// category — built-in or user-created — picks one instead of an arbitrary
-/// color, so custom categories still look native to the design system.
-enum CategoryHue { ember, pulse, solar, iris, flare }
-
 /// The mark a category is shown with, from a fixed vocabulary.
 ///
 /// A *semantic* name rather than a glyph, for two reasons. It persists as a
-/// stable string (`.name`, the same convention [CategoryHue] already uses), so
-/// the stored value survives an icon being re-drawn or swapped for a better
-/// one. And it keeps the domain free of Flutter types — the actual stroked
-/// glyph is resolved in the presentation layer by `categoryIcon()`, next to
-/// where `hueColor()` resolves the colour.
+/// stable string (its `.name`), so the stored value survives an icon being
+/// re-drawn or swapped for a better one. And it keeps the domain free of
+/// Flutter types — the actual stroked glyph is resolved in the presentation
+/// layer, by `categoryIcon()`.
 ///
 /// This replaced a free-text `emoji` field. The identity spec rules emoji out
 /// twice (§4 "icons are stroked SVG… never emoji", §8 "Never: emoji"): they
@@ -48,20 +42,25 @@ enum CategoryIcon {
 
 /// An expense category: a small, user-extensible tag. Built-ins ship with the
 /// app (see [kBuiltInCategories]); the rest are created by the user and
-/// persisted via `CategoryRepository`. Money is Solar throughout, but each
-/// category still carries its own hue for quick visual scanning.
+/// persisted via `CategoryRepository`.
+///
+/// A category carries **no colour of its own**. It used to: a `CategoryHue`
+/// picked from a 5-swatch palette. Two decisions retired it. Every category
+/// now has a distinct stroked glyph ([CategoryIcon]), which is what actually
+/// tells them apart; and holding "one hue = one meaning" made every money
+/// surface amber, so a per-category colour had nowhere honest left to render
+/// — the picker was setting a value the app never showed. Categories
+/// differentiate by glyph and label; amber says "this is money".
 class ExpenseCategory {
   const ExpenseCategory({
     required this.id,
     required this.label,
     required this.icon,
-    required this.hue,
   });
 
   final String id;
   final String label;
   final CategoryIcon icon;
-  final CategoryHue hue;
 
   @override
   bool operator ==(Object other) => other is ExpenseCategory && other.id == id;
@@ -74,49 +73,30 @@ class ExpenseCategory {
 /// expense records (which store a category id string) keep resolving with no
 /// migration; `shopping` is the one addition.
 const kBuiltInCategories = <ExpenseCategory>[
-  ExpenseCategory(
-    id: 'food',
-    label: 'Food',
-    icon: CategoryIcon.food,
-    hue: CategoryHue.ember,
-  ),
-  ExpenseCategory(
-    id: 'coffee',
-    label: 'Coffee',
-    icon: CategoryIcon.coffee,
-    hue: CategoryHue.solar,
-  ),
+  ExpenseCategory(id: 'food', label: 'Food', icon: CategoryIcon.food),
+  ExpenseCategory(id: 'coffee', label: 'Coffee', icon: CategoryIcon.coffee),
   ExpenseCategory(
     id: 'transport',
     label: 'Transport',
     icon: CategoryIcon.transport,
-    hue: CategoryHue.iris,
   ),
   ExpenseCategory(
     id: 'groceries',
     label: 'Groceries',
     icon: CategoryIcon.groceries,
-    hue: CategoryHue.pulse,
   ),
   ExpenseCategory(
     id: 'shopping',
     label: 'Shopping',
     icon: CategoryIcon.shopping,
-    hue: CategoryHue.flare,
   ),
-  ExpenseCategory(
-    id: 'other',
-    label: 'Other',
-    icon: CategoryIcon.other,
-    hue: CategoryHue.solar,
-  ),
+  ExpenseCategory(id: 'other', label: 'Other', icon: CategoryIcon.other),
 ];
 
 const _fallback = ExpenseCategory(
   id: 'other',
   label: 'Other',
   icon: CategoryIcon.other,
-  hue: CategoryHue.solar,
 );
 
 /// Resolves a stored icon name back to a [CategoryIcon], falling back to
@@ -140,34 +120,33 @@ CategoryIcon categoryIconFromName(Object? name) {
 /// Read-only and additive: nothing writes `emoji` any more, so this exists
 /// purely so already-saved categories keep their identity. It can be deleted
 /// once no live account holds a pre-migration category.
-CategoryIcon categoryIconFromLegacyEmoji(Object? emoji) =>
-    switch (emoji) {
-      '🍔' => CategoryIcon.food,
-      '☕' => CategoryIcon.coffee,
-      '🚕' => CategoryIcon.transport,
-      '🛒' => CategoryIcon.groceries,
-      '🛍️' => CategoryIcon.shopping,
-      '🎬' => CategoryIcon.entertainment,
-      '🏠' => CategoryIcon.home,
-      '💊' => CategoryIcon.health,
-      '🎓' => CategoryIcon.education,
-      '✈️' => CategoryIcon.travel,
-      '🐾' => CategoryIcon.pets,
-      '🎁' => CategoryIcon.gifts,
-      '💡' => CategoryIcon.utilities,
-      '📱' => CategoryIcon.phone,
-      '🎮' => CategoryIcon.games,
-      '🍺' => CategoryIcon.drinks,
-      '🚗' => CategoryIcon.car,
-      '🏋️' => CategoryIcon.fitness,
-      '📚' => CategoryIcon.books,
-      '💇' => CategoryIcon.grooming,
-      '🎵' => CategoryIcon.music,
-      '🅿️' => CategoryIcon.parking,
-      '🧾' => CategoryIcon.bills,
-      '🧴' => CategoryIcon.personalCare,
-      _ => CategoryIcon.other,
-    };
+CategoryIcon categoryIconFromLegacyEmoji(Object? emoji) => switch (emoji) {
+  '🍔' => CategoryIcon.food,
+  '☕' => CategoryIcon.coffee,
+  '🚕' => CategoryIcon.transport,
+  '🛒' => CategoryIcon.groceries,
+  '🛍️' => CategoryIcon.shopping,
+  '🎬' => CategoryIcon.entertainment,
+  '🏠' => CategoryIcon.home,
+  '💊' => CategoryIcon.health,
+  '🎓' => CategoryIcon.education,
+  '✈️' => CategoryIcon.travel,
+  '🐾' => CategoryIcon.pets,
+  '🎁' => CategoryIcon.gifts,
+  '💡' => CategoryIcon.utilities,
+  '📱' => CategoryIcon.phone,
+  '🎮' => CategoryIcon.games,
+  '🍺' => CategoryIcon.drinks,
+  '🚗' => CategoryIcon.car,
+  '🏋️' => CategoryIcon.fitness,
+  '📚' => CategoryIcon.books,
+  '💇' => CategoryIcon.grooming,
+  '🎵' => CategoryIcon.music,
+  '🅿️' => CategoryIcon.parking,
+  '🧾' => CategoryIcon.bills,
+  '🧴' => CategoryIcon.personalCare,
+  _ => CategoryIcon.other,
+};
 
 /// Resolves an expense's stored `categoryId` to a displayable [ExpenseCategory]
 /// — checking built-ins, then the user's [custom] categories, falling back to

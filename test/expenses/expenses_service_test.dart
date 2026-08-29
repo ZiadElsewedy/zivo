@@ -91,7 +91,6 @@ void main() {
       id: 'subs',
       label: 'Subscriptions',
       icon: CategoryIcon.entertainment,
-      hue: CategoryHue.iris,
     );
     await service.addCategory(custom);
 

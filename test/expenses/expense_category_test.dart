@@ -12,7 +12,6 @@ void main() {
         id: 'subs',
         label: 'Subscriptions',
         icon: CategoryIcon.entertainment,
-        hue: CategoryHue.iris,
       );
       expect(resolveCategory('subs', [custom]), custom);
     });

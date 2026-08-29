@@ -29,7 +29,7 @@ import 'workout_plan_edit_page.dart';
 /// ("what I did") stays one tap away via the AppBar.
 ///
 /// Dark, immersive body — matching the live session screens on the
-/// app-wide [AppColors] theme.
+/// app-wide [TrainColors] theme.
 class WorkoutPlanPage extends StatelessWidget {
   const WorkoutPlanPage({super.key});
 

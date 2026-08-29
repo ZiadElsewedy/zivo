@@ -98,8 +98,7 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.label is string
-        && request.resource.data.iconId is string
-        && request.resource.data.hue is string;
+        && request.resource.data.iconId is string;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 

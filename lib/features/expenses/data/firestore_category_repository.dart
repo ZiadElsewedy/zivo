@@ -82,7 +82,6 @@ class FirestoreCategoryRepository implements CategoryRepository {
       // written before this change carry `emoji` instead and are read through
       // the legacy path in [_fromDoc]; nothing writes `emoji` any more.
       'iconId': category.icon.name,
-      'hue': category.hue.name,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -101,20 +100,19 @@ class FirestoreCategoryRepository implements CategoryRepository {
   ExpenseCategory _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     final label = data['label'];
-    final hue = data['hue'];
     return ExpenseCategory(
       id: doc.id,
       label: label is String ? label : 'Category',
+      // Documents written before categories lost their colour still carry a
+      // `hue` field. It is read by nothing and validated by nothing, so it
+      // just sits there harmlessly until the doc is next rewritten.
+      //
       // Prefer the current field; fall back to interpreting a pre-migration
       // `emoji` so categories saved before the switch keep their mark instead
       // of all collapsing onto the neutral one.
       icon: data.containsKey('iconId')
           ? categoryIconFromName(data['iconId'])
           : categoryIconFromLegacyEmoji(data['emoji']),
-      hue: CategoryHue.values.firstWhere(
-        (h) => h.name == hue,
-        orElse: () => CategoryHue.solar,
-      ),
     );
   }
 }

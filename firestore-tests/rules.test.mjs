@@ -46,7 +46,7 @@ const valid = {
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
   bodyWeightEntries: { weightKg: 82.5, loggedAt: ts(), schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
-  expenseCategories: { label: 'Subs', iconId: 'bills', hue: 'iris' },
+  expenseCategories: { label: 'Subs', iconId: 'bills' },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.

@@ -30,44 +30,6 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// A bright, lifted card. Optionally carries a soft hue wash — as a flat
-/// [wash] color or, for more depth, a diagonal [gradient] — plus a faint
-/// tinted [borderColor] for a glassy, premium edge.
-class ZCard extends StatelessWidget {
-  const ZCard({
-    required this.child,
-    this.wash,
-    this.gradient,
-    this.washShadow,
-    this.borderColor,
-    super.key,
-  });
-
-  final Widget child;
-  final Color? wash;
-  final Gradient? gradient;
-  final List<BoxShadow>? washShadow;
-  final Color? borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-      decoration: BoxDecoration(
-        color: gradient == null ? (wash ?? TrainColors.raised) : null,
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: borderColor == null
-            ? null
-            : Border.all(color: borderColor!, width: 1),
-        boxShadow: washShadow ?? const <BoxShadow>[],
-      ),
-      child: child,
-    );
-  }
-}
-
 /// Card header: hue dot + uppercase hue label + right-aligned time.
 class CardHeaderRow extends StatelessWidget {
   const CardHeaderRow({

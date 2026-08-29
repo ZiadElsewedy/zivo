@@ -87,7 +87,7 @@ class _DayDraft {
 /// set spec and generates the working sets). Saving persists the whole plan,
 /// reusing its id when editing so it overwrites idempotently, and preserving
 /// the rotation cursor. Dark, matching the session/plan/history screens on
-/// the app-wide [AppColors] theme.
+/// the app-wide [TrainColors] theme.
 class WorkoutPlanEditPage extends StatefulWidget {
   const WorkoutPlanEditPage({
     super.key,
