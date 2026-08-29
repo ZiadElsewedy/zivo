@@ -23,7 +23,8 @@ import 'package:google_fonts/google_fonts.dart';
 /// problem the design audit named, so the rest of the app was rolled onto
 /// these tokens and the v2 colour/elevation files were deleted. There is no
 /// second palette to fall back to — if something needs a colour, it belongs
-/// here.
+/// here. See `docs/DECISIONS/ADR-006-one-design-system.md` for the decision and
+/// the rules any new colour work has to follow.
 ///
 /// The design intent worth protecting (from the handoff, verbatim in spirit):
 /// **one hero number per screen**, everything else demoted to a mono caption;

@@ -35,7 +35,8 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`. Cross-cutting logic:
   chosen from a 5-swatch picker. It was removed because the glyph already tells categories
   apart and every money surface is amber ("one hue = one meaning"), so the chosen swatch
   rendered nowhere — the picker set a value the app never showed. If a category-detail or
-  budgets view ever wants colour, give it a surface *first*.
+  budgets view ever wants colour, give it a surface *first*. Decision + rationale:
+  [ADR-006](../../../docs/DECISIONS/ADR-006-one-design-system.md).
 - **Legacy fields on old documents.** Categories saved before these changes carry `emoji`
   and/or `hue`. `hue` is read by nothing and validated by nothing. `emoji` is still
   interpreted by `categoryIconFromLegacyEmoji` so those categories keep their mark; that

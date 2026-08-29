@@ -32,7 +32,9 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
-- **One dark system, app-wide** (done 2026-08-29, audit C1 + the v2-flow redress).
+- **One dark system, app-wide** (done 2026-08-29, audit C1 + the v2-flow redress). Recorded
+  as [ADR-006](DECISIONS/ADR-006-one-design-system.md) — read that for the rationale and the
+  rules future work must follow.
   Everything dresses from `TrainColors`. `AppShadows` is **deleted** — the v2 elevation
   system is gone; depth comes from light (identity §5), and the only shadows left are the
   coloured `TrainColors.actionGlow` under primary pills. `AppColors` survives in exactly
@@ -42,7 +44,7 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   `AppTheme`'s `scaffoldBackgroundColor` were warm, so every screen that didn't override
   them inherited a warm cast — including the cool handoff ones.
 - **Hue discipline: hold the rule strictly** (owner decision, 2026-08-29, audit C2 —
-  **implemented**). A hue appears only where it means its thing: green = training/state,
+  **implemented**; rationale in [ADR-006](DECISIONS/ADR-006-one-design-system.md)). A hue appears only where it means its thing: green = training/state,
   ember = the single committing action, amber = money, violet = system/meta. Grids
   differentiate **by icon**, not colour. In practice: the Hub's module grid and Recent rows
   lead with `TrainColors.neutralMark` (no hue owns "Diet" or "Moments"); every Workout

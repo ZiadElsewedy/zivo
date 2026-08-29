@@ -2,6 +2,19 @@
 
 Paste this whole file into Claude (or drop it in a repo as `BRAND.md`) before asking for any ZIVO screen or asset. It is the complete visual contract.
 
+> ⚠️ **Superseded for colour, surfaces and elevation** by
+> [`DECISIONS/ADR-006`](DECISIONS/ADR-006-one-design-system.md) (2026-08-29). The app runs on
+> one palette — `TrainColors` in
+> [`lib/core/theme/train_tokens.dart`](../lib/core/theme/train_tokens.dart) — and the v2
+> `AppColors`/`AppShadows` files described below **no longer exist**.
+>
+> **Still current here:** the *meaning* system (each area owns one hue, ember appears once,
+> colour carries meaning and never decorates), the logo, spacing rhythm, motion identity,
+> layout rules, and the copy/tone guidance.
+> **No longer current here:** the light mode, the warm surface values, the five-hue table
+> (there are four, and no red), and shadow-based elevation — depth comes from light.
+> Read this file for *intent*; take hex values from `train_tokens.dart`.
+
 ---
 
 ## v2.0 — Light & Warm (CURRENT direction — supersedes the v1 sections below where they conflict)
