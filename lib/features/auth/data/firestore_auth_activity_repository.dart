@@ -45,27 +45,27 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
     required String provider,
     required String platform,
   }) => _guard(() async {
-      final now = FieldValue.serverTimestamp();
-      await _accountsOf(uid).doc('account').set({
-        'schemaVersion': _schemaVersion,
-        'createdAt': now,
-        'registeredVia': provider,
-        'registeredPlatform': platform,
-        // A creation IS the account's first successful authentication.
-        'lastSignInAt': now,
-        'lastSignInVia': provider,
-        'lastSignInPlatform': platform,
-        'previousSignInAt': null,
-        'signInCount': 1,
-        'updatedAt': now,
-      }, SetOptions(merge: true));
-      await _appendEvent(
-        uid,
-        AuthEventType.accountCreated,
-        provider: provider,
-        platform: platform,
-      );
-    });
+    final now = FieldValue.serverTimestamp();
+    await _accountsOf(uid).doc('account').set({
+      'schemaVersion': _schemaVersion,
+      'createdAt': now,
+      'registeredVia': provider,
+      'registeredPlatform': platform,
+      // A creation IS the account's first successful authentication.
+      'lastSignInAt': now,
+      'lastSignInVia': provider,
+      'lastSignInPlatform': platform,
+      'previousSignInAt': null,
+      'signInCount': 1,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+    await _appendEvent(
+      uid,
+      AuthEventType.accountCreated,
+      provider: provider,
+      platform: platform,
+    );
+  });
 
   @override
   Future<void> recordSignIn({
@@ -73,73 +73,78 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
     required String provider,
     required String platform,
     DateTime? fallbackCreatedAt,
-  }) =>
-      _guard(() async {
-        // A transaction so two devices signing in concurrently can't clobber
-        // each other's count or lose `previousSignInAt` to a stale read.
-        await _firestore.runTransaction((tx) async {
-          final ref = _accountsOf(uid).doc('account');
-          final snap = await tx.get(ref);
-          final existing = snap.exists ? snap.data() : null;
-          final previous = _asDate(existing?['lastSignInAt']);
+  }) => _guard(() async {
+    // A transaction so two devices signing in concurrently can't clobber
+    // each other's count or lose `previousSignInAt` to a stale read.
+    await _firestore.runTransaction((tx) async {
+      final ref = _accountsOf(uid).doc('account');
+      final snap = await tx.get(ref);
+      final existing = snap.exists ? snap.data() : null;
+      final previous = _asDate(existing?['lastSignInAt']);
 
-          if (existing == null) {
-            // First summary write ever (the registration-era write was lost,
-            // or this account predates tracking): create it, backfilling
-            // createdAt from Firebase's own trusted metadata when available.
-            tx.set(ref, {
-              'schemaVersion': _schemaVersion,
-              if (fallbackCreatedAt != null)
-                'createdAt': Timestamp.fromDate(fallbackCreatedAt),
-              'lastSignInAt': FieldValue.serverTimestamp(),
-              'lastSignInVia': provider,
-              'lastSignInPlatform': platform,
-              'previousSignInAt': null,
-              'signInCount': 1,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            return;
-          }
-
-          final patch = <String, dynamic>{
-            'schemaVersion': _schemaVersion,
-            'lastSignInAt': FieldValue.serverTimestamp(),
-            'lastSignInVia': provider,
-            'lastSignInPlatform': platform,
-            'previousSignInAt':
-                previous == null ? null : Timestamp.fromDate(previous),
-            'signInCount': FieldValue.increment(1),
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-          if (existing['createdAt'] is! Timestamp &&
-              fallbackCreatedAt != null) {
-            patch['createdAt'] = Timestamp.fromDate(fallbackCreatedAt);
-          }
-          // update, not set(merge): only the session fields move; everything
-          // else on the summary survives untouched.
-          tx.update(ref, patch);
+      if (existing == null) {
+        // First summary write ever (the registration-era write was lost,
+        // or this account predates tracking): create it, backfilling
+        // createdAt from Firebase's own trusted metadata when available.
+        tx.set(ref, {
+          'schemaVersion': _schemaVersion,
+          if (fallbackCreatedAt != null)
+            'createdAt': Timestamp.fromDate(fallbackCreatedAt),
+          'lastSignInAt': FieldValue.serverTimestamp(),
+          'lastSignInVia': provider,
+          'lastSignInPlatform': platform,
+          'previousSignInAt': null,
+          'signInCount': 1,
+          'updatedAt': FieldValue.serverTimestamp(),
         });
-        await _appendEvent(uid, AuthEventType.signIn,
-            provider: provider, platform: platform);
-      });
+        return;
+      }
+
+      final patch = <String, dynamic>{
+        'schemaVersion': _schemaVersion,
+        'lastSignInAt': FieldValue.serverTimestamp(),
+        'lastSignInVia': provider,
+        'lastSignInPlatform': platform,
+        'previousSignInAt': previous == null
+            ? null
+            : Timestamp.fromDate(previous),
+        'signInCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (existing['createdAt'] is! Timestamp && fallbackCreatedAt != null) {
+        patch['createdAt'] = Timestamp.fromDate(fallbackCreatedAt);
+      }
+      // update, not set(merge): only the session fields move; everything
+      // else on the summary survives untouched.
+      tx.update(ref, patch);
+    });
+    await _appendEvent(
+      uid,
+      AuthEventType.signIn,
+      provider: provider,
+      platform: platform,
+    );
+  });
 
   @override
   Future<void> recordSignOut({required String uid}) =>
       _guard(() => _appendEvent(uid, AuthEventType.signOut));
 
   @override
-  Future<void> recordPasswordChanged({required String uid}) =>
-      _guard(() async {
-        // Stamp the summary (owner-writable; the rules require schemaVersion)
-        // and append the event, mirroring the server's markPasswordChanged.
-        await _accountsOf(uid).doc('account').set({
-          'schemaVersion': _schemaVersion,
-          'lastPasswordChangeAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        await _appendEvent(uid, AuthEventType.passwordChanged,
-            provider: 'password');
-      });
+  Future<void> recordPasswordChanged({required String uid}) => _guard(() async {
+    // Stamp the summary (owner-writable; the rules require schemaVersion)
+    // and append the event, mirroring the server's markPasswordChanged.
+    await _accountsOf(uid).doc('account').set({
+      'schemaVersion': _schemaVersion,
+      'lastPasswordChangeAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await _appendEvent(
+      uid,
+      AuthEventType.passwordChanged,
+      provider: 'password',
+    );
+  });
 
   @override
   Future<void> recordEvent({
@@ -147,7 +152,9 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
     required AuthEventType type,
     String? provider,
     String? platform,
-  }) => _guard(() => _appendEvent(uid, type, provider: provider, platform: platform));
+  }) => _guard(
+    () => _appendEvent(uid, type, provider: provider, platform: platform),
+  );
 
   @override
   Stream<AccountAuthMetadata?> watchAccount(String uid) =>
@@ -194,9 +201,7 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
     final data = snap.data();
     if (data == null) return null;
     return AccountAuthMetadata(
-      uid: snap.id == 'account'
-          ? _uidFrom(snap.reference)
-          : snap.id,
+      uid: snap.id == 'account' ? _uidFrom(snap.reference) : snap.id,
       createdAt: _asDate(data['createdAt']),
       registeredVia: _asString(data['registeredVia']),
       registeredPlatform: _asString(data['registeredPlatform']),
@@ -244,8 +249,7 @@ class FirestoreAuthActivityRepository implements AuthActivityRepository {
     }
   }
 
-  static DateTime? _asDate(Object? v) =>
-      v is Timestamp ? v.toDate() : null;
+  static DateTime? _asDate(Object? v) => v is Timestamp ? v.toDate() : null;
 
   static String? _asString(Object? v) => v is String ? v : null;
 }

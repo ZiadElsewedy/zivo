@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
@@ -12,13 +11,19 @@ import '../../domain/diet_plan_status.dart';
 import '../../domain/diet_source.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-String _weekdayLabel(int? weekday) => weekday == null ? 'Every day' : _weekdayNames[weekday - 1];
+String _weekdayLabel(int? weekday) =>
+    weekday == null ? 'Every day' : _weekdayNames[weekday - 1];
 
 class _MealDraft {
-  _MealDraft({required this.id, required this.label, required this.order, List<FoodItem>? items})
-    : items = items ?? <FoodItem>[];
+  _MealDraft({
+    required this.id,
+    required this.label,
+    required this.order,
+    List<FoodItem>? items,
+  }) : items = items ?? <FoodItem>[];
 
   final String id;
   final String label;
@@ -72,8 +77,12 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
             label: d.label,
             meals: d.meals
                 .map(
-                  (m) =>
-                      _MealDraft(id: m.id, label: m.label, order: m.order, items: List.of(m.items)),
+                  (m) => _MealDraft(
+                    id: m.id,
+                    label: m.label,
+                    order: m.order,
+                    items: List.of(m.items),
+                  ),
                 )
                 .toList(),
           ),
@@ -191,7 +200,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
+        backgroundColor: TrainColors.raised,
         title: Text('Delete this plan?', style: AppText.cardTitle),
         content: Text(
           'This removes "${plan.name}" and all its days and meals. This can\'t be undone.',
@@ -200,11 +209,17 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppText.button.copyWith(color: AppColors.ink3)),
+            child: Text(
+              'Cancel',
+              style: AppText.button.copyWith(color: TrainColors.ink3),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: AppText.button.copyWith(color: AppColors.flareText)),
+            child: Text(
+              'Delete',
+              style: AppText.button.copyWith(color: TrainColors.ember),
+            ),
           ),
         ],
       ),
@@ -217,7 +232,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +246,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
                       semanticLabel: 'Delete plan',
-                      iconColor: AppColors.flareText,
+                      iconColor: TrainColors.ember,
                     )
                   : null,
             ),
@@ -240,13 +255,16 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
               child: TextField(
                 controller: _name,
                 textInputAction: TextInputAction.done,
-                cursorColor: AppColors.pulse,
+                cursorColor: TrainColors.green,
                 style: AppText.cardTitle.copyWith(fontSize: 24),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
                   hintText: 'Plan name',
-                  hintStyle: AppText.cardTitle.copyWith(fontSize: 24, color: AppColors.ink3),
+                  hintStyle: AppText.cardTitle.copyWith(
+                    fontSize: 24,
+                    color: TrainColors.ink3,
+                  ),
                 ),
               ),
             ),
@@ -282,7 +300,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
               child: PillButton(
                 label: 'Save plan',
                 icon: Icons.check_rounded,
-                color: AppColors.pulseText,
+                color: TrainColors.green,
                 enabled: _canSave,
                 onTap: _save,
               ),
@@ -305,7 +323,11 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.restaurant_rounded, size: 30, color: AppColors.ink3),
+          const Icon(
+            Icons.restaurant_rounded,
+            size: 30,
+            color: TrainColors.ink3,
+          ),
           const SizedBox(height: 12),
           Text('No days yet.', style: AppText.aside),
           const SizedBox(height: 14),
@@ -317,7 +339,11 @@ class _EmptyDays extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.label, required this.onTap, this.compact = false});
+  const _AddButton({
+    required this.label,
+    required this.onTap,
+    this.compact = false,
+  });
 
   final String label;
   final VoidCallback onTap;
@@ -329,21 +355,28 @@ class _AddButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: compact ? 8 : 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 12 : 18,
+          vertical: compact ? 8 : 12,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.hairline2, width: 1.4),
+          border: Border.all(color: TrainColors.hairlineStrong, width: 1.4),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, size: compact ? 14 : 17, color: AppColors.pulseText),
+            Icon(
+              Icons.add_rounded,
+              size: compact ? 14 : 17,
+              color: TrainColors.green,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: AppText.button.copyWith(
                 fontSize: compact ? 12.5 : 14,
-                color: AppColors.pulseText,
+                color: TrainColors.green,
               ),
             ),
           ],
@@ -375,9 +408,9 @@ class _DayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +425,11 @@ class _DayCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onRemoveDay,
-                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.ink3),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: TrainColors.ink3,
+                ),
                 splashRadius: 20,
                 tooltip: 'Remove day',
               ),
@@ -433,7 +470,10 @@ class _MealBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.ground, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: TrainColors.base,
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -442,12 +482,19 @@ class _MealBlock extends StatelessWidget {
               Expanded(
                 child: Text(
                   meal.label,
-                  style: AppText.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+                  style: AppText.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: TrainColors.ink,
+                  ),
                 ),
               ),
               IconButton(
                 onPressed: onRemoveMeal,
-                icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.ink3),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: TrainColors.ink3,
+                ),
                 splashRadius: 18,
                 tooltip: 'Remove meal',
               ),
@@ -463,12 +510,16 @@ class _MealBlock extends StatelessWidget {
                       '${meal.items[ii].name} · ${foodQtyLabel(meal.items[ii])}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.meta.copyWith(color: AppColors.ink2),
+                      style: AppText.meta.copyWith(color: TrainColors.ink2),
                     ),
                   ),
                   IconButton(
                     onPressed: () => onRemoveItem(ii),
-                    icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.ink3),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: TrainColors.ink3,
+                    ),
                     splashRadius: 16,
                     tooltip: 'Remove item',
                   ),
@@ -502,7 +553,9 @@ class _DaySheetState extends State<_DaySheet> {
   }
 
   void _submit() {
-    final label = _label.text.trim().isEmpty ? _weekdayLabel(_weekday) : _label.text.trim();
+    final label = _label.text.trim().isEmpty
+        ? _weekdayLabel(_weekday)
+        : _label.text.trim();
     Navigator.of(context).pop(_DayDraft(weekday: _weekday, label: label));
   }
 
@@ -510,7 +563,7 @@ class _DaySheetState extends State<_DaySheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -528,7 +581,7 @@ class _DaySheetState extends State<_DaySheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -560,27 +613,29 @@ class _DaySheetState extends State<_DaySheet> {
             controller: _label,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
-            cursorColor: AppColors.pulse,
+            cursorColor: TrainColors.green,
             style: AppText.rowTitle,
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TrainColors.hairline),
+              ),
               enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
+                borderSide: BorderSide(color: TrainColors.hairline),
               ),
               focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+                borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: 'Day label (optional)',
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
             label: 'Add day',
             icon: Icons.add_rounded,
-            color: AppColors.pulseText,
+            color: TrainColors.green,
             enabled: true,
             onTap: _submit,
           ),
@@ -626,7 +681,7 @@ class _MealSheetState extends State<_MealSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -644,7 +699,7 @@ class _MealSheetState extends State<_MealSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -659,27 +714,29 @@ class _MealSheetState extends State<_MealSheet> {
             autofocus: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
-            cursorColor: AppColors.pulse,
+            cursorColor: TrainColors.green,
             style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TrainColors.hairline),
+              ),
               enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
+                borderSide: BorderSide(color: TrainColors.hairline),
               ),
               focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+                borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: 'Meal name',
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
             label: 'Add meal',
             icon: Icons.add_rounded,
-            color: AppColors.pulseText,
+            color: TrainColors.green,
             enabled: _canAdd,
             onTap: _submit,
           ),
@@ -730,7 +787,8 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
 
   void _submit() {
     if (!_canAdd) return;
-    final quantity = double.tryParse(_quantity.text.trim().replaceAll(',', '.')) ?? 0;
+    final quantity =
+        double.tryParse(_quantity.text.trim().replaceAll(',', '.')) ?? 0;
     final calories = int.tryParse(_calories.text.trim());
     final protein = double.tryParse(_protein.text.trim().replaceAll(',', '.'));
     final carbs = double.tryParse(_carbs.text.trim().replaceAll(',', '.'));
@@ -752,7 +810,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -770,7 +828,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -784,20 +842,22 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
             controller: _name,
             autofocus: true,
             textInputAction: TextInputAction.next,
-            cursorColor: AppColors.pulse,
+            cursorColor: TrainColors.green,
             style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.hairline)),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: TrainColors.hairline),
+              ),
               enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.hairline),
+                borderSide: BorderSide(color: TrainColors.hairline),
               ),
               focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.pulse, width: 1.6),
+                borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: 'Food name',
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
+              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 16),
@@ -812,7 +872,10 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
                   children: [
                     Text(
                       'UNIT',
-                      style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+                      style: AppText.meta.copyWith(
+                        color: TrainColors.ink3,
+                        letterSpacing: 0.6,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Wrap(
@@ -836,7 +899,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
             children: [
               _NumberField(label: 'Calories', controller: _calories, hint: '—'),
               const SizedBox(width: 12),
-              _NumberField(label: 'Protein (g)', controller: _protein, hint: '—'),
+              _NumberField(
+                label: 'Protein (g)',
+                controller: _protein,
+                hint: '—',
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -851,7 +918,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           PillButton(
             label: 'Add item',
             icon: Icons.add_rounded,
-            color: AppColors.pulseText,
+            color: TrainColors.green,
             enabled: _canAdd,
             onTap: _submit,
           ),
@@ -862,7 +929,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
 }
 
 class _NumberField extends StatelessWidget {
-  const _NumberField({required this.label, required this.controller, this.hint});
+  const _NumberField({
+    required this.label,
+    required this.controller,
+    this.hint,
+  });
 
   final String label;
   final TextEditingController controller;
@@ -876,29 +947,40 @@ class _NumberField extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: AppText.meta.copyWith(color: AppColors.ink3, letterSpacing: 0.6),
+            style: AppText.meta.copyWith(
+              color: TrainColors.ink3,
+              letterSpacing: 0.6,
+            ),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-            cursorColor: AppColors.pulse,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            cursorColor: TrainColors.green,
             style: AppText.rowTitle,
             decoration: InputDecoration(
               isDense: true,
               hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: AppColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 10,
+                horizontal: 12,
+              ),
               filled: true,
-              fillColor: AppColors.ground,
+              fillColor: TrainColors.base,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.pulse, width: 1.4),
+                borderSide: const BorderSide(
+                  color: TrainColors.green,
+                  width: 1.4,
+                ),
               ),
             ),
           ),

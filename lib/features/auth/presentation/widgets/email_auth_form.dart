@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../domain/password_policy.dart';
 import 'auth_action_button.dart';
 import 'auth_text_field.dart';
 import 'password_checklist.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Email + password inputs with a submit button. Owns its text controllers and
 /// light client-side validation (non-empty email with an `@`, password ≥ 6);
@@ -42,7 +42,8 @@ class EmailAuthForm extends StatefulWidget {
     required String email,
     required String password,
     String? name,
-  }) onSubmit;
+  })
+  onSubmit;
 
   @override
   State<EmailAuthForm> createState() => _EmailAuthFormState();
@@ -79,7 +80,8 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
     if (widget.isSignUp) {
       // Rebuild unconditionally: the live requirement checklist needs to
       // update on every keystroke, not just when submittability flips.
-      final valid = validEmail &&
+      final valid =
+          validEmail &&
           PasswordPolicy.isSatisfiedBy(_password.text) &&
           _confirmPassword.text == _password.text;
       setState(() => _canSubmit = valid);
@@ -144,8 +146,9 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
             icon: Icons.lock_outline_rounded,
             enabled: widget.enabled,
             obscureText: true,
-            textInputAction:
-                widget.isSignUp ? TextInputAction.next : TextInputAction.done,
+            textInputAction: widget.isSignUp
+                ? TextInputAction.next
+                : TextInputAction.done,
             onSubmitted: widget.isSignUp ? null : (_) => _submit(),
           ),
           _Slot(
@@ -184,7 +187,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           AuthActionButton(
             label: widget.isSignUp ? 'Create account' : 'Sign in',
             icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-            background: AppColors.ember,
+            background: TrainColors.ember,
             loading: widget.submitting,
             enabled: widget.enabled && _canSubmit,
             onTap: _submit,

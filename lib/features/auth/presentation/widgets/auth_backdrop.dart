@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The warm ambient ground every auth surface sits on.
 ///
@@ -22,8 +21,8 @@ import '../../../../core/theme/app_colors.dart';
 class AuthBackdrop extends StatelessWidget {
   const AuthBackdrop({
     required this.child,
-    this.hue = AppColors.ember,
-    this.base = AppColors.ground,
+    this.hue = TrainColors.ember,
+    this.base = TrainColors.base,
     this.alignment = const Alignment(-0.55, -0.9),
     this.intensity = 1,
     super.key,

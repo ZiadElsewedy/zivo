@@ -32,12 +32,15 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
-- **One dark system for the chrome** (done 2026-08-28, audit C1). Anything that floats over
-  a screen — nav island, composer, sheets, dialogs — dresses from `TrainColors`, never
-  `AppColors`. **Still on v2 and not yet redressed:** the whole auth/sign-in flow, the diet
-  plan editor + PDF import, moment/expense capture, `storage_sync_page`, and the shared
-  `hue.dart`/`category_hue_colors.dart` data-hue mappers. Those are *consistently* v2
-  rather than mixed, so they read as a separate flow to redress, not a collision.
+- **One dark system, app-wide** (done 2026-08-28, audit C1 + the v2-flow redress).
+  Everything dresses from `TrainColors`. `AppShadows` is **deleted** — the v2 elevation
+  system is gone; depth comes from light (identity §5), and the only shadows left are the
+  coloured `TrainColors.actionGlow` under primary pills. `AppColors` survives in exactly
+  **one** file, `category_hue_colors.dart`, which feeds the add-category colour picker's
+  swatches; it goes when that picker's fate is decided (see C2's consequence below).
+  The two foundational edits did the most work: `AppText`'s default ink and
+  `AppTheme`'s `scaffoldBackgroundColor` were warm, so every screen that didn't override
+  them inherited a warm cast — including the cool handoff ones.
 - **Hue discipline: hold the rule strictly** (owner decision, 2026-08-28, audit C2 —
   **implemented**). A hue appears only where it means its thing: green = training/state,
   ember = the single committing action, amber = money, violet = system/meta. Grids
@@ -185,6 +188,18 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — **Redressed the remaining v2 flows — the app is on one palette now.** ~44
+  files / ~430 references: the whole auth flow (which also closes the audit's warm→cool
+  jump on sign-in), the diet plan editor + PDF import + meal detail + grocery list,
+  storage & sync, moment capture + photo viewer, quick capture, the workout sheets, the
+  Today glances, and the shared `core/widgets` chrome. Highest leverage were
+  `app_typography.dart` and `app_theme.dart`: the default ink and scaffold background were
+  warm, so every screen inherited a warm cast unless it overrode them. `AppShadows` is
+  deleted outright (orphaned). `ZHue.flare` removed — on `TrainColors` it resolved to the
+  same ember as `ZHue.ember`, and two names for one colour is what C2 rules out.
+  **Correction:** C2's Expenses *chip* change never actually applied (a `dart format`
+  line-wrap defeated the string match and the edit was reported as done); the chips are
+  amber now for real. Bars and spines were correct.
 - 2026-08-28 — **Design audit C4 + C3 — the last two findings.** C4: music's own accent no
   longer contradicts itself — the player's play/pause disc and the scrubber's fallback
   accent are green like the rest of the feature (equalizer, strips, Spotify wordmark, and

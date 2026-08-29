@@ -130,7 +130,10 @@ class FirebaseAuthRepository implements AuthRepository {
         return const AuthCancelled();
       }
       return const AuthFailed(
-        AuthFailure(AuthFailureKind.unknown, 'Google sign-in failed. Please try again.'),
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Google sign-in failed. Please try again.',
+        ),
       );
     } on fb.FirebaseAuthException catch (e) {
       return AuthFailed(mapAuthErrorCode(e.code));
@@ -158,17 +161,16 @@ class FirebaseAuthRepository implements AuthRepository {
           ),
         );
       }
-      final oauthCredential = fb.OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
+      final oauthCredential = fb.OAuthProvider(
+        'apple.com',
+      ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
       final userCred = await _auth.signInWithCredential(oauthCredential);
       // Apple returns the name only on the *first* authorization; persist it
       // to the Firebase profile once so it survives.
-      final fullName = [appleCredential.givenName, appleCredential.familyName]
-          .whereType<String>()
-          .where((s) => s.isNotEmpty)
-          .join(' ');
+      final fullName = [
+        appleCredential.givenName,
+        appleCredential.familyName,
+      ].whereType<String>().where((s) => s.isNotEmpty).join(' ');
       final user = userCred.user;
       if (user != null &&
           (user.displayName == null || user.displayName!.isEmpty) &&
@@ -183,7 +185,10 @@ class FirebaseAuthRepository implements AuthRepository {
         return const AuthCancelled();
       }
       return const AuthFailed(
-        AuthFailure(AuthFailureKind.unknown, 'Apple sign-in failed. Please try again.'),
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Apple sign-in failed. Please try again.',
+        ),
       );
     } on fb.FirebaseAuthException catch (e) {
       return AuthFailed(mapAuthErrorCode(e.code));
@@ -346,7 +351,7 @@ class FirebaseAuthRepository implements AuthRepository {
             AuthFailure(
               AuthFailureKind.weakPassword,
               'Choose a stronger password (at least 8 characters, with upper- '
-                  'and lowercase letters and a number).',
+              'and lowercase letters and a number).',
             ),
           );
         }
@@ -479,16 +484,20 @@ class FirebaseAuthRepository implements AuthRepository {
         return const AuthCancelled();
       }
       return const AuthFailed(
-        AuthFailure(AuthFailureKind.unknown,
-            'Google sign-in failed. Please try again.'),
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Google sign-in failed. Please try again.',
+        ),
       );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return const AuthCancelled();
       }
       return const AuthFailed(
-        AuthFailure(AuthFailureKind.unknown,
-            'Apple sign-in failed. Please try again.'),
+        AuthFailure(
+          AuthFailureKind.unknown,
+          'Apple sign-in failed. Please try again.',
+        ),
       );
     } on fb.FirebaseAuthException catch (e) {
       return AuthFailed(mapAuthErrorCode(e.code));
@@ -520,10 +529,9 @@ class FirebaseAuthRepository implements AuthRepository {
       ],
       nonce: _sha256(rawNonce),
     );
-    return fb.OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      rawNonce: rawNonce,
-    );
+    return fb.OAuthProvider(
+      'apple.com',
+    ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
   }
 
   @override
@@ -558,8 +566,7 @@ class FirebaseAuthRepository implements AuthRepository {
   /// server-side `isNewUser` flag — email sign-up paths know this statically,
   /// federated ones can only observe it here.
   void _recordSessionByNewness(fb.UserCredential cred) {
-    final provider =
-        cred.additionalUserInfo?.providerId ?? kGoogleProviderId;
+    final provider = cred.additionalUserInfo?.providerId ?? kGoogleProviderId;
     final isNew = cred.additionalUserInfo?.isNewUser ?? false;
     if (isNew) {
       _recordAccountCreated(cred, provider: provider);
@@ -570,16 +577,20 @@ class FirebaseAuthRepository implements AuthRepository {
 
   /// Fire-and-forget registration bookkeeping. Never awaited and never throws:
   /// a lost telemetry write costs one gap in the log, not a failed sign-up.
-  void _recordAccountCreated(fb.UserCredential cred,
-      {required String provider}) {
+  void _recordAccountCreated(
+    fb.UserCredential cred, {
+    required String provider,
+  }) {
     final uid = cred.user?.uid;
     final activity = _activity;
     if (uid == null || activity == null) return;
-    unawaited(activity.recordAccountCreated(
-      uid: uid,
-      provider: provider,
-      platform: currentPlatformName,
-    ));
+    unawaited(
+      activity.recordAccountCreated(
+        uid: uid,
+        provider: provider,
+        platform: currentPlatformName,
+      ),
+    );
   }
 
   /// Fire-and-forget sign-in bookkeeping; carries Firebase's own trusted
@@ -589,12 +600,14 @@ class FirebaseAuthRepository implements AuthRepository {
     final user = cred.user;
     final activity = _activity;
     if (user == null || activity == null) return;
-    unawaited(activity.recordSignIn(
-      uid: user.uid,
-      provider: provider,
-      platform: currentPlatformName,
-      fallbackCreatedAt: _parseAuthTime(user.metadata.creationTime),
-    ));
+    unawaited(
+      activity.recordSignIn(
+        uid: user.uid,
+        provider: provider,
+        platform: currentPlatformName,
+        fallbackCreatedAt: _parseAuthTime(user.metadata.creationTime),
+      ),
+    );
   }
 
   /// Fire-and-forget password-change bookkeeping for the in-app change flow;
@@ -647,14 +660,20 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   static const AuthResult _unknownFailure = AuthFailed(
-    AuthFailure(AuthFailureKind.unknown, 'Something went wrong. Please try again.'),
+    AuthFailure(
+      AuthFailureKind.unknown,
+      'Something went wrong. Please try again.',
+    ),
   );
 
   String _generateNonce([int length = 32]) {
     const chars =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   String _sha256(String input) => sha256.convert(utf8.encode(input)).toString();

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// A full-width pill action button for the auth flow, matching ZIVO's
 /// [PillButton] proportions but supporting a leading [icon] widget, a busy
@@ -30,8 +30,8 @@ class AuthActionButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.icon,
-    this.background = AppColors.ember,
-    this.foreground = AppColors.ground,
+    this.background = TrainColors.ember,
+    this.foreground = TrainColors.base,
     this.border,
     this.loading = false,
     this.enabled = true,
@@ -59,9 +59,9 @@ class AuthActionButton extends StatelessWidget {
     final active = enabled && !loading;
     // A disabled action still shows its shape and label, just recessed — it is
     // the next step, not a dead control.
-    final fill = enabled ? background : AppColors.surfaceRaised;
-    final ink = enabled ? foreground : AppColors.ink3;
-    final lit = enabled && background == AppColors.ember;
+    final fill = enabled ? background : TrainColors.raisedStrong;
+    final ink = enabled ? foreground : TrainColors.ink3;
+    final lit = enabled && background == TrainColors.ember;
 
     final radius = BorderRadius.circular(AppRadius.pill);
 
@@ -84,7 +84,7 @@ class AuthActionButton extends StatelessWidget {
                 ? const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFF6E33), AppColors.ember],
+                    colors: [Color(0xFFFF6E33), TrainColors.ember],
                   )
                 : null,
             borderRadius: radius,
@@ -116,7 +116,10 @@ class AuthActionButton extends StatelessWidget {
                   transitionBuilder: (child, animation) => FadeTransition(
                     opacity: animation,
                     child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.92, end: 1).animate(animation),
+                      scale: Tween<double>(
+                        begin: 0.92,
+                        end: 1,
+                      ).animate(animation),
                       child: child,
                     ),
                   ),
@@ -124,10 +127,7 @@ class AuthActionButton extends StatelessWidget {
                   // centred in the same fixed-height box.
                   layoutBuilder: (currentChild, previousChildren) => Stack(
                     alignment: Alignment.center,
-                    children: [
-                      ...previousChildren,
-                      ?currentChild,
-                    ],
+                    children: [...previousChildren, ?currentChild],
                   ),
                   child: loading
                       ? SizedBox(

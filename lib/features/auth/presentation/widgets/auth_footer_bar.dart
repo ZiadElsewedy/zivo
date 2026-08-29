@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The bottom-anchored home for an auth screen's primary action.
 ///
@@ -39,15 +38,15 @@ class AuthFooterBar extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.ground.withValues(alpha: 0),
-                  AppColors.ground,
+                  TrainColors.base.withValues(alpha: 0),
+                  TrainColors.base,
                 ],
               ),
             ),
           ),
         ),
         ColoredBox(
-          color: AppColors.ground,
+          color: TrainColors.base,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
             child: Column(

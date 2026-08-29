@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/money.dart';
 import 'hue.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// One glance line, never a chart — awareness on Today, analysis in the module.
 /// Values are live from the expense repository.
@@ -37,26 +37,33 @@ class SpendingGlanceRow extends StatelessWidget {
         children: [
           const HueDot(ZHue.neutral),
           const SizedBox(width: AppSpacing.m - 1),
-          _amount(formatAmount(todayMinor), '$currency today', AppColors.ink),
-          Text('  ·  ', style: AppText.amount.copyWith(color: AppColors.ink3)),
+          _amount(formatAmount(todayMinor), '$currency today', TrainColors.ink),
+          Text(
+            '  ·  ',
+            style: AppText.amount.copyWith(color: TrainColors.ink3),
+          ),
           if (wallet != null)
             _amount(
               formatAmount(wallet),
               '$currency left',
-              negative ? AppColors.flareText : AppColors.ink2,
+              negative ? TrainColors.ember : TrainColors.ink2,
               unitColor: negative
-                  ? AppColors.flareText.withValues(alpha: 0.75)
-                  : AppColors.ink3,
+                  ? TrainColors.ember.withValues(alpha: 0.75)
+                  : TrainColors.ink3,
             )
           else
             _amount(
               formatAmount(weekMinor),
               '$currency this week',
-              AppColors.ink2,
-              unitColor: AppColors.ink3,
+              TrainColors.ink2,
+              unitColor: TrainColors.ink3,
             ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink3),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: TrainColors.ink3,
+          ),
         ],
       ),
     );
@@ -73,7 +80,7 @@ class SpendingGlanceRow extends StatelessWidget {
             style: AppText.body.copyWith(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: unitColor ?? AppColors.ink3,
+              color: unitColor ?? TrainColors.ink3,
             ),
           ),
         ],

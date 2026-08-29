@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -24,7 +23,7 @@ import 'workout_plan_edit_page.dart';
 /// history (§3.2 invariant 4: every split keeps its own sessions).
 ///
 /// Dark, immersive body — matching the plan/analysis/history pages on the
-/// app-wide [AppColors] theme; each tile carries a gradient mark in the
+/// app-wide [TrainColors] theme; each tile carries a gradient mark in the
 /// training hue, glowing for the active split.
 class SplitManagementPage extends StatelessWidget {
   const SplitManagementPage({super.key});

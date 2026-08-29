@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// A premium 6-digit verification-code field.
 ///
@@ -168,27 +168,28 @@ class _OtpCodeInputState extends State<OtpCodeInput>
     final hasFocus = widget.focusNode.hasFocus;
     final filled = i < text.length;
     // The "active" cell is where the next digit will go.
-    final isActive = hasFocus && i == text.length && text.length < widget.length;
+    final isActive =
+        hasFocus && i == text.length && text.length < widget.length;
 
     final Color borderColor;
     final double borderWidth;
     final Color fill;
     if (widget.hasError) {
-      borderColor = AppColors.flare;
+      borderColor = TrainColors.ember;
       borderWidth = 1.6;
-      fill = AppColors.flare.withValues(alpha: 0.08);
+      fill = TrainColors.ember.withValues(alpha: 0.08);
     } else if (isActive) {
-      borderColor = AppColors.ember;
+      borderColor = TrainColors.ember;
       borderWidth = 1.8;
-      fill = AppColors.surfaceRaised;
+      fill = TrainColors.raisedStrong;
     } else if (filled) {
-      borderColor = AppColors.hairline2;
+      borderColor = TrainColors.hairlineStrong;
       borderWidth = 1.4;
-      fill = AppColors.surfaceRaised;
+      fill = TrainColors.raisedStrong;
     } else {
-      borderColor = AppColors.hairline2;
+      borderColor = TrainColors.hairlineStrong;
       borderWidth = 1.2;
-      fill = AppColors.card;
+      fill = TrainColors.raised;
     }
 
     return AnimatedContainer(
@@ -228,12 +229,12 @@ class _OtpCodeInputState extends State<OtpCodeInput>
                 key: ValueKey('$i:${text[i]}'),
                 style: AppText.cardTitle.copyWith(
                   fontSize: 25,
-                  color: widget.hasError ? AppColors.flareText : AppColors.ink,
+                  color: widget.hasError ? TrainColors.ember : TrainColors.ink,
                 ),
               )
             : (isActive
-                ? const _Caret(key: ValueKey('caret'))
-                : const SizedBox.shrink(key: ValueKey('empty'))),
+                  ? const _Caret(key: ValueKey('caret'))
+                  : const SizedBox.shrink(key: ValueKey('empty'))),
       ),
     );
   }
@@ -267,7 +268,7 @@ class _CaretState extends State<_Caret> with SingleTickerProviderStateMixin {
         width: 2,
         height: 26,
         decoration: BoxDecoration(
-          color: AppColors.ember,
+          color: TrainColors.ember,
           borderRadius: BorderRadius.circular(1),
         ),
       ),

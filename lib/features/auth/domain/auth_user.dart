@@ -53,9 +53,14 @@ class AuthUser {
       other.lastSignInAt == lastSignInAt;
 
   @override
-  int get hashCode =>
-      Object.hash(uid, email, displayName, isEmailVerified, createdAt,
-          lastSignInAt);
+  int get hashCode => Object.hash(
+    uid,
+    email,
+    displayName,
+    isEmailVerified,
+    createdAt,
+    lastSignInAt,
+  );
 
   @override
   String toString() => 'AuthUser(uid: $uid, email: $email)';

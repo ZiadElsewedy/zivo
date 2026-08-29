@@ -53,17 +53,20 @@ class _AuthGateState extends State<AuthGate> {
     final seeded = _auth!.currentUser;
     return StreamBuilder<AuthState>(
       stream: _states,
-      initialData:
-          seeded == null ? const AuthUnknown() : resolveAuthState(seeded),
+      initialData: seeded == null
+          ? const AuthUnknown()
+          : resolveAuthState(seeded),
       builder: (context, snapshot) {
         final state = snapshot.data;
         return switch (state) {
           Authenticated(:final user) => _ProfileGate(user: user),
-          AwaitingEmailVerification(:final email) =>
-            VerifyEmailPage(email: email),
+          AwaitingEmailVerification(:final email) => VerifyEmailPage(
+            email: email,
+          ),
           Unauthenticated() => const AuthPage(),
-          AuthUnknown() || ProfileCompletionRequired() || null =>
-            const SplashScreen(),
+          AuthUnknown() ||
+          ProfileCompletionRequired() ||
+          null => const SplashScreen(),
         };
       },
     );
@@ -107,7 +110,9 @@ class _ProfileGateState extends State<_ProfileGate> {
     super.didUpdateWidget(old);
     if (old.user.uid != widget.user.uid) {
       _uid = widget.user.uid;
-      _profileStream = AppScope.of(context).profiles.watchProfile(widget.user.uid);
+      _profileStream = AppScope.of(
+        context,
+      ).profiles.watchProfile(widget.user.uid);
     }
   }
 

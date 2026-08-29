@@ -372,7 +372,7 @@ class _BasisNote extends StatelessWidget {
             height: 28,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              // Was AppColors.irisWash — a *warm* violet wash behind a cool
+              // Was TrainColors.violetWash — a *warm* violet wash behind a cool
               // violet glyph, two violets inside one 28px tile.
               color: TrainColors.violetWash,
               borderRadius: BorderRadius.circular(9),

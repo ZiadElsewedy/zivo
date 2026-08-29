@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -11,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/auth_result.dart';
 import 'auth_backdrop.dart';
 import 'auth_text_field.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The account-deletion confirmation sheet, opened from [SettingsPage].
 ///
@@ -122,14 +122,14 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: DecoratedBox(
           decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: AppColors.hairline2)),
+            border: Border(top: BorderSide(color: TrainColors.hairlineStrong)),
           ),
           // The sheet's own light is flare, not ember — the surface is tinted
           // by the thing it's about, so the warning is in the material before
           // it's in the copy.
           child: AuthBackdrop(
-            base: AppColors.card,
-            hue: AppColors.flare,
+            base: TrainColors.raised,
+            hue: TrainColors.ember,
             alignment: const Alignment(-0.75, -1.6),
             intensity: 0.85,
             child: Padding(
@@ -143,7 +143,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                       width: 38,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.hairline2,
+                        color: TrainColors.hairlineStrong,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -156,14 +156,17 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                         height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppColors.flareWash,
+                          color: TrainColors.emberWash,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: AppColors.flare.withValues(alpha: 0.28),
+                            color: TrainColors.ember.withValues(alpha: 0.28),
                           ),
                         ),
-                        child: const Icon(AppIcons.trash,
-                            size: 19, color: AppColors.flareText),
+                        child: const Icon(
+                          AppIcons.trash,
+                          size: 19,
+                          color: TrainColors.ember,
+                        ),
                       ),
                       const SizedBox(width: 13),
                       Expanded(
@@ -179,8 +182,10 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                     'This permanently deletes your account and everything in '
                     'it — workouts, diet, moments, expenses, and profile. This '
                     'cannot be undone.',
-                    style:
-                        AppText.body.copyWith(color: AppColors.ink2, height: 1.45),
+                    style: AppText.body.copyWith(
+                      color: TrainColors.ink2,
+                      height: 1.45,
+                    ),
                   ),
                   if (widget.isPasswordAccount) ...[
                     const SizedBox(height: 20),
@@ -204,14 +209,18 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                         padding: const EdgeInsets.only(top: 10, left: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline_rounded,
-                                size: 15, color: AppColors.flareText),
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              size: 15,
+                              color: TrainColors.ember,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _error ?? '',
-                                style: AppText.meta
-                                    .copyWith(color: AppColors.flareText),
+                                style: AppText.meta.copyWith(
+                                  color: TrainColors.ember,
+                                ),
                               ),
                             ),
                           ],
@@ -276,7 +285,7 @@ class _SheetButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = enabled && !loading;
-    final tint = destructive ? AppColors.flareText : AppColors.ink2;
+    final tint = destructive ? TrainColors.ember : TrainColors.ink2;
     return Opacity(
       opacity: enabled ? 1 : 0.5,
       child: PressableScale(
@@ -287,13 +296,13 @@ class _SheetButton extends StatelessWidget {
           height: 52,
           decoration: BoxDecoration(
             color: destructive
-                ? AppColors.flare.withValues(alpha: 0.13)
-                : AppColors.surfaceRaised,
+                ? TrainColors.ember.withValues(alpha: 0.13)
+                : TrainColors.raisedStrong,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
               color: destructive
-                  ? AppColors.flare.withValues(alpha: 0.38)
-                  : AppColors.hairline2,
+                  ? TrainColors.ember.withValues(alpha: 0.38)
+                  : TrainColors.hairlineStrong,
             ),
           ),
           child: Material(
@@ -308,14 +317,17 @@ class _SheetButton extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.flareText,
+                          color: TrainColors.ember,
                         ),
                       )
                     : Text(
                         label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.button.copyWith(fontSize: 15, color: tint),
+                        style: AppText.button.copyWith(
+                          fontSize: 15,
+                          color: tint,
+                        ),
                       ),
               ),
             ),

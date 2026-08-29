@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -17,6 +16,7 @@ import '../widgets/auth_header.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/otp_code_input.dart';
 import '../widgets/password_checklist.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The signed-out "forgot password" surface, reached from [AuthPage].
 ///
@@ -146,8 +146,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void _goToCodeStep() {
     if (_step == _Step.code) return;
     setState(() => _step = _Step.code);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _codeFocus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _codeFocus.requestFocus(),
+    );
   }
 
   Future<void> _submitReset() async {
@@ -219,9 +220,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message,
-              style: AppText.meta.copyWith(color: AppColors.ink)),
-          backgroundColor: AppColors.surfaceRaised,
+          content: Text(
+            message,
+            style: AppText.meta.copyWith(color: TrainColors.ink),
+          ),
+          backgroundColor: TrainColors.raisedStrong,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -246,7 +249,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     final busy = _sending || _verifying;
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: AuthBackdrop(
         child: SafeArea(
           child: AutofillGroup(
@@ -288,7 +291,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         const RiseIn(
           child: AuthHeader(
             title: 'Reset your password',
-            aside: 'Enter your account email and we’ll send you a 6-digit code.',
+            aside:
+                'Enter your account email and we’ll send you a 6-digit code.',
           ),
         ),
         const SizedBox(height: 34),
@@ -319,7 +323,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       child: AuthFooterBar(
         child: AuthActionButton(
           label: 'Send code',
-          background: AppColors.ember,
+          background: TrainColors.ember,
           loading: _sending,
           enabled: !_sending && _validEmail,
           onTap: _sendCode,
@@ -341,7 +345,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 TextSpan(
                   text: _email.text.trim(),
                   style: AuthHeader.asideStyle.copyWith(
-                    color: AppColors.ink,
+                    color: TrainColors.ink,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -418,7 +422,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         secondary: Center(child: _resendLine()),
         child: AuthActionButton(
           label: 'Reset password',
-          background: AppColors.ember,
+          background: TrainColors.ember,
           loading: _verifying,
           enabled: !_verifying && _canReset,
           onTap: _submitReset,
@@ -431,12 +435,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   /// footer never resizes as the cooldown runs out.
   Widget _resendLine() {
     if (_sending) {
-      return Text('Sending…', style: AppText.meta.copyWith(color: AppColors.ink3));
+      return Text(
+        'Sending…',
+        style: AppText.meta.copyWith(color: TrainColors.ink3),
+      );
     }
     if (_cooldown > 0) {
       return Text(
         'Resend code in ${_cooldown}s',
-        style: AppText.meta.copyWith(color: AppColors.ink3),
+        style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
     return TextButton(
@@ -450,7 +457,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               text: 'Resend code',
               style: AppText.button.copyWith(
                 fontSize: 14.5,
-                color: AppColors.emberText,
+                color: TrainColors.ember,
               ),
             ),
           ],
@@ -471,13 +478,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           padding: const EdgeInsets.only(top: 10, left: 4),
           child: Row(
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  size: 15, color: AppColors.flareText),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 15,
+                color: TrainColors.ember,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   _errorText ?? '',
-                  style: AppText.meta.copyWith(color: AppColors.flareText),
+                  style: AppText.meta.copyWith(color: TrainColors.ember),
                 ),
               ),
             ],

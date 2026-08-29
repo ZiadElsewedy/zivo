@@ -1772,7 +1772,7 @@ int _ceilSeconds(Duration d) =>
 const int _warmupSeconds = 300;
 
 /// A restrained, low-opacity lift for the Goal/Warm-up cards on dark — the
-/// shared [AppShadows.pulse]/[AppShadows.ember] (tuned for light-mode pill
+/// shared [TrainColors.actionGlow(TrainColors.green)]/[TrainColors.actionGlow(TrainColors.ember)] (tuned for light-mode pill
 /// buttons) read as a bright neon halo against near-black, which isn't the
 /// premium feel this screen wants. This is a much softer glow paired with a
 /// plain neutral hairline border, so the color reads as a subtle accent

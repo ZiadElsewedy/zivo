@@ -1,10 +1,7 @@
-
 import 'package:flutter/material.dart';
 
 import '../../scope/app_scope.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_icons.dart';
-import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/google_drive_mark.dart';
@@ -15,6 +12,7 @@ import '../../widgets/zivo_toast.dart';
 import '../domain/media_object.dart';
 import '../domain/media_storage_preferences.dart';
 import '../media_service.dart';
+import '../../theme/train_tokens.dart';
 
 /// "Storage & Sync" — the one screen that answers *where your photos are*:
 /// always on this device, and optionally backed up to a Google Drive account
@@ -176,13 +174,13 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
   Widget build(BuildContext context) {
     final prefsRepo = _media.preferences;
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment(0, -1.1),
             radius: 1.15,
-            colors: [Color(0xFF231B14), AppColors.ground, Color(0xFF0E0B08)],
+            colors: [Color(0xFF231B14), TrainColors.base, Color(0xFF0E0B08)],
             stops: [0.0, 0.52, 1.0],
           ),
         ),
@@ -191,7 +189,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
             const Positioned(
               top: -60,
               right: -70,
-              child: _AuraBlob(color: AppColors.pulse, size: 200),
+              child: _AuraBlob(color: TrainColors.green, size: 200),
             ),
             SafeArea(
               child: ListView(
@@ -262,11 +260,11 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               icon: AppIcons.bolt,
                               title: 'Upload to Drive as you capture',
                               value: prefs.autoUploadToDrive ? 'On' : 'Off',
-                              accent: AppColors.solar,
+                              accent: TrainColors.amber,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.autoUploadToDrive,
-                                activeThumbColor: AppColors.ember,
+                                activeThumbColor: TrainColors.ember,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(
@@ -295,11 +293,11 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               icon: AppIcons.photos,
                               title: 'Save to Photos',
                               value: prefs.saveToPhotos ? 'On' : 'Off',
-                              accent: AppColors.ember,
+                              accent: TrainColors.ember,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.saveToPhotos,
-                                activeThumbColor: AppColors.ember,
+                                activeThumbColor: TrainColors.ember,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(
@@ -319,7 +317,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                       'Each ZIVO account keeps its own photos in its own Drive folder, so '
                       'accounts never mix — even if they use the same Google Drive.',
                       style: AppText.meta.copyWith(
-                        color: AppColors.ink3,
+                        color: TrainColors.ink3,
                         height: 1.4,
                       ),
                     ),
@@ -383,11 +381,11 @@ class _BackButton extends StatelessWidget {
             height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.raisedStrong,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: TrainColors.hairlineStrong),
             ),
-            child: const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
+            child: const Icon(AppIcons.back, size: 18, color: TrainColors.ink2),
           ),
         ),
       ),
@@ -404,10 +402,9 @@ class _DeviceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Row(
         children: [
@@ -420,24 +417,28 @@ class _DeviceCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.pulse.withValues(alpha: 0.30),
-                  AppColors.pulse.withValues(alpha: 0.10),
+                  TrainColors.green.withValues(alpha: 0.30),
+                  TrainColors.green.withValues(alpha: 0.10),
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.pulse.withValues(alpha: 0.18),
+                color: TrainColors.green.withValues(alpha: 0.18),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.pulse.withValues(alpha: 0.30),
+                  color: TrainColors.green.withValues(alpha: 0.30),
                   blurRadius: 22,
                   spreadRadius: -6,
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: const Icon(AppIcons.check, size: 22, color: AppColors.pulse),
+            child: const Icon(
+              AppIcons.check,
+              size: 22,
+              color: TrainColors.green,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -453,7 +454,7 @@ class _DeviceCard extends StatelessWidget {
                   total == 0
                       ? 'Your photos are saved here first, always.'
                       : '$total ${total == 1 ? 'photo' : 'photos'} saved here.',
-                  style: AppText.meta.copyWith(color: AppColors.ink3),
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
               ],
             ),
@@ -500,10 +501,9 @@ class _DriveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +526,7 @@ class _DriveCard extends StatelessWidget {
                     Text(
                       _subtitle(),
                       style: AppText.meta.copyWith(
-                        color: connected ? AppColors.pulse : AppColors.ink3,
+                        color: connected ? TrainColors.green : TrainColors.ink3,
                       ),
                     ),
                   ],
@@ -582,7 +582,7 @@ class _DriveCard extends StatelessWidget {
                 loading: op == _Op.disconnect,
                 enabled: !_busy,
                 onTap: onDisconnect,
-                tint: AppColors.flareText,
+                tint: TrainColors.ember,
               ),
             ],
           ],
@@ -632,8 +632,8 @@ class _BackupStatusBanner extends StatelessWidget {
     bool indeterminate = false;
 
     if (running) {
-      accent = AppColors.ember;
-      wash = AppColors.emberWash;
+      accent = TrainColors.ember;
+      wash = TrainColors.emberWash;
       icon = op == _Op.backup ? AppIcons.backupNow : AppIcons.retake;
       title = op == _Op.backup ? 'Backing up…' : 'Syncing…';
       if (opTotal == 0) {
@@ -644,21 +644,21 @@ class _BackupStatusBanner extends StatelessWidget {
         progress = opDone / opTotal;
       }
     } else if (total == 0) {
-      accent = AppColors.ink3;
-      wash = AppColors.surfaceRaised;
+      accent = TrainColors.ink3;
+      wash = TrainColors.raisedStrong;
       icon = AppIcons.driveCloud;
       title = 'Nothing to back up yet';
       subtitle = 'Photos you add will back up here.';
     } else if (backedUp >= total) {
-      accent = AppColors.pulse;
-      wash = AppColors.pulseWash;
+      accent = TrainColors.green;
+      wash = TrainColors.greenWash;
       icon = AppIcons.success;
       title = 'All backed up';
       subtitle =
           '$total ${total == 1 ? 'photo is' : 'photos are'} safe in Google Drive.';
     } else {
-      accent = AppColors.solar;
-      wash = AppColors.solarWash;
+      accent = TrainColors.amber;
+      wash = TrainColors.amberWash;
       icon = AppIcons.backupNow;
       title = '$backedUp of $total backed up';
       final pending = total - backedUp;
@@ -716,7 +716,7 @@ class _BackupStatusBanner extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: AppText.meta.copyWith(color: AppColors.ink3),
+                      style: AppText.meta.copyWith(color: TrainColors.ink3),
                     ),
                   ],
                 ),
@@ -764,12 +764,12 @@ class _ConnectedDot extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.pulseWash,
+        color: TrainColors.greenWash,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         'Connected',
-        style: AppText.meta.copyWith(color: AppColors.pulse, fontSize: 11),
+        style: AppText.meta.copyWith(color: TrainColors.green, fontSize: 11),
       ),
     );
   }
@@ -796,10 +796,10 @@ class _PrimaryButton extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFFF7038), AppColors.ember],
+              colors: [Color(0xFFFF7038), TrainColors.ember],
             ),
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            boxShadow: AppShadows.ember,
+            boxShadow: TrainColors.actionGlow(TrainColors.ember),
           ),
           child: InkWell(
             onTap: loading ? null : onTap,
@@ -855,7 +855,7 @@ class _MiniButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tint ?? AppColors.ink;
+    final color = tint ?? TrainColors.ink;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: enabled || loading ? 1 : 0.45,
@@ -867,9 +867,9 @@ class _MiniButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.raisedStrong,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.hairline2),
+              border: Border.all(color: TrainColors.hairlineStrong),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

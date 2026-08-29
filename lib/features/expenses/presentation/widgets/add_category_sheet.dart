@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
 import 'category_hue_colors.dart';
 import 'category_icons.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Bottom sheet for creating a custom expense category: name, a stroked icon
 /// from the app's category vocabulary, and a color from the 5-hue palette.
@@ -16,7 +16,7 @@ class AddCategorySheet extends StatefulWidget {
   static Future<String?> show(BuildContext context) {
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppColors.card,
+      backgroundColor: TrainColors.raised,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -75,7 +75,7 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
             margin: const EdgeInsets.only(bottom: 18),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.hairline2,
+              color: TrainColors.hairlineStrong,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -152,16 +152,16 @@ class _IconOption extends StatelessWidget {
         height: 42,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.solarWash : AppColors.surfaceRaised,
+          color: selected ? TrainColors.amberWash : TrainColors.raisedStrong,
           borderRadius: BorderRadius.circular(12),
           border: selected
-              ? Border.all(color: AppColors.solar, width: 1.6)
+              ? Border.all(color: TrainColors.amber, width: 1.6)
               : null,
         ),
         child: Icon(
           categoryIcon(icon),
           size: 19,
-          color: selected ? tint : AppColors.ink3,
+          color: selected ? tint : TrainColors.ink3,
         ),
       ),
     );
@@ -191,7 +191,9 @@ class _HueOption extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: selected ? Border.all(color: AppColors.ink, width: 2) : null,
+          border: selected
+              ? Border.all(color: TrainColors.ink, width: 2)
+              : null,
         ),
         child: Container(
           width: 24,
@@ -214,7 +216,7 @@ class _SaveButton extends StatelessWidget {
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: Material(
-        color: AppColors.solar,
+        color: TrainColors.amber,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: enabled ? onTap : null,

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/util/money.dart';
 import '../../../core/scope/app_scope.dart';
@@ -25,6 +24,7 @@ import '../../workout/presentation/pages/workout_capture_page.dart';
 import 'widgets/bottom_chrome.dart';
 import 'widgets/capture_fab.dart';
 import 'widgets/zivo_bottom_bar.dart';
+import '../../../core/theme/train_tokens.dart';
 
 /// The root command surface: four tabs, a global Quick Capture action, and
 /// a per-tab navigation stack (a simple IndexedStack for now; go_router
@@ -142,10 +142,13 @@ class _HomeShellState extends State<HomeShell> {
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surfaceRaised,
+          backgroundColor: TrainColors.raisedStrong,
           content: Text(
             message,
-            style: AppText.button.copyWith(color: AppColors.ink, fontSize: 14),
+            style: AppText.button.copyWith(
+              color: TrainColors.ink,
+              fontSize: 14,
+            ),
           ),
           duration: const Duration(seconds: 2),
         ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/train_tokens.dart';
 
 /// What the user chose to capture.
 enum CaptureChoice { expense, moment, workout }
@@ -21,13 +21,13 @@ Future<CaptureChoice?> showQuickCaptureSheet(BuildContext context) {
 class _QuickCaptureSheet extends StatelessWidget {
   const _QuickCaptureSheet();
 
-  static const _neutralTile = AppColors.surfaceRaised;
+  static const _neutralTile = TrainColors.raisedStrong;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.card,
+        color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(
@@ -45,7 +45,7 @@ class _QuickCaptureSheet extends StatelessWidget {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.hairline2,
+                color: TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -58,8 +58,8 @@ class _QuickCaptureSheet extends StatelessWidget {
           _Option(
             choice: CaptureChoice.expense,
             icon: Icons.payments_rounded,
-            iconBg: AppColors.solarWash,
-            iconColor: AppColors.solarText,
+            iconBg: TrainColors.amberWash,
+            iconColor: TrainColors.amber,
             label: 'Expense',
             hint: 'Amount, category — in seconds',
           ),
@@ -67,15 +67,15 @@ class _QuickCaptureSheet extends StatelessWidget {
             choice: CaptureChoice.moment,
             icon: Icons.photo_camera_rounded,
             iconBg: _neutralTile,
-            iconColor: AppColors.ink,
+            iconColor: TrainColors.ink,
             label: 'Moment',
             hint: 'Photo + a line',
           ),
           _Option(
             choice: CaptureChoice.workout,
             icon: Icons.fitness_center_rounded,
-            iconBg: AppColors.pulseWash,
-            iconColor: AppColors.pulseText,
+            iconBg: TrainColors.greenWash,
+            iconColor: TrainColors.green,
             label: 'Workout',
             hint: 'Log a training session',
             last: true,
@@ -114,7 +114,7 @@ class _Option extends StatelessWidget {
         decoration: BoxDecoration(
           border: last
               ? null
-              : const Border(bottom: BorderSide(color: AppColors.hairline)),
+              : const Border(bottom: BorderSide(color: TrainColors.hairline)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 4),
         child: Row(
@@ -144,7 +144,7 @@ class _Option extends StatelessWidget {
                     hint,
                     style: AppText.body.copyWith(
                       fontSize: 13,
-                      color: AppColors.ink3,
+                      color: TrainColors.ink3,
                     ),
                   ),
                 ],
@@ -153,7 +153,7 @@ class _Option extends StatelessWidget {
             const Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: AppColors.ink3,
+              color: TrainColors.ink3,
             ),
           ],
         ),

@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_import_outcome.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
 import 'diet_plan_edit_page.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The largest file the import flow will upload. Cloud Functions callables
 /// reject requests past ~10 MiB at the transport layer — before the server's
@@ -161,7 +161,8 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage = 'That file is too large — please choose one under '
+        _errorMessage =
+            'That file is too large — please choose one under '
             '7 MB.';
       });
       return;
@@ -227,7 +228,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,9 +236,9 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
             CaptureTopBar(
               title: 'Import Plan',
               onClose: () => Navigator.of(context).maybePop(),
-              titleColor: AppColors.ink2,
-              iconColor: AppColors.ink2,
-              chipColor: AppColors.surfaceRaised,
+              titleColor: TrainColors.ink2,
+              iconColor: TrainColors.ink2,
+              chipColor: TrainColors.raisedStrong,
             ),
             Expanded(
               child: AnimatedSwitcher(
@@ -345,12 +346,12 @@ class _SelectingState extends StatelessWidget {
           children: [
             const _PhaseIcon(
               icon: Icons.upload_file_rounded,
-              color: AppColors.pulse,
+              color: TrainColors.green,
             ),
             const SizedBox(height: 18),
             Text(
               'Select your diet plan',
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
@@ -358,7 +359,7 @@ class _SelectingState extends StatelessWidget {
               'Choose a PDF or a photo of your plan and I\'ll map it into a '
               'real, editable plan — estimating calories and macros wherever '
               "the document doesn't state them.",
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: AppText.body.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
           ],
@@ -383,13 +384,13 @@ class _AnalyzingState extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: const BoxDecoration(
-              color: AppColors.surfaceRaised,
+              color: TrainColors.raisedStrong,
               shape: BoxShape.circle,
             ),
             padding: const EdgeInsets.all(10),
             child: ColorFiltered(
               colorFilter: const ColorFilter.mode(
-                AppColors.pulse,
+                TrainColors.green,
                 BlendMode.srcIn,
               ),
               child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
@@ -398,7 +399,7 @@ class _AnalyzingState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             'Analyzing your plan',
-            style: AppText.cardTitle.copyWith(color: AppColors.ink),
+            style: AppText.cardTitle.copyWith(color: TrainColors.ink),
           ),
           const SizedBox(height: 8),
           AnimatedSwitcher(
@@ -406,7 +407,7 @@ class _AnalyzingState extends StatelessWidget {
             child: Text(
               statusLine,
               key: ValueKey(statusLine),
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: AppText.body.copyWith(color: TrainColors.ink3),
             ),
           ),
         ],
@@ -436,18 +437,18 @@ class _RejectedState extends StatelessWidget {
           children: [
             const _PhaseIcon(
               icon: Icons.description_outlined,
-              color: AppColors.flare,
+              color: TrainColors.ember,
             ),
             const SizedBox(height: 18),
             Text(
               "This doesn't look like a diet plan",
-              style: AppText.cardTitle.copyWith(color: AppColors.ink),
+              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               reason,
-              style: AppText.body.copyWith(color: AppColors.ink3),
+              style: AppText.body.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),
@@ -456,7 +457,7 @@ class _RejectedState extends StatelessWidget {
               child: PillButton(
                 label: 'Choose a different file',
                 icon: Icons.upload_file_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: onChooseDifferentFile,
               ),
@@ -466,7 +467,7 @@ class _RejectedState extends StatelessWidget {
               onPressed: onBuildManually,
               child: Text(
                 'Build manually instead',
-                style: AppText.meta.copyWith(color: AppColors.ink2),
+                style: AppText.meta.copyWith(color: TrainColors.ink2),
               ),
             ),
           ],
@@ -500,12 +501,12 @@ class _ErrorMessage extends StatelessWidget {
           children: [
             const _PhaseIcon(
               icon: Icons.cloud_off_rounded,
-              color: AppColors.ink3,
+              color: TrainColors.ink3,
             ),
             const SizedBox(height: 18),
             Text(
               message,
-              style: AppText.aside.copyWith(color: AppColors.ink2),
+              style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             if (detail != null) ...[
@@ -513,7 +514,7 @@ class _ErrorMessage extends StatelessWidget {
               Text(
                 detail!,
                 style: AppText.aside.copyWith(
-                  color: AppColors.ink3,
+                  color: TrainColors.ink3,
                   fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
@@ -525,7 +526,7 @@ class _ErrorMessage extends StatelessWidget {
               child: PillButton(
                 label: 'Try again',
                 icon: Icons.refresh_rounded,
-                color: AppColors.pulse,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: onRetry,
               ),

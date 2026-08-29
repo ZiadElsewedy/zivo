@@ -4,10 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../music/domain/music_connection.dart';
 import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The whole-session music ambience — the workout player's answer to "the
 /// screen should feel the music, not just the Spotify card".
@@ -25,7 +25,11 @@ import '../../../music/domain/now_playing.dart';
 /// to the pre-music look. Extraction is cached per track key
 /// (`title|artist`), so skipping back and forth doesn't re-run the palette.
 class SessionAmbience extends StatefulWidget {
-  const SessionAmbience({required this.controller, required this.child, super.key});
+  const SessionAmbience({
+    required this.controller,
+    required this.child,
+    super.key,
+  });
 
   final MusicController? controller;
   final Widget child;
@@ -81,13 +85,14 @@ class _SessionAmbienceState extends State<SessionAmbience> {
         MemoryImage(bytes),
         size: const Size(96, 96),
       );
-      Color? chosen = palette.vibrantColor?.color ?? palette.dominantColor?.color;
+      Color? chosen =
+          palette.vibrantColor?.color ?? palette.dominantColor?.color;
       chosen ??= palette.colors.isEmpty ? null : palette.colors.first;
       if (chosen == null || !mounted) return;
       // Pull most of the way toward the session's own ground tone so the
       // accent reads as ambient light, never glare — text on any surface
       // stays readable.
-      final tinted = Color.lerp(chosen, AppColors.ground, 0.55)!;
+      final tinted = Color.lerp(chosen, TrainColors.base, 0.55)!;
       _accentCache[key] = tinted;
       _apply(tinted);
     } catch (_) {
@@ -109,14 +114,20 @@ class _SessionAmbienceState extends State<SessionAmbience> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     if (controller == null) {
-      return _AmbienceScope(data: _AmbienceData(accent: null), child: widget.child);
+      return _AmbienceScope(
+        data: _AmbienceData(accent: null),
+        child: widget.child,
+      );
     }
     return StreamBuilder<MusicConnection>(
       stream: controller.connection,
       initialData: controller.currentConnection,
       builder: (context, connSnap) {
         if (connSnap.data != MusicConnection.connected) {
-          return _AmbienceScope(data: _AmbienceData(accent: null), child: widget.child);
+          return _AmbienceScope(
+            data: _AmbienceData(accent: null),
+            child: widget.child,
+          );
         }
         return StreamBuilder<NowPlaying?>(
           stream: controller.nowPlaying,
@@ -125,8 +136,9 @@ class _SessionAmbienceState extends State<SessionAmbience> {
             final playing = nowSnap.data;
             // A track swap invalidates immediately (the new accent lands
             // when extraction finishes); nothing loaded clears to neutral.
-            final accentForTrack =
-                playing == null ? null : (_accentCache[_keyOf(playing)] ?? _accent);
+            final accentForTrack = playing == null
+                ? null
+                : (_accentCache[_keyOf(playing)] ?? _accent);
             if (playing != null) _extractAccent(playing);
             return _AmbienceScope(
               data: _AmbienceData(accent: accentForTrack),
@@ -151,5 +163,6 @@ class _AmbienceScope extends InheritedWidget {
   final _AmbienceData data;
 
   @override
-  bool updateShouldNotify(_AmbienceScope oldWidget) => oldWidget.data.accent != data.accent;
+  bool updateShouldNotify(_AmbienceScope oldWidget) =>
+      oldWidget.data.accent != data.accent;
 }

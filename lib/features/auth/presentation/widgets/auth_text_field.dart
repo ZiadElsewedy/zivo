@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The one ZIVO auth input — used by sign-in, sign-up, password reset, change
 /// password, and the deletion sheet, so every field in the product's most
@@ -111,21 +111,21 @@ class _AuthTextFieldState extends State<AuthTextField> {
     final Color edge;
     final double edgeWidth;
     if (widget.hasError) {
-      edge = AppColors.flare;
+      edge = TrainColors.ember;
       edgeWidth = 1.6;
     } else if (focused) {
-      edge = AppColors.ember;
+      edge = TrainColors.ember;
       edgeWidth = 1.6;
     } else {
-      edge = AppColors.hairline2;
+      edge = TrainColors.hairlineStrong;
       edgeWidth = 1.4;
     }
 
     final accent = widget.hasError
-        ? AppColors.flareText
+        ? TrainColors.ember
         : focused
-            ? AppColors.emberText
-            : AppColors.ink3;
+        ? TrainColors.ember
+        : TrainColors.ink3;
 
     return Opacity(
       opacity: widget.enabled ? 1 : 0.55,
@@ -135,7 +135,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
         height: _height,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: focused ? AppColors.surfaceRaised : AppColors.card,
+          color: focused ? TrainColors.raisedStrong : TrainColors.raised,
           borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: edge, width: edgeWidth),
           // The focus glow — the field catching the same light as the CTA.
@@ -207,7 +207,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                       letterSpacing: 0.9,
                       color: accent,
                     )
-                  : AppText.rowTitle.copyWith(color: AppColors.ink3),
+                  : AppText.rowTitle.copyWith(color: TrainColors.ink3),
               child: Text(
                 widget.hint,
                 maxLines: 1,
@@ -235,7 +235,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
             // password must never start offering it to the suggestion strip.
             enableSuggestions: !widget.obscureText,
             style: AppText.rowTitle,
-            cursorColor: AppColors.ember,
+            cursorColor: TrainColors.ember,
             cursorWidth: 2,
             cursorRadius: const Radius.circular(1),
             textAlignVertical: TextAlignVertical.center,
@@ -294,7 +294,7 @@ class _RevealToggle extends StatelessWidget {
                   : Icons.visibility_outlined,
               key: ValueKey(revealed),
               size: 19,
-              color: AppColors.ink3,
+              color: TrainColors.ink3,
             ),
           ),
         ),

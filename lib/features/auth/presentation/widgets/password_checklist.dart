@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/password_policy.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Live feedback on how far a password has got through [PasswordPolicy] —
 /// a strength bar with a named level, and the individual rules as chips that
@@ -33,16 +33,18 @@ class PasswordChecklist extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.7),
+        color: TrainColors.raised.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.hairline),
+        border: Border.all(color: TrainColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: _StrengthBar(met: met, total: rules.length)),
+              Expanded(
+                child: _StrengthBar(met: met, total: rules.length),
+              ),
               const SizedBox(width: 12),
               _StrengthLabel(met: met, total: rules.length),
             ],
@@ -66,9 +68,9 @@ class PasswordChecklist extends StatelessWidget {
 /// existing hues rather than a new traffic-light ramp: flare already means
 /// "not there yet", solar "partway", pulse "good".
 Color _strengthTint(int met, int total) {
-  if (met == 0) return AppColors.ink3;
-  if (met >= total) return AppColors.pulseText;
-  return met <= total / 2 ? AppColors.flareText : AppColors.solarText;
+  if (met == 0) return TrainColors.ink3;
+  if (met >= total) return TrainColors.green;
+  return met <= total / 2 ? TrainColors.ember : TrainColors.amber;
 }
 
 /// A segmented meter — one segment per rule, filling left to right. Segments
@@ -94,7 +96,7 @@ class _StrengthBar extends StatelessWidget {
               curve: AppMotion.ease,
               height: 4,
               decoration: BoxDecoration(
-                color: i < met ? tint : AppColors.hairline2,
+                color: i < met ? tint : TrainColors.hairlineStrong,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -125,10 +127,8 @@ class _StrengthLabel extends StatelessWidget {
       curve: AppMotion.ease,
       builder: (context, color, _) => AnimatedSwitcher(
         duration: const Duration(milliseconds: 180),
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
         child: Text(
           _text,
           key: ValueKey(_text),
@@ -161,12 +161,12 @@ class _RuleChip extends StatelessWidget {
         curve: AppMotion.ease,
         padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
         decoration: BoxDecoration(
-          color: met ? AppColors.pulseWash : Colors.transparent,
+          color: met ? TrainColors.greenWash : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
             color: met
-                ? AppColors.pulse.withValues(alpha: 0.32)
-                : AppColors.hairline2,
+                ? TrainColors.green.withValues(alpha: 0.32)
+                : TrainColors.hairlineStrong,
           ),
         ),
         child: Row(
@@ -186,7 +186,7 @@ class _RuleChip extends StatelessWidget {
                 met ? Icons.check_rounded : Icons.circle_outlined,
                 key: ValueKey(met),
                 size: 13,
-                color: met ? AppColors.pulseText : AppColors.ink3,
+                color: met ? TrainColors.green : TrainColors.ink3,
               ),
             ),
             const SizedBox(width: 5),
@@ -194,7 +194,7 @@ class _RuleChip extends StatelessWidget {
               rule.shortLabel,
               style: AppText.meta.copyWith(
                 fontSize: 12,
-                color: met ? AppColors.pulseText : AppColors.ink3,
+                color: met ? TrainColors.green : TrainColors.ink3,
               ),
             ),
           ],
@@ -221,8 +221,8 @@ class PasswordMatchHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(
-        begin: AppColors.flareText,
-        end: matches ? AppColors.pulseText : AppColors.flareText,
+        begin: TrainColors.ember,
+        end: matches ? TrainColors.green : TrainColors.ember,
       ),
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,

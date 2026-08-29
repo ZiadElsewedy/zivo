@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -15,6 +14,7 @@ import '../widgets/auth_footer_bar.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/password_checklist.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Change-password surface for a signed-in password account, pushed from
 /// [SettingsPage]. Collects the current password (Firebase requires a recent
@@ -90,9 +90,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
-              content: Text('Password updated.',
-                  style: AppText.meta.copyWith(color: AppColors.ink)),
-              backgroundColor: AppColors.surfaceRaised,
+              content: Text(
+                'Password updated.',
+                style: AppText.meta.copyWith(color: TrainColors.ink),
+              ),
+              backgroundColor: TrainColors.raisedStrong,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 2),
             ),
@@ -109,7 +111,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: AuthBackdrop(
         child: SafeArea(
           child: Column(
@@ -212,7 +214,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 child: AuthFooterBar(
                   child: AuthActionButton(
                     label: 'Update password',
-                    background: AppColors.ember,
+                    background: TrainColors.ember,
                     loading: _saving,
                     enabled: !_saving && _canSubmit,
                     onTap: _submit,
@@ -238,13 +240,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           padding: const EdgeInsets.only(top: 10, left: 4),
           child: Row(
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  size: 15, color: AppColors.flareText),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 15,
+                color: TrainColors.ember,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   _error ?? '',
-                  style: AppText.meta.copyWith(color: AppColors.flareText),
+                  style: AppText.meta.copyWith(color: TrainColors.ember),
                 ),
               ),
             ],

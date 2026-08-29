@@ -1,7 +1,7 @@
 import 'package:flutter/painting.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_colors.dart';
+import 'train_tokens.dart';
 
 /// ZIVO Brand System v2 typography.
 ///
@@ -19,7 +19,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w700,
     height: 1.05,
     letterSpacing: -0.68,
-    color: AppColors.ink,
+    color: TrainColors.ink,
   );
 
   static TextStyle cardTitle = GoogleFonts.bricolageGrotesque(
@@ -27,7 +27,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w600,
     height: 1.1,
     letterSpacing: -0.36,
-    color: AppColors.ink,
+    color: TrainColors.ink,
   );
 
   static TextStyle heroNumber = GoogleFonts.bricolageGrotesque(
@@ -35,7 +35,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w700,
     height: 1.0,
     letterSpacing: -1.98,
-    color: AppColors.ink,
+    color: TrainColors.ink,
     fontFeatures: _tabular,
   );
 
@@ -44,14 +44,14 @@ abstract final class AppText {
     fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 1.44, // 0.12em
-    color: AppColors.ink3,
+    color: TrainColors.ink3,
   );
 
   static TextStyle sectionLabel = GoogleFonts.hankenGrotesk(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 1.32, // 0.11em
-    color: AppColors.ink3,
+    color: TrainColors.ink3,
   );
 
   static TextStyle hueLabel = GoogleFonts.hankenGrotesk(
@@ -64,27 +64,27 @@ abstract final class AppText {
     fontSize: 16.5,
     fontWeight: FontWeight.w500,
     height: 1.3,
-    color: AppColors.ink,
+    color: TrainColors.ink,
   );
 
   static TextStyle body = GoogleFonts.hankenGrotesk(
     fontSize: 14.5,
     fontWeight: FontWeight.w400,
     height: 1.5,
-    color: AppColors.ink2,
+    color: TrainColors.ink2,
   );
 
   static TextStyle meta = GoogleFonts.hankenGrotesk(
     fontSize: 13,
     fontWeight: FontWeight.w600,
-    color: AppColors.ink2,
+    color: TrainColors.ink2,
     fontFeatures: _tabular,
   );
 
   static TextStyle amount = GoogleFonts.hankenGrotesk(
     fontSize: 16,
     fontWeight: FontWeight.w600,
-    color: AppColors.ink,
+    color: TrainColors.ink,
     fontFeatures: _tabular,
   );
 
@@ -105,6 +105,6 @@ abstract final class AppText {
     fontWeight: FontWeight.w400,
     fontStyle: FontStyle.italic,
     height: 1.32,
-    color: AppColors.ink2,
+    color: TrainColors.ink2,
   );
 }

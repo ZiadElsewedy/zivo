@@ -6,11 +6,11 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// Shared "Start a workout" chrome for the Today page's training card
 /// ([UpNextWorkoutCard]) — factored out of it so a future second card in
@@ -32,7 +32,8 @@ class CardScale extends StatefulWidget {
   State<CardScale> createState() => _CardScaleState();
 }
 
-class _CardScaleState extends State<CardScale> with SingleTickerProviderStateMixin {
+class _CardScaleState extends State<CardScale>
+    with SingleTickerProviderStateMixin {
   static const _compactScale = 0.96;
   static final _spring = appleSpring(damping: 1.0, response: 0.4);
 
@@ -49,7 +50,9 @@ class _CardScaleState extends State<CardScale> with SingleTickerProviderStateMix
     if (reducedMotion(context)) {
       _controller.value = target;
     } else {
-      _controller.animateWith(SpringSimulation(_spring, _controller.value, target, 0));
+      _controller.animateWith(
+        SpringSimulation(_spring, _controller.value, target, 0),
+      );
     }
   }
 
@@ -63,7 +66,8 @@ class _CardScaleState extends State<CardScale> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) => Transform.scale(scale: _controller.value, child: child),
+      builder: (context, child) =>
+          Transform.scale(scale: _controller.value, child: child),
       child: widget.child,
     );
   }
@@ -95,7 +99,8 @@ class AliveColorDrift extends StatefulWidget {
   State<AliveColorDrift> createState() => _AliveColorDriftState();
 }
 
-class _AliveColorDriftState extends State<AliveColorDrift> with SingleTickerProviderStateMixin {
+class _AliveColorDriftState extends State<AliveColorDrift>
+    with SingleTickerProviderStateMixin {
   /// 3s half-cycle (6s round trip via `reverse: true`) — fast enough to be
   /// clearly noticeable at a glance, not just on close inspection, while
   /// `Curves.easeInOut` keeps each reversal smooth rather than jarring.
@@ -118,7 +123,11 @@ class _AliveColorDriftState extends State<AliveColorDrift> with SingleTickerProv
   /// does that. [size] is deliberately much larger than the card itself
   /// (see [build]) so the gradient's soft core sweeps across the WHOLE
   /// surface as it drifts, never just one corner.
-  Widget _blob({required double size, required double alpha, required double blurSigma}) {
+  Widget _blob({
+    required double size,
+    required double alpha,
+    required double blurSigma,
+  }) {
     return ImageFiltered(
       imageFilter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
       child: Container(
@@ -127,7 +136,10 @@ class _AliveColorDriftState extends State<AliveColorDrift> with SingleTickerProv
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: RadialGradient(
-            colors: [widget.color.withValues(alpha: alpha), widget.color.withValues(alpha: 0)],
+            colors: [
+              widget.color.withValues(alpha: alpha),
+              widget.color.withValues(alpha: 0),
+            ],
             stops: const [0.0, 1.0],
           ),
         ),
@@ -144,7 +156,9 @@ class _AliveColorDriftState extends State<AliveColorDrift> with SingleTickerProv
     // [UpNextWorkoutCard] — this must NOT sit inside a padded child, or the
     // padding gutter shows the card's plain fill instead and reads as a
     // seam around an "inset" animated rectangle).
-    final base = DecoratedBox(decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.14)));
+    final base = DecoratedBox(
+      decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.14)),
+    );
     // Both well past a typical card's width so the soft core is always
     // covering real card surface, never shrinking down to a visible disc.
     final blobA = _blob(size: 440, alpha: 0.5, blurSigma: 30);
@@ -184,11 +198,17 @@ class _AliveColorDriftState extends State<AliveColorDrift> with SingleTickerProv
               children: [
                 Align(
                   alignment: const Alignment(0.3, -0.35),
-                  child: Transform.translate(offset: Offset(dxA, dyA), child: blobA),
+                  child: Transform.translate(
+                    offset: Offset(dxA, dyA),
+                    child: blobA,
+                  ),
                 ),
                 Align(
                   alignment: const Alignment(-0.4, 0.4),
-                  child: Transform.translate(offset: Offset(dxB, dyB), child: blobB),
+                  child: Transform.translate(
+                    offset: Offset(dxB, dyB),
+                    child: blobB,
+                  ),
                 ),
               ],
             );
@@ -259,19 +279,26 @@ class _StartConfirmSheet extends StatefulWidget {
   State<_StartConfirmSheet> createState() => _StartConfirmSheetState();
 }
 
-class _StartConfirmSheetState extends State<_StartConfirmSheet> with TickerProviderStateMixin {
+class _StartConfirmSheetState extends State<_StartConfirmSheet>
+    with TickerProviderStateMixin {
   /// Materialize: drives scale + opacity + backdrop blur together, 0 (not
   /// arrived) to 1 (settled/dismissed-away) — critically damped (no
   /// overshoot; a confirm sheet isn't a momentum-driven gesture), at Apple's
   /// own drawer/sheet response (~0.35s). Also driven back to 0 for the
   /// symmetric non-drag exit (Cancel/backdrop/Start) — see [_resolve].
-  late final AnimationController _controller = AnimationController(vsync: this, value: 0);
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    value: 0,
+  );
 
   /// The live vertical drag-down offset in px — tracked 1:1 with the
   /// pointer while dragging (never itself animated mid-drag, only on
   /// release; see [_onDragUpdate]/[_onDragEnd]), same "always animate from
   /// the presentation value" rule as the rest of this app's motion.
-  late final AnimationController _drag = AnimationController.unbounded(vsync: this, value: 0);
+  late final AnimationController _drag = AnimationController.unbounded(
+    vsync: this,
+    value: 0,
+  );
 
   bool _resolving = false;
   bool _started = false;
@@ -312,14 +339,18 @@ class _StartConfirmSheetState extends State<_StartConfirmSheet> with TickerProvi
       if (mounted) Navigator.of(context).pop(confirmed);
       return;
     }
-    await _controller.animateWith(SpringSimulation(AppSprings.standard, _controller.value, 0, 0));
+    await _controller.animateWith(
+      SpringSimulation(AppSprings.standard, _controller.value, 0, 0),
+    );
     if (mounted) Navigator.of(context).pop(confirmed);
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
     if (_resolving) return;
     final next = _drag.value + details.delta.dy;
-    _drag.value = next < 0 ? 0 : next; // drag-down only; ignore upward past origin
+    _drag.value = next < 0
+        ? 0
+        : next; // drag-down only; ignore upward past origin
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -332,14 +363,21 @@ class _StartConfirmSheetState extends State<_StartConfirmSheet> with TickerProvi
       // Continue the drag's own downward trajectory while the surface
       // fades — velocity carried through, no hard cut.
       _drag.animateWith(
-        SpringSimulation(AppSprings.standard, _drag.value, _drag.value + 400, velocity),
+        SpringSimulation(
+          AppSprings.standard,
+          _drag.value,
+          _drag.value + 400,
+          velocity,
+        ),
       );
       unawaited(_resolve(false));
       return;
     }
     // Short of the threshold — spring back, handing off the release
     // velocity so the reversal doesn't brick-wall.
-    _drag.animateWith(SpringSimulation(AppSprings.standard, _drag.value, 0, velocity));
+    _drag.animateWith(
+      SpringSimulation(AppSprings.standard, _drag.value, 0, velocity),
+    );
   }
 
   @override
@@ -435,11 +473,15 @@ class _StartConfirmCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
         decoration: BoxDecoration(
-          color: AppColors.card.withValues(alpha: 0.82),
+          color: TrainColors.raised.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(AppRadius.card + 4),
-          border: Border.all(color: AppColors.hairline2),
+          border: Border.all(color: TrainColors.hairlineStrong),
           boxShadow: const [
-            BoxShadow(color: Color(0x66000000), blurRadius: 40, offset: Offset(0, 20)),
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 40,
+              offset: Offset(0, 20),
+            ),
           ],
         ),
         child: Column(
@@ -448,7 +490,10 @@ class _StartConfirmCard extends StatelessWidget {
           children: [
             Text(
               isResume ? 'Ready to jump back in?' : 'Ready to start $dayLabel?',
-              style: AppText.cardTitle.copyWith(color: AppColors.ink, fontSize: 21),
+              style: AppText.cardTitle.copyWith(
+                color: TrainColors.ink,
+                fontSize: 21,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -456,7 +501,7 @@ class _StartConfirmCard extends StatelessWidget {
               isResume
                   ? '$dayLabel · $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}'
                   : '$exerciseCount exercise${exerciseCount == 1 ? '' : 's'} today.',
-              style: AppText.body.copyWith(color: AppColors.ink2),
+              style: AppText.body.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -472,11 +517,16 @@ class _StartConfirmCard extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: AppColors.hairline2, width: 1.4),
+                          border: Border.all(
+                            color: TrainColors.hairlineStrong,
+                            width: 1.4,
+                          ),
                         ),
                         child: Text(
                           'Cancel',
-                          style: AppText.button.copyWith(color: AppColors.ink2),
+                          style: AppText.button.copyWith(
+                            color: TrainColors.ink2,
+                          ),
                         ),
                       ),
                     ),
@@ -487,7 +537,7 @@ class _StartConfirmCard extends StatelessWidget {
                   child: PillButton(
                     label: isResume ? 'Resume' : 'Start',
                     icon: Icons.play_arrow_rounded,
-                    color: AppColors.ember,
+                    color: TrainColors.ember,
                     enabled: true,
                     onTap: onConfirm,
                   ),
@@ -504,8 +554,10 @@ class _StartConfirmCard extends StatelessWidget {
 /// Apple's momentum-projection formula (see the apple-design skill, §6) —
 /// where released momentum would coast to a stop, absent further input.
 /// `decelerationRate` ≈ 0.998 matches normal scroll/fling feel.
-double _projectMomentum(double velocityPxPerSec, {double decelerationRate = 0.998}) =>
-    (velocityPxPerSec / 1000) * decelerationRate / (1 - decelerationRate);
+double _projectMomentum(
+  double velocityPxPerSec, {
+  double decelerationRate = 0.998,
+}) => (velocityPxPerSec / 1000) * decelerationRate / (1 - decelerationRate);
 
 /// Drag-down distance (or equivalent projected momentum) past which
 /// releasing the confirm sheet commits to Cancel rather than springing back.

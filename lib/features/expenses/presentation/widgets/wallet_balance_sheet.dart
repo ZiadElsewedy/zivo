@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/money.dart';
 import 'amount_keypad.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 enum WalletSheetMode { setBalance, topUp }
 
@@ -31,7 +31,7 @@ class WalletBalanceSheet extends StatefulWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.card,
+      backgroundColor: TrainColors.raised,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -54,13 +54,16 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
       : '';
 
   int get _amountMinor => parseMinor(_digits);
-  bool get _canSave => _amountMinor > 0 || widget.mode == WalletSheetMode.setBalance;
+  bool get _canSave =>
+      _amountMinor > 0 || widget.mode == WalletSheetMode.setBalance;
 
   void _onKey(KeypadKey key) {
     setState(() {
       switch (key) {
         case KeypadKey.backspace:
-          if (_digits.isNotEmpty) _digits = _digits.substring(0, _digits.length - 1);
+          if (_digits.isNotEmpty) {
+            _digits = _digits.substring(0, _digits.length - 1);
+          }
         case KeypadKey.dot:
           if (!_digits.contains('.') && _digits.isNotEmpty) _digits += '.';
         case KeypadKey.digit:
@@ -105,7 +108,7 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.hairline2,
+              color: TrainColors.hairlineStrong,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -130,7 +133,7 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
                 _digits.isEmpty ? '0' : _digits,
                 style: AppText.heroNumber.copyWith(
                   fontSize: 52,
-                  color: _digits.isEmpty ? AppColors.ink3 : AppColors.ink,
+                  color: _digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
                 ),
               ),
               Container(
@@ -138,7 +141,7 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
                 height: 42,
                 margin: const EdgeInsets.only(left: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.solar,
+                  color: TrainColors.amber,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -165,7 +168,11 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
 }
 
 class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.enabled, required this.label, required this.onTap});
+  const _SaveButton({
+    required this.enabled,
+    required this.label,
+    required this.onTap,
+  });
 
   final bool enabled;
   final String label;
@@ -176,7 +183,7 @@ class _SaveButton extends StatelessWidget {
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: Material(
-        color: AppColors.solar,
+        color: TrainColors.amber,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: enabled ? onTap : null,
@@ -187,7 +194,10 @@ class _SaveButton extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               label,
-              style: AppText.button.copyWith(fontSize: 16, color: const Color(0xFF2A2205)),
+              style: AppText.button.copyWith(
+                fontSize: 16,
+                color: const Color(0xFF2A2205),
+              ),
             ),
           ),
         ),

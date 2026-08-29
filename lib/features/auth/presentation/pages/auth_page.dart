@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_repository.dart';
@@ -11,6 +10,7 @@ import '../widgets/auth_backdrop.dart';
 import '../widgets/email_auth_form.dart';
 import '../widgets/social_auth_buttons.dart';
 import 'forgot_password_page.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The signed-out surface: Sign in with Apple, Continue with Google, and an
 /// email/password form that toggles between sign-in and account creation.
@@ -38,7 +38,10 @@ class _AuthPageState extends State<AuthPage> {
   /// An address handed back by the reset flow, to seed the email field.
   String? _prefillEmail;
 
-  Future<void> _run(AuthAction action, Future<AuthResult> Function(AuthRepository auth) op) async {
+  Future<void> _run(
+    AuthAction action,
+    Future<AuthResult> Function(AuthRepository auth) op,
+  ) async {
     if (_inFlight != AuthAction.none) return;
     final auth = AppScope.of(context).auth; // read before await
     setState(() {
@@ -82,9 +85,9 @@ class _AuthPageState extends State<AuthPage> {
         SnackBar(
           content: Text(
             'Password updated. Sign in with your new password.',
-            style: AppText.meta.copyWith(color: AppColors.ink),
+            style: AppText.meta.copyWith(color: TrainColors.ink),
           ),
-          backgroundColor: AppColors.surfaceRaised,
+          backgroundColor: TrainColors.raisedStrong,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),
@@ -94,7 +97,7 @@ class _AuthPageState extends State<AuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: AuthBackdrop(
         // The bloom sits behind the wordmark, so the mark reads as the
         // thing lighting the screen rather than a logo dropped on black.
@@ -104,7 +107,8 @@ class _AuthPageState extends State<AuthPage> {
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height -
+                minHeight:
+                    MediaQuery.of(context).size.height -
                     MediaQuery.of(context).padding.vertical -
                     40,
               ),
@@ -116,14 +120,23 @@ class _AuthPageState extends State<AuthPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.asset('assets/transparent/zivo-mark-paper-256.png', width: 44, height: 44),
+                        Image.asset(
+                          'assets/transparent/zivo-mark-paper-256.png',
+                          width: 44,
+                          height: 44,
+                        ),
                         const SizedBox(height: 18),
                         // The wordmark is set wider than the display face's own
                         // tracking — at this size it reads as a mark, not a
                         // heading, which is the one place positive tracking on
                         // large type earns its keep.
-                        Text('ZIVO',
-                            style: AppText.greeting.copyWith(fontSize: 36, letterSpacing: 1.4)),
+                        Text(
+                          'ZIVO',
+                          style: AppText.greeting.copyWith(
+                            fontSize: 36,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         // Cross-fade between the two taglines as modes flip —
                         // the copy change reads instead of snapping.
@@ -131,16 +144,17 @@ class _AuthPageState extends State<AuthPage> {
                           duration: const Duration(milliseconds: 260),
                           switchInCurve: Curves.easeOutCubic,
                           switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, animation) => FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.35),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          ),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.35),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
                           child: Text(
                             key: ValueKey(_isSignUp),
                             _isSignUp
@@ -157,9 +171,13 @@ class _AuthPageState extends State<AuthPage> {
                     delay: const Duration(milliseconds: 60),
                     child: SocialAuthButtons(
                       inFlight: _inFlight,
-                      onApple: () => _run(AuthAction.apple, (a) => a.signInWithApple()),
-                      onGoogle: () => _run(AuthAction.google, (a) => a.signInWithGoogle()),
-                      showApple: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+                      onApple: () =>
+                          _run(AuthAction.apple, (a) => a.signInWithApple()),
+                      onGoogle: () =>
+                          _run(AuthAction.google, (a) => a.signInWithGoogle()),
+                      showApple:
+                          !kIsWeb &&
+                          defaultTargetPlatform == TargetPlatform.iOS,
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -171,7 +189,8 @@ class _AuthPageState extends State<AuthPage> {
                       isSignUp: _isSignUp,
                       prefillEmail: _prefillEmail,
                       submitting: _inFlight == AuthAction.email,
-                      enabled: _inFlight == AuthAction.none ||
+                      enabled:
+                          _inFlight == AuthAction.none ||
                           _inFlight == AuthAction.email,
                       onSubmit: ({required email, required password, name}) {
                         _run(
@@ -182,7 +201,10 @@ class _AuthPageState extends State<AuthPage> {
                                   password: password,
                                   displayName: name,
                                 )
-                              : a.signInWithEmail(email: email, password: password),
+                              : a.signInWithEmail(
+                                  email: email,
+                                  password: password,
+                                ),
                         );
                       },
                     ),
@@ -200,13 +222,17 @@ class _AuthPageState extends State<AuthPage> {
                               : null,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: Text(
                             'Forgot password?',
-                            style: AppText.meta.copyWith(color: AppColors.ink2),
+                            style: AppText.meta.copyWith(
+                              color: TrainColors.ink2,
+                            ),
                           ),
                         ),
                       ),
@@ -222,7 +248,9 @@ class _AuthPageState extends State<AuthPage> {
                       child: AnimatedSlide(
                         duration: const Duration(milliseconds: 260),
                         curve: Curves.easeOutCubic,
-                        offset: _error == null ? const Offset(0, -0.4) : Offset.zero,
+                        offset: _error == null
+                            ? const Offset(0, -0.4)
+                            : Offset.zero,
                         child: _error == null
                             ? const SizedBox(width: double.infinity)
                             : Padding(
@@ -235,8 +263,9 @@ class _AuthPageState extends State<AuthPage> {
                   const SizedBox(height: 20),
                   Center(
                     child: TextButton(
-                      onPressed:
-                          _inFlight == AuthAction.none ? _toggleMode : null,
+                      onPressed: _inFlight == AuthAction.none
+                          ? _toggleMode
+                          : null,
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         transitionBuilder: (child, animation) =>
@@ -255,7 +284,7 @@ class _AuthPageState extends State<AuthPage> {
                                 text: _isSignUp ? 'Sign in' : 'Create account',
                                 style: AppText.button.copyWith(
                                   fontSize: 14.5,
-                                  color: AppColors.emberText,
+                                  color: TrainColors.ember,
                                 ),
                               ),
                             ],
@@ -281,12 +310,19 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: AppColors.hairline, thickness: 1)),
+        const Expanded(
+          child: Divider(color: TrainColors.hairline, thickness: 1),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('or', style: AppText.sectionLabel.copyWith(fontSize: 10.5)),
+          child: Text(
+            'or',
+            style: AppText.sectionLabel.copyWith(fontSize: 10.5),
+          ),
         ),
-        const Expanded(child: Divider(color: AppColors.hairline, thickness: 1)),
+        const Expanded(
+          child: Divider(color: TrainColors.hairline, thickness: 1),
+        ),
       ],
     );
   }
@@ -308,12 +344,16 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.flareText),
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 18,
+            color: TrainColors.ember,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: AppText.meta.copyWith(color: AppColors.flareText),
+              style: AppText.meta.copyWith(color: TrainColors.ember),
             ),
           ),
         ],

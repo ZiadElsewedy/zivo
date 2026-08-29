@@ -5,7 +5,7 @@
 /// UI that wants to render a live requirement checklist.
 class PasswordRule {
   const PasswordRule(this.label, this.test, {String? shortLabel})
-      : shortLabel = shortLabel ?? label;
+    : shortLabel = shortLabel ?? label;
 
   /// The full requirement, as a sentence — for screen readers and any UI with
   /// a line to spare.
@@ -27,14 +27,26 @@ class PasswordRule {
 /// predate it, and the server remains the trust boundary for sign-in.
 abstract final class PasswordPolicy {
   static final List<PasswordRule> rules = [
-    PasswordRule('At least 8 characters', (p) => p.length >= 8,
-        shortLabel: '8+ characters'),
-    PasswordRule('One uppercase letter', (p) => p.contains(RegExp('[A-Z]')),
-        shortLabel: 'Uppercase'),
-    PasswordRule('One lowercase letter', (p) => p.contains(RegExp('[a-z]')),
-        shortLabel: 'Lowercase'),
-    PasswordRule('One number', (p) => p.contains(RegExp('[0-9]')),
-        shortLabel: 'Number'),
+    PasswordRule(
+      'At least 8 characters',
+      (p) => p.length >= 8,
+      shortLabel: '8+ characters',
+    ),
+    PasswordRule(
+      'One uppercase letter',
+      (p) => p.contains(RegExp('[A-Z]')),
+      shortLabel: 'Uppercase',
+    ),
+    PasswordRule(
+      'One lowercase letter',
+      (p) => p.contains(RegExp('[a-z]')),
+      shortLabel: 'Lowercase',
+    ),
+    PasswordRule(
+      'One number',
+      (p) => p.contains(RegExp('[0-9]')),
+      shortLabel: 'Number',
+    ),
   ];
 
   /// The rules [password] does not yet satisfy, in declaration order — handy

@@ -11,7 +11,6 @@ import '../../../../core/media/domain/media_kind.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -1049,7 +1048,7 @@ class _AboutButton extends StatelessWidget {
                 colors: [Color(0xFFFF7038), TrainColors.ember],
               ),
               borderRadius: BorderRadius.circular(999),
-              boxShadow: AppShadows.ember,
+              boxShadow: TrainColors.actionGlow(TrainColors.ember),
             )
           : null,
       child: busy
@@ -1220,7 +1219,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                         colors: [const Color(0xFFFF7038), TrainColors.ember],
                       ),
                       borderRadius: BorderRadius.circular(999),
-                      boxShadow: AppShadows.ember,
+                      boxShadow: TrainColors.actionGlow(TrainColors.ember),
                     ),
                     child: InkWell(
                       onTap: _canSave ? _submit : null,

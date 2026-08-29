@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
@@ -57,13 +55,13 @@ class ZCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       decoration: BoxDecoration(
-        color: gradient == null ? (wash ?? AppColors.card) : null,
+        color: gradient == null ? (wash ?? TrainColors.raised) : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: borderColor == null
             ? null
             : Border.all(color: borderColor!, width: 1),
-        boxShadow: washShadow ?? AppShadows.card,
+        boxShadow: washShadow ?? const <BoxShadow>[],
       ),
       child: child,
     );

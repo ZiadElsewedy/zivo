@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../domain/expense_category.dart';
-import 'category_hue_colors.dart';
 import 'category_icons.dart';
 
-/// Category chips — frequent-first, one tap. Selected chip fills Solar. A
+/// Category chips — frequent-first, one tap. Selected chip fills amber (the
+/// money hue; categories differentiate by their stroked glyph, not colour). A
 /// trailing dashed chip opens category creation.
 class CategoryChips extends StatelessWidget {
   const CategoryChips({
@@ -65,34 +65,32 @@ class _Chip extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? AppColors.solar : Colors.transparent,
+          color: selected ? TrainColors.amber : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AppColors.solar : AppColors.hairline2,
+            color: selected ? TrainColors.amber : TrainColors.hairlineStrong,
             width: 1.4,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Stroked, and tinted with the category's own hue so the chips
-            // still scan at a glance — the job the emoji used to do, minus the
-            // per-OS lottery. On the selected chip the fill IS the hue, so the
-            // glyph flips to the same dark ink as the label instead of tinting
-            // a colour onto a colour.
+            // Amber, like everything else on a money surface — the category's
+            // own hue would spend ember/green/violet on telling categories
+            // apart, which is what the stroked glyph is for. On the selected
+            // chip the fill IS amber, so the glyph flips to the same dark ink
+            // as the label rather than tinting a colour onto a colour.
             Icon(
               categoryIcon(category.icon),
               size: 14,
-              color: selected
-                  ? const Color(0xFF2A2205)
-                  : hueColor(category.hue),
+              color: selected ? const Color(0xFF2A2205) : TrainColors.amber,
             ),
             const SizedBox(width: 6),
             Text(
               category.label,
               style: AppText.button.copyWith(
                 fontSize: 13.5,
-                color: selected ? const Color(0xFF2A2205) : AppColors.ink2,
+                color: selected ? const Color(0xFF2A2205) : TrainColors.ink2,
               ),
             ),
           ],
@@ -118,7 +116,7 @@ class _AddChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: AppColors.hairline2,
+            color: TrainColors.hairlineStrong,
             width: 1.4,
             style: BorderStyle.solid,
           ),
@@ -126,13 +124,13 @@ class _AddChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.add, size: 15, color: AppColors.ink3),
+            const Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
             const SizedBox(width: 5),
             Text(
               'Add',
               style: AppText.button.copyWith(
                 fontSize: 13.5,
-                color: AppColors.ink3,
+                color: TrainColors.ink3,
               ),
             ),
           ],

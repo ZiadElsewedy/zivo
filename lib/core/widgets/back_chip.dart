@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_icons.dart';
 import 'pressable_scale.dart';
+import '../theme/train_tokens.dart';
 
 /// The app's ONE back affordance for pushed pages — the 38px neutral chip
 /// (surfaceRaised circle, hairline edge, left arrow) used by Settings,
@@ -48,12 +48,15 @@ class BackChip extends StatelessWidget {
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceRaised,
+                  color: TrainColors.raisedStrong,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.hairline2),
+                  border: Border.all(color: TrainColors.hairlineStrong),
                 ),
-                child:
-                    const Icon(AppIcons.back, size: 18, color: AppColors.ink2),
+                child: const Icon(
+                  AppIcons.back,
+                  size: 18,
+                  color: TrainColors.ink2,
+                ),
               ),
             ),
           ),

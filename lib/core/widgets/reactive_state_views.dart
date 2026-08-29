@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../theme/train_tokens.dart';
 
 /// The three non-content states a reactive (stream-backed) surface can be in,
 /// as one small shared vocabulary so every list/feed page renders them
@@ -65,13 +65,17 @@ class ErrorStateView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 30, color: AppColors.ink3),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 30,
+              color: TrainColors.ink3,
+            ),
             const SizedBox(height: 12),
             Text(message, style: AppText.aside, textAlign: TextAlign.center),
             const SizedBox(height: 4),
             Text(
               'Check your connection and try again in a moment.',
-              style: AppText.meta.copyWith(color: AppColors.ink3),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
           ],

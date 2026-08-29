@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The shared header for every pushed auth surface (verify, reset, change
 /// password): title in the display face, then the one warm Fraunces aside the
@@ -14,8 +14,10 @@ import '../../../../core/theme/app_typography.dart';
 /// a 28px title over a 21px italic was doing).
 class AuthHeader extends StatelessWidget {
   const AuthHeader({required this.title, this.aside, this.asideSpan, super.key})
-      : assert(aside == null || asideSpan == null,
-            'Provide either a plain aside or a rich asideSpan, not both.');
+    : assert(
+        aside == null || asideSpan == null,
+        'Provide either a plain aside or a rich asideSpan, not both.',
+      );
 
   final String title;
 
@@ -29,10 +31,10 @@ class AuthHeader extends StatelessWidget {
   /// The base style rich asides should build on, so a caller's emphasised
   /// span stays in the same optical size as the rest of the line.
   static TextStyle get asideStyle => AppText.aside.copyWith(
-        fontSize: 17,
-        height: 1.42,
-        color: AppColors.ink2,
-      );
+    fontSize: 17,
+    height: 1.42,
+    color: TrainColors.ink2,
+  );
 
   @override
   Widget build(BuildContext context) {

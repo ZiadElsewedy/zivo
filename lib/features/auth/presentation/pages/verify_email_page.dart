@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -14,6 +13,7 @@ import '../widgets/auth_backdrop.dart';
 import '../widgets/auth_footer_bar.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/otp_code_input.dart';
+import '../../../../core/theme/train_tokens.dart';
 
 /// The email-OTP verification surface, shown by [AuthGate] for the
 /// [AwaitingEmailVerification] state.
@@ -172,8 +172,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message, style: AppText.meta.copyWith(color: AppColors.ink)),
-          backgroundColor: AppColors.surfaceRaised,
+          content: Text(
+            message,
+            style: AppText.meta.copyWith(color: TrainColors.ink),
+          ),
+          backgroundColor: TrainColors.raisedStrong,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -196,7 +199,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   Widget build(BuildContext context) {
     final canResend = _cooldown == 0 && !_sending;
     return Scaffold(
-      backgroundColor: AppColors.ground,
+      backgroundColor: TrainColors.base,
       body: AuthBackdrop(
         child: SafeArea(
           child: AutofillGroup(
@@ -227,11 +230,12 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                             asideSpan: TextSpan(
                               children: [
                                 const TextSpan(
-                                    text: 'Enter the 6-digit code we sent to\n'),
+                                  text: 'Enter the 6-digit code we sent to\n',
+                                ),
                                 TextSpan(
                                   text: _maskedEmail,
                                   style: AuthHeader.asideStyle.copyWith(
-                                    color: AppColors.ink,
+                                    color: TrainColors.ink,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -263,14 +267,18 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.error_outline_rounded,
-                                      size: 15, color: AppColors.flareText),
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 15,
+                                    color: TrainColors.ember,
+                                  ),
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: Text(
                                       _errorText ?? '',
-                                      style: AppText.meta
-                                          .copyWith(color: AppColors.flareText),
+                                      style: AppText.meta.copyWith(
+                                        color: TrainColors.ember,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -306,12 +314,15 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   /// so the footer never resizes as the cooldown runs out.
   Widget _resendLine(bool canResend) {
     if (_sending) {
-      return Text('Sending…', style: AppText.meta.copyWith(color: AppColors.ink3));
+      return Text(
+        'Sending…',
+        style: AppText.meta.copyWith(color: TrainColors.ink3),
+      );
     }
     if (!canResend) {
       return Text(
         'Resend code in ${_cooldown}s',
-        style: AppText.meta.copyWith(color: AppColors.ink3),
+        style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
     return TextButton(
@@ -325,7 +336,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
               text: 'Resend code',
               style: AppText.button.copyWith(
                 fontSize: 14.5,
-                color: AppColors.emberText,
+                color: TrainColors.ember,
               ),
             ),
           ],
@@ -353,9 +364,9 @@ class _UseAnotherAccountChip extends StatelessWidget {
         child: Tooltip(
           message: 'Use another account',
           child: Material(
-            color: AppColors.surfaceRaised,
+            color: TrainColors.raisedStrong,
             shape: const StadiumBorder(
-              side: BorderSide(color: AppColors.hairline2),
+              side: BorderSide(color: TrainColors.hairlineStrong),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -365,12 +376,15 @@ class _UseAnotherAccountChip extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.arrow_back_rounded,
-                        size: 16, color: AppColors.ink2),
+                    const Icon(
+                      Icons.arrow_back_rounded,
+                      size: 16,
+                      color: TrainColors.ink2,
+                    ),
                     const SizedBox(width: 7),
                     Text(
                       'Use another account',
-                      style: AppText.meta.copyWith(color: AppColors.ink2),
+                      style: AppText.meta.copyWith(color: TrainColors.ink2),
                     ),
                   ],
                 ),
