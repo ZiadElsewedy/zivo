@@ -98,69 +98,71 @@ class _TodayPageState extends State<TodayPage> {
             right: -70,
             child: _AuraBlob(color: TrainColors.green, size: 280),
           ),
-          Column(
-            children: [
-              // 62px from the top of the safe area to the date caption, per
-              // the handoff's screen padding.
-              SizedBox(height: media.padding.top + 14),
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _handleScroll,
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.screen,
-                      0,
-                      AppSpacing.screen,
-                      // The shell runs `extendBody: true`, so the list scrolls
-                      // UNDER the whole bottom object — nav island plus the
-                      // fused now-playing strip. [BottomChrome] is that
-                      // object's live measured height, so this tracks music
-                      // appearing and leaving instead of reserving a fixed
-                      // allowance that was right in only one of the two states.
-                      // The FAB floats over this same corner, so its disc
-                      // clears too: without that, "Start Workout" ended up
-                      // underneath it.
-                      BottomChrome.of(context) +
-                          _kCaptureFabAllowance +
-                          AppSpacing.base,
-                    ),
-                    children: [
-                      RiseIn(
-                        delay: Duration.zero,
-                        child: _Header(onQuickLog: widget.onQuickLog),
-                      ),
-                      // Primary tier — the day at a glance: train / fuel /
-                      // move rings answering "what have I done today?"
-                      const RiseIn(
-                        delay: Duration(milliseconds: 70),
-                        child: TodayPulseSection(),
-                      ),
-                      // The day's training, full-weight card.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 140),
-                        child: _TrainingSection(),
-                      ),
-                      // Momentum — "how am I doing?" streak, week bars,
-                      // weight trend.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 210),
-                        child: MomentumSection(),
-                      ),
-                      // Worth knowing — computed right-now nudges.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 280),
-                        child: InsightsSection(),
-                      ),
-                      // Tertiary tier — quiet glances, muted ink tones (no bright hues).
-                      const RiseIn(
-                        delay: Duration(milliseconds: 350),
-                        child: _DietSection(),
-                      ),
-                    ],
-                  ),
+          // The status-bar inset belongs to the LIST's padding, not to a
+          // SizedBox above it: as a fixed band outside the viewport it shrank
+          // the scrollable area by the inset on every device and pinned a
+          // strip of dead ground to the top of the screen. Inside the padding
+          // the viewport is the full height of the page, the first card still
+          // starts 62px down, and the inset scrolls away with the content the
+          // way it does everywhere else in iOS.
+          Positioned.fill(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  // 62px from the top of the safe area to the date caption,
+                  // per the handoff's screen padding.
+                  media.padding.top + 14,
+                  AppSpacing.screen,
+                  // The shell runs `extendBody: true`, so the list scrolls
+                  // UNDER the whole bottom object — nav island plus the
+                  // fused now-playing strip. [BottomChrome] is that
+                  // object's live measured height, so this tracks music
+                  // appearing and leaving instead of reserving a fixed
+                  // allowance that was right in only one of the two states.
+                  // The FAB floats over this same corner, so its disc
+                  // clears too: without that, "Start Workout" ended up
+                  // underneath it.
+                  BottomChrome.of(context) +
+                      _kCaptureFabAllowance +
+                      AppSpacing.base,
                 ),
+                children: [
+                  RiseIn(
+                    delay: Duration.zero,
+                    child: _Header(onQuickLog: widget.onQuickLog),
+                  ),
+                  // Primary tier — the day at a glance: train / fuel /
+                  // move rings answering "what have I done today?"
+                  const RiseIn(
+                    delay: Duration(milliseconds: 70),
+                    child: TodayPulseSection(),
+                  ),
+                  // The day's training, full-weight card.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 140),
+                    child: _TrainingSection(),
+                  ),
+                  // Momentum — "how am I doing?" streak, week bars,
+                  // weight trend.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 210),
+                    child: MomentumSection(),
+                  ),
+                  // Worth knowing — computed right-now nudges.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 280),
+                    child: InsightsSection(),
+                  ),
+                  // Tertiary tier — quiet glances, muted ink tones (no bright hues).
+                  const RiseIn(
+                    delay: Duration(milliseconds: 350),
+                    child: _DietSection(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),

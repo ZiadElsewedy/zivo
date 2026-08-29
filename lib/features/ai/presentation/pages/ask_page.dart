@@ -906,13 +906,32 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     _ => 'Thinking…',
   };
 
+  /// Whether the list is at rest and safe to pin.
+  ///
+  /// A pin during a live scroll cancels the activity that owns the position,
+  /// which stops the list dead under the thumb — the "stuck" scroll. A
+  /// rubber-band overscroll is the case that bit hardest: it is a ballistic
+  /// activity like any other, and cutting it short leaves the list parked
+  /// off its own end. Let whatever is in flight land; the next metrics
+  /// change re-pins.
+  bool get _restingAtPinnableOffset {
+    if (!_scroll.hasClients || _userDragging) return false;
+    final p = _scroll.position;
+    return p.pixels <= p.maxScrollExtent && p.pixels >= p.minScrollExtent;
+  }
+
   void _scrollToBottom({bool instant = false}) {
-    if (!_scroll.hasClients || _userDragging) return;
+    if (!_restingAtPinnableOffset) return;
     final target = _scroll.position.maxScrollExtent;
     if (reducedMotion(context) || instant) {
       _scroll.jumpTo(target);
       return;
     }
+    // Already there (or within a hair of it) — starting a tween would begin a
+    // driven activity for nothing, and a driven scroll reports itself as a
+    // non-drag scroll start, which is precisely what used to clear
+    // [_userDragging] mid-stream and re-open the door to the pin fight below.
+    if ((target - _scroll.position.pixels).abs() < 1) return;
     _scroll.animateTo(
       target,
       duration: const Duration(milliseconds: 220),
@@ -1119,9 +1138,26 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                           _displayKey(m),
                                       ]);
                                     }
+                                    // A turn in flight repaints this list on
+                                    // every streamed token, so the follow has
+                                    // to be an instant pin: a 220ms tween
+                                    // restarted each frame never lands, and
+                                    // each restart begins a DRIVEN scroll —
+                                    // which announces itself as a non-drag
+                                    // scroll start, clearing [_userDragging]
+                                    // and letting the metrics pin below cut
+                                    // the tween off mid-flight. The two then
+                                    // fought for the position every frame,
+                                    // which is what read as the chat stuttering
+                                    // and sticking while ZIVO replied. The
+                                    // eased scroll is kept for the settled
+                                    // case, where there is one of them.
+                                    final liveTurn = _sending || liveActive;
                                     WidgetsBinding.instance
                                         .addPostFrameCallback(
-                                          (_) => _maybeAutoScroll(),
+                                          (_) => _maybeAutoScroll(
+                                            instant: liveTurn,
+                                          ),
                                         );
                                     final indexByKey = <String, int>{
                                       for (var j = 0; j < displayed.length; j++)
@@ -1156,12 +1192,18 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
                                             is ScrollMetricsNotification) {
                                           WidgetsBinding.instance
                                               .addPostFrameCallback((_) {
-                                                if (!mounted ||
-                                                    !_autoFollow ||
-                                                    _userDragging) {
+                                                if (!mounted || !_autoFollow) {
                                                   return;
                                                 }
-                                                if (!_scroll.hasClients) return;
+                                                // Rest check, not just a drag
+                                                // check: this also declines to
+                                                // pin while a rubber-band
+                                                // overscroll is settling, which
+                                                // a bare `jumpTo` would cancel
+                                                // and leave parked off the end.
+                                                if (!_restingAtPinnableOffset) {
+                                                  return;
+                                                }
                                                 final p = _scroll.position;
                                                 if (p.maxScrollExtent > 0) {
                                                   _scroll.jumpTo(
@@ -1525,102 +1567,119 @@ class _EmptyAsk extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final still = MediaQuery.of(context).disableAnimations;
-    return SingleChildScrollView(
-      // Scrollable rather than a bare Center: with the keyboard rising, a
-      // min-height column can overflow — this lets it give instead of
-      // throwing yellow stripes over a premium moment.
-      // Bottom padding keeps the suggestion pills clear of the floating
-      // composer that overlays this surface.
-      padding: const EdgeInsets.only(bottom: _kComposerFloatClearance),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height * 0.6,
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.section),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // The hero is a 54px violet glyph tile, not an
-                // illustration: identity §1.4 is "text over imagery", and the
-                // one thing this screen should lead with is ZIVO's VOICE —
-                // the Instrument Serif line below — rather than a picture of
-                // it. The tile marks the assistant; the sentence is the hero.
-                Container(
-                  width: 54,
-                  height: 54,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: TrainColors.violetGlyph.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: TrainColors.violetGlyph.withValues(alpha: 0.25),
+    // The min height is the VIEWPORT's, not a fraction of the screen's.
+    // `size.height * 0.6` ignored the header above this surface, the composer
+    // below it and the keyboard entirely, so the column it stretched was
+    // taller than the space it had: the empty state could not centre itself,
+    // and it handed the scroll view an extent with nothing in it — a
+    // short screen scrolled through blank ground before reaching the pills,
+    // and with the keyboard up it scrolled when it had no reason to.
+    // `constraints.maxHeight` is the room actually on offer, so the content
+    // centres when it fits and scrolls only when it genuinely doesn't. Same
+    // shape the live session's phase scaffold already uses.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        // Scrollable rather than a bare Center: with the keyboard rising, a
+        // min-height column can overflow — this lets it give instead of
+        // throwing yellow stripes over a premium moment.
+        // Bottom padding keeps the suggestion pills clear of the floating
+        // composer that overlays this surface.
+        padding: const EdgeInsets.only(bottom: _kComposerFloatClearance),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: math.max(
+              0,
+              constraints.maxHeight - _kComposerFloatClearance,
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.section,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The hero is a 54px violet glyph tile, not an
+                  // illustration: identity §1.4 is "text over imagery", and the
+                  // one thing this screen should lead with is ZIVO's VOICE —
+                  // the Instrument Serif line below — rather than a picture of
+                  // it. The tile marks the assistant; the sentence is the hero.
+                  Container(
+                    width: 54,
+                    height: 54,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: TrainColors.violetGlyph.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: TrainColors.violetGlyph.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: const Icon(
+                      AppIcons.ask,
+                      size: 24,
+                      color: TrainColors.violetGlyph,
                     ),
                   ),
-                  child: const Icon(
-                    AppIcons.ask,
-                    size: 24,
-                    color: TrainColors.violetGlyph,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                // Instrument Serif italic — the assistant's voice, used here
-                // and in its answers, and nowhere else in the app.
-                RiseIn(
-                  delay: still
-                      ? Duration.zero
-                      : const Duration(milliseconds: 120),
-                  child: Text(
-                    "Hey, I'm ZIVO.",
-                    textAlign: TextAlign.center,
-                    style: TrainType.serif(size: 36, height: 1),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                RiseIn(
-                  delay: still
-                      ? Duration.zero
-                      : const Duration(milliseconds: 200),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 280),
+                  const SizedBox(height: 22),
+                  // Instrument Serif italic — the assistant's voice, used here
+                  // and in its answers, and nowhere else in the app.
+                  RiseIn(
+                    delay: still
+                        ? Duration.zero
+                        : const Duration(milliseconds: 120),
                     child: Text(
-                      'Training, diet and spending. Ask me anything — or let '
-                      'me log it for you.',
+                      "Hey, I'm ZIVO.",
                       textAlign: TextAlign.center,
-                      style: TrainType.ui(
-                        size: 14,
-                        weight: FontWeight.w400,
-                        color: TrainColors.ink2,
-                        height: 1.5,
+                      style: TrainType.serif(size: 36, height: 1),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  RiseIn(
+                    delay: still
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 280),
+                      child: Text(
+                        'Training, diet and spending. Ask me anything — or let '
+                        'me log it for you.',
+                        textAlign: TextAlign.center,
+                        style: TrainType.ui(
+                          size: 14,
+                          weight: FontWeight.w400,
+                          color: TrainColors.ink2,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 22),
-                const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (index, prompt) in _suggestions.indexed)
-                        Padding(
-                          padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
-                          child: RiseIn(
-                            delay: still
-                                ? Duration.zero
-                                : Duration(milliseconds: 280 + index * 70),
-                            child: _SuggestionChip(
-                              label: prompt,
-                              onTap: () => onSuggestion(prompt),
+                  const SizedBox(height: 22),
+                  const SizedBox(height: 30),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final (index, prompt) in _suggestions.indexed)
+                          Padding(
+                            padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
+                            child: RiseIn(
+                              delay: still
+                                  ? Duration.zero
+                                  : Duration(milliseconds: 280 + index * 70),
+                              child: _SuggestionChip(
+                                label: prompt,
+                                onTap: () => onSuggestion(prompt),
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

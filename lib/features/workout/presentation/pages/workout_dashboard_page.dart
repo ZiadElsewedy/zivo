@@ -119,7 +119,7 @@ class WorkoutDashboardPage extends StatelessWidget {
                       22,
                       12,
                       22,
-                      MediaQuery.of(context).padding.bottom + 24,
+                      TrainBottomInset.of(context),
                     ),
                     // Each block staggers in as its own step (see
                     // RiseIn) rather than the page popping in all at

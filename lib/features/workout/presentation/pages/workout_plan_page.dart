@@ -16,6 +16,7 @@ import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../widgets/staggered_reveal.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import 'live_session_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
@@ -268,7 +269,12 @@ class _PlanBody extends StatelessWidget {
         final selection = resolveUpNext(plan, sessionSnapshot.data);
         final today = selection.day;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            8,
+            22,
+            TrainBottomInset.forScaffold(context, hasFab: true),
+          ),
           children: [
             Text(
               plan.name,

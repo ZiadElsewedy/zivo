@@ -32,7 +32,7 @@ class SessionDetailsPage extends StatelessWidget {
     return TrainScreen(
       tint: TrainColors.hubTint,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
+        padding: EdgeInsets.fromLTRB(22, 12, 22, TrainBottomInset.of(context)),
         children: [
           _DetailsHeader(
             onDelete: () async {

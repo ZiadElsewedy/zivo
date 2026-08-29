@@ -1649,7 +1649,6 @@ class _SheetShell extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         padding: EdgeInsets.only(
           top: 12,
           left: 22,

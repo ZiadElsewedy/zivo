@@ -30,12 +30,7 @@ class WorkoutDayDetailsPage extends StatelessWidget {
     return TrainScreen(
       tint: TrainColors.hubTint,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(
-          22,
-          12,
-          22,
-          MediaQuery.of(context).padding.bottom + 32,
-        ),
+        padding: EdgeInsets.fromLTRB(22, 12, 22, TrainBottomInset.of(context)),
         children: [
           // The day IS the title here; the plan it belongs to rides the
           // header's caption slot rather than taking the title line.

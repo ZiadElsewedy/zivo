@@ -6,6 +6,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
@@ -52,7 +53,12 @@ class MealDetailPage extends StatelessWidget {
         builder: (context, snapshot) {
           final eaten = (snapshot.data ?? const <String>{}).contains(meal.id);
           return ListView(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
+            padding: EdgeInsets.fromLTRB(
+              22,
+              8,
+              22,
+              TrainBottomInset.forScaffold(context),
+            ),
             children: [
               _MealTotalsCard(
                 meal: meal,

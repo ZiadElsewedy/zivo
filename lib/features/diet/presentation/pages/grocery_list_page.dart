@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/grocery_list.dart';
@@ -76,11 +77,11 @@ class _GroceryListPageState extends State<GroceryListPage> {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.screen,
                 AppSpacing.s,
                 AppSpacing.screen,
-                48,
+                TrainBottomInset.forScaffold(context),
               ),
               itemCount: items.length,
               itemBuilder: (context, index) {

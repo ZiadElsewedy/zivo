@@ -1465,9 +1465,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       key: key,
       builder: (context, constraints) {
         return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
           padding: insets,
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -1718,7 +1715,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         .toList();
     return ListView(
       key: const ValueKey('completed-list'),
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       children: [
         Center(
@@ -3712,7 +3708,6 @@ class _SetChipRow extends StatelessWidget {
     }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
           for (final (i, chip) in chips.indexed) ...[

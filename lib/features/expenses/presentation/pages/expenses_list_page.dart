@@ -93,7 +93,12 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                   final weekMinor = weekTotalMinor(items, now);
                   final byCategory = _byCategory(items, now, categories);
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      12,
+                      22,
+                      TrainBottomInset.of(context),
+                    ),
                     children: [
                       const RiseIn(child: TrainPageHeader(title: 'Expenses')),
                       const SizedBox(height: 18),

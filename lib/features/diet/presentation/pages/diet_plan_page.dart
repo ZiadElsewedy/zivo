@@ -191,7 +191,12 @@ class _PlanBody extends StatelessWidget {
             consumedSnapshot.connectionState == ConnectionState.waiting;
         final target = today == null ? null : dayCalories(today);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(22, 14, 22, 120),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            14,
+            22,
+            TrainBottomInset.of(context),
+          ),
           children: [
             // The plan's own identity, and what TODAY actually plans — one
             // mono caption, not a card.

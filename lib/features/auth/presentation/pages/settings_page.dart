@@ -13,7 +13,6 @@ import '../../../music/domain/music_connection.dart';
 import '../../../music/domain/music_controller.dart';
 import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
-import '../../../music/presentation/equalizer_glyph.dart';
 import '../../../music/presentation/music_player_page.dart';
 import 'change_password_page.dart';
 import 'privacy_page.dart';
@@ -31,11 +30,12 @@ import '../../../../core/widgets/settings_row.dart';
 /// MUSIC / APP / ACCOUNT as mono-labelled inset lists, and a ghost `Sign out`
 /// at the foot.
 ///
-/// Two things the handoff is specific about. The Spotify card carries a live
-/// equalizer and the **actual track** on its second line — a row that says
-/// only "Connected" makes a claim without evidence. And sign-out is a ghost,
-/// not a red button: it is reversible, so it doesn't get to look like the
-/// account deletion two rows above it.
+/// Two things the handoff is specific about. The Spotify card carries the
+/// **actual track** on its second line — a row that says only "Connected"
+/// makes a claim without evidence — behind Spotify's own logo, since the mark
+/// is what makes a third-party connection recognisable at a glance. And
+/// sign-out is a ghost, not a red button: it is reversible, so it doesn't get
+/// to look like the account deletion two rows above it.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -80,7 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return TrainScreen(
       tint: TrainColors.settingsTint,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
+        padding: EdgeInsets.fromLTRB(22, 12, 22, TrainBottomInset.of(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -343,11 +343,21 @@ class _MusicSection extends StatelessWidget {
                                       color: accent.withValues(alpha: 0.24),
                                     ),
                                   ),
-                                  child: EqualizerGlyph(
-                                    width: 14,
-                                    height: 13,
-                                    color: accent,
-                                    playing: live && !playing.isPaused,
+                                  // Spotify's own mark, not a stand-in glyph:
+                                  // this row names a third-party service the
+                                  // user connects their account to, and the
+                                  // thing that makes it recognisable at a
+                                  // glance is the logo they already know. The
+                                  // equalizer bars that used to sit here read
+                                  // as a generic "music" icon — the same
+                                  // asset the now-playing strip and the
+                                  // player screen already use is the one this
+                                  // card should carry too.
+                                  child: Image.asset(
+                                    'assets/spotify/spotify-icon.png',
+                                    width: 18,
+                                    height: 18,
+                                    filterQuality: FilterQuality.medium,
                                   ),
                                 ),
                                 const SizedBox(width: 14),

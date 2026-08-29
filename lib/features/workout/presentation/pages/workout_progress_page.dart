@@ -75,7 +75,12 @@ class WorkoutProgressPage extends StatelessWidget {
                     );
 
               return ListView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 110),
+                padding: EdgeInsets.fromLTRB(
+                  22,
+                  12,
+                  22,
+                  TrainBottomInset.of(context),
+                ),
                 children: [
                   StaggeredReveal(
                     index: 0,

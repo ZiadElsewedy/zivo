@@ -192,6 +192,44 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-29 — **App-wide scrolling pass + the Spotify mark (owner report).** The scroll
+  complaint ("gets stuck, feels restricted, indicator in the wrong place") was three
+  separate causes, all now fixed at a seam rather than per page.
+  **(1) The bottom of a pushed page had no owner.** Every screen guessed its own scroll
+  clearance — 6, 8, 20, 28, 40, 44, 48, 100, 110, 120 — and none of them included
+  `viewPadding.bottom`, so the small guesses put the last row under the home indicator and
+  the large ones (on screens with no FAB to clear) left a dead band of empty scroll extent
+  below the content, which is what read as the scroll position being wrong. New
+  **`TrainBottomInset`** in `train_surfaces.dart` — the pushed-page twin of
+  `BottomChrome` — is provided by `TrainScreen`, derived from the device inset plus
+  whether the screen has a FAB, and now consumed by all 14 scrolling pages
+  (`TrainBottomInset.forScaffold` covers the three still on a plain `Scaffold`). A page
+  that docks its own action bar (plan/capture editors) correctly keeps its tight padding.
+  **(2) Today's viewport was short by the status-bar inset** — it sat in a `SizedBox`
+  *outside* the `Expanded`, as a fixed dead band. Moved into the list's own top padding,
+  so the viewport is full height and the inset scrolls away.
+  **(3) Ask's auto-follow fought itself.** The per-token pin used the 220ms eased
+  `animateTo`, restarted every frame; each restart began a *driven* scroll, which reports
+  a non-drag scroll start, cleared `_userDragging`, and let the metrics-notification
+  `jumpTo` cut the tween off mid-flight — the two then fought for the position every
+  frame while ZIVO replied. Streaming now pins instantly, the eased scroll is kept for
+  the settled case, and both paths refuse to pin unless the list is at rest
+  (`_restingAtPinnableOffset`), which also stops a `jumpTo` cancelling a rubber-band
+  settle. Ask's empty state also stretched to `size.height * 0.6` — a fraction of the
+  *screen*, ignoring header, composer and keyboard — now `LayoutBuilder`-derived from the
+  real viewport.
+  **Consistency:** four scroll views restated `physics:` and disagreed (a bare
+  `BouncingScrollPhysics()` silently drops the `AlwaysScrollable` parent, so those screens
+  stopped bouncing whenever content fit). Removed; everything inherits
+  `ZivoScrollBehavior`, which now documents the rule. The music player keeps its explicit
+  physics **on purpose** — its pull-down-to-dismiss is built on overscroll and must not
+  depend on the ambient host (its widget test proves it).
+  **Spotify:** the Settings connection card led with a generic `EqualizerGlyph`; it now
+  carries the real `assets/spotify/spotify-icon.png`, the same mark the now-playing strip
+  and player screen already use.
+  `flutter analyze` clean. Suite **752 passed / 3 failed — byte-identical to the
+  `version-1` baseline**, i.e. no regressions; those 3 (`today_dashboard_widget_test`)
+  were already red at HEAD and are still owner-eye items below.
 - 2026-08-29 — **Live-session + music-strip pass (owner list).** Fixed the real bug in it:
   the rest phase's eyebrow pill wore a **pause glyph and did nothing** — it sat inside the
   phase's `IgnorePointer`'d region, so the only working pause was the header toggle, which
