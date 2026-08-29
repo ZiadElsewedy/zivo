@@ -162,10 +162,11 @@ void main() {
 
     // FakeProfileRepository defaults to the name 'Ziad'.
     expect(find.textContaining('Ziad'), findsOneWidget);
-    expect(
-      find.text(formatTodayDate(DateTime.now()).toUpperCase()),
-      findsOneWidget,
-    );
+    // Today's header wears the SHORT caption ("SAT 29 AUG") — deliberately
+    // clipped, per `formatTodayShort`'s doc, because it's a mono micro-caption
+    // under a 54px hero clock. The long `formatTodayDate` form is what the Hub
+    // and Moments use.
+    expect(find.text(formatTodayShort(DateTime.now())), findsOneWidget);
   });
 
   testWidgets(
@@ -244,7 +245,12 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Full Arm'), findsOneWidget);
-      expect(find.text('1 exercise'), findsOneWidget);
+      // The card's stats are a value/label row now ("1 · EXERCISES") rather
+      // than the sentence "1 exercise" — the fixture's day is one exercise of
+      // one set, so both count slots read "1".
+      expect(find.text('EXERCISES'), findsOneWidget);
+      expect(find.text('SETS'), findsOneWidget);
+      expect(find.text('1'), findsNWidgets(2));
       expect(find.text('Start Workout'), findsOneWidget);
       expect(find.text('No training plan yet'), findsNothing);
     },

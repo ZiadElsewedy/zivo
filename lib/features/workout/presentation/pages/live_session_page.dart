@@ -1028,7 +1028,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                             if (_session.previousResolvedSet != null)
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: _BackChip(onTap: _onBack),
+                                child: _BackChip(
+                                  key: const Key('back-chip'),
+                                  onTap: _onBack,
+                                ),
                               ),
                           ],
                         ),
@@ -1428,6 +1431,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     children: [
                       Expanded(
                         child: TrainGhostButton(
+                          key: const Key('warmup-minus-15'),
                           label: '−15s',
                           onTap: () => _adjustWarmup(-15),
                         ),
@@ -1435,6 +1439,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                       const SizedBox(width: 11),
                       Expanded(
                         child: TrainGhostButton(
+                          key: const Key('warmup-plus-15'),
                           label: '+15s',
                           onTap: () => _adjustWarmup(15),
                         ),
@@ -1518,6 +1523,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                     children: [
                       Expanded(
                         child: TrainGhostButton(
+                          key: const Key('rest-minus-15'),
                           label: '−15s',
                           onTap: () => _adjustRest(-15),
                         ),
@@ -1525,6 +1531,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                       const SizedBox(width: 11),
                       Expanded(
                         child: TrainGhostButton(
+                          key: const Key('rest-plus-15'),
                           label: '+15s',
                           onTap: () => _adjustRest(15),
                         ),
@@ -2132,7 +2139,7 @@ class _SessionHeader extends StatelessWidget {
 /// resolved, so the header matches the design exactly until there's a reason
 /// for it not to.
 class _BackChip extends StatelessWidget {
-  const _BackChip({required this.onTap});
+  const _BackChip({required this.onTap, super.key});
 
   final VoidCallback onTap;
 
@@ -2846,6 +2853,7 @@ class _ActionCluster extends StatelessWidget {
           width: 112,
           height: 60,
           child: TrainGhostButton(
+            key: const Key('skip-set'),
             label: 'Skip',
             mono: false,
             height: 60,
@@ -2860,6 +2868,7 @@ class _ActionCluster extends StatelessWidget {
         const SizedBox(width: 11),
         Expanded(
           child: TrainPrimaryButton(
+            key: const Key('log-set'),
             label: 'Log set',
             icon: const Icon(
               Icons.check_rounded,
@@ -3282,7 +3291,16 @@ class _SetChipRow extends StatelessWidget {
           ? _ChipState.current
           : _ChipState.upcoming;
       chips.add(
-        _SetChip(number: number, state: state, label: _labelFor(s, state)),
+        _SetChip(
+          // The key carries both the position and the state, so a test can
+          // assert *which* set is current without coupling to the chip's copy
+          // — the coupling that left this screen's suite stale after the
+          // redesign renamed "Set 1 of 2" into this row.
+          key: Key('set-chip-$number-${state.name}'),
+          number: number,
+          state: state,
+          label: _labelFor(s, state),
+        ),
       );
     }
     if (chips.isEmpty) return const SizedBox.shrink();
@@ -3317,6 +3335,7 @@ class _SetChip extends StatefulWidget {
     required this.number,
     required this.state,
     required this.label,
+    super.key,
   });
 
   final int number;

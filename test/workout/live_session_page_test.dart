@@ -140,8 +140,18 @@ WorkoutPlan _plan() => WorkoutPlan(
           muscleGroup: 'Chest',
           defaultRestSeconds: 90,
           sets: [
-            PlannedSet(order: 0, repTarget: RepTarget.fixed(5), restSeconds: 90, type: SetType.working),
-            PlannedSet(order: 1, repTarget: RepTarget.fixed(5), restSeconds: 60, type: SetType.working),
+            PlannedSet(
+              order: 0,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 90,
+              type: SetType.working,
+            ),
+            PlannedSet(
+              order: 1,
+              repTarget: RepTarget.fixed(5),
+              restSeconds: 60,
+              type: SetType.working,
+            ),
           ],
         ),
       ],
@@ -149,7 +159,6 @@ WorkoutPlan _plan() => WorkoutPlan(
     WorkoutDay(id: 'b', slot: 'B', label: 'Pull', order: 1, exercises: []),
   ],
 );
-
 
 /// A completed session from "last time", trained on the same canonical
 /// exercise id ('ex1') so `lastPerformanceFor` picks it up.
@@ -251,8 +260,12 @@ Widget _wrap({
             child: TextButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      LiveSessionPage(day: day, plan: plan, resume: resume, now: now),
+                  builder: (_) => LiveSessionPage(
+                    day: day,
+                    plan: plan,
+                    resume: resume,
+                    now: now,
+                  ),
                 ),
               ),
               child: const Text('go'),
@@ -279,6 +292,25 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// Taps a control that may be sitting below the fold, then settles.
+///
+/// The live session's phases are tall: the commit row, the rest controls and
+/// Finish all live at the bottom of a scroll view, and on the default test
+/// viewport they are frequently outside it. `tester.tap` does **not** fail in
+/// that case — it warns, the tap lands on nothing, and the screen silently
+/// doesn't advance, so the real failure surfaces many steps later as some
+/// unrelated widget being "missing". Scrolling the target into view first
+/// makes a tap mean what it says.
+///
+/// This replaced 31 hand-patched `tester.drag(...)` calls that were each
+/// papering over one instance of the same problem.
+Future<void> _tap(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await _settle(tester);
+}
+
 /// Taps 'go' and settles, then skips the pre-workout warm-up phase if it's
 /// showing — a genuinely fresh (non-resume, nothing-done) session always
 /// opens on it now, so every test below that isn't specifically about
@@ -289,13 +321,22 @@ Future<void> _start(WidgetTester tester) async {
   await tester.tap(find.text('go'));
   await _settle(tester);
   if (find.text('Skip warm-up').evaluate().isNotEmpty) {
-    await tester.tap(find.text('Skip warm-up'));
-    await _settle(tester);
+    await _tap(tester, find.text('Skip warm-up'));
   }
 }
 
 String elapsedText(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('elapsed-timer'))).data!;
+
+/// The goal hero's two halves. The redesign split the old single
+/// "32.5kg × 5" label into a reps number and a weight number in their own
+/// keyed slots (they double as the live echo of the steppers), so tests read
+/// each side rather than matching one composed string.
+String goalReps(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('goal-reps'))).data!;
+
+String goalWeight(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('goal-weight'))).data!;
 
 /// The premium rest ring's sub-second label ("M:SS.CC" or "SS.CC"), read
 /// back as plain text — the whole-second and ".CC" parts each live in their
@@ -348,65 +389,74 @@ void main() {
       // Set 1 of the first exercise, last time + computed goal both shown.
       // Previous: 30kg x 5, hit the fixed target's top (5>=5) → +2.5kg
       // compound (Chest), reps reset to the same fixed count.
-      expect(find.text('Set 1 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
       expect(find.text('Bench'), findsOneWidget);
-      expect(find.text('30kg × 5'), findsOneWidget); // LAST TIME stat
-      expect(find.text('32.5kg × 5'), findsOneWidget); // the Goal label
+      // LAST TIME reads reps-first ("5 × 30 kg") since the redesign — the
+      // same order as the set chips and the goal hero.
+      expect(find.text('5 × 30 kg'), findsOneWidget); // LAST TIME stat
+      expect(goalReps(tester), '5'); // the Goal hero
+      expect(goalWeight(tester), '32.5');
 
       // Reps/weight are prefilled from the goal, not the bare plan target.
       final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
-      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      final weightField = tester.widget<TextField>(
+        find.byType(TextField).at(1),
+      );
       expect(repsField.controller!.text, '5');
       expect(weightField.controller!.text, '32.5');
 
       // Autosaved as an active session as soon as it starts.
-      expect(sessions.current.any((s) => s.status == SessionStatus.active), isTrue);
+      expect(
+        sessions.current.any((s) => s.status == SessionStatus.active),
+        isTrue,
+      );
 
       // Type a heavier weight than last time (reps unchanged at the
-      // prefilled 5) → volume 150 → 175 = +16.67%, rounds to the verdict
-      // badge's "Progressing +17%". Reps is the first TextField (index 0),
-      // Weight the second (index 1).
+      // prefilled 5). The redesign folded the old separate "Progressing
+      // +17%" verdict badge into ONE caption under the weight, in which
+      // **load leads whenever it moved** — that's the decision you just
+      // made — and the percentage verdict is the fallback for when it
+      // didn't. 30kg → 35kg, so the caption is the load delta.
+      // Reps is the first TextField (index 0), Weight the second (index 1).
       await tester.enterText(find.byType(TextField).at(1), '35');
       await tester.pump();
-      expect(find.text('Progressing +17%'), findsOneWidget);
+      expect(find.text('↑ 5 KG VS LAST'), findsOneWidget);
 
       // Complete set 1 → the session counts down the exercise's own plan
       // rest (90s, "1:30") — the plan Ziad set in Edit Workout, not a
       // computed smart-rest guess.
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
       expect(find.text('Skip rest'), findsOneWidget);
       expect(restWholeSeconds(tester), closeTo(90, 1));
       expect(find.text('REST'), findsOneWidget);
-      expect(find.textContaining('Next:'), findsOneWidget);
+      // The rest phase names what's coming under an "UP NEXT" caption now,
+      // rather than an inline "Next: …" sentence.
+      expect(find.text('UP NEXT'), findsOneWidget);
 
       // The just-logged set now shows as done (autosaved).
-      final midSession = sessions.current.firstWhere((s) => s.status == SessionStatus.active);
+      final midSession = sessions.current.firstWhere(
+        (s) => s.status == SessionStatus.active,
+      );
       expect(midSession.exercises.single.sets[0].done, isTrue);
       expect(midSession.exercises.single.sets[0].actualWeightKg, 35);
 
-      // Adjust the rest window.
-      await tester.tap(find.text('+15s'));
-      await tester.pump();
+      // Adjust the rest window. (Through _tap: the ±15s row sits at the
+      // bottom of the rest phase's scroll view, below the fold on the test
+      // viewport, and a bare tap there silently hits nothing.)
+      await _tap(tester, find.byKey(const Key('rest-plus-15')));
       expect(restWholeSeconds(tester), closeTo(105, 1));
-      await tester.tap(find.text('-15s'));
-      await tester.pump();
+      await _tap(tester, find.byKey(const Key('rest-minus-15')));
       expect(restWholeSeconds(tester), closeTo(90, 1));
 
       // Skip the rest → set 2 (already the current set — no manual pointer).
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
-      expect(find.text('Set 2 of 2'), findsOneWidget);
-      expect(find.text('32.5kg × 5'), findsOneWidget); // LAST TIME stat
-      expect(find.text('35kg × 5'), findsOneWidget); // goal: 32.5 + 2.5
+      await _tap(tester, find.text('Skip rest'));
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+      expect(find.text('5 × 32.5 kg'), findsOneWidget); // LAST TIME stat
+      expect(goalReps(tester), '5'); // goal: 32.5 + 2.5
+      expect(goalWeight(tester), '35');
 
       // Complete the final set → completed summary.
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
       expect(find.text('Finish'), findsOneWidget);
       expect(find.textContaining('2 of 2 sets'), findsOneWidget);
 
@@ -425,103 +475,104 @@ void main() {
     },
   );
 
-  testWidgets('discard via the trailing trash button erases autosaved progress and pops', (
+  testWidgets(
+    'discard via the trailing trash button erases autosaved progress and pops',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      // Log a set, so there is autosaved progress to actually discard.
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(sessions.current, hasLength(1));
+
+      // Discard is the explicit destructive action, reached via the top bar's
+      // trailing trash control — not the close (X) button, which now leaves.
+      await tester.tap(find.byTooltip('Discard workout'));
+      await _settle(tester);
+      expect(find.text('Discard this workout?'), findsOneWidget);
+
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('go'), findsOneWidget); // popped
+      expect(workouts.added, isEmpty);
+      expect(plans.saved, isEmpty);
+      expect(sessions.current, isEmpty); // erased, not just left active
+    },
+  );
+
+  testWidgets(
+    'closing (X) with logged progress leaves the session active for Resume',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(sessions.current, hasLength(1));
+
+      // Close (X) is now non-destructive: no confirmation dialog, and the
+      // autosaved progress (including the plan's un-advanced cursor) stays put.
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('go'), findsOneWidget); // popped
+      expect(find.text('Discard this workout?'), findsNothing);
+      expect(workouts.added, isEmpty); // never finished
+      expect(plans.saved, isEmpty); // cursor not advanced
+      final left = sessions.current.single;
+      expect(left.status, SessionStatus.active);
+      expect(
+        left.exercises.single.sets[0].done,
+        isTrue,
+      ); // the logged set survived
+
+      // Resuming re-opens the exact same in-progress session rather than a
+      // fresh one — set 1 already done, straight onto set 2.
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          resume: left,
+        ),
+      );
+      await _start(tester);
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+      expect(sessions.current, hasLength(1)); // no duplicate session created
+    },
+  );
+
+  testWidgets('closing (X) with zero logged sets is a silent discard', (
     tester,
   ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
-
-    // Log a set, so there is autosaved progress to actually discard.
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    expect(sessions.current, hasLength(1));
-
-    // Discard is the explicit destructive action, reached via the top bar's
-    // trailing trash control — not the close (X) button, which now leaves.
-    await tester.tap(find.byTooltip('Discard workout'));
-    await _settle(tester);
-    expect(find.text('Discard this workout?'), findsOneWidget);
-
-    await tester.tap(find.text('Discard'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('go'), findsOneWidget); // popped
-    expect(workouts.added, isEmpty);
-    expect(plans.saved, isEmpty);
-    expect(sessions.current, isEmpty); // erased, not just left active
-  });
-
-  testWidgets('closing (X) with logged progress leaves the session active for Resume', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
-
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    expect(sessions.current, hasLength(1));
-
-    // Close (X) is now non-destructive: no confirmation dialog, and the
-    // autosaved progress (including the plan's un-advanced cursor) stays put.
-    await tester.tap(find.byTooltip('Close'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('go'), findsOneWidget); // popped
-    expect(find.text('Discard this workout?'), findsNothing);
-    expect(workouts.added, isEmpty); // never finished
-    expect(plans.saved, isEmpty); // cursor not advanced
-    final left = sessions.current.single;
-    expect(left.status, SessionStatus.active);
-    expect(left.exercises.single.sets[0].done, isTrue); // the logged set survived
-
-    // Resuming re-opens the exact same in-progress session rather than a
-    // fresh one — set 1 already done, straight onto set 2.
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-        resume: left,
-      ),
-    );
-    await _start(tester);
-    expect(find.text('Set 2 of 2'), findsOneWidget);
-    expect(sessions.current, hasLength(1)); // no duplicate session created
-  });
-
-  testWidgets('closing (X) with zero logged sets is a silent discard', (tester) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -544,7 +595,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('go'), findsOneWidget); // popped
-    expect(find.text('Discard this workout?'), findsNothing); // no confirmation either
+    expect(
+      find.text('Discard this workout?'),
+      findsNothing,
+    ); // no confirmation either
     expect(sessions.current, isEmpty);
   });
 
@@ -569,101 +623,92 @@ void main() {
       await _start(tester);
 
       // Bench has 2 sets — skip both, completing nothing.
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Skip'));
-      await _settle(tester);
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Skip'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('skip-set')));
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
 
       expect(find.text('go'), findsOneWidget); // popped
       expect(find.text('Discard this workout?'), findsNothing);
-      expect(sessions.current, isEmpty); // discarded, same as never having started one
+      expect(
+        sessions.current,
+        isEmpty,
+      ); // discarded, same as never having started one
     },
   );
 
-  testWidgets('Skip is reversed by the in-screen Back control — set returns pending and current', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'Skip is reversed by the in-screen Back control — set returns pending and current',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
-    final skippedId = sessions.current.single.exercises.single.sets.first.id;
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      final skippedId = sessions.current.single.exercises.single.sets.first.id;
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Skip'));
-    // Waits out the completion-beat hold and the phase crossfade into rest
-    // before inspecting — see `_settle`'s doc comment.
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      // Waits out the completion-beat hold and the phase crossfade into rest
+      // before inspecting — see `_settle`'s doc comment.
+      await _settle(tester);
 
-    // No bottom toast anymore — the persistent Back control is the undo.
-    var afterSkip = sessions.current.single;
-    expect(afterSkip.exercises.single.sets.first.skipped, isTrue);
-    expect(afterSkip.currentSet?.id, isNot(skippedId)); // advanced to set 2
+      // No bottom toast anymore — the persistent Back control is the undo.
+      var afterSkip = sessions.current.single;
+      expect(afterSkip.exercises.single.sets.first.skipped, isTrue);
+      expect(afterSkip.currentSet?.id, isNot(skippedId)); // advanced to set 2
 
-    await tester.tap(find.text('Back'));
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('back-chip')));
 
-    final afterUndo = sessions.current.single;
-    expect(afterUndo.exercises.single.sets.first.pending, isTrue);
-    expect(afterUndo.currentSet?.id, skippedId); // current again
-    expect(find.text('Set 1 of 2'), findsOneWidget);
-  });
+      final afterUndo = sessions.current.single;
+      expect(afterUndo.exercises.single.sets.first.pending, isTrue);
+      expect(afterUndo.currentSet?.id, skippedId); // current again
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
+    },
+  );
 
-  testWidgets('Done is reversed by Back — an accidental log restores to pending (Ziad\'s incident)', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'Done is reversed by Back — an accidental log restores to pending (Ziad\'s incident)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
 
-    expect(sessions.current.single.completedSetCount, 1);
+      expect(sessions.current.single.completedSetCount, 1);
 
-    await tester.tap(find.text('Back'));
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('back-chip')));
 
-    // Reversed, and no longer resting — back on the running screen for set 1.
-    expect(sessions.current.single.completedSetCount, 0);
-    expect(find.text('Set 1 of 2'), findsOneWidget);
-    expect(find.text('Skip rest'), findsNothing);
-  });
+      // Reversed, and no longer resting — back on the running screen for set 1.
+      expect(sessions.current.single.completedSetCount, 0);
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
+      expect(find.text('Skip rest'), findsNothing);
+    },
+  );
 
   testWidgets(
     'the Goal card shows a live intra-session delta against THIS session\'s previous set '
@@ -691,12 +736,8 @@ void main() {
       await tester.enterText(find.byType(TextField).at(0), '8');
       await tester.enterText(find.byType(TextField).at(1), '60');
       await tester.pump();
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
 
       // Set 2: bump the weight above set 1's 60kg — the live delta should
       // read against set 1 (this session), not any cross-session history
@@ -732,10 +773,7 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), '80');
       await tester.pump();
 
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
 
       // The typed actuals are what got persisted on the just-resolved set —
       // the confirmation toast is gone; the autosaved session is the record.
@@ -746,98 +784,93 @@ void main() {
     },
   );
 
-  testWidgets('Back reverses the LAST set of a workout, un-completing the session', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'Back reverses the LAST set of a workout, un-completing the session',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    await tester.tap(find.text('Skip rest'));
-    await _settle(tester);
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done')); // the last set — completes the session
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(
+        tester,
+        find.byKey(const Key('log-set')),
+      ); // the last set — completes the session
 
-    expect(sessions.current.single.isComplete, isTrue);
+      expect(sessions.current.single.isComplete, isTrue);
 
-    // Back is reachable from the completed review too — an undo must be able
-    // to reverse the very last set of a workout.
-    await tester.tap(find.text('Back'));
-    await _settle(tester);
+      // Back is reachable from the completed review too — an undo must be able
+      // to reverse the very last set of a workout.
+      await _tap(tester, find.byKey(const Key('back-chip')));
 
-    final reopened = sessions.current.single;
-    expect(reopened.isComplete, isFalse);
-    expect(reopened.status, SessionStatus.active);
-    expect(find.text('Finish'), findsNothing);
-    expect(find.text('Set 2 of 2'), findsOneWidget); // back on the set just undone
-  });
+      final reopened = sessions.current.single;
+      expect(reopened.isComplete, isFalse);
+      expect(reopened.status, SessionStatus.active);
+      expect(find.text('Finish'), findsNothing);
+      expect(
+        find.byKey(const Key('set-chip-2-current')),
+        findsOneWidget,
+      ); // back on the set just undone
+    },
+  );
 
-  testWidgets('the Back control walks back one set at a time and hides once nothing is resolved', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'the Back control walks back one set at a time and hides once nothing is resolved',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    // Nothing resolved yet on set 1 — no Back control.
-    expect(find.text('Back'), findsNothing);
+      // Nothing resolved yet on set 1 — no Back control.
+      expect(find.byKey(const Key('back-chip')), findsNothing);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    await tester.tap(find.text('Skip rest'));
-    await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
 
-    // Set 1 is done — Back is offered on set 2's screen now.
-    expect(find.text('Set 2 of 2'), findsOneWidget);
-    expect(find.text('Back'), findsOneWidget);
+      // Set 1 is done — Back is offered on set 2's screen now.
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+      expect(find.byKey(const Key('back-chip')), findsOneWidget);
 
-    // The now-playing companion at the top of the logging slot pushes the
-    // action cluster below the fold on this fixed test viewport — scroll it
-    // into view rather than assuming it's already hit-testable, same as
-    // `_start`'s own scroll for "Skip warm-up".
-    await tester.ensureVisible(find.text('Back'));
-    await tester.pump();
-    await tester.tap(find.text('Back'));
-    await _settle(tester);
+      // The now-playing companion at the top of the logging slot pushes the
+      // action cluster below the fold on this fixed test viewport — scroll it
+      // into view rather than assuming it's already hit-testable, same as
+      // `_start`'s own scroll for "Skip warm-up".
+      await tester.ensureVisible(find.byKey(const Key('back-chip')));
+      await tester.pump();
+      await _tap(tester, find.byKey(const Key('back-chip')));
 
-    // Back to set 1, pending again, and no longer counted as done.
-    expect(find.text('Set 1 of 2'), findsOneWidget);
-    expect(sessions.current.single.completedSetCount, 0);
-    // Nothing resolved any more — Back itself disappears.
-    expect(find.text('Back'), findsNothing);
-  });
+      // Back to set 1, pending again, and no longer counted as done.
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
+      expect(sessions.current.single.completedSetCount, 0);
+      // Nothing resolved any more — Back itself disappears.
+      expect(find.byKey(const Key('back-chip')), findsNothing);
+    },
+  );
 
   testWidgets(
     'end-of-workout review: shows an exercise whose only sets were skipped, flags them, and '
@@ -860,16 +893,9 @@ void main() {
       await _start(tester);
 
       // Skip both of Bench's sets — nothing completed at all.
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Skip'));
-      await _settle(tester);
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Skip'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('skip-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('skip-set')));
 
       // Bench had ZERO completed sets — the old "doneSetCount > 0" filter
       // would have hidden it entirely. It must still show, flagged.
@@ -907,94 +933,90 @@ void main() {
     },
   );
 
-  testWidgets('end-of-workout review: correcting an already-done set\'s actuals sticks through Finish', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'end-of-workout review: correcting an already-done set\'s actuals sticks through Finish',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    // Complete both sets normally.
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    await tester.tap(find.text('Skip rest'));
-    await _settle(tester);
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-    await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
+      // Complete both sets normally.
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('log-set')));
 
-    expect(find.text('Finish'), findsOneWidget);
-    expect(find.text('Skipped'), findsNothing); // nothing was skipped
+      expect(find.text('Finish'), findsOneWidget);
+      expect(find.text('Skipped'), findsNothing); // nothing was skipped
 
-    // Correct set 1's logged weight — tap opens "Save", not "Mark done".
-    await tester.tap(find.text('Set 1'));
-    await tester.pumpAndSettle();
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Mark done'), findsNothing);
+      // Correct set 1's logged weight — tap opens "Save", not "Mark done".
+      await tester.tap(find.text('Set 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Mark done'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).at(1), '999');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(1), '999');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('999kg × 5'), findsOneWidget);
-    expect(sessions.current.single.completedSetCount, 2); // still both done
+      expect(find.text('999kg × 5'), findsOneWidget);
+      expect(sessions.current.single.completedSetCount, 2); // still both done
 
-    await tester.tap(find.text('Finish'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish'));
+      await tester.pumpAndSettle();
 
-    expect(workouts.added.single.exercises.single.weightKg, 999);
-  });
+      expect(workouts.added.single.exercises.single.weightKg, 999);
+    },
+  );
 
-  testWidgets('the rest countdown auto-advances to the next set when it reaches zero', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-    var fakeNow = DateTime(2026, 1, 1, 8);
+  testWidgets(
+    'the rest countdown auto-advances to the next set when it reaches zero',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-        now: () => fakeNow,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await _start(tester);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so the
-    // phase has actually advanced to resting.
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
+      await _tap(tester, find.byKey(const Key('log-set')));
+      // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so the
+      // phase has actually advanced to resting.
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        restWholeSeconds(tester),
+        closeTo(90, 1),
+      ); // the exercise's own plan rest
 
-    // Let the countdown run out (driven by wall-clock elapsed time, not tick
-    // count — advance the clock alongside the pumped duration).
-    fakeNow = fakeNow.add(const Duration(seconds: 91));
-    await tester.pump(const Duration(seconds: 91));
-    expect(find.text('Set 2 of 2'), findsOneWidget);
-  });
+      // Let the countdown run out (driven by wall-clock elapsed time, not tick
+      // count — advance the clock alongside the pumped duration).
+      fakeNow = fakeNow.add(const Duration(seconds: 91));
+      await tester.pump(const Duration(seconds: 91));
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'the rest countdown resyncs from wall-clock time on app resume, surviving '
@@ -1018,13 +1040,14 @@ void main() {
       );
       await _start(tester);
 
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
+      await _tap(tester, find.byKey(const Key('log-set')));
       // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so
       // the phase has actually advanced to resting.
       await tester.pump(const Duration(milliseconds: 300));
-      expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest
+      expect(
+        restWholeSeconds(tester),
+        closeTo(90, 1),
+      ); // the exercise's own plan rest
 
       // Simulate the OS suspending the app's Ticker for 40s while backgrounded
       // — no ticks fire, only wall-clock time passes — then resuming.
@@ -1039,7 +1062,7 @@ void main() {
       // And ending naturally still works post-resume.
       fakeNow = fakeNow.add(const Duration(seconds: 50));
       await tester.pump(const Duration(seconds: 50));
-      expect(find.text('Set 2 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
     },
   );
 
@@ -1073,21 +1096,15 @@ void main() {
       expect(elapsedText(tester), '0:45');
 
       // Keeps ticking into a new phase (resting), not just the running one.
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
+      await _tap(tester, find.byKey(const Key('log-set')));
       await tester.pump();
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
       expect(elapsedText(tester), '0:50');
 
       // Finish the day (single-exercise, 2-set plan) → completes and freezes.
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('log-set')));
       expect(find.text('Finish'), findsOneWidget);
       final frozenAt = elapsedText(tester);
 
@@ -1098,69 +1115,71 @@ void main() {
     },
   );
 
-  testWidgets('the "time in workout" label resyncs on app resume and formats past an hour', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-    var fakeNow = DateTime(2026, 1, 1, 8);
+  testWidgets(
+    'the "time in workout" label resyncs on app resume and formats past an hour',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      var fakeNow = DateTime(2026, 1, 1, 8);
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-        now: () => fakeNow,
-      ),
-    );
-    await _start(tester);
-    expect(elapsedText(tester), '0:00');
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          now: () => fakeNow,
+        ),
+      );
+      await _start(tester);
+      expect(elapsedText(tester), '0:00');
 
-    // Backgrounded for over an hour — no ticks fire, only wall-clock passes.
-    fakeNow = fakeNow.add(const Duration(hours: 1, minutes: 4, seconds: 5));
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
+      // Backgrounded for over an hour — no ticks fire, only wall-clock passes.
+      fakeNow = fakeNow.add(const Duration(hours: 1, minutes: 4, seconds: 5));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
 
-    expect(elapsedText(tester), '1:04:05');
-  });
+      expect(elapsedText(tester), '1:04:05');
+    },
+  );
 
-  testWidgets('a resumed session keeps its original startedAt for the elapsed label', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
-    // Started 90s before "now" — as if the app was closed and reopened.
-    final startedAt = DateTime(2026, 1, 1, 8);
-    var fakeNow = startedAt.add(const Duration(seconds: 90));
-    final resumeSession = LiveSession.start(
-      plan.days.first,
-      id: 'resume1',
-      planId: plan.id,
-      now: startedAt,
-    );
+  testWidgets(
+    'a resumed session keeps its original startedAt for the elapsed label',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      // Started 90s before "now" — as if the app was closed and reopened.
+      final startedAt = DateTime(2026, 1, 1, 8);
+      var fakeNow = startedAt.add(const Duration(seconds: 90));
+      final resumeSession = LiveSession.start(
+        plan.days.first,
+        id: 'resume1',
+        planId: plan.id,
+        now: startedAt,
+      );
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-        resume: resumeSession,
-        now: () => fakeNow,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+          resume: resumeSession,
+          now: () => fakeNow,
+        ),
+      );
+      await _start(tester);
 
-    // Reflects time since the ORIGINAL start, not since this screen opened.
-    expect(elapsedText(tester), '1:30');
-  });
+      // Reflects time since the ORIGINAL start, not since this screen opened.
+      expect(elapsedText(tester), '1:30');
+    },
+  );
 
   testWidgets(
     'no history for this exact set → "First time" and the goal is the plan '
@@ -1168,7 +1187,8 @@ void main() {
     (tester) async {
       final workouts = _RecordingWorkoutRepository();
       final plans = _RecordingWorkoutPlanRepository();
-      final sessions = InMemoryWorkoutSessionRepository(); // no prior session saved
+      final sessions =
+          InMemoryWorkoutSessionRepository(); // no prior session saved
       final plan = _plan();
 
       await tester.pumpWidget(
@@ -1185,7 +1205,8 @@ void main() {
       expect(find.text('First time'), findsOneWidget); // LAST TIME stat
       // Bench's plan sets carry no targetWeightKg, fixed(5) reps → the
       // prescription-only goal is reps with no weight to suggest.
-      expect(find.text('× 5'), findsOneWidget);
+      expect(goalReps(tester), '5');
+      expect(goalWeight(tester), '—'); // nothing to suggest
     },
   );
 
@@ -1216,7 +1237,13 @@ void main() {
               name: 'Bench',
               restSeconds: 90,
               sets: [
-                LoggedSet(id: 's0', target: RepTarget.fixed(5), outcome: SetOutcome.completed, actualReps: 5, actualWeightKg: 999),
+                LoggedSet(
+                  id: 's0',
+                  target: RepTarget.fixed(5),
+                  outcome: SetOutcome.completed,
+                  actualReps: 5,
+                  actualWeightKg: 999,
+                ),
               ],
             ),
           ],
@@ -1267,20 +1294,23 @@ void main() {
       // Run the clock a bit, then start a rest by logging set 1.
       fakeNow = fakeNow.add(const Duration(seconds: 30));
       await tester.pump(const Duration(seconds: 30));
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
+      await _tap(tester, find.byKey(const Key('log-set')));
       // Past the completion-beat hold (see `_afterResolvingCurrentSet`) so
       // the phase has actually advanced to resting.
       await tester.pump(const Duration(milliseconds: 300));
       expect(elapsedText(tester), '0:30');
-      expect(restWholeSeconds(tester), closeTo(90, 1)); // the exercise's own plan rest, running
+      expect(
+        restWholeSeconds(tester),
+        closeTo(90, 1),
+      ); // the exercise's own plan rest, running
 
       // Pause — both clocks freeze even as real time keeps passing.
-      await tester.tap(find.text('Pause'));
+      await tester.tap(find.byKey(const Key('pause-toggle')));
       await tester.pump();
-      expect(find.text('PAUSED'), findsOneWidget);
-      expect(find.text('Resume'), findsOneWidget);
+      // Pause and resume are the SAME control — the header toggle. Paused
+      // state is the badge, not a separate "Resume" button.
+      expect(find.byKey(const Key('paused-badge')), findsOneWidget);
+      expect(find.text('PAUSED · TAP TO RESUME'), findsOneWidget);
 
       fakeNow = fakeNow.add(const Duration(seconds: 20));
       await tester.pump(const Duration(seconds: 20));
@@ -1290,9 +1320,9 @@ void main() {
       // Resume — elapsed continues from 0:30 (the 20 paused seconds are
       // excluded, not just skipped-over), and rest resumes at 1:30 instead
       // of restarting from the full 90s.
-      await tester.tap(find.text('Resume'));
+      await tester.tap(find.byKey(const Key('pause-toggle')));
       await tester.pump();
-      expect(find.text('PAUSED'), findsNothing);
+      expect(find.byKey(const Key('paused-badge')), findsNothing);
 
       fakeNow = fakeNow.add(const Duration(seconds: 5));
       await tester.pump(const Duration(seconds: 5));
@@ -1301,7 +1331,9 @@ void main() {
     },
   );
 
-  testWidgets('while paused, the phase content is dimmed and not tappable', (tester) async {
+  testWidgets('while paused, the phase content is dimmed and not tappable', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -1318,13 +1350,13 @@ void main() {
     );
     await _start(tester);
 
-    await tester.tap(find.text('Pause'));
+    await tester.tap(find.byKey(const Key('pause-toggle')));
     await tester.pump();
-    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.byKey(const Key('paused-badge')), findsOneWidget);
 
     // The Done button is still in the tree (dimmed via Opacity, not removed)
     // but IgnorePointer blocks the tap from reaching it.
-    await tester.tap(find.text('Done'), warnIfMissed: false);
+    await tester.tap(find.byKey(const Key('log-set')), warnIfMissed: false);
     await tester.pump();
     expect(sessions.current.single.completedSetCount, 0); // nothing logged
 
@@ -1334,7 +1366,9 @@ void main() {
     expect(find.text('go'), findsOneWidget); // popped normally
   });
 
-  testWidgets('a pause survives leave and resume (persisted model state)', (tester) async {
+  testWidgets('a pause survives leave and resume (persisted model state)', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -1357,11 +1391,9 @@ void main() {
     await tester.pump(const Duration(seconds: 30));
     // Log a set first — Close on a zero-progress session silently discards
     // it (Phase 1 behavior), which would defeat this test's premise.
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
+    await _tap(tester, find.byKey(const Key('log-set')));
     await tester.pump();
-    await tester.tap(find.text('Pause'));
+    await tester.tap(find.byKey(const Key('pause-toggle')));
     await tester.pump();
 
     // Leave while paused — the paused session (with its pausedAt) autosaves.
@@ -1387,11 +1419,13 @@ void main() {
 
     // Still paused, and frozen at exactly the elapsed time from before —
     // the 10 minutes spent away don't leak into it.
-    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.byKey(const Key('paused-badge')), findsOneWidget);
     expect(elapsedText(tester), '0:30');
   });
 
-  testWidgets('an empty day settles straight into the completed view', (tester) async {
+  testWidgets('an empty day settles straight into the completed view', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -1408,56 +1442,54 @@ void main() {
       ),
     );
     await tester.tap(find.text('go'));
-    await tester.pumpAndSettle(); // no repeating controllers in the completed view
+    await tester
+        .pumpAndSettle(); // no repeating controllers in the completed view
 
-    expect(find.text('WORKOUT COMPLETE'), findsOneWidget); // _Eyebrow uppercases
+    expect(
+      find.text('WORKOUT COMPLETE'),
+      findsOneWidget,
+    ); // _Eyebrow uppercases
     expect(find.text('Finish'), findsOneWidget);
   });
 
-  testWidgets('rapid double-tap on Finish only writes history and advances the cursor once', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'rapid double-tap on Finish only writes history and advances the cursor once',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    await tester.tap(find.text('Skip rest'));
-    await _settle(tester);
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    expect(find.text('Finish'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(find.text('Finish'), findsOneWidget);
 
-    // Finish now pops synchronously (the write is fire-and-forget), so the
-    // first tap's pop transition may already be under way by the second —
-    // it's fine if the second doesn't even land on the button any more
-    // (warnIfMissed: false); what matters is the `_busy` guard still makes
-    // it a no-op rather than a duplicate write.
-    await tester.tap(find.text('Finish'));
-    await tester.tap(find.text('Finish'), warnIfMissed: false);
-    await tester.pumpAndSettle();
+      // Finish now pops synchronously (the write is fire-and-forget), so the
+      // first tap's pop transition may already be under way by the second —
+      // it's fine if the second doesn't even land on the button any more
+      // (warnIfMissed: false); what matters is the `_busy` guard still makes
+      // it a no-op rather than a duplicate write.
+      await tester.tap(find.text('Finish'));
+      await tester.tap(find.text('Finish'), warnIfMissed: false);
+      await tester.pumpAndSettle();
 
-    expect(workouts.added, hasLength(1));
-    expect(plans.saved, hasLength(1));
-    expect(plans.saved.single.cycleCursor, 1);
-  });
+      expect(workouts.added, hasLength(1));
+      expect(plans.saved, hasLength(1));
+      expect(plans.saved.single.cycleCursor, 1);
+    },
+  );
 
   testWidgets(
     'Finish advances the cursor on the LIVE plan, not the stale snapshot the page was '
@@ -1485,109 +1517,103 @@ void main() {
       final editedPlan = plan.copyWith(
         days: [
           ...plan.days,
-          const WorkoutDay(id: 'c', slot: 'C', label: 'Legs', order: 2, exercises: []),
+          const WorkoutDay(
+            id: 'c',
+            slot: 'C',
+            label: 'Legs',
+            order: 2,
+            exercises: [],
+          ),
         ],
       );
       await plans.savePlan(editedPlan);
       plans.saved.clear(); // isolate the assertions below to Finish's own write
 
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('log-set')));
       await tester.tap(find.text('Finish'));
       await tester.pumpAndSettle();
 
       expect(plans.saved, hasLength(1));
       // The mid-session edit (the third day) survives Finish's write...
-      expect(plans.saved.single.days.map((d) => d.id), containsAll(['a', 'b', 'c']));
+      expect(
+        plans.saved.single.days.map((d) => d.id),
+        containsAll(['a', 'b', 'c']),
+      );
       // ...and the cursor advances off the live 3-day order, not the stale 2-day one.
       expect(plans.saved.single.cycleCursor, 1);
     },
   );
 
-  testWidgets('Finish pops immediately without waiting for the write to complete (offline-safe)', (
-    tester,
-  ) async {
-    final workouts = _NeverCompletingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'Finish pops immediately without waiting for the write to complete (offline-safe)',
+    (tester) async {
+      final workouts = _NeverCompletingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    await tester.tap(find.text('Skip rest'));
-    await _settle(tester);
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
-    expect(find.text('Finish'), findsOneWidget);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
+      await _tap(tester, find.byKey(const Key('log-set')));
+      expect(find.text('Finish'), findsOneWidget);
 
-    // `workouts.add` never resolves — if Finish awaited it, this would hang
-    // (and pumpAndSettle would time out). It doesn't: the write is fired
-    // unawaited, so the pop is not blocked on a server ack that (as if
-    // offline) is never coming.
-    await tester.tap(find.text('Finish'));
-    await tester.pumpAndSettle();
+      // `workouts.add` never resolves — if Finish awaited it, this would hang
+      // (and pumpAndSettle would time out). It doesn't: the write is fired
+      // unawaited, so the pop is not blocked on a server ack that (as if
+      // offline) is never coming.
+      await tester.tap(find.text('Finish'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('go'), findsOneWidget); // popped
-    expect(plans.saved, hasLength(1));
-    expect(plans.saved.single.cycleCursor, 1);
-  });
+      expect(find.text('go'), findsOneWidget); // popped
+      expect(plans.saved, hasLength(1));
+      expect(plans.saved.single.cycleCursor, 1);
+    },
+  );
 
-  testWidgets('the system back gesture leaves like the close button (non-destructive)', (
-    tester,
-  ) async {
-    final workouts = _RecordingWorkoutRepository();
-    final plans = _RecordingWorkoutPlanRepository();
-    final sessions = InMemoryWorkoutSessionRepository();
-    final plan = _plan();
+  testWidgets(
+    'the system back gesture leaves like the close button (non-destructive)',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
 
-    await tester.pumpWidget(
-      _wrap(
-        workouts: workouts,
-        workoutPlans: plans,
-        workoutSessions: sessions,
-        day: plan.days.first,
-        plan: plan,
-      ),
-    );
-    await _start(tester);
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-    await tester.tap(find.text('Done'));
-    await _settle(tester);
+      await tester.pumpWidget(
+        _wrap(
+          workouts: workouts,
+          workoutPlans: plans,
+          workoutSessions: sessions,
+          day: plan.days.first,
+          plan: plan,
+        ),
+      );
+      await _start(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
 
-    // Simulate the OS back gesture/button rather than tapping the close icon.
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+      // Simulate the OS back gesture/button rather than tapping the close icon.
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
 
-    // Intercepted like the close button: pops straight through, no discard
-    // dialog, and the logged progress survives (Resume-able).
-    expect(find.text('Discard this workout?'), findsNothing);
-    expect(find.text('go'), findsOneWidget);
-    expect(sessions.current.single.status, SessionStatus.active);
-  });
+      // Intercepted like the close button: pops straight through, no discard
+      // dialog, and the logged progress survives (Resume-able).
+      expect(find.text('Discard this workout?'), findsNothing);
+      expect(find.text('go'), findsOneWidget);
+      expect(sessions.current.single.status, SessionStatus.active);
+    },
+  );
 
   testWidgets(
     'force-kill recovery: a session left active by a killed app never contaminates '
@@ -1621,7 +1647,8 @@ void main() {
                   target: RepTarget.fixed(5),
                   outcome: SetOutcome.completed,
                   actualReps: 5,
-                  actualWeightKg: 999, // deliberately extreme — must never surface
+                  actualWeightKg:
+                      999, // deliberately extreme — must never surface
                 ),
               ],
             ),
@@ -1650,7 +1677,10 @@ void main() {
       // Resume is meant to bring back) — the killed session is left as-is
       // alongside the fresh one this screen started.
       expect(sessions.current.any((s) => s.id == 'killed-session'), isTrue);
-      expect(sessions.current.where((s) => s.status == SessionStatus.active), hasLength(2));
+      expect(
+        sessions.current.where((s) => s.status == SessionStatus.active),
+        hasLength(2),
+      );
     },
   );
 
@@ -1699,7 +1729,13 @@ void main() {
               ),
             ],
           ),
-          WorkoutDay(id: 'b', slot: 'B', label: 'Pull', order: 1, exercises: []),
+          WorkoutDay(
+            id: 'b',
+            slot: 'B',
+            label: 'Pull',
+            order: 1,
+            exercises: [],
+          ),
         ],
       );
 
@@ -1716,7 +1752,7 @@ void main() {
 
       // Set 1: a range target — the TARGET stat cell carries the plan's
       // range as real context beside LAST TIME.
-      expect(find.text('Set 1 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const Key('target-label'))).data,
         '8–10 reps',
@@ -1725,14 +1761,10 @@ void main() {
       // Advance to set 2: to-failure — a "To failure" target cell would just
       // restate the AMRAP goal label above it, so it's suppressed (the cell
       // reads "—").
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-      await tester.tap(find.text('Skip rest'));
-      await _settle(tester);
+      await _tap(tester, find.byKey(const Key('log-set')));
+      await _tap(tester, find.text('Skip rest'));
 
-      expect(find.text('Set 2 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-2-current')), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const Key('target-label'))).data,
         '—',
@@ -1765,7 +1797,10 @@ void main() {
 
       // Not yet debounced — nothing written to the session/repo just from
       // the keystroke itself.
-      expect(sessions.current.single.exercises.first.sets.first.actualWeightKg, isNull);
+      expect(
+        sessions.current.single.exercises.first.sets.first.actualWeightKg,
+        isNull,
+      );
 
       // Past the ~450ms debounce window, it autosaves as a draft — NOT done.
       await tester.pump(const Duration(milliseconds: 500));
@@ -1795,7 +1830,9 @@ void main() {
         ),
       );
       await _start(tester);
-      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      final weightField = tester.widget<TextField>(
+        find.byType(TextField).at(1),
+      );
       expect(weightField.controller!.text, '62.5');
     },
   );
@@ -1828,7 +1865,12 @@ void main() {
             name: 'Bench',
             restSeconds: 90,
             sets: [
-              LoggedSet(id: 's0', target: RepTarget.fixed(5), actualReps: 6, actualWeightKg: 65),
+              LoggedSet(
+                id: 's0',
+                target: RepTarget.fixed(5),
+                actualReps: 6,
+                actualWeightKg: 65,
+              ),
               LoggedSet(id: 's1', target: RepTarget.fixed(5)),
             ],
           ),
@@ -1849,9 +1891,14 @@ void main() {
       await _start(tester);
 
       final repsField = tester.widget<TextField>(find.byType(TextField).at(0));
-      final weightField = tester.widget<TextField>(find.byType(TextField).at(1));
+      final weightField = tester.widget<TextField>(
+        find.byType(TextField).at(1),
+      );
       expect(repsField.controller!.text, '6'); // the draft, not the goal's '5'
-      expect(weightField.controller!.text, '65'); // the draft, not the goal's '57.5'
+      expect(
+        weightField.controller!.text,
+        '65',
+      ); // the draft, not the goal's '57.5'
     },
   );
 
@@ -1876,12 +1923,12 @@ void main() {
       await _settle(tester);
 
       expect(find.text('PRE-WORKOUT'), findsOneWidget); // _Eyebrow uppercases
-      expect(find.text('Loosen up before your first set'), findsOneWidget);
+      expect(find.text('LOOSEN UP BEFORE YOUR FIRST SET'), findsOneWidget);
       expect(find.text('Skip warm-up'), findsOneWidget);
       expect(restWholeSeconds(tester), closeTo(300, 1)); // 5:00 default
 
       // Not yet on the first set — the per-exercise view hasn't shown at all.
-      expect(find.text('Set 1 of 2'), findsNothing);
+      expect(find.byKey(const Key('set-chip-1-current')), findsNothing);
       expect(find.text('Bench'), findsNothing);
     },
   );
@@ -1913,16 +1960,18 @@ void main() {
       await tester.pump(const Duration(seconds: 45));
       expect(restWholeSeconds(tester), closeTo(255, 1));
 
-      await tester.tap(find.text('+15s'));
+      await tester.tap(find.byKey(const Key('warmup-plus-15')));
       await tester.pump();
       expect(restWholeSeconds(tester), closeTo(270, 1));
-      await tester.tap(find.text('-15s'));
+      await tester.tap(find.byKey(const Key('warmup-minus-15')));
       await tester.pump();
       expect(restWholeSeconds(tester), closeTo(255, 1));
     },
   );
 
-  testWidgets('Skip warm-up advances straight to the first set', (tester) async {
+  testWidgets('Skip warm-up advances straight to the first set', (
+    tester,
+  ) async {
     final workouts = _RecordingWorkoutRepository();
     final plans = _RecordingWorkoutPlanRepository();
     final sessions = InMemoryWorkoutSessionRepository();
@@ -1941,10 +1990,9 @@ void main() {
     await _settle(tester);
     expect(find.text('Skip warm-up'), findsOneWidget);
 
-    await tester.tap(find.text('Skip warm-up'));
-    await _settle(tester);
+    await _tap(tester, find.text('Skip warm-up'));
 
-    expect(find.text('Set 1 of 2'), findsOneWidget);
+    expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
     expect(find.text('Bench'), findsOneWidget);
     expect(find.text('Skip warm-up'), findsNothing);
     expect(find.text('PRE-WORKOUT'), findsNothing);
@@ -1978,7 +2026,7 @@ void main() {
       fakeNow = fakeNow.add(const Duration(seconds: 301));
       await tester.pump(const Duration(seconds: 301));
 
-      expect(find.text('Set 1 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
     },
   );
 
@@ -2011,6 +2059,6 @@ void main() {
     // "before your first set" phase, unlike a genuinely fresh start.
     expect(find.text('PRE-WORKOUT'), findsNothing);
     expect(find.text('Skip warm-up'), findsNothing);
-    expect(find.text('Set 1 of 2'), findsOneWidget);
+    expect(find.byKey(const Key('set-chip-1-current')), findsOneWidget);
   });
 }

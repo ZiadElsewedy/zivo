@@ -160,9 +160,36 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 `flutter analyze` clean · `flutter test` green · `functions` `npm test` green · rules
 suite green. **Always re-run `make gates` rather than trusting a remembered test count.**
 
+**The Flutter suite is fully green (749) as of 2026-08-28** — the long-standing ~32 red
+tests are fixed, so a new failure now means *you broke something*, not "that one was
+already red." Keep it that way.
+
+**Driving widget tests:** prefer `find.byKey` over `find.text` for anything a test *taps*.
+The 32 stale failures were almost entirely copy coupling — a redesign renamed `Done` to
+`Log set`, uppercased `Back`, swapped `-` for `−`, and turned "Set 1 of 2" into a chip row,
+and the suite went red without a single behaviour changing. Tap targets on the live-session
+screen now carry stable keys (`log-set`, `skip-set`, `back-chip`, `pause-toggle`,
+`set-chip-<n>-<state>`, `rest-±15`, `warmup-±15`, `goal-reps`, `goal-weight`). Also note
+`tester.tap` does **not** fail when the target is below the fold — it warns and hits
+nothing, and the test then fails somewhere unrelated; `live_session_page_test`'s `_tap`
+helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workarounds.
+
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-28 — **Fixed the 32 long-standing red tests; suite is green (749) and
+  `flutter analyze` is clean.** They were stale finders, not regressions: every control
+  STATE.md worried had been "renamed *or dropped*" still exists, verified against the
+  source. Root causes were six renames (`Done`→`Log set`, `Back`→`BACK`, `-15s`→`−15s`,
+  "Set 1 of 2"→a chip row, Pause/Resume→one keyed toggle, the goal hero split into
+  `goal-reps`/`goal-weight`), plus a silent-tap trap: 31 `tester.drag(...)` workarounds
+  were papering over `tester.tap` missing below-the-fold targets. Fixed by adding stable
+  keys to the live-session controls and a `_tap` helper that scrolls first. Two real
+  design changes the tests had to be rewritten for, not worked around: the pulse card's
+  third ring is Volume (diet moved to its own glance row), and the goal caption now leads
+  with the **load** delta ("↑ 5 KG VS LAST") instead of a "Progressing +17%" badge.
+  Verified the repaired suite still has teeth by mutation-testing it (`_onBack` no-op → 4
+  failures incl. Ziad's-incident test; corrupted goal hero → happy path fails).
 - 2026-08-28 — **Design audit H3.** Retired emoji from expense categories (identity §4/§8).
   `ExpenseCategory.emoji` became `icon: CategoryIcon` — a semantic enum persisted as
   `iconId`, resolved to a stroked Lucide glyph by the new

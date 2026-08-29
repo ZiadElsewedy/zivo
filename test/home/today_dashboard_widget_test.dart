@@ -100,13 +100,21 @@ void main() {
 
     // Train: a session completed today → filled + "Trained".
     expect(find.text('Trained'), findsOneWidget);
-    // Fuel: the default in-memory diet repo seeds a 3-meal plan with none
-    // eaten yet → 0/3.
-    expect(find.text('0/3'), findsOneWidget);
-    expect(find.text('Meals'), findsOneWidget);
-    // Move: fake device steps render compacted with the goal caption.
-    expect(find.text('6.5k'), findsOneWidget);
-    expect(find.text('of 8k steps'), findsOneWidget);
+    // Move: fake device steps render compacted with the goal caption. The
+    // ring splits the number from its unit into separate slots now (so the
+    // digits keep the hero size and the "k" reads as a unit), and the caption
+    // is the mono "OF 8K".
+    expect(find.text('6.5'), findsOneWidget);
+    expect(find.text('K'), findsOneWidget);
+    expect(find.text('OF 8K'), findsOneWidget);
+    // Volume: the third ring is training tonnage now. The pulse card's rings
+    // are Trained · Steps · Volume — all three about training. The diet ring
+    // that used to sit here moved out to its own glance row (asserted below),
+    // so the card answers one question instead of two.
+    expect(find.text('Volume'), findsOneWidget);
+    // Fuel still shows on Today, as the diet glance line: the default
+    // in-memory diet repo seeds a 3-meal plan with none eaten yet.
+    expect(find.textContaining('0 of 3 meals eaten'), findsOneWidget);
   });
 
   testWidgets('momentum appears once history exists and shows the streak',
