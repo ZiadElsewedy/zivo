@@ -57,6 +57,20 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   dimmed area doubles as the resume target (`paused-resume-overlay`). The pill used to
   *look* like a pause button while being inert decoration inside that dead region; that's
   the bug this arrangement fixes, so don't collapse it back to a single header control.
-- The rest ring's numeral is centred by a **mirrored invisible spacer** left of it, sized
-  to the hundredths slot on its right — that's what puts the big digits on the ring's true
-  centre. Covered by a geometry test; don't "simplify" the spacer away.
+- The rest ring's numeral is centred by being the ring Stack's **only sizing child**; the
+  hundredths hang off its right edge at zero layout width. Both type sizes are set against
+  the *circle*, not against each other — at the original 74/26 the readout crossed the
+  stroke. Covered by a geometry test; don't restore a mirrored spacer or bump the sizes.
+- **`AnimatedSize` cannot be used inside a phase.** `_phaseScroll` wraps its column in
+  `IntrinsicHeight` so the `Spacer`s can distribute slack; `AnimatedSize` reports its
+  child's intrinsic height while laying out an animated one, so the column gets pinned
+  short and overflows. Animate the *contents*, or hold the height fixed instead.
+- The goal card is a **fixed height for a given set**, on purpose: the comparison chip and
+  the volume line are always rendered (the chip says "matching your previous set"; the
+  volume line is a reserved 14px). They used to appear only once you moved the weight,
+  which resized the card under your thumb. Regression-tested via `Key('goal-card')`.
+- The logging screen's commit row **floats over** the scroll area rather than splitting the
+  height with it, so it is never below the fold; the scroll reserves `_commitRowSpace` and
+  fades into it. Below `minPinnableHeight` (a keyboard on a very short device) it falls
+  back to scrolling everything — that fallback is what keeps the keyboard-overflow stress
+  test green.

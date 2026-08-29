@@ -2665,9 +2665,17 @@ class _GoalBlock extends StatelessWidget {
               ],
             ),
           ),
-          if (_volume != null || delta != null) ...[
-            const SizedBox(height: 12),
-            Row(
+          const SizedBox(height: 12),
+          // Always rendered, even with nothing to put in it. Both halves come
+          // and go with what you type — the volume needs a load to multiply
+          // by, the verdict needs something to compare against — and letting
+          // the row itself appear and disappear resized the card the first
+          // time you entered a weight, which is the same "it moves under your
+          // thumb" problem the delta chip had. A fixed line costs 14px and
+          // makes the card one height for a given set, whatever you type.
+          SizedBox(
+            height: 14,
+            child: Row(
               children: [
                 if (_volume != null)
                   AnimatedStatValue(
@@ -2693,7 +2701,7 @@ class _GoalBlock extends StatelessWidget {
                   ),
               ],
             ),
-          ],
+          ),
           if (_hint != null) ...[
             const SizedBox(height: 12),
             Row(

@@ -776,30 +776,21 @@ void main() {
       await _tap(tester, find.byKey(const Key('log-set')));
       await _tap(tester, find.text('Skip rest'));
 
-      // Set 2. The comparison line is present BEFORE anything is changed —
-      // that's the whole point: it used to appear only once you'd moved the
-      // weight, so the card gained a row (and shoved the steppers, the music
-      // strip and the commit row down with it) the moment you tapped +2.5.
+      // Set 2. Nothing the steppers can do may change this card's height.
+      // Two separate things used to: the comparison chip appeared only once
+      // you'd moved the weight, and the volume line appeared only once a
+      // weight parsed at all — so the card gained a row (shoving the
+      // steppers, the music strip and the commit row down with it) the moment
+      // you tapped +2.5 or typed a load.
       expect(find.byKey(const Key('intra-session-delta')), findsOneWidget);
-      // ignore: avoid_print
-      print('BEFORE: ' + tester.widgetList<Text>(find.descendant(
-        of: find.byKey(const Key('goal-card')), matching: find.byType(Text),
-      )).map((t) => t.data).toList().toString());
       final before = tester.getSize(find.byKey(const Key('goal-card'))).height;
 
       await tester.enterText(find.byType(TextField).at(1), '65');
       await tester.pump();
       await _settle(tester);
 
-      // ignore: avoid_print
-      print('AFTER: ' + tester.widgetList<Text>(find.descendant(
-        of: find.byKey(const Key('goal-card')), matching: find.byType(Text),
-      )).map((t) => t.data).toList().toString());
       expect(find.text('+5kg from your previous set'), findsOneWidget);
-      expect(
-        tester.getSize(find.byKey(const Key('goal-card'))).height,
-        before,
-      );
+      expect(tester.getSize(find.byKey(const Key('goal-card'))).height, before);
     },
   );
 

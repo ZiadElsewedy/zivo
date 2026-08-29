@@ -212,8 +212,28 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   through grey and rendered tan. Goal card reads as **one expression, `9 REPS × 30 KG`,
   with the volume under it** instead of two numbers at opposite ends. Back chip moved
   top-**left**; a hard 18px gap keeps the up-next card off the music strip when the
-  balancing Spacer collapses. Verified on an iPhone 17 simulator against a harness that
-  serves real artwork bytes. 751 tests + 3 new ones green, analyze clean.
+  balancing Spacer collapses. Then a second owner round on the logging screen: the goal
+  card's numerals **roll** to their new value instead of snapping (`_RollingNumber`), and
+  the card now holds **one height for a given set whatever you type** — both the
+  comparison chip and the volume line used to appear only once you'd moved the weight, so
+  a +2.5 grew the card and shunted everything under it (the chip says "matching your
+  previous set" rather than vanishing; the volume line is a reserved 14px). The commit row
+  **floats over** the scroll instead of splitting the space with it, so "Log set" is never
+  below the fold and content dissolves into it (`_FadeOutBottom`) rather than being sliced
+  at a hard seam; all three phases share one scroll shell (`_phaseScroll`) with
+  always-scrollable physics and the header's own 22pt inset. Note `AnimatedSize` is
+  **unusable** in these phases — it reports one intrinsic height and lays out another,
+  which pins the `IntrinsicHeight` column short and overflows it. The rest numeral was
+  also still crossing the ring's stroke; 74/26 → 64/17 with the hundredths overhanging at
+  zero layout width clears the inner edge at the widest value it can show. Verified on an
+  iPhone 17 simulator against a temporary harness that served real artwork bytes.
+  753 tests + 4 new ones green, analyze clean.
+
+  > **Known-failing, not from this work:** `today_dashboard_widget_test.dart`'s "a
+  > brand-new user sees neither momentum nor insights" fails whenever the suite runs after
+  > 19:00 — `today_pulse.dart:207` fires its evening diet nudge off the real clock and the
+  > test doesn't inject one (line 246 has the same shape at `hour >= 16`). Reproduces on a
+  > clean tree.
 - 2026-08-29 — **Owner UI feedback round.** Fixed a **regression I shipped in the polish
   pass**: Momentum's low-data row overflowed by 20px on a real phone (the left caption I
   added pushed the pair past the edge — both captions are `Flexible` now, copy shortened to
