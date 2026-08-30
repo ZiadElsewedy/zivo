@@ -56,6 +56,11 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   eggs and rice" must be answered with what the app knows, not a guess. `gateway.test.js`
   asserts the prompt still says this; don't soften it without reading
   [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+- **The coach is handed decisions, not just data.** The diet payload carries `findings`
+  from the deterministic rules engine (`functions/diet/rules.js`) — ranked, capped at three,
+  each typed and evidenced. The prompt tells the model to lead with them, never to
+  contradict one, and never to invent a recommendation they don't contain. New coaching
+  behaviour goes in the engine; the prompt is delivery, not policy.
 - **The diet tool payload IS a `DietState`** — the same object, built by the same rules,
   that the Diet screen renders (`functions/diet/state.js` mirrors
   `lib/features/diet/domain/diet_state_builder.dart`; `test/fixtures/diet_state_vectors.json`

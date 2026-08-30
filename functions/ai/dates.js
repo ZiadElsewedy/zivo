@@ -220,6 +220,19 @@ function localNowFacts(date, offsetMinutes, zoneLabel) {
 }
 
 /**
+ * The user's own hour of day (0–23) at `date`, or null when no usable offset
+ * was supplied. Null is meaningful: a coach that doesn't know whether it's
+ * breakfast or bedtime should say less, not guess.
+ * @param {!Date} date
+ * @param {number=} offsetMinutes
+ * @return {?number}
+ */
+function localHourAt(date, offsetMinutes) {
+  const local = asLocalWallClock(date, offsetMinutes);
+  return local ? local.getUTCHours() : null;
+}
+
+/**
  * Resolves which `DietDay`-shaped entry of `days` applies on `date`: the day
  * whose `weekday` matches `date`'s, else the every-day template
  * (`weekday == null`), else — if there's exactly one day — that day. Mirrors
@@ -251,5 +264,6 @@ module.exports = {
   monthRangeMs,
   resolveDietDay,
   localNowFacts,
+  localHourAt,
   isUsableOffset,
 };

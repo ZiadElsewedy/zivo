@@ -26,6 +26,13 @@
 Ledger: `diet_entry.dart`, `diet_summary.dart`. Import: `diet_import_result.dart`,
 `diet_plan_from_import.dart`, `diet_source.dart` (`DietSource.pdf`), `diet_plan_status.dart`.
 
+**The coaching engine (what the coach decides to say):** `domain/coaching/finding.dart`
+(`CoachingFinding` — kind · severity · deterministic text · the state fields it rests on)
+and `coaching/rules.dart` (`coachingFindings`). Pure: `DietState` in, at most three ranked
+findings out. Mirrored in `functions/diet/rules.js`, pinned by
+`test/fixtures/coaching_vectors.json` (both suites). **Add coaching logic here, not to the
+prompt** — the model phrases findings, it doesn't decide them.
+
 **`DietState` — the one structured picture, and the thing to reach for first:**
 `domain/diet_state.dart` + `diet_state_builder.dart`. Goal · targets · consumed (with its
 `ConsumedBasis`) · remaining · meals · history · `DietQuality` flags. The Diet screen

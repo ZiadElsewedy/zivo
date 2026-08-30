@@ -6,7 +6,7 @@
 > **Findings are referenced by id (`T1`…`T15`) from `FEATURE.md`s, commit messages and the
 > later phases — keep the ids stable.**
 >
-> Status: **Phases 0–4 landed** (2026-08-30). Phases 5–8 are not started.
+> Status: **Phases 0–5 landed** (2026-08-30). Phases 6–8 are not started.
 
 ---
 
@@ -83,7 +83,7 @@ is what makes it safe to reject aggressively.
 | 2 | Nutrition data source + resolver | T2, part of T13 | **Done** — see below |
 | 3 | A real food log (`foodLogs`) | T6 | **Done** — see below |
 | 4 | `DietState` + shared golden vectors | T13 | **Done** — see below |
-| 5 | Coaching rules engine | — | Not started |
+| 5 | Coaching rules engine | part of T15; groundwork for T8 | **Done** — see below |
 | 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | Not started |
 | 7 | Advice validator + safety intercept | T8 T15 | Not started |
 | 8 | UI: provenance, targets, the "why" | — | Not started |
@@ -376,5 +376,53 @@ One structured picture, built once, rendered by the screen and read by the coach
 `functions/diet/state.test.js` (the shared vectors both ways, plus the rules the
 state enforces in one place), and one prompt-contract test. The existing tool
 tests were rewritten against the state-shaped payload.
+
+**Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.
+
+---
+
+## Phase 5 — what actually landed (2026-08-30)
+
+The coach's decisions are code now. The model's job is delivery.
+
+- **`CoachingFinding` types the six registers** the brief asked for —
+  observation · analysis · recommendation · warning · encouragement ·
+  clarification — each with a severity, a **deterministic sentence that is
+  correct on its own**, and an `evidence` list naming the `DietState` fields it
+  was derived from. That evidence list is what makes "why is this being said?"
+  answerable rather than asserted, and the deterministic text is what Phase 7's
+  validator will fall back to when it rejects a generated reply.
+- **`coachingFindings` is pure: state in, at most three findings out.** Three,
+  because a coach who lists six things has told you nothing. Ranked by
+  severity, stably, so the same state always yields the same three.
+- **The rules fire only when they have something real to say**, and the tests
+  assert the silence as hard as the speech: a met protein target produces
+  encouragement and *no* shortfall; a protein gap at 09:00 stays quiet because
+  there is a whole day to close it; the same gap at 19:00 with the budget
+  running out becomes the brief's worked example, complete with the room it has
+  to work within — *"35g short of the 160g protein target, with 350 kcal left"*.
+  An empty day produces no overshoot, and an empty log is **never** rendered as
+  "you haven't eaten".
+- **Time is an input to the rules, not a field on the state.** `localHour` is a
+  property of *now*, not of the day being summarised, so it's a parameter — and
+  when it's unknown, time-sensitive rules simply don't fire. A coach that
+  doesn't know whether it's breakfast or bedtime should say less, not guess.
+  Asking about a past day correctly gets no evening nudge.
+- **One ranking decision worth recording:** the provenance clarifications
+  (*these totals are assumptions*, *these figures were estimated*) were
+  initially `info` and got crowded out of the cap by plain readouts. They're
+  `notable` now. Being wrong about what a figure MEANS is worse than omitting
+  the figure.
+- **Wired, not shelved.** The diet tool payload carries `findings` alongside
+  the state, and the prompt now says plainly: lead with them, never contradict
+  one, never invent a recommendation they don't contain, don't soften a
+  warning, and pass a clarification on as the gap it describes. New coaching
+  behaviour belongs in the engine — the prompt is delivery, not policy.
+
+**Tests added:** `test/diet/coaching_rules_test.dart` and
+`functions/diet/rules.test.js` (the shared vectors both ways, the cap, the
+evidence requirement, and eight explicit negatives), two tool-level tests, and
+one prompt-contract test. Shared fixture:
+`test/fixtures/coaching_vectors.json`, 11 cases.
 
 **Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.

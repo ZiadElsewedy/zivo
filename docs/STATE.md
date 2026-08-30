@@ -200,6 +200,24 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 5: the coaching rules engine.** What the coach *decides*
+  to say now lives in code, not in the prompt. `CoachingFinding` types the six registers
+  (observation · analysis · recommendation · warning · encouragement · clarification), each
+  with a severity, a deterministic sentence that is correct on its own, and the `DietState`
+  fields it rests on — so "why is this being said?" is answerable, and Phase 7's validator
+  has something correct to fall back to. `coachingFindings` is pure and capped at **three**
+  (a coach who lists six has said nothing). The rules only fire when they have something
+  real to say, and the tests assert the silences: a met protein target yields encouragement
+  and no shortfall; a protein gap at 09:00 stays quiet; the same gap at 19:00 with the
+  budget spent becomes the brief's worked example. `localHour` is a rules input, not a state
+  field — unknown hour means time-sensitive rules don't fire. Mirrored in
+  `functions/diet/rules.js` and pinned by `test/fixtures/coaching_vectors.json` (11 cases,
+  both suites). The diet tool payload now carries `findings`, and the prompt says: lead with
+  them, never contradict one, never invent a recommendation they don't contain, don't soften
+  a warning. One ranking fix along the way — provenance clarifications were being crowded
+  out of the cap by plain readouts and are now `notable`.
+  `flutter analyze` clean · Flutter **860 pass** · functions **275 pass** · functions lint
+  clean · rules 99 pass. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
 - 2026-08-30 — **Diet Coach Phase 4: one `DietState`, provably identical on both sides.**
   The Diet screen, Today's glance and the coach were each deriving "how am I doing" from
   raw plan/log reads. Now there is one object — goal · targets · consumed (with its

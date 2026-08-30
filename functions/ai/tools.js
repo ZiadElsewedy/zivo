@@ -17,17 +17,22 @@
  *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
  *    flag, per item and aggregated onto the day totals, so the coach can say
  *    "about" where the number is a guess instead of quoting it as measured.
- * 3. **One state, both surfaces.** The diet payload IS the `DietState` the
+ * 3. **The coach is handed decisions, not just data.** Alongside the state
+ *    comes `findings` — what the deterministic rules engine
+ *    (`functions/diet/rules.js`) concluded, each typed, ranked, and carrying
+ *    the state fields it rests on. The model phrases them; it does not decide
+ *    them.
+ * 4. **One state, both surfaces.** The diet payload IS the `DietState` the
  *    Diet screen renders, built by the same rules (`functions/diet/state.js`,
  *    mirrored from Dart and pinned by shared golden vectors). Two surfaces
  *    deriving "how am I doing" independently is how they end up disagreeing,
  *    and a coach that contradicts the screen is worse than no coach.
- * 4. **Consumption is the LOG, not the plan.** What the user recorded eating
+ * 5. **Consumption is the LOG, not the plan.** What the user recorded eating
  *    (`foodLogs`) is what `consumed`/`remaining` are computed from. Each entry
  *    says whether a person logged it or the app materialised it from a ticked
  *    meal, and the payload says which kind the day is made of — "you ate 1,850"
  *    and "the plan values what you ticked at 1,850" are different claims.
- * 5. **"Target" is never implied.** The user's own objective
+ * 6. **"Target" is never implied.** The user's own objective
  *    (`dietTargets/current`) is reported as `targets`, and `null` when they
  *    haven't set one; a plan day's own sum is reported separately as
  *    `nutrition.target` and never passed off as a goal anyone chose. Where
@@ -41,9 +46,11 @@ const {
   weekRangeMs,
   monthRangeMs,
   isoWeekday,
+  localHourAt,
   resolveDietDay,
 } = require("./dates");
 const {buildDietState, summariseHistory} = require("../diet/state");
+const {coachingFindings} = require("../diet/rules");
 
 /**
  * ISO string for `date`, or null.
@@ -132,14 +139,19 @@ function targetsPayload(targets) {
  * the date, the objective, where the user stands — is serialized first.
  * @param {!Object} state
  * @param {!Array<Object>} log The day's raw entries.
+ * @param {?number} localHour The user's own hour of day, when known.
  * @return {!Object}
  */
-function stateForModel(state, log) {
+function stateForModel(state, log, localHour) {
   return {
     date: state.dayKey,
     targets: state.targets,
     consumed: state.consumed,
     remaining: state.remaining,
+    // What the rules engine concluded — typed, ranked and evidenced. These are
+    // decisions, already made; the model's job is to phrase them, not to
+    // second-guess them or to invent others.
+    findings: coachingFindings(state, localHour),
     // What the app knows it doesn't know — handed over rather than left for
     // the model to infer.
     quality: state.quality,
@@ -245,7 +257,7 @@ const TODAY_TOOL = {
     // serialized last is what disappears — the user's objective and where they
     // stand must never be silently half-delivered.
     return {
-      ...stateForModel(state, log),
+      ...stateForModel(state, log, localHourAt(now, offsetMinutes)),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -402,7 +414,10 @@ const DIET_TOOL = {
     });
 
     return {
-      ...stateForModel(state, log),
+      // An explicit `day` is a past/future date, so "what hour is it" doesn't
+      // apply to it — time-sensitive rules correctly stay quiet.
+      ...stateForModel(
+          state, log, requested ? null : localHourAt(now, offsetMinutes)),
       // The plan's items, so the coach can discuss what the plan prescribes
       // rather than only its totals. Last in the payload: it is the block
       // that can most afford to be truncated.

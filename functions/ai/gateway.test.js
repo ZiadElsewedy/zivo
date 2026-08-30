@@ -514,6 +514,19 @@ test("the system prompt hands the model the quality flags rather than " +
   assert.match(SYSTEM_PROMPT, /same structured state the Diet screen renders/);
 });
 
+test("the system prompt puts the rules engine in charge of what is said",
+    async () => {
+      // The decisions are made in code. The model phrases them; it does not
+      // get to invent recommendations of its own or soften a warning.
+      assert.match(SYSTEM_PROMPT, /is what ZIVO's own coaching rules already/);
+      assert.match(
+          SYSTEM_PROMPT, /They are the decisions; you are the delivery/);
+      assert.match(
+          SYSTEM_PROMPT,
+          /never invent a recommendation the findings\n {4}don't contain/);
+      assert.match(SYSTEM_PROMPT, /A "warning" is not optional/);
+    });
+
 test("the system prompt explains what an estimated figure means", async () => {
   assert.match(SYSTEM_PROMPT, /"estimated" flag/);
   assert.match(

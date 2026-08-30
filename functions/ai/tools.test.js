@@ -215,10 +215,11 @@ test("get_today serializes diet BEFORE workouts so truncation can't eat it",
       const result = await tool.execute(store, UID, {}, NOW);
       const keys = Object.keys(result);
 
-      // The state leads; workouts trail. Truncation eats the end.
+      // The state leads, then what the rules concluded; workouts trail.
+      // Truncation eats the end.
       assert.deepEqual(
-          keys.slice(0, 5),
-          ["date", "targets", "consumed", "remaining", "quality"]);
+          keys.slice(0, 6),
+          ["date", "targets", "consumed", "remaining", "findings", "quality"]);
       assert.equal(keys.at(-1), "workouts");
     });
 
@@ -524,4 +525,55 @@ test("logged food counts even with no plan at all", async () => {
   assert.equal(result.plan, null);
   assert.equal(result.consumed.kcal, 330);
   assert.equal(result.remaining.kcal, 1870);
+});
+
+test("the diet payload carries the rules engine's conclusions", async () => {
+  // The coach is handed decisions, not just data. Without this it would be
+  // back to deriving "what should I say" from raw numbers — which is exactly
+  // the reasoning this design moved into code.
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => DIET_PLAN,
+    getDietTargets: async () => TARGETS,
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [{
+      ...LOG_ENTRY, kcal: 1850, proteinG: 125, carbsG: 200, fatG: 60,
+    }],
+    listFoodLogRange: async () => [],
+  };
+
+  // 19:00 for a UTC+3 user — late enough that a protein gap is a real squeeze.
+  const evening = new Date("2026-08-17T16:00:00Z");
+  const result = await tool.execute(store, UID, {}, evening, 180);
+
+  const codes = result.findings.map((f) => f.code);
+  assert.ok(codes.includes("protein_shortfall"), codes.join(","));
+  const shortfall = result.findings.find(
+      (f) => f.code === "protein_shortfall");
+  assert.equal(shortfall.kind, "recommendation");
+  // Every finding says what it rests on.
+  for (const finding of result.findings) {
+    assert.ok(finding.evidence.length > 0, finding.code);
+  }
+});
+
+test("an explicit past day gets no time-sensitive findings", async () => {
+  // "What hour is it" doesn't apply to a date the user asked about.
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => DIET_PLAN,
+    getDietTargets: async () => TARGETS,
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [],
+    listFoodLogRange: async () => [],
+  };
+
+  const result = await tool.execute(
+      store, UID, {day: "2026-08-10"}, new Date("2026-08-17T20:00:00Z"), 180);
+
+  const nothing = result.findings.find((f) => f.code === "nothing_logged");
+  assert.ok(nothing);
+  // Info, not the evening nudge — the hour of *now* says nothing about a day
+  // a week ago.
+  assert.equal(nothing.severity, "info");
 });
