@@ -500,14 +500,25 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('400'), findsOneWidget);
 
+    // Ticked through the repository rather than by tapping the rows: this is
+    // a test about the HERO, and the meal rows now sit below Today's read,
+    // off-screen at this viewport. (The tick affordance itself is covered by
+    // the first test in this file.) The reactive path is the same either way
+    // — the consumption stream is what the hero rebuilds from.
+    final today = DateTime.now();
+
     // Breakfast is 310 kcal in the seeded plan — still under.
-    await tester.tap(find.byKey(const Key('meal-tick-seed-meal-breakfast')));
+    await diet.setMealEaten(
+      mealId: 'seed-meal-breakfast',
+      day: today,
+      eaten: true,
+    );
     await tester.pump();
     expect(find.text('90'), findsOneWidget);
     expect(find.text('KCAL LEFT'), findsOneWidget);
 
     // Lunch (540) pushes it well past the target.
-    await tester.tap(find.byKey(const Key('meal-tick-seed-meal-lunch')));
+    await diet.setMealEaten(mealId: 'seed-meal-lunch', day: today, eaten: true);
     await tester.pump();
     expect(find.text('KCAL OVER'), findsOneWidget);
     expect(find.text('450'), findsOneWidget);
@@ -532,6 +543,124 @@ void main() {
 
     expect(
       find.textContaining('worth checking with a professional'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the coaching engine\'s read is on the screen, not only in the '
+      'chat — and each line opens onto the figures behind it', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 2200,
+        proteinG: 160,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Breakfast is 310 kcal in the seeded plan, leaving 1890.
+    await diet.setMealEaten(
+      mealId: 'seed-meal-breakfast',
+      day: DateTime.now(),
+      eaten: true,
+    );
+    await tester.pump();
+
+    // The card is built from the page's own DietState — the same object the
+    // hero draws — so what it says can't disagree with the ring above it.
+    expect(find.byKey(const Key('todays-read')), findsOneWidget);
+    expect(find.textContaining('1890 kcal left'), findsOneWidget);
+
+    // And the "why" is a real answer: the state fields, with their values.
+    final why = find.byKey(const Key('finding-why-calories_remaining'));
+    await tester.ensureVisible(why);
+    await tester.pump();
+    await tester.tap(why);
+    await tester.pump();
+    expect(find.text('Calories left'), findsOneWidget);
+    expect(find.text('1890 kcal'), findsOneWidget);
+    expect(find.text('Goal'), findsOneWidget);
+    expect(find.text('Fat loss'), findsOneWidget);
+  });
+
+  testWidgets('with no target set the read is held back — the empty-state card '
+      'already says it, with somewhere to tap', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('no-target-card')), findsOneWidget);
+    expect(find.byKey(const Key('todays-read')), findsNothing);
+  });
+
+  testWidgets('the hero says what its EATEN figure rests on: ticking meals is '
+      'never presented as weighed food', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.maintain,
+        calories: 2000,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('NOTHING LOGGED YET'), findsOneWidget);
+
+    // Ticking a plan meal credits the PLAN's figures. The number moves, and
+    // the line beneath it says where the number came from.
+    await diet.setMealEaten(
+      mealId: 'seed-meal-breakfast',
+      day: DateTime.now(),
+      eaten: true,
+    );
+    await tester.pump();
+    expect(find.text('FROM TICKED MEALS, NOT WEIGHED'), findsOneWidget);
+  });
+
+  testWidgets('a calculated target explains itself — the body data it came '
+      'from, not just that a formula ran', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 2230,
+        source: TargetSource.calculated,
+        basis: const TargetBasis(
+          weightKg: 82,
+          heightCm: 180,
+          age: 30,
+          sex: TargetSex.male,
+          activity: ActivityLevel.moderate,
+          bmr: 1800,
+          maintenanceCalories: 2790,
+        ),
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Calculated from your body data'), findsOneWidget);
+    expect(
+      find.text('82 kg · moderate · 2790 kcal maintenance'),
       findsOneWidget,
     );
   });

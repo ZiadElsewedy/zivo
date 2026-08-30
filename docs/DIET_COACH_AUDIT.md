@@ -6,7 +6,8 @@
 > **Findings are referenced by id (`T1`…`T15`) from `FEATURE.md`s, commit messages and the
 > later phases — keep the ids stable.**
 >
-> Status: **Phases 0–7 landed** (2026-08-30). Phase 8 (UI) is not started.
+> Status: **Phases 0–8 landed** (2026-08-30). The plan is complete; what remains is
+> coverage work on the food catalog, not architecture.
 
 ---
 
@@ -60,7 +61,7 @@ The LLM lives in layer 5 and reads layer 3; it never writes into layers 1–4.
 4  Rules engine        deterministic typed CoachingFindings, each with its evidence         [MISSING]
 5  AI coach            phrases the findings; states no number it wasn't given               [exists]
 6  Advice validator    checks every claim against state; falls back to deterministic text   [MISSING]
-7  UI                  target card, provenance markers, the "why" behind a recommendation   [mostly exists]
+7  UI                  target card, provenance markers, the "why" behind a recommendation   [exists]
 ```
 
 The payoff of layer 4 emitting a deterministic sentence: a validator rejection is never a
@@ -86,7 +87,7 @@ is what makes it safe to reject aggressively.
 | 5 | Coaching rules engine | part of T15; groundwork for T8 | **Done** — see below |
 | 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | **Done** — see below |
 | 7 | Advice validator + safety intercept | T8 T15 | **Done** — see below |
-| 8 | UI: provenance, targets, the "why" | — | Not started |
+| 8 | UI: provenance, targets, the "why" | surfaces T1 T6 T8 T12 | **Done** — see below |
 
 The hard part is not the engineering — it is **food-database coverage**. A user whose
 staples aren't in the catalog hits "not found" constantly, and the pressure to paper over
@@ -543,3 +544,82 @@ Flutter **863** (unchanged — Phase 7 is server-only) · functions **325** ·
 functions lint clean.
 
 **Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.
+
+---
+
+## Phase 8 — what actually landed (2026-08-30)
+
+The stack reaches the screen. Layers 1–6 made the numbers true; this is where
+the app stops asking to be trusted about them.
+
+- **The coaching engine is on the Diet screen, not only in the chat.**
+  `TodaysReadCard` renders the exact findings `coachingFindings` produces —
+  same engine, same state, same at-most-three — under the hero. Not a second,
+  UI-side reading of the same figures: a screen that interprets independently
+  is how a screen and a coach end up recommending different things from
+  identical data. It also means the coaching survives with no model call at
+  all: offline, out of budget, or after a Phase 7 rejection, the deterministic
+  sentences are already correct.
+- **Every line opens onto its evidence (T8's other half).** Each finding
+  carries a **Why**, and `domain/coaching/evidence.dart` resolves its evidence
+  paths against the same state: `remaining.proteinG` becomes *"Protein left —
+  100 g"*, `targets.calories` becomes *"Daily target — 2200 kcal"*. It only
+  *reads* — a "why" that recomputed anything could contradict the sentence it
+  is explaining. A path it doesn't know is **dropped**, never rendered blank,
+  and a test asserts that every finding the engine can emit resolves at least
+  one row: a claim the app can't explain has no business on the screen.
+- **"Eaten" says what it rests on (T6).** The hero's consumed figure now
+  carries `ConsumedBasis` beneath it — `LOGGED BY YOU` / `FROM TICKED MEALS,
+  NOT WEIGHED` / `NOTHING LOGGED YET`. The coach has been forbidden since
+  Phase 5 from saying "you ate" about ticked plan meals; the screen printing
+  the bare number with no such qualifier was the app making the claim its own
+  coach is not allowed to make.
+- **A calculated target explains itself (T1).** `TargetSource.calculated` only
+  ever said *a formula ran*. The summary row now adds the basis — *82 kg ·
+  moderate · 2790 kcal maintenance* — which is also how a user notices the
+  figure is still resting on a weight from March.
+- **One state for the whole screen.** The hero used to build its own partial
+  `DietState` (empty `dayKey`, no plan name, and **null whenever targets were
+  unset**). The page now builds it once per frame, with the real day key and
+  plan name, and hands the same object to the hero and the read card. Two
+  objects claiming to describe one day is the local version of the same bug
+  this audit exists to close.
+- **A rejected reply leaves the screen.** Phase 7 noted that a streamed draft
+  reaches the client before validation runs. The `done` event's `replaced` flag
+  is now parsed and acted on: the draft is retired the moment the verdict
+  arrives, and the validated text types in as if nothing had streamed —
+  instead of the user reading invented figures until Firestore catches up.
+  (Server-side buffering of diet turns remains the fuller fix, and remains
+  undone.)
+- **What was deliberately NOT added.** The read card is held back entirely when
+  no target is set: the engine's findings there are all downstream of that one
+  gap, and the existing empty-state card already says it *with somewhere to
+  tap*. Printing the engine's wording of the same sentence underneath would be
+  the screen repeating itself in a quieter voice.
+
+**Tests added:** `test/diet/coaching_evidence_test.dart` (7 — resolution of a
+real finding's paths, the unknown-path drop, same-fact dedupe, "not set" never
+reading as 0, the estimated "~", over-target as "over by", and the
+every-finding-can-explain-itself guard), `test/diet/todays_read_card_test.dart`
+(4 — the engine's own sentences, Why opening onto the fields, a safety warning
+named as one, an empty log never rendered as "you ate nothing"), four Diet-page
+tests (the read on screen with its Why, held back without a target, the hero's
+basis line, the calculated target's basis), one Ask-page test (a validated-away
+draft leaving the screen before the durable message lands, which fails without
+the fix), and three wire-contract tests for `aiTurnEventFromChunk`.
+`flutter analyze` clean · Flutter **882** · functions **325** · functions lint
+clean.
+
+**Deploy:** none. Phase 8 is client-only — no functions, rules or schema
+changes.
+
+---
+
+## What is left
+
+Not architecture. **Food-catalog coverage** — the risk this document named
+before Phase 2 started and the one that outlives the plan. Every layer above
+behaves correctly when a food isn't in the catalog (`FoodNotFound` is a normal
+outcome, the coach asks rather than guesses, `log_food` refuses rather than
+proposes), which is exactly why the pressure to paper over a miss with a model
+estimate will keep arriving. It should keep being refused.

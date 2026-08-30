@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/firebase/uid_source.dart';
 import '../domain/diet_day.dart';
+import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
 import '../domain/diet_plan_status.dart';
 import '../domain/diet_repository.dart';
@@ -696,11 +697,6 @@ class FirestoreDietRepository implements DietRepository {
 
 /// 'yyyy-MM-dd' for [day]'s local calendar date — used both as the
 /// `dietEntries` doc id suffix and its `dayKey` field. Exposed so tests can
-/// build the same key without duplicating the format.
-String dayKey(DateTime day) {
-  final d = DateTime(day.year, day.month, day.day);
-  final y = d.year.toString().padLeft(4, '0');
-  final m = d.month.toString().padLeft(2, '0');
-  final dd = d.day.toString().padLeft(2, '0');
-  return '$y-$m-$dd';
-}
+/// build the same key without duplicating the format; the format itself is
+/// [dietDayKey], shared with the screens.
+String dayKey(DateTime day) => dietDayKey(day);

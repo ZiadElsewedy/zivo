@@ -1,3 +1,4 @@
+import 'diet_format.dart';
 import 'diet_goal.dart';
 
 /// How a set of targets came to exist. Stored with the numbers themselves,
@@ -95,6 +96,17 @@ class TargetBasis {
   /// goal's adjustment is applied to.
   final int maintenanceCalories;
 }
+
+/// The one-line explanation of a calculated target — the body data it came
+/// from and the maintenance figure the goal's adjustment was applied to.
+///
+/// Shown under the target itself, because [TargetSource.calculated] on its own
+/// only says a formula was involved; this says which numbers went into it, so
+/// a user who has since changed weight can see that the target hasn't.
+String targetBasisSummary(TargetBasis basis) =>
+    '${trimNumber(basis.weightKg)} kg · '
+    '${activityLabel(basis.activity).toLowerCase()} · '
+    '${basis.maintenanceCalories} kcal maintenance';
 
 /// The user's daily nutrition objective: a goal plus the numbers that serve
 /// it, and a record of where those numbers came from.

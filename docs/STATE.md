@@ -203,6 +203,27 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 8: the trust stack reaches the screen.** The coaching
+  engine is now rendered on the Diet screen, not just handed to the chat coach:
+  `TodaysReadCard` shows the exact findings `coachingFindings` produces (same engine, same
+  state, at most three), so the screen and the coach can't recommend different things from
+  identical data — and the coaching works with no model call at all. Each finding carries a
+  **Why** that resolves its `evidence` paths against the same state
+  (`domain/coaching/evidence.dart`): *"Protein left — 100 g"*, *"Daily target — 2200 kcal"*.
+  It only reads; an unknown path is dropped, never blank, and a test asserts every finding
+  the engine can emit resolves at least one row. The hero's consumed figure now states its
+  `ConsumedBasis` (`FROM TICKED MEALS, NOT WEIGHED`) — the coach was already forbidden to
+  say "you ate" about ticked meals, and the screen was still printing the bare number. A
+  calculated target explains itself (*82 kg · moderate · 2790 kcal maintenance*). The page
+  builds **one** `DietState` per frame and shares it with the hero (which used to build its
+  own partial one, null whenever targets were unset). And a reply the Phase 7 validator
+  threw away now leaves the screen the moment the `done` event's `replaced` arrives, rather
+  than sitting there until Firestore catches up. Held back on purpose: no read card when no
+  target is set — the empty-state card already says it, with somewhere to tap.
+  `flutter analyze` clean · Flutter **882** · functions **325 pass** · functions lint clean.
+  **No deploy** — client-only. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md), which is
+  now complete: Phases 0–8 landed, and what's left is food-catalog coverage, not
+  architecture.
 - 2026-08-30 — **Diet Coach Phase 7: the advice validator + safety intercept.** The last
   layer of the trust stack. After the model produces its reply, the gateway now runs
   `functions/ai/validator.js` against the diet state+findings it was handed (from

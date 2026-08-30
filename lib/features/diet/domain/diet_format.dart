@@ -2,9 +2,16 @@ import 'diet_day.dart';
 import 'food_item.dart';
 import 'meal.dart';
 
-/// A quantity without a trailing ".0": 60 → "60", 22.5 → "22.5".
-String _trimQty(double v) =>
+/// A number without a trailing ".0": 60 → "60", 22.5 → "22.5".
+///
+/// The one place this rounding happens, so a quantity on a meal row, a gram
+/// figure in a coaching finding's evidence and a weight in a target's
+/// explanation can't disagree about how precise they look.
+String trimNumber(double v) =>
     v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
+
+/// A quantity without a trailing ".0": 60 → "60", 22.5 → "22.5".
+String _trimQty(double v) => trimNumber(v);
 
 /// "150 g" or "150 g · 210 kcal" when the item has calories — the calorie
 /// figure gets a "~" prefix when [FoodItem.estimated] (AI-filled at import
@@ -80,4 +87,17 @@ int? dayCalories(DietDay day) {
     carbsG: sum((i) => i.carbsG),
     fatG: sum((i) => i.fatG),
   );
+}
+
+/// 'yyyy-MM-dd' for [day]'s local calendar date.
+///
+/// The day's identity, everywhere: the `dietEntries`/`foodLogs` doc id suffix
+/// and its stored `dayKey`, and `DietState.dayKey`. One implementation, so a
+/// screen and a repository can't disagree about which day they mean.
+String dietDayKey(DateTime day) {
+  final d = DateTime(day.year, day.month, day.day);
+  final y = d.year.toString().padLeft(4, '0');
+  final m = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  return '$y-$m-$dd';
 }

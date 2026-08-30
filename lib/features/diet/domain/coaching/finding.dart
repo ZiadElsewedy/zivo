@@ -26,6 +26,20 @@ enum FindingKind {
   clarification,
 }
 
+/// What the register is called where the user can see it.
+///
+/// The kind is already decided in code; naming it on screen is what stops six
+/// sentences reading as one flat stream — a warning that looks exactly like an
+/// observation has lost the distinction the type was created to make.
+String findingKindLabel(FindingKind kind) => switch (kind) {
+  FindingKind.observation => 'Observation',
+  FindingKind.analysis => 'Analysis',
+  FindingKind.recommendation => 'Suggestion',
+  FindingKind.warning => 'Warning',
+  FindingKind.encouragement => 'Going well',
+  FindingKind.clarification => 'Worth knowing',
+};
+
 /// How much this finding should outrank the others when the set is capped.
 enum FindingSeverity { info, notable, important, urgent }
 

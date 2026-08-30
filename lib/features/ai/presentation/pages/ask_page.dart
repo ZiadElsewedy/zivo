@@ -629,10 +629,20 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
   void _onTurnEvent(AiTurnEvent event) {
     if (!mounted) return;
     switch (event) {
-      case AiPhaseEvent(:final phase):
+      case AiPhaseEvent(:final phase, :final replaced):
         _slowTurnTimer?.cancel();
         if (_turnSlow) setState(() => _turnSlow = false);
         setState(() => _phase = phase);
+        // The server's validator threw this reply away. The draft is still on
+        // screen — so drop it now rather than let the user go on reading
+        // numbers the gateway has already ruled invented, and let the durable
+        // (deterministic) reply type itself in as if nothing had streamed. A
+        // beat of empty rail is the honest state here; the alternative is the
+        // screen quoting a figure the app knows is wrong.
+        if (replaced && _streamed) {
+          _streamed = false;
+          _retireLiveReply();
+        }
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();
         if (_turnSlow) setState(() => _turnSlow = false);

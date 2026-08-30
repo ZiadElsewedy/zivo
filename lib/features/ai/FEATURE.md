@@ -75,8 +75,13 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   professional-referral message). It biases hard to precision — hypotheticals and
   general-knowledge facts are excluded — because a false rejection replaces a good reply.
   The outcome is logged to usage and shows in the turn status (`validated-fallback` /
-  `safety-intercept`). Caveat: on a streamed turn the client already saw the draft; the
-  persisted message is the validated one and the `done` event carries `replaced`.
+  `safety-intercept`). On a streamed turn the draft has already reached the client, so the
+  `done` event carries **`replaced`** — `AiPhaseEvent.replaced`, which `ask_page` acts on by
+  retiring the live bubble the moment the verdict lands and letting the validated message
+  type itself in. Don't drop that flag when touching the stream plumbing: without it the
+  user goes on reading figures the server has already ruled invented until Firestore
+  catches up. (Buffering diet turns server-side until after validation is the fuller fix,
+  and is not done.)
 - **The coach is handed decisions, not just data.** The diet payload carries `findings`
   from the deterministic rules engine (`functions/diet/rules.js`) — ranked, capped at three,
   each typed and evidenced. The prompt tells the model to lead with them, never to

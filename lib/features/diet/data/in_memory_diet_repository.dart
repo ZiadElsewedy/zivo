@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../domain/diet_day.dart';
+import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
 import '../domain/diet_plan_status.dart';
 import '../domain/diet_repository.dart';
@@ -13,13 +14,7 @@ import '../domain/nutrition/planned_meal_log.dart';
 import '../domain/nutrition_targets.dart';
 
 /// 'yyyy-MM-dd' for [day]'s local calendar date.
-String _dayKey(DateTime day) {
-  final d = DateTime(day.year, day.month, day.day);
-  final y = d.year.toString().padLeft(4, '0');
-  final m = d.month.toString().padLeft(2, '0');
-  final dd = d.day.toString().padLeft(2, '0');
-  return '$y-$m-$dd';
-}
+String _dayKey(DateTime day) => dietDayKey(day);
 
 /// Demo store: one active diet plan plus per-day consumption, in memory,
 /// broadcasting changes. Seeded with a balanced every-day plan (Breakfast /

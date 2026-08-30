@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
+import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/stt_error.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 
@@ -91,6 +92,41 @@ void main() {
         describe(const SttFailed(SttError.timeout, 'Took too long.')),
         'failed:timeout',
       );
+    });
+  });
+
+  group('aiTurnEventFromChunk', () {
+    test('carries the validator\'s verdict on the done event', () {
+      final event = aiTurnEventFromChunk({
+        'type': 'phase',
+        'phase': 'done',
+        'status': 'validated-fallback',
+        'replaced': true,
+      });
+      expect(event, isA<AiPhaseEvent>());
+      expect((event! as AiPhaseEvent).phase, AiPhase.done);
+      // The flag the client reconciles a rejected streamed draft with.
+      expect((event as AiPhaseEvent).replaced, isTrue);
+    });
+
+    test('defaults to "not replaced" — a turn nobody validated never claims '
+        'its reply was thrown away', () {
+      final event =
+          aiTurnEventFromChunk({'type': 'phase', 'phase': 'working'})
+              as AiPhaseEvent;
+      expect(event.phase, AiPhase.working);
+      expect(event.replaced, isFalse);
+    });
+
+    test('tolerates an unknown phase and a malformed chunk', () {
+      expect(
+        (aiTurnEventFromChunk({'type': 'phase', 'phase': 'nonsense'})
+                as AiPhaseEvent)
+            .phase,
+        AiPhase.unknown,
+      );
+      expect(aiTurnEventFromChunk({'type': 'delta'}), isNull);
+      expect(aiTurnEventFromChunk('not a map'), isNull);
     });
   });
 }

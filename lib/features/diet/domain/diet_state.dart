@@ -25,6 +25,19 @@ String consumedBasisLabel(ConsumedBasis basis) => switch (basis) {
   ConsumedBasis.nothingLogged => 'nothing logged yet',
 };
 
+/// The same qualifier at caption length, for sitting directly beneath a
+/// figure rather than in a sentence.
+///
+/// Short, but never softer: "from ticked meals" still says the number is the
+/// plan's expectation rather than a measurement. A basis line that shrinks
+/// into meaninglessness is worse than none, because it looks like the number
+/// was qualified.
+String consumedBasisShortLabel(ConsumedBasis basis) => switch (basis) {
+  ConsumedBasis.logged => 'logged by you',
+  ConsumedBasis.tickedPlanMeals => 'from ticked meals, not weighed',
+  ConsumedBasis.nothingLogged => 'nothing logged yet',
+};
+
 /// One macro's target-versus-consumed reading, for a progress row.
 class MacroProgress {
   const MacroProgress({

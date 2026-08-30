@@ -24,6 +24,7 @@ import '../../domain/nutrition_targets.dart';
 import '../../domain/diet_state.dart';
 import '../../domain/diet_state_builder.dart';
 import '../widgets/log_food_sheet.dart';
+import '../widgets/todays_read_card.dart';
 import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
@@ -286,6 +287,21 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
     final targets = widget.targets;
     final today = widget.today;
     final target = today == null ? null : dayCalories(today);
+    // **One state for the whole screen**, built once per frame by the same
+    // `buildDietState` the coach reads on the server. The hero draws from it,
+    // the read card's findings are derived from it, and neither can therefore
+    // quote a figure the other doesn't have. Built even with no targets set —
+    // "no objective" is a state the engine has something to say about, not a
+    // reason to have no state.
+    final state = buildDietState(
+      dayKey: dietDayKey(now),
+      weekday: now.weekday,
+      targets: targets,
+      planName: plan.name,
+      day: today,
+      consumedMealIds: consumed,
+      log: log,
+    );
     return ListView(
       padding: EdgeInsets.fromLTRB(22, 14, 22, TrainBottomInset.of(context)),
       children: [
@@ -336,8 +352,7 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
             day: today,
             consumed: consumed,
             loading: consumedLoading,
-            targets: targets,
-            log: log,
+            state: state,
           ),
           const SizedBox(height: 12),
           if (targets == null)
@@ -347,6 +362,18 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
               targets: targets,
               onEdit: () => _openTargets(context, targets),
             ),
+          // What the coaching engine makes of all that — the same findings,
+          // from the same state, that the AI coach is handed, each openable
+          // to the figures it rests on. Renders nothing when the rules have
+          // nothing to say.
+          //
+          // Held back until there's an objective: with none, the engine's
+          // findings are all downstream of that one gap, and the card above
+          // already says it — with somewhere to tap. Printing the engine's
+          // wording of the same sentence underneath would be the screen
+          // repeating itself in a quieter voice.
+          if (!consumedLoading && targets != null)
+            TodaysReadCard(state: state, localHour: now.hour),
           const SizedBox(height: 20),
           const TrainSectionLabel('Meals'),
           const SizedBox(height: 11),
@@ -627,6 +654,18 @@ class _TargetSummaryRow extends StatelessWidget {
                         color: low ? TrainColors.ember : TrainColors.ink3,
                       ),
                     ),
+                    // A calculated target explains itself. "Calculated from
+                    // your body data" says a formula ran; this says which
+                    // numbers went into it — which is also how a user notices
+                    // the figure is still resting on a weight from March.
+                    if (targets.basis != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        targetBasisSummary(targets.basis!),
+                        key: const Key('target-basis'),
+                        style: AppText.meta.copyWith(color: TrainColors.ink4),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -655,30 +694,27 @@ class _TargetSummaryRow extends StatelessWidget {
 /// Degrades calmly when the plan carries no calorie or macro data yet — see
 /// [dayCalories]/[macroTotals]'s null-means-absent semantics.
 ///
-/// **It measures against whichever yardstick actually exists.** With
-/// [targets] set, the ring counts down the user's own daily objective and the
-/// bars use their macro targets. Without them, it falls back to the day's plan
-/// total — clearly labelled as "of plan", because a plan's sum is not a goal
-/// anyone chose. The two are never mixed in one figure.
+/// **It measures against whichever yardstick actually exists.** With targets
+/// set, the ring counts down the user's own daily objective and the bars use
+/// their macro targets. Without them, it falls back to the day's plan total —
+/// clearly labelled as "of plan", because a plan's sum is not a goal anyone
+/// chose. The two are never mixed in one figure.
 class _DietHero extends StatefulWidget {
   const _DietHero({
     required this.day,
     required this.consumed,
     required this.loading,
-    required this.targets,
-    required this.log,
+    required this.state,
   });
 
   final DietDay day;
   final Set<String> consumed;
   final bool loading;
 
-  /// Today's food log. When non-empty it — not the plan — is what the hero
-  /// measures.
-  final List<FoodLogEntry> log;
-
-  /// The user's objective, or null when unset.
-  final NutritionTargets? targets;
+  /// The screen's one [DietState] — built by the page, shared with the read
+  /// card below. The hero doesn't build its own: two objects claiming to
+  /// describe the same day is how a ring and a sentence end up disagreeing.
+  final DietState state;
 
   @override
   State<_DietHero> createState() => _DietHeroState();
@@ -691,27 +727,15 @@ class _DietHeroState extends State<_DietHero>
     value: _target(),
   );
 
-  /// The structured state for today, or null when the user has set no
-  /// objective — with nothing to measure against, the hero falls back to the
-  /// plan's own total and says so.
+  /// The state to measure against, or null when the user has set no objective
+  /// — with nothing to measure against, the hero falls back to the plan's own
+  /// total and says so.
   ///
-  /// Built by the same `buildDietState` the coach reads on the server, which
-  /// is what makes "the screen and the coach agree" a fact rather than a hope.
-  /// `dayKey`/`planName` are the state's identity fields and don't affect any
-  /// figure the hero draws, so this passes the cheap ones.
-  DietState? get _state {
-    final targets = widget.targets;
-    if (targets == null) return null;
-    return buildDietState(
-      dayKey: '',
-      weekday: DateTime.now().weekday,
-      targets: targets,
-      planName: null,
-      day: widget.day,
-      consumedMealIds: widget.consumed,
-      log: widget.log,
-    );
-  }
+  /// The state itself always exists (the page builds it either way); what's
+  /// absent without targets is a *yardstick*, and null here is how the rest of
+  /// this widget asks that question.
+  DietState? get _state =>
+      widget.state.quality.targetsUnset ? null : widget.state;
 
   double _target() {
     final state = _state;
@@ -851,6 +875,26 @@ class _DietHeroState extends State<_DietHero>
                       color: TrainColors.ink4,
                     ),
                   ),
+                  // What "EATEN" actually rests on. The figure above is the
+                  // same one the coach is handed, and the coach is never
+                  // allowed to say "you ate" about ticked plan meals — the
+                  // screen showing the bare number with no such qualifier
+                  // would be the app making the claim its own coach is
+                  // forbidden to make.
+                  if (!widget.loading) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      consumedBasisShortLabel(
+                        progress.consumed.basis,
+                      ).toUpperCase(),
+                      key: const Key('hero-consumed-basis'),
+                      style: TrainType.caption(
+                        size: 8.5,
+                        tracking: 0.14,
+                        color: TrainColors.ink4,
+                      ),
+                    ),
+                  ],
                 ] else if (totalKcal == null) ...[
                   const SizedBox(height: 8),
                   Text(
