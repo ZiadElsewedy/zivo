@@ -60,13 +60,16 @@ test("get_expenses filters by category when given", async () => {
 
 test("get_diet returns null plan when there is none", async () => {
   const tool = toolsByName.get("get_diet");
-  const store = {getActiveDietPlan: async () => null};
+  const store = {
+    getActiveDietPlan: async () => null,
+    getDietTargets: async () => null,
+  };
 
   const result = await tool.execute(store, UID, {}, NOW);
 
   // The date is always stated: nothing else in a turn tells the model what
   // day the answer is about.
-  assert.deepEqual(result, {date: "2026-08-17", plan: null});
+  assert.deepEqual(result, {date: "2026-08-17", targets: null, plan: null});
 });
 
 const DIET_PLAN = {
@@ -103,6 +106,7 @@ test("get_diet reports target-vs-consumed nutrition for the resolved day",
       const tool = toolsByName.get("get_diet");
       const store = {
         getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => null,
         listDietEntries: async (uid, dayKey) => {
           assert.equal(uid, UID);
           assert.equal(dayKey, "2026-08-17");
@@ -127,6 +131,7 @@ test("get_diet reports target-vs-consumed nutrition for the resolved day",
 test("get_diet leaves nutrients null when no item states them", async () => {
   const tool = toolsByName.get("get_diet");
   const store = {
+    getDietTargets: async () => null,
     getActiveDietPlan: async () => ({
       name: "Handwritten",
       status: "active",
@@ -160,6 +165,7 @@ test("get_today's diet snapshot carries per-meal kcal and adherence totals",
       const store = {
         listWorkouts: async () => [],
         getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => null,
         listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
       };
 
@@ -185,13 +191,15 @@ test("get_today serializes diet BEFORE workouts so truncation can't eat it",
       const store = {
         listWorkouts: async () => [{title: "Push", performedAt: NOW}],
         getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => null,
         listDietEntries: async () => [],
       };
 
       const result = await tool.execute(store, UID, {}, NOW);
       const keys = Object.keys(result);
 
-      assert.deepEqual(keys, ["date", "diet", "workouts"]);
+      assert.deepEqual(
+          keys, ["date", "targets", "remaining", "diet", "workouts"]);
     });
 
 test("the registry carries no tools for deleted features", async () => {
@@ -211,6 +219,7 @@ test("diet figures carry their estimated provenance to the model",
       // identical to one the user's own plan stated.
       const tool = toolsByName.get("get_diet");
       const store = {
+        getDietTargets: async () => null,
         getActiveDietPlan: async () => ({
           name: "Imported",
           status: "active",
@@ -251,6 +260,7 @@ test("get_diet resolves 'today' in the user's timezone, not the server's",
       const asked = [];
       const store = {
         getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => null,
         listDietEntries: async (uid, dayKey) => {
           asked.push(dayKey);
           return [];
@@ -262,3 +272,119 @@ test("get_diet resolves 'today' in the user's timezone, not the server's",
       assert.equal(result.date, "2026-08-18");
       assert.deepEqual(asked, ["2026-08-18"]);
     });
+
+const TARGETS = {
+  goal: "fatLoss",
+  calories: 2200,
+  proteinG: 160,
+  carbsG: 250,
+  fatG: 73,
+  source: "calculated",
+};
+
+test("get_diet reports the user's OWN targets and what's left of them",
+    async () => {
+      // The coach's most important input. Before this it could describe a plan
+      // but had no idea what the user was trying to do, which made every
+      // recommendation generic by construction.
+      const tool = toolsByName.get("get_diet");
+      const store = {
+        getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => TARGETS,
+        listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.deepEqual(result.targets, TARGETS);
+      // Breakfast (220 kcal / P8 / C38 / F4) is ticked off.
+      assert.equal(result.remaining.kcal, 2200 - 220);
+      assert.equal(result.remaining.proteinG, 152);
+      assert.equal(result.remaining.carbsG, 212);
+      assert.equal(result.remaining.fatG, 69);
+      assert.equal(result.remaining.estimated, false);
+      // The honest caveat travels with the numbers: this is what was TICKED,
+      // not what was eaten.
+      assert.match(result.remaining.consumedFrom, /ticked meals/);
+    });
+
+test("a macro with no target stays null in remaining — never zero",
+    async () => {
+      // "You didn't set a carb target" and "you have 0g of carbs left" are
+      // opposite statements; conflating them would have the coach inventing a
+      // constraint the user never set.
+      const tool = toolsByName.get("get_diet");
+      const store = {
+        getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => ({
+          goal: "maintain", calories: 2000, proteinG: 150,
+          carbsG: null, fatG: null, source: "manual",
+        }),
+        listDietEntries: async () => [],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.equal(result.remaining.proteinG, 150);
+      assert.equal(result.remaining.carbsG, null);
+      assert.equal(result.remaining.fatG, null);
+    });
+
+test("targets are null when the user hasn't set an objective", async () => {
+  // Null must survive all the way to the model: ZIVO never invents a target,
+  // and the plan's own sum is not one.
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => DIET_PLAN,
+    getDietTargets: async () => null,
+    listDietEntries: async () => [],
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+
+  assert.equal(result.targets, null);
+  assert.equal(result.remaining, null);
+  // The plan's own daily sum is still reported — under its own name.
+  assert.equal(result.nutrition.target.kcal, 550);
+});
+
+test("get_today leads with the targets, then what's left, then the plan",
+    async () => {
+      const tool = toolsByName.get("get_today");
+      const store = {
+        listWorkouts: async () => [],
+        getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => TARGETS,
+        listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.equal(result.targets.goal, "fatLoss");
+      assert.equal(result.remaining.kcal, 1980);
+      assert.deepEqual(
+          Object.keys(result),
+          ["date", "targets", "remaining", "diet", "workouts"]);
+    });
+
+test("remaining goes negative rather than clamping at zero", async () => {
+  // Over-target is a real state a coach has to be able to name. Clamping it
+  // would hide the one situation where the advice most needs to change.
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => DIET_PLAN,
+    getDietTargets: async () => ({
+      goal: "fatLoss", calories: 400, proteinG: 10,
+      carbsG: null, fatG: null, source: "manual",
+    }),
+    listDietEntries: async () => [
+      {mealId: "breakfast", eaten: true},
+      {mealId: "dinner", eaten: true},
+    ],
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+
+  assert.equal(result.remaining.kcal, 400 - 550);
+  assert.equal(result.remaining.proteinG, 10 - 70);
+});

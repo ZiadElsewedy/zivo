@@ -18,8 +18,11 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_goal.dart';
 import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
+import '../../domain/nutrition/food_log_entry.dart';
+import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/target_progress.dart';
+import '../widgets/log_food_sheet.dart';
 import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
 import 'diet_plan_edit_page.dart';
@@ -203,7 +206,13 @@ class _PlanBody extends StatelessWidget {
 
 /// The plan body once the user's targets are known. Split out so the
 /// consumed-stream builder below doesn't nest three deep.
-class _PlanBodyForTargets extends StatelessWidget {
+///
+/// Stateful purely to own the consumption stream: `watchConsumed(now)` opens a
+/// new subscription every time it's called, so building it inside `build`
+/// would tear down and re-open it on every rebuild — including the extra
+/// rebuild the targets stream now causes, which also resets the stream to
+/// `waiting` and blanks the hero's numbers mid-session.
+class _PlanBodyForTargets extends StatefulWidget {
   const _PlanBodyForTargets({
     required this.plan,
     required this.today,
@@ -221,155 +230,307 @@ class _PlanBodyForTargets extends StatelessWidget {
   final NutritionTargets? targets;
 
   @override
-  Widget build(BuildContext context) {
+  State<_PlanBodyForTargets> createState() => _PlanBodyForTargetsState();
+}
+
+class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
+  Stream<Set<String>>? _consumedStream;
+  Stream<List<FoodLogEntry>>? _logStream;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final diet = AppScope.of(context).diet;
-    final today = this.today;
-    return StreamBuilder<Set<String>>(
-      stream: diet.watchConsumed(now),
-      initialData: const <String>{},
-      builder: (context, consumedSnapshot) {
-        final consumed = consumedSnapshot.data ?? const <String>{};
-        final consumedLoading =
-            consumedSnapshot.connectionState == ConnectionState.waiting;
-        final target = today == null ? null : dayCalories(today);
-        return ListView(
-          padding: EdgeInsets.fromLTRB(
-            22,
-            14,
-            22,
-            TrainBottomInset.of(context),
-          ),
-          children: [
-            // The plan's own identity, and what TODAY actually plans — one
-            // mono caption, not a card.
-            //
-            // This used to hide the planned figure whenever the plan's *name*
-            // already carried one ("Balanced — 2200 kcal"), to avoid two
-            // calorie numbers on one line. But a name's number is free text:
-            // it's the whole plan's headline, it can be stale, and it often
-            // disagrees with what this particular day sums to — which left the
-            // ring counting down "1270 LEFT" against a header that said 2200,
-            // with nothing on screen explaining which was which. Two numbers
-            // are fine when they're labelled differently; two unlabelled ones
-            // are not. So the day's real planned total is always shown, and
-            // always says that's what it is.
-            Text(
-              [
-                plan.name.toUpperCase(),
-                // Two figures, each labelled — the target the user set, and
-                // what this particular day's plan adds up to. They are
-                // different things and routinely disagree; an unlabelled pair
-                // is what makes a screen unreadable.
-                if (targets != null)
-                  'TARGET ${targets!.calories} KCAL',
-                if (target != null)
-                  'PLANNED ${approx(dayEstimated(today!))}$target KCAL',
-              ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TrainType.mono(
-                size: 11.5,
-                tracking: 0.06,
-                color: TrainColors.ink3,
-              ),
-            ),
-            const SizedBox(height: 18),
-            if (today == null)
-              Text(
-                'No plan for today.',
-                style: TrainType.ui(
-                  size: 14,
-                  weight: FontWeight.w400,
-                  color: TrainColors.ink2,
-                ),
-              )
-            else ...[
-              _DietHero(
-                day: today,
-                consumed: consumed,
-                loading: consumedLoading,
-                targets: targets,
-              ),
-              const SizedBox(height: 12),
-              if (targets == null)
-                _NoTargetCard(
-                  onSet: () => _openTargets(context, null),
-                )
-              else
-                _TargetSummaryRow(
-                  targets: targets!,
-                  onEdit: () => _openTargets(context, targets),
-                ),
-              const SizedBox(height: 20),
-              const TrainSectionLabel('Meals'),
-              const SizedBox(height: 11),
-              for (final meal in [
-                ...regularMeals(today.meals),
-              ]..sort((a, b) => a.order.compareTo(b.order)))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 9),
-                  child: _MealRow(
-                    meal: meal,
-                    eaten: consumed.contains(meal.id),
-                    onToggle: () => diet.setMealEaten(
-                      mealId: meal.id,
-                      day: now,
-                      eaten: !consumed.contains(meal.id),
-                    ),
-                  ),
-                ),
-              // Supplements are NOT meals: their own quiet checklist, their
-              // own hue, zero influence on meal counts or kcal left.
-              if (supplementMeals(today.meals).isNotEmpty) ...[
-                const SizedBox(height: 15),
-                const TrainSectionLabel('Supplements'),
-                const SizedBox(height: 11),
-                for (final meal in [
-                  ...supplementMeals(today.meals),
-                ]..sort((a, b) => a.order.compareTo(b.order)))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _SupplementCard(
-                      meal: meal,
-                      taken: consumed.contains(meal.id),
-                      onToggle: () => diet.setMealEaten(
-                        mealId: meal.id,
-                        day: now,
-                        eaten: !consumed.contains(meal.id),
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-            const SizedBox(height: 24),
-            TrainSectionLabel(
-              'Full plan',
-              // The day count, not an "EDIT" link: editing is the ember FAB,
-              // and a caption styled like an action that isn't one is worse
-              // than no caption at all.
-              trailing: plan.days.length == 1
-                  ? '1 DAY'
-                  : '${plan.days.length} DAYS',
-            ),
-            const SizedBox(height: 11),
-            for (final day in plan.days)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _DaySummaryCard(day: day),
-              ),
-          ],
-        );
-      },
+    _consumedStream ??= diet.watchConsumed(widget.now);
+    _logStream ??= diet.watchFoodLog(widget.now);
+  }
+
+  /// Logs what the sheet produced. The sheet itself never writes — it returns
+  /// entries, and persisting them is this page's job.
+  Future<void> _logFood() async {
+    final diet = AppScope.of(context).diet;
+    final entries = await showLogFoodSheet(context, day: widget.now);
+    if (entries == null || entries.isEmpty) return;
+    await diet.logFood(entries);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<FoodLogEntry>>(
+      stream: _logStream,
+      initialData: const <FoodLogEntry>[],
+      builder: (context, logSnapshot) => StreamBuilder<Set<String>>(
+        stream: _consumedStream,
+        initialData: const <String>{},
+        builder: (context, consumedSnapshot) => _buildList(
+          context,
+          log: logSnapshot.data ?? const <FoodLogEntry>[],
+          consumed: consumedSnapshot.data ?? const <String>{},
+          consumedLoading:
+              consumedSnapshot.connectionState == ConnectionState.waiting,
+        ),
+      ),
     );
   }
+
+  Widget _buildList(
+    BuildContext context, {
+    required List<FoodLogEntry> log,
+    required Set<String> consumed,
+    required bool consumedLoading,
+  }) {
+    final diet = AppScope.of(context).diet;
+    final plan = widget.plan;
+    final now = widget.now;
+    final targets = widget.targets;
+    final today = widget.today;
+    final target = today == null ? null : dayCalories(today);
+    return ListView(
+      padding: EdgeInsets.fromLTRB(22, 14, 22, TrainBottomInset.of(context)),
+      children: [
+        // The plan's own identity, and what TODAY actually plans — one
+        // mono caption, not a card.
+        //
+        // This used to hide the planned figure whenever the plan's *name*
+        // already carried one ("Balanced — 2200 kcal"), to avoid two
+        // calorie numbers on one line. But a name's number is free text:
+        // it's the whole plan's headline, it can be stale, and it often
+        // disagrees with what this particular day sums to — which left the
+        // ring counting down "1270 LEFT" against a header that said 2200,
+        // with nothing on screen explaining which was which. Two numbers
+        // are fine when they're labelled differently; two unlabelled ones
+        // are not. So the day's real planned total is always shown, and
+        // always says that's what it is.
+        Text(
+          [
+            plan.name.toUpperCase(),
+            // Two figures, each labelled — the target the user set, and
+            // what this particular day's plan adds up to. They are
+            // different things and routinely disagree; an unlabelled pair
+            // is what makes a screen unreadable.
+            if (targets != null) 'TARGET ${targets.calories} KCAL',
+            if (target != null)
+              'PLANNED ${approx(dayEstimated(today!))}$target KCAL',
+          ].join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TrainType.mono(
+            size: 11.5,
+            tracking: 0.06,
+            color: TrainColors.ink3,
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (today == null)
+          Text(
+            'No plan for today.',
+            style: TrainType.ui(
+              size: 14,
+              weight: FontWeight.w400,
+              color: TrainColors.ink2,
+            ),
+          )
+        else ...[
+          _DietHero(
+            day: today,
+            consumed: consumed,
+            loading: consumedLoading,
+            targets: targets,
+            log: log,
+          ),
+          const SizedBox(height: 12),
+          if (targets == null)
+            _NoTargetCard(onSet: () => _openTargets(context, null))
+          else
+            _TargetSummaryRow(
+              targets: targets,
+              onEdit: () => _openTargets(context, targets),
+            ),
+          const SizedBox(height: 20),
+          TrainSectionLabel(
+            'Eaten today',
+            trailing: log.isEmpty ? null : '${log.length}',
+          ),
+          const SizedBox(height: 11),
+          _LogFoodButton(onTap: _logFood),
+          if (log.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            for (final entry in log)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: _LogEntryRow(
+                  entry: entry,
+                  onRemove: () => diet.removeFoodLogEntry(entry.id),
+                ),
+              ),
+          ],
+          const SizedBox(height: 22),
+          const TrainSectionLabel('Meals'),
+          const SizedBox(height: 11),
+          for (final meal in [
+            ...regularMeals(today.meals),
+          ]..sort((a, b) => a.order.compareTo(b.order)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _MealRow(
+                meal: meal,
+                eaten: consumed.contains(meal.id),
+                onToggle: () => diet.setMealEaten(
+                  mealId: meal.id,
+                  day: now,
+                  eaten: !consumed.contains(meal.id),
+                ),
+              ),
+            ),
+          // Supplements are NOT meals: their own quiet checklist, their
+          // own hue, zero influence on meal counts or kcal left.
+          if (supplementMeals(today.meals).isNotEmpty) ...[
+            const SizedBox(height: 15),
+            const TrainSectionLabel('Supplements'),
+            const SizedBox(height: 11),
+            for (final meal in [
+              ...supplementMeals(today.meals),
+            ]..sort((a, b) => a.order.compareTo(b.order)))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _SupplementCard(
+                  key: Key('supplement-card-${meal.id}'),
+                  meal: meal,
+                  taken: consumed.contains(meal.id),
+                  onToggle: () => diet.setMealEaten(
+                    mealId: meal.id,
+                    day: now,
+                    eaten: !consumed.contains(meal.id),
+                  ),
+                ),
+              ),
+          ],
+        ],
+        const SizedBox(height: 24),
+        TrainSectionLabel(
+          'Full plan',
+          // The day count, not an "EDIT" link: editing is the ember FAB,
+          // and a caption styled like an action that isn't one is worse
+          // than no caption at all.
+          trailing: plan.days.length == 1
+              ? '1 DAY'
+              : '${plan.days.length} DAYS',
+        ),
+        const SizedBox(height: 11),
+        for (final day in plan.days)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _DaySummaryCard(day: day),
+          ),
+      ],
+    );
+  }
+}
+
+/// The one way into the food log. Quiet, not ember: the committing action on
+/// this screen is still the plan editor's Save, and a second glowing button
+/// would make neither read as primary.
+class _LogFoodButton extends StatelessWidget {
+  const _LogFoodButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TrainDashedCard(
+      key: const Key('log-food-button'),
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+      child: Row(
+        children: [
+          const Icon(Icons.add_rounded, size: 18, color: TrainColors.ink2),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text('Log something you ate', style: AppText.rowTitle),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One logged food: what it was, what it came to, and where that came from.
+///
+/// The provenance line is not decoration. An entry resolved from the USDA
+/// catalog, one the user defined themselves, and one materialised from a
+/// ticked plan meal are three different kinds of claim, and the row says which
+/// it is rather than rendering them identically.
+class _LogEntryRow extends StatelessWidget {
+  const _LogEntryRow({required this.entry, required this.onRemove});
+
+  final FoodLogEntry entry;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final fromPlan = entry.origin == FoodLogOrigin.plannedMeal;
+    return Container(
+      key: Key('log-entry-${entry.id}'),
+      padding: const EdgeInsets.fromLTRB(15, 11, 9, 11),
+      decoration: BoxDecoration(
+        color: const Color(0x0BFFFFFF),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.foodName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.rowTitle.copyWith(fontSize: 13.5),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    '${_trim(entry.quantity)} ${entry.unit}',
+                    fromPlan
+                        ? 'from your plan'
+                        : nutritionSourceLabel(entry.source),
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${approx(entry.estimated)}${entry.kcal}',
+            style: TrainType.mono(size: 14, color: TrainColors.ink),
+          ),
+          IconButton(
+            key: Key('remove-log-${entry.id}'),
+            onPressed: onRemove,
+            iconSize: 17,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close_rounded, color: TrainColors.ink4),
+            tooltip: 'Remove',
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _trim(double v) =>
+      v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 }
 
 /// Opens the target editor. Kept as one function so the empty-state card and
 /// the summary row can't drift apart.
 void _openTargets(BuildContext context, NutritionTargets? current) {
-  Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => DietTargetsPage(initial: current)),
-  );
+  Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => DietTargetsPage(initial: current)));
 }
 
 /// Shown when the user has no target. Says plainly what the coach can't do
@@ -387,11 +548,7 @@ class _NoTargetCard extends StatelessWidget {
       onTap: onSet,
       child: Row(
         children: [
-          const Icon(
-            Icons.flag_outlined,
-            size: 18,
-            color: TrainColors.ink2,
-          ),
+          const Icon(Icons.flag_outlined, size: 18, color: TrainColors.ink2),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -504,11 +661,16 @@ class _DietHero extends StatefulWidget {
     required this.consumed,
     required this.loading,
     required this.targets,
+    required this.log,
   });
 
   final DietDay day;
   final Set<String> consumed;
   final bool loading;
+
+  /// Today's food log. When non-empty it — not the plan — is what the hero
+  /// measures.
+  final List<FoodLogEntry> log;
 
   /// The user's objective, or null when unset.
   final NutritionTargets? targets;
@@ -533,6 +695,7 @@ class _DietHeroState extends State<_DietHero>
       targets: targets,
       day: widget.day,
       consumed: widget.consumed,
+      log: widget.log,
     );
   }
 
@@ -585,13 +748,25 @@ class _DietHeroState extends State<_DietHero>
         targetMacros.fatG != null;
     final eatenKcal = totalKcal == null ? null : totalKcal - summary.kcalLeft;
 
+    // Today measured against the user's OWN objective, when they have one.
+    // Everything below prefers it and falls back to the plan's totals only in
+    // its absence — and says which it used, either way.
+    final progress = _progressAgainstTargets;
+    final macroBars = progress == null
+        ? <MacroProgress>[]
+        : [
+            progress.protein,
+            progress.carbs,
+            progress.fat,
+          ].where((m) => m.target != null).toList();
+
     return TrainCard(
       radius: 24,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (totalKcal != null) ...[
+          if (totalKcal != null || progress != null) ...[
             SizedBox(
               width: 104,
               height: 104,
@@ -608,10 +783,7 @@ class _DietHeroState extends State<_DietHero>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          widget.loading
-                              ? '…'
-                              : '${approx(summary.kcalLeftEstimated)}'
-                                    '${summary.kcalLeft}',
+                          widget.loading ? '…' : _heroNumber(progress, summary),
                           style: TrainType.mono(
                             size: 30,
                             weight: FontWeight.w300,
@@ -621,13 +793,13 @@ class _DietHeroState extends State<_DietHero>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          // The one hero number says out loud when it rests on
+                          // The one hero number says out loud both what it is
+                          // measured against and whether it rests on
                           // AI-estimated values — a bare "1400" claims a
                           // precision an imported plan's guessed figures don't
-                          // have.
-                          summary.kcalLeftEstimated
-                              ? 'EST. KCAL LEFT'
-                              : 'KCAL LEFT',
+                          // have, and "left" means nothing until you know
+                          // "left of what".
+                          _heroLabel(progress, summary),
                           style: TrainType.caption(
                             size: 8,
                             tracking: 0.16,
@@ -657,7 +829,21 @@ class _DietHeroState extends State<_DietHero>
                     height: 1.2,
                   ),
                 ),
-                if (totalKcal == null) ...[
+                if (progress != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.loading
+                        ? 'TARGET ${progress.targets.calories}'
+                        : '${approx(progress.estimated)}'
+                              '${progress.consumedKcal} EATEN · '
+                              'TARGET ${progress.targets.calories}',
+                    style: TrainType.mono(
+                      size: 10.5,
+                      tracking: 0.06,
+                      color: TrainColors.ink4,
+                    ),
+                  ),
+                ] else if (totalKcal == null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'NO CALORIE DATA YET',
@@ -680,7 +866,25 @@ class _DietHeroState extends State<_DietHero>
                     ),
                   ),
                 ],
-                if (hasMacros) ...[
+                if (progress != null) ...[
+                  if (macroBars.isNotEmpty) ...[
+                    const SizedBox(height: 15),
+                    // Same three hues, now measuring the user's own macro
+                    // targets. A macro they didn't set a target for gets no
+                    // bar at all — better a missing row than one silently
+                    // measured against a different yardstick than its
+                    // neighbours.
+                    for (final macro in macroBars)
+                      _MacroBar(
+                        label: macro.label.toUpperCase(),
+                        eaten: macro.consumed,
+                        target: macro.target!,
+                        estimated: macro.estimated,
+                        color: _macroColor(macro.label),
+                        loading: widget.loading,
+                      ),
+                  ],
+                ] else if (hasMacros) ...[
                   const SizedBox(height: 15),
                   // Green protein, violet carbs, amber fat — one hue each, so
                   // three bars read as three different things at a glance.
@@ -722,6 +926,44 @@ class _DietHeroState extends State<_DietHero>
     );
   }
 }
+
+/// The hero's figure: calories left against the user's target when they have
+/// one (its magnitude — "over by 120" reads better than "-120"), otherwise
+/// calories left of the day's plan. Marked "~" whenever it rests on estimated
+/// values.
+String _heroNumber(
+  TargetProgress? progress,
+  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
+) {
+  if (progress != null) {
+    return '${approx(progress.estimated)}${progress.remainingKcal.abs()}';
+  }
+  return '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}';
+}
+
+/// What that figure is measured against — never left implicit.
+String _heroLabel(
+  TargetProgress? progress,
+  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
+) {
+  if (progress != null) {
+    final estimated = progress.estimated ? 'EST. ' : '';
+    return progress.overTarget
+        ? '${estimated}KCAL OVER'
+        : '${estimated}KCAL LEFT';
+  }
+  return summary.kcalLeftEstimated
+      ? 'EST. KCAL LEFT OF PLAN'
+      : 'KCAL LEFT OF PLAN';
+}
+
+/// The hue that owns each macro, so a target-driven bar and a plan-driven one
+/// never disagree about which colour protein is.
+Color _macroColor(String label) => switch (label) {
+  'Protein' => TrainColors.green,
+  'Carbs' => TrainColors.violetGlyph,
+  _ => TrainColors.amber,
+};
 
 /// One macro: a mono caption and its `eaten/target` figure on one line, with
 /// a 3px bar beneath. The figure stays dimmer than the meals line above it —
@@ -774,7 +1016,7 @@ class _MacroBar extends StatelessWidget {
               ),
               Text(
                 '${loading ? '–' : eaten.round()}'
-                    '/${approx(estimated)}${target.round()}g',
+                '/${approx(estimated)}${target.round()}g',
                 style: TrainType.mono(
                   size: 9.5,
                   color: const Color(0x99F4F4F0),
@@ -1014,6 +1256,7 @@ class _MealRowState extends State<_MealRow>
 /// visually distinct from meals by design (they are not food).
 class _SupplementCard extends StatelessWidget {
   const _SupplementCard({
+    super.key,
     required this.meal,
     required this.taken,
     required this.onToggle,

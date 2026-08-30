@@ -1,4 +1,6 @@
 import 'diet_plan.dart';
+import 'nutrition/custom_food.dart';
+import 'nutrition/food_log_entry.dart';
 import 'nutrition_targets.dart';
 
 /// The seam between the app and diet plan storage (in-memory demo for now,
@@ -29,9 +31,47 @@ abstract interface class DietRepository {
 
   /// The set of meal ids marked eaten on [day].
   Stream<Set<String>> watchConsumed(DateTime day);
+
+  /// Ticks or un-ticks a planned meal.
+  ///
+  /// This also **materialises the meal's items into the food log** (as
+  /// [FoodLogOrigin.plannedMeal] entries) and removes exactly those on
+  /// un-tick. The interaction the user sees is unchanged; what changes is that
+  /// the data underneath becomes a ledger of foods rather than a row of
+  /// checkboxes — so a user who ate three of the four items can say so, and
+  /// "consumed" stops being an assumption (see `docs/DIET_COACH_AUDIT.md`, T6).
   Future<void> setMealEaten({
     required String mealId,
     required DateTime day,
     required bool eaten,
   });
+
+  /// Everything logged on [day], oldest first.
+  ///
+  /// **This is the consumption ledger.** An empty log for a past day means
+  /// nothing was recorded then, not that nothing was eaten — callers fall back
+  /// to the planned figures of ticked meals and must say that they did.
+  Stream<List<FoodLogEntry>> watchFoodLog(DateTime day);
+
+  /// Appends [entries] to the log. Takes a list because one thing a person
+  /// says ("two eggs and 100g rice") is often several entries, and they should
+  /// land together or not at all.
+  Future<void> logFood(List<FoodLogEntry> entries);
+
+  /// Removes one entry by id.
+  Future<void> removeFoodLogEntry(String id);
+
+  /// The foods the user has defined themselves, newest first.
+  Stream<List<CustomFood>> watchCustomFoods();
+
+  /// A one-shot read, for the resolver — which needs the current list on every
+  /// lookup and can't hold a subscription.
+  Future<List<CustomFood>> listCustomFoods();
+
+  /// Creates or replaces a user-defined food by id.
+  Future<void> saveCustomFood(CustomFood food);
+
+  /// Deletes a user-defined food. Past log entries keep their stored figures
+  /// and name — deleting the definition must not rewrite history.
+  Future<void> deleteCustomFood(String id);
 }

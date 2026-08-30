@@ -205,6 +205,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
           ),
           Expanded(
             child: ListView(
+              key: const Key('targets-list'),
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
               children: [
                 Text(
@@ -590,6 +591,7 @@ class _CalculatorSheetState extends State<_CalculatorSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: SingleChildScrollView(
+        key: const Key('calculator-scroll'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

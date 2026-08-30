@@ -9,13 +9,14 @@ import 'package:zivo/core/widgets/reactive_state_views.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_day.dart';
+import 'package:zivo/features/diet/domain/diet_goal.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
-import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
 import 'package:zivo/features/diet/domain/meal.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/diet/presentation/pages/meal_detail_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -24,13 +25,14 @@ import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dar
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
+import '../support/diet_repository_stub.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
 /// A repository whose `watchActivePlan()` stream only emits when [emit] is
 /// called, so tests can assert on the in-between "waiting" state
 /// deterministically.
-class _PendingDietRepository implements DietRepository {
+class _PendingDietRepository extends DietRepositoryStub {
   final StreamController<DietPlan?> _controller = StreamController<DietPlan?>.broadcast();
 
   @override
@@ -190,16 +192,41 @@ void main() {
     await diet.savePlan(withSupplements);
     await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
     await tester.pump();
-    // Let the consumed-set stream resolve so the hero states real counts.
+    // Let the targets stream and then the consumed-set stream resolve so the
+    // hero states real counts (two nested stream builders now: targets, then
+    // consumption).
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    // Own section header (mono, uppercase) + own row.
-    expect(find.text('SUPPLEMENTS'), findsOneWidget);
-    expect(find.text('Supplements'), findsOneWidget);
-    expect(find.text('Vitamin D3'), findsNothing,
-        reason: 'supplement items live on the detail page too');
-    // The hero count excludes supplements: 3 real meals, not 4.
+
+    // The hero count excludes supplements: 3 real meals, not 4. Asserted
+    // BEFORE scrolling, while the hero is still on screen.
     expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
 
+    // The supplements block sits below the meals; scroll it into view.
+    await tester.dragUntilVisible(
+      find.text('SUPPLEMENTS'),
+      find.byType(ListView),
+      const Offset(0, -120),
+    );
+    await tester.pump();
+    // Own section header (mono, uppercase) + own row. Scoped to the section
+    // label widget: the full-plan reference card further down lists the block
+    // under the same uppercase name.
+    expect(
+      find.widgetWithText(TrainSectionLabel, 'SUPPLEMENTS'),
+      findsOneWidget,
+    );
+    expect(find.text('Supplements'), findsOneWidget);
+    // The tickable supplements row names the block, not its contents — the
+    // item breakdown lives on the detail page. (The full-plan reference card
+    // further down the same list DOES spell items out, hence the scoping.)
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('supplement-card-seed-meal-supps')),
+        matching: find.text('Vitamin D3'),
+      ),
+      findsNothing,
+    );
     // Tapping the supplement ROW marks IT taken without touching meal counts.
     await tester.tap(find.text('Supplements').last);
     await tester.pump();
@@ -339,9 +366,10 @@ void main() {
 
     expect(find.text('~700'), findsWidgets,
         reason: 'the hero number and the meal row both carry the marker');
-    expect(find.text('EST. KCAL LEFT'), findsOneWidget,
-        reason: 'the ring label says the figure is an estimate');
-    expect(find.text('KCAL LEFT'), findsNothing);
+    expect(find.text('EST. KCAL LEFT OF PLAN'), findsOneWidget,
+        reason: 'the ring label says both what it measures and that it is '
+            'an estimate');
+    expect(find.text('KCAL LEFT OF PLAN'), findsNothing);
     expect(find.textContaining('IMPORTED · PLANNED ~700 KCAL'), findsOneWidget);
     // Macro targets come from the same items, so they are marked too.
     expect(find.text('0/~20g'), findsOneWidget);
@@ -388,9 +416,123 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('KCAL LEFT'), findsOneWidget);
-    expect(find.text('EST. KCAL LEFT'), findsNothing);
+    expect(find.text('KCAL LEFT OF PLAN'), findsOneWidget);
+    expect(find.text('EST. KCAL LEFT OF PLAN'), findsNothing);
     expect(find.text('~700'), findsNothing);
     expect(find.text('0/20g'), findsOneWidget);
+  });
+
+  // ── Targets ──────────────────────────────────────────────────────────────
+  // The screen must never imply a goal the user didn't set, and once they do
+  // set one, every figure on it has to be measured against that and say so.
+
+  testWidgets('with no target set, the screen says so and measures against '
+      'the plan — never passing the plan off as a goal', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('no-target-card')), findsOneWidget);
+    expect(find.text('No daily target set'), findsOneWidget);
+    // The ring names its yardstick rather than implying an objective.
+    expect(find.text('KCAL LEFT OF PLAN'), findsOneWidget);
+    expect(find.byKey(const Key('target-summary-row')), findsNothing);
+    expect(find.textContaining('TARGET'), findsNothing);
+  });
+
+  testWidgets('with a target set, the hero counts down THAT target and the '
+      'header labels both numbers', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 2200,
+        proteinG: 160,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Nothing ticked yet: the whole target is left.
+    expect(find.text('2200'), findsOneWidget);
+    expect(find.text('KCAL LEFT'), findsOneWidget);
+    expect(find.byKey(const Key('no-target-card')), findsNothing);
+
+    // The goal and where the number came from are both on screen.
+    expect(find.byKey(const Key('target-summary-row')), findsOneWidget);
+    expect(find.textContaining('FAT LOSS · 2200 KCAL/DAY'), findsOneWidget);
+    expect(find.textContaining('You set this'), findsOneWidget);
+
+    // Two figures on the header caption, each labelled — the target the user
+    // chose and what today's plan happens to add up to.
+    expect(find.textContaining('TARGET 2200 KCAL'), findsOneWidget);
+    expect(find.textContaining('PLANNED 1270 KCAL'), findsOneWidget);
+
+    // Only the macro the user actually set a target for gets a bar.
+    expect(find.text('0/160g'), findsOneWidget);
+    expect(find.text('PROTEIN'), findsOneWidget);
+    expect(find.text('CARBS'), findsNothing);
+  });
+
+  testWidgets('ticking a meal counts down the target, and going past it reads '
+      'as OVER rather than a clamped zero', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.maintain,
+        calories: 400,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('400'), findsOneWidget);
+
+    // Breakfast is 310 kcal in the seeded plan — still under.
+    await tester.tap(find.byKey(const Key('meal-tick-seed-meal-breakfast')));
+    await tester.pump();
+    expect(find.text('90'), findsOneWidget);
+    expect(find.text('KCAL LEFT'), findsOneWidget);
+
+    // Lunch (540) pushes it well past the target.
+    await tester.tap(find.byKey(const Key('meal-tick-seed-meal-lunch')));
+    await tester.pump();
+    expect(find.text('KCAL OVER'), findsOneWidget);
+    expect(find.text('450'), findsOneWidget);
+  });
+
+  testWidgets('a target under the safety floor is called out on the screen '
+      'itself, not left to the coach to notice', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 900,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.textContaining('worth checking with a professional'),
+      findsOneWidget,
+    );
   });
 }

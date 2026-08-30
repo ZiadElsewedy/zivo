@@ -11,6 +11,10 @@ import '../domain/diet_source.dart';
 import '../domain/diet_goal.dart';
 import '../domain/food_item.dart';
 import '../domain/meal.dart';
+import '../domain/nutrition/custom_food.dart';
+import '../domain/nutrition/food_log_entry.dart';
+import '../domain/nutrition/food_reference.dart';
+import '../domain/nutrition/planned_meal_log.dart';
 import '../domain/nutrition_targets.dart';
 
 /// The real [DietRepository], backed by Firestore's `users/{uid}/dietPlans`
@@ -266,11 +270,15 @@ class FirestoreDietRepository implements DietRepository {
     required String mealId,
     required DateTime day,
     required bool eaten,
-  }) {
+  }) async {
     final uid = _requireUid();
     final key = dayKey(day);
     final startOfDay = DateTime(day.year, day.month, day.day);
-    return _dietEntriesCollection(uid).doc('${key}__$mealId').set({
+
+    // `dietEntries` stays the tick state and keeps its exact shape — older app
+    // builds still read it, and the rules still validate it. What's new is the
+    // second write below.
+    await _dietEntriesCollection(uid).doc('${key}__$mealId').set({
       'dayKey': key,
       'date': Timestamp.fromDate(startOfDay),
       'mealId': mealId,
@@ -279,6 +287,172 @@ class FirestoreDietRepository implements DietRepository {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    // Materialise the meal into the food log, so "consumed" is a list of foods
+    // rather than a checkbox. Ids are derived from (day, meal, index) so the
+    // write is idempotent: double-ticking overwrites rather than duplicating.
+    final meal = _mealById(mealId);
+    if (meal == null) return;
+    final entries = entriesForPlannedMeal(
+      meal: meal,
+      day: day,
+      now: DateTime.now(),
+      idPrefix: '${key}__$mealId',
+    );
+    final batch = _firestore.batch();
+    if (eaten) {
+      for (final entry in entries) {
+        batch.set(
+          _foodLogsCollection(uid).doc(entry.id),
+          _entryToMap(entry),
+          SetOptions(merge: true),
+        );
+      }
+    } else {
+      // Remove exactly the entries this meal created — never a user's own.
+      for (final entry in entries) {
+        batch.delete(_foodLogsCollection(uid).doc(entry.id));
+      }
+    }
+    await batch.commit();
+  }
+
+  /// The meal with [mealId] in the cached active plan, or null.
+  Meal? _mealById(String mealId) {
+    for (final day in _activePlan?.days ?? const <DietDay>[]) {
+      for (final meal in day.meals) {
+        if (meal.id == mealId) return meal;
+      }
+    }
+    return null;
+  }
+
+  /// Independent per-call stream, for the same reason [watchConsumed] is one:
+  /// it is parameterized by the day being watched.
+  @override
+  Stream<List<FoodLogEntry>> watchFoodLog(DateTime day) {
+    final key = dayKey(day);
+    late final StreamController<List<FoodLogEntry>> controller;
+    StreamSubscription<String?>? uidSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? querySub;
+
+    void onUidChanged(String? uid) {
+      querySub?.cancel();
+      if (uid == null) {
+        controller.add(const []);
+        return;
+      }
+      querySub = _foodLogsCollection(uid)
+          .where('dayKey', isEqualTo: key)
+          .snapshots()
+          .listen((snapshot) {
+            final entries = snapshot.docs
+                .map(_entryFromDoc)
+                .whereType<FoodLogEntry>()
+                .toList()
+              ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
+            controller.add(entries);
+          }, onError: (e, s) => controller.addError(e, s));
+    }
+
+    controller = StreamController<List<FoodLogEntry>>.broadcast(
+      onListen: () => uidSub = _uidWithInitial().listen(onUidChanged),
+      onCancel: () {
+        uidSub?.cancel();
+        uidSub = null;
+        querySub?.cancel();
+        querySub = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
+  Future<void> logFood(List<FoodLogEntry> entries) async {
+    if (entries.isEmpty) return;
+    final uid = _requireUid();
+    final batch = _firestore.batch();
+    for (final entry in entries) {
+      batch.set(_foodLogsCollection(uid).doc(entry.id), _entryToMap(entry));
+    }
+    // One batch: "two eggs and 100g rice" is one thing the user said, and it
+    // should land whole or not at all.
+    await batch.commit();
+  }
+
+  @override
+  Future<void> removeFoodLogEntry(String id) {
+    final uid = _requireUid();
+    return _foodLogsCollection(uid).doc(id).delete();
+  }
+
+  @override
+  Stream<List<CustomFood>> watchCustomFoods() {
+    late final StreamController<List<CustomFood>> controller;
+    StreamSubscription<String?>? uidSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? querySub;
+
+    void onUidChanged(String? uid) {
+      querySub?.cancel();
+      if (uid == null) {
+        controller.add(const []);
+        return;
+      }
+      querySub = _customFoodsCollection(uid)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+            controller.add(
+              snapshot.docs.map(_customFoodFromDoc).whereType<CustomFood>().toList(),
+            );
+          }, onError: (e, s) => controller.addError(e, s));
+    }
+
+    controller = StreamController<List<CustomFood>>.broadcast(
+      onListen: () => uidSub = _uidWithInitial().listen(onUidChanged),
+      onCancel: () {
+        uidSub?.cancel();
+        uidSub = null;
+        querySub?.cancel();
+        querySub = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  @override
+  Future<List<CustomFood>> listCustomFoods() async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return const [];
+    final snapshot = await _customFoodsCollection(
+      uid,
+    ).orderBy('createdAt', descending: true).get();
+    return snapshot.docs.map(_customFoodFromDoc).whereType<CustomFood>().toList();
+  }
+
+  @override
+  Future<void> saveCustomFood(CustomFood food) {
+    final uid = _requireUid();
+    return _customFoodsCollection(uid).doc(food.id).set({
+      'name': food.name,
+      'kcalPer100g': food.kcalPer100g,
+      'proteinPer100g': food.proteinPer100g,
+      'carbsPer100g': food.carbsPer100g,
+      'fatPer100g': food.fatPer100g,
+      'preparation': food.preparation.name,
+      'portions': [
+        for (final portion in food.portions)
+          {'label': portion.label, 'grams': portion.grams},
+      ],
+      'schemaVersion': 1,
+      'createdAt': Timestamp.fromDate(food.createdAt),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteCustomFood(String id) {
+    final uid = _requireUid();
+    return _customFoodsCollection(uid).doc(id).delete();
   }
 
   String _requireUid() {
@@ -294,6 +468,95 @@ class FirestoreDietRepository implements DietRepository {
 
   CollectionReference<Map<String, dynamic>> _dietEntriesCollection(String uid) =>
       _firestore.collection('users').doc(uid).collection('dietEntries');
+
+  CollectionReference<Map<String, dynamic>> _foodLogsCollection(String uid) =>
+      _firestore.collection('users').doc(uid).collection('foodLogs');
+
+  CollectionReference<Map<String, dynamic>> _customFoodsCollection(String uid) =>
+      _firestore.collection('users').doc(uid).collection('customFoods');
+
+  /// The stored shape of a log entry. The computed nutrition is stored
+  /// alongside the food reference on purpose: the catalog can be rebuilt, and
+  /// a past day must not silently change its totals when it is.
+  Map<String, dynamic> _entryToMap(FoodLogEntry entry) => {
+    'dayKey': dayKey(entry.day),
+    'date': Timestamp.fromDate(entry.day),
+    'loggedAt': Timestamp.fromDate(entry.loggedAt),
+    'foodId': entry.foodId,
+    'foodName': entry.foodName,
+    'quantity': entry.quantity,
+    'unit': entry.unit,
+    'grams': entry.grams,
+    'kcal': entry.kcal,
+    'proteinG': entry.proteinG,
+    'carbsG': entry.carbsG,
+    'fatG': entry.fatG,
+    'source': entry.source.name,
+    'sourceRef': entry.sourceRef,
+    'origin': entry.origin.name,
+    'estimated': entry.estimated,
+    'mealId': entry.mealId,
+    'schemaVersion': 1,
+  };
+
+  FoodLogEntry? _entryFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final foodId = data['foodId'] as String?;
+    final date = data['date'];
+    if (foodId == null || foodId.isEmpty || date is! Timestamp) return null;
+    final loggedAt = data['loggedAt'];
+    return FoodLogEntry(
+      id: doc.id,
+      day: date.toDate(),
+      loggedAt: loggedAt is Timestamp ? loggedAt.toDate() : date.toDate(),
+      foodId: foodId,
+      foodName: data['foodName'] as String? ?? '',
+      quantity: (data['quantity'] as num?)?.toDouble() ?? 0,
+      unit: data['unit'] as String? ?? 'g',
+      grams: (data['grams'] as num?)?.toDouble() ?? 0,
+      kcal: (data['kcal'] as num?)?.toInt() ?? 0,
+      proteinG: (data['proteinG'] as num?)?.toDouble() ?? 0,
+      carbsG: (data['carbsG'] as num?)?.toDouble() ?? 0,
+      fatG: (data['fatG'] as num?)?.toDouble() ?? 0,
+      source: nutritionSourceFromName(data['source'] as String?),
+      sourceRef: data['sourceRef'] as String? ?? '',
+      origin: foodLogOriginFromName(data['origin'] as String?),
+      estimated: data['estimated'] == true,
+      mealId: data['mealId'] as String?,
+    );
+  }
+
+  CustomFood? _customFoodFromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final name = data['name'] as String?;
+    final kcal = (data['kcalPer100g'] as num?)?.toDouble();
+    if (name == null || name.isEmpty || kcal == null) return null;
+    final createdAt = data['createdAt'];
+    return CustomFood(
+      id: doc.id,
+      name: name,
+      kcalPer100g: kcal,
+      proteinPer100g: (data['proteinPer100g'] as num?)?.toDouble() ?? 0,
+      carbsPer100g: (data['carbsPer100g'] as num?)?.toDouble() ?? 0,
+      fatPer100g: (data['fatPer100g'] as num?)?.toDouble() ?? 0,
+      preparation: foodPreparationFromName(data['preparation'] as String?),
+      portions: [
+        for (final raw in (data['portions'] as List<dynamic>? ?? const []))
+          if (raw is Map &&
+              raw['label'] is String &&
+              raw['grams'] is num)
+            FoodPortion(
+              label: raw['label'] as String,
+              grams: (raw['grams'] as num).toDouble(),
+            ),
+      ],
+      createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+    );
+  }
 
   DocumentReference<Map<String, dynamic>> _targetsDoc(String uid) => _firestore
       .collection('users')

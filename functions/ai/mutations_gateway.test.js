@@ -308,7 +308,11 @@ const DIET_PLAN = {
   }],
 };
 
-/** @return {!Object} A store whose active plan is DIET_PLAN. */
+/**
+ * A `makeStore` whose active diet plan is DIET_PLAN.
+ * @param {!Object=} overrides Extra store methods, as `makeStore` takes them.
+ * @return {!Object}
+ */
 function dietStore(overrides) {
   return makeStore(Object.assign(
       {getActiveDietPlan: async () => DIET_PLAN}, overrides || {}));

@@ -119,6 +119,40 @@ class FirestoreStore {
   }
 
   /**
+   * The user's nutrition targets (`dietTargets/current`), or null when they
+   * haven't set any.
+   *
+   * Null is a real answer, not a failure: ZIVO never invents a target, so the
+   * coach has to be able to say "you haven't set one" rather than quietly
+   * treating the plan's own total as a goal the user chose. A document that
+   * can't be read as a real target (no goal, no usable calorie figure) is
+   * reported the same way, for the same reason.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getDietTargets(uid) {
+    const snap = await this._user(uid)
+        .collection("dietTargets")
+        .doc("current")
+        .get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    const calories = typeof d.calories === "number" && d.calories > 0 ?
+      Math.round(d.calories) : null;
+    if (!d.goal || calories === null) return null;
+    const num = (v) =>
+      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+    return {
+      goal: String(d.goal),
+      calories,
+      proteinG: num(d.proteinG),
+      carbsG: num(d.carbsG),
+      fatG: num(d.fatG),
+      source: typeof d.source === "string" ? d.source : "manual",
+    };
+  }
+
+  /**
    * @param {string} uid
    * @param {string} dayKey
    * @return {!Promise<!Array<Object>>}

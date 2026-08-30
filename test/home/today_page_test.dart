@@ -12,8 +12,9 @@ import 'package:zivo/features/diet/data/firestore_diet_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
-import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/diet_goal.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/expenses/domain/expense.dart';
@@ -41,6 +42,7 @@ import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_day_details_page.dart';
 
+import '../support/diet_repository_stub.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/inert_music_controller.dart';
@@ -418,6 +420,58 @@ void main() {
 
     // Seeded plan: 3 meals (Breakfast/Lunch/Dinner), none eaten yet.
     expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
+    // With no target set, the line names the plan as its baseline rather than
+    // implying a goal the user never chose.
+    expect(find.textContaining('kcal left of plan'), findsOneWidget);
+  });
+
+  testWidgets('Diet glance measures the target once one is set — the same '
+      'yardstick the Diet screen uses', (tester) async {
+    // Today and Diet quoting "kcal left" against different baselines is the
+    // quiet disagreement that makes a number untrustworthy.
+    await tallView(tester);
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 2000,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const TodayPage(), diet: diet));
+    await _settle(tester);
+
+    expect(find.textContaining('2000 kcal left of target'), findsOneWidget);
+    expect(find.textContaining('of plan'), findsNothing);
+  });
+
+  testWidgets('Diet glance says "over target" rather than a clamped zero',
+      (tester) async {
+    await tallView(tester);
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 200,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+    // Breakfast is 310 kcal in the seeded plan.
+    await diet.setMealEaten(
+      mealId: 'seed-meal-breakfast',
+      day: DateTime.now(),
+      eaten: true,
+    );
+
+    await tester.pumpWidget(_wrap(child: const TodayPage(), diet: diet));
+    await _settle(tester);
+
+    expect(find.textContaining('110 kcal over target'), findsOneWidget);
   });
 
   testWidgets('Diet glance is hidden when there is no active plan', (
@@ -555,7 +609,7 @@ Future<void> _settle(WidgetTester tester) async {
 /// A [DietRepository] that starts with (or without) a plan and rebroadcasts
 /// reactively on [savePlan]/[deletePlan] — used to prove the Get Started
 /// card collapses the moment a diet plan shows up.
-class _TestDietRepository implements DietRepository {
+class _TestDietRepository extends DietRepositoryStub {
   _TestDietRepository([DietPlan? initial]) : _plan = initial;
 
   DietPlan? _plan;

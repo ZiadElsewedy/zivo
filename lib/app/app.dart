@@ -35,7 +35,10 @@ import '../features/auth/domain/profile_repository.dart';
 import '../features/auth/presentation/auth_gate.dart';
 import '../features/diet/data/firestore_diet_repository.dart';
 import '../features/diet/data/in_memory_diet_repository.dart';
+import '../features/diet/data/bundled_food_database.dart';
 import '../features/diet/domain/diet_repository.dart';
+import '../features/diet/domain/nutrition/composite_food_resolver.dart';
+import '../features/diet/domain/nutrition/food_resolver.dart';
 import '../features/device/steps/step_counter.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
@@ -97,6 +100,7 @@ class ZivoApp extends StatefulWidget {
     this.workoutSessions,
     this.bodyWeight,
     this.diet,
+    this.foods,
     this.ai,
     this.recorder,
     this.media,
@@ -117,6 +121,10 @@ class ZivoApp extends StatefulWidget {
   final WorkoutSessionRepository? workoutSessions;
   final BodyWeightRepository? bodyWeight;
   final DietRepository? diet;
+
+  /// Overridable so tests can inject a stub catalog instead of parsing the
+  /// real 1 MB asset.
+  final FoodResolver? foods;
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final StepCounterService? stepCounter;
@@ -154,6 +162,19 @@ class _ZivoAppState extends State<ZivoApp> {
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
+
+  /// The nutrition catalog: the user's own foods layered over the bundled USDA
+  /// reference set, so a food they defined always beats a loose USDA match.
+  ///
+  /// Constructed eagerly but LOADED lazily — the bundled asset is ~1 MB and is
+  /// only parsed the first time something actually looks a food up, so a
+  /// session that never opens food search never pays for it.
+  late final FoodResolver _foods =
+      widget.foods ??
+      CompositeFoodResolver(
+        catalog: BundledFoodDatabase(),
+        customFoods: () => _diet.listCustomFoods(),
+      );
   late final AiRepository _ai = widget.ai ?? _defaultAi();
   late final AudioRecorderService _recorder =
       widget.recorder ?? RecordAudioRecorderService();
@@ -297,6 +318,7 @@ class _ZivoAppState extends State<ZivoApp> {
       workoutSessions: _workoutSessions,
       bodyWeight: _bodyWeight,
       diet: _diet,
+      foods: _foods,
       ai: _ai,
       recorder: _recorder,
       stepCounter: _stepCounter,

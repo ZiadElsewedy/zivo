@@ -137,6 +137,9 @@ flutter:
   assets:
     - assets/loading.json
     - assets/ai-generate.json
+    # The bundled USDA nutrition catalog. Built by
+    # scripts/nutrition/build_food_db.js — see docs/DIET_COACH_AUDIT.md.
+    - assets/nutrition/foods.json
     - assets/transparent/
     - assets/spotify/
     - assets/google/

@@ -16,6 +16,8 @@ import '../../../auth/domain/user_profile.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
+import '../../../diet/domain/nutrition_targets.dart';
+import '../../../diet/domain/target_progress.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/presentation/pages/expense_capture_page.dart';
@@ -887,25 +889,43 @@ class _DietSection extends StatelessWidget {
         final day = dayForDate(plan, now);
         // Tertiary tier: silently hides when empty, same rule as Focus above.
         if (day == null) return const SizedBox.shrink();
-        return StreamBuilder<Set<String>>(
-          stream: diet.watchConsumed(now),
-          initialData: const <String>{},
-          builder: (context, consumedSnapshot) {
-            final summary = dietDaySummary(
-              day,
-              consumedSnapshot.data ?? const <String>{},
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader('Diet'),
-                DietGlanceRow(
-                  eaten: summary.eaten,
-                  total: summary.total,
-                  kcalLeft: summary.kcalLeft,
-                  kcalEstimated: summary.kcalLeftEstimated,
-                ),
-              ],
+        return StreamBuilder<NutritionTargets?>(
+          stream: diet.watchTargets(),
+          initialData: diet.currentTargets,
+          builder: (context, targetsSnapshot) {
+            final targets = targetsSnapshot.data;
+            return StreamBuilder<Set<String>>(
+              stream: diet.watchConsumed(now),
+              initialData: const <String>{},
+              builder: (context, consumedSnapshot) {
+                final consumed = consumedSnapshot.data ?? const <String>{};
+                final summary = dietDaySummary(day, consumed);
+                // Measure against the user's own target when they have one —
+                // the same figure the Diet screen's hero shows. Falling back
+                // to the plan total is fine; silently swapping between the two
+                // under the same words would not be.
+                final progress = targets == null
+                    ? null
+                    : buildTargetProgress(
+                        targets: targets,
+                        day: day,
+                        consumed: consumed,
+                      );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SectionHeader('Diet'),
+                    DietGlanceRow(
+                      eaten: summary.eaten,
+                      total: summary.total,
+                      kcalLeft: progress?.remainingKcal ?? summary.kcalLeft,
+                      kcalEstimated:
+                          progress?.estimated ?? summary.kcalLeftEstimated,
+                      againstTarget: progress != null,
+                    ),
+                  ],
+                );
+              },
             );
           },
         );

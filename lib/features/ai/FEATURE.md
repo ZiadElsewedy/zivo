@@ -35,7 +35,7 @@
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)**, confirm/execute dispatch (`applyProposedAction`) |
-| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`. Every payload states the **date** it resolved, and diet figures carry their `estimated` provenance. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`. Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
 | `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten` |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
@@ -56,6 +56,12 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   eggs and rice" must be answered with what the app knows, not a guess. `gateway.test.js`
   asserts the prompt still says this; don't soften it without reading
   [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+- **Two things are called "target" and they are not the same.** `targets` is the user's own
+  objective (goal + daily numbers they set); `nutrition.target` is what a plan day happens to
+  add up to. The prompt coaches against the first and describes the second. When `targets` is
+  null the user has set no objective and the coach must say so rather than treating the plan's
+  sum as a goal. `remaining` is computed server-side from **ticked meals**, not a food log —
+  it means "the plan values what you ticked at N", and the prompt says so.
 - **The turn carries the date.** Nothing else does — the prompt is static and cached, the
   history is undated. `runAiTurn` appends an uncached `CONTEXT` system block with the
   user's local date/weekday/time, built from the `utcOffsetMinutes` the client sends.

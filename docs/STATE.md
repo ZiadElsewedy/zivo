@@ -137,13 +137,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
-  - **Pending now (2):** the **Diet Coach Phase 0** hardening (`gateway.js`, `tools.js`,
+  - **Pending now (2):** the **Diet Coach Phase 0 + Phase 1** work (`gateway.js`, `tools.js`,
     `dates.js`, `mutations.js`, `store.js`, `index.js` **+ `firestore.rules`**) — see
     [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md). Until deployed the live coach keeps the old
-    prompt (which licensed invented calories), has no idea what day it is, and can write an
-    unverified meal id. **Deploy functions and rules together with the client build** — the
-    tightened `dietEntries` rule rejects writes from older app builds. Command:
-    `firebase deploy --only functions,firestore:rules`.
+    prompt (which licensed invented calories), has no idea what day it is, can write an
+    unverified meal id, and can't see the user's targets at all. **Deploy functions and rules
+    together with the client build** — the tightened `dietEntries` rule rejects writes from
+    older app builds, and the new `dietTargets` rule is what lets a target be saved at all.
+    Command: `firebase deploy --only functions,firestore:rules`.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
@@ -199,6 +200,45 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 2: the nutrition catalog (the missing dependency).**
+  ZIVO had no way to know what any food was worth except asking a model. It now ships
+  **7,308 foods (1.0 MB)** in `assets/nutrition/foods.json`, built by
+  `scripts/nutrition/build_food_db.js` from USDA FoodData Central's Foundation Foods +
+  SR Legacy exports (public domain). Every row carries its real `fdcId`; nothing in the
+  catalog is hand-written or model-generated — that was the whole point, and a
+  hand-authored catalog would have reproduced the original bug one layer down.
+  New domain: `FoodReference`/`FoodPreparation`/`NutritionSource`, the sealed
+  `FoodMatch` (**resolved / ambiguous / not-found**, so uncertainty can't be skipped),
+  `FoodResolver`, and `nutritionFor` — the only path from a food + an amount to
+  calories. Raw vs cooked is first-class (raw rice 365 kcal/100g vs cooked 130), and a
+  query matching both becomes a **question**; volumes are refused unless the source
+  recorded that measure for that food (no assumed densities). Mirrored server-side in
+  `functions/nutrition/food_db.js`, with the catalog written to both trees and
+  `test/fixtures/nutrition_vectors.json` run by **both** suites plus a checksum — so the
+  app and the coach cannot drift into different numbers. Wired as `AppScope.foods`
+  (lazily parsed); the screens that use it are Phase 3.
+  `flutter analyze` clean · Flutter **816 pass** · functions **245 pass** ·
+  functions lint clean · rules 89 pass. Full detail:
+  [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
+- 2026-08-30 — **Diet Coach Phase 1: goal + targets, the missing spine.** The coach could
+  describe a plan but had no idea what it was *for*, which made every recommendation generic
+  by construction. Now: `DietGoal` + `NutritionTargets` (kcal + optional macros, with a
+  `TargetSource` recording whether a person typed it, a formula proposed it, or it was adopted
+  from the plan), stored at `dietTargets/current` with its own rule; a target-setting screen
+  with a pure on-device Mifflin-St Jeor calculator that **fills the fields as a proposal and
+  shows its working** rather than saving anything; and a deterministic 1200 kcal safety floor
+  that warns instead of clamping. **Unset stays a real state** — no default, nothing
+  auto-derived: the Diet hero then counts down the plan under the label `KCAL LEFT OF PLAN`,
+  Today's glance says "of plan", and the coach is told `targets: null`. With a target set the
+  hero counts down *that* (`KCAL OVER` when past it — never clamped), macro bars use the
+  user's own macro targets, and the header labels both figures
+  (`TARGET 2200 KCAL · PLANNED ~1270 KCAL`). Server-side, `get_diet`/`get_today` now carry
+  `targets` and a computed `remaining` (null per macro where no target was set), and the prompt
+  separates the user's objective from a plan day's sum and states that `remaining` comes from
+  **ticked meals, not a food log**. Fixed in passing: `_PlanBody` was re-creating the
+  consumption stream on every rebuild.
+  `flutter analyze` clean · Flutter **796 pass** · functions **238 pass** · rules **89 pass**.
+  **Still needs the same deploy** — see the owner action items above.
 - 2026-08-30 — **Diet Coach trust audit + Phase 0.** Audited the whole diet/AI path against
   one question: *where does each number come from?* Answer: every calorie in ZIVO is
   model-generated (`diet_import.js` makes calories/macros **required** schema fields so the

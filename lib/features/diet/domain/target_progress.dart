@@ -1,6 +1,7 @@
 import 'diet_day.dart';
 import 'diet_format.dart';
 import 'meal.dart';
+import 'nutrition/food_log_entry.dart';
 import 'nutrition_targets.dart';
 
 /// One macro's target-versus-consumed reading.
@@ -53,6 +54,8 @@ class TargetProgress {
     required this.fat,
     required this.mealsEaten,
     required this.mealsTotal,
+    required this.consumedIsFromTickedMeals,
+    required this.loggedEntryCount,
   });
 
   final NutritionTargets targets;
@@ -71,11 +74,18 @@ class TargetProgress {
   final int mealsEaten;
   final int mealsTotal;
 
-  /// Always true for now — kept as an explicit field rather than a comment so
-  /// that when a real food log lands (and this can be false) every caller is
-  /// forced to consider both cases instead of silently inheriting the old
-  /// meaning.
-  bool get consumedIsFromTickedMeals => true;
+  /// How many entries the user logged themselves today (as opposed to
+  /// materialised by ticking a meal). Zero with a non-empty day means the
+  /// numbers rest entirely on the plan.
+  final int loggedEntryCount;
+
+  /// Whether every consumed figure came from ticking a planned meal rather
+  /// than from something the user logged.
+  ///
+  /// The difference is the difference between "you ate 1,850 kcal" and "the
+  /// plan values what you ticked at 1,850 kcal". Both are useful; only one is
+  /// a measurement, and a coach has to know which it is holding.
+  final bool consumedIsFromTickedMeals;
 
   /// Calories left in the day's budget. Negative when the target is passed.
   int get remainingKcal => targets.calories - consumedKcal;
@@ -88,36 +98,69 @@ class TargetProgress {
       targets.calories <= 0 ? 0 : consumedKcal / targets.calories;
 }
 
-/// Builds today's [TargetProgress] from the user's targets, the day's planned
-/// meals, and which of them are ticked.
+/// Builds today's [TargetProgress] from the user's targets, the day's food
+/// log, and the plan's ticked meals.
 ///
-/// Pure and deterministic — the same three inputs always give the same
-/// numbers, on device and (mirrored) on the server. Supplements are excluded
-/// throughout, exactly as they are from [dayCalories]: a vitamin is not part
-/// of the energy budget.
+/// **The log is the source of truth when it has anything in it.** [log] is
+/// what the user actually recorded — including the entries materialised by
+/// ticking a meal — so it captures a half-eaten meal, a substituted side, or
+/// a snack the plan never mentioned. Only when the log is empty (a day
+/// recorded before the log existed) does this fall back to summing the
+/// planned figures of ticked meals, and it says so through
+/// [TargetProgress.consumedIsFromTickedMeals] rather than passing the
+/// assumption off as a measurement.
+///
+/// Pure and deterministic. Supplements are excluded from the MEAL COUNTS
+/// exactly as they are from [dayCalories] — a vitamin is not part of the
+/// energy budget — while the log is summed as recorded.
 TargetProgress buildTargetProgress({
   required NutritionTargets targets,
   required DietDay? day,
   required Set<String> consumed,
+  List<FoodLogEntry> log = const [],
 }) {
   final meals = day == null ? const <Meal>[] : regularMeals(day.meals);
   final eatenMeals = meals.where((m) => consumed.contains(m.id)).toList();
-  final eatenItems = eatenMeals.expand((m) => m.items).toList();
 
-  final consumedKcal = eatenMeals
-      .map(mealCalories)
-      .whereType<int>()
-      .fold<int>(0, (sum, c) => sum + c);
-  final eaten = macroTotals(eatenItems);
-  final estimated = anyEstimated(eatenItems);
+  final int consumedKcal;
+  final bool estimated;
+  final double? protein;
+  final double? carbs;
+  final double? fat;
+  final bool fromTickedMeals;
+  final int loggedCount;
+
+  if (log.isNotEmpty) {
+    final totals = totalsOf(log);
+    consumedKcal = totals.kcal;
+    estimated = totals.estimated;
+    protein = totals.proteinG;
+    carbs = totals.carbsG;
+    fat = totals.fatG;
+    fromTickedMeals = totals.allFromPlannedMeals;
+    loggedCount = totals.loggedCount;
+  } else {
+    final eatenItems = eatenMeals.expand((m) => m.items).toList();
+    final eaten = macroTotals(eatenItems);
+    consumedKcal = eatenMeals
+        .map(mealCalories)
+        .whereType<int>()
+        .fold<int>(0, (sum, c) => sum + c);
+    estimated = anyEstimated(eatenItems);
+    protein = eaten.proteinG;
+    carbs = eaten.carbsG;
+    fat = eaten.fatG;
+    fromTickedMeals = true;
+    loggedCount = 0;
+  }
 
   MacroProgress macro(String label, double? target, double? consumedG) =>
       MacroProgress(
         label: label,
         target: target,
-        // A null macro total over an EATEN set means "none of what you ticked
-        // states this nutrient", which for a running total is 0 — unlike a
-        // null target, which means "you didn't set one".
+        // A null macro total over what was consumed means "none of it states
+        // this nutrient", which for a running total is 0 — unlike a null
+        // target, which means "you didn't set one".
         consumed: consumedG ?? 0,
         estimated: estimated,
       );
@@ -126,10 +169,12 @@ TargetProgress buildTargetProgress({
     targets: targets,
     consumedKcal: consumedKcal,
     estimated: estimated,
-    protein: macro('Protein', targets.proteinG, eaten.proteinG),
-    carbs: macro('Carbs', targets.carbsG, eaten.carbsG),
-    fat: macro('Fat', targets.fatG, eaten.fatG),
+    protein: macro('Protein', targets.proteinG, protein),
+    carbs: macro('Carbs', targets.carbsG, carbs),
+    fat: macro('Fat', targets.fatG, fat),
     mealsEaten: eatenMeals.length,
     mealsTotal: meals.length,
+    consumedIsFromTickedMeals: fromTickedMeals,
+    loggedEntryCount: loggedCount,
   );
 }

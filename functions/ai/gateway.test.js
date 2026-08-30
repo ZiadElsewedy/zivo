@@ -463,9 +463,31 @@ test("the system prompt forbids inventing nutrition figures", async () => {
   assert.match(SYSTEM_PROMPT, /say you don't have it/i);
 });
 
+test("the system prompt keeps the user's goal separate from the plan's sum",
+    async () => {
+      // The one confusion that would undo Phase 1: "targets" is what the user
+      // is trying to do; "nutrition.target" is what a plan day happens to add
+      // up to. Coaching against the second is coaching against a number nobody
+      // chose.
+      assert.match(SYSTEM_PROMPT, /Two different things are called "target"/);
+      assert.match(SYSTEM_PROMPT, /not a goal anyone\n {2}chose/);
+      // And it must know how to behave when no objective is set.
+      assert.match(SYSTEM_PROMPT, /When "targets" is null/);
+    });
+
+test("the system prompt states what 'remaining' is actually measuring",
+    async () => {
+      // Until a food log exists, remaining is derived from ticked meals. The
+      // coach has to be able to say that rather than implying it measured
+      // what the user ate.
+      assert.match(SYSTEM_PROMPT, /meals the user TICKED OFF/);
+      assert.match(SYSTEM_PROMPT, /ZIVO has no food log yet/);
+    });
+
 test("the system prompt explains what an estimated figure means", async () => {
   assert.match(SYSTEM_PROMPT, /"estimated" flag/);
-  assert.match(SYSTEM_PROMPT, /A total\n  marked estimated is an estimated total/);
+  assert.match(
+      SYSTEM_PROMPT, /A total\n {2}marked estimated is an estimated total/);
 });
 
 test("the system prompt fences tool output as untrusted data", () => {

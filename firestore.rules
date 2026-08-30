@@ -225,6 +225,100 @@ service cloud.firestore {
     // Diet entries: the "did I eat this meal today" consumption log, one doc per
     // (day, meal). Rules do not cascade from the parent /users/{userId} match, so
     // this is explicit.
+    // Diet targets: the user's own objective, at the single fixed document
+    // `dietTargets/current`. Every piece of coaching the app gives is measured
+    // against this, so its shape is pinned: an unreadable target is worse than
+    // no target, because the app would coach against a number nobody chose.
+    // `goal` and a positive `calories` are the minimum that makes a target a
+    // target; macros stay optional (absent means untracked, never zero).
+    match /users/{userId}/dietTargets/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(
+             ['goal', 'calories', 'proteinG', 'carbsG', 'fatG', 'source',
+              'basis', 'schemaVersion', 'updatedAt'])
+        && request.resource.data.goal in
+             ['fatLoss', 'maintain', 'muscleGain', 'recomp']
+        && request.resource.data.calories is int
+        && request.resource.data.calories > 0
+        && request.resource.data.calories <= 20000
+        && request.resource.data.source in
+             ['manual', 'calculated', 'planDerived']
+        && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // The food log: what the user actually ate, one doc per entry. This is the
+    // ledger every consumed/remaining figure is computed from, so its shape is
+    // pinned hard. Two fields carry provenance and are validated against fixed
+    // vocabularies rather than left free-text: `source` (where the numbers came
+    // from) and `origin` (whether a person logged this or the app materialised
+    // it from a ticked meal). A figure that can't say where it came from is
+    // exactly what this whole design exists to prevent.
+    match /users/{userId}/foodLogs/{entryId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(
+             ['dayKey', 'date', 'loggedAt', 'foodId', 'foodName', 'quantity',
+              'unit', 'grams', 'kcal', 'proteinG', 'carbsG', 'fatG', 'source',
+              'sourceRef', 'origin', 'estimated', 'mealId', 'schemaVersion'])
+        && request.resource.data.dayKey is string
+        && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.date is timestamp
+        && request.resource.data.foodId is string
+        && request.resource.data.foodId.size() > 0
+        && request.resource.data.foodId.size() <= 200
+        && request.resource.data.foodName is string
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity >= 0
+        && request.resource.data.unit is string
+        && request.resource.data.kcal is int
+        && request.resource.data.kcal >= 0
+        && request.resource.data.kcal <= 20000
+        && request.resource.data.proteinG is number
+        && request.resource.data.proteinG >= 0
+        && request.resource.data.carbsG is number
+        && request.resource.data.carbsG >= 0
+        && request.resource.data.fatG is number
+        && request.resource.data.fatG >= 0
+        && request.resource.data.source in ['usdaFdc', 'userCustom', 'dietPlan']
+        && request.resource.data.origin in ['logged', 'plannedMeal']
+        && request.resource.data.estimated is bool
+        && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Foods the user defined themselves, for everything the bundled USDA
+    // catalog doesn't cover. Their figures, labelled as theirs — validated for
+    // shape and plausibility, never for "correctness": it is not the app's
+    // place to tell someone their own recipe is wrong.
+    match /users/{userId}/customFoods/{foodId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(
+             ['name', 'kcalPer100g', 'proteinPer100g', 'carbsPer100g',
+              'fatPer100g', 'preparation', 'portions', 'schemaVersion',
+              'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.kcalPer100g is number
+        && request.resource.data.kcalPer100g >= 0
+        && request.resource.data.kcalPer100g <= 1000
+        && request.resource.data.proteinPer100g is number
+        && request.resource.data.proteinPer100g >= 0
+        && request.resource.data.proteinPer100g <= 100
+        && request.resource.data.carbsPer100g is number
+        && request.resource.data.carbsPer100g >= 0
+        && request.resource.data.carbsPer100g <= 100
+        && request.resource.data.fatPer100g is number
+        && request.resource.data.fatPer100g >= 0
+        && request.resource.data.fatPer100g <= 100
+        && request.resource.data.portions is list
+        && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Shape is validated tightly here because this log is what every "meals
     // eaten" and "kcal left" figure in the app is computed from. A malformed
     // or unbounded entry doesn't fail loudly — it quietly makes those numbers
