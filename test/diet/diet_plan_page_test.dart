@@ -16,6 +16,8 @@ import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
 import 'package:zivo/features/diet/domain/meal.dart';
+import 'package:zivo/features/diet/domain/nutrition/food_log_entry.dart';
+import 'package:zivo/features/diet/domain/nutrition/food_reference.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/diet/presentation/pages/meal_detail_page.dart';
@@ -106,6 +108,46 @@ Widget _wrap({required Widget child, required DietRepository dietOverride}) {
     diet: dietOverride,
     ai: FakeAiRepository(),
     child: MaterialApp(home: child),
+  );
+}
+
+/// A plan whose days are all weekdays that AREN'T today, so `dayForDate`
+/// resolves nothing. Two of them, deliberately: a single-day plan falls
+/// back to that day whatever the weekday is.
+DietPlan _planWithNoDayForToday(DateTime now) {
+  final others = [
+    for (var w = 1; w <= 7; w++)
+      if (w != now.weekday) w,
+  ].take(2);
+  return DietPlan(
+    id: 'p-elsewhere',
+    name: 'Split',
+    status: DietPlanStatus.active,
+    source: DietSource.manual,
+    createdAt: DateTime(2026, 1, 1),
+    updatedAt: DateTime(2026, 1, 1),
+    days: [
+      for (final weekday in others)
+        DietDay(
+          weekday: weekday,
+          label: 'Day $weekday',
+          meals: const [
+            Meal(
+              id: 'm-other',
+              label: 'Lunch',
+              order: 0,
+              items: [
+                FoodItem(
+                  name: 'Rice',
+                  quantity: 200,
+                  unit: 'g',
+                  calories: 500,
+                ),
+              ],
+            ),
+          ],
+        ),
+    ],
   );
 }
 
@@ -663,5 +705,86 @@ void main() {
       find.text('82 kg · moderate · 2790 kcal maintenance'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a day with no plan day still measures the day: the objective, '
+      'what was eaten, and the read all survive the missing plan',
+      (tester) async {
+    final now = DateTime.now();
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.savePlan(_planWithNoDayForToday(now));
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.maintain,
+        calories: 2000,
+        proteinG: 150,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+    // Eaten today, with no plan day to have eaten it against.
+    await diet.logFood([
+      FoodLogEntry(
+        id: 'e1',
+        day: now,
+        loggedAt: now,
+        foodId: 'usda:1',
+        foodName: 'Chicken breast',
+        quantity: 250,
+        unit: 'g',
+        grams: 250,
+        kcal: 600,
+        proteinG: 90,
+        carbsG: 0,
+        fatG: 20,
+        source: NutritionSource.usdaFdc,
+        sourceRef: '1',
+        origin: FoodLogOrigin.logged,
+      ),
+    ]);
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Still said plainly — and still first.
+    expect(find.text('No plan for today.'), findsOneWidget);
+
+    // But the screen no longer stops there. 2000 − 600, measured against the
+    // target rather than against a plan that has nothing to say today.
+    expect(find.text('1400'), findsOneWidget);
+    expect(find.text('KCAL LEFT'), findsOneWidget);
+    expect(find.text('LOGGED BY YOU'), findsOneWidget);
+    expect(find.byKey(const Key('target-summary-row')), findsOneWidget);
+    expect(find.byKey(const Key('todays-read')), findsOneWidget);
+
+    // The meal count would be "0 of 0" — an absence, not a failure, so the
+    // hero says neither.
+    expect(find.textContaining('meals eaten'), findsNothing);
+    // And there is no Meals section, because there are no meals: that part
+    // genuinely IS the plan day.
+    expect(find.widgetWithText(TrainSectionLabel, 'MEALS'), findsNothing);
+  });
+
+  testWidgets('with neither a plan day nor a target there is no yardstick, and '
+      'the screen says so instead of drawing an empty ring', (tester) async {
+    final now = DateTime.now();
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.savePlan(_planWithNoDayForToday(now));
+
+    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('No plan for today.'), findsOneWidget);
+    // No hero, and no "set a target" card either — its copy points at
+    // "the numbers above", and there are none.
+    expect(find.byKey(const Key('hero-consumed-basis')), findsNothing);
+    expect(find.byKey(const Key('no-target-card')), findsNothing);
+    expect(find.byKey(const Key('todays-read')), findsNothing);
+    // The log is still reachable: something eaten can always be recorded.
+    expect(find.byKey(const Key('log-food-button')), findsOneWidget);
   });
 }

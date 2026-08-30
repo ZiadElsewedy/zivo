@@ -218,9 +218,13 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   builds **one** `DietState` per frame and shares it with the hero (which used to build its
   own partial one, null whenever targets were unset). And a reply the Phase 7 validator
   threw away now leaves the screen the moment the `done` event's `replaced` arrives, rather
-  than sitting there until Firestore catches up. Held back on purpose: no read card when no
+  than sitting there until Firestore catches up. And a day with **no plan day** no longer
+  collapses to the bare "No plan for today." line: the hero, the target row and the read
+  measure the day, not the plan, so they survive a missing plan day (only Meals/Supplements
+  end with it) — with neither a plan day nor a target there is no yardstick and the screen
+  still says so. Held back on purpose: no read card when no
   target is set — the empty-state card already says it, with somewhere to tap.
-  `flutter analyze` clean · Flutter **882** · functions **325 pass** · functions lint clean.
+  `flutter analyze` clean · Flutter **884** · functions **325 pass** · functions lint clean.
   **No deploy** — client-only. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md), which is
   now complete: Phases 0–8 landed, and what's left is food-catalog coverage, not
   architecture.

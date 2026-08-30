@@ -591,6 +591,15 @@ the app stops asking to be trusted about them.
   instead of the user reading invented figures until Firestore catches up.
   (Server-side buffering of diet turns remains the fuller fix, and remains
   undone.)
+- **A day with no plan day still measures the day.** The Diet screen used to
+  collapse to the bare line *"No plan for today."* — no hero, no target, no
+  read — even for a user who has an objective and has logged food, because
+  every one of those surfaces sat inside the `today != null` branch. None of
+  them actually needs a plan: with targets set they read the log. The line
+  stays (and stays first); the hero, the target row and the read now follow
+  it, and only Meals/Supplements end with the plan day, because those *are*
+  the plan day. With neither a plan day nor a target there is still nothing to
+  draw — no yardstick — and the screen says so rather than ringing a zero.
 - **What was deliberately NOT added.** The read card is held back entirely when
   no target is set: the engine's findings there are all downstream of that one
   gap, and the existing empty-state card already says it *with somewhere to
@@ -602,12 +611,13 @@ real finding's paths, the unknown-path drop, same-fact dedupe, "not set" never
 reading as 0, the estimated "~", over-target as "over by", and the
 every-finding-can-explain-itself guard), `test/diet/todays_read_card_test.dart`
 (4 — the engine's own sentences, Why opening onto the fields, a safety warning
-named as one, an empty log never rendered as "you ate nothing"), four Diet-page
+named as one, an empty log never rendered as "you ate nothing"), six Diet-page
 tests (the read on screen with its Why, held back without a target, the hero's
-basis line, the calculated target's basis), one Ask-page test (a validated-away
+basis line, the calculated target's basis, and the two no-plan-day cases), one
+Ask-page test (a validated-away
 draft leaving the screen before the durable message lands, which fails without
 the fix), and three wire-contract tests for `aiTurnEventFromChunk`.
-`flutter analyze` clean · Flutter **882** · functions **325** · functions lint
+`flutter analyze` clean · Flutter **884** · functions **325** · functions lint
 clean.
 
 **Deploy:** none. Phase 8 is client-only — no functions, rules or schema

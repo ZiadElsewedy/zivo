@@ -120,7 +120,9 @@ prices and logs through the identical rules the screen uses, never a model guess
   that builds its own is how two parts of one screen start disagreeing about one day. And
   a surface that prints a consumed figure must print its `ConsumedBasis` with it — the
   coach is forbidden to say "you ate" about ticked plan meals, and the screen saying it
-  silently is the same claim in a louder place.
+  silently is the same claim in a louder place. Degrade to what IS known rather than to
+  nothing: a day with no plan day still has an objective and a log, so the hero, target row
+  and read render without one — only Meals/Supplements end with the plan day.
 - The full picture of what is and isn't trustworthy here — and the plan that got it there —
   is [`docs/DIET_COACH_AUDIT.md`](../../../docs/DIET_COACH_AUDIT.md). **Phases 0–8 have all
   landed** (dates + labelling, goal/targets, the USDA catalog + resolver, the food log,

@@ -15,6 +15,7 @@ import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
+import '../../domain/food_item.dart';
 import '../../domain/diet_goal.dart';
 import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
@@ -338,7 +339,11 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
           ),
         ),
         const SizedBox(height: 18),
-        if (today == null)
+        // Said plainly, and said first — but it is not the end of the
+        // screen. A day with no plan day is still a day the user has an
+        // objective for and may have eaten on, and the hero, the target and
+        // the read below all measure the DAY, not the plan.
+        if (today == null) ...[
           Text(
             'No plan for today.',
             style: TrainType.ui(
@@ -346,8 +351,14 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
               weight: FontWeight.w400,
               color: TrainColors.ink2,
             ),
-          )
-        else ...[
+          ),
+          const SizedBox(height: 14),
+        ],
+        // Needs one yardstick or the other. With neither a plan day nor a
+        // target there is nothing to draw a ring against and nothing to be
+        // left of — and the no-target card's own copy ("the numbers above")
+        // would be pointing at a hero that isn't there.
+        if (today != null || targets != null) ...[
           _DietHero(
             day: today,
             consumed: consumed,
@@ -374,6 +385,9 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
           // repeating itself in a quieter voice.
           if (!consumedLoading && targets != null)
             TodaysReadCard(state: state, localHour: now.hour),
+        ],
+        // Meals and supplements ARE the plan day, so they end with it.
+        if (today != null) ...[
           const SizedBox(height: 20),
           const TrainSectionLabel('Meals'),
           const SizedBox(height: 11),
@@ -692,7 +706,9 @@ class _TargetSummaryRow extends StatelessWidget {
 /// asking to be read as a figure.
 ///
 /// Degrades calmly when the plan carries no calorie or macro data yet — see
-/// [dayCalories]/[macroTotals]'s null-means-absent semantics.
+/// [dayCalories]/[macroTotals]'s null-means-absent semantics — and when there
+/// is no plan day at all: with a target set, everything it draws comes from
+/// the log, which doesn't need a plan to exist.
 ///
 /// **It measures against whichever yardstick actually exists.** With targets
 /// set, the ring counts down the user's own daily objective and the bars use
@@ -707,7 +723,11 @@ class _DietHero extends StatefulWidget {
     required this.state,
   });
 
-  final DietDay day;
+  /// Today's plan day, or null when none applies. Null is only reachable
+  /// with targets set — see the caller: with neither a plan day nor a target
+  /// there is no yardstick, and the hero isn't built at all.
+  final DietDay? day;
+
   final Set<String> consumed;
   final bool loading;
 
@@ -742,9 +762,11 @@ class _DietHeroState extends State<_DietHero>
     if (state != null) {
       return state.calorieFraction.clamp(0.0, 1.0);
     }
-    final total = dayCalories(widget.day);
+    final day = widget.day;
+    if (day == null) return 0;
+    final total = dayCalories(day);
     if (total == null || total <= 0) return 0;
-    final kcalLeft = dietDaySummary(widget.day, widget.consumed).kcalLeft;
+    final kcalLeft = dietDaySummary(day, widget.consumed).kcalLeft;
     return ((total - kcalLeft) / total).clamp(0.0, 1.0);
   }
 
@@ -769,22 +791,31 @@ class _DietHeroState extends State<_DietHero>
   @override
   Widget build(BuildContext context) {
     final day = widget.day;
-    final totalKcal = dayCalories(day);
-    final summary = dietDaySummary(day, widget.consumed);
-    final targetMacros = macroTotals(day.meals.expand((m) => m.items));
+    // Everything derived from the PLAN is absent when no plan day applies —
+    // absent, not zero. The target-driven path below reads none of it.
+    final planItems = day == null
+        ? const <FoodItem>[]
+        : day.meals.expand((m) => m.items).toList();
+    final totalKcal = day == null ? null : dayCalories(day);
+    final summary = day == null ? null : dietDaySummary(day, widget.consumed);
+    final targetMacros = macroTotals(planItems);
     final consumedMacros = macroTotals(
-      day.meals
-          .where((m) => widget.consumed.contains(m.id))
-          .expand((m) => m.items),
+      day == null
+          ? const <FoodItem>[]
+          : day.meals
+                .where((m) => widget.consumed.contains(m.id))
+                .expand((m) => m.items),
     );
     // Macro totals sum every item on the day (supplements included), so ask
     // the same set whether any of it was estimated.
-    final macrosEstimated = anyEstimated(day.meals.expand((m) => m.items));
+    final macrosEstimated = anyEstimated(planItems);
     final hasMacros =
         targetMacros.proteinG != null ||
         targetMacros.carbsG != null ||
         targetMacros.fatG != null;
-    final eatenKcal = totalKcal == null ? null : totalKcal - summary.kcalLeft;
+    final eatenKcal = totalKcal == null || summary == null
+        ? null
+        : totalKcal - summary.kcalLeft;
 
     // Today measured against the user's OWN objective, when they have one.
     // Everything below prefers it and falls back to the plan's totals only in
@@ -851,7 +882,10 @@ class _DietHeroState extends State<_DietHero>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.loading
+                  // No plan day means no meals to count — "0 of 0 meals
+                  // eaten" would read as a failure rather than as an absence,
+                  // and the line above the card has already said why.
+                  widget.loading || summary == null
                       ? 'Today'
                       : '${summary.eaten} of ${summary.total} meals eaten',
                   style: TrainType.ui(
@@ -985,18 +1019,20 @@ class _DietHeroState extends State<_DietHero>
 /// values.
 String _heroNumber(
   DietState? progress,
-  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
+  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated})? summary,
 ) {
   if (progress != null) {
     return '${approx(progress.consumed.estimated)}${progress.remainingKcal.abs()}';
   }
-  return '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}';
+  // No target: then there is a plan day, and so a summary — the hero isn't
+  // built when both are missing.
+  return '${approx(summary!.kcalLeftEstimated)}${summary.kcalLeft}';
 }
 
 /// What that figure is measured against — never left implicit.
 String _heroLabel(
   DietState? progress,
-  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
+  ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated})? summary,
 ) {
   if (progress != null) {
     final estimated = progress.consumed.estimated ? 'EST. ' : '';
@@ -1004,7 +1040,7 @@ String _heroLabel(
         ? '${estimated}KCAL OVER'
         : '${estimated}KCAL LEFT';
   }
-  return summary.kcalLeftEstimated
+  return summary!.kcalLeftEstimated
       ? 'EST. KCAL LEFT OF PLAN'
       : 'KCAL LEFT OF PLAN';
 }
