@@ -6,7 +6,7 @@
 > **Findings are referenced by id (`T1`…`T15`) from `FEATURE.md`s, commit messages and the
 > later phases — keep the ids stable.**
 >
-> Status: **Phases 0–6 landed** (2026-08-30). Phases 7–8 are not started.
+> Status: **Phases 0–7 landed** (2026-08-30). Phase 8 (UI) is not started.
 
 ---
 
@@ -37,14 +37,14 @@ entity (goal + targets).
 | **T5** | High | **Client/server disagreed about "today".** The app writes `dayKey` from device-local time; the server computed it in UTC. A UTC+3 user got yesterday's entries between local 00:00 and 03:00. | **Fixed** (Phase 0) |
 | **T6** | High | **"Consumed" is an assumption, not a measurement.** Ticking a meal credits its *planned* macros. There is no way to log a food; "I ate two eggs and 100 g rice" is unrepresentable. | **Fixed** (Phase 3) |
 | **T7** | High | **The prompt licensed free-hand estimation** ("when you estimate calories or macros… give a sensible range"). | **Fixed** (Phase 0 prompt; Phase 6 gives the coach real lookup/log tools so it never needs to) |
-| **T8** | High | **Zero output validation.** Nothing compares the reply to the state it read. | Open — Phase 7 |
+| **T8** | High | **Zero output validation.** Nothing compares the reply to the state it read. | **Fixed** (Phase 7) |
 | **T9** | High | **`mark_meal_eaten` wrote an unverified meal id.** `validate` only checked it was a string; a hallucinated id created an orphan `dietEntries` doc. | **Fixed** (Phase 0) |
 | **T10** | Medium | **Truncation ate the diet payload first.** Tool results are cut at 6 000 chars from the end, and `get_today` serialized `diet` last. | **Fixed** (Phase 0) |
 | **T11** | Medium | **Four tools for deleted features still shipped** (`get_tasks`, `get_schedule`, `get_university`, `search_notes` — ADR-004), four of them awaited inside `get_today`. | **Fixed** (Phase 0) |
 | **T12** | Medium | **`estimated` was decorative and lossy** — a "~" on one screen, dropped from the AI payloads entirely, reset to false on re-add. | **Fixed** (Phase 0) for display + AI payloads; the re-add reset remains (Phase 2) |
 | **T13** | Medium | **The same nutrition math exists twice**, Dart and JS, agreeing only by comment discipline. No test compares them. | **Fixed** (Phase 2 for the resolver + calculator, Phase 4 for the state builder and the day resolver) |
 | **T14** | Medium | **Nothing validates nutrition values at any boundary** — no 4/4/9 plausibility check, and `firestore.rules` only required `days is list`. | Partly (Phase 0 tightened `dietEntries`); plan items remain — Phase 2 |
-| **T15** | Medium | **The safety boundary is one prompt sentence.** No detection, no deterministic intercept, no test. | Partly (Phase 1 added a deterministic low-calorie floor on targets); the rest — Phase 7 |
+| **T15** | Medium | **The safety boundary is one prompt sentence.** No detection, no deterministic intercept, no test. | **Fixed** (Phase 1 floored targets; Phase 7 adds a deterministic intercept on the coach's advice) |
 
 ---
 
@@ -85,7 +85,7 @@ is what makes it safe to reject aggressively.
 | 4 | `DietState` + shared golden vectors | T13 | **Done** — see below |
 | 5 | Coaching rules engine | part of T15; groundwork for T8 | **Done** — see below |
 | 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | **Done** — see below |
-| 7 | Advice validator + safety intercept | T8 T15 | Not started |
+| 7 | Advice validator + safety intercept | T8 T15 | **Done** — see below |
 | 8 | UI: provenance, targets, the "why" | — | Not started |
 
 The hard part is not the engineering — it is **food-database coverage**. A user whose
@@ -485,3 +485,61 @@ clean · Flutter **863** · functions **305** · functions lint clean.
 **Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`. No
 new secrets, no new collections (`foodLogs`/`customFoods` shipped in Phase 3);
 the functions bundle already carries the catalog.
+
+---
+
+## Phase 7 — what actually landed (2026-08-30)
+
+The last layer. Everything before this makes a wrong sentence *unlikely*; this
+is what catches one that slips through — and because every finding already
+carries a correct deterministic sentence, a rejection is never a dead end.
+
+- **`functions/ai/validator.js` — server-only, on purpose.** Coach replies are
+  generated only in the gateway, so unlike the state/rules/nutrition layers
+  there is no Dart mirror to keep in step; the app never runs this. `runAiTurn`
+  keeps the diet state+findings payload the model was handed (from `get_today`/
+  `get_diet`) and, once the model produces its final text, runs
+  `validateAdvice(reply, state)` before persisting.
+- **The safety intercept (T15).** A reply that *recommends* eating below the
+  `MINIMUM_SAFE_CALORIES` floor is replaced outright with a message pointing at
+  a doctor or registered dietitian. It is careful about intent: a sentence that
+  *warns* about a low number (relaying the sub-floor-target finding) or pushes
+  intake *up* ("you've only had 800, eat more") is left alone — only a
+  restrictive prescription of a sub-floor figure is caught. This is the
+  deterministic backstop behind what used to be a single prompt sentence.
+- **The contradiction check (T8).** Every calorie figure the reply states about
+  the user's own day must trace to the state it read — consumed, remaining, the
+  target, a plan meal, or a logged food — within a rounding tolerance. A figure
+  that matches nothing is invented or contradicts the screen, and the reply is
+  replaced with the findings' deterministic text. Two qualitative checks the
+  prompt cares about most ride alongside: claiming the user *ate* when the log
+  is empty, and calling them "over"/"under" on a macro they set no target for.
+- **Precision over recall, deliberately.** A false rejection swaps a good
+  specific reply for terser deterministic text, which is worse than letting a
+  borderline one through — so hypotheticals ("if you added a shake, you'd be
+  at…") and general-knowledge facts ("chicken is ~165 kcal per 100 g") are
+  excluded, and the numeric check only fires on a figure clearly attached to the
+  user's day. The safety floor (1,200) is an always-allowed anchor so relaying
+  the floor warning is never mistaken for an invented number.
+- **Observability, not a black box.** When a reply is checked, the outcome
+  (`{ok, safe, codes}`) is written to the usage doc and returned from the turn,
+  and the terminal status becomes `validated-fallback` or `safety-intercept`
+  when a substitution happened — so the validator's real hit rate, and any false
+  positives, are visible in production rather than inferred.
+- **Known limitation (documented, not hidden):** on a *streamed* turn the model's
+  draft tokens have already reached the client before validation runs; the
+  persisted message is the authoritative, validated one, and the turn's `done`
+  event carries `replaced: true` so a client can reconcile. Buffering diet-advice
+  turns until after validation is a future refinement, not done here.
+
+**Tests added:** `functions/ai/validator.test.js` (16 — the safety intercept and
+its warning/encourage-more exceptions, numeric contradictions and the accurate
+replies that must pass, the nothing-logged and untracked-macro checks, and the
+hypothetical/general-knowledge exclusions), plus four gateway integration tests
+in `mutations_gateway.test.js` (a contradicting reply falling back to findings
+text, an accurate reply passing untouched, a sub-floor recommendation
+intercepted, and a no-diet turn never validated). `flutter analyze` clean ·
+Flutter **863** (unchanged — Phase 7 is server-only) · functions **325** ·
+functions lint clean.
+
+**Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.

@@ -52,8 +52,9 @@ const SAFETY_MESSAGE =
 
 // A calorie figure with its unit: "1,180 kcal", "500 calories". Requires the
 // unit so a bare number (reps, grams, a time) is never mistaken for calories.
-const KCAL_RE =
-  /(\d{1,3}(?:,\d{3})+|\d+)\s*(?:kilocalories|kcal|calories|calorie|cals|cal)\b/gi;
+const KCAL_RE = new RegExp(
+    "(\\d{1,3}(?:,\\d{3})+|\\d+)\\s*" +
+    "(?:kilocalories|kcal|calories|calorie|cals|cal)\\b", "gi");
 
 /**
  * Splits text into rough sentences. Good enough to keep a claim and its
@@ -98,9 +99,9 @@ function withinTolerance(claim, actual) {
  * @return {!Array<number>}
  */
 function componentAnchors(ctx) {
-  // The safety floor is a legitimate figure the coach cites when relaying the
-  // sub-floor-target warning ("…below the 1,200 kcal floor…"); it is a constant,
-  // not a state field, so it is allowed everywhere rather than read as invented.
+  // The safety floor is a figure the coach legitimately cites when relaying the
+  // sub-floor-target warning ("…below the 1,200 kcal floor…") — a constant, not
+  // a state field, so it's allowed everywhere rather than read as invented.
   const anchors = [MINIMUM_SAFE_CALORIES];
   if (typeof ctx.plannedKcal === "number") anchors.push(ctx.plannedKcal);
   if (ctx.history && typeof ctx.history.averageKcal === "number") {
@@ -117,40 +118,49 @@ function componentAnchors(ctx) {
 
 // The keyword families that mark a sentence as being about the user's own
 // standing — as opposed to a general fact or a hypothetical.
-const CONSUMED_RE =
-  /\b(eaten|ate|consumed|logged|had|taken in|so far|puts? you at|you're at|youre at|brought you to)\b/i;
+const CONSUMED_RE = new RegExp(
+    "\\b(eaten|ate|consumed|logged|had|taken in|so far|puts? you at|" +
+    "you're at|youre at|brought you to)\\b", "i");
 const REMAINING_RE = /\b(left|remaining|to go|to spare|budget)\b/i;
 const TARGET_RE = /\b(target|goal|aim(?:ing)? for|shoot for)\b/i;
 // Conditional / future framing — a number here is a projection, not a claim
 // about what has happened, so it is not checked against the day's totals.
-const HYPOTHETICAL_RE =
-  /\b(if|would|were to|once you|after you|suppose|imagine|you'?d|could (?:eat|have|add)|potential(?:ly)?)\b/i;
+const HYPOTHETICAL_RE = new RegExp(
+    "\\b(if|would|were to|once you|after you|suppose|imagine|you'?d|" +
+    "could (?:eat|have|add)|potential(?:ly)?)\\b", "i");
 
-/**
- * Detects a reply that *recommends* eating below the safety floor. A sentence
- * that WARNS about a low number (the user's own sub-floor target, say) is not a
- * recommendation and is left alone — that is the coach doing its job.
- * @param {string} reply
- * @return {?Object} A violation, or null.
- */
 // Prescriptive, RESTRICTIVE intent — the coach telling the user to cap intake,
-// as opposed to observing it or telling them to eat more. Kept free of digits so
-// a multi-digit calorie figure doesn't defeat the match; the number is checked
-// separately.
-const RESTRICTIVE_RE =
-  /\b(aim(?:ing)? for|only eat|eat only|eat just|just eat|stick to|limit(?:ed)?(?: it| yourself)? to|cut (?:down|back)? ?to|drop (?:down )?to|go down to|keep (?:it )?(?:under|below|to)|stay (?:under|below)|shoot for|budget of|target of|restrict(?:ing)?(?: yourself)? to|no more than|max(?:imum)? of)\b/i;
+// as opposed to observing it or telling them to eat more. Kept free of digits
+// so a multi-digit calorie figure doesn't defeat the match; the number is
+// checked separately.
+const RESTRICTIVE_RE = new RegExp(
+    "\\b(aim(?:ing)? for|only eat|eat only|eat just|just eat|stick to|" +
+    "limit(?:ed)?(?: it| yourself)? to|cut (?:down|back)? ?to|" +
+    "drop (?:down )?to|go down to|keep (?:it )?(?:under|below|to)|" +
+    "stay (?:under|below)|shoot for|budget of|target of|" +
+    "restrict(?:ing)?(?: yourself)? to|no more than|max(?:imum)? of)\\b", "i");
 // The opposite intent — a sub-floor number here is the coach noting intake is
 // LOW and pushing it up, which must never be intercepted as a starvation diet.
-const ENCOURAGE_MORE_RE =
-  /\b(more|at least|bump|increase|add another|get in more|higher|up your|too little|not enough)\b/i;
+const ENCOURAGE_MORE_RE = new RegExp(
+    "\\b(more|at least|bump|increase|add another|get in more|higher|" +
+    "up your|too little|not enough)\\b", "i");
 // A low number the coach is flagging (a warning) rather than prescribing.
-const SAFETY_WARNING_RE =
-  /\b(below|too low|floor|not safe|unsafe|dangerous|doctor|dietitian|professional|risk|worth (?:checking|talking))\b/i;
+const SAFETY_WARNING_RE = new RegExp(
+    "\\b(below|too low|floor|not safe|unsafe|dangerous|doctor|dietitian|" +
+    "professional|risk|worth (?:checking|talking))\\b", "i");
+// A flat assertion that the user ate ("you've eaten…") — checked only to catch
+// it being said when nothing was logged.
+const ATE_ASSERTION_RE = new RegExp(
+    "\\byou(?:'ve| have)?\\s+(?:eaten|ate|consumed|logged|had)\\b", "i");
+// Comparative language that implies being measured against a target.
+const OVER_UNDER_RE = new RegExp(
+    "\\b(over|under|above|below|short on|low on|high on|" +
+    "exceed(?:ed|ing)?|surpass(?:ed)?)\\b", "i");
 
 /**
  * Detects a reply that *recommends* eating below the safety floor. A sentence
- * that WARNS about a low number (the user's own sub-floor target, say) or pushes
- * intake UP is not a recommendation and is left alone.
+ * that WARNS about a low number (the user's own sub-floor target, say) or
+ * pushes intake UP is not a recommendation and is left alone.
  * @param {string} reply
  * @return {?Object} A violation, or null.
  */
@@ -206,19 +216,17 @@ function detectContradictions(reply, ctx) {
     const hasRemaining = REMAINING_RE.test(sentence);
     const hasTarget = TARGET_RE.test(sentence);
 
-    // Qualitative: claiming the user ate, when nothing was logged. An empty log
-    // means nothing was RECORDED, not that nothing was eaten — the prompt is
-    // emphatic about this, so a flat "you've eaten…" is a contradiction.
+    // Qualitative: claiming the user ate, when nothing was logged. An empty
+    // log means nothing was RECORDED, not that nothing was eaten — the prompt
+    // is emphatic about this, so a flat "you've eaten…" is a contradiction.
     if (quality.nothingLogged && hasConsumed &&
-        /\byou(?:'ve| have)?\s+(?:eaten|ate|consumed|logged|had)\b/i
-            .test(sentence)) {
+        ATE_ASSERTION_RE.test(sentence)) {
       add({code: "ate_but_nothing_logged", kind: "contradiction"});
     }
 
     // Qualitative: "over"/"under" on a macro with no target set.
     if (Array.isArray(quality.untrackedMacros) &&
-        /\b(over|under|above|below|short on|low on|high on|exceed(?:ed|ing)?|surpass(?:ed)?)\b/i
-            .test(sentence)) {
+        OVER_UNDER_RE.test(sentence)) {
       for (const macro of quality.untrackedMacros) {
         if (macroWordRe(macro).test(sentence)) {
           add({code: "untracked_macro_claim", kind: "contradiction", macro});

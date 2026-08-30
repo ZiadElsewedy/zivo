@@ -137,16 +137,17 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
-  - **Pending now:** the **Diet Coach Phases 0–6** work (`gateway.js`, `tools.js`,
-    `dates.js`, `mutations.js`, `store.js`, `index.js`, `functions/diet/*`,
+  - **Pending now:** the **Diet Coach Phases 0–7** work (`gateway.js`, `tools.js`,
+    `dates.js`, `mutations.js`, `store.js`, `validator.js`, `index.js`, `functions/diet/*`,
     `functions/nutrition/*` **+ `firestore.rules`**) — see
     [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md). Until deployed the live coach keeps the old
     prompt (which licensed invented calories), has no idea what day it is, can write an
-    unverified meal id, can't see the user's targets, findings, or nutrition catalog, and
-    can't resolve/log food from chat. **Deploy functions and rules together with the client
-    build** — the tightened `dietEntries` rule rejects writes from older app builds, and the
-    `dietTargets`/`foodLogs`/`customFoods` rules are what let a target, a food log, or a
-    custom food be saved at all. Command: `firebase deploy --only functions,firestore:rules`.
+    unverified meal id, can't see the user's targets, findings, or nutrition catalog, can't
+    resolve/log food from chat, and its replies are never validated against the state. **Deploy
+    functions and rules together with the client build** — the tightened `dietEntries` rule
+    rejects writes from older app builds, and the `dietTargets`/`foodLogs`/`customFoods` rules
+    are what let a target, a food log, or a custom food be saved at all. Command:
+    `firebase deploy --only functions,firestore:rules`.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
@@ -202,6 +203,23 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 7: the advice validator + safety intercept.** The last
+  layer of the trust stack. After the model produces its reply, the gateway now runs
+  `functions/ai/validator.js` against the diet state+findings it was handed (from
+  `get_today`/`get_diet`). **Safety (T15):** a reply that *recommends* eating below the
+  1,200 kcal floor is replaced with a message pointing at a doctor/dietitian — carefully
+  distinguished from *warning* about a low number or pushing intake up. **Contradiction
+  (T8):** every calorie figure the reply states about the user's day must trace to the
+  state (consumed/remaining/target/a plan meal/a logged food) within tolerance; one that
+  matches nothing, or a claim of eating when nothing's logged, or an "over/under" on an
+  untracked macro, is rejected and the reply falls back to the findings' deterministic
+  text — which is why rejecting is safe: there's always a correct answer to land on.
+  Precision-first: hypotheticals and general-knowledge facts are excluded. Server-only (no
+  Dart mirror — replies are only generated server-side). The outcome is logged to usage and
+  the status becomes `validated-fallback`/`safety-intercept` on a substitution; streamed
+  turns carry `replaced` on the done event (the persisted reply is the validated one).
+  `flutter analyze` clean · Flutter **863** (unchanged — server-only) · functions **325
+  pass** · functions lint clean. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
 - 2026-08-30 — **Diet Coach Phase 6: the AI acts on food.** The coach gained three
   tools and can now log what the user ate. Reads: `resolve_food` (a food → its `foodId`,
   per-100g nutrition and measures, or `ambiguous`/`notFound`) and

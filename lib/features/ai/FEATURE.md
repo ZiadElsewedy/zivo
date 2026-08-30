@@ -39,6 +39,7 @@
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
 | `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten`, **`log_food`** (logs what the user ate; nutrition computed server-side in `verify`, never supplied by the model) |
 | `../nutrition/resolve.js` | the ONE server path from a food reference (query or `foodId`) + an amount to calories — mirrors the Dart `CompositeFoodResolver` (custom foods layered over USDA). Shared by `resolve_food`, `calculate_meal_nutrition` and `log_food` so they can't disagree |
+| `validator.js` | **advice validator + safety intercept** (Phase 7): checks the model's reply against the diet state it read and, on a violation, replaces it with the findings' deterministic text (or a safety message). Server-only — replies are generated only here |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
 | `store.js`, `dates.js` | Firestore access + date helpers |
@@ -66,6 +67,16 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   resolve. The figures are snapshotted into the log entry at propose time, so they're
   frozen and can't drift if the catalog is rebuilt. To tick a *planned* meal off, that's
   still `mark_meal_eaten`, not `log_food`.
+- **The reply is validated before it's persisted (Phase 7).** When a turn read diet data,
+  `validator.js` checks the model's final text against that state: a calorie figure that
+  traces to nothing in the state, a claim of eating when nothing's logged, an "over/under"
+  on an untracked macro, or a *recommendation* to eat below the safety floor is rejected and
+  the reply falls back to the findings' deterministic sentences (or, for safety, a
+  professional-referral message). It biases hard to precision — hypotheticals and
+  general-knowledge facts are excluded — because a false rejection replaces a good reply.
+  The outcome is logged to usage and shows in the turn status (`validated-fallback` /
+  `safety-intercept`). Caveat: on a streamed turn the client already saw the draft; the
+  persisted message is the validated one and the `done` event carries `replaced`.
 - **The coach is handed decisions, not just data.** The diet payload carries `findings`
   from the deterministic rules engine (`functions/diet/rules.js`) — ranked, capped at three,
   each typed and evidenced. The prompt tells the model to lead with them, never to
