@@ -11,6 +11,7 @@ import '../../domain/diet_plan_status.dart';
 import '../../domain/diet_source.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
+import '../../domain/nutrition/plausibility.dart';
 import '../../../../core/theme/train_tokens.dart';
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -453,6 +454,11 @@ class _DayCard extends StatelessWidget {
   }
 }
 
+/// The item's stated calories measured against its own macros, as a line to
+/// print — null when there is nothing to say (which is most items).
+String? _crossCheckNote(FoodItem item) =>
+    nutritionCrossCheckNote(crossCheckItem(item));
+
 class _MealBlock extends StatelessWidget {
   const _MealBlock({
     required this.meal,
@@ -506,11 +512,36 @@ class _MealBlock extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      '${meal.items[ii].name} · ${foodQtyLabel(meal.items[ii])}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.meta.copyWith(color: TrainColors.ink2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${meal.items[ii].name} · '
+                          '${foodQtyLabel(meal.items[ii])}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.meta.copyWith(color: TrainColors.ink2),
+                        ),
+                        // The editor is the review gate for an imported plan,
+                        // so it is where a figure that contradicts its own
+                        // macros has to be visible. It states both numbers
+                        // rather than a verdict, and it does not block Save:
+                        // the user may know something the arithmetic doesn't,
+                        // and refusing their plan over a guess the app made
+                        // would be the wrong party paying for it.
+                        if (_crossCheckNote(meal.items[ii]) case final note?)
+                          Padding(
+                            key: Key('item-crosscheck-${meal.id}-$ii'),
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              note,
+                              maxLines: 2,
+                              style: AppText.meta.copyWith(
+                                color: TrainColors.ember,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   IconButton(

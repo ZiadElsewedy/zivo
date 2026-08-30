@@ -70,6 +70,15 @@ data through `functions/nutrition/resolve.js` (the server mirror of
 and the `log_food` write tool — so "I ate two eggs and 100g of rice" in chat resolves,
 prices and logs through the identical rules the screen uses, never a model guess.
 
+**Does a stated figure agree with itself?** `domain/nutrition/plausibility.dart`
+(`crossCheckItem`, `nutritionCrossCheckNote`) measures a plan item's stated calories
+against its own macros on the 4/4/9 Atwater factors — no catalog, no network. Absent
+macros are a **floor**, not zero, so a too-low figure is reported even on partial macros
+and a too-high one only when all three are present. Tolerance is wide on purpose
+(max 30 kcal / 20%): a flag the user learns to ignore is worse than none. Surfaced in the
+plan editor — the review gate a PDF import lands in — and it never blocks Save. Nothing is
+stored; the verdict is derivable from the item.
+
 **Targets (the objective):** `diet_goal.dart` (`DietGoal`) + `nutrition_targets.dart`
 (`NutritionTargets`, `TargetSource`, `TargetBasis`, `kMinimumSafeCalories`) +
 `target_calculator.dart` (Mifflin-St Jeor, pure). Today measured against the objective is

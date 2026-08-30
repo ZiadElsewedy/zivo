@@ -146,8 +146,10 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     resolve/log food from chat, and its replies are never validated against the state. **Deploy
     functions and rules together with the client build** — the tightened `dietEntries` rule
     rejects writes from older app builds, and the `dietTargets`/`foodLogs`/`customFoods` rules
-    are what let a target, a food log, or a custom food be saved at all. Command:
-    `firebase deploy --only functions,firestore:rules`.
+    are what let a target, a food log, or a custom food be saved at all. Phase 8.1 adds the
+    `dietPlans` document bounds to the same rules file. Command:
+    `firebase deploy --only functions,firestore:rules` — worth running with `--dry-run`
+    first, since nothing here can validate rules syntax locally.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
@@ -203,6 +205,28 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 8.1: the nutrition cross-check, and T12 closed by
+  re-audit.** The audit's last open finding (T14) is done and the table is now clean:
+  T1–T15 all closed. `domain/nutrition/plausibility.dart` reads a plan item against
+  **itself** — does the stated calorie figure agree with the macros beside it, on the 4/4/9
+  Atwater factors? No catalog, no network; it catches a model contradicting its own numbers
+  ("600 kcal" beside macros worth 107). Absent macros are absent, not zero, so the check is
+  asymmetric: with a macro missing the implied figure is a **floor**, so a too-low figure is
+  still reported and a too-high one never is (the missing macro is exactly what explains
+  it). Tolerance is the greater of 30 kcal and 20% — alcohol isn't Atwater, fibre doesn't
+  burn at 4, and whole-gram rounding costs a few kcal — and half the tests assert the
+  silence, because a flag the user learns to ignore is worse than no flag. Surfaced in the
+  **plan editor**, which is the review gate a PDF import lands in, stating both figures
+  rather than a verdict; it never blocks Save. Nothing is stored — the verdict is derivable,
+  so there's no field to migrate or go stale. `firestore.rules` for `dietPlans` now bounds
+  the document (name non-empty/≤500, `status` in the enum, `days` ≤31, `schemaVersion` ≥1)
+  and says in a comment why per-item nutrition can't be checked there (rules can't walk a
+  nested list) and where it lives instead. **T12 needed no fix**: the flag survives the
+  import mapper, the Firestore round-trip and the editor's drafts, and the item sheet is
+  add-only — a freshly typed item is genuinely user-stated. `flutter analyze` clean ·
+  Flutter **896** · functions **325 pass** · functions lint clean. **The rules change rides
+  the already-pending rules deploy** — worth a `--dry-run` first; this repo has no rules
+  test harness.
 - 2026-08-30 — **Diet Coach Phase 8: the trust stack reaches the screen.** The coaching
   engine is now rendered on the Diet screen, not just handed to the chat coach:
   `TodaysReadCard` shows the exact findings `coachingFindings` produces (same engine, same

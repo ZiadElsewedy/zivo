@@ -19,6 +19,7 @@ import 'package:zivo/features/diet/domain/meal.dart';
 import 'package:zivo/features/diet/domain/nutrition/food_log_entry.dart';
 import 'package:zivo/features/diet/domain/nutrition/food_reference.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/presentation/pages/diet_plan_edit_page.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/diet/presentation/pages/meal_detail_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -786,5 +787,75 @@ void main() {
     expect(find.byKey(const Key('todays-read')), findsNothing);
     // The log is still reachable: something eaten can always be recorded.
     expect(find.byKey(const Key('log-food-button')), findsOneWidget);
+  });
+
+  testWidgets('the plan editor — the review gate for an imported plan — says '
+      'when an item\'s calories contradict its own macros', (tester) async {
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    final plan = DietPlan(
+      id: 'imported',
+      name: 'Imported',
+      status: DietPlanStatus.active,
+      source: DietSource.pdf,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      days: const [
+        DietDay(
+          label: 'Every day',
+          meals: [
+            Meal(
+              id: 'm1',
+              label: 'Lunch',
+              order: 0,
+              items: [
+                // 12/8/3 comes to 107 kcal, not 600 — the model contradicting
+                // itself, which is the whole reason this check exists.
+                FoodItem(
+                  name: 'Mystery bowl',
+                  quantity: 1,
+                  unit: 'pcs',
+                  calories: 600,
+                  proteinG: 12,
+                  carbsG: 8,
+                  fatG: 3,
+                  estimated: true,
+                ),
+                // 31/0/3.6 → 156. Close enough that saying anything would
+                // only teach the user to ignore the flag.
+                FoodItem(
+                  name: 'Chicken breast',
+                  quantity: 100,
+                  unit: 'g',
+                  calories: 165,
+                  proteinG: 31,
+                  carbsG: 0,
+                  fatG: 3.6,
+                  estimated: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrap(child: DietPlanEditPage(initialPlan: plan), dietOverride: diet),
+    );
+    await tester.pumpAndSettle();
+
+    // Both numbers, so the user can check the arithmetic rather than take a
+    // verdict on trust.
+    expect(
+      find.text('Says 600 kcal; its macros come to 107'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('item-crosscheck-m1-0')), findsOneWidget);
+    // And nothing at all on the item that adds up.
+    expect(find.byKey(const Key('item-crosscheck-m1-1')), findsNothing);
+
+    // It flags; it never blocks. Save is still there to be pressed.
+    expect(find.text('Save plan'), findsOneWidget);
   });
 }

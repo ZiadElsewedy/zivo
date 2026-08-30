@@ -212,13 +212,27 @@ service cloud.firestore {
     // Diet plans: each user reads/writes only their own plan(s) (days/meals/items
     // embedded, like Workout's exercises). Rules do not cascade from the parent
     // /users/{userId} match, so this is explicit.
+    //
+    // These pin the document's SHAPE, with bounds on the two fields that could
+    // otherwise grow without limit. What they deliberately do NOT do is check
+    // the nutrition inside: the figures live at days[].meals[].items[], and the
+    // rules language cannot walk a nested list, so no per-item check is
+    // expressible here at any length. That check exists — a stated calorie
+    // figure is cross-checked against its own macros in
+    // `domain/nutrition/plausibility.dart` and surfaced in the plan editor,
+    // which every imported plan passes through before it can be saved. Read the
+    // absence here as "not expressible in rules", not as "unchecked".
     match /users/{userId}/dietPlans/{planId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.name is string
-        && request.resource.data.status is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 500
+        && request.resource.data.status in ['draft', 'active', 'archived']
         && request.resource.data.days is list
-        && request.resource.data.schemaVersion is int;
+        && request.resource.data.days.size() <= 31
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion >= 1;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
