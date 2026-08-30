@@ -45,6 +45,7 @@ const {
 } = require("./ai/gateway");
 const {extractWorkoutPlan} = require("./ai/workout_import");
 const {extractDietPlan} = require("./ai/diet_import");
+const {generateDietPlan} = require("./ai/diet_generate");
 const {deliverWeeklyReport} = require("./ai/coach_report");
 const {FirestoreStore} = require("./ai/store");
 const {AnthropicProvider} = require("./ai/providers/anthropic_provider");
@@ -904,6 +905,70 @@ exports.aiImportDietPlan = onCall(
       } catch (err) {
         logger.info("aiImportDietPlan", {
           approxPdfBytes,
+          stage: "error",
+          message: err && err.message,
+        });
+        throw toHttpsError(err);
+      }
+    },
+);
+
+// --- aiGenerateDietPlan ------------------------------------------------------
+
+/**
+ * Builds a proposed diet plan from the user's stated preferences and target.
+ *
+ * The same "human confirms before it becomes real" gate as the importer: this
+ * writes nothing, and the client reviews and saves the result itself. What is
+ * different is where the numbers come from — the model picks foods, and
+ * `./ai/diet_generate.js` prices them through the SAME nutrition catalog the
+ * coach and the food log use, including the user's own custom foods. See
+ * ADR-007 for why a generated plan may not carry model-stated calories.
+ *
+ * Requires a signed-in user: it reads their custom foods, and it spends two
+ * model calls.
+ */
+exports.aiGenerateDietPlan = onCall(
+    {
+      secrets: [ANTHROPIC_API_KEY],
+      region: "us-central1",
+      timeoutSeconds: 180,
+    },
+    async (request) => {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "Sign in to build a plan.");
+      }
+      const data = request.data || {};
+      const preferences = data.preferences && typeof data.preferences ===
+        "object" ? data.preferences : null;
+      if (!preferences) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Tell ZIVO what you eat before it builds a plan.");
+      }
+
+      const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
+      const registry = buildProviderRegistry(anthropic);
+      const store = new FirestoreStore(db);
+
+      try {
+        // The user's own foods are layered over USDA here exactly as they are
+        // in chat, so a plan built around their "Koshari" is priced from the
+        // definition they wrote rather than estimated.
+        const customFoods = await store.listCustomFoods(auth.uid);
+        const result = await generateDietPlan({
+          provider: providerForCapability(registry, "diet_import"),
+          model: router.resolve("diet_import").model,
+          preferences,
+          targets: data.targets && typeof data.targets === "object" ?
+            data.targets : null,
+          customFoods,
+          logEvent: (event) => logger.info("aiGenerateDietPlan", event),
+        });
+        return result;
+      } catch (err) {
+        logger.info("aiGenerateDietPlan", {
           stage: "error",
           message: err && err.message,
         });

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
+import '../../diet/domain/nutrition_targets.dart';
+import '../../diet/domain/plan_preferences.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_conversation.dart';
 import 'ai_message.dart';
@@ -129,6 +131,23 @@ abstract interface class AiRepository {
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
   Future<DietImportOutcome> importDietPlan(DietImportInput input);
+
+  /// Builds a proposed diet plan from [preferences] via the
+  /// `aiGenerateDietPlan` callable — no Firestore write, and the caller
+  /// reviews the result before saving it, exactly like [importDietPlan].
+  ///
+  /// **The model picks the foods; the server prices them** through the same
+  /// nutrition catalog the food log and the coach use (ADR-007). That is why
+  /// this returns the same [DietImportOutcome] an import does: a generated
+  /// plan and an imported one are both "a proposal a human must approve", and
+  /// giving them two shapes would mean two review screens that drift apart.
+  ///
+  /// [targets] is what the day is sized to. Null is allowed — the plan is
+  /// still built, just not fitted to anything, and says so.
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  });
 
   /// Transcribes a recorded voice note via the `aiTranscribe` callable
   /// (`functions/ai/speech/gateway.js`) — input only: this never calls the

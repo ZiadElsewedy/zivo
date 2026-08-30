@@ -9,6 +9,8 @@ import '../../../core/firebase/uid_source.dart';
 import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/diet_import_result.dart';
+import '../../diet/domain/nutrition_targets.dart';
+import '../../diet/domain/plan_preferences.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
@@ -80,8 +82,12 @@ class FirebaseAiRepository implements AiRepository {
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     invokeImport,
-    Future<DietImportOutcome> Function(DietImportInput input)?
-    invokeDietImport,
+    Future<DietImportOutcome> Function(DietImportInput input)? invokeDietImport,
+    Future<DietImportOutcome> Function(
+      PlanPreferences preferences,
+      NutritionTargets? targets,
+    )?
+    invokeDietGenerate,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -97,6 +103,8 @@ class FirebaseAiRepository implements AiRepository {
        _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
        _invokeDietImport =
            invokeDietImport ?? _defaultInvokeDietImport(functions),
+       _invokeDietGenerate =
+           invokeDietGenerate ?? _defaultInvokeDietGenerate(functions),
        _invokeTranscribe =
            invokeTranscribe ?? _defaultInvokeTranscribe(functions),
        _invokeDelete = invokeDelete ?? _defaultInvokeDelete(functions);
@@ -131,6 +139,11 @@ class FirebaseAiRepository implements AiRepository {
   _invokeImport;
   final Future<DietImportOutcome> Function(DietImportInput input)
   _invokeDietImport;
+  final Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _invokeDietGenerate;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
     String mimeType,
@@ -182,7 +195,13 @@ class FirebaseAiRepository implements AiRepository {
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle, clientTurnId, onEvent) async {
+    return (
+      conversationId,
+      message,
+      responseStyle,
+      clientTurnId,
+      onEvent,
+    ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final stream = f.httpsCallable('aiChat').stream({
@@ -276,6 +295,30 @@ class FirebaseAiRepository implements AiRepository {
         DietImportDescription(:final text) => {'text': text},
       };
       final result = await f.httpsCallable('aiImportDietPlan').call(payload);
+      return _dietImportOutcomeFromJson(result.data);
+    };
+  }
+
+  /// The default `generateDietPlan` invoker — calls `aiGenerateDietPlan` with
+  /// the preferences and, when the user has one, their target. The response
+  /// shape is identical to the importer's, so it reuses the same parser.
+  static Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _defaultInvokeDietGenerate(FirebaseFunctions? functions) {
+    return (preferences, targets) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final result = await f.httpsCallable('aiGenerateDietPlan').call({
+        'preferences': preferences.toPayload(),
+        if (targets != null)
+          'targets': {
+            'calories': targets.calories,
+            'proteinG': targets.proteinG,
+            'goal': targets.goal.name,
+          },
+      });
       return _dietImportOutcomeFromJson(result.data);
     };
   }
@@ -499,6 +542,12 @@ class FirebaseAiRepository implements AiRepository {
   @override
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       _invokeDietImport(input);
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _invokeDietGenerate(preferences, targets);
 
   @override
   Future<SttOutcome> transcribe({

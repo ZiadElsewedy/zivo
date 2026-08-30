@@ -6,11 +6,13 @@
 /// it, so "where did this plan come from" is answerable months later.
 ///
 /// [pdf] predates the others and still means "a document was imported"; a
-/// photo import writes [photo] and a dictated one writes [dictated]. An
+/// photo import writes [photo], a dictated one writes [dictated], and a plan
+/// ZIVO designed writes [generated] — the one case where the app itself chose
+/// the food, which is exactly when provenance matters most. An
 /// unknown or legacy value reads as [manual] — the honest reading of a value
 /// ZIVO can't account for is "a person put this here", never a claim that a
 /// model produced it.
-enum DietSource { manual, pdf, photo, dictated }
+enum DietSource { manual, pdf, photo, dictated, generated }
 
 /// Parses a stored [DietSource] name, falling back to `manual` for any
 /// unknown or legacy value.
@@ -23,6 +25,7 @@ String dietSourceLabel(DietSource source) => switch (source) {
   DietSource.pdf => 'Imported from a document',
   DietSource.photo => 'Imported from a photo',
   DietSource.dictated => 'Dictated',
+  DietSource.generated => 'Built by ZIVO',
 };
 
 /// Whether this plan's figures came out of an extraction rather than from the

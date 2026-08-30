@@ -20,6 +20,8 @@ import 'package:zivo/features/workout/data/in_memory_workout_session_repository.
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -140,7 +142,14 @@ class _ValidatedAwayAi implements AiRepository {
   }) => throw UnimplementedError('not exercised by this test');
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) => throw UnimplementedError('not exercised by this test');
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      throw UnimplementedError('not exercised by this test');
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => throw UnimplementedError();
 
   @override
   Future<SttOutcome> transcribe({

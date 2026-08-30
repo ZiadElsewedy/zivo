@@ -258,7 +258,6 @@ class _PlanCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
 /// Where a plan stands, as a word rather than a colour alone.

@@ -10,7 +10,15 @@
 - `presentation/today_diet.dart` — the Diet glance embedded in Today (calorie ring,
   macro chips, completion state).
 - `diet_plan_edit_page.dart`, `meal_detail_page.dart` — edit plan / drill into a meal.
-- `diet_pdf_import_page.dart` — AI PDF import → review (pairs with `functions/ai/diet_import.js`).
+- `diet_import_page.dart` — the one analysis + review flow every capture route lands in
+  (pairs with `functions/ai/diet_import.js`). With no `input` it opens the file picker; with
+  one, the material was gathered before the push.
+- `diet_dictate_page.dart` — describing your diet out loud (or typing it). The transcript is
+  **editable before extraction** — STT mis-hears food names and amounts, and that is the
+  cheapest place to fix it.
+- `presentation/widgets/add_diet_sheet.dart` — every route into a plan, in one sheet.
+- `diet_preferences_page.dart` — what ZIVO asks before it **builds** a plan (meals/day,
+  likes, won't-eats, allergies, cuisine). Pairs with `functions/ai/diet_generate.js`.
 - `presentation/widgets/todays_read_card.dart` — **Today's read**: the coaching
   engine's findings on the screen, each openable to the state fields it rests on.
 - `grocery_list_page.dart` — generated grocery list (`domain/grocery_list.dart`).
@@ -35,7 +43,20 @@
 
 `diet_plan.dart` → `diet_day.dart` → `meal.dart` → `food_item.dart` (calories + macros).
 Ledger: `diet_entry.dart`, `diet_summary.dart`. Import: `diet_import_result.dart`,
-`diet_plan_from_import.dart`, `diet_source.dart` (`DietSource.pdf`), `diet_plan_status.dart`.
+`diet_plan_from_import.dart`, `diet_plan_status.dart`, and:
+
+- **`diet_import_input.dart`** — the sealed `DietImportInput` (`DietImportDocument` |
+  `DietImportDescription`). Four capture routes, **two** kinds of material: bytes with a
+  media type, or text. `AiRepository.importDietPlan` takes this, so a call carrying both or
+  neither can't be written.
+- **`plan_preferences.dart`** — `PlanPreferences`: the constraints a generated plan has to
+  live inside. Not nutrition inputs — calories come from the target and the catalog.
+  Allergies are separate from `avoid` because one is a preference passed to the model and
+  the other is a **gate** enforced server-side after generation.
+- **`diet_source.dart`** — `DietSource` (`manual` · `pdf` · `photo` · `dictated` ·
+  `generated`) with
+  `dietSourceLabel`. Provenance, not decoration: a typed-out description records `manual`,
+  because the user wrote those words themselves.
 
 **The coaching engine (what the coach decides to say):** `domain/coaching/finding.dart`
 (`CoachingFinding` — kind · severity · deterministic text · the state fields it rests on)
@@ -170,5 +191,16 @@ the epic's remaining phases: [`docs/DIET_ONBOARDING_PLAN.md`](../../../docs/DIET
   validator, and the UI above). What is *not* solved is food-catalog **coverage** — see the
   `FoodNotFound` note above; the answer to a miss is still to ask or to offer a custom
   food, never to let a model estimate through.
-- A change to the import extractor is a `functions` deploy (owner's creds — see
-  [`docs/STATE.md`](../../../docs/STATE.md)).
+- **A generated plan's calories are looked up, not stated.** `functions/ai/diet_generate.js`
+  asks the model for foods and amounts only, then prices every item through
+  `functions/nutrition/resolve.js` — the same resolver the coach and the food log use.
+  Ambiguous foods (the common case: "chicken breast" matches five USDA rows) go back to the
+  model in a **second call** to pick a row; anything still unresolved keeps the model's
+  fallback estimate and is marked `estimated`. Fitting the day to the target and refusing an
+  allergen are deterministic (`functions/ai/plan_fitting.js`), never the model's discretion.
+  The contrast with import is deliberate and recorded in
+  [ADR-007](../../../docs/DECISIONS/ADR-007-diet-onboarding-body-data-and-generation.md): an
+  imported plan's figures come from a document a human wrote; a generated plan's would be
+  ZIVO's own claim.
+- A change to the import extractor or the generator is a `functions` deploy (owner's creds —
+  see [`docs/STATE.md`](../../../docs/STATE.md)).

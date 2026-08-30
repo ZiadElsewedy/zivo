@@ -20,6 +20,8 @@ import 'package:zivo/features/workout/data/in_memory_workout_session_repository.
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -128,6 +130,12 @@ class _StreamingAi implements AiRepository {
       throw UnimplementedError('not exercised by this test');
 
   @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => throw UnimplementedError();
+
+  @override
   Future<SttOutcome> transcribe({
     required Uint8List audioBytes,
     required String mimeType,
@@ -179,13 +187,13 @@ void main() {
     }
     expect(find.text('Working…'), findsNothing);
     expect(
-          find.byWidgetPredicate(
-            (widget) =>
-                widget is RichText &&
-                widget.text.toPlainText().startsWith('Hello world'),
-          ),
-          findsOneWidget,
-        );
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().startsWith('Hello world'),
+      ),
+      findsOneWidget,
+    );
 
     // Durable message lands; the provisional is dropped — exactly one bubble,
     // and it did not re-type (it already streamed live).

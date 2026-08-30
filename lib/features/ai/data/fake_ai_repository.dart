@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
+import '../../diet/domain/nutrition_targets.dart';
+import '../../diet/domain/plan_preferences.dart';
 import '../../diet/domain/diet_import_result.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
@@ -53,6 +55,11 @@ class FakeAiRepository implements AiRepository {
     importWorkoutPlanImpl,
     Future<DietImportOutcome> Function(DietImportInput input)?
     importDietPlanImpl,
+    Future<DietImportOutcome> Function(
+      PlanPreferences preferences,
+      NutritionTargets? targets,
+    )?
+    generateDietPlanImpl,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -60,8 +67,9 @@ class FakeAiRepository implements AiRepository {
     )?
     transcribeImpl,
   }) : _importWorkoutPlanImpl =
-            importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
+           importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
        _importDietPlanImpl = importDietPlanImpl ?? _defaultImportDietPlan,
+       _generateDietPlanImpl = generateDietPlanImpl ?? _defaultGenerateDietPlan,
        _transcribeImpl = transcribeImpl ?? _defaultTranscribe;
 
   final Future<WorkoutImportOutcome> Function(
@@ -71,6 +79,11 @@ class FakeAiRepository implements AiRepository {
   _importWorkoutPlanImpl;
   final Future<DietImportOutcome> Function(DietImportInput input)
   _importDietPlanImpl;
+  final Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _generateDietPlanImpl;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
     String mimeType,
@@ -141,11 +154,12 @@ class FakeAiRepository implements AiRepository {
   }
 
   @override
-  Future<String> createConversation({String? title}) async => _createConversation(
-    title: title == null || title.trim().isEmpty
-        ? 'New chat'
-        : title.trim(),
-  ).id;
+  Future<String> createConversation({String? title}) async =>
+      _createConversation(
+        title: title == null || title.trim().isEmpty
+            ? 'New chat'
+            : title.trim(),
+      ).id;
 
   @override
   Future<void> renameConversation(String id, String title) async {
@@ -393,6 +407,49 @@ class FakeAiRepository implements AiRepository {
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       _importDietPlanImpl(input);
 
+  /// Offline-testable stand-in for the real `aiGenerateDietPlan` callable —
+  /// same seam as [importDietPlan], scripted the same way.
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _generateDietPlanImpl(preferences, targets);
+
+  /// A canned generated plan, ignoring the preferences entirely (this fake
+  /// designs nothing). Marked estimated, like a real generation's unresolved
+  /// items, so the "~" path is exercisable offline.
+  static Future<DietImportOutcome> _defaultGenerateDietPlan(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  ) async => const DietImportAccepted(
+    DietImportResult(
+      planName: 'Your plan',
+      days: [
+        ImportedDietDay(
+          weekday: null,
+          label: 'Every day',
+          meals: [
+            ImportedMeal(
+              label: 'Breakfast',
+              items: [
+                ImportedFoodItem(
+                  name: 'Oats',
+                  quantity: 80,
+                  unit: 'g',
+                  calories: 303,
+                  proteinG: 10.6,
+                  carbsG: 54.4,
+                  fatG: 5.4,
+                  estimated: false,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
   /// Offline-testable stand-in for the real `aiTranscribe` callable —
   /// delegates to [_transcribeImpl], which defaults to
   /// [_defaultTranscribe] (a canned transcript, ignoring the audio entirely)
@@ -543,7 +600,8 @@ class FakeAiRepository implements AiRepository {
       case 'log_food':
         final count = f['count'];
         final total = f['totalKcal'];
-        final foods = count is int ? '$count food${count == 1 ? '' : 's'}'
+        final foods = count is int
+            ? '$count food${count == 1 ? '' : 's'}'
             : 'food';
         return 'Logged $foods${total != null ? ' · $total kcal' : ''}';
       default:

@@ -20,6 +20,8 @@ import 'package:zivo/features/workout/data/in_memory_workout_session_repository.
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -37,7 +39,8 @@ class _RecordingAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation({String? title}) => _inner.createConversation();
+  Future<String> createConversation({String? title}) =>
+      _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>
@@ -96,6 +99,12 @@ class _RecordingAi implements AiRepository {
   @override
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       _inner.importDietPlan(input);
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _inner.generateDietPlan(preferences: preferences, targets: targets);
 
   @override
   Future<SttOutcome> transcribe({

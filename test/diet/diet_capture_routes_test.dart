@@ -223,7 +223,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietDictatePage(), diet: diet, ai: ai, recorder: recorder),
+        _wrap(
+          child: const DietDictatePage(),
+          diet: diet,
+          ai: ai,
+          recorder: recorder,
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -262,7 +267,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietDictatePage(), diet: diet, ai: ai, recorder: recorder),
+        _wrap(
+          child: const DietDictatePage(),
+          diet: diet,
+          ai: ai,
+          recorder: recorder,
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('dictate-stop')));
@@ -292,10 +302,7 @@ void main() {
       addTearDown(diet.dispose);
 
       await tester.pumpWidget(
-        _wrap(
-          child: const DietDictatePage(startRecording: false),
-          diet: diet,
-        ),
+        _wrap(child: const DietDictatePage(startRecording: false), diet: diet),
       );
       await tester.pumpAndSettle();
 
@@ -341,7 +348,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietDictatePage(), diet: diet, ai: ai, recorder: recorder),
+        _wrap(
+          child: const DietDictatePage(),
+          diet: diet,
+          ai: ai,
+          recorder: recorder,
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('dictate-stop')));

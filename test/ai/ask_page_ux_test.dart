@@ -20,6 +20,8 @@ import 'package:zivo/features/workout/data/in_memory_workout_session_repository.
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -70,7 +72,8 @@ class _FlakyAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation({String? title}) => _inner.createConversation();
+  Future<String> createConversation({String? title}) =>
+      _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>
@@ -100,19 +103,14 @@ class _FlakyAi implements AiRepository {
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.confirmAction(
-    conversationId: conversationId,
-    actionId: actionId,
-  );
+  }) =>
+      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.cancelAction(
-    conversationId: conversationId,
-    actionId: actionId,
-  );
+  }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
@@ -123,6 +121,12 @@ class _FlakyAi implements AiRepository {
   @override
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       _inner.importDietPlan(input);
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _inner.generateDietPlan(preferences: preferences, targets: targets);
 
   @override
   Future<SttOutcome> transcribe({
@@ -197,6 +201,12 @@ class _SilentDropAi implements AiRepository {
   @override
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       throw UnimplementedError();
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => throw UnimplementedError();
 
   @override
   Future<SttOutcome> transcribe({
@@ -337,7 +347,8 @@ class _HeldAi implements AiRepository {
   Future<String> ensureConversation() => _inner.ensureConversation();
 
   @override
-  Future<String> createConversation({String? title}) => _inner.createConversation();
+  Future<String> createConversation({String? title}) =>
+      _inner.createConversation();
 
   @override
   Future<void> renameConversation(String id, String title) =>
@@ -367,19 +378,14 @@ class _HeldAi implements AiRepository {
   Future<void> confirmAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.confirmAction(
-    conversationId: conversationId,
-    actionId: actionId,
-  );
+  }) =>
+      _inner.confirmAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<void> cancelAction({
     required String conversationId,
     required String actionId,
-  }) => _inner.cancelAction(
-    conversationId: conversationId,
-    actionId: actionId,
-  );
+  }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
   Future<WorkoutImportOutcome> importWorkoutPlan({
@@ -390,6 +396,12 @@ class _HeldAi implements AiRepository {
   @override
   Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       _inner.importDietPlan(input);
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _inner.generateDietPlan(preferences: preferences, targets: targets);
 
   @override
   Future<SttOutcome> transcribe({

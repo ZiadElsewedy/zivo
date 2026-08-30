@@ -8,17 +8,20 @@ import '../../../../core/widgets/train_chrome.dart';
 import '../pages/diet_dictate_page.dart';
 import '../pages/diet_import_page.dart';
 import '../pages/diet_plan_edit_page.dart';
+import '../pages/diet_preferences_page.dart';
 
-/// The four ways a plan gets into ZIVO, in one place.
+/// Every way a plan gets into ZIVO, in one place.
 ///
-/// They are four *capture* routes, not four features: a PDF, a photo, a
-/// spoken description and a typed one all reach the same extractor, the same
-/// review editor and the same saved `DietPlan`. Listing them together is the
-/// point — a user with a plan in their head shouldn't have to discover that
-/// the app can take dictation by finding a mic button somewhere else.
+/// They are *routes*, not features: a PDF, a photo, a spoken description, a
+/// typed one and a generated plan all reach the same review editor and the
+/// same saved `DietPlan`. Listing them together is the point — a user with a
+/// plan in their head shouldn't have to discover that the app can take
+/// dictation by finding a mic button somewhere else, and a user with no plan
+/// at all shouldn't have to guess that ZIVO can write one.
 ///
 /// Ordered by how most plans actually arrive: people are handed a document,
-/// then they photograph one, then they describe their own.
+/// then they photograph one, then they describe their own — and last, for the
+/// people who have no plan at all, ZIVO builds one.
 Future<void> showAddDietSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -83,10 +86,15 @@ class _AddDietSheet extends StatelessWidget {
             icon: Icons.notes_rounded,
             label: 'Type it out',
             detail: 'Write your meals in your own words.',
-            onTap: () => _open(
-              context,
-              const DietDictatePage(startRecording: false),
-            ),
+            onTap: () =>
+                _open(context, const DietDictatePage(startRecording: false)),
+          ),
+          _Route(
+            routeKey: const Key('add-diet-generate'),
+            icon: Icons.auto_awesome_rounded,
+            label: 'Build one for me',
+            detail: "Tell ZIVO what you eat; it designs the plan.",
+            onTap: () => _open(context, const DietPreferencesPage()),
           ),
           _Route(
             routeKey: const Key('add-diet-manual'),

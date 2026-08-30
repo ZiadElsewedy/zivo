@@ -110,12 +110,9 @@ class _DietDictatePageState extends State<DietDictatePage> {
     if (!mounted) return;
     HapticFeedback.lightImpact();
     _levelSub?.cancel();
-    _levelSub = recorder.inputLevels().listen(
-      (level) {
-        if (mounted) setState(() => _level = level);
-      },
-      onError: (_) {},
-    );
+    _levelSub = recorder.inputLevels().listen((level) {
+      if (mounted) setState(() => _level = level);
+    }, onError: (_) {});
     setState(() => _phase = _DictatePhase.recording);
   }
 
@@ -258,9 +255,7 @@ class _DietDictatePageState extends State<DietDictatePage> {
                     ),
                     decoration: InputDecoration(
                       hintText: 'Breakfast is…',
-                      hintStyle: AppText.body.copyWith(
-                        color: TrainColors.ink3,
-                      ),
+                      hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
                       filled: true,
                       fillColor: TrainColors.base,
                       contentPadding: const EdgeInsets.all(14),

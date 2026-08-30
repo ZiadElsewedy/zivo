@@ -9,6 +9,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_import_input.dart';
+import '../../domain/plan_preferences.dart';
 import '../../domain/diet_import_outcome.dart';
 import '../../domain/diet_source.dart';
 import '../../domain/diet_plan.dart';
@@ -64,18 +65,31 @@ Future<({Uint8List bytes, String mimeType})?> _defaultPickFile() async {
 /// Material that isn't a usable diet plan surfaces a distinct, explained
 /// decline instead of an empty or fabricated plan.
 ///
-/// **Every capture route lands here.** With no [input] it opens straight
-/// into the file picker (a PDF or a photo) — no idle "tap to start" screen,
-/// since the entry action that pushed this page already expressed that
-/// intent. With an [input] the material was gathered before the push (a
-/// dictated or typed description) and analysis starts immediately. One
-/// analysis screen, one decline screen, one review gate, whatever the route.
+/// **Every route that produces a plan proposal lands here** — extraction from
+/// a document, from a photo, from dictated or typed words, and generation from
+/// preferences. With no [input] and no [generateFrom] it opens straight into
+/// the file picker — no idle "tap to start" screen, since the entry action
+/// that pushed this page already expressed that intent. Otherwise the material
+/// was gathered before the push and the work starts immediately.
+///
+/// One analysis screen, one decline screen, one review gate, whatever the
+/// route. A second copy of this flow for generated plans would be a second
+/// place for "the AI couldn't do it" to be phrased differently.
 class DietImportPage extends StatefulWidget {
   const DietImportPage({
     super.key,
     this.input,
+    this.generateFrom,
     Future<({Uint8List bytes, String mimeType})?> Function()? pickFile,
-  }) : pickFile = pickFile ?? _defaultPickFile;
+  }) : assert(
+         input == null || generateFrom == null,
+         'A run either reads material or designs a plan — never both.',
+       ),
+       pickFile = pickFile ?? _defaultPickFile;
+
+  /// Preferences to build a plan FROM, rather than material to read. Mutually
+  /// exclusive with [input].
+  final PlanPreferences? generateFrom;
 
   /// Material gathered before this page was pushed. Null means "pick a file",
   /// which is the only route that can be restarted from inside this screen —
@@ -98,6 +112,15 @@ const _analyzingStatusLines = [
   'Reading the document…',
   'Identifying meals…',
   'Estimating calories and macros…',
+];
+
+/// Generation's own lines. Different work, said differently — and deliberately
+/// naming the catalog step, because "looking up real calories" is the part
+/// that makes this trustworthy rather than a guess.
+const _generatingStatusLines = [
+  'Choosing foods you like…',
+  'Looking up real calories for each one…',
+  'Sizing the portions to your target…',
 ];
 
 class _DietImportPageState extends State<DietImportPage> {
@@ -124,6 +147,10 @@ class _DietImportPageState extends State<DietImportPage> {
     super.dispose();
   }
 
+  List<String> get _statusLines => widget.generateFrom == null
+      ? _analyzingStatusLines
+      : _generatingStatusLines;
+
   void _startAnalyzingCycle() {
     _analyzingStatusIndex = 0;
     _analyzingTimer?.cancel();
@@ -131,7 +158,7 @@ class _DietImportPageState extends State<DietImportPage> {
       if (!mounted) return;
       setState(
         () => _analyzingStatusIndex =
-            (_analyzingStatusIndex + 1) % _analyzingStatusLines.length,
+            (_analyzingStatusIndex + 1) % _statusLines.length,
       );
     });
   }
@@ -144,6 +171,20 @@ class _DietImportPageState extends State<DietImportPage> {
       _errorDetail = null;
       _rejectionReason = null;
     });
+
+    final generateFrom = widget.generateFrom;
+    if (generateFrom != null) {
+      await _propose(
+        () => AppScope.of(context).ai.generateDietPlan(
+          preferences: generateFrom,
+          // The plan is sized to whatever objective the user has approved.
+          // Null is fine and honest: the plan is built, just not fitted.
+          targets: AppScope.of(context).diet.currentTargets,
+        ),
+        source: DietSource.generated,
+      );
+      return;
+    }
 
     var input = widget.input;
     if (input == null) {
@@ -183,12 +224,28 @@ class _DietImportPageState extends State<DietImportPage> {
       input = DietImportDocument(bytes: file.bytes, mimeType: file.mimeType);
     }
 
+    await _propose(
+      () => AppScope.of(context).ai.importDietPlan(input!),
+      // The plan remembers which route it arrived by, so the library can say
+      // so months later.
+      source: _sourceFor(input),
+    );
+  }
+
+  /// Runs one proposal — an extraction or a generation — and takes its
+  /// outcome to the same three places: the review editor, the honest decline,
+  /// or a real error. Shared so a generated plan cannot end up with its own
+  /// wording for "that didn't work".
+  Future<void> _propose(
+    Future<DietImportOutcome> Function() run, {
+    required DietSource source,
+  }) async {
     if (!mounted) return;
     setState(() => _phase = _ImportPhase.analyzing);
     _startAnalyzingCycle();
 
     try {
-      final outcome = await AppScope.of(context).ai.importDietPlan(input);
+      final outcome = await run();
       _analyzingTimer?.cancel();
       if (!mounted) return;
       switch (outcome) {
@@ -197,9 +254,7 @@ class _DietImportPageState extends State<DietImportPage> {
             plan,
             id: DateTime.now().microsecondsSinceEpoch.toString(),
             now: DateTime.now(),
-            // The plan remembers which route it arrived by, so the library
-            // can say so months later.
-            source: _sourceFor(input),
+            source: source,
           );
           await _reviewDraft(draft);
         case DietImportRejected(:final reason):
@@ -212,7 +267,7 @@ class _DietImportPageState extends State<DietImportPage> {
       // Surface the real failure instead of swallowing it — an App Check /
       // network rejection shouldn't read as "your PDF is bad".
       _analyzingTimer?.cancel();
-      debugPrint('DietImport: aiImportDietPlan failed: $error');
+      debugPrint('DietImport: proposal failed: $error');
       debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
@@ -250,7 +305,11 @@ class _DietImportPageState extends State<DietImportPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: widget.input == null ? 'Import Plan' : 'Reading your plan',
+              title: switch ((widget.input, widget.generateFrom)) {
+                (null, null) => 'Import Plan',
+                (_, final PlanPreferences _) => 'Building your plan',
+                _ => 'Reading your plan',
+              },
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: TrainColors.ink2,
               iconColor: TrainColors.ink2,
@@ -273,7 +332,12 @@ class _DietImportPageState extends State<DietImportPage> {
   /// lives on the screen behind this one — retrying it in place would offer
   /// the user a second run of the identical text.
   void _retry() {
-    if (widget.input == null) {
+    if (widget.input == null && widget.generateFrom == null) {
+      _run();
+    } else if (widget.generateFrom != null) {
+      // Generation is not deterministic: running it again on the same
+      // preferences is a genuine second attempt, not a repeat of the same
+      // failure — so this one retries in place.
       _run();
     } else {
       Navigator.of(context).pop();
@@ -281,18 +345,22 @@ class _DietImportPageState extends State<DietImportPage> {
   }
 
   Widget _body() {
-    final fromFile = widget.input == null;
+    final generating = widget.generateFrom != null;
+    final fromFile = widget.input == null && !generating;
     switch (_phase) {
       case _ImportPhase.selecting:
         return const _SelectingState();
       case _ImportPhase.analyzing:
-        return _AnalyzingState(
-          statusLine: _analyzingStatusLines[_analyzingStatusIndex],
-        );
+        return _AnalyzingState(statusLine: _statusLines[_analyzingStatusIndex]);
       case _ImportPhase.rejected:
         return _RejectedState(
           reason: _rejectionReason!,
-          retryLabel: fromFile ? 'Choose a different file' : 'Go back and edit',
+          retryLabel: generating
+              ? 'Try again'
+              : (fromFile ? 'Choose a different file' : 'Go back and edit'),
+          declineTitle: generating
+              ? "ZIVO couldn't build that plan"
+              : "This doesn't look like a diet plan",
           onRetry: _retry,
           onBuildManually: _buildManually,
         );
@@ -462,11 +530,16 @@ class _RejectedState extends StatelessWidget {
   const _RejectedState({
     required this.reason,
     required this.retryLabel,
+    required this.declineTitle,
     required this.onRetry,
     required this.onBuildManually,
   });
 
   final String reason;
+
+  /// What went wrong, headlined for this route — an unreadable document and a
+  /// request ZIVO couldn't design around are not the same failure.
+  final String declineTitle;
 
   /// Names what retrying actually does on this route — re-pick a file, or go
   /// back to the description that produced this.
@@ -488,7 +561,7 @@ class _RejectedState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              "This doesn't look like a diet plan",
+              declineTitle,
               style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               textAlign: TextAlign.center,
             ),

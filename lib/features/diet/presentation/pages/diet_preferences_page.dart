@@ -1,0 +1,344 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../core/scope/app_scope.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
+import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/nutrition_targets.dart';
+import '../../domain/plan_preferences.dart';
+import 'diet_import_page.dart';
+import 'diet_targets_page.dart';
+
+/// What ZIVO asks before it builds someone a diet.
+///
+/// Everything on this screen is something **only the user knows**. Their
+/// calories come from their target and their body data; their foods' calories
+/// come from the catalog. What is left — how often they eat, what they like,
+/// what they won't touch, what they can't touch — is the whole of it, and
+/// asking for anything more would be a form.
+///
+/// Allergies sit apart from "won't eat" on purpose, in their own section with
+/// their own words: one is a preference the model is asked to respect, the
+/// other is a limit the server checks deterministically after generation and
+/// refuses the plan over.
+class DietPreferencesPage extends StatefulWidget {
+  const DietPreferencesPage({super.key});
+
+  @override
+  State<DietPreferencesPage> createState() => _DietPreferencesPageState();
+}
+
+class _DietPreferencesPageState extends State<DietPreferencesPage> {
+  final TextEditingController _likes = TextEditingController();
+  final TextEditingController _avoid = TextEditingController();
+  final TextEditingController _allergies = TextEditingController();
+  final TextEditingController _notes = TextEditingController();
+
+  int _mealsPerDay = 3;
+  String? _cuisine;
+
+  @override
+  void dispose() {
+    _likes.dispose();
+    _avoid.dispose();
+    _allergies.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  PlanPreferences get _preferences => PlanPreferences(
+    mealsPerDay: _mealsPerDay,
+    likes: parseFoodList(_likes.text),
+    avoid: parseFoodList(_avoid.text),
+    allergies: parseFoodList(_allergies.text),
+    cuisine: _cuisine,
+    notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+  );
+
+  Future<void> _build() async {
+    HapticFeedback.lightImpact();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DietImportPage(generateFrom: _preferences),
+      ),
+    );
+    // The proposal flow pops itself once the review editor closes, so landing
+    // back here means it is finished either way.
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _openTargets(NutritionTargets? current) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DietTargetsPage(initial: current)),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final targets = AppScope.of(context).diet.currentTargets;
+
+    return TrainScreen(
+      tint: TrainColors.dietTint,
+      child: Column(
+        children: [
+          CaptureTopBar(
+            title: 'Build me a plan',
+            onClose: () => Navigator.of(context).maybePop(),
+          ),
+          Expanded(
+            child: ListView(
+              key: const Key('preferences-list'),
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+              children: [
+                Text(
+                  'ZIVO picks the foods and looks up what they actually '
+                  "weigh in calories — it doesn't guess them. Tell it what "
+                  'you eat and it will build a day you can review before '
+                  'anything is saved.',
+                  style: AppText.body.copyWith(
+                    color: TrainColors.ink2,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _TargetNote(
+                  targets: targets,
+                  onSetTarget: () => _openTargets(targets),
+                ),
+                const SizedBox(height: 26),
+                const TrainSectionLabel('Meals a day'),
+                const SizedBox(height: 11),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    for (var n = kMinMealsPerDay; n <= 6; n++)
+                      SelectChip(
+                        key: Key('meals-$n'),
+                        label: '$n',
+                        selected: _mealsPerDay == n,
+                        onTap: () => setState(() => _mealsPerDay = n),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'The single biggest reason a plan survives a working week, '
+                  'or does not.',
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+                const SizedBox(height: 26),
+                const TrainSectionLabel('Kitchen', trailing: 'OPTIONAL'),
+                const SizedBox(height: 11),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    for (final cuisine in _kCuisines)
+                      SelectChip(
+                        key: Key('cuisine-${cuisine.toLowerCase()}'),
+                        label: cuisine,
+                        selected: _cuisine == cuisine,
+                        // Tapping the selected one clears it — a steer you
+                        // can't take back is a trap.
+                        onTap: () => setState(
+                          () => _cuisine = _cuisine == cuisine ? null : cuisine,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 26),
+                _FoodList(
+                  label: 'Foods you like',
+                  hint: 'chicken, rice, eggs, yoghurt',
+                  controller: _likes,
+                  fieldKey: const Key('prefs-likes'),
+                  note: 'ZIVO will build around these where it can.',
+                ),
+                const SizedBox(height: 22),
+                _FoodList(
+                  label: "Foods you won't eat",
+                  hint: 'liver, mushrooms',
+                  controller: _avoid,
+                  fieldKey: const Key('prefs-avoid'),
+                  note: 'Left out of the plan.',
+                ),
+                const SizedBox(height: 22),
+                _FoodList(
+                  label: 'Allergies',
+                  hint: 'peanuts, shellfish',
+                  controller: _allergies,
+                  fieldKey: const Key('prefs-allergies'),
+                  note:
+                      'Different from the list above: ZIVO checks the finished '
+                      'plan for these and refuses it outright if any turn up. '
+                      'Still read the plan yourself — this is a safety net, '
+                      'not a medical guarantee.',
+                  noteColor: TrainColors.ember,
+                ),
+                const SizedBox(height: 22),
+                _FoodList(
+                  label: 'Anything else',
+                  hint: 'I train at 6am and eat straight after',
+                  controller: _notes,
+                  fieldKey: const Key('prefs-notes'),
+                  note: 'In your own words.',
+                  minLines: 3,
+                ),
+                const SizedBox(height: 26),
+                PillButton(
+                  key: const Key('prefs-build'),
+                  label: 'Build my plan',
+                  icon: Icons.auto_awesome_rounded,
+                  enabled: _preferences.isUsable,
+                  onTap: _build,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Nothing is saved until you review the plan and tap Save.',
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The kitchens worth offering as one tap. Not exhaustive — "Anything else"
+/// takes the rest — but a generator with no steer produces the same
+/// chicken-and-broccoli plan for everybody, so the common ones are here.
+const _kCuisines = [
+  'Egyptian',
+  'Mediterranean',
+  'Levantine',
+  'Indian',
+  'Asian',
+  'Western',
+];
+
+/// Whether the plan will be sized to anything. A target is not required — a
+/// plan built without one is still a plan — but the difference is worth
+/// saying before the build rather than explaining after it.
+class _TargetNote extends StatelessWidget {
+  const _TargetNote({required this.targets, required this.onSetTarget});
+
+  final NutritionTargets? targets;
+  final VoidCallback onSetTarget;
+
+  @override
+  Widget build(BuildContext context) {
+    if (targets != null) {
+      return Row(
+        children: [
+          const Icon(Icons.flag_outlined, size: 16, color: TrainColors.green),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Sized to your target — ${targets!.calories} kcal a day.',
+              key: const Key('prefs-target-note'),
+              style: AppText.meta.copyWith(color: TrainColors.ink2),
+            ),
+          ),
+        ],
+      );
+    }
+    return TrainDashedCard(
+      key: const Key('prefs-no-target'),
+      onTap: onSetTarget,
+      child: Row(
+        children: [
+          const Icon(Icons.flag_outlined, size: 18, color: TrainColors.ink2),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No daily target set', style: AppText.rowTitle),
+                const SizedBox(height: 3),
+                Text(
+                  'ZIVO will still build the plan, but it has no figure to '
+                  'size the portions to. Set one first and the day comes out '
+                  'fitted to it.',
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: TrainColors.ink3,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A labelled free-text list — comma separated, because that is how people
+/// write a list of foods without being taught a chip UI.
+class _FoodList extends StatelessWidget {
+  const _FoodList({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    required this.fieldKey,
+    required this.note,
+    this.noteColor,
+    this.minLines = 2,
+  });
+
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final Key fieldKey;
+  final String note;
+  final Color? noteColor;
+  final int minLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TrainSectionLabel(label.toUpperCase()),
+        const SizedBox(height: 11),
+        TextField(
+          key: fieldKey,
+          controller: controller,
+          maxLines: null,
+          minLines: minLines,
+          textCapitalization: TextCapitalization.none,
+          cursorColor: TrainColors.green,
+          style: AppText.body.copyWith(color: TrainColors.ink, height: 1.5),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
+            filled: true,
+            fillColor: TrainColors.base,
+            contentPadding: const EdgeInsets.all(14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          note,
+          style: AppText.meta.copyWith(
+            color: noteColor ?? TrainColors.ink3,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+}

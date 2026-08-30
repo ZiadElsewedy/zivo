@@ -125,22 +125,64 @@ The whole point of the epic, and it needs no model call.
 
 ### Phase C — Capture from anywhere
 
-- One **"Add a diet"** sheet: PDF · Photo · **Dictate** · Type it out. (Photo already works
-  end-to-end; only the entry point calls itself "PDF".)
-- Dictation: the Ask feature's recorder + transcription → transcript → the same extractor,
-  via a `text` input on `aiImportDietPlan`.
-- `functions/ai/diet_import.js` accepts `text` alongside `fileBytes` (one schema, one
-  review UI). **Owner action: deploy.**
+- One **"Add a diet"** sheet (`add_diet_sheet.dart`): PDF or photo · say it out loud ·
+  type it out · build it by hand. Four *capture routes*, not four features — all four reach
+  the same extractor, the same review editor and the same saved `DietPlan`. The dictation
+  route hides itself on a host with no recorder; typing does not.
+- `DietImportInput` (sealed: `DietImportDocument` | `DietImportDescription`) replaces
+  `importDietPlan`'s bytes-and-mime-type parameters, so "a file and some text at once" and
+  "neither" are unrepresentable at the call site rather than validated at runtime.
+- `diet_dictate_page.dart` — records via the Ask feature's recorder, transcribes through the
+  existing `aiTranscribe`, and **shows the transcript in an editable field before anything is
+  extracted**. That gate is the point: speech-to-text mangles food names and amounts, and the
+  cheapest place to fix it is while the user still remembers what they said, not in the plan
+  editor after a wrong food has become a calorie figure. The same screen serves typing.
+- `functions/ai/diet_import.js` accepts `text` alongside `fileBase64`, refusing both-at-once
+  and neither. One schema and one set of shared rules; only the intro paragraph differs,
+  because "read generously" means something different for a scanned table than for a
+  transcript that self-corrects mid-sentence. **Owner action: deploy.**
+- `DietSource` gained `photo` and `dictated`, so a saved plan says which route it arrived by
+  (the library screen shows it). A *typed* description records `manual` — the user wrote
+  those words, and calling it dictated would be a small lie in a field whose entire job is
+  provenance.
+- Tests: `test/diet/diet_capture_routes_test.dart` (sheet · dictation · provenance) and the
+  new text-path cases in `functions/ai/diet_import.test.js`.
 
 ### Phase D — Generation
 
-- `domain/plan_preferences.dart` + a preferences wizard (meals/day, likes, won't-eats,
-  allergies, cuisine).
-- `functions/ai/diet_generate.js` (`aiGenerateDietPlan`): model proposes foods/portions →
-  **`functions/nutrition/resolve.js` prices them** → deterministic scaler fits the day to
-  the target → unresolved items keep an estimate and are marked. Unit tests offline, same
-  as its `diet_import.js` sibling. **Owner action: deploy.**
-- Output opens in the existing review editor; nothing is saved unreviewed.
+**The model picks the foods; the catalog prices them; arithmetic fits them.**
+
+- `domain/plan_preferences.dart` + `diet_preferences_page.dart` — meals/day, likes,
+  won't-eats, allergies, cuisine, free notes. Every field is something only the user knows;
+  a generator that asks for what it could derive is a form.
+- `functions/ai/diet_generate.js` (`aiGenerateDietPlan`): the model proposes foods and
+  amounts (never calories) → **`functions/nutrition/resolve.js` prices each one** from real
+  per-100g data, the user's own custom foods layered over USDA → the day is fitted to the
+  target → items the catalog can't price keep the model's estimate and are marked
+  `estimated`.
+- **Two model calls, not one.** A common food is ambiguous in USDA — "chicken breast"
+  matches a roll, a breaded tender and fat-free slices, whose energy differs materially —
+  and the food rules forbid substituting the closest match. So a second call hands the model
+  the candidate rows for exactly the ambiguous items and asks it to pick. A `null` answer,
+  or a `foodId` that wasn't offered, falls back to the estimate: a wrong row is worse than a
+  marked guess. Without this pass nearly every item would fall back, and the generator would
+  be a model-estimate generator with extra steps.
+- `functions/ai/plan_fitting.js` — deterministic, pure, injected pricing:
+  - **the fit**: fixed (count-based) items' energy is subtracted first, so one pass lands on
+    the target instead of converging. Gram/ml amounts only; ±5% deadband; 0.5–2× ceiling
+    (past that the proposal is the wrong shape and is returned honestly off-target rather
+    than distorted); portions rounded to 5 g so they stay weighable.
+  - **the allergen gate**: a stem match on every item name, refusing the whole plan. The
+    prompt asks; this gate refuses — an allergy is a safety limit, not a preference.
+- Generated plans land in the **same review editor** as imports (`DietImportPage` gained a
+  `generateFrom`), carry `DietSource.generated`, and are saved only by the user.
+- Tests: `functions/ai/plan_fitting.test.js`, `functions/ai/diet_generate.test.js` (which
+  runs against the **real** catalog, so "the catalog wins over the model's number" is
+  actually proven), `test/diet/diet_generate_test.dart`. **Owner action: deploy.**
+
+**Known limit:** the fit is to calories only. Protein is given to the model as a target and
+respected by food choice, not enforced by arithmetic — a true macro solve is a different
+problem, and the review editor shows what the day actually came out at.
 
 ### Phase E — The coach knows all of it
 

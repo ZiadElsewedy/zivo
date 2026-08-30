@@ -56,6 +56,24 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Diet onboarding — Phase D: ZIVO builds the plan.** A preferences screen (meals/day,
+  likes, won't-eats, allergies, cuisine) feeds `aiGenerateDietPlan`, where **the model picks
+  foods and amounts but never calories** — every item is priced through the same USDA +
+  custom-food resolver the coach and food log use, ambiguous foods go back to the model in a
+  second call to pick a row, and anything still unresolved keeps a marked estimate. The day
+  is then fitted to the user's target by deterministic arithmetic, and an allergen in the
+  result **refuses the whole plan** rather than being left to prompt compliance
+  (`functions/ai/plan_fitting.js`). Generated plans land in the same review editor as
+  imports and carry `DietSource.generated`. **Needs a functions deploy.**
+- **Diet onboarding — Phase C: capture from anywhere.** One **"Add a diet"** sheet with four
+  routes — PDF/photo, **say it out loud**, type it out, build by hand — all landing in the
+  same extractor and the same review editor. Dictation records through the Ask feature's
+  recorder, transcribes via the existing `aiTranscribe`, and shows the transcript in an
+  **editable field before extraction** (STT mis-hears foods and amounts; fixing it later
+  means fixing a calorie figure). `importDietPlan` now takes a sealed `DietImportInput`, and
+  `functions/ai/diet_import.js` accepts `text` alongside a file — **needs a functions
+  deploy** before dictation/typing work against the real backend. `DietSource` gained
+  `photo`/`dictated` so a plan says how it arrived.
 - **Diet onboarding — Phase B: a library of plans.** The user can keep several plans (a
   cut, a bulk, the one their coach wrote) with exactly one being followed — a new
   `diet_plans_page.dart` lists them with their verdicts, and follow/stop-following/delete.
@@ -176,7 +194,12 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     are what let a target, a food log, or a custom food be saved at all. Phase 8.1 adds the
     `dietPlans` document bounds to the same rules file. **Phase A of the diet-onboarding
     epic adds the `bodyProfile` collection rule** (rules-tested) to the same file — body
-    data cannot be saved against the real backend until it is deployed. Command:
+    data cannot be saved against the real backend until it is deployed. **Phase C changes
+    `ai/diet_import.js` + `index.js`** to accept a dictated/typed description; until that
+    deploys, the "say it out loud" and "type it out" routes reach an extractor that only
+    understands files and fail with an invalid-argument. **Phase D adds the whole
+    `aiGenerateDietPlan` callable** (`ai/diet_generate.js`, `ai/plan_fitting.js`,
+    `index.js`); until it deploys, "Build one for me" fails with not-found. Command:
     `firebase deploy --only functions,firestore:rules` — worth running with `--dry-run`
     first, since nothing here can validate rules syntax locally.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
