@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import 'ai_conversation.dart';
@@ -114,22 +115,20 @@ abstract interface class AiRepository {
     required String mimeType,
   });
 
-  /// Extracts a proposed diet plan from a document's raw bytes (Chunk B+C)
-  /// via the `aiImportDietPlan` callable — one Claude call, no Firestore
-  /// write. The caller reviews/edits the result before saving it (via
-  /// `DietRepository.savePlan`); this method alone never creates a plan.
+  /// Extracts a proposed diet plan from [input] via the `aiImportDietPlan`
+  /// callable — one Claude call, no Firestore write. The caller reviews/edits
+  /// the result before saving it (via `DietRepository.savePlan`); this method
+  /// alone never creates a plan.
   ///
-  /// [mimeType] is the picked file's media type: `application/pdf`, or an
-  /// image type (`image/jpeg`, `image/png`, …) when the user imported a
-  /// photo of their plan instead of a PDF.
+  /// [input] is either a document (a PDF or a photo) or the user's own
+  /// description of their plan — dictated and transcribed by [transcribe]
+  /// first, or typed. **One extractor and one schema serve all four capture
+  /// routes**; four prompts producing four shapes is how they drift apart.
   ///
-  /// Resolves to [DietImportRejected] (never throws) when the document
+  /// Resolves to [DietImportRejected] (never throws) when the material
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  });
+  Future<DietImportOutcome> importDietPlan(DietImportInput input);
 
   /// Transcribes a recorded voice note via the `aiTranscribe` callable
   /// (`functions/ai/speech/gateway.js`) — input only: this never calls the

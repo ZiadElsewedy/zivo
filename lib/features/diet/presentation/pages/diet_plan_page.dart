@@ -12,6 +12,8 @@ import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/analysis/plan_verdict.dart';
+import '../../domain/body_measures.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
@@ -24,11 +26,15 @@ import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/diet_state.dart';
 import '../../domain/diet_state_builder.dart';
+import '../widgets/add_diet_sheet.dart';
+import '../widgets/adopt_plan_target_sheet.dart';
+import '../widgets/body_measures_builder.dart';
 import '../widgets/log_food_sheet.dart';
 import '../widgets/todays_read_card.dart';
 import '../today_diet.dart';
-import 'diet_pdf_import_page.dart';
+import 'body_profile_page.dart';
 import 'diet_plan_edit_page.dart';
+import 'diet_plans_page.dart';
 import 'diet_targets_page.dart';
 import 'grocery_list_page.dart';
 import 'meal_detail_page.dart';
@@ -78,17 +84,40 @@ class DietPlanPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
                 child: TrainPageHeader(
                   title: 'Diet',
-                  action: plan == null || planSnapshot.hasError
+                  action: planSnapshot.hasError
                       ? null
-                      : TrainHeaderAction(
-                          icon: Icons.shopping_basket_outlined,
-                          semanticLabel: 'Groceries',
-                          accent: TrainColors.green,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => GroceryListPage(plan: plan),
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Reachable even with no ACTIVE plan — that is
+                            // exactly the case where it matters, because
+                            // "everything is archived" and "you have no plans"
+                            // look identical from the Diet screen otherwise.
+                            TrainHeaderAction(
+                              key: const Key('open-plan-library'),
+                              icon: Icons.layers_outlined,
+                              semanticLabel: 'Your plans',
+                              accent: TrainColors.green,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const DietPlansPage(),
+                                ),
+                              ),
                             ),
-                          ),
+                            if (plan != null) ...[
+                              const SizedBox(width: 8),
+                              TrainHeaderAction(
+                                icon: Icons.shopping_basket_outlined,
+                                semanticLabel: 'Groceries',
+                                accent: TrainColors.green,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => GroceryListPage(plan: plan),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                 ),
               ),
@@ -98,15 +127,21 @@ class DietPlanPage extends StatelessWidget {
                     : loading
                     ? const LoadingStateView()
                     : plan == null
-                    ? _EmptyState(
-                        onImport: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const DietPdfImportPage(),
-                          ),
-                        ),
-                        onCreate: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const DietPlanEditPage(),
+                    // "No plan" and "every plan you have is archived" are
+                    // different situations with the same active plan (none),
+                    // and telling the second one it has no plans is how a
+                    // user concludes their imported plan was lost.
+                    ? StreamBuilder<List<DietPlan>>(
+                        stream: diet.watchPlans(),
+                        initialData: diet.plans,
+                        builder: (context, plansSnapshot) => _EmptyState(
+                          shelvedPlans:
+                              (plansSnapshot.data ?? const <DietPlan>[]).length,
+                          onAdd: () => showAddDietSheet(context),
+                          onOpenLibrary: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DietPlansPage(),
+                            ),
                           ),
                         ),
                       )
@@ -121,10 +156,23 @@ class DietPlanPage extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onImport, required this.onCreate});
+  const _EmptyState({
+    required this.onAdd,
+    required this.onOpenLibrary,
+    this.shelvedPlans = 0,
+  });
 
-  final VoidCallback onImport;
-  final VoidCallback onCreate;
+  /// Opens the capture sheet — the one door, with all four routes behind it
+  /// (document, photo, dictation, typing) plus the manual editor. A separate
+  /// "create manually" link here would be one of those routes hoisted out of
+  /// the list it belongs in.
+  final VoidCallback onAdd;
+  final VoidCallback onOpenLibrary;
+
+  /// How many plans exist but aren't being followed. Non-zero turns this from
+  /// "you have nothing" into "you're not following any of them", which is a
+  /// different sentence with a different way out.
+  final int shelvedPlans;
 
   @override
   Widget build(BuildContext context) {
@@ -140,11 +188,21 @@ class _EmptyState extends StatelessWidget {
               color: TrainColors.ink3,
             ),
             const SizedBox(height: 12),
-            Text('No diet plan yet.', style: AppText.aside),
+            Text(
+              shelvedPlans == 0
+                  ? 'No diet plan yet.'
+                  : "You're not following a plan.",
+              key: const Key('diet-empty-headline'),
+              style: AppText.aside,
+            ),
             const SizedBox(height: 6),
             Text(
-              "Import a PDF or photo and I'll estimate calories and macros "
-              'for you, or build one from scratch.',
+              shelvedPlans == 0
+                  ? 'Import a document or a photo, say it out loud, type it '
+                        "out, or build one by hand — I'll fill in the "
+                        'calories and macros.'
+                  : '$shelvedPlans ${shelvedPlans == 1 ? "plan is" : "plans are"} '
+                        'archived — pick one back up, or add another.',
               style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -152,29 +210,31 @@ class _EmptyState extends StatelessWidget {
             SizedBox(
               width: 220,
               child: PillButton(
-                label: 'Import a plan',
-                icon: Icons.upload_file_rounded,
+                key: const Key('diet-empty-add'),
+                label: 'Add a diet',
+                icon: Icons.add_rounded,
                 color: TrainColors.green,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  onImport();
+                  onAdd();
                 },
               ),
             ),
-            const SizedBox(height: 10),
-            PressableScale(
-              child: TextButton(
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  onCreate();
-                },
-                child: Text(
-                  'Create plan manually instead',
-                  style: AppText.meta.copyWith(color: TrainColors.ink2),
+            if (shelvedPlans > 0)
+              PressableScale(
+                child: TextButton(
+                  key: const Key('empty-open-library'),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    onOpenLibrary();
+                  },
+                  child: Text(
+                    'See your plans',
+                    style: AppText.meta.copyWith(color: TrainColors.ink2),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -365,9 +425,21 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
             loading: consumedLoading,
             state: state,
           ),
+          // What the PLAN does to this person — the question a diet is
+          // actually for, and the one thing on this screen that isn't about
+          // today. It sits under the hero because it explains the plan the
+          // hero is counting down, and above the target card because "this
+          // makes you gain 0.5 kg a week" is the fact a target is chosen in
+          // response to.
+          _PlanVerdictSection(
+            plan: plan,
+            onAddBodyData: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const BodyProfilePage())),
+          ),
           const SizedBox(height: 12),
           if (targets == null)
-            _NoTargetCard(onSet: () => _openTargets(context, null))
+            _NoTargetCard(plan: plan, onSet: () => _openTargets(context, null))
           else
             _TargetSummaryRow(
               targets: targets,
@@ -583,38 +655,75 @@ void _openTargets(BuildContext context, NutritionTargets? current) {
 /// without one, rather than filling the gap with the plan's own total and
 /// letting the user believe someone chose it for them.
 class _NoTargetCard extends StatelessWidget {
-  const _NoTargetCard({required this.onSet});
+  const _NoTargetCard({required this.plan, required this.onSet});
 
+  final DietPlan plan;
   final VoidCallback onSet;
 
   @override
   Widget build(BuildContext context) {
+    // The plan already states a daily figure. Offering it as the target is
+    // the shortest route out of this state and it invents nothing — the
+    // number is the user's own plan's, and the sheet asks for the one thing
+    // the plan can't say (what it's for) before anything is saved.
+    final planKcal = planDailyEnergy(plan).kcalPerDay;
     return TrainDashedCard(
       key: const Key('no-target-card'),
       onTap: onSet,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.flag_outlined, size: 18, color: TrainColors.ink2),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('No daily target set', style: AppText.rowTitle),
-                const SizedBox(height: 3),
-                Text(
-                  "Set one and the numbers above become progress toward a "
-                  "goal — and your coach can tell you where you stand.",
-                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+          Row(
+            children: [
+              const Icon(
+                Icons.flag_outlined,
+                size: 18,
+                color: TrainColors.ink2,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('No daily target set', style: AppText.rowTitle),
+                    const SizedBox(height: 3),
+                    Text(
+                      "Set one and the numbers above become progress toward a "
+                      "goal — and your coach can tell you where you stand.",
+                      style: AppText.meta.copyWith(color: TrainColors.ink3),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: TrainColors.ink3,
+              ),
+            ],
+          ),
+          if (planKcal != null) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                key: const Key('adopt-plan-target'),
+                onPressed: () async {
+                  HapticFeedback.selectionClick();
+                  await showAdoptPlanTargetSheet(context, plan: plan);
+                },
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(
+                  "Use this plan's ${approx(planDailyEnergy(plan).estimated)}"
+                  '$planKcal kcal',
+                  style: AppText.meta.copyWith(color: TrainColors.green),
+                ),
+              ),
             ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: TrainColors.ink3,
-          ),
+          ],
         ],
       ),
     );
@@ -842,34 +951,54 @@ class _DietHeroState extends State<_DietHero>
                       size: const Size(104, 104),
                       painter: _CalorieRingPainter(progress: _progress.value),
                     ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.loading ? '…' : _heroNumber(progress, summary),
-                          style: TrainType.mono(
-                            size: 30,
-                            weight: FontWeight.w300,
-                            tracking: -0.05,
-                            color: const Color(0xFFF9F9F5),
+                    // The block has to stay INSIDE the ring, and both of its
+                    // lines are variable-length: a four-figure "~3356" is
+                    // wider at 30pt than the circle is, and the longest label
+                    // ("EST. KCAL LEFT OF PLAN") wraps. So the content is
+                    // boxed to the ring's inner width and the figure scales
+                    // down to fit it — 30pt stays the size for everything
+                    // that fits, rather than every number being shrunk for
+                    // the worst case.
+                    SizedBox(
+                      width: _kRingInnerWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.loading
+                                  ? '…'
+                                  : _heroNumber(progress, summary),
+                              maxLines: 1,
+                              style: TrainType.mono(
+                                size: 30,
+                                weight: FontWeight.w300,
+                                tracking: -0.05,
+                                color: const Color(0xFFF9F9F5),
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          // The one hero number says out loud both what it is
-                          // measured against and whether it rests on
-                          // AI-estimated values — a bare "1400" claims a
-                          // precision an imported plan's guessed figures don't
-                          // have, and "left" means nothing until you know
-                          // "left of what".
-                          _heroLabel(progress, summary),
-                          style: TrainType.caption(
-                            size: 8,
-                            tracking: 0.16,
-                            color: const Color(0x59F4F4F0),
+                          const SizedBox(height: 5),
+                          Text(
+                            // The one hero number says out loud both what it
+                            // is measured against and whether it rests on
+                            // AI-estimated values — a bare "1400" claims a
+                            // precision an imported plan's guessed figures
+                            // don't have, and "left" means nothing until you
+                            // know "left of what". It is allowed to wrap, so
+                            // it is centred: the longest label's second line
+                            // ("PLAN") hung off to the left otherwise.
+                            _heroLabel(progress, summary),
+                            textAlign: TextAlign.center,
+                            style: TrainType.caption(
+                              size: 8,
+                              tracking: 0.16,
+                              color: const Color(0x59F4F4F0),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1123,6 +1252,252 @@ class _MacroBar extends StatelessWidget {
     );
   }
 }
+
+/// The plan's verdict, or the honest reason there isn't one yet.
+///
+/// Three states, and each is a real answer:
+/// - **Body data missing** — a prompt naming exactly what's needed. ZIVO does
+///   not fill in an average body and produce a number from it.
+/// - **Plan has no calorie figures** — nothing rendered; the hero already
+///   says "NO CALORIE DATA YET" and a second empty card would just repeat it.
+/// - **A verdict** — the headline, the arithmetic under it, and the two
+///   things that qualify it (protein, and the safety floor).
+class _PlanVerdictSection extends StatelessWidget {
+  const _PlanVerdictSection({required this.plan, required this.onAddBodyData});
+
+  final DietPlan plan;
+  final VoidCallback onAddBodyData;
+
+  @override
+  Widget build(BuildContext context) => BodyMeasuresBuilder(builder: _build);
+
+  Widget _build(BuildContext context, BodyMeasuresResolution measures) {
+    final resolved = measures.measures;
+    if (resolved == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: _BodyDataPrompt(missing: measures.missing, onTap: onAddBodyData),
+      );
+    }
+    final verdict = analysePlan(plan: plan, measures: resolved);
+    if (verdict == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: _VerdictCard(
+        verdict: verdict,
+        weighInAgeDays: resolved.weighInAgeDays(DateTime.now()),
+        onEditBodyData: onAddBodyData,
+      ),
+    );
+  }
+}
+
+/// The ask, when ZIVO can't answer yet. Dashed rather than solid: it is an
+/// outline waiting on data, not a card reporting something (identity §8).
+class _BodyDataPrompt extends StatelessWidget {
+  const _BodyDataPrompt({required this.missing, required this.onTap});
+
+  final Set<MissingBodyData> missing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TrainDashedCard(
+      key: const Key('body-data-prompt'),
+      onTap: onTap,
+      child: Row(
+        children: [
+          const Icon(
+            Icons.straighten_rounded,
+            size: 18,
+            color: TrainColors.ink2,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Is this plan making you gain or lose?',
+                  style: AppText.rowTitle,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  // Names what is actually missing rather than "complete your
+                  // profile" — one of these is usually already known, and
+                  // being asked again for something you gave is what makes a
+                  // prompt feel like a wall.
+                  'ZIVO needs ${_missingPhrase(missing)} to work it out.',
+                  key: const Key('body-data-missing'),
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: TrainColors.ink3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "your height" · "your height and your current weight" · "your height,
+  /// your current weight and how active your week is".
+  static String _missingPhrase(Set<MissingBodyData> missing) {
+    // The three that arrive together (an absent body profile) read as one
+    // ask, not three.
+    final labels = missing.map(missingBodyDataLabel).toList();
+    if (labels.length == 1) return labels.first;
+    if (labels.length == 2) return '${labels[0]} and ${labels[1]}';
+    return '${labels.sublist(0, labels.length - 1).join(', ')} '
+        'and ${labels.last}';
+  }
+}
+
+/// The answer. One headline, its working underneath, and only the caveats
+/// that change what the user should do about it.
+class _VerdictCard extends StatelessWidget {
+  const _VerdictCard({
+    required this.verdict,
+    required this.weighInAgeDays,
+    required this.onEditBodyData,
+  });
+
+  final PlanVerdict verdict;
+  final int weighInAgeDays;
+  final VoidCallback onEditBodyData;
+
+  Color get _hue => switch (verdict.direction) {
+    // Green is state everywhere in this app, and "holding" is the state of
+    // being on maintenance. Gaining and losing are not good or bad — a bulk
+    // and a cut are both goals — so neither gets a judgement colour; they
+    // take the neutral mark and let the words carry the meaning.
+    EnergyDirection.holding => TrainColors.green,
+    _ => TrainColors.neutralMark,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return TrainCard(
+      key: const Key('plan-verdict-card'),
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'THIS PLAN',
+                style: TrainType.caption(size: 9, tracking: 0.16),
+              ),
+              const Spacer(),
+              GestureDetector(
+                key: const Key('verdict-edit-body-data'),
+                onTap: onEditBodyData,
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  'BODY DATA',
+                  style: TrainType.caption(
+                    size: 9,
+                    tracking: 0.16,
+                    color: TrainColors.ink3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: _hue, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  verdictHeadline(verdict),
+                  key: const Key('verdict-headline'),
+                  style: TrainType.ui(
+                    size: 16,
+                    weight: FontWeight.w700,
+                    color: TrainColors.inkPlain,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            verdictDetail(verdict),
+            key: const Key('verdict-detail'),
+            style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+          ),
+          if (verdict.daysWithoutCalories > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              // The average speaks for part of the plan, and says so — the
+              // alternative is a figure that quietly stands in for days it
+              // never counted.
+              'Averaged over ${verdict.daysCounted} '
+              '${verdict.daysCounted == 1 ? "day" : "days"}; '
+              '${verdict.daysWithoutCalories} '
+              '${verdict.daysWithoutCalories == 1 ? "day has" : "days have"} '
+              'no calorie figures.',
+              key: const Key('verdict-partial'),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            ),
+          ],
+          if (verdict.proteinGPerKg != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Protein ${verdict.proteinGPerKg!.toStringAsFixed(1)} g per kg '
+              'of bodyweight.',
+              key: const Key('verdict-protein'),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            ),
+          ],
+          if (weighInAgeDays > kWeighInStaleAfterDays) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Your last weigh-in is $weighInAgeDays days old — weight drives '
+              'this figure, so it is worth updating.',
+              key: const Key('verdict-stale-weight'),
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            ),
+          ],
+          if (verdict.belowSafetyFloor) ...[
+            const SizedBox(height: 10),
+            Text(
+              'This plan is under $kMinimumSafeCalories kcal a day. Sustained '
+              'intake down here belongs with a doctor, not an app.',
+              key: const Key('verdict-safety-floor'),
+              style: AppText.meta.copyWith(
+                color: TrainColors.ember,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The widest the hero's figure + label may be inside the 104px ring.
+///
+/// The ring's stroke sits at radius 46 with a 5px width, so its inner edge is
+/// at 43.5; a centred block two lines tall has to fit within the chord at that
+/// height, not the diameter. 76 is that chord with a little air — anything
+/// wider starts crossing the stroke, which is exactly what "~3356" at 30pt did.
+const double _kRingInnerWidth = 76;
 
 class _CalorieRingPainter extends CustomPainter {
   const _CalorieRingPainter({required this.progress});

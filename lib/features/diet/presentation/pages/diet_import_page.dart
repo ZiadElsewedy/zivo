@@ -8,7 +8,9 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/diet_import_input.dart';
 import '../../domain/diet_import_outcome.dart';
+import '../../domain/diet_source.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
 import 'diet_plan_edit_page.dart';
@@ -54,29 +56,38 @@ Future<({Uint8List bytes, String mimeType})?> _defaultPickFile() async {
   return (bytes: bytes, mimeType: mimeType);
 }
 
-/// The Diet PDF-import flow (Chunk B+C) — a deliberately shorter mirror of
-/// `WorkoutPdfImportPage`: Select File → AI Analyzing → straight into
+/// The Diet import flow — a deliberately shorter mirror of
+/// `WorkoutPdfImportPage`: get the material → AI Analyzing → straight into
 /// `DietPlanEditPage(initialPlan: ...)`, which IS the review-and-save gate
 /// (it already carries full calorie/macro fields for every food item, so
 /// there's no separate preview step here the way Workout's flow has one).
-/// A document that isn't a usable diet plan surfaces a distinct, explained
+/// Material that isn't a usable diet plan surfaces a distinct, explained
 /// decline instead of an empty or fabricated plan.
 ///
-/// Opens straight into the file picker (no idle "tap to start" screen) since
-/// the entry action that pushed this page already expressed that intent —
-/// the [_ImportPhase.selecting] screen behind it is what a cancel or a retry
-/// lands back on.
-class DietPdfImportPage extends StatefulWidget {
-  const DietPdfImportPage({
+/// **Every capture route lands here.** With no [input] it opens straight
+/// into the file picker (a PDF or a photo) — no idle "tap to start" screen,
+/// since the entry action that pushed this page already expressed that
+/// intent. With an [input] the material was gathered before the push (a
+/// dictated or typed description) and analysis starts immediately. One
+/// analysis screen, one decline screen, one review gate, whatever the route.
+class DietImportPage extends StatefulWidget {
+  const DietImportPage({
     super.key,
+    this.input,
     Future<({Uint8List bytes, String mimeType})?> Function()? pickFile,
   }) : pickFile = pickFile ?? _defaultPickFile;
+
+  /// Material gathered before this page was pushed. Null means "pick a file",
+  /// which is the only route that can be restarted from inside this screen —
+  /// with an [input] there is nothing here to re-gather, so a retry goes back
+  /// to the screen that produced it.
+  final DietImportInput? input;
 
   /// Overridable for tests — defaults to the real file picker.
   final Future<({Uint8List bytes, String mimeType})?> Function() pickFile;
 
   @override
-  State<DietPdfImportPage> createState() => _DietPdfImportPageState();
+  State<DietImportPage> createState() => _DietImportPageState();
 }
 
 enum _ImportPhase { selecting, analyzing, rejected, error }
@@ -89,7 +100,7 @@ const _analyzingStatusLines = [
   'Estimating calories and macros…',
 ];
 
-class _DietPdfImportPageState extends State<DietPdfImportPage> {
+class _DietImportPageState extends State<DietImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
   // The raw failure text, shown only in debug builds so a real backend cause
@@ -104,7 +115,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pickAndImport());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
   }
 
   @override
@@ -125,7 +136,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
     });
   }
 
-  Future<void> _pickAndImport() async {
+  Future<void> _run() async {
     _analyzingTimer?.cancel();
     setState(() {
       _phase = _ImportPhase.selecting;
@@ -134,38 +145,42 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       _rejectionReason = null;
     });
 
-    ({Uint8List bytes, String mimeType})? file;
-    try {
-      file = await widget.pickFile();
-    } catch (error, stack) {
-      debugPrint('DietPdfImport: could not read the picked file: $error');
-      debugPrintStack(stackTrace: stack);
-      if (!mounted) return;
-      setState(() {
-        _phase = _ImportPhase.error;
-        _errorMessage = "Couldn't read that file.";
-        _errorDetail = kDebugMode ? error.toString() : null;
-      });
-      return;
-    }
+    var input = widget.input;
+    if (input == null) {
+      ({Uint8List bytes, String mimeType})? file;
+      try {
+        file = await widget.pickFile();
+      } catch (error, stack) {
+        debugPrint('DietImport: could not read the picked file: $error');
+        debugPrintStack(stackTrace: stack);
+        if (!mounted) return;
+        setState(() {
+          _phase = _ImportPhase.error;
+          _errorMessage = "Couldn't read that file.";
+          _errorDetail = kDebugMode ? error.toString() : null;
+        });
+        return;
+      }
 
-    if (file == null) {
-      // The user backed out of the picker — nothing went wrong, just leave.
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
+      if (file == null) {
+        // The user backed out of the picker — nothing went wrong, just leave.
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
 
-    // Fail fast on oversized files — the callable's transport rejects them
-    // anyway, but with an error this screen can't explain.
-    if (file.bytes.length > _maxFileBytes) {
-      if (!mounted) return;
-      setState(() {
-        _phase = _ImportPhase.error;
-        _errorMessage =
-            'That file is too large — please choose one under '
-            '7 MB.';
-      });
-      return;
+      // Fail fast on oversized files — the callable's transport rejects them
+      // anyway, but with an error this screen can't explain.
+      if (file.bytes.length > _maxFileBytes) {
+        if (!mounted) return;
+        setState(() {
+          _phase = _ImportPhase.error;
+          _errorMessage =
+              'That file is too large — please choose one under '
+              '7 MB.';
+        });
+        return;
+      }
+      input = DietImportDocument(bytes: file.bytes, mimeType: file.mimeType);
     }
 
     if (!mounted) return;
@@ -173,9 +188,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
     _startAnalyzingCycle();
 
     try {
-      final outcome = await AppScope.of(
-        context,
-      ).ai.importDietPlan(fileBytes: file.bytes, mimeType: file.mimeType);
+      final outcome = await AppScope.of(context).ai.importDietPlan(input);
       _analyzingTimer?.cancel();
       if (!mounted) return;
       switch (outcome) {
@@ -184,6 +197,9 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
             plan,
             id: DateTime.now().microsecondsSinceEpoch.toString(),
             now: DateTime.now(),
+            // The plan remembers which route it arrived by, so the library
+            // can say so months later.
+            source: _sourceFor(input),
           );
           await _reviewDraft(draft);
         case DietImportRejected(:final reason):
@@ -196,7 +212,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       // Surface the real failure instead of swallowing it — an App Check /
       // network rejection shouldn't read as "your PDF is bad".
       _analyzingTimer?.cancel();
-      debugPrint('DietPdfImport: aiImportDietPlan failed: $error');
+      debugPrint('DietImport: aiImportDietPlan failed: $error');
       debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
@@ -234,7 +250,7 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: 'Import Plan',
+              title: widget.input == null ? 'Import Plan' : 'Reading your plan',
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: TrainColors.ink2,
               iconColor: TrainColors.ink2,
@@ -252,7 +268,20 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
     );
   }
 
+  /// What "try again" means depends on where the material came from: a
+  /// picked file can be re-picked right here, but a dictated description
+  /// lives on the screen behind this one — retrying it in place would offer
+  /// the user a second run of the identical text.
+  void _retry() {
+    if (widget.input == null) {
+      _run();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   Widget _body() {
+    final fromFile = widget.input == null;
     switch (_phase) {
       case _ImportPhase.selecting:
         return const _SelectingState();
@@ -263,17 +292,30 @@ class _DietPdfImportPageState extends State<DietPdfImportPage> {
       case _ImportPhase.rejected:
         return _RejectedState(
           reason: _rejectionReason!,
-          onChooseDifferentFile: _pickAndImport,
+          retryLabel: fromFile ? 'Choose a different file' : 'Go back and edit',
+          onRetry: _retry,
           onBuildManually: _buildManually,
         );
       case _ImportPhase.error:
         return _ErrorMessage(
           message: _errorMessage!,
           detail: _errorDetail,
-          onRetry: _pickAndImport,
+          onRetry: _retry,
         );
     }
   }
+
+  /// The provenance each capture route records on the saved plan.
+  static DietSource _sourceFor(DietImportInput input) => switch (input) {
+    DietImportDocument(:final mimeType) =>
+      mimeType == 'application/pdf' ? DietSource.pdf : DietSource.photo,
+    // Typed-out text is the user's own words too, but they wrote them: that
+    // is a hand-written plan an extractor happened to structure, and calling
+    // it "dictated" would be a small lie in a field whose whole job is
+    // provenance.
+    DietImportDescription(:final dictated) =>
+      dictated ? DietSource.dictated : DietSource.manual,
+  };
 }
 
 /// Maps a raw import failure to a user-facing line — mirrors
@@ -419,12 +461,17 @@ class _AnalyzingState extends StatelessWidget {
 class _RejectedState extends StatelessWidget {
   const _RejectedState({
     required this.reason,
-    required this.onChooseDifferentFile,
+    required this.retryLabel,
+    required this.onRetry,
     required this.onBuildManually,
   });
 
   final String reason;
-  final VoidCallback onChooseDifferentFile;
+
+  /// Names what retrying actually does on this route — re-pick a file, or go
+  /// back to the description that produced this.
+  final String retryLabel;
+  final VoidCallback onRetry;
   final VoidCallback onBuildManually;
 
   @override
@@ -455,11 +502,11 @@ class _RejectedState extends StatelessWidget {
             SizedBox(
               width: 220,
               child: PillButton(
-                label: 'Choose a different file',
+                label: retryLabel,
                 icon: Icons.upload_file_rounded,
                 color: TrainColors.green,
                 enabled: true,
-                onTap: onChooseDifferentFile,
+                onTap: onRetry,
               ),
             ),
             const SizedBox(height: 10),

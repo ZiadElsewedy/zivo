@@ -10,6 +10,7 @@ import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
@@ -103,10 +104,7 @@ class _ScriptedAi implements AiRepository {
   }) async => const WorkoutImportRejected('unused');
 
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) async => DietImportRejected('unused');
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) async => DietImportRejected('unused');
 
   @override
   Future<SttOutcome> transcribe({

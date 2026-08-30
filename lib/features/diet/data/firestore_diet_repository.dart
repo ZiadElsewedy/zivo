@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
 import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
@@ -40,15 +41,19 @@ import '../domain/nutrition_targets.dart';
 /// query. A MISSING doc is the meaningful "no target set" state — surfaced as
 /// null, never defaulted into a number nobody chose.
 class FirestoreDietRepository implements DietRepository {
-  FirestoreDietRepository({FirebaseFirestore? firestore, required this.uidSource})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreDietRepository({
+    FirebaseFirestore? firestore,
+    required this.uidSource,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
 
   DietPlan? _activePlan;
+  List<DietPlan> _plans = const [];
   bool _hasPlanSnapshot = false;
   StreamController<DietPlan?>? _planController;
+  StreamController<List<DietPlan>>? _plansController;
   StreamSubscription<String?>? _planUidSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _planQuerySub;
 
@@ -58,13 +63,23 @@ class FirestoreDietRepository implements DietRepository {
   StreamSubscription<String?>? _targetsUidSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _targetsDocSub;
 
+  BodyProfile? _bodyProfile;
+  bool _hasBodyProfileSnapshot = false;
+  StreamController<BodyProfile?>? _bodyProfileController;
+  StreamSubscription<String?>? _bodyProfileUidSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _bodyProfileDocSub;
+
   @override
   DietPlan? get activePlan => _activePlan;
 
   @override
+  List<DietPlan> get plans => _plans;
+
+  @override
   Stream<DietPlan?> watchActivePlan() async* {
     _planController ??= StreamController<DietPlan?>.broadcast(
-      onListen: _startPlan,
+      onListen: _startPlanIfNeeded,
       onCancel: _stopPlan,
     );
     // A broadcast stream never replays its latest value to a *late* subscriber.
@@ -79,14 +94,24 @@ class FirestoreDietRepository implements DietRepository {
   }
 
   void _startPlan() {
+    _planUidSub?.cancel();
     _planUidSub = _uidWithInitial().listen(_onPlanUidChanged);
   }
 
   void _stopPlan() {
+    // Both plan streams share one query subscription; the last one out turns
+    // the light off. Without this check, closing the library screen would
+    // silently kill the Diet screen's active-plan stream.
+    if (_planController?.hasListener ?? false) return;
+    if (_plansController?.hasListener ?? false) return;
     _planUidSub?.cancel();
     _planUidSub = null;
     _planQuerySub?.cancel();
     _planQuerySub = null;
+  }
+
+  void _startPlanIfNeeded() {
+    if (_planUidSub == null) _startPlan();
   }
 
   Stream<String?> _uidWithInitial() async* {
@@ -97,16 +122,21 @@ class FirestoreDietRepository implements DietRepository {
   void _onPlanUidChanged(String? uid) {
     _planQuerySub?.cancel();
     if (uid == null) {
-      _emitPlan(null);
+      _emitPlans(const []);
       return;
     }
     _planQuerySub = _dietPlansCollection(uid)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-          final plans = snapshot.docs.map(_planFromDoc).toList(growable: false);
-          _emitPlan(_firstActive(plans));
-        }, onError: (e, s) => _planController?.addError(e, s));
+        .listen(
+          (snapshot) => _emitPlans(
+            snapshot.docs.map(_planFromDoc).toList(growable: false),
+          ),
+          onError: (e, s) {
+            _planController?.addError(e, s);
+            _plansController?.addError(e, s);
+          },
+        );
   }
 
   DietPlan? _firstActive(List<DietPlan> plans) {
@@ -116,10 +146,25 @@ class FirestoreDietRepository implements DietRepository {
     return null;
   }
 
-  void _emitPlan(DietPlan? plan) {
-    _activePlan = plan;
+  /// The library and the active plan come from the **one** query, so the two
+  /// streams can never disagree about which plan is in force.
+  void _emitPlans(List<DietPlan> plans) {
+    _plans = List.unmodifiable(plans);
+    _activePlan = _firstActive(plans);
     _hasPlanSnapshot = true;
     _planController?.add(_activePlan);
+    _plansController?.add(_plans);
+  }
+
+  @override
+  Stream<List<DietPlan>> watchPlans() async* {
+    _plansController ??= StreamController<List<DietPlan>>.broadcast(
+      onListen: _startPlanIfNeeded,
+      onCancel: _stopPlan,
+    );
+    // Same replay-on-subscribe contract as [watchActivePlan] — see its note.
+    if (_hasPlanSnapshot) yield _plans;
+    yield* _plansController!.stream;
   }
 
   @override
@@ -203,9 +248,76 @@ class FirestoreDietRepository implements DietRepository {
   }
 
   @override
-  Future<void> savePlan(DietPlan plan) {
+  BodyProfile? get currentBodyProfile => _bodyProfile;
+
+  /// Same replay-on-subscribe contract as [watchTargets], and null is just as
+  /// common here — a user who hasn't been asked for their body data yet.
+  @override
+  Stream<BodyProfile?> watchBodyProfile() async* {
+    _bodyProfileController ??= StreamController<BodyProfile?>.broadcast(
+      onListen: _startBodyProfile,
+      onCancel: _stopBodyProfile,
+    );
+    if (_hasBodyProfileSnapshot) yield _bodyProfile;
+    yield* _bodyProfileController!.stream;
+  }
+
+  void _startBodyProfile() {
+    _bodyProfileUidSub = _uidWithInitial().listen(_onBodyProfileUidChanged);
+  }
+
+  void _stopBodyProfile() {
+    _bodyProfileUidSub?.cancel();
+    _bodyProfileUidSub = null;
+    _bodyProfileDocSub?.cancel();
+    _bodyProfileDocSub = null;
+  }
+
+  void _onBodyProfileUidChanged(String? uid) {
+    _bodyProfileDocSub?.cancel();
+    if (uid == null) {
+      _emitBodyProfile(null);
+      return;
+    }
+    _bodyProfileDocSub = _bodyProfileDoc(uid).snapshots().listen((snapshot) {
+      _emitBodyProfile(
+        snapshot.exists ? _bodyProfileFromMap(snapshot.data()) : null,
+      );
+    }, onError: (e, s) => _bodyProfileController?.addError(e, s));
+  }
+
+  void _emitBodyProfile(BodyProfile? profile) {
+    _bodyProfile = profile;
+    _hasBodyProfileSnapshot = true;
+    _bodyProfileController?.add(_bodyProfile);
+  }
+
+  @override
+  Future<void> saveBodyProfile(BodyProfile profile) {
     final uid = _requireUid();
-    return _dietPlansCollection(uid).doc(plan.id).set({
+    return _bodyProfileDoc(uid).set({
+      'heightCm': profile.heightCm,
+      'sex': profile.sex.name,
+      'activity': profile.activity.name,
+      // Written explicitly as null when absent (not merged away), so clearing
+      // a stated maintenance figure actually clears it.
+      'statedMaintenanceKcal': profile.statedMaintenanceKcal,
+      'schemaVersion': 1,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> clearBodyProfile() {
+    final uid = _requireUid();
+    return _bodyProfileDoc(uid).delete();
+  }
+
+  @override
+  Future<void> savePlan(DietPlan plan) async {
+    final uid = _requireUid();
+    final batch = _firestore.batch();
+    batch.set(_dietPlansCollection(uid).doc(plan.id), {
       'name': plan.name,
       'status': plan.status.name,
       'source': plan.source.name,
@@ -214,6 +326,60 @@ class FirestoreDietRepository implements DietRepository {
       'createdAt': Timestamp.fromDate(plan.createdAt),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    // Saving an active plan is also a statement about the others: one plan is
+    // in force at a time. Done in the same batch so there is never a moment,
+    // even offline, where two documents both claim to be active.
+    if (plan.status == DietPlanStatus.active) {
+      await _archiveOtherActives(uid, batch, keep: plan.id);
+    }
+    return batch.commit();
+  }
+
+  @override
+  Future<void> setActivePlan(String id) async {
+    final uid = _requireUid();
+    final doc = await _dietPlansCollection(uid).doc(id).get();
+    // A plan that isn't there must not leave the user with nothing active.
+    if (!doc.exists) return;
+    final batch = _firestore.batch();
+    batch.update(doc.reference, {
+      'status': DietPlanStatus.active.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _archiveOtherActives(uid, batch, keep: id);
+    return batch.commit();
+  }
+
+  @override
+  Future<void> archivePlan(String id) {
+    final uid = _requireUid();
+    return _dietPlansCollection(uid).doc(id).update({
+      'status': DietPlanStatus.archived.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Queues "archive every active plan except [keep]" onto [batch].
+  ///
+  /// Reads the server's current actives rather than the cached list: the cache
+  /// can be cold (nothing has subscribed yet) and a stale one would leave a
+  /// second active plan behind — the one state this collection must never be
+  /// in.
+  Future<void> _archiveOtherActives(
+    String uid,
+    WriteBatch batch, {
+    required String keep,
+  }) async {
+    final actives = await _dietPlansCollection(
+      uid,
+    ).where('status', isEqualTo: DietPlanStatus.active.name).get();
+    for (final doc in actives.docs) {
+      if (doc.id == keep) continue;
+      batch.update(doc.reference, {
+        'status': DietPlanStatus.archived.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   @override
@@ -347,11 +513,12 @@ class FirestoreDietRepository implements DietRepository {
           .where('dayKey', isEqualTo: key)
           .snapshots()
           .listen((snapshot) {
-            final entries = snapshot.docs
-                .map(_entryFromDoc)
-                .whereType<FoodLogEntry>()
-                .toList()
-              ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
+            final entries =
+                snapshot.docs
+                    .map(_entryFromDoc)
+                    .whereType<FoodLogEntry>()
+                    .toList()
+                  ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
             controller.add(entries);
           }, onError: (e, s) => controller.addError(e, s));
     }
@@ -404,7 +571,10 @@ class FirestoreDietRepository implements DietRepository {
           .snapshots()
           .listen((snapshot) {
             controller.add(
-              snapshot.docs.map(_customFoodFromDoc).whereType<CustomFood>().toList(),
+              snapshot.docs
+                  .map(_customFoodFromDoc)
+                  .whereType<CustomFood>()
+                  .toList(),
             );
           }, onError: (e, s) => controller.addError(e, s));
     }
@@ -428,7 +598,10 @@ class FirestoreDietRepository implements DietRepository {
     final snapshot = await _customFoodsCollection(
       uid,
     ).orderBy('createdAt', descending: true).get();
-    return snapshot.docs.map(_customFoodFromDoc).whereType<CustomFood>().toList();
+    return snapshot.docs
+        .map(_customFoodFromDoc)
+        .whereType<CustomFood>()
+        .toList();
   }
 
   @override
@@ -467,14 +640,16 @@ class FirestoreDietRepository implements DietRepository {
   CollectionReference<Map<String, dynamic>> _dietPlansCollection(String uid) =>
       _firestore.collection('users').doc(uid).collection('dietPlans');
 
-  CollectionReference<Map<String, dynamic>> _dietEntriesCollection(String uid) =>
-      _firestore.collection('users').doc(uid).collection('dietEntries');
+  CollectionReference<Map<String, dynamic>> _dietEntriesCollection(
+    String uid,
+  ) => _firestore.collection('users').doc(uid).collection('dietEntries');
 
   CollectionReference<Map<String, dynamic>> _foodLogsCollection(String uid) =>
       _firestore.collection('users').doc(uid).collection('foodLogs');
 
-  CollectionReference<Map<String, dynamic>> _customFoodsCollection(String uid) =>
-      _firestore.collection('users').doc(uid).collection('customFoods');
+  CollectionReference<Map<String, dynamic>> _customFoodsCollection(
+    String uid,
+  ) => _firestore.collection('users').doc(uid).collection('customFoods');
 
   /// The stored shape of a log entry. The computed nutrition is stored
   /// alongside the food reference on purpose: the catalog can be rebuilt, and
@@ -500,9 +675,7 @@ class FirestoreDietRepository implements DietRepository {
     'schemaVersion': 1,
   };
 
-  FoodLogEntry? _entryFromDoc(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
+  FoodLogEntry? _entryFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     final foodId = data['foodId'] as String?;
     final date = data['date'];
@@ -547,9 +720,7 @@ class FirestoreDietRepository implements DietRepository {
       preparation: foodPreparationFromName(data['preparation'] as String?),
       portions: [
         for (final raw in (data['portions'] as List<dynamic>? ?? const []))
-          if (raw is Map &&
-              raw['label'] is String &&
-              raw['grams'] is num)
+          if (raw is Map && raw['label'] is String && raw['grams'] is num)
             FoodPortion(
               label: raw['label'] as String,
               grams: (raw['grams'] as num).toDouble(),
@@ -565,9 +736,43 @@ class FirestoreDietRepository implements DietRepository {
       .collection('dietTargets')
       .doc('current');
 
+  DocumentReference<Map<String, dynamic>> _bodyProfileDoc(String uid) =>
+      _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('bodyProfile')
+          .doc('current');
+
   /// Reads a stored targets document. Returns null when the document can't be
   /// read as a real target — a missing goal, or a missing/invalid calorie
   /// figure, means "not set", never a partially-invented target.
+  /// A stored body profile, or null when the document can't be read as one.
+  ///
+  /// Height, sex and activity are all required: two out of three cannot
+  /// produce a maintenance figure, and a profile that silently defaulted the
+  /// third would put a number nobody chose underneath every verdict. An
+  /// implausible height is treated the same way as a missing one.
+  BodyProfile? _bodyProfileFromMap(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final heightCm = (data['heightCm'] as num?)?.toDouble();
+    final sex = targetSexFromName(data['sex'] as String?);
+    final activity = activityLevelFromName(data['activity'] as String?);
+    if (heightCm == null || !heightIsPlausible(heightCm)) return null;
+    if (sex == null || activity == null) return null;
+    final stated = (data['statedMaintenanceKcal'] as num?)?.toInt();
+    final updatedAt = data['updatedAt'];
+    return BodyProfile(
+      heightCm: heightCm,
+      sex: sex,
+      activity: activity,
+      statedMaintenanceKcal:
+          stated != null && statedMaintenanceIsPlausible(stated)
+          ? stated
+          : null,
+      updatedAt: updatedAt is Timestamp ? updatedAt.toDate() : DateTime.now(),
+    );
+  }
+
   NutritionTargets? _targetsFromMap(Map<String, dynamic>? data) {
     if (data == null) return null;
     final goal = dietGoalFromName(data['goal'] as String?);

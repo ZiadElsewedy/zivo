@@ -845,8 +845,9 @@ exports.aiImportWorkoutPlan = onCall(
 // --- aiImportDietPlan --------------------------------------------------------
 
 /**
- * Extracts a proposed diet plan from an uploaded PDF, mirroring
- * `aiImportWorkoutPlan` exactly: one Claude call, no Firestore write. The
+ * Extracts a proposed diet plan from an uploaded PDF, a photo, or the
+ * user's own dictated/typed description, mirroring `aiImportWorkoutPlan`:
+ * one Claude call, no Firestore write. The
  * client reviews/edits the result (`DietPlanEditPage`) and saves it itself
  * via `savePlan` — that review screen is the "human confirms before it
  * becomes real" gate, so there is nothing here to confirm or cancel.
@@ -876,6 +877,11 @@ exports.aiImportDietPlan = onCall(
             "invalid-argument", "That file is too large to import.");
       }
       const mimeType = (data.mimeType || "application/pdf").toString();
+      // The same extraction, from the user's own words instead of a file —
+      // a dictated plan (transcribed by `aiTranscribe` first) or one typed
+      // out. `extractDietPlan` enforces exactly-one-kind and the length
+      // bound; passing it through undefined keeps the file path unchanged.
+      const text = typeof data.text === "string" ? data.text : undefined;
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -887,8 +893,10 @@ exports.aiImportDietPlan = onCall(
           model: router.resolve("diet_import").model,
           fileBase64: pdfBase64,
           mediaType: mimeType,
+          text,
           logEvent: (event) => logger.info("aiImportDietPlan", {
             approxPdfBytes,
+            inputKind: text ? "description" : "document",
             ...event,
           }),
         });

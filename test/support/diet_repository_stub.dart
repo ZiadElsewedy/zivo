@@ -1,3 +1,4 @@
+import 'package:zivo/features/diet/domain/body_profile.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/diet/domain/nutrition/custom_food.dart';
@@ -19,7 +20,19 @@ abstract class DietRepositoryStub implements DietRepository {
   Stream<DietPlan?> watchActivePlan() => const Stream.empty();
 
   @override
+  List<DietPlan> get plans => const [];
+
+  @override
+  Stream<List<DietPlan>> watchPlans() => Stream.value(const <DietPlan>[]);
+
+  @override
   Future<void> savePlan(DietPlan plan) async {}
+
+  @override
+  Future<void> setActivePlan(String id) async {}
+
+  @override
+  Future<void> archivePlan(String id) async {}
 
   @override
   Future<void> deletePlan(String id) async {}
@@ -35,6 +48,18 @@ abstract class DietRepositoryStub implements DietRepository {
 
   @override
   Future<void> clearTargets() async {}
+
+  @override
+  BodyProfile? get currentBodyProfile => null;
+
+  @override
+  Stream<BodyProfile?> watchBodyProfile() => Stream.value(null);
+
+  @override
+  Future<void> saveBodyProfile(BodyProfile profile) async {}
+
+  @override
+  Future<void> clearBodyProfile() async {}
 
   @override
   Stream<Set<String>> watchConsumed(DateTime day) =>

@@ -262,6 +262,35 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Body data: height, the BMR formula's sex variable, activity level and
+    // optionally the user's own maintenance figure, at the single fixed
+    // document `bodyProfile/current`. It exists to answer "what is this plan
+    // doing to me", and every figure in that answer rests on these three
+    // required fields — so a doc missing one, or carrying an implausible
+    // height, is rejected rather than stored and silently defaulted later.
+    // Weight is deliberately NOT here: it lives in `bodyWeights`, which is
+    // where the user actually keeps it.
+    match /users/{userId}/bodyProfile/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(
+             ['heightCm', 'sex', 'activity', 'statedMaintenanceKcal',
+              'schemaVersion', 'updatedAt'])
+        && request.resource.data.heightCm is number
+        && request.resource.data.heightCm >= 100
+        && request.resource.data.heightCm <= 250
+        && request.resource.data.sex in ['male', 'female']
+        && request.resource.data.activity in
+             ['sedentary', 'light', 'moderate', 'high', 'athlete']
+        && (!('statedMaintenanceKcal' in request.resource.data)
+             || request.resource.data.statedMaintenanceKcal == null
+             || (request.resource.data.statedMaintenanceKcal is int
+                 && request.resource.data.statedMaintenanceKcal >= 800
+                 && request.resource.data.statedMaintenanceKcal <= 10000))
+        && request.resource.data.schemaVersion is int;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // The food log: what the user actually ate, one doc per entry. This is the
     // ledger every consumed/remaining figure is computed from, so its shape is
     // pinned hard. Two fields carry provenance and are validated against fixed

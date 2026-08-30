@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/diet_import_result.dart';
 import '../../workout/domain/workout_import_outcome.dart';
@@ -79,7 +80,7 @@ class FirebaseAiRepository implements AiRepository {
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     invokeImport,
-    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    Future<DietImportOutcome> Function(DietImportInput input)?
     invokeDietImport,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
@@ -128,10 +129,7 @@ class FirebaseAiRepository implements AiRepository {
     String mimeType,
   )
   _invokeImport;
-  final Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  final Future<DietImportOutcome> Function(DietImportInput input)
   _invokeDietImport;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
@@ -259,19 +257,25 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
-  /// the file base64-encoded. Mirrors [_defaultInvokeImport] exactly.
-  static Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  /// either the file base64-encoded or the user's description as text.
+  /// Mirrors [_defaultInvokeImport] otherwise.
+  ///
+  /// The payload carries exactly one kind of material; the server refuses
+  /// both-at-once, and the sealed [DietImportInput] makes it unrepresentable
+  /// here in the first place.
+  static Future<DietImportOutcome> Function(DietImportInput input)
   _defaultInvokeDietImport(FirebaseFunctions? functions) {
-    return (fileBytes, mimeType) async {
+    return (input) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final result = await f.httpsCallable('aiImportDietPlan').call({
-        'fileBase64': base64Encode(fileBytes),
-        'mimeType': mimeType,
-      });
+      final payload = switch (input) {
+        DietImportDocument(:final bytes, :final mimeType) => {
+          'fileBase64': base64Encode(bytes),
+          'mimeType': mimeType,
+        },
+        DietImportDescription(:final text) => {'text': text},
+      };
+      final result = await f.httpsCallable('aiImportDietPlan').call(payload);
       return _dietImportOutcomeFromJson(result.data);
     };
   }
@@ -493,10 +497,8 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeImport(fileBytes, mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) => _invokeDietImport(fileBytes, mimeType);
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      _invokeDietImport(input);
 
   @override
   Future<SttOutcome> transcribe({

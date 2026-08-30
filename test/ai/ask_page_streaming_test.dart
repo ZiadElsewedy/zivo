@@ -18,6 +18,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
@@ -123,7 +124,7 @@ class _StreamingAi implements AiRepository {
   }) => throw UnimplementedError('not exercised by this test');
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       throw UnimplementedError('not exercised by this test');
 
   @override

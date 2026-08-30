@@ -152,8 +152,20 @@ DietPlan _planWithNoDayForToday(DateTime now) {
   );
 }
 
+/// The Diet screen is a lazy `ListView`, so anything below the fold is never
+/// built and never findable. The default 800x600 surface stopped fitting the
+/// meals once the plan-verdict section landed above them; a taller viewport
+/// keeps these tests about meals rather than about scrolling.
+void _tallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1000, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 void main() {
   testWidgets('Diet plan page renders the seeded plan and marks a meal eaten', (tester) async {
+    _tallViewport(tester);
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
 
@@ -179,6 +191,7 @@ void main() {
 
   testWidgets('tapping a meal row opens its dedicated detail page '
       'with the full item breakdown', (tester) async {
+    _tallViewport(tester);
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
 

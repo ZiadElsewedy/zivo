@@ -12,6 +12,7 @@ import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -101,10 +102,7 @@ class _LongThreadAi implements AiRepository {
   }) async => const WorkoutImportRejected('unused');
 
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) async => DietImportRejected('unused');
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) async => DietImportRejected('unused');
 
   @override
   Future<SttOutcome> transcribe({

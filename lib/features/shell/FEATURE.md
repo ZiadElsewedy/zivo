@@ -27,3 +27,12 @@
   of them used to (86 on Today, a different 86 on You, nothing on the Hub) and they
   disagreed the moment a track started.
 - The "You" tab is the auth feature's `profile_page.dart` (not a shell page).
+- **The shell does not take the keyboard inset — each tab does.** `HomeShell`'s scaffold
+  runs `resizeToAvoidBottomInset: false`. A resizing scaffold *also* strips `viewInsets`
+  out of its body's `MediaQuery` (`removeBottomInset: resizeToAvoidBottomInset`), so Ask —
+  which lifts its composer itself, on an eased curve — read a zero inset and fell back to
+  reserving `BottomChrome`, parking the composer a nav-island's height above the keyboard.
+  Tabs that want the plain resize get it from their own `TrainScreen` scaffold. Covered by
+  `test/shell/home_shell_keyboard_test.dart`, which has to boot the whole shell: the bug
+  lived in the seam between the two scaffolds and is invisible when `AskPage` is hosted
+  alone.

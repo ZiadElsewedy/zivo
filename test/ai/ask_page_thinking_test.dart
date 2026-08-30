@@ -18,6 +18,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
@@ -99,8 +100,8 @@ class _GatedAi implements AiRepository {
   }) => _inner.importWorkoutPlan(fileBytes: fileBytes, mimeType: mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
-      _inner.importDietPlan(fileBytes: fileBytes, mimeType: mimeType);
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      _inner.importDietPlan(input);
 
   @override
   Future<SttOutcome> transcribe({

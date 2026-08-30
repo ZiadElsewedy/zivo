@@ -9,6 +9,7 @@ import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_goal.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
+import '../widgets/diet_number_field.dart';
 
 /// Where the user says what they are actually trying to do, and what numbers
 /// serve it.
@@ -97,15 +98,9 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
   /// so filling them doesn't immediately demote the source it just set.
   bool _applyingProposal = false;
 
-  int? get _caloriesValue {
-    final parsed = int.tryParse(_calories.text.trim());
-    return (parsed == null || parsed <= 0) ? null : parsed;
-  }
+  int? get _caloriesValue => parsePositiveInt(_calories.text);
 
-  double? _grams(TextEditingController c) {
-    final parsed = double.tryParse(c.text.trim().replaceAll(',', '.'));
-    return (parsed == null || parsed <= 0) ? null : parsed;
-  }
+  double? _grams(TextEditingController c) => parsePositiveDecimal(c.text);
 
   bool get _canSave => _goal != null && _caloriesValue != null && !_saving;
 
@@ -123,6 +118,10 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
     // to read either just means an empty field, never a guessed value.
     final weights = scope.bodyWeight?.current ?? const [];
     final latestWeight = weights.isEmpty ? null : weights.first.weightKg;
+    // Height/sex/activity come from the stored body profile when there is one
+    // — the whole reason it's stored is so this sheet stops asking for the
+    // same three numbers every time it opens.
+    final body = scope.diet.currentBodyProfile;
 
     int? age;
     final uid = scope.auth.currentUser?.uid;
@@ -144,6 +143,9 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
         goal: _goal ?? DietGoal.maintain,
         initialWeightKg: latestWeight,
         initialAge: age,
+        initialHeightCm: body?.heightCm,
+        initialSex: body?.sex,
+        initialActivity: body?.activity,
       ),
     );
     if (proposal == null || !mounted) return;
@@ -250,7 +252,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 const SizedBox(height: 11),
                 Row(
                   children: [
-                    _TargetField(
+                    DietNumberField(
                       label: 'Calories',
                       controller: _calories,
                       hint: '2200',
@@ -258,7 +260,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                       decimal: false,
                     ),
                     const SizedBox(width: 12),
-                    _TargetField(
+                    DietNumberField(
                       label: 'Protein (g)',
                       controller: _protein,
                       hint: '—',
@@ -269,14 +271,14 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _TargetField(
+                    DietNumberField(
                       label: 'Carbs (g)',
                       controller: _carbs,
                       hint: '—',
                       fieldKey: const Key('target-carbs'),
                     ),
                     const SizedBox(width: 12),
-                    _TargetField(
+                    DietNumberField(
                       label: 'Fat (g)',
                       controller: _fat,
                       hint: '—',
@@ -377,9 +379,7 @@ class _SafetyNote extends StatelessWidget {
       decoration: BoxDecoration(
         color: TrainColors.ember.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: TrainColors.ember.withValues(alpha: 0.30),
-        ),
+        border: Border.all(color: TrainColors.ember.withValues(alpha: 0.30)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -434,68 +434,6 @@ class _BasisNote extends StatelessWidget {
 
 /// A labelled number field. Mirrors the plan editor's `_NumberField` so the
 /// two capture surfaces read as one system.
-class _TargetField extends StatelessWidget {
-  const _TargetField({
-    required this.label,
-    required this.controller,
-    required this.fieldKey,
-    this.hint,
-    this.decimal = true,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final Key fieldKey;
-  final String? hint;
-  final bool decimal;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: AppText.meta.copyWith(
-              color: TrainColors.ink3,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            key: fieldKey,
-            controller: controller,
-            keyboardType: TextInputType.numberWithOptions(decimal: decimal),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(
-                decimal ? RegExp(r'[0-9.,]') : RegExp(r'[0-9]'),
-              ),
-            ],
-            cursorColor: TrainColors.green,
-            style: AppText.rowTitle,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: 12,
-              ),
-              filled: true,
-              fillColor: TrainColors.base,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Collects the inputs Mifflin-St Jeor needs and returns a [TargetProposal].
 /// Returns null if the user backs out — and returns a proposal, never a saved
 /// target: the caller puts the numbers in front of the user to approve.
@@ -504,6 +442,9 @@ class _CalculatorSheet extends StatefulWidget {
     required this.goal,
     this.initialWeightKg,
     this.initialAge,
+    this.initialHeightCm,
+    this.initialSex,
+    this.initialActivity,
   });
 
   final DietGoal goal;
@@ -514,6 +455,12 @@ class _CalculatorSheet extends StatefulWidget {
 
   /// Prefilled from the profile's date of birth.
   final int? initialAge;
+
+  /// Prefilled from the saved body profile, when there is one — so a user who
+  /// has already given ZIVO their body data isn't asked for it again here.
+  final double? initialHeightCm;
+  final TargetSex? initialSex;
+  final ActivityLevel? initialActivity;
 
   @override
   State<_CalculatorSheet> createState() => _CalculatorSheetState();
@@ -529,12 +476,21 @@ class _CalculatorSheetState extends State<_CalculatorSheet> {
                 : 1,
           ),
   );
-  late final TextEditingController _height = TextEditingController();
+  late final TextEditingController _height = TextEditingController(
+    text: widget.initialHeightCm == null
+        ? ''
+        : widget.initialHeightCm!.toStringAsFixed(
+            widget.initialHeightCm! == widget.initialHeightCm!.roundToDouble()
+                ? 0
+                : 1,
+          ),
+  );
   late final TextEditingController _age = TextEditingController(
     text: widget.initialAge?.toString() ?? '',
   );
-  TargetSex? _sex;
-  ActivityLevel _activity = ActivityLevel.moderate;
+  late TargetSex? _sex = widget.initialSex;
+  late ActivityLevel _activity =
+      widget.initialActivity ?? ActivityLevel.moderate;
 
   @override
   void dispose() {
@@ -544,23 +500,17 @@ class _CalculatorSheetState extends State<_CalculatorSheet> {
     super.dispose();
   }
 
-  double? get _weightKg {
-    final v = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
-    return (v == null || v <= 0) ? null : v;
-  }
+  double? get _weightKg => parsePositiveDecimal(_weight.text);
 
-  double? get _heightCm {
-    final v = double.tryParse(_height.text.trim().replaceAll(',', '.'));
-    return (v == null || v <= 0) ? null : v;
-  }
+  double? get _heightCm => parsePositiveDecimal(_height.text);
 
-  int? get _ageYears {
-    final v = int.tryParse(_age.text.trim());
-    return (v == null || v <= 0) ? null : v;
-  }
+  int? get _ageYears => parsePositiveInt(_age.text);
 
   bool get _canCalculate =>
-      _weightKg != null && _heightCm != null && _ageYears != null && _sex != null;
+      _weightKg != null &&
+      _heightCm != null &&
+      _ageYears != null &&
+      _sex != null;
 
   void _calculate() {
     if (!_canCalculate) return;
@@ -605,14 +555,14 @@ class _CalculatorSheetState extends State<_CalculatorSheet> {
             const SizedBox(height: 18),
             Row(
               children: [
-                _TargetField(
+                DietNumberField(
                   label: 'Weight (kg)',
                   controller: _weight,
                   hint: '82',
                   fieldKey: const Key('calc-weight'),
                 ),
                 const SizedBox(width: 12),
-                _TargetField(
+                DietNumberField(
                   label: 'Height (cm)',
                   controller: _height,
                   hint: '178',
@@ -623,7 +573,7 @@ class _CalculatorSheetState extends State<_CalculatorSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _TargetField(
+                DietNumberField(
                   label: 'Age',
                   controller: _age,
                   hint: '27',

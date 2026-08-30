@@ -9,8 +9,9 @@ import 'meal.dart';
 /// Converts an AI-extracted [DietImportResult] (Chunk B+C) into a real,
 /// editable [DietPlan] draft — with freshly-minted meal ids, so the result
 /// is a genuinely new plan the moment it's saved (never collides with an
-/// existing one). [source] is always [DietSource.pdf], the marker reserved
-/// for exactly this.
+/// existing one). [source] records which capture route produced it — a
+/// document, a photo, or the user's own dictated words — so the plan can say
+/// where it came from long after the import.
 ///
 /// This produces a DRAFT for review, not a saved plan — the caller pushes
 /// it into `DietPlanEditPage(initialPlan: ...)` so the user can fix
@@ -20,6 +21,7 @@ DietPlan dietPlanFromImport(
   DietImportResult result, {
   required String id,
   required DateTime now,
+  DietSource source = DietSource.pdf,
 }) {
   final days = <DietDay>[];
   for (var i = 0; i < result.days.length; i++) {
@@ -41,7 +43,7 @@ DietPlan dietPlanFromImport(
     id: id,
     name: result.planName,
     status: DietPlanStatus.active,
-    source: DietSource.pdf,
+    source: source,
     createdAt: now,
     updatedAt: now,
     days: days,

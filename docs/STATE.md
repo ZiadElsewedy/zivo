@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-08-30 · **Active branch:** `version-1`
+**Last updated:** 2026-08-31 · **Active branch:** `version-1`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -55,6 +55,33 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Diet onboarding — Phase B: a library of plans.** The user can keep several plans (a
+  cut, a bulk, the one their coach wrote) with exactly one being followed — a new
+  `diet_plans_page.dart` lists them with their verdicts, and follow/stop-following/delete.
+  The invariant lives in the repository's batched write, not in rules or callers. The Diet
+  screen now tells "no plans" apart from "not following any", and the **"No daily target
+  set" card offers the plan's own daily figure** as a target (`planDerived`) behind a sheet
+  that asks what the plan is *for*. `planDailyEnergy` is the single basis for every "N kcal
+  a day" figure; `BodyMeasuresBuilder` is the single place body data is assembled.
+- **Diet onboarding — Phase A: body data + the plan verdict.** Diet can now answer *"what is
+  this plan doing to me"*: `analysePlan` (pure, on-device — `domain/analysis/plan_verdict.dart`)
+  measures the plan's average day against maintenance and reports a direction, a kcal/day
+  delta and a projected kg/week, with a ±100 kcal deadband and the plan's `estimated` flag
+  carried through. Body data is a stored entity now (`BodyProfile` at `bodyProfile/current`
+  — height/sex/activity/optional known maintenance; **weight stays in the workout weigh-in
+  log**, age still comes from the profile's DOB), entered on the new `body_profile_page.dart`,
+  which also prefills the target calculator so it stops asking twice. The Diet screen shows the
+  verdict card, or a prompt naming exactly which body data is missing. **No target is ever
+  auto-derived** — that rule is unchanged. Decisions:
+  [ADR-007](DECISIONS/ADR-007-diet-onboarding-body-data-and-generation.md); the remaining
+  phases (plan library · dictate/photo capture · AI generation · coach wiring) are planned in
+  [DIET_ONBOARDING_PLAN.md](DIET_ONBOARDING_PLAN.md).
+- **Keyboard fix (shell):** `HomeShell` no longer resizes for the keyboard
+  (`resizeToAvoidBottomInset: false`). A resizing scaffold also strips `viewInsets` from its
+  body's `MediaQuery`, which left Ask's composer floating a nav-island's height above the
+  keyboard; each tab owns the inset now. Regression test:
+  `test/shell/home_shell_keyboard_test.dart`.
 
 - **Workout-tracking design handoff — the remaining screens.** The handoff in
   `assets/design_handoff_workout_tracking 2/` (`IDENTITY.md` is the binding spec) had
@@ -147,7 +174,9 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     functions and rules together with the client build** — the tightened `dietEntries` rule
     rejects writes from older app builds, and the `dietTargets`/`foodLogs`/`customFoods` rules
     are what let a target, a food log, or a custom food be saved at all. Phase 8.1 adds the
-    `dietPlans` document bounds to the same rules file. Command:
+    `dietPlans` document bounds to the same rules file. **Phase A of the diet-onboarding
+    epic adds the `bodyProfile` collection rule** (rules-tested) to the same file — body
+    data cannot be saved against the real backend until it is deployed. Command:
     `firebase deploy --only functions,firestore:rules` — worth running with `--dry-run`
     first, since nothing here can validate rules syntax locally.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,

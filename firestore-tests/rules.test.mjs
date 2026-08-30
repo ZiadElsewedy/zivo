@@ -259,6 +259,41 @@ describe('workouts delete path', () => {
   });
 });
 
+// The user keeps a LIBRARY of plans, of which one is active. The rules cannot
+// enforce "exactly one active" — that needs a read of sibling documents, which
+// rules cannot do, and it is held by the repository's batched write instead.
+// What the rules do hold is the shape of each document and the vocabulary its
+// status comes from.
+describe('dietPlans as a library', () => {
+  const plan = (patch = {}) => ({
+    name: 'Cut', status: 'active', days: [], schemaVersion: 1, ...patch,
+  });
+  const write = (id, data) =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/dietPlans/${id}`), data);
+
+  it('accepts several plans side by side', async () => {
+    await assertSucceeds(write('p1', plan({ updatedAt: ts() })));
+    await assertSucceeds(
+      write('p2', plan({ name: 'Bulk', status: 'archived', updatedAt: ts() })),
+    );
+    await assertSucceeds(
+      write('p3', plan({ name: 'Draft', status: 'draft', updatedAt: ts() })),
+    );
+  });
+
+  it('rejects a status outside the vocabulary', async () => {
+    await assertFails(write('p4', plan({ status: 'following' })));
+  });
+
+  it("a different signed-in user cannot read or reshuffle someone's library", async () => {
+    await seed(`users/${OWNER}/dietPlans/p1`, plan());
+    await assertFails(getDoc(doc(otherDb(), `users/${OWNER}/dietPlans/p1`)));
+    await assertFails(
+      setDoc(doc(otherDb(), `users/${OWNER}/dietPlans/p1`), plan({ status: 'archived' })),
+    );
+  });
+});
+
 describe('dietPlans delete path', () => {
   it('owner can delete their own plan; non-owner cannot', async () => {
     await seed(collPath(OWNER, 'dietPlans'), valid.dietPlans);
@@ -469,6 +504,71 @@ describe('dietTargets shape validation', () => {
     await seed(`users/${OWNER}/dietTargets/current`, targets());
     await assertSucceeds(
       deleteDoc(doc(ownerDb(), `users/${OWNER}/dietTargets/current`)),
+    );
+  });
+});
+
+// Body data underwrites every "this plan makes you gain" answer the app gives.
+// A doc that stored two of its three required fields wouldn't fail loudly — it
+// would produce a maintenance figure resting on a default nobody chose.
+describe('bodyProfile shape validation', () => {
+  const profile = (patch = {}) => ({
+    heightCm: 178, sex: 'male', activity: 'moderate',
+    statedMaintenanceKcal: null, schemaVersion: 1, ...patch,
+  });
+  const write = (data) =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/bodyProfile/current`), data);
+
+  it('accepts the shape the app writes', async () => {
+    await assertSucceeds(write(profile({ updatedAt: ts() })));
+  });
+
+  it('accepts a stated maintenance figure the user knows', async () => {
+    await assertSucceeds(write(profile({ statedMaintenanceKcal: 2900 })));
+  });
+
+  it('rejects a profile missing any equation input', async () => {
+    const { heightCm, ...noHeight } = profile();
+    const { sex, ...noSex } = profile();
+    const { activity, ...noActivity } = profile();
+    await assertFails(write(noHeight));
+    await assertFails(write(noSex));
+    await assertFails(write(noActivity));
+  });
+
+  it('rejects an implausible height — a typo, not a person', async () => {
+    await assertFails(write(profile({ heightCm: 1.78 })));
+    await assertFails(write(profile({ heightCm: 300 })));
+  });
+
+  it('rejects unknown vocabularies', async () => {
+    await assertFails(write(profile({ sex: 'unspecified' })));
+    await assertFails(write(profile({ activity: 'olympian' })));
+  });
+
+  it('rejects an absurd stated maintenance figure', async () => {
+    await assertFails(write(profile({ statedMaintenanceKcal: 100 })));
+    await assertFails(write(profile({ statedMaintenanceKcal: 50000 })));
+  });
+
+  it('rejects unknown fields — no weight here, it lives in bodyWeights', async () => {
+    await assertFails(write(profile({ weightKg: 82 })));
+  });
+
+  it('a different signed-in user can neither read nor write it', async () => {
+    await seed(`users/${OWNER}/bodyProfile/current`, profile());
+    await assertFails(
+      getDoc(doc(otherDb(), `users/${OWNER}/bodyProfile/current`)),
+    );
+    await assertFails(
+      setDoc(doc(otherDb(), `users/${OWNER}/bodyProfile/current`), profile()),
+    );
+  });
+
+  it('the owner can delete their body data', async () => {
+    await seed(`users/${OWNER}/bodyProfile/current`, profile());
+    await assertSucceeds(
+      deleteDoc(doc(ownerDb(), `users/${OWNER}/bodyProfile/current`)),
     );
   });
 });

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/diet_import_result.dart';
 import '../../workout/domain/workout_import_outcome.dart';
@@ -50,7 +51,7 @@ class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     importWorkoutPlanImpl,
-    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    Future<DietImportOutcome> Function(DietImportInput input)?
     importDietPlanImpl,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
@@ -68,10 +69,7 @@ class FakeAiRepository implements AiRepository {
     String mimeType,
   )
   _importWorkoutPlanImpl;
-  final Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  final Future<DietImportOutcome> Function(DietImportInput input)
   _importDietPlanImpl;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
@@ -392,10 +390,8 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) => _importDietPlanImpl(fileBytes, mimeType);
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      _importDietPlanImpl(input);
 
   /// Offline-testable stand-in for the real `aiTranscribe` callable —
   /// delegates to [_transcribeImpl], which defaults to
@@ -471,8 +467,7 @@ class FakeAiRepository implements AiRepository {
   /// without Firebase. One item is marked `estimated: true` so the "~" UI
   /// path is exercisable offline too.
   static Future<DietImportOutcome> _defaultImportDietPlan(
-    Uint8List fileBytes,
-    String mimeType,
+    DietImportInput input,
   ) async {
     return const DietImportAccepted(
       DietImportResult(

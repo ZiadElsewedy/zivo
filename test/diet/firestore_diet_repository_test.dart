@@ -37,7 +37,13 @@ DietPlan _makePlan(
               label: 'Lunch',
               order: 0,
               items: [
-                FoodItem(name: 'Rice', quantity: 150, unit: 'g', calories: 210, carbsG: 45),
+                FoodItem(
+                  name: 'Rice',
+                  quantity: 150,
+                  unit: 'g',
+                  calories: 210,
+                  carbsG: 45,
+                ),
                 FoodItem(
                   name: 'Chicken breast',
                   quantity: 200,
@@ -99,22 +105,134 @@ void main() {
       },
     );
 
-    test('only the active-status plan is returned by watchActivePlan', () async {
+    test(
+      'only the active-status plan is returned by watchActivePlan',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreDietRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+
+        await repo.savePlan(
+          _makePlan(
+            'archived',
+            status: DietPlanStatus.archived,
+            createdAt: DateTime(2026, 1, 1),
+          ),
+        );
+        await repo.savePlan(
+          _makePlan(
+            'active',
+            status: DietPlanStatus.active,
+            createdAt: DateTime(2026, 1, 2),
+          ),
+        );
+
+        final plan = await repo.watchActivePlan().first;
+        expect(plan?.id, 'active');
+      },
+    );
+
+    test('saving an active plan archives the one that was active', () async {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreDietRepository(
         firestore: firestore,
         uidSource: _signedInAs('test-uid'),
       );
 
-      await repo.savePlan(
-        _makePlan('archived', status: DietPlanStatus.archived, createdAt: DateTime(2026, 1, 1)),
+      await repo.savePlan(_makePlan('first', createdAt: DateTime(2026, 1, 1)));
+      await repo.savePlan(_makePlan('second', createdAt: DateTime(2026, 2, 1)));
+
+      // The invariant is the repository's, not the caller's: two documents
+      // both claiming to be active is the one state this collection must
+      // never be in, because every screen reads "the" active plan.
+      final docs = await firestore
+          .collection('users/test-uid/dietPlans')
+          .where('status', isEqualTo: 'active')
+          .get();
+      expect(docs.docs.map((d) => d.id), ['second']);
+    });
+
+    test('setActivePlan swaps which plan is in force', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreDietRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
       );
+      await repo.savePlan(_makePlan('first', createdAt: DateTime(2026, 1, 1)));
       await repo.savePlan(
-        _makePlan('active', status: DietPlanStatus.active, createdAt: DateTime(2026, 1, 2)),
+        _makePlan(
+          'second',
+          status: DietPlanStatus.archived,
+          createdAt: DateTime(2026, 2, 1),
+        ),
       );
 
-      final plan = await repo.watchActivePlan().first;
-      expect(plan?.id, 'active');
+      await repo.setActivePlan('second');
+
+      expect((await repo.watchActivePlan().first)?.id, 'second');
+      final actives = await firestore
+          .collection('users/test-uid/dietPlans')
+          .where('status', isEqualTo: 'active')
+          .get();
+      expect(actives.docs.map((d) => d.id), ['second']);
+    });
+
+    test(
+      'setActivePlan on a missing plan leaves the active one alone',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreDietRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+        await repo.savePlan(
+          _makePlan('first', createdAt: DateTime(2026, 1, 1)),
+        );
+
+        await repo.setActivePlan('does-not-exist');
+
+        expect((await repo.watchActivePlan().first)?.id, 'first');
+      },
+    );
+
+    test(
+      'archivePlan keeps the document and empties the active slot',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = FirestoreDietRepository(
+          firestore: firestore,
+          uidSource: _signedInAs('test-uid'),
+        );
+        await repo.savePlan(
+          _makePlan('first', createdAt: DateTime(2026, 1, 1)),
+        );
+
+        await repo.archivePlan('first');
+
+        expect(await repo.watchActivePlan().first, isNull);
+        expect(await repo.watchPlans().first, hasLength(1));
+      },
+    );
+
+    test('watchPlans lists every plan, newest first', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repo = FirestoreDietRepository(
+        firestore: firestore,
+        uidSource: _signedInAs('test-uid'),
+      );
+      await repo.savePlan(
+        _makePlan(
+          'older',
+          status: DietPlanStatus.archived,
+          createdAt: DateTime(2026, 1, 1),
+        ),
+      );
+      await repo.savePlan(_makePlan('newer', createdAt: DateTime(2026, 5, 1)));
+
+      final plans = await repo.watchPlans().first;
+      expect(plans.map((p) => p.id), ['newer', 'older']);
     });
 
     test(
@@ -202,7 +320,10 @@ void main() {
       final firestore = FakeFirebaseFirestore();
       final repo = FirestoreDietRepository(
         firestore: firestore,
-        uidSource: UidSource(currentUid: () => null, uidChanges: Stream.value(null)),
+        uidSource: UidSource(
+          currentUid: () => null,
+          uidChanges: Stream.value(null),
+        ),
       );
 
       final plan = await repo.watchActivePlan().first;
@@ -214,7 +335,11 @@ void main() {
       expect(() => repo.savePlan(_makePlan('p1')), throwsStateError);
       expect(() => repo.deletePlan('p1'), throwsStateError);
       expect(
-        () => repo.setMealEaten(mealId: 'meal-1', day: DateTime(2026, 1, 5), eaten: true),
+        () => repo.setMealEaten(
+          mealId: 'meal-1',
+          day: DateTime(2026, 1, 5),
+          eaten: true,
+        ),
         throwsStateError,
       );
     });

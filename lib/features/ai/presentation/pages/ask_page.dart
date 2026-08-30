@@ -969,6 +969,11 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     // (matching the iOS keyboard curve), and the message list re-pins to the
     // bottom on every metrics change mid-animation, so content reads as
     // anchored under the composer while it rises — iMessage-style.
+    // This only works because the SHELL doesn't take the inset first: a
+    // resizing scaffold above this one strips `viewInsets` from the body's
+    // MediaQuery, which left `keyboardInset` stuck at the chrome height and
+    // the composer floating a nav-island above the keyboard. See
+    // `home_shell.dart`'s `resizeToAvoidBottomInset: false`.
     // With the keyboard down the composer rests on top of the shell's bottom
     // object — nav island plus the fused now-playing strip — rather than on
     // the raw safe area, which put it *inside* the nav's band and let the

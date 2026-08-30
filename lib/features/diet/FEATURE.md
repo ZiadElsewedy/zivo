@@ -14,11 +14,20 @@
 - `presentation/widgets/todays_read_card.dart` — **Today's read**: the coaching
   engine's findings on the screen, each openable to the state fields it rests on.
 - `grocery_list_page.dart` — generated grocery list (`domain/grocery_list.dart`).
+- `body_profile_page.dart` — the body data behind every energy figure (height · sex ·
+  activity · optional known maintenance; weight goes to the weigh-in log).
+- `diet_plans_page.dart` — the **library**: every plan, its verdict, and which one is being
+  followed.
 
 ## Repository (`AppScope.diet`)
 
 - **`DietRepository`** (`domain/diet_repository.dart`) — `firestore_diet_repository.dart`
-  (real) / `in_memory_diet_repository.dart` (offline). Consumption API:
+  (real) / `in_memory_diet_repository.dart` (offline). Plans API: `plans` / `watchPlans` /
+  `savePlan` / `setActivePlan` / `archivePlan` / `deletePlan`, with `activePlan` derived
+  from status. **"Exactly one plan is active" is the repository's invariant** — `savePlan`
+  of an active plan and `setActivePlan` both archive the previous active in the same
+  batched write. It is not expressible in `firestore.rules` (which cannot read sibling
+  documents) and must not be left to callers. Consumption API:
   `watchConsumed` / `setMealEaten`, plus `dietDaySummary`. Targets API:
   `currentTargets` / `watchTargets` / `saveTargets` / `clearTargets`.
 
@@ -78,6 +87,28 @@ and a too-high one only when all three are present. Tolerance is wide on purpose
 (max 30 kcal / 20%): a flag the user learns to ignore is worse than none. Surfaced in the
 plan editor — the review gate a PDF import lands in — and it never blocks Save. Nothing is
 stored; the verdict is derivable from the item.
+
+**What a plan does to you (`domain/analysis/plan_verdict.dart`):** `analysePlan(plan,
+measures)` → `PlanVerdict` — the plan's average daily calories (supplements excluded)
+against maintenance, as a direction, a kcal/day delta and a projected kg/week. **Pure and
+deterministic, like `coaching/rules.dart` and for the same reason** — the model phrases
+findings, it doesn't decide them. Two honesty properties are load-bearing: a **±100 kcal
+deadband** (`kEnergyDeadbandKcal`) below which the answer is "holding", because a
+population BMR equation cannot resolve finer than that; and `estimated`, inherited from the
+plan's items, so a verdict built on AI-estimated calories prints with the same "~". Returns
+**null** when the plan carries no calorie figures — nothing to measure is not a weak answer.
+
+**Body data (`domain/body_profile.dart` + `body_measures.dart`):** `BodyProfile` (height ·
+sex · activity · optional `statedMaintenanceKcal`) at `bodyProfile/current`. It deliberately
+holds **no weight** — that lives in the workout feature's `BodyWeightRepository`, the log the
+user actually keeps — and **no age**, which is derived from `UserProfile.dateOfBirth`.
+`resolveBodyMeasures` assembles those three sources into `BodyMeasures` (the complete
+equation inputs, no nullable terms) or returns exactly which pieces are `MissingBodyData`, so
+the UI asks for those and only those. A stated maintenance figure **replaces** the estimate
+rather than blending with it, and `MaintenanceSource` records which was used. Storing body
+data still implies **no target** — see the rule below, which is unchanged. Decisions:
+[ADR-007](../../../docs/DECISIONS/ADR-007-diet-onboarding-body-data-and-generation.md);
+the epic's remaining phases: [`docs/DIET_ONBOARDING_PLAN.md`](../../../docs/DIET_ONBOARDING_PLAN.md).
 
 **Targets (the objective):** `diet_goal.dart` (`DietGoal`) + `nutrition_targets.dart`
 (`NutritionTargets`, `TargetSource`, `TargetBasis`, `kMinimumSafeCalories`) +

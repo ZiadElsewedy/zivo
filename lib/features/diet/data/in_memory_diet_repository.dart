@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
 import '../domain/diet_format.dart';
 import '../domain/diet_plan.dart';
@@ -16,15 +17,18 @@ import '../domain/nutrition_targets.dart';
 /// 'yyyy-MM-dd' for [day]'s local calendar date.
 String _dayKey(DateTime day) => dietDayKey(day);
 
-/// Demo store: one active diet plan plus per-day consumption, in memory,
-/// broadcasting changes. Seeded with a balanced every-day plan (Breakfast /
-/// Lunch / Dinner) so the page opens with something to show.
+/// Demo store: a library of diet plans (exactly one active) plus per-day
+/// consumption, in memory, broadcasting changes. Seeded with one balanced
+/// every-day plan (Breakfast / Lunch / Dinner) so the page opens with
+/// something to show.
 class InMemoryDietRepository implements DietRepository {
   InMemoryDietRepository() {
-    _plan = _seedPlan();
+    _plans.add(_seedPlan());
   }
 
-  DietPlan? _plan;
+  /// Newest first, matching the Firestore repository's ordering so a test
+  /// against one behaves like the app against the other.
+  final List<DietPlan> _plans = [];
   final Map<String, Set<String>> _consumed = {};
 
   /// Deliberately null at seed. The demo plan exists so the page has something
@@ -34,6 +38,13 @@ class InMemoryDietRepository implements DietRepository {
 
   final StreamController<NutritionTargets?> _targetsController =
       StreamController<NutritionTargets?>.broadcast();
+
+  /// Deliberately null at seed, for the same reason [_targets] is: a demo
+  /// body would produce a verdict about a person who doesn't exist.
+  BodyProfile? _bodyProfile;
+
+  final StreamController<BodyProfile?> _bodyProfileController =
+      StreamController<BodyProfile?>.broadcast();
 
   /// The food log, keyed by day. Empty at seed: the demo plan gives the page
   /// something to render, but a demo *meal you ate* would be a fabricated
@@ -46,8 +57,12 @@ class InMemoryDietRepository implements DietRepository {
   final StreamController<List<CustomFood>> _customFoodsController =
       StreamController<List<CustomFood>>.broadcast();
 
-  final StreamController<DietPlan?> _planController =
-      StreamController<DietPlan?>.broadcast();
+  /// One controller for the library; [watchActivePlan] is a projection of it.
+  /// Two independent controllers would be two sources of truth for "which
+  /// plan is in force", which is precisely the bug the single-active
+  /// invariant exists to prevent.
+  final StreamController<List<DietPlan>> _plansController =
+      StreamController<List<DietPlan>>.broadcast();
 
   /// Emits the `dayKey` whose consumption changed; [watchConsumed] filters to
   /// the day it was asked to watch.
@@ -82,7 +97,13 @@ class InMemoryDietRepository implements DietRepository {
                   carbsG: 38,
                   fatG: 4,
                 ),
-                FoodItem(name: 'Banana', quantity: 1, unit: 'pcs', calories: 90, carbsG: 23),
+                FoodItem(
+                  name: 'Banana',
+                  quantity: 1,
+                  unit: 'pcs',
+                  calories: 90,
+                  carbsG: 23,
+                ),
               ],
             ),
             Meal(
@@ -121,7 +142,13 @@ class InMemoryDietRepository implements DietRepository {
                   proteinG: 40,
                   fatG: 22,
                 ),
-                FoodItem(name: 'Broccoli', quantity: 150, unit: 'g', calories: 50, carbsG: 10),
+                FoodItem(
+                  name: 'Broccoli',
+                  quantity: 150,
+                  unit: 'g',
+                  calories: 50,
+                  carbsG: 10,
+                ),
               ],
             ),
           ],
@@ -131,25 +158,84 @@ class InMemoryDietRepository implements DietRepository {
   }
 
   @override
-  DietPlan? get activePlan => _plan;
+  DietPlan? get activePlan => _firstActive(_plans);
+
+  @override
+  List<DietPlan> get plans => List.unmodifiable(_plans);
+
+  static DietPlan? _firstActive(List<DietPlan> plans) {
+    for (final plan in plans) {
+      if (plan.status == DietPlanStatus.active) return plan;
+    }
+    return null;
+  }
+
+  void _emit() {
+    _plans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _plansController.add(plans);
+  }
 
   @override
   Stream<DietPlan?> watchActivePlan() async* {
     yield activePlan;
-    yield* _planController.stream;
+    yield* _plansController.stream.map(_firstActive);
+  }
+
+  @override
+  Stream<List<DietPlan>> watchPlans() async* {
+    yield plans;
+    yield* _plansController.stream;
   }
 
   @override
   Future<void> savePlan(DietPlan plan) async {
-    _plan = plan;
-    _planController.add(_plan);
+    final index = _plans.indexWhere((p) => p.id == plan.id);
+    if (index == -1) {
+      _plans.add(plan);
+    } else {
+      _plans[index] = plan;
+    }
+    if (plan.status == DietPlanStatus.active) _archiveOtherActives(plan.id);
+    _emit();
+  }
+
+  @override
+  Future<void> setActivePlan(String id) async {
+    final index = _plans.indexWhere((p) => p.id == id);
+    if (index == -1) return;
+    _archiveOtherActives(id);
+    _plans[index] = _plans[index].copyWith(
+      status: DietPlanStatus.active,
+      updatedAt: DateTime.now(),
+    );
+    _emit();
+  }
+
+  @override
+  Future<void> archivePlan(String id) async {
+    final index = _plans.indexWhere((p) => p.id == id);
+    if (index == -1) return;
+    _plans[index] = _plans[index].copyWith(
+      status: DietPlanStatus.archived,
+      updatedAt: DateTime.now(),
+    );
+    _emit();
+  }
+
+  /// The single-active invariant, in one place.
+  void _archiveOtherActives(String keepId) {
+    for (var i = 0; i < _plans.length; i++) {
+      if (_plans[i].id != keepId && _plans[i].status == DietPlanStatus.active) {
+        _plans[i] = _plans[i].copyWith(status: DietPlanStatus.archived);
+      }
+    }
   }
 
   @override
   Future<void> deletePlan(String id) async {
-    if (_plan?.id != id) return;
-    _plan = null;
-    _planController.add(_plan);
+    final before = _plans.length;
+    _plans.removeWhere((p) => p.id == id);
+    if (_plans.length != before) _emit();
   }
 
   @override
@@ -174,12 +260,35 @@ class InMemoryDietRepository implements DietRepository {
   }
 
   @override
+  BodyProfile? get currentBodyProfile => _bodyProfile;
+
+  @override
+  Stream<BodyProfile?> watchBodyProfile() async* {
+    yield _bodyProfile;
+    yield* _bodyProfileController.stream;
+  }
+
+  @override
+  Future<void> saveBodyProfile(BodyProfile profile) async {
+    _bodyProfile = profile;
+    _bodyProfileController.add(_bodyProfile);
+  }
+
+  @override
+  Future<void> clearBodyProfile() async {
+    _bodyProfile = null;
+    _bodyProfileController.add(null);
+  }
+
+  @override
   Stream<Set<String>> watchConsumed(DateTime day) async* {
     final key = _dayKey(day);
     yield Set.unmodifiable(_consumed[key] ?? const <String>{});
     yield* _consumedController.stream
         .where((changedKey) => changedKey == key)
-        .map((_) => Set<String>.unmodifiable(_consumed[key] ?? const <String>{}));
+        .map(
+          (_) => Set<String>.unmodifiable(_consumed[key] ?? const <String>{}),
+        );
   }
 
   @override
@@ -219,7 +328,7 @@ class InMemoryDietRepository implements DietRepository {
   }
 
   Meal? _mealById(String mealId) {
-    for (final day in _plan?.days ?? const <DietDay>[]) {
+    for (final day in activePlan?.days ?? const <DietDay>[]) {
       for (final meal in day.meals) {
         if (meal.id == mealId) return meal;
       }
@@ -233,8 +342,7 @@ class InMemoryDietRepository implements DietRepository {
     yield List.unmodifiable(_foodLog[key] ?? const <FoodLogEntry>[]);
     yield* _foodLogController.stream
         .where((changed) => changed == key)
-        .map((_) =>
-            List<FoodLogEntry>.unmodifiable(_foodLog[key] ?? const []));
+        .map((_) => List<FoodLogEntry>.unmodifiable(_foodLog[key] ?? const []));
   }
 
   @override
@@ -298,9 +406,10 @@ class InMemoryDietRepository implements DietRepository {
   }
 
   void dispose() {
-    _planController.close();
+    _plansController.close();
     _consumedController.close();
     _targetsController.close();
+    _bodyProfileController.close();
     _foodLogController.close();
     _customFoodsController.close();
   }
