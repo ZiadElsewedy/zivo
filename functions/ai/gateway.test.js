@@ -458,9 +458,9 @@ test("the system prompt forbids inventing nutrition figures", async () => {
   // does not make an invented number safe.
   assert.doesNotMatch(SYSTEM_PROMPT, /when you estimate calories or macros/i);
   assert.match(SYSTEM_PROMPT, /must come from a tool result in THIS turn/);
-  // A catalog exists now, but the model still may not price a food itself.
-  assert.match(
-      SYSTEM_PROMPT, /you still cannot tell them what it\n {2}came to/);
+  // Tools price food now (Phase 6), but the model still may not do so from its
+  // own knowledge — the figure comes from the resolve/calculate tools.
+  assert.match(SYSTEM_PROMPT, /never produce one from your own nutritional/);
   // And it must say what to do instead of guessing.
   assert.match(SYSTEM_PROMPT, /say you don't have it/i);
 });
@@ -496,14 +496,24 @@ test("the system prompt makes the coach read the log's basis before it " +
   assert.match(SYSTEM_PROMPT, /An empty log means nothing was recorded/);
 });
 
-test("the system prompt still refuses to price a food the app didn't resolve",
-    async () => {
-      // A catalog exists now, but the MODEL doesn't get to use its own
-      // knowledge in place of it.
-      assert.match(SYSTEM_PROMPT, /YOU do\n {2}not look things up in it/);
-      assert.match(
-          SYSTEM_PROMPT, /rather than producing a figure from your own/);
-    });
+test("the system prompt points the model at the resolve/calculate tools, " +
+    "never its own knowledge", async () => {
+  // Phase 6: the coach now HAS tools onto the catalog — but a number still
+  // comes from the tool, never from the model's own nutritional knowledge, and
+  // a food the catalog can't resolve is offered as a custom food, not guessed.
+  assert.match(SYSTEM_PROMPT, /resolve_food finds a/);
+  assert.match(SYSTEM_PROMPT, /calculate_meal_nutrition prices an amount/);
+  assert.match(SYSTEM_PROMPT, /never produce one from your own nutritional/);
+  assert.match(SYSTEM_PROMPT, /a custom food rather than estimating/);
+});
+
+test("the system prompt teaches the log_food flow", async () => {
+  // log_food is for what the user actually ate (distinct from ticking a plan
+  // meal), and the model supplies foods/amounts — never the calories.
+  assert.match(SYSTEM_PROMPT, /log_food records what the user actually ate/);
+  assert.match(SYSTEM_PROMPT, /you do NOT supply calories/);
+  assert.match(SYSTEM_PROMPT, /as opposed to ticking a planned meal/);
+});
 
 test("the system prompt hands the model the quality flags rather than " +
     "leaving it to infer them", async () => {

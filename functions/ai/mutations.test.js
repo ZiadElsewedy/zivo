@@ -13,6 +13,7 @@ const createExpense = mutatingToolsByName.get("create_expense");
 const editExpense = mutatingToolsByName.get("edit_expense");
 const deleteExpense = mutatingToolsByName.get("delete_expense");
 const markMealEaten = mutatingToolsByName.get("mark_meal_eaten");
+const logFood = mutatingToolsByName.get("log_food");
 
 test("create_expense: valid input normalizes; currency defaults to EGP", () => {
   const v = createExpense.validate({amountMinor: 1200, category: "coffee"});
@@ -38,13 +39,37 @@ test("create_expense: rejects an unknown category", () => {
 });
 
 test("every mutating tool exposes card fields and a result line", () => {
-  const all = [createExpense, editExpense, deleteExpense, markMealEaten];
+  const all =
+      [createExpense, editExpense, deleteExpense, markMealEaten, logFood];
   for (const tool of all) {
     assert.equal(tool.mutating, true);
     assert.equal(typeof tool.summarize, "function");
     assert.equal(typeof tool.fields, "function");
     assert.equal(typeof tool.result, "function");
   }
+});
+
+test("log_food: normalizes items and requires at least one", () => {
+  const v = logFood.validate({items: [
+    {foodId: "usda:171477", quantity: 200, unit: "g"},
+    {query: "rice", quantity: 100, unit: "g", preparation: "cooked"},
+  ]});
+  assert.equal(v.items.length, 2);
+  assert.deepEqual(v.items[0], {quantity: 200, unit: "g", foodId: "usda:171477"});
+  assert.equal(v.items[1].preparation, "cooked");
+  assert.throws(() => logFood.validate({items: []}), ValidationError);
+  assert.throws(() => logFood.validate({}), ValidationError);
+});
+
+test("log_food: rejects a malformed item and an over-long list", () => {
+  // A bad item (no reference) surfaces as a ValidationError the gateway feeds
+  // back to the model, not a silent skip.
+  assert.throws(
+      () => logFood.validate({items: [{quantity: 1, unit: "g"}]}),
+      ValidationError);
+  const tooMany = Array.from({length: 21}, () =>
+    ({foodId: "usda:171477", quantity: 1, unit: "g"}));
+  assert.throws(() => logFood.validate({items: tooMany}), ValidationError);
 });
 
 test("edit_expense: keeps only the fields being changed, plus id and label",

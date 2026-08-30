@@ -35,9 +35,10 @@
 | File | Role |
 |---|---|
 | `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)**, confirm/execute dispatch (`applyProposedAction`) |
-| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`. Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
-| `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten` |
+| `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten`, **`log_food`** (logs what the user ate; nutrition computed server-side in `verify`, never supplied by the model) |
+| `../nutrition/resolve.js` | the ONE server path from a food reference (query or `foodId`) + an amount to calories — mirrors the Dart `CompositeFoodResolver` (custom foods layered over USDA). Shared by `resolve_food`, `calculate_meal_nutrition` and `log_food` so they can't disagree |
 | `workout_import.js`, `diet_import.js` | PDF → structured plan extractors |
 | `coach_report.js` | weekly AI coach report |
 | `store.js`, `dates.js` | Firestore access + date helpers |
@@ -50,12 +51,21 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   the empty-`thinking`-block signature issue fixed in `gateway.js`'s `stripEmptyThinking`);
   validate real changes against the emulator + real API, not just `node --test`.
 - **Any prompt/tool change needs a `functions` deploy** (owner's creds — see `docs/STATE.md`).
-- **The model may not invent numbers.** The system prompt's NUMBERS section forbids
+- **The model may not invent numbers — it looks them up.** The NUMBERS section forbids
   stating any figure about the user's data that didn't come from a tool result in that
-  turn, and says outright that there is **no food database** behind it — so "I ate two
-  eggs and rice" must be answered with what the app knows, not a guess. `gateway.test.js`
-  asserts the prompt still says this; don't soften it without reading
-  [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+  turn. Since Phase 6 the coach *does* have tools onto the catalog (`resolve_food`,
+  `calculate_meal_nutrition`) and can log food (`log_food`) — but the number always comes
+  from the tool, computed server-side, never from the model's own nutritional knowledge.
+  So "I ate two eggs and 100g of rice" is resolved-and-computed, not guessed; and a food
+  the catalog lacks (`notFound`) or a raw/cooked fork (`ambiguous`) is surfaced, not
+  papered over. `gateway.test.js` asserts the prompt still says this; don't soften it
+  without reading [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+- **`log_food` never trusts a model-supplied calorie.** The model names foods and amounts;
+  `log_food.verify` resolves each against the real catalog (+ the user's custom foods) and
+  computes the nutrition, refusing — back to the model, with the reason — anything it can't
+  resolve. The figures are snapshotted into the log entry at propose time, so they're
+  frozen and can't drift if the catalog is rebuilt. To tick a *planned* meal off, that's
+  still `mark_meal_eaten`, not `log_food`.
 - **The coach is handed decisions, not just data.** The diet payload carries `findings`
   from the deterministic rules engine (`functions/diet/rules.js`) — ranked, capped at three,
   each typed and evidenced. The prompt tells the model to lead with them, never to

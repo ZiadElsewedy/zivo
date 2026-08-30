@@ -137,14 +137,16 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
-  - **Pending now (2):** the **Diet Coach Phase 0 + Phase 1** work (`gateway.js`, `tools.js`,
-    `dates.js`, `mutations.js`, `store.js`, `index.js` **+ `firestore.rules`**) — see
+  - **Pending now:** the **Diet Coach Phases 0–6** work (`gateway.js`, `tools.js`,
+    `dates.js`, `mutations.js`, `store.js`, `index.js`, `functions/diet/*`,
+    `functions/nutrition/*` **+ `firestore.rules`**) — see
     [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md). Until deployed the live coach keeps the old
     prompt (which licensed invented calories), has no idea what day it is, can write an
-    unverified meal id, and can't see the user's targets at all. **Deploy functions and rules
-    together with the client build** — the tightened `dietEntries` rule rejects writes from
-    older app builds, and the new `dietTargets` rule is what lets a target be saved at all.
-    Command: `firebase deploy --only functions,firestore:rules`.
+    unverified meal id, can't see the user's targets, findings, or nutrition catalog, and
+    can't resolve/log food from chat. **Deploy functions and rules together with the client
+    build** — the tightened `dietEntries` rule rejects writes from older app builds, and the
+    `dietTargets`/`foodLogs`/`customFoods` rules are what let a target, a food log, or a
+    custom food be saved at all. Command: `firebase deploy --only functions,firestore:rules`.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,
     `gateway.js`, `tools.js`) are code-complete + tested but **not deployed**. Until deployed the
     live AI keeps the old create-only backend (the app's redesigned cards already render
@@ -200,6 +202,27 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 6: the AI acts on food.** The coach gained three
+  tools and can now log what the user ate. Reads: `resolve_food` (a food → its `foodId`,
+  per-100g nutrition and measures, or `ambiguous`/`notFound`) and
+  `calculate_meal_nutrition` (items → computed kcal/macros + a total, withheld until every
+  item resolves). Write: `log_food`, a propose→confirm mutation whose nutrition is computed
+  **server-side** in `verify` — the model names foods and amounts, never a calorie, and an
+  item that's ambiguous, not found, or given an unconvertible unit is refused back to the
+  model with the reason rather than guessed. All three share one path,
+  `functions/nutrition/resolve.js` (the server mirror of `CompositeFoodResolver`: custom
+  foods over USDA), so they can't disagree with each other or with the screen. A confirmed
+  `log_food` writes the same `foodLogs` rows the log sheet writes (`origin: logged`,
+  `estimated: false`, real `source`/`sourceRef`), snapshotted at log time; ids derive from
+  the actionId so a double-confirm overwrites and a multi-item meal is one batch. The Ask
+  card renders a green "Log food" receipt with the computed amounts. The prompt flips from
+  "you can't look food up" to "you look it up with these tools, never from your own
+  knowledge", keeping `log_food` distinct from `mark_meal_eaten`. Deliberately did NOT add
+  `get_diet_state`/`get_diet_targets`/`get_diet_history` — `get_diet`/`get_today` already
+  are the state, carry targets, and include a week of history.
+  `flutter analyze` clean · Flutter **863 pass** · functions **305 pass** · functions lint
+  clean · rules unchanged (no `firestore.rules` change). Detail:
+  [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
 - 2026-08-30 — **Diet Coach Phase 5: the coaching rules engine.** What the coach *decides*
   to say now lives in code, not in the prompt. `CoachingFinding` types the six registers
   (observation · analysis · recommendation · warning · encouragement · clarification), each

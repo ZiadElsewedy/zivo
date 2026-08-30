@@ -51,6 +51,12 @@ const {
 } = require("./dates");
 const {buildDietState, summariseHistory} = require("../diet/state");
 const {coachingFindings} = require("../diet/rules");
+const {
+  resolveComposite,
+  resolveAndCompute,
+  normalizeItem,
+  summariseFood,
+} = require("../nutrition/resolve");
 
 /**
  * ISO string for `date`, or null.
@@ -442,6 +448,166 @@ const DIET_TOOL = {
   },
 };
 
+const RESOLVE_FOOD_TOOL = {
+  name: "resolve_food",
+  description:
+    "Identify a food in ZIVO's nutrition catalog (a USDA subset, plus any " +
+    "foods the user defined themselves) so you can price or log it. Returns " +
+    "ONE of three outcomes: 'resolved' (a single food, with its `foodId`, " +
+    "per-100g nutrition and the measures it supports), 'ambiguous' (several " +
+    "foods that differ materially in calories — e.g. raw vs cooked rice — " +
+    "each with a `foodId`; pick one with the user before logging), or " +
+    "'notFound' (nothing matched — the catalog is US-shaped, so say so and " +
+    "offer to log a custom food rather than guessing a number). Pass the " +
+    "`foodId` from a resolved/chosen result to calculate_meal_nutrition or " +
+    "log_food. query: the food, e.g. 'chicken breast'. preparation (optional): " +
+    "'raw', 'cooked' or 'dry' to disambiguate.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {type: "string", description: "the food to look up"},
+      preparation: {type: "string", enum: ["raw", "cooked", "dry"]},
+    },
+    required: ["query"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input) {
+    const query = typeof input.query === "string" ? input.query.trim() : "";
+    if (!query) {
+      return {outcome: "notFound", query: "", note: "No food named to look up."};
+    }
+    const preparation = ["raw", "cooked", "dry"].includes(input.preparation) ?
+      input.preparation : null;
+    const customFoods = await store.listCustomFoods(uid);
+    const match = resolveComposite({query, preparation}, customFoods);
+
+    if (match.kind === "notFound") {
+      return {
+        outcome: "notFound",
+        query,
+        note:
+          "Not in the catalog. It's US-shaped, so plenty of foods genuinely " +
+          "aren't. Tell the user, and offer to define it as a custom food " +
+          "rather than estimating.",
+      };
+    }
+    if (match.kind === "ambiguous") {
+      return {
+        outcome: "ambiguous",
+        query,
+        candidates: match.candidates.map(summariseFood),
+        note:
+          "These differ materially in calories, so choosing for the user " +
+          "would be a guess. Ask which they mean, then pass that foodId.",
+      };
+    }
+    const food = match.food;
+    return {
+      outcome: "resolved",
+      food: {
+        ...summariseFood(food),
+        per100g: {
+          kcal: Math.round(food.kcalPer100g),
+          proteinG: food.proteinPer100g,
+          carbsG: food.carbsPer100g,
+          fatG: food.fatPer100g,
+        },
+        measures: food.portions.map((p) => p.label),
+      },
+      alternatives: (match.alternatives || []).map(summariseFood),
+    };
+  },
+};
+
+const CALCULATE_MEAL_TOOL = {
+  name: "calculate_meal_nutrition",
+  description:
+    "Compute the calories and macros of one or more foods at given amounts — " +
+    "the ONLY way to turn a food and a quantity into a number. Never do this " +
+    "arithmetic yourself. Each item takes a `foodId` (from resolve_food, " +
+    "preferred) OR a `query`, plus `quantity` and `unit` (g, kg, oz, lb, or a " +
+    "measure the food supports like 'piece'). Returns each item's computed " +
+    "nutrition and a combined total. An item that is ambiguous, not found, or " +
+    "whose unit can't be converted is flagged instead of guessed, and the " +
+    "total is withheld until every item resolves. Use this to answer 'how " +
+    "many calories in …' and to preview before logging.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            foodId: {type: "string", description: "from resolve_food, preferred"},
+            query: {type: "string", description: "the food, if no foodId"},
+            preparation: {type: "string", enum: ["raw", "cooked", "dry"]},
+            quantity: {type: "number"},
+            unit: {type: "string", description: "g, oz, piece, …"},
+          },
+        },
+      },
+    },
+    required: ["items"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input) {
+    const raw = Array.isArray(input.items) ? input.items : [];
+    if (raw.length === 0) return {items: [], total: null, allResolved: false};
+    const customFoods = await store.listCustomFoods(uid);
+
+    const items = [];
+    let allResolved = true;
+    let kcal = 0;
+    let proteinG = 0;
+    let carbsG = 0;
+    let fatG = 0;
+    for (const rawItem of raw) {
+      let normalized;
+      try {
+        normalized = normalizeItem(rawItem);
+      } catch (err) {
+        allResolved = false;
+        items.push({outcome: "invalid", reason: err.message});
+        continue;
+      }
+      const result = resolveAndCompute(normalized, customFoods);
+      items.push(result);
+      if (result.outcome === "computed") {
+        kcal += result.kcal;
+        proteinG += result.proteinG;
+        carbsG += result.carbsG;
+        fatG += result.fatG;
+      } else {
+        allResolved = false;
+      }
+    }
+
+    return {
+      items,
+      // Only a total everything actually resolved to — a partial sum would be
+      // a number that looks whole but isn't.
+      total: allResolved ? {
+        kcal: Math.round(kcal),
+        proteinG: Math.round(proteinG * 10) / 10,
+        carbsG: Math.round(carbsG * 10) / 10,
+        fatG: Math.round(fatG * 10) / 10,
+      } : null,
+      allResolved,
+    };
+  },
+};
+
 const SUMMARIZE_WEEK_TOOL = {
   name: "summarize_week",
   description:
@@ -498,6 +664,8 @@ const tools = [
   EXPENSES_TOOL,
   WORKOUTS_TOOL,
   DIET_TOOL,
+  RESOLVE_FOOD_TOOL,
+  CALCULATE_MEAL_TOOL,
   SUMMARIZE_WEEK_TOOL,
 ];
 

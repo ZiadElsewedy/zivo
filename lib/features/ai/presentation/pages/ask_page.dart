@@ -2408,9 +2408,26 @@ class _ProposalCard extends StatelessWidget {
             : action.summary;
       case 'mark_meal_eaten':
         return '${f['meal'] ?? ''}'.trim();
+      case 'log_food':
+        final items = f['items'];
+        if (items is List && items.length == 1 && items.first is Map) {
+          final name = (items.first as Map)['name'];
+          if (name is String && name.trim().isNotEmpty) return name.trim();
+        }
+        final count = f['count'];
+        if (count is int && count > 0) return '$count foods';
+        return action.summary;
       default:
         return action.summary;
     }
+  }
+
+  /// A quantity like 2.0 → "2", 1.5 → "1.5" — plan/log amounts arrive as JSON
+  /// numbers and read badly with a trailing ".0".
+  String _qty(Object? value) {
+    if (value is! num) return '';
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value.toString();
   }
 
   List<Widget> _chips() {
@@ -2455,6 +2472,23 @@ class _ProposalCard extends StatelessWidget {
             f['state']?.toString() ?? 'eaten',
           ),
         );
+      case 'log_food':
+        final items = f['items'];
+        if (items is List) {
+          for (final raw in items) {
+            if (raw is! Map) continue;
+            final name = raw['name']?.toString() ?? '';
+            final amount = '${_qty(raw['quantity'])} ${raw['unit'] ?? ''}'
+                .trim();
+            final label = amount.isEmpty ? name : '$name · $amount';
+            if (label.isNotEmpty) chips.add(_chip(AppIcons.diet, label));
+          }
+        }
+        // A total, only when it adds something over a single item's own chip.
+        final total = f['totalKcal'];
+        if (total != null && items is List && items.length > 1) {
+          chips.add(_chip(AppIcons.diet, '$total kcal'));
+        }
     }
     return chips;
   }
@@ -2509,6 +2543,13 @@ class _ProposalCard extends StatelessWidget {
         return (
           icon: AppIcons.diet,
           label: 'Diet plan',
+          tintBg: TrainColors.greenWash,
+          tintFg: TrainColors.green,
+        );
+      case 'log_food':
+        return (
+          icon: AppIcons.diet,
+          label: 'Log food',
           tintBg: TrainColors.greenWash,
           tintFg: TrainColors.green,
         );

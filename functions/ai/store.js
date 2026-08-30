@@ -641,6 +641,86 @@ class FirestoreStore {
   async deleteExpense(uid, id) {
     await this._user(uid).collection("expenses").doc(id).delete();
   }
+
+  /**
+   * The user's own foods (`customFoods`) — everything the bundled USDA catalog
+   * doesn't cover. Layered OVER the catalog when the coach resolves a food, so
+   * the coach and the app agree on what the user's "Koshari" is worth. Field
+   * names mirror `FirestoreDietRepository.saveCustomFood` /
+   * `_customFoodFromDoc` exactly.
+   * @param {string} uid
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listCustomFoods(uid) {
+    const snap = await this._user(uid).collection("customFoods").get();
+    return snap.docs
+        .map((doc) => {
+          const d = doc.data();
+          const num = (v) =>
+            (typeof v === "number" && Number.isFinite(v) ? v : 0);
+          if (!d.name || typeof d.kcalPer100g !== "number") return null;
+          return {
+            id: doc.id,
+            name: String(d.name),
+            kcalPer100g: num(d.kcalPer100g),
+            proteinPer100g: num(d.proteinPer100g),
+            carbsPer100g: num(d.carbsPer100g),
+            fatPer100g: num(d.fatPer100g),
+            preparation: typeof d.preparation === "string" ?
+              d.preparation : "unknown",
+            portions: (Array.isArray(d.portions) ? d.portions : [])
+                .filter((p) => p && typeof p.label === "string" &&
+                  typeof p.grams === "number")
+                .map((p) => ({label: p.label, grams: p.grams})),
+            createdAt: toDate(d.createdAt),
+          };
+        })
+        .filter((f) => f !== null);
+  }
+
+  /**
+   * Writes food-log entries the coach logged on the user's behalf (`log_food`),
+   * one batch so "two eggs and 100 g rice" lands whole or not at all. Mirrors
+   * `FirestoreDietRepository.logFood` / `_entryToMap` field-for-field, so an
+   * entry the coach wrote is indistinguishable in Firestore from one the app
+   * wrote — and satisfies the tight `foodLogs` rule (the nutrition is stored,
+   * not recomputed on read).
+   *
+   * Each entry's doc id is `${actionId}__${i}`, so re-confirming the same
+   * pending action overwrites rather than duplicating.
+   * @param {string} uid
+   * @param {!Array<Object>} entries
+   * @return {!Promise<void>}
+   */
+  async writeFoodLog(uid, entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return;
+    const now = FieldValue.serverTimestamp();
+    const collection = this._user(uid).collection("foodLogs");
+    const batch = this.db.batch();
+    for (const e of entries) {
+      batch.set(collection.doc(e.id), {
+        dayKey: e.dayKey,
+        date: Timestamp.fromDate(startOfDayFor(e.dayKey)),
+        loggedAt: now,
+        foodId: e.foodId,
+        foodName: e.foodName,
+        quantity: e.quantity,
+        unit: e.unit,
+        grams: e.grams,
+        kcal: Math.round(e.kcal),
+        proteinG: e.proteinG,
+        carbsG: e.carbsG,
+        fatG: e.fatG,
+        source: e.source,
+        sourceRef: e.sourceRef,
+        origin: e.origin,
+        estimated: e.estimated === true,
+        mealId: e.mealId || null,
+        schemaVersion: 1,
+      });
+    }
+    await batch.commit();
+  }
 }
 
 module.exports = {FirestoreStore};

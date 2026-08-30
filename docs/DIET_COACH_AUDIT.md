@@ -6,7 +6,7 @@
 > **Findings are referenced by id (`T1`…`T15`) from `FEATURE.md`s, commit messages and the
 > later phases — keep the ids stable.**
 >
-> Status: **Phases 0–5 landed** (2026-08-30). Phases 6–8 are not started.
+> Status: **Phases 0–6 landed** (2026-08-30). Phases 7–8 are not started.
 
 ---
 
@@ -36,7 +36,7 @@ entity (goal + targets).
 | **T4** | Critical | **The model didn't know what day it was.** No date in the prompt or messages; `get_today` returned no date; `get_diet` returned `day: "Every day"`. | **Fixed** (Phase 0) |
 | **T5** | High | **Client/server disagreed about "today".** The app writes `dayKey` from device-local time; the server computed it in UTC. A UTC+3 user got yesterday's entries between local 00:00 and 03:00. | **Fixed** (Phase 0) |
 | **T6** | High | **"Consumed" is an assumption, not a measurement.** Ticking a meal credits its *planned* macros. There is no way to log a food; "I ate two eggs and 100 g rice" is unrepresentable. | **Fixed** (Phase 3) |
-| **T7** | High | **The prompt licensed free-hand estimation** ("when you estimate calories or macros… give a sensible range"). | **Fixed** (Phase 0) |
+| **T7** | High | **The prompt licensed free-hand estimation** ("when you estimate calories or macros… give a sensible range"). | **Fixed** (Phase 0 prompt; Phase 6 gives the coach real lookup/log tools so it never needs to) |
 | **T8** | High | **Zero output validation.** Nothing compares the reply to the state it read. | Open — Phase 7 |
 | **T9** | High | **`mark_meal_eaten` wrote an unverified meal id.** `validate` only checked it was a string; a hallucinated id created an orphan `dietEntries` doc. | **Fixed** (Phase 0) |
 | **T10** | Medium | **Truncation ate the diet payload first.** Tool results are cut at 6 000 chars from the end, and `get_today` serialized `diet` last. | **Fixed** (Phase 0) |
@@ -84,7 +84,7 @@ is what makes it safe to reject aggressively.
 | 3 | A real food log (`foodLogs`) | T6 | **Done** — see below |
 | 4 | `DietState` + shared golden vectors | T13 | **Done** — see below |
 | 5 | Coaching rules engine | part of T15; groundwork for T8 | **Done** — see below |
-| 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | Not started |
+| 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | **Done** — see below |
 | 7 | Advice validator + safety intercept | T8 T15 | Not started |
 | 8 | UI: provenance, targets, the "why" | — | Not started |
 
@@ -426,3 +426,62 @@ one prompt-contract test. Shared fixture:
 `test/fixtures/coaching_vectors.json`, 11 cases.
 
 **Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.
+
+---
+
+## Phase 6 — what actually landed (2026-08-30)
+
+The coach can now act on food, and every number it touches is the app's, not
+the model's. "I ate two eggs and 100 g of rice" is a thing ZIVO can log.
+
+- **Three new tools, one resolution path.** Reads: `resolve_food` (a food →
+  its `foodId`, per-100g nutrition and supported measures, or `ambiguous` /
+  `notFound`) and `calculate_meal_nutrition` (items → computed kcal/macros and
+  a combined total, the total withheld until every item resolves). Write:
+  `log_food`, a propose→confirm mutation. All three go through one module,
+  `functions/nutrition/resolve.js`, the server mirror of the Dart
+  `CompositeFoodResolver` — the user's own custom foods layered over the USDA
+  catalog — so they cannot disagree with each other, and (via the golden
+  vectors) cannot disagree with the screen either.
+- **The trust boundary is `log_food.verify`.** The model names foods and
+  amounts; it supplies **no calories**. `verify` resolves each item against the
+  real catalog and computes the nutrition server-side (the same `nutritionFor`
+  the app uses), the way `mark_meal_eaten.verify` proves a meal id. An item
+  that is ambiguous (raw vs cooked rice, a ~3× fork), not found (the catalog is
+  US-shaped), or given a unit that can't be converted (a volume with no
+  recorded density) is refused **back to the model** with the reason and the
+  options — so a guessed number can never reach the confirm button. The
+  computed figures are snapshotted into the log entry at propose time, so they
+  are frozen at log time and don't drift if the catalog is rebuilt.
+- **It writes the same rows the app writes.** A confirmed `log_food` lands in
+  `foodLogs` with `origin: 'logged'`, `estimated: false`, and the real
+  `source`/`sourceRef` (`usdaFdc` or `userCustom`) — `store.writeFoodLog`
+  mirrors `FirestoreDietRepository.logFood` field-for-field, so an entry the
+  coach wrote is indistinguishable from one the log sheet wrote, and every
+  `DietState`/finding downstream already knows how to read it. Doc ids derive
+  from the `actionId`, so a double-confirm overwrites rather than duplicating a
+  meal, and a multi-item log is one batch (it lands whole or not at all).
+- **The prompt is delivery, not policy — again.** The NUMBERS section flips
+  from "you can't look things up" to "you look them up with these tools, never
+  from your own knowledge"; a new bullet teaches the resolve→log flow and keeps
+  `log_food` (what the user ate) distinct from `mark_meal_eaten` (ticking a
+  planned meal). The confirmation card renders the food card (green, "Log
+  food") with the server-computed amounts.
+- **What was NOT added, on purpose.** The sketch tool set named
+  `get_diet_state` / `get_diet_targets` / `get_diet_history`; those already
+  exist as `get_diet` / `get_today` (which since Phase 4 *are* the `DietState`,
+  carry `targets`, and include a week of history). Adding renamed aliases would
+  have cost a schema in every cached prefix to say nothing new.
+
+**Tests added:** `functions/nutrition/resolve.test.js` (14 — custom-over-USDA,
+the three outcomes, the density refusal, `normalizeItem`), `resolve_food` /
+`calculate_meal_nutrition` tool tests, `log_food` propose→verify→confirm flow
+tests in `mutations_gateway.test.js` (server-computed nutrition, the three
+refusals never becoming a proposal, idempotent double-confirm, the multi-item
+batch), `log_food.validate` unit tests, two prompt-contract tests, and three
+`ask_page` widget tests for the food card. All suites green: `flutter analyze`
+clean · Flutter **863** · functions **305** · functions lint clean.
+
+**Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`. No
+new secrets, no new collections (`foodLogs`/`customFoods` shipped in Phase 3);
+the functions bundle already carries the catalog.

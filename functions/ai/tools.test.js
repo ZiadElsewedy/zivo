@@ -577,3 +577,90 @@ test("an explicit past day gets no time-sensitive findings", async () => {
   // a week ago.
   assert.equal(nothing.severity, "info");
 });
+
+// --- Phase 6: resolve_food + calculate_meal_nutrition -----------------------
+
+// A store with no custom foods — the common case; the resolver falls through
+// to the bundled USDA catalog.
+const NO_CUSTOM = {listCustomFoods: async () => []};
+
+test("resolve_food returns a resolved food with its foodId and measures",
+    async () => {
+      const tool = toolsByName.get("resolve_food");
+      const result = await tool.execute(NO_CUSTOM, UID, {
+        query: "chicken broilers fryers breast meat only cooked roasted",
+      });
+      assert.equal(result.outcome, "resolved");
+      assert.equal(result.food.foodId, "usda:171477");
+      assert.equal(result.food.per100g.kcal, 165);
+      assert.ok(Array.isArray(result.food.measures));
+    });
+
+test("resolve_food reports the raw/cooked fork as ambiguous, not a pick",
+    async () => {
+      const tool = toolsByName.get("resolve_food");
+      const result = await tool.execute(
+          NO_CUSTOM, UID, {query: "rice white long-grain regular"});
+      assert.equal(result.outcome, "ambiguous");
+      assert.ok(result.candidates.length > 1);
+      // Each candidate is pickable by id, and the note says to ask.
+      assert.ok(result.candidates.every((c) => c.foodId));
+      assert.match(result.note, /Ask which/);
+    });
+
+test("resolve_food says notFound for a food the catalog lacks", async () => {
+  const tool = toolsByName.get("resolve_food");
+  const result = await tool.execute(NO_CUSTOM, UID, {query: "koshari"});
+  assert.equal(result.outcome, "notFound");
+  assert.match(result.note, /custom food/);
+});
+
+test("resolve_food prefers the user's own food over the catalog", async () => {
+  const tool = toolsByName.get("resolve_food");
+  const store = {
+    listCustomFoods: async () => [{
+      id: "kosh", name: "Koshari", kcalPer100g: 150, proteinPer100g: 5,
+      carbsPer100g: 27, fatPer100g: 3, preparation: "cooked", portions: [],
+      createdAt: new Date("2026-08-01T00:00:00Z"),
+    }],
+  };
+  const result = await tool.execute(store, UID, {query: "koshari"});
+  assert.equal(result.outcome, "resolved");
+  assert.equal(result.food.foodId, "custom:kosh");
+});
+
+test("calculate_meal_nutrition totals a resolvable meal", async () => {
+  const tool = toolsByName.get("calculate_meal_nutrition");
+  const result = await tool.execute(NO_CUSTOM, UID, {items: [
+    {foodId: "usda:171477", quantity: 200, unit: "g"}, // 330 kcal
+    {query: "rice white long-grain regular", preparation: "cooked",
+      quantity: 150, unit: "g"}, // 130 kcal/100g × 1.5 = 195
+  ]});
+  assert.equal(result.allResolved, true);
+  assert.equal(result.items.length, 2);
+  assert.equal(result.items[0].outcome, "computed");
+  assert.equal(result.total.kcal, 330 + 195);
+});
+
+test("calculate_meal_nutrition withholds the total when an item is unresolved",
+    async () => {
+      const tool = toolsByName.get("calculate_meal_nutrition");
+      const result = await tool.execute(NO_CUSTOM, UID, {items: [
+        {foodId: "usda:171477", quantity: 200, unit: "g"},
+        {query: "koshari", quantity: 1, unit: "bowl"}, // notFound
+      ]});
+      assert.equal(result.allResolved, false);
+      // A partial sum would look whole but isn't, so there is no total.
+      assert.equal(result.total, null);
+      assert.equal(result.items[1].outcome, "notFound");
+    });
+
+test("calculate_meal_nutrition flags a bad item rather than throwing",
+    async () => {
+      const tool = toolsByName.get("calculate_meal_nutrition");
+      const result = await tool.execute(NO_CUSTOM, UID, {items: [
+        {query: "egg whole raw fresh", quantity: 0, unit: "g"}, // invalid qty
+      ]});
+      assert.equal(result.allResolved, false);
+      assert.equal(result.items[0].outcome, "invalid");
+    });

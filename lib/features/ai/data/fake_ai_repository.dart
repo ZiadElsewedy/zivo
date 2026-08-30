@@ -545,6 +545,12 @@ class FakeAiRepository implements AiRepository {
         return 'Deleted expense${f['target'] != null ? ' · ${f['target']}' : ''}';
       case 'mark_meal_eaten':
         return 'Marked ${f['meal']} ${f['state']}.';
+      case 'log_food':
+        final count = f['count'];
+        final total = f['totalKcal'];
+        final foods = count is int ? '$count food${count == 1 ? '' : 's'}'
+            : 'food';
+        return 'Logged $foods${total != null ? ' · $total kcal' : ''}';
       default:
         return 'Done.';
     }

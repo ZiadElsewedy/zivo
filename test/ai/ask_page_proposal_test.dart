@@ -135,4 +135,97 @@ void main() {
     expect(find.text('Lunch'), findsOneWidget);
     expect(find.text('eaten'), findsOneWidget);
   });
+
+  testWidgets('a log_food proposal renders the food card with the amount', (
+    tester,
+  ) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
+    final conversationId = await ai.createConversation();
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    // The server-computed shape: items carry name/quantity/unit/kcal, plus a
+    // total. The card never shows a calorie the model invented — these come
+    // from the tool payload.
+    ai.proposeAction(
+      conversationId: conversationId,
+      kind: 'log_food',
+      summary: 'Log Chicken breast (200 g) · 330 kcal',
+      fields: {
+        'items': [
+          {'name': 'Chicken breast', 'quantity': 200, 'unit': 'g', 'kcal': 330},
+        ],
+        'totalKcal': 330,
+        'count': 1,
+      },
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Log food'), findsOneWidget);
+    expect(find.text('Chicken breast'), findsOneWidget); // the headline
+    expect(find.text('Chicken breast · 200 g'), findsOneWidget); // the chip
+    expect(find.byKey(const Key('proposal-confirm')), findsOneWidget);
+  });
+
+  testWidgets('a multi-item log_food proposal shows each food and a total', (
+    tester,
+  ) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
+    final conversationId = await ai.createConversation();
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    ai.proposeAction(
+      conversationId: conversationId,
+      kind: 'log_food',
+      summary: 'Log 2 foods · 500 kcal',
+      fields: {
+        'items': [
+          {'name': 'Egg', 'quantity': 2, 'unit': 'piece', 'kcal': 140},
+          {'name': 'Rice', 'quantity': 150, 'unit': 'g', 'kcal': 360},
+        ],
+        'totalKcal': 500,
+        'count': 2,
+      },
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 foods'), findsOneWidget); // the headline
+    expect(find.text('Egg · 2 piece'), findsOneWidget);
+    expect(find.text('Rice · 150 g'), findsOneWidget);
+    expect(find.text('500 kcal'), findsOneWidget); // the total chip
+  });
+
+  testWidgets('Confirming a log_food proposal appends its result line', (
+    tester,
+  ) async {
+    final ai = FakeAiRepository();
+    addTearDown(ai.dispose);
+    final conversationId = await ai.createConversation();
+    await tester.pumpWidget(_host(ai));
+    await tester.pumpAndSettle();
+
+    ai.proposeAction(
+      conversationId: conversationId,
+      kind: 'log_food',
+      summary: 'Log Chicken breast (200 g) · 330 kcal',
+      fields: {
+        'items': [
+          {'name': 'Chicken breast', 'quantity': 200, 'unit': 'g', 'kcal': 330},
+        ],
+        'totalKcal': 330,
+        'count': 1,
+      },
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('proposal-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('proposal-confirm')), findsNothing);
+    expect(find.text('Confirmed'), findsOneWidget);
+    expect(find.text('Logged 1 food · 330 kcal'), findsOneWidget);
+  });
 }

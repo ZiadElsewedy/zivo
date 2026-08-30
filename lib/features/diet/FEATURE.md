@@ -55,7 +55,11 @@ USDA). Stored at `foodLogs/` and `customFoods/`. UI:
 becomes calories). Implementation: `data/bundled_food_database.dart` over
 [`assets/nutrition/foods.json`](../../../assets/nutrition/README.md), a USDA subset.
 Mirrored server-side in `functions/nutrition/food_db.js`; both run the shared golden
-vectors in `test/fixtures/nutrition_vectors.json`.
+vectors in `test/fixtures/nutrition_vectors.json`. The **AI coach** reaches the same
+data through `functions/nutrition/resolve.js` (the server mirror of
+`CompositeFoodResolver`) behind the `resolve_food` / `calculate_meal_nutrition` read tools
+and the `log_food` write tool — so "I ate two eggs and 100g of rice" in chat resolves,
+prices and logs through the identical rules the screen uses, never a model guess.
 
 **Targets (the objective):** `diet_goal.dart` (`DietGoal`) + `nutrition_targets.dart`
 (`NutritionTargets`, `TargetSource`, `TargetBasis`, `kMinimumSafeCalories`) +
