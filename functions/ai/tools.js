@@ -17,7 +17,12 @@
  *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
  *    flag, per item and aggregated onto the day totals, so the coach can say
  *    "about" where the number is a guess instead of quoting it as measured.
- * 3. **"Target" is never implied.** The user's own objective
+ * 3. **Consumption is the LOG, not the plan.** What the user recorded eating
+ *    (`foodLogs`) is what `consumed`/`remaining` are computed from. Each entry
+ *    says whether a person logged it or the app materialised it from a ticked
+ *    meal, and the payload says which kind the day is made of — "you ate 1,850"
+ *    and "the plan values what you ticked at 1,850" are different claims.
+ * 4. **"Target" is never implied.** The user's own objective
  *    (`dietTargets/current`) is reported as `targets`, and `null` when they
  *    haven't set one; a plan day's own sum is reported separately as
  *    `nutrition.target` and never passed off as a goal anyone chose. Where
@@ -158,21 +163,61 @@ function targetsPayload(targets) {
  * every one of these numbers: ZIVO has no food log yet, so "consumed" means
  * "the planned figures of the meals you ticked", not "what you ate".
  * @param {?Object} targets
- * @param {!Object} consumedNutrition A `dayNutrition` result for eaten meals.
+ * @param {!Object} consumed A `consumedFrom` result.
  * @return {?Object}
  */
-function remainingPayload(targets, consumedNutrition) {
+function remainingPayload(targets, consumed) {
   if (!targets) return null;
   const left = (target, eaten) =>
     target === null || target === undefined ? null :
       Math.round((target - (eaten || 0)) * 10) / 10;
   return {
-    kcal: targets.calories - (consumedNutrition.kcal || 0),
-    proteinG: left(targets.proteinG, consumedNutrition.proteinG),
-    carbsG: left(targets.carbsG, consumedNutrition.carbsG),
-    fatG: left(targets.fatG, consumedNutrition.fatG),
-    consumedFrom: "ticked meals in the plan, not a food log",
-    estimated: consumedNutrition.estimated === true,
+    kcal: targets.calories - (consumed.kcal || 0),
+    proteinG: left(targets.proteinG, consumed.proteinG),
+    carbsG: left(targets.carbsG, consumed.carbsG),
+    fatG: left(targets.fatG, consumed.fatG),
+    consumedFrom: consumed.basis || "ticked meals in the plan",
+    estimated: consumed.estimated === true,
+  };
+}
+
+/**
+ * Day totals over food-log entries, plus the honesty flags a caller needs to
+ * describe them truthfully. Mirrors the Dart `totalsOf`.
+ * @param {!Array<Object>} entries
+ * @return {!Object}
+ */
+function logTotals(entries) {
+  const round1 = (v) => Math.round(v * 10) / 10;
+  let kcal = 0;
+  let proteinG = 0;
+  let carbsG = 0;
+  let fatG = 0;
+  let logged = 0;
+  let planned = 0;
+  let estimated = false;
+  for (const e of entries) {
+    kcal += e.kcal;
+    proteinG += e.proteinG;
+    carbsG += e.carbsG;
+    fatG += e.fatG;
+    if (e.estimated) estimated = true;
+    if (e.origin === "logged") logged++;
+    else planned++;
+  }
+  return {
+    kcal,
+    proteinG: round1(proteinG),
+    carbsG: round1(carbsG),
+    fatG: round1(fatG),
+    estimated,
+    entryCount: entries.length,
+    loggedCount: logged,
+    plannedMealCount: planned,
+    // The caveat that has to travel with the numbers.
+    basis: entries.length === 0 ? "nothing logged" :
+      logged === 0 ? "materialised from ticked plan meals, not weighed" :
+        "logged by the user",
   };
 }
 
@@ -186,16 +231,44 @@ function remainingPayload(targets, consumedNutrition) {
  * @return {!Promise<?{plan: !Object, dietDay: !Object, eaten: !Set<string>}>}
  */
 async function loadDietDay(store, uid, date, offsetMinutes) {
-  const plan = await store.getActiveDietPlan(uid);
-  if (!plan) return {plan: null, dietDay: null, eaten: new Set()};
+  const key = dayKeyFor(date, offsetMinutes);
+  const [plan, log] = await Promise.all([
+    store.getActiveDietPlan(uid),
+    store.listFoodLogs(uid, key),
+  ]);
+  if (!plan) return {plan: null, dietDay: null, eaten: new Set(), log};
   const dietDay = resolveDietDay(plan.days, date, offsetMinutes);
-  if (!dietDay) return {plan, dietDay: null, eaten: new Set()};
-  const entries = await store.listDietEntries(
-      uid, dayKeyFor(date, offsetMinutes));
+  if (!dietDay) return {plan, dietDay: null, eaten: new Set(), log};
+  const entries = await store.listDietEntries(uid, key);
   return {
     plan,
     dietDay,
     eaten: new Set(entries.filter((e) => e.eaten).map((e) => e.mealId)),
+    log,
+  };
+}
+
+/**
+ * What the user consumed, preferring the FOOD LOG and falling back to the
+ * planned figures of ticked meals only when the log is empty (a day recorded
+ * before the log existed). The `basis` field says which it was, so the coach
+ * can never pass an assumption off as a measurement.
+ * @param {!Array<Object>} log
+ * @param {!Object} plannedConsumed A `dayNutrition` result for eaten meals.
+ * @return {!Object}
+ */
+function consumedFrom(log, plannedConsumed) {
+  if (log.length > 0) return logTotals(log);
+  return {
+    kcal: plannedConsumed.kcal || 0,
+    proteinG: plannedConsumed.proteinG,
+    carbsG: plannedConsumed.carbsG,
+    fatG: plannedConsumed.fatG,
+    estimated: plannedConsumed.estimated === true,
+    entryCount: 0,
+    loggedCount: 0,
+    plannedMealCount: 0,
+    basis: "ticked plan meals (nothing logged that day)",
   };
 }
 
@@ -225,16 +298,17 @@ const TODAY_TOOL = {
       store.getDietTargets(uid),
     ]);
 
-    const {plan, dietDay: day, eaten} = dietDay;
+    const {plan, dietDay: day, eaten, log} = dietDay;
+    const consumed = consumedFrom(
+        log, plan && day ? adherenceFor(day.meals, eaten).consumed :
+          dayNutrition([]));
+    const remaining = remainingPayload(targets, consumed);
     let diet = null;
-    let remaining = null;
     if (plan && day) {
-      const nutrition = adherenceFor(day.meals, eaten);
-      remaining = remainingPayload(targets, nutrition.consumed);
       diet = {
         planName: plan.name,
         dayLabel: day.label,
-        nutrition,
+        nutrition: adherenceFor(day.meals, eaten),
         meals: day.meals.map((m) => mealSummary(m, eaten)),
       };
     }
@@ -247,6 +321,7 @@ const TODAY_TOOL = {
     return {
       date: dayKeyFor(now, offsetMinutes),
       targets: targetsPayload(targets),
+      consumed,
       remaining,
       diet,
       workouts: workouts.map((w) => ({
@@ -390,30 +465,45 @@ const DIET_TOOL = {
       new Date(`${requested[0]}T12:00:00Z`) : now;
     const dateOffset = requested ? 0 : offsetMinutes;
 
-    const [{plan, dietDay, eaten}, targets] = await Promise.all([
+    const [{plan, dietDay, eaten, log}, targets] = await Promise.all([
       loadDietDay(store, uid, date, dateOffset),
       store.getDietTargets(uid),
     ]);
     const dateKey = dayKeyFor(date, dateOffset);
     const targetsBlock = targetsPayload(targets);
-    if (!plan) return {date: dateKey, targets: targetsBlock, plan: null};
-    if (!dietDay) {
-      return {
-        date: dateKey,
-        targets: targetsBlock,
-        plan: plan.name,
-        day: null,
-      };
-    }
+    const planned = dietDay ?
+      adherenceFor(dietDay.meals, eaten) :
+      {target: dayNutrition([]), consumed: dayNutrition([])};
+    const consumed = consumedFrom(log, planned.consumed);
 
-    const nutrition = adherenceFor(dietDay.meals, eaten);
-    return {
+    const head = {
       date: dateKey,
       targets: targetsBlock,
-      remaining: remainingPayload(targets, nutrition.consumed),
+      consumed,
+      remaining: remainingPayload(targets, consumed),
+      // Every logged item, so the coach can talk about what was actually
+      // eaten rather than only about totals.
+      logEntries: log.map((e) => ({
+        food: e.foodName,
+        quantity: e.quantity,
+        unit: e.unit,
+        kcal: e.kcal,
+        proteinG: e.proteinG,
+        carbsG: e.carbsG,
+        fatG: e.fatG,
+        source: e.source,
+        origin: e.origin,
+        estimated: e.estimated,
+      })),
+    };
+    if (!plan) return {...head, plan: null};
+    if (!dietDay) return {...head, plan: plan.name, day: null};
+
+    return {
+      ...head,
       plan: plan.name,
       day: dietDay.label,
-      nutrition,
+      nutrition: planned,
       meals: dietDay.meals.map((m) => ({
         ...mealSummary(m, eaten),
         items: m.items.map((it) => ({

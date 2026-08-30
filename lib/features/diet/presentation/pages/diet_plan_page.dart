@@ -347,24 +347,6 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
               onEdit: () => _openTargets(context, targets),
             ),
           const SizedBox(height: 20),
-          TrainSectionLabel(
-            'Eaten today',
-            trailing: log.isEmpty ? null : '${log.length}',
-          ),
-          const SizedBox(height: 11),
-          _LogFoodButton(onTap: _logFood),
-          if (log.isNotEmpty) ...[
-            const SizedBox(height: 9),
-            for (final entry in log)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: _LogEntryRow(
-                  entry: entry,
-                  onRemove: () => diet.removeFoodLogEntry(entry.id),
-                ),
-              ),
-          ],
-          const SizedBox(height: 22),
           const TrainSectionLabel('Meals'),
           const SizedBox(height: 11),
           for (final meal in [
@@ -405,6 +387,28 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
                 ),
               ),
           ],
+        ],
+        const SizedBox(height: 24),
+        // The ledger sits directly under the meals that feed it: ticking a
+        // meal materialises its items here, and anything else eaten is added
+        // by hand. Below the meals, not above — ticking is still the primary
+        // interaction on this screen.
+        TrainSectionLabel(
+          'Eaten today',
+          trailing: log.isEmpty ? null : '${log.length}',
+        ),
+        const SizedBox(height: 11),
+        _LogFoodButton(onTap: _logFood),
+        if (log.isNotEmpty) ...[
+          const SizedBox(height: 9),
+          for (final entry in log)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: _LogEntryRow(
+                entry: entry,
+                onRemove: () => diet.removeFoodLogEntry(entry.id),
+              ),
+            ),
         ],
         const SizedBox(height: 24),
         TrainSectionLabel(

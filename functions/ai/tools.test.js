@@ -63,13 +63,17 @@ test("get_diet returns null plan when there is none", async () => {
   const store = {
     getActiveDietPlan: async () => null,
     getDietTargets: async () => null,
+    listFoodLogs: async () => [],
   };
 
   const result = await tool.execute(store, UID, {}, NOW);
 
   // The date is always stated: nothing else in a turn tells the model what
   // day the answer is about.
-  assert.deepEqual(result, {date: "2026-08-17", targets: null, plan: null});
+  assert.equal(result.date, "2026-08-17");
+  assert.equal(result.targets, null);
+  assert.equal(result.plan, null);
+  assert.deepEqual(result.logEntries, []);
 });
 
 const DIET_PLAN = {
@@ -107,6 +111,7 @@ test("get_diet reports target-vs-consumed nutrition for the resolved day",
       const store = {
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => null,
+        listFoodLogs: async () => [],
         listDietEntries: async (uid, dayKey) => {
           assert.equal(uid, UID);
           assert.equal(dayKey, "2026-08-17");
@@ -132,6 +137,7 @@ test("get_diet leaves nutrients null when no item states them", async () => {
   const tool = toolsByName.get("get_diet");
   const store = {
     getDietTargets: async () => null,
+    listFoodLogs: async () => [],
     getActiveDietPlan: async () => ({
       name: "Handwritten",
       status: "active",
@@ -166,6 +172,7 @@ test("get_today's diet snapshot carries per-meal kcal and adherence totals",
         listWorkouts: async () => [],
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => null,
+        listFoodLogs: async () => [],
         listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
       };
 
@@ -192,6 +199,7 @@ test("get_today serializes diet BEFORE workouts so truncation can't eat it",
         listWorkouts: async () => [{title: "Push", performedAt: NOW}],
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => null,
+        listFoodLogs: async () => [],
         listDietEntries: async () => [],
       };
 
@@ -199,7 +207,8 @@ test("get_today serializes diet BEFORE workouts so truncation can't eat it",
       const keys = Object.keys(result);
 
       assert.deepEqual(
-          keys, ["date", "targets", "remaining", "diet", "workouts"]);
+          keys,
+          ["date", "targets", "consumed", "remaining", "diet", "workouts"]);
     });
 
 test("the registry carries no tools for deleted features", async () => {
@@ -220,6 +229,7 @@ test("diet figures carry their estimated provenance to the model",
       const tool = toolsByName.get("get_diet");
       const store = {
         getDietTargets: async () => null,
+        listFoodLogs: async () => [],
         getActiveDietPlan: async () => ({
           name: "Imported",
           status: "active",
@@ -261,6 +271,7 @@ test("get_diet resolves 'today' in the user's timezone, not the server's",
       const store = {
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => null,
+        listFoodLogs: async () => [],
         listDietEntries: async (uid, dayKey) => {
           asked.push(dayKey);
           return [];
@@ -291,6 +302,7 @@ test("get_diet reports the user's OWN targets and what's left of them",
       const store = {
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => TARGETS,
+        listFoodLogs: async () => [],
         listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
       };
 
@@ -303,9 +315,9 @@ test("get_diet reports the user's OWN targets and what's left of them",
       assert.equal(result.remaining.carbsG, 212);
       assert.equal(result.remaining.fatG, 69);
       assert.equal(result.remaining.estimated, false);
-      // The honest caveat travels with the numbers: this is what was TICKED,
-      // not what was eaten.
-      assert.match(result.remaining.consumedFrom, /ticked meals/);
+      // The honest caveat travels with the numbers: nothing was logged that
+      // day, so this is what was TICKED, not what was eaten.
+      assert.match(result.remaining.consumedFrom, /nothing logged/);
     });
 
 test("a macro with no target stays null in remaining — never zero",
@@ -320,6 +332,7 @@ test("a macro with no target stays null in remaining — never zero",
           goal: "maintain", calories: 2000, proteinG: 150,
           carbsG: null, fatG: null, source: "manual",
         }),
+        listFoodLogs: async () => [],
         listDietEntries: async () => [],
       };
 
@@ -337,6 +350,7 @@ test("targets are null when the user hasn't set an objective", async () => {
   const store = {
     getActiveDietPlan: async () => DIET_PLAN,
     getDietTargets: async () => null,
+    listFoodLogs: async () => [],
     listDietEntries: async () => [],
   };
 
@@ -355,6 +369,7 @@ test("get_today leads with the targets, then what's left, then the plan",
         listWorkouts: async () => [],
         getActiveDietPlan: async () => DIET_PLAN,
         getDietTargets: async () => TARGETS,
+        listFoodLogs: async () => [],
         listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
       };
 
@@ -364,7 +379,7 @@ test("get_today leads with the targets, then what's left, then the plan",
       assert.equal(result.remaining.kcal, 1980);
       assert.deepEqual(
           Object.keys(result),
-          ["date", "targets", "remaining", "diet", "workouts"]);
+          ["date", "targets", "consumed", "remaining", "diet", "workouts"]);
     });
 
 test("remaining goes negative rather than clamping at zero", async () => {
@@ -377,6 +392,7 @@ test("remaining goes negative rather than clamping at zero", async () => {
       goal: "fatLoss", calories: 400, proteinG: 10,
       carbsG: null, fatG: null, source: "manual",
     }),
+    listFoodLogs: async () => [],
     listDietEntries: async () => [
       {mealId: "breakfast", eaten: true},
       {mealId: "dinner", eaten: true},
@@ -387,4 +403,99 @@ test("remaining goes negative rather than clamping at zero", async () => {
 
   assert.equal(result.remaining.kcal, 400 - 550);
   assert.equal(result.remaining.proteinG, 10 - 70);
+});
+
+const LOG_ENTRY = {
+  id: "e1", foodId: "usda:171477", foodName: "Chicken breast, roasted",
+  quantity: 200, unit: "g", grams: 200,
+  kcal: 330, proteinG: 62, carbsG: 0, fatG: 7.2,
+  source: "usdaFdc", sourceRef: "171477", origin: "logged",
+  estimated: false, mealId: null, loggedAt: NOW,
+};
+
+test("consumption comes from the food log when there is one", async () => {
+  // The log is what the user actually recorded. Before it existed, "consumed"
+  // was the planned figures of ticked meals — an assumption wearing a number's
+  // clothes (docs/DIET_COACH_AUDIT.md, T6).
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => DIET_PLAN,
+    getDietTargets: async () => TARGETS,
+    // Breakfast is ticked (220 kcal planned) but the log says otherwise.
+    listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+    listFoodLogs: async () => [LOG_ENTRY],
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+
+  assert.equal(result.consumed.kcal, 330, "the log wins over the plan");
+  assert.equal(result.consumed.loggedCount, 1);
+  assert.equal(result.remaining.kcal, 2200 - 330);
+  assert.match(result.consumed.basis, /logged by the user/);
+  // And the coach can see the items, not just the totals.
+  assert.equal(result.logEntries.length, 1);
+  assert.equal(result.logEntries[0].food, "Chicken breast, roasted");
+});
+
+test("a day of only ticked meals says so rather than claiming a measurement",
+    async () => {
+      const tool = toolsByName.get("get_diet");
+      const store = {
+        getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => TARGETS,
+        listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+        listFoodLogs: async () => [{
+          ...LOG_ENTRY, id: "p1", origin: "plannedMeal", mealId: "breakfast",
+          kcal: 220, proteinG: 8, carbsG: 38, fatG: 4,
+          source: "dietPlan", estimated: true,
+        }],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.equal(result.consumed.kcal, 220);
+      assert.equal(result.consumed.loggedCount, 0);
+      assert.equal(result.consumed.plannedMealCount, 1);
+      assert.match(
+          result.consumed.basis, /materialised from ticked plan meals/);
+      // The estimate provenance survives the trip through the ledger.
+      assert.equal(result.consumed.estimated, true);
+      assert.equal(result.remaining.estimated, true);
+    });
+
+test("an empty log on a day with ticked meals falls back, and admits it",
+    async () => {
+      // Days recorded before the log existed. Falling back is right; passing
+      // the fallback off as a measurement is not.
+      const tool = toolsByName.get("get_diet");
+      const store = {
+        getActiveDietPlan: async () => DIET_PLAN,
+        getDietTargets: async () => TARGETS,
+        listDietEntries: async () => [{mealId: "breakfast", eaten: true}],
+        listFoodLogs: async () => [],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+
+      assert.equal(result.consumed.kcal, 220);
+      assert.equal(result.consumed.entryCount, 0);
+      assert.match(result.consumed.basis, /nothing logged/);
+    });
+
+test("logged food counts even with no plan at all", async () => {
+  // Someone with no diet plan can still log what they ate and see it against
+  // their target.
+  const tool = toolsByName.get("get_diet");
+  const store = {
+    getActiveDietPlan: async () => null,
+    getDietTargets: async () => TARGETS,
+    listDietEntries: async () => [],
+    listFoodLogs: async () => [LOG_ENTRY],
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+
+  assert.equal(result.plan, null);
+  assert.equal(result.consumed.kcal, 330);
+  assert.equal(result.remaining.kcal, 1870);
 });

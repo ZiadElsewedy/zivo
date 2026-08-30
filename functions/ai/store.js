@@ -153,6 +153,48 @@ class FirestoreStore {
   }
 
   /**
+   * The user's food log for one day — what they actually recorded eating.
+   *
+   * This is the consumption ledger. An entry is either something the user
+   * logged (`origin: 'logged'`) or something materialised from a planned meal
+   * they ticked (`origin: 'plannedMeal'`), and the difference matters: "you
+   * ate 1,850 kcal" and "the plan values what you ticked at 1,850" are
+   * different claims. An EMPTY log means nothing was recorded that day, not
+   * that nothing was eaten.
+   * @param {string} uid
+   * @param {string} dayKey
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listFoodLogs(uid, dayKey) {
+    const snap = await this._user(uid)
+        .collection("foodLogs")
+        .where("dayKey", "==", dayKey)
+        .get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      return {
+        id: doc.id,
+        foodId: d.foodId || "",
+        foodName: d.foodName || "",
+        quantity: num(d.quantity),
+        unit: d.unit || "g",
+        grams: num(d.grams),
+        kcal: Math.round(num(d.kcal)),
+        proteinG: num(d.proteinG),
+        carbsG: num(d.carbsG),
+        fatG: num(d.fatG),
+        source: d.source || "dietPlan",
+        sourceRef: d.sourceRef || "",
+        origin: d.origin === "logged" ? "logged" : "plannedMeal",
+        estimated: d.estimated === true,
+        mealId: d.mealId || null,
+        loggedAt: toDate(d.loggedAt),
+      };
+    });
+  }
+
+  /**
    * @param {string} uid
    * @param {string} dayKey
    * @return {!Promise<!Array<Object>>}

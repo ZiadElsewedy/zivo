@@ -458,7 +458,9 @@ test("the system prompt forbids inventing nutrition figures", async () => {
   // does not make an invented number safe.
   assert.doesNotMatch(SYSTEM_PROMPT, /when you estimate calories or macros/i);
   assert.match(SYSTEM_PROMPT, /must come from a tool result in THIS turn/);
-  assert.match(SYSTEM_PROMPT, /NO food database/);
+  // A catalog exists now, but the model still may not price a food itself.
+  assert.match(
+      SYSTEM_PROMPT, /you still cannot tell them what it\n {2}came to/);
   // And it must say what to do instead of guessing.
   assert.match(SYSTEM_PROMPT, /say you don't have it/i);
 });
@@ -477,11 +479,30 @@ test("the system prompt keeps the user's goal separate from the plan's sum",
 
 test("the system prompt states what 'remaining' is actually measuring",
     async () => {
-      // Until a food log exists, remaining is derived from ticked meals. The
-      // coach has to be able to say that rather than implying it measured
-      // what the user ate.
-      assert.match(SYSTEM_PROMPT, /meals the user TICKED OFF/);
-      assert.match(SYSTEM_PROMPT, /ZIVO has no food log yet/);
+      // It measures the food log — and the coach has to say which kind of day
+      // it is rather than implying every total is a measurement.
+      assert.match(SYSTEM_PROMPT, /come from the user's FOOD LOG/);
+      assert.match(
+          SYSTEM_PROMPT, /your plan values\n {4}what you've ticked at N/);
+    });
+
+test("the system prompt makes the coach read the log's basis before it " +
+    "characterises the numbers", async () => {
+  // The three kinds of day are genuinely different claims, and conflating them
+  // is how a coach ends up telling someone to eat when they already have.
+  assert.match(SYSTEM_PROMPT, /"basis" field says what kind of day it is/);
+  assert.match(SYSTEM_PROMPT, /logged by the user/);
+  assert.match(SYSTEM_PROMPT, /not a measurement/);
+  assert.match(SYSTEM_PROMPT, /An empty log means nothing was recorded/);
+});
+
+test("the system prompt still refuses to price a food the app didn't resolve",
+    async () => {
+      // A catalog exists now, but the MODEL doesn't get to use its own
+      // knowledge in place of it.
+      assert.match(SYSTEM_PROMPT, /YOU do\n {2}not look things up in it/);
+      assert.match(
+          SYSTEM_PROMPT, /rather than producing a figure from your own/);
     });
 
 test("the system prompt explains what an estimated figure means", async () => {
