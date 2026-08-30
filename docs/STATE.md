@@ -200,6 +200,41 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-08-30 — **Diet Coach Phase 4: one `DietState`, provably identical on both sides.**
+  The Diet screen, Today's glance and the coach were each deriving "how am I doing" from
+  raw plan/log reads. Now there is one object — goal · targets · consumed (with its
+  `ConsumedBasis`) · remaining · meals · a week of history · and a `DietQuality` block
+  naming what the app does **not** know — built by one pure function, `buildDietState`,
+  which is where the ordering rules now live (supplements never count; the log beats the
+  plan; a missing target is null, not zero; an empty log is "nothing recorded", not a
+  measured zero). `functions/diet/state.js` mirrors it, and
+  `test/fixtures/diet_state_vectors.json` (10 state cases + **28 day resolutions** across
+  all seven weekdays) is run by **both** suites — so `dayForDate` and `resolveDietDay` are
+  now provably the same rule, closing the half of T13 that Phase 2 left open. The diet tool
+  payload **is** the state, and the prompt reads its `quality` flags. Phase 1's
+  `TargetProgress` was the stopgap this replaces and is **deleted** — keeping both would
+  have been the two-implementations problem in miniature. `get_today` also gained a week of
+  history in a single range query (no composite index, no seven round-trips).
+  `flutter analyze` clean · Flutter **846 pass** · functions **259 pass** · functions lint
+  clean · rules **99 pass**. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
+- 2026-08-30 — **Diet Coach Phase 3: a real food log.** Consumption was a per-meal
+  checkbox: ticking a meal credited its *planned* macros whether you ate half of it or
+  swapped the rice, so "consumed" was an assumption wearing a number's clothes. Now
+  `FoodLogEntry` (at `foodLogs/`, with its own rule) records what was actually eaten —
+  food reference, quantity, resolved mass, and the nutrition computed at log time and
+  **stored**, so rebuilding the catalog can't silently rewrite a past day. `origin`
+  separates *logged by the user* from *materialised from a ticked plan meal*, and that
+  distinction now travels all the way to the prompt: the coach must read `consumed.basis`
+  before saying "you ate" — and an empty log means nothing was **recorded**, not that
+  nothing was eaten. Ticking a meal is unchanged for the user but writes both
+  `dietEntries` (still the tick state) and one log entry per item; un-ticking removes
+  exactly those. `CustomFood` + `CompositeFoodResolver` close the USDA coverage gap: the
+  logging sheet's not-found state offers to define the food instead of approximating it.
+  The sheet only offers measures the source recorded for that exact food and refuses the
+  rest with a reason. Also added `test/support/diet_repository_stub.dart` so the next
+  repository addition doesn't break every hand-written fake.
+  `flutter analyze` clean · Flutter **840 pass** · functions **251 pass** · functions lint
+  clean · rules **99 pass**. Detail: [DIET_COACH_AUDIT.md](DIET_COACH_AUDIT.md).
 - 2026-08-30 — **Diet Coach Phase 2: the nutrition catalog (the missing dependency).**
   ZIVO had no way to know what any food was worth except asking a model. It now ships
   **7,308 foods (1.0 MB)** in `assets/nutrition/foods.json`, built by

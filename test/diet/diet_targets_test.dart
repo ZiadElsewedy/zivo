@@ -6,7 +6,8 @@ import 'package:zivo/features/diet/domain/food_item.dart';
 import 'package:zivo/features/diet/domain/meal.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/target_calculator.dart';
-import 'package:zivo/features/diet/domain/target_progress.dart';
+import 'package:zivo/features/diet/domain/diet_state.dart';
+import 'package:zivo/features/diet/domain/diet_state_builder.dart';
 
 NutritionTargets _targets({
   DietGoal goal = DietGoal.fatLoss,
@@ -219,14 +220,18 @@ void main() {
   group('buildTargetProgress', () {
     test('measures the target against what was ticked, ignoring supplements',
         () {
-      final progress = buildTargetProgress(
+      final progress = buildDietState(
+        dayKey: '2026-08-30',
+        weekday: 7,
+        planName: null,
         targets: _targets(),
         day: _day(),
-        consumed: {'m1', 'supps'},
+        consumedMealIds: {'m1', 'supps'},
+        log: const [],
       );
 
       // Breakfast counts (400); the supplement's 20 kcal never does.
-      expect(progress.consumedKcal, 400);
+      expect(progress.consumed.kcal, 400);
       expect(progress.remainingKcal, 1800);
       expect(progress.overTarget, isFalse);
       expect(progress.mealsEaten, 1);
@@ -237,12 +242,16 @@ void main() {
 
     test('goes over rather than clamping — "over" is a state a coach names',
         () {
-      final progress = buildTargetProgress(
+      final progress = buildDietState(
+        dayKey: '2026-08-30',
+        weekday: 7,
+        planName: null,
         targets: _targets(calories: 700),
         day: _day(),
-        consumed: {'m1', 'm2'},
+        consumedMealIds: {'m1', 'm2'},
+        log: const [],
       );
-      expect(progress.consumedKcal, 900);
+      expect(progress.consumed.kcal, 900);
       expect(progress.remainingKcal, -200);
       expect(progress.overTarget, isTrue);
       expect(progress.calorieFraction, greaterThan(1));
@@ -251,10 +260,14 @@ void main() {
     test('a macro with no target has no remaining — never zero', () {
       // "You didn't set a carb target" and "you have 0g left" are opposite
       // statements.
-      final progress = buildTargetProgress(
+      final progress = buildDietState(
+        dayKey: '2026-08-30',
+        weekday: 7,
+        planName: null,
         targets: _targets(carbsG: null, fatG: null),
         day: _day(),
-        consumed: {'m1'},
+        consumedMealIds: {'m1'},
+        log: const [],
       );
       expect(progress.carbs.target, isNull);
       expect(progress.carbs.remaining, isNull);
@@ -286,43 +299,59 @@ void main() {
       );
 
       expect(
-        buildTargetProgress(
+        buildDietState(
+          dayKey: '2026-08-30',
+          weekday: 7,
+          planName: null,
           targets: _targets(),
           day: estimatedDay,
-          consumed: const <String>{},
-        ).estimated,
+          consumedMealIds: const <String>{},
+        log: const [],
+        ).consumed.estimated,
         isFalse,
         reason: 'nothing ticked yet, so nothing estimated has been counted',
       );
       expect(
-        buildTargetProgress(
+        buildDietState(
+          dayKey: '2026-08-30',
+          weekday: 7,
+          planName: null,
           targets: _targets(),
           day: estimatedDay,
-          consumed: {'m1'},
-        ).estimated,
+          consumedMealIds: {'m1'},
+          log: const [],
+        ).consumed.estimated,
         isTrue,
       );
     });
 
     test('a day with no plan still reports the target honestly', () {
-      final progress = buildTargetProgress(
+      final progress = buildDietState(
+        dayKey: '2026-08-30',
+        weekday: 7,
+        planName: null,
         targets: _targets(),
         day: null,
-        consumed: const <String>{},
+        consumedMealIds: const <String>{},
+        log: const [],
       );
-      expect(progress.consumedKcal, 0);
+      expect(progress.consumed.kcal, 0);
       expect(progress.remainingKcal, 2200);
       expect(progress.mealsTotal, 0);
     });
 
     test('consumed is still sourced from ticked meals, and says so', () {
       // The honest caveat until a real food log exists (Phase 3).
-      final progress = buildTargetProgress(
+      final progress = buildDietState(
+        dayKey: '2026-08-30',
+        weekday: 7,
+        planName: null,
         targets: _targets(),
         day: _day(),
-        consumed: {'m1'},
+        consumedMealIds: {'m1'},
+        log: const [],
       );
-      expect(progress.consumedIsFromTickedMeals, isTrue);
+      expect(progress.consumed.basis, ConsumedBasis.tickedPlanMeals);
     });
   });
 

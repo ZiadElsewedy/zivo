@@ -26,6 +26,20 @@
 Ledger: `diet_entry.dart`, `diet_summary.dart`. Import: `diet_import_result.dart`,
 `diet_plan_from_import.dart`, `diet_source.dart` (`DietSource.pdf`), `diet_plan_status.dart`.
 
+**`DietState` — the one structured picture, and the thing to reach for first:**
+`domain/diet_state.dart` + `diet_state_builder.dart`. Goal · targets · consumed (with its
+`ConsumedBasis`) · remaining · meals · history · `DietQuality` flags. The Diet screen
+renders it, Today's glance renders it, and the coach is handed it — mirrored in
+`functions/diet/state.js` and pinned by `test/fixtures/diet_state_vectors.json`, which
+**both** suites run. Build new diet surfaces from this, not from raw plan/log reads.
+
+**The food log (what was actually eaten):** `domain/nutrition/food_log_entry.dart`
+(`FoodLogEntry`, `FoodLogOrigin`, `totalsOf`), `planned_meal_log.dart`
+(`entriesForPlannedMeal` — ticking a meal materialises its items into the log),
+`custom_food.dart` + `composite_food_resolver.dart` (the user's own foods, layered over
+USDA). Stored at `foodLogs/` and `customFoods/`. UI:
+`presentation/widgets/log_food_sheet.dart`.
+
 **Nutrition data (the source of truth for what a food is worth):**
 `domain/nutrition/food_reference.dart` (`FoodReference`, `NutritionSource`,
 `FoodPreparation`, `FoodPortion`), `resolved_food.dart` (`FoodMatch` — the sealed
@@ -48,6 +62,14 @@ vectors in `test/fixtures/nutrition_vectors.json`.
   calories/macros; build on them rather than reshaping the model.
 - Diet import mirrors the Workout PDF import pipeline (extractor in `functions/ai/`, review
   UI on device) — keep them parallel.
+- **Consumption is the log, not the plan.** `buildDietState` sums `foodLogs` when
+  the day has any, and falls back to the planned figures of ticked meals only when it
+  doesn't — reporting which through `ConsumedBasis` (`logged` / `tickedPlanMeals` /
+  `nothingLogged`). Ticking a
+  meal writes both `dietEntries` (unchanged, still the tick state) **and** one `foodLogs`
+  entry per item, tagged `origin: plannedMeal` and `source: dietPlan`. Removing one item
+  of a ticked meal leaves it ticked — that is what a half-eaten meal looks like; removing
+  the last one un-ticks it.
 - **A calorie figure enters ZIVO through `FoodResolver` or not at all.** The catalog is
   a build artifact from USDA FoodData Central; every row carries its real `fdcId`, and
   nothing in it was hand-written. `FoodNotFound` and `FoodAmbiguous` are **normal

@@ -6,7 +6,7 @@
 > **Findings are referenced by id (`T1`…`T15`) from `FEATURE.md`s, commit messages and the
 > later phases — keep the ids stable.**
 >
-> Status: **Phases 0, 1 and 2 landed** (2026-08-30). Phases 3–8 are not started.
+> Status: **Phases 0–4 landed** (2026-08-30). Phases 5–8 are not started.
 
 ---
 
@@ -35,14 +35,14 @@ entity (goal + targets).
 | **T3** | Critical | **No goal, no targets, no body context.** Zero hits for goal/TDEE/BMR/deficit in the diet feature. The coach cannot know whether the user is cutting or gaining. | **Fixed** (Phase 1) |
 | **T4** | Critical | **The model didn't know what day it was.** No date in the prompt or messages; `get_today` returned no date; `get_diet` returned `day: "Every day"`. | **Fixed** (Phase 0) |
 | **T5** | High | **Client/server disagreed about "today".** The app writes `dayKey` from device-local time; the server computed it in UTC. A UTC+3 user got yesterday's entries between local 00:00 and 03:00. | **Fixed** (Phase 0) |
-| **T6** | High | **"Consumed" is an assumption, not a measurement.** Ticking a meal credits its *planned* macros. There is no way to log a food; "I ate two eggs and 100 g rice" is unrepresentable. | Open — Phase 3 |
+| **T6** | High | **"Consumed" is an assumption, not a measurement.** Ticking a meal credits its *planned* macros. There is no way to log a food; "I ate two eggs and 100 g rice" is unrepresentable. | **Fixed** (Phase 3) |
 | **T7** | High | **The prompt licensed free-hand estimation** ("when you estimate calories or macros… give a sensible range"). | **Fixed** (Phase 0) |
 | **T8** | High | **Zero output validation.** Nothing compares the reply to the state it read. | Open — Phase 7 |
 | **T9** | High | **`mark_meal_eaten` wrote an unverified meal id.** `validate` only checked it was a string; a hallucinated id created an orphan `dietEntries` doc. | **Fixed** (Phase 0) |
 | **T10** | Medium | **Truncation ate the diet payload first.** Tool results are cut at 6 000 chars from the end, and `get_today` serialized `diet` last. | **Fixed** (Phase 0) |
 | **T11** | Medium | **Four tools for deleted features still shipped** (`get_tasks`, `get_schedule`, `get_university`, `search_notes` — ADR-004), four of them awaited inside `get_today`. | **Fixed** (Phase 0) |
 | **T12** | Medium | **`estimated` was decorative and lossy** — a "~" on one screen, dropped from the AI payloads entirely, reset to false on re-add. | **Fixed** (Phase 0) for display + AI payloads; the re-add reset remains (Phase 2) |
-| **T13** | Medium | **The same nutrition math exists twice**, Dart and JS, agreeing only by comment discipline. No test compares them. | Partly (Phase 2 added shared golden vectors for the *resolver + calculator*); the plan/day totals — Phase 4 |
+| **T13** | Medium | **The same nutrition math exists twice**, Dart and JS, agreeing only by comment discipline. No test compares them. | **Fixed** (Phase 2 for the resolver + calculator, Phase 4 for the state builder and the day resolver) |
 | **T14** | Medium | **Nothing validates nutrition values at any boundary** — no 4/4/9 plausibility check, and `firestore.rules` only required `days is list`. | Partly (Phase 0 tightened `dietEntries`); plan items remain — Phase 2 |
 | **T15** | Medium | **The safety boundary is one prompt sentence.** No detection, no deterministic intercept, no test. | Partly (Phase 1 added a deterministic low-calorie floor on targets); the rest — Phase 7 |
 
@@ -81,8 +81,8 @@ is what makes it safe to reject aggressively.
 | 0 | Stop presenting guesses as facts | T4 T5 T7 T9 T10 T11 T12 | **Done** — see below |
 | 1 | Goal + targets (the missing spine) | T3, part of T15 | **Done** — see below |
 | 2 | Nutrition data source + resolver | T2, part of T13 | **Done** — see below |
-| 3 | A real food log (`foodLogs`) | T6 | Not started |
-| 4 | `DietState` + shared golden vectors | T13 | Not started |
+| 3 | A real food log (`foodLogs`) | T6 | **Done** — see below |
+| 4 | `DietState` + shared golden vectors | T13 | **Done** — see below |
 | 5 | Coaching rules engine | — | Not started |
 | 6 | Re-plumb the AI onto state/resolver tools | T7 at the tool level | Not started |
 | 7 | Advice validator + safety intercept | T8 T15 | Not started |
@@ -269,3 +269,112 @@ check).
 
 **Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`. Note
 the functions bundle now carries the 1 MB catalog.
+
+---
+
+## Phase 3 — what actually landed (2026-08-30)
+
+Consumption stopped being an assumption. "I ate two eggs and 100 g of rice" is
+now representable, and every figure derived from it is traceable.
+
+- **`FoodLogEntry` is the ledger.** One row per thing eaten, carrying the food
+  reference (`foodId` + `sourceRef`), the quantity as given, the mass it
+  resolved to, and the nutrition computed at log time. The figures are **stored,
+  not recomputed on read**: the catalog can be rebuilt, and a past day must not
+  silently change its totals when it is. Persisted at `users/{uid}/foodLogs`
+  with a tight rule and six rule tests.
+- **`origin` keeps two different claims apart.** `logged` means the user
+  recorded it; `plannedMeal` means the app materialised it from a ticked meal.
+  "You ate 1,850 kcal" and "your plan values what you ticked at 1,850" are not
+  the same statement, and every layer — totals, `TargetProgress`, the tool
+  payload, the prompt — can now tell which one it is holding.
+- **Ticking a meal still works, and now means something.** The interaction is
+  unchanged; underneath it writes `dietEntries` (the tick state, untouched, so
+  older builds keep working) **and** one `foodLogs` entry per planned item,
+  tagged `source: dietPlan` with the item's `estimated` flag riding along rather
+  than being laundered into a measurement. Un-ticking removes exactly those
+  entries and never the user's own. Removing one item of a ticked meal leaves it
+  ticked — that is what a half-eaten meal looks like — and removing the last one
+  un-ticks it.
+- **The fallback is explicit.** `buildTargetProgress` sums the log when the day
+  has one, and falls back to the planned figures of ticked meals only when it
+  doesn't (days recorded before the log existed), reporting which through
+  `consumedIsFromTickedMeals`. Server-side the same three cases surface as
+  `consumed.basis`: *logged by the user* / *materialised from ticked plan meals,
+  not weighed* / *nothing logged* — and the prompt now requires the coach to
+  read it before characterising any total. **An empty log means nothing was
+  recorded, not that nothing was eaten**, which is the difference between a
+  coach that helps and one that tells you to eat when you already have.
+- **Custom foods close the USDA gap.** `CustomFood` + `CompositeFoodResolver`
+  layer the user's own foods over the reference catalog, so their "Koshari"
+  beats anything USDA loosely matches and is labelled `userCustom` wherever it
+  surfaces. The logging sheet's not-found state offers to define the food rather
+  than approximating it. A deleted custom food resolves to null, never a
+  lookalike — substituting would silently rewrite what a past entry meant.
+- **The logging UI refuses what it can't compute.** Search → pick → amount, with
+  a live preview computed by `nutritionFor`. Only the measures the source
+  recorded for that exact food are offered (no generic "cup"), and an amount it
+  can't resolve shows the reason and the measures that would work instead of a
+  number.
+- **One durable fix in passing:** `test/support/diet_repository_stub.dart`, so
+  the next repository addition doesn't break every hand-written fake in the
+  suite and surface as a failure in an unrelated file.
+
+**Tests added:** `test/diet/food_log_test.dart` (20 — totals and the assumed-day
+flag, planned-meal materialisation and its provenance, the tick/un-tick/partial
+cases, log-wins-over-plan, the explicit fallback, the composite resolver),
+`test/diet/log_food_sheet_test.dart` (4 — the full logging flow, the refused
+unit, the not-found → define-your-own path, provenance on the Diet screen), four
+new tool tests for the three kinds of day, two prompt-contract tests, and ten
+`foodLogs`/`customFoods` rule tests.
+
+**Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`. The
+new `foodLogs` and `customFoods` rules must land before either can be written.
+
+---
+
+## Phase 4 — what actually landed (2026-08-30)
+
+One structured picture, built once, rendered by the screen and read by the coach.
+
+- **`DietState` is the object.** Goal · targets · consumed (with its
+  `ConsumedBasis`) · remaining · meals · the plan's own daily sum, reported
+  separately · a week of history · and a `DietQuality` block naming what the app
+  does *not* know (`targetsUnset`, `noPlanForDay`, `nothingLogged`,
+  `consumedIsAssumed`, `hasEstimatedValues`, `untrackedMacros`). It answers the
+  audit's seven questions *in code* rather than in prose.
+- **`buildDietState` is pure and total.** No clock, no repository, no network —
+  every input is passed in, so the same inputs always give the same state. It is
+  the single place the ordering rules live: supplements never count, the log
+  beats the plan when it has anything, a missing target is null rather than
+  zero, and an empty log is "nothing recorded" rather than a measured zero.
+- **The two implementations are now pinned, not merely parallel.**
+  `functions/diet/state.js` mirrors the Dart builder, and
+  `test/fixtures/diet_state_vectors.json` — **10 state cases and 28 day
+  resolutions**, covering all seven weekdays against per-weekday, every-day,
+  single-day and ambiguous plans — is run by **both** `flutter test` and
+  `node --test`. Change one side and the other fails until they agree. That
+  closes the half of T13 Phase 2 left open: `dayForDate` and `resolveDietDay`
+  are now provably the same rule.
+- **Wired, not just written.** The Diet hero, Today's glance and both diet tools
+  all build a `DietState` — the tool payload *is* the state, projected in an
+  order where truncation eats the plan's items rather than the user's position.
+  Phase 1's `TargetProgress` was the stopgap this replaces and has been
+  **deleted**: keeping both would have been the two-implementations problem in
+  miniature.
+- **`get_today` gained a week of history in one read.** `dayKey` is a sortable
+  string, so a range query covers seven days without a composite index or seven
+  round-trips. The average covers only days that had something recorded —
+  averaging zeros for unlogged days would invent a trend out of missing data.
+- **The prompt now reads `quality`.** It is told what the app doesn't know
+  rather than left to infer it, told that a macro in `untrackedMacros` has no
+  target so it must not call the user "over" or "under" on it, and told plainly
+  that the payload is the same state the screen renders — so a claim the screen
+  would contradict means it misread the state.
+
+**Tests added:** `test/diet/diet_state_test.dart` and
+`functions/diet/state.test.js` (the shared vectors both ways, plus the rules the
+state enforces in one place), and one prompt-contract test. The existing tool
+tests were rewritten against the state-shaped payload.
+
+**Deploy:** unchanged — `firebase deploy --only functions,firestore:rules`.

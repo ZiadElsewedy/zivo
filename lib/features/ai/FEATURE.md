@@ -56,6 +56,16 @@ Each has a `*.test.js` (`node --test`, offline — canned fake model, no live AP
   eggs and rice" must be answered with what the app knows, not a guess. `gateway.test.js`
   asserts the prompt still says this; don't soften it without reading
   [the Diet Coach audit](../../../docs/DIET_COACH_AUDIT.md).
+- **The diet tool payload IS a `DietState`** — the same object, built by the same rules,
+  that the Diet screen renders (`functions/diet/state.js` mirrors
+  `lib/features/diet/domain/diet_state_builder.dart`; `test/fixtures/diet_state_vectors.json`
+  is run by both suites so they cannot drift). It carries a `quality` block naming what the
+  app does *not* know. Don't add a second way to derive "how is the user doing".
+- **Read `consumed.basis` before characterising a number.** Three kinds of day, three
+  different claims: `logged by the user` (safe to say "you ate"), `materialised from
+  ticked plan meals, not weighed` (say "your plan values what you've ticked at N"), and
+  `nothing logged` (an empty log means nothing was recorded, NOT that they haven't
+  eaten). `logEntries` lists the individual foods.
 - **Two things are called "target" and they are not the same.** `targets` is the user's own
   objective (goal + daily numbers they set); `nutrition.target` is what a plan day happens to
   add up to. The prompt coaches against the first and describes the second. When `targets` is

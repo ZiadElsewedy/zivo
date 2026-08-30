@@ -17,12 +17,17 @@
  *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
  *    flag, per item and aggregated onto the day totals, so the coach can say
  *    "about" where the number is a guess instead of quoting it as measured.
- * 3. **Consumption is the LOG, not the plan.** What the user recorded eating
+ * 3. **One state, both surfaces.** The diet payload IS the `DietState` the
+ *    Diet screen renders, built by the same rules (`functions/diet/state.js`,
+ *    mirrored from Dart and pinned by shared golden vectors). Two surfaces
+ *    deriving "how am I doing" independently is how they end up disagreeing,
+ *    and a coach that contradicts the screen is worse than no coach.
+ * 4. **Consumption is the LOG, not the plan.** What the user recorded eating
  *    (`foodLogs`) is what `consumed`/`remaining` are computed from. Each entry
  *    says whether a person logged it or the app materialised it from a ticked
  *    meal, and the payload says which kind the day is made of — "you ate 1,850"
  *    and "the plan values what you ticked at 1,850" are different claims.
- * 4. **"Target" is never implied.** The user's own objective
+ * 5. **"Target" is never implied.** The user's own objective
  *    (`dietTargets/current`) is reported as `targets`, and `null` when they
  *    haven't set one; a plan day's own sum is reported separately as
  *    `nutrition.target` and never passed off as a goal anyone chose. Where
@@ -35,8 +40,10 @@ const {
   dayRangeMs,
   weekRangeMs,
   monthRangeMs,
+  isoWeekday,
   resolveDietDay,
 } = require("./dates");
+const {buildDietState, summariseHistory} = require("../diet/state");
 
 /**
  * ISO string for `date`, or null.
@@ -100,41 +107,6 @@ function dayNutrition(meals) {
 }
 
 /**
- * The target-vs-consumed adherence block for one resolved diet day — consumed
- * counts only the meals whose eaten-toggle is set, so a checked-off meal
- * contributes its planned macros. Null components mean the plan doesn't state
- * that nutrient anywhere; they stay null rather than reading as zero.
- * @param {!Array<Object>} meals The day's planned meals.
- * @param {!Set<string>} eatenMealIds
- * @return {!Object} `{target, consumed}` nutrition totals.
- */
-function adherenceFor(meals, eatenMealIds) {
-  return {
-    target: dayNutrition(meals),
-    consumed: dayNutrition(meals.filter((m) => m && eatenMealIds.has(m.id))),
-  };
-}
-
-/**
- * One planned meal projected for the model: its id (the handle
- * `mark_meal_eaten` needs), its label, whether it's eaten, its kcal, and
- * whether that kcal figure is estimated.
- * @param {!Object} meal
- * @param {!Set<string>} eaten
- * @return {!Object}
- */
-function mealSummary(meal, eaten) {
-  const items = Array.isArray(meal.items) ? meal.items : [];
-  return {
-    id: meal.id,
-    label: meal.label,
-    eaten: eaten.has(meal.id),
-    kcal: sumItemField(items, "calories"),
-    estimated: anyEstimated(items),
-  };
-}
-
-/**
  * The user's objective as the model should see it — or null when unset.
  * `source` travels with it for the same reason `estimated` travels with a
  * calorie: a figure the user typed and one a formula proposed are different
@@ -155,69 +127,45 @@ function targetsPayload(targets) {
 }
 
 /**
- * What is left of the user's targets after the meals they've ticked off —
- * computed here, deterministically, rather than left to the model's
- * arithmetic. Null when there are no targets to measure against.
- *
- * `consumedFrom` is stated explicitly because it is the honest caveat on
- * every one of these numbers: ZIVO has no food log yet, so "consumed" means
- * "the planned figures of the meals you ticked", not "what you ate".
- * @param {?Object} targets
- * @param {!Object} consumed A `consumedFrom` result.
- * @return {?Object}
- */
-function remainingPayload(targets, consumed) {
-  if (!targets) return null;
-  const left = (target, eaten) =>
-    target === null || target === undefined ? null :
-      Math.round((target - (eaten || 0)) * 10) / 10;
-  return {
-    kcal: targets.calories - (consumed.kcal || 0),
-    proteinG: left(targets.proteinG, consumed.proteinG),
-    carbsG: left(targets.carbsG, consumed.carbsG),
-    fatG: left(targets.fatG, consumed.fatG),
-    consumedFrom: consumed.basis || "ticked meals in the plan",
-    estimated: consumed.estimated === true,
-  };
-}
-
-/**
- * Day totals over food-log entries, plus the honesty flags a caller needs to
- * describe them truthfully. Mirrors the Dart `totalsOf`.
- * @param {!Array<Object>} entries
+ * Projects a `DietState` into the shape the model reads. Field order matters:
+ * tool results are truncated from the END, so what the coach must never lose —
+ * the date, the objective, where the user stands — is serialized first.
+ * @param {!Object} state
+ * @param {!Array<Object>} log The day's raw entries.
  * @return {!Object}
  */
-function logTotals(entries) {
-  const round1 = (v) => Math.round(v * 10) / 10;
-  let kcal = 0;
-  let proteinG = 0;
-  let carbsG = 0;
-  let fatG = 0;
-  let logged = 0;
-  let planned = 0;
-  let estimated = false;
-  for (const e of entries) {
-    kcal += e.kcal;
-    proteinG += e.proteinG;
-    carbsG += e.carbsG;
-    fatG += e.fatG;
-    if (e.estimated) estimated = true;
-    if (e.origin === "logged") logged++;
-    else planned++;
-  }
+function stateForModel(state, log) {
   return {
-    kcal,
-    proteinG: round1(proteinG),
-    carbsG: round1(carbsG),
-    fatG: round1(fatG),
-    estimated,
-    entryCount: entries.length,
-    loggedCount: logged,
-    plannedMealCount: planned,
-    // The caveat that has to travel with the numbers.
-    basis: entries.length === 0 ? "nothing logged" :
-      logged === 0 ? "materialised from ticked plan meals, not weighed" :
-        "logged by the user",
+    date: state.dayKey,
+    targets: state.targets,
+    consumed: state.consumed,
+    remaining: state.remaining,
+    // What the app knows it doesn't know — handed over rather than left for
+    // the model to infer.
+    quality: state.quality,
+    plan: state.planName,
+    day: state.dayLabel,
+    // The plan's own daily sum, reported separately from `targets` and never
+    // to be described as a goal the user chose.
+    plannedKcal: state.plannedKcal,
+    mealsEaten: state.mealsEaten,
+    mealsTotal: state.mealsTotal,
+    meals: state.meals,
+    history: state.history,
+    // The individual foods, so the coach can talk about what was eaten rather
+    // than only about totals.
+    logEntries: log.map((e) => ({
+      food: e.foodName,
+      quantity: e.quantity,
+      unit: e.unit,
+      kcal: e.kcal,
+      proteinG: e.proteinG,
+      carbsG: e.carbsG,
+      fatG: e.fatG,
+      source: e.source,
+      origin: e.origin,
+      estimated: e.estimated,
+    })),
   };
 }
 
@@ -248,30 +196,6 @@ async function loadDietDay(store, uid, date, offsetMinutes) {
   };
 }
 
-/**
- * What the user consumed, preferring the FOOD LOG and falling back to the
- * planned figures of ticked meals only when the log is empty (a day recorded
- * before the log existed). The `basis` field says which it was, so the coach
- * can never pass an assumption off as a measurement.
- * @param {!Array<Object>} log
- * @param {!Object} plannedConsumed A `dayNutrition` result for eaten meals.
- * @return {!Object}
- */
-function consumedFrom(log, plannedConsumed) {
-  if (log.length > 0) return logTotals(log);
-  return {
-    kcal: plannedConsumed.kcal || 0,
-    proteinG: plannedConsumed.proteinG,
-    carbsG: plannedConsumed.carbsG,
-    fatG: plannedConsumed.fatG,
-    estimated: plannedConsumed.estimated === true,
-    entryCount: 0,
-    loggedCount: 0,
-    plannedMealCount: 0,
-    basis: "ticked plan meals (nothing logged that day)",
-  };
-}
-
 const TODAY_TOOL = {
   name: "get_today",
   description:
@@ -292,38 +216,36 @@ const TODAY_TOOL = {
    */
   async execute(store, uid, input, now, offsetMinutes) {
     const {fromMs, toMs} = dayRangeMs(now, offsetMinutes);
-    const [workouts, dietDay, targets] = await Promise.all([
+    const dayKey = dayKeyFor(now, offsetMinutes);
+    // A week's history in one range query — `dayKey` is a sortable string, so
+    // no composite index and no seven round-trips.
+    const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const [workouts, dietDay, targets, historyRows] = await Promise.all([
       store.listWorkouts(uid, {fromMs, toMs}),
       loadDietDay(store, uid, now, offsetMinutes),
       store.getDietTargets(uid),
+      store.listFoodLogRange(
+          uid, dayKeyFor(weekAgo, offsetMinutes), dayKey),
     ]);
 
     const {plan, dietDay: day, eaten, log} = dietDay;
-    const consumed = consumedFrom(
-        log, plan && day ? adherenceFor(day.meals, eaten).consumed :
-          dayNutrition([]));
-    const remaining = remainingPayload(targets, consumed);
-    let diet = null;
-    if (plan && day) {
-      diet = {
-        planName: plan.name,
-        dayLabel: day.label,
-        nutrition: adherenceFor(day.meals, eaten),
-        meals: day.meals.map((m) => mealSummary(m, eaten)),
-      };
-    }
-
-    // `targets`/`remaining`/`diet` lead the payload deliberately. Tool results
-    // are capped at `maxToolResultChars` and truncated from the END, so
-    // whatever is serialized last is what disappears on a rich plan — the
-    // user's objective and their nutrition are the blocks that must never be
-    // silently half-delivered.
-    return {
-      date: dayKeyFor(now, offsetMinutes),
+    const state = buildDietState({
+      dayKey,
+      weekday: isoWeekday(now, offsetMinutes),
       targets: targetsPayload(targets),
-      consumed,
-      remaining,
-      diet,
+      planName: plan ? plan.name : null,
+      day,
+      consumedMealIds: eaten,
+      log,
+      history: summariseHistory(historyRows, 7),
+    });
+
+    // The diet block leads the payload deliberately. Tool results are capped
+    // at `maxToolResultChars` and truncated from the END, so whatever is
+    // serialized last is what disappears — the user's objective and where they
+    // stand must never be silently half-delivered.
+    return {
+      ...stateForModel(state, log),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -469,43 +391,24 @@ const DIET_TOOL = {
       loadDietDay(store, uid, date, dateOffset),
       store.getDietTargets(uid),
     ]);
-    const dateKey = dayKeyFor(date, dateOffset);
-    const targetsBlock = targetsPayload(targets);
-    const planned = dietDay ?
-      adherenceFor(dietDay.meals, eaten) :
-      {target: dayNutrition([]), consumed: dayNutrition([])};
-    const consumed = consumedFrom(log, planned.consumed);
-
-    const head = {
-      date: dateKey,
-      targets: targetsBlock,
-      consumed,
-      remaining: remainingPayload(targets, consumed),
-      // Every logged item, so the coach can talk about what was actually
-      // eaten rather than only about totals.
-      logEntries: log.map((e) => ({
-        food: e.foodName,
-        quantity: e.quantity,
-        unit: e.unit,
-        kcal: e.kcal,
-        proteinG: e.proteinG,
-        carbsG: e.carbsG,
-        fatG: e.fatG,
-        source: e.source,
-        origin: e.origin,
-        estimated: e.estimated,
-      })),
-    };
-    if (!plan) return {...head, plan: null};
-    if (!dietDay) return {...head, plan: plan.name, day: null};
+    const state = buildDietState({
+      dayKey: dayKeyFor(date, dateOffset),
+      weekday: isoWeekday(date, dateOffset),
+      targets: targetsPayload(targets),
+      planName: plan ? plan.name : null,
+      day: dietDay,
+      consumedMealIds: eaten,
+      log,
+    });
 
     return {
-      ...head,
-      plan: plan.name,
-      day: dietDay.label,
-      nutrition: planned,
-      meals: dietDay.meals.map((m) => ({
-        ...mealSummary(m, eaten),
+      ...stateForModel(state, log),
+      // The plan's items, so the coach can discuss what the plan prescribes
+      // rather than only its totals. Last in the payload: it is the block
+      // that can most afford to be truncated.
+      planItems: !dietDay ? [] : dietDay.meals.map((m) => ({
+        id: m.id,
+        label: m.label,
         items: m.items.map((it) => ({
           name: it.name,
           quantity: it.quantity,

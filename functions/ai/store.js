@@ -195,6 +195,31 @@ class FirestoreStore {
   }
 
   /**
+   * Food-log entries across a range of days, inclusive.
+   *
+   * `dayKey` is a sortable 'yyyy-MM-dd' string, so this is a single-field
+   * range query — one read for a whole week, and no composite index.
+   * @param {string} uid
+   * @param {string} fromDayKey
+   * @param {string} toDayKey
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listFoodLogRange(uid, fromDayKey, toDayKey) {
+    const snap = await this._user(uid)
+        .collection("foodLogs")
+        .where("dayKey", ">=", fromDayKey)
+        .where("dayKey", "<=", toDayKey)
+        .get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        dayKey: d.dayKey || "",
+        kcal: Math.round(typeof d.kcal === "number" ? d.kcal : 0),
+      };
+    });
+  }
+
+  /**
    * @param {string} uid
    * @param {string} dayKey
    * @return {!Promise<!Array<Object>>}

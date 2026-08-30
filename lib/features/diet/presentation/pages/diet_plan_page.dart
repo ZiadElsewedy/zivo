@@ -21,7 +21,8 @@ import '../../domain/meal.dart';
 import '../../domain/nutrition/food_log_entry.dart';
 import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition_targets.dart';
-import '../../domain/target_progress.dart';
+import '../../domain/diet_state.dart';
+import '../../domain/diet_state_builder.dart';
 import '../widgets/log_food_sheet.dart';
 import '../today_diet.dart';
 import 'diet_pdf_import_page.dart';
@@ -690,23 +691,32 @@ class _DietHeroState extends State<_DietHero>
     value: _target(),
   );
 
-  /// Today's progress, as it should be built for the user's own targets.
-  /// Null when they have none.
-  TargetProgress? get _progressAgainstTargets {
+  /// The structured state for today, or null when the user has set no
+  /// objective — with nothing to measure against, the hero falls back to the
+  /// plan's own total and says so.
+  ///
+  /// Built by the same `buildDietState` the coach reads on the server, which
+  /// is what makes "the screen and the coach agree" a fact rather than a hope.
+  /// `dayKey`/`planName` are the state's identity fields and don't affect any
+  /// figure the hero draws, so this passes the cheap ones.
+  DietState? get _state {
     final targets = widget.targets;
     if (targets == null) return null;
-    return buildTargetProgress(
+    return buildDietState(
+      dayKey: '',
+      weekday: DateTime.now().weekday,
       targets: targets,
+      planName: null,
       day: widget.day,
-      consumed: widget.consumed,
+      consumedMealIds: widget.consumed,
       log: widget.log,
     );
   }
 
   double _target() {
-    final progress = _progressAgainstTargets;
-    if (progress != null) {
-      return progress.calorieFraction.clamp(0.0, 1.0);
+    final state = _state;
+    if (state != null) {
+      return state.calorieFraction.clamp(0.0, 1.0);
     }
     final total = dayCalories(widget.day);
     if (total == null || total <= 0) return 0;
@@ -755,14 +765,8 @@ class _DietHeroState extends State<_DietHero>
     // Today measured against the user's OWN objective, when they have one.
     // Everything below prefers it and falls back to the plan's totals only in
     // its absence — and says which it used, either way.
-    final progress = _progressAgainstTargets;
-    final macroBars = progress == null
-        ? <MacroProgress>[]
-        : [
-            progress.protein,
-            progress.carbs,
-            progress.fat,
-          ].where((m) => m.target != null).toList();
+    final progress = _state;
+    final macroBars = progress?.trackedMacros ?? const <MacroProgress>[];
 
     return TrainCard(
       radius: 24,
@@ -837,10 +841,10 @@ class _DietHeroState extends State<_DietHero>
                   const SizedBox(height: 8),
                   Text(
                     widget.loading
-                        ? 'TARGET ${progress.targets.calories}'
-                        : '${approx(progress.estimated)}'
-                              '${progress.consumedKcal} EATEN · '
-                              'TARGET ${progress.targets.calories}',
+                        ? 'TARGET ${progress.targets!.calories}'
+                        : '${approx(progress.consumed.estimated)}'
+                              '${progress.consumed.kcal} EATEN · '
+                              'TARGET ${progress.targets!.calories}',
                     style: TrainType.mono(
                       size: 10.5,
                       tracking: 0.06,
@@ -936,22 +940,22 @@ class _DietHeroState extends State<_DietHero>
 /// calories left of the day's plan. Marked "~" whenever it rests on estimated
 /// values.
 String _heroNumber(
-  TargetProgress? progress,
+  DietState? progress,
   ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
 ) {
   if (progress != null) {
-    return '${approx(progress.estimated)}${progress.remainingKcal.abs()}';
+    return '${approx(progress.consumed.estimated)}${progress.remainingKcal.abs()}';
   }
   return '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}';
 }
 
 /// What that figure is measured against — never left implicit.
 String _heroLabel(
-  TargetProgress? progress,
+  DietState? progress,
   ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated}) summary,
 ) {
   if (progress != null) {
-    final estimated = progress.estimated ? 'EST. ' : '';
+    final estimated = progress.consumed.estimated ? 'EST. ' : '';
     return progress.overTarget
         ? '${estimated}KCAL OVER'
         : '${estimated}KCAL LEFT';

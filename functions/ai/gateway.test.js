@@ -505,6 +505,15 @@ test("the system prompt still refuses to price a food the app didn't resolve",
           SYSTEM_PROMPT, /rather than producing a figure from your own/);
     });
 
+test("the system prompt hands the model the quality flags rather than " +
+    "leaving it to infer them", async () => {
+  assert.match(
+      SYSTEM_PROMPT, /is the app telling you what it does NOT know/);
+  assert.match(SYSTEM_PROMPT, /untrackedMacros has no target at all/);
+  // And it knows the payload is the same state the screen shows.
+  assert.match(SYSTEM_PROMPT, /same structured state the Diet screen renders/);
+});
+
 test("the system prompt explains what an estimated figure means", async () => {
   assert.match(SYSTEM_PROMPT, /"estimated" flag/);
   assert.match(
