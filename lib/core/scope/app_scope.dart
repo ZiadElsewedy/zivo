@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../l10n/locale_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
@@ -44,6 +45,7 @@ class AppScope extends InheritedWidget {
     this.stepCounter,
     this.media,
     this.music,
+    this.locale,
     required super.child,
     super.key,
   });
@@ -157,6 +159,20 @@ class AppScope extends InheritedWidget {
     return music!;
   }
 
+  /// The app language (Arabic · English · match the phone). Optional for the
+  /// same reason [media] is: a widget test pumping one page reads its strings
+  /// through `l(context)`'s English fallback and never needs a controller.
+  /// Production always wires one. Read it through [requireLocale] from the
+  /// language picker.
+  final LocaleController? locale;
+
+  /// The language controller, asserting it was provided. Use from Settings'
+  /// language picker — production always wires it.
+  LocaleController get requireLocale {
+    assert(locale != null, 'AppScope.locale was not provided to this scope');
+    return locale!;
+  }
+
   WalletRepository get requireWallet {
     assert(wallet != null, 'AppScope.wallet was not provided to this scope');
     return wallet!;
@@ -220,5 +236,6 @@ class AppScope extends InheritedWidget {
       recorder != oldWidget.recorder ||
       stepCounter != oldWidget.stepCounter ||
       media != oldWidget.media ||
-      music != oldWidget.music;
+      music != oldWidget.music ||
+      locale != oldWidget.locale;
 }

@@ -6,8 +6,11 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../../../l10n/l10n.dart';
+import '../../domain/common_foods.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/plan_preferences.dart';
+import '../widgets/food_chip_picker.dart';
 import 'diet_import_page.dart';
 import 'diet_targets_page.dart';
 
@@ -31,9 +34,15 @@ class DietPreferencesPage extends StatefulWidget {
 }
 
 class _DietPreferencesPageState extends State<DietPreferencesPage> {
-  final TextEditingController _likes = TextEditingController();
-  final TextEditingController _avoid = TextEditingController();
-  final TextEditingController _allergies = TextEditingController();
+  // Tapped, not typed. Held as English chip ids (see `common_foods.dart`) —
+  // the generator resolves against an English catalog, so the id is what
+  // travels and only the label is localized.
+  List<String> _likes = const [];
+  List<String> _avoid = const [];
+  List<String> _allergies = const [];
+
+  /// The one thing a chip genuinely can't carry: whatever this person knows
+  /// about their eating that no fixed list anticipated.
   final TextEditingController _notes = TextEditingController();
 
   int _mealsPerDay = 3;
@@ -41,18 +50,15 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
 
   @override
   void dispose() {
-    _likes.dispose();
-    _avoid.dispose();
-    _allergies.dispose();
     _notes.dispose();
     super.dispose();
   }
 
   PlanPreferences get _preferences => PlanPreferences(
     mealsPerDay: _mealsPerDay,
-    likes: parseFoodList(_likes.text),
-    avoid: parseFoodList(_avoid.text),
-    allergies: parseFoodList(_allergies.text),
+    likes: _likes,
+    avoid: _avoid,
+    allergies: _allergies,
     cuisine: _cuisine,
     notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
   );
@@ -151,42 +157,45 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                   ],
                 ),
                 const SizedBox(height: 26),
-                _FoodList(
-                  label: 'Foods you like',
-                  hint: 'chicken, rice, eggs, yoghurt',
-                  controller: _likes,
-                  fieldKey: const Key('prefs-likes'),
-                  note: 'ZIVO will build around these where it can.',
+                FoodChipPicker(
+                  keyPrefix: 'prefs-likes',
+                  heading: l(context).prefsLikes,
+                  note: l(context).prefsLikesNote,
+                  optionIds: kCommonFoodIds,
+                  labelFor: commonFoodLabel,
+                  selected: _likes,
+                  onChanged: (v) => setState(() => _likes = v),
                 ),
-                const SizedBox(height: 22),
-                _FoodList(
-                  label: "Foods you won't eat",
-                  hint: 'liver, mushrooms',
-                  controller: _avoid,
-                  fieldKey: const Key('prefs-avoid'),
-                  note: 'Left out of the plan.',
+                const SizedBox(height: 24),
+                FoodChipPicker(
+                  keyPrefix: 'prefs-avoid',
+                  heading: l(context).prefsAvoid,
+                  note: l(context).prefsAvoidNote,
+                  optionIds: kCommonFoodIds,
+                  labelFor: commonFoodLabel,
+                  selected: _avoid,
+                  onChanged: (v) => setState(() => _avoid = v),
                 ),
-                const SizedBox(height: 22),
-                _FoodList(
-                  label: 'Allergies',
-                  hint: 'peanuts, shellfish',
-                  controller: _allergies,
-                  fieldKey: const Key('prefs-allergies'),
-                  note:
-                      'Different from the list above: ZIVO checks the finished '
-                      'plan for these and refuses it outright if any turn up. '
-                      'Still read the plan yourself — this is a safety net, '
-                      'not a medical guarantee.',
+                const SizedBox(height: 24),
+                // Its own list and its own words: "won't eat" is a preference
+                // the model is asked to respect, an allergy is a gate the
+                // server enforces after generation and refuses the plan over.
+                FoodChipPicker(
+                  keyPrefix: 'prefs-allergies',
+                  heading: l(context).prefsAllergies,
+                  note: l(context).prefsAllergiesNote,
                   noteColor: TrainColors.ember,
+                  optionIds: kCommonAllergenIds,
+                  labelFor: commonAllergenLabel,
+                  selected: _allergies,
+                  onChanged: (v) => setState(() => _allergies = v),
                 ),
-                const SizedBox(height: 22),
-                _FoodList(
-                  label: 'Anything else',
-                  hint: 'I train at 6am and eat straight after',
+                const SizedBox(height: 24),
+                _NotesField(
+                  label: l(context).prefsNotes,
+                  hint: l(context).prefsNotesHint,
                   controller: _notes,
                   fieldKey: const Key('prefs-notes'),
-                  note: 'In your own words.',
-                  minLines: 3,
                 ),
                 const SizedBox(height: 26),
                 PillButton(
@@ -282,40 +291,38 @@ class _TargetNote extends StatelessWidget {
   }
 }
 
-/// A labelled free-text list — comma separated, because that is how people
-/// write a list of foods without being taught a chip UI.
-class _FoodList extends StatelessWidget {
-  const _FoodList({
+/// The screen's one free-text field — and the only one it should ever have.
+///
+/// Everything else here is a chip, because everything else here has a common
+/// answer. This doesn't: "I train at 6am and eat straight after" is a fact no
+/// fixed list anticipates, and losing it to make the screen uniform would cost
+/// the generator the most useful thing on the page.
+class _NotesField extends StatelessWidget {
+  const _NotesField({
     required this.label,
     required this.hint,
     required this.controller,
     required this.fieldKey,
-    required this.note,
-    this.noteColor,
-    this.minLines = 2,
   });
 
   final String label;
   final String hint;
   final TextEditingController controller;
   final Key fieldKey;
-  final String note;
-  final Color? noteColor;
-  final int minLines;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainSectionLabel(label.toUpperCase()),
+        Text(label, style: AppText.rowTitle),
         const SizedBox(height: 11),
         TextField(
           key: fieldKey,
           controller: controller,
           maxLines: null,
-          minLines: minLines,
-          textCapitalization: TextCapitalization.none,
+          minLines: 3,
+          textCapitalization: TextCapitalization.sentences,
           cursorColor: TrainColors.green,
           style: AppText.body.copyWith(color: TrainColors.ink, height: 1.5),
           decoration: InputDecoration(
@@ -328,14 +335,6 @@ class _FoodList extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          note,
-          style: AppText.meta.copyWith(
-            color: noteColor ?? TrainColors.ink3,
-            height: 1.4,
           ),
         ),
       ],

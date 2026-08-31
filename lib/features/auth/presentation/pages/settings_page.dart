@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/env/app_environment.dart';
+import '../../../../core/l10n/language_sheet.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -19,6 +20,7 @@ import 'privacy_page.dart';
 import '../widgets/media_backup_section.dart';
 import '../widgets/delete_account_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Settings — appearance, music, about (with the privacy policy), and sign
 /// out. Split from [ProfilePage] the way most apps separate "who you are"
@@ -105,6 +107,16 @@ class _SettingsPageState extends State<SettingsPage> {
               child: SettingsSectionCard(
                 label: 'App',
                 children: [
+                  // First in the section, above Theme: it is the only row
+                  // here that changes what every other screen says.
+                  SettingsRow(
+                    key: const Key('settings-language'),
+                    icon: Icons.translate_rounded,
+                    title: l(context).settingsLanguage,
+                    value: _languageValue(context),
+                    accent: TrainColors.violetGlyph,
+                    onTap: () => showLanguageSheet(context),
+                  ),
                   const SettingsRow(
                     icon: AppIcons.theme,
                     title: 'Theme',
@@ -466,6 +478,19 @@ String _remaining(NowPlaying playing) {
 /// two sections above. Signing out is reversible — you sign back in — so it
 /// takes the quietest shape on the page and stops competing with the one
 /// thing here you genuinely can't undo.
+/// What the Language row shows on its right. "Match my phone" when nothing is
+/// chosen — naming the *resolved* language there would look like a choice the
+/// user made, and would then be wrong the moment they travel.
+String _languageValue(BuildContext context) {
+  final chosen = AppScope.of(context).locale?.locale.value;
+  final strings = l(context);
+  return switch (chosen?.languageCode) {
+    'ar' => strings.settingsLanguageArabic,
+    'en' => strings.settingsLanguageEnglish,
+    _ => strings.settingsLanguageSystem,
+  };
+}
+
 class _SignOutButton extends StatelessWidget {
   const _SignOutButton({required this.loading, required this.onTap});
 

@@ -11,6 +11,7 @@ import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
 import 'package:zivo/features/diet/domain/meal.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/presentation/pages/diet_plan_details_page.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
 import 'package:zivo/features/diet/presentation/pages/diet_plans_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -298,6 +299,8 @@ void main() {
     });
   });
 
+  // The "no daily target" card these three reach for lives on Plan details
+  // now, not on the Diet screen — the adopt flow they exercise is unchanged.
   group('adopting the plan as a target', () {
     testWidgets('offers the plan\'s own figure and asks what it is for', (
       tester,
@@ -306,7 +309,7 @@ void main() {
       final diet = InMemoryDietRepository();
       addTearDown(diet.dispose);
 
-      await tester.pumpWidget(_wrap(child: const DietPlanPage(), diet: diet));
+      await tester.pumpWidget(_wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('no-target-card')), findsOneWidget);
@@ -349,7 +352,7 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(_wrap(child: const DietPlanPage(), diet: diet));
+      await tester.pumpWidget(_wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('adopt-plan-target')));
@@ -383,7 +386,7 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(_wrap(child: const DietPlanPage(), diet: diet));
+      await tester.pumpWidget(_wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('adopt-plan-target')));

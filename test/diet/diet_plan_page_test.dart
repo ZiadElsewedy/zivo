@@ -317,7 +317,9 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('CUT'), findsOneWidget);
+    // The plan's name is no longer a header caption above the hero — it sits
+    // on the Plan-details row at the foot of the screen.
+    expect(find.text('Cut'), findsOneWidget);
   });
 
   testWidgets('shows the empty state once the plan stream settles with no data', (tester) async {
@@ -426,9 +428,8 @@ void main() {
         reason: 'the ring label says both what it measures and that it is '
             'an estimate');
     expect(find.text('KCAL LEFT OF PLAN'), findsNothing);
-    expect(find.textContaining('IMPORTED · PLANNED ~700 KCAL'), findsOneWidget);
-    // Macro targets come from the same items, so they are marked too.
-    expect(find.text('0/~20g'), findsOneWidget);
+    // The header caption and the macro bars that also carried the marker are
+    // on Plan details now — covered there, in diet_plan_details_page_test.
   });
 
   testWidgets('a plan the user typed themselves carries no estimate marker',
@@ -475,7 +476,6 @@ void main() {
     expect(find.text('KCAL LEFT OF PLAN'), findsOneWidget);
     expect(find.text('EST. KCAL LEFT OF PLAN'), findsNothing);
     expect(find.text('~700'), findsNothing);
-    expect(find.text('0/20g'), findsOneWidget);
   });
 
   // ── Targets ──────────────────────────────────────────────────────────────
@@ -491,11 +491,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.byKey(const Key('no-target-card')), findsOneWidget);
-    expect(find.text('No daily target set'), findsOneWidget);
-    // The ring names its yardstick rather than implying an objective.
+    // The ring names its yardstick rather than implying an objective. The
+    // "set a target" card itself is on Plan details now; what matters here is
+    // that the Diet screen never presents the plan's own total as a goal.
     expect(find.text('KCAL LEFT OF PLAN'), findsOneWidget);
-    expect(find.byKey(const Key('target-summary-row')), findsNothing);
     expect(find.textContaining('TARGET'), findsNothing);
   });
 
@@ -520,22 +519,15 @@ void main() {
     // Nothing ticked yet: the whole target is left.
     expect(find.text('2200'), findsOneWidget);
     expect(find.text('KCAL LEFT'), findsOneWidget);
-    expect(find.byKey(const Key('no-target-card')), findsNothing);
 
-    // The goal and where the number came from are both on screen.
-    expect(find.byKey(const Key('target-summary-row')), findsOneWidget);
-    expect(find.textContaining('FAT LOSS · 2200 KCAL/DAY'), findsOneWidget);
-    expect(find.textContaining('You set this'), findsOneWidget);
-
-    // Two figures on the header caption, each labelled — the target the user
-    // chose and what today's plan happens to add up to.
-    expect(find.textContaining('TARGET 2200 KCAL'), findsOneWidget);
-    expect(find.textContaining('PLANNED 1270 KCAL'), findsOneWidget);
-
-    // Only the macro the user actually set a target for gets a bar.
-    expect(find.text('0/160g'), findsOneWidget);
-    expect(find.text('PROTEIN'), findsOneWidget);
-    expect(find.text('CARBS'), findsNothing);
+    // And that is the ONLY figure competing for the eye. The goal, its
+    // provenance, the plan-vs-target caption and the macro bars all moved to
+    // Plan details — the point of the simplification, so it's asserted.
+    expect(find.byKey(const Key('target-summary-row')), findsNothing);
+    expect(find.textContaining('FAT LOSS · 2200 KCAL/DAY'), findsNothing);
+    expect(find.textContaining('PLANNED 1270 KCAL'), findsNothing);
+    expect(find.text('0/160g'), findsNothing);
+    expect(find.text('PROTEIN'), findsNothing);
   });
 
   testWidgets('ticking a meal counts down the target, and going past it reads '
@@ -580,147 +572,6 @@ void main() {
     expect(find.text('450'), findsOneWidget);
   });
 
-  testWidgets('a target under the safety floor is called out on the screen '
-      'itself, not left to the coach to notice', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
-    await diet.saveTargets(
-      NutritionTargets(
-        goal: DietGoal.fatLoss,
-        calories: 900,
-        source: TargetSource.manual,
-        updatedAt: DateTime(2026, 8, 30),
-      ),
-    );
-
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(
-      find.textContaining('worth checking with a professional'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('the coaching engine\'s read is on the screen, not only in the '
-      'chat — and each line opens onto the figures behind it', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
-    await diet.saveTargets(
-      NutritionTargets(
-        goal: DietGoal.fatLoss,
-        calories: 2200,
-        proteinG: 160,
-        source: TargetSource.manual,
-        updatedAt: DateTime(2026, 8, 30),
-      ),
-    );
-
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    // Breakfast is 310 kcal in the seeded plan, leaving 1890.
-    await diet.setMealEaten(
-      mealId: 'seed-meal-breakfast',
-      day: DateTime.now(),
-      eaten: true,
-    );
-    await tester.pump();
-
-    // The card is built from the page's own DietState — the same object the
-    // hero draws — so what it says can't disagree with the ring above it.
-    expect(find.byKey(const Key('todays-read')), findsOneWidget);
-    expect(find.textContaining('1890 kcal left'), findsOneWidget);
-
-    // And the "why" is a real answer: the state fields, with their values.
-    final why = find.byKey(const Key('finding-why-calories_remaining'));
-    await tester.ensureVisible(why);
-    await tester.pump();
-    await tester.tap(why);
-    await tester.pump();
-    expect(find.text('Calories left'), findsOneWidget);
-    expect(find.text('1890 kcal'), findsOneWidget);
-    expect(find.text('Goal'), findsOneWidget);
-    expect(find.text('Fat loss'), findsOneWidget);
-  });
-
-  testWidgets('with no target set the read is held back — the empty-state card '
-      'already says it, with somewhere to tap', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
-
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.byKey(const Key('no-target-card')), findsOneWidget);
-    expect(find.byKey(const Key('todays-read')), findsNothing);
-  });
-
-  testWidgets('the hero says what its EATEN figure rests on: ticking meals is '
-      'never presented as weighed food', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
-    await diet.saveTargets(
-      NutritionTargets(
-        goal: DietGoal.maintain,
-        calories: 2000,
-        source: TargetSource.manual,
-        updatedAt: DateTime(2026, 8, 30),
-      ),
-    );
-
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('NOTHING LOGGED YET'), findsOneWidget);
-
-    // Ticking a plan meal credits the PLAN's figures. The number moves, and
-    // the line beneath it says where the number came from.
-    await diet.setMealEaten(
-      mealId: 'seed-meal-breakfast',
-      day: DateTime.now(),
-      eaten: true,
-    );
-    await tester.pump();
-    expect(find.text('FROM TICKED MEALS, NOT WEIGHED'), findsOneWidget);
-  });
-
-  testWidgets('a calculated target explains itself — the body data it came '
-      'from, not just that a formula ran', (tester) async {
-    final diet = InMemoryDietRepository();
-    addTearDown(diet.dispose);
-    await diet.saveTargets(
-      NutritionTargets(
-        goal: DietGoal.fatLoss,
-        calories: 2230,
-        source: TargetSource.calculated,
-        basis: const TargetBasis(
-          weightKg: 82,
-          heightCm: 180,
-          age: 30,
-          sex: TargetSex.male,
-          activity: ActivityLevel.moderate,
-          bmr: 1800,
-          maintenanceCalories: 2790,
-        ),
-        updatedAt: DateTime(2026, 8, 30),
-      ),
-    );
-
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), dietOverride: diet));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.text('Calculated from your body data'), findsOneWidget);
-    expect(
-      find.text('82 kg · moderate · 2790 kcal maintenance'),
-      findsOneWidget,
-    );
-  });
-
   testWidgets('a day with no plan day still measures the day: the objective, '
       'what was eaten, and the read all survive the missing plan',
       (tester) async {
@@ -763,15 +614,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Still said plainly — and still first.
-    expect(find.text('No plan for today.'), findsOneWidget);
+    expect(find.text('No meals planned today'), findsOneWidget);
 
     // But the screen no longer stops there. 2000 − 600, measured against the
     // target rather than against a plan that has nothing to say today.
     expect(find.text('1400'), findsOneWidget);
     expect(find.text('KCAL LEFT'), findsOneWidget);
-    expect(find.text('LOGGED BY YOU'), findsOneWidget);
-    expect(find.byKey(const Key('target-summary-row')), findsOneWidget);
-    expect(find.byKey(const Key('todays-read')), findsOneWidget);
 
     // The meal count would be "0 of 0" — an absence, not a failure, so the
     // hero says neither.
@@ -792,12 +640,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('No plan for today.'), findsOneWidget);
-    // No hero, and no "set a target" card either — its copy points at
-    // "the numbers above", and there are none.
-    expect(find.byKey(const Key('hero-consumed-basis')), findsNothing);
-    expect(find.byKey(const Key('no-target-card')), findsNothing);
-    expect(find.byKey(const Key('todays-read')), findsNothing);
+    expect(find.text('No meals planned today'), findsOneWidget);
+    // No hero: with neither a plan day nor a target there is nothing to draw
+    // a ring against, and an empty ring is a claim of its own.
+    expect(find.text('KCAL LEFT'), findsNothing);
+    expect(find.text('KCAL LEFT OF PLAN'), findsNothing);
     // The log is still reachable: something eaten can always be recorded.
     expect(find.byKey(const Key('log-food-button')), findsOneWidget);
   });

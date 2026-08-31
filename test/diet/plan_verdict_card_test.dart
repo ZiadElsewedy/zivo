@@ -12,7 +12,7 @@ import 'package:zivo/features/diet/domain/nutrition/food_reference.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/target_calculator.dart';
 import 'package:zivo/features/diet/presentation/pages/body_profile_page.dart';
-import 'package:zivo/features/diet/presentation/pages/diet_plan_page.dart';
+import 'package:zivo/features/diet/presentation/pages/diet_plan_details_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
@@ -24,8 +24,12 @@ import 'package:zivo/features/workout/domain/body_weight_entry.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
-/// The Diet screen is a lazy list; the verdict sits above the fold but the
-/// tests below also reach for meals, so give them the room.
+/// Plan details is a lazy list; the verdict sits above the fold but the tests
+/// below also reach further down it, so give them the room.
+///
+/// The verdict used to live on the Diet screen and these tests pumped that.
+/// It moved down a level in the simplification pass — the assertions are
+/// unchanged, only the screen they're made against.
 void _tallViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(1000, 2400);
   tester.view.devicePixelRatio = 1.0;
@@ -68,7 +72,7 @@ void main() {
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
 
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), diet: diet));
+    await tester.pumpWidget(_wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet));
     await tester.pump();
 
     expect(find.byKey(const Key('body-data-prompt')), findsOneWidget);
@@ -88,7 +92,7 @@ void main() {
     final diet = InMemoryDietRepository();
     addTearDown(diet.dispose);
 
-    await tester.pumpWidget(_wrap(child: const DietPlanPage(), diet: diet));
+    await tester.pumpWidget(_wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet));
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('body-data-prompt')));
@@ -115,7 +119,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+      _wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet, bodyWeight: weights),
     );
     await tester.pump();
     await tester.pump();
@@ -150,7 +154,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+      _wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet, bodyWeight: weights),
     );
     await tester.pump();
     await tester.pump();
@@ -276,7 +280,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+        _wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet, bodyWeight: weights),
       );
       await tester.pumpAndSettle();
 
@@ -335,7 +339,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+        _wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet, bodyWeight: weights),
       );
       await tester.pumpAndSettle();
 
@@ -378,7 +382,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+        _wrap(child: DietPlanDetailsPage(plan: diet.activePlan!), diet: diet, bodyWeight: weights),
       );
       await tester.pumpAndSettle();
 

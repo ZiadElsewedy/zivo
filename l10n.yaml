@@ -1,0 +1,13 @@
+# Configures `flutter gen-l10n`, which runs automatically because
+# `flutter: generate: true` is set in pubspec.yaml.
+#
+# English is the template: a key is added to app_en.arb first (with its
+# description), then translated in app_ar.arb. `untranslated-messages-file`
+# writes the gap to a file rather than failing the build, so a half-translated
+# key never blocks a run — check it before shipping.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+untranslated-messages-file: l10n-untranslated.txt

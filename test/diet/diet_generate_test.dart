@@ -137,16 +137,26 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('cuisine-egyptian')));
       await tester.pump();
-      await tester.enterText(
-        find.byKey(const Key('prefs-likes')),
-        'chicken, rice',
-      );
-      await tester.enterText(find.byKey(const Key('prefs-avoid')), 'liver');
-      await tester.enterText(
-        find.byKey(const Key('prefs-allergies')),
-        'peanuts',
-      );
+
+      // Tapped, not typed. The chips carry English ids whatever language the
+      // labels are in, because the generator resolves against an English
+      // catalog — that is the contract this asserts.
+      await tester.tap(find.byKey(const Key('prefs-likes-chicken')));
       await tester.pump();
+      await tester.tap(find.byKey(const Key('prefs-likes-rice')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('prefs-avoid-cheese')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('prefs-allergies-peanuts')));
+      await tester.pump();
+
+      // "Other" is the escape hatch for anything the chips can't cover — an
+      // allergy that isn't on a list of nine is the case that matters.
+      await tester.tap(find.byKey(const Key('prefs-avoid-other')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('custom-entry-field')), 'liver');
+      await tester.tap(find.byKey(const Key('custom-entry-add')));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('prefs-build')));
       await tester.pumpAndSettle();
@@ -154,7 +164,7 @@ void main() {
       expect(sent!.mealsPerDay, 4);
       expect(sent!.cuisine, 'Egyptian');
       expect(sent!.likes, ['chicken', 'rice']);
-      expect(sent!.avoid, ['liver']);
+      expect(sent!.avoid, ['cheese', 'liver']);
       expect(sent!.allergies, ['peanuts']);
       // The plan is sized to the target the user has already approved.
       expect(sentTargets!.calories, 2400);

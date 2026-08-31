@@ -1,12 +1,20 @@
 # diet — feature map
 
-> Editable meal plans + a daily "did I eat this" ledger, plus AI PDF import, a grocery
-> list, and AI calorie/macro help. **Not greenfield** — the plan model + consumption
-> tracking predate the premium UI/import work.
+> Editable meal plans + a daily "did I eat this" ledger, plus AI PDF import and AI
+> calorie/macro help. **Not greenfield** — the plan model + consumption tracking predate
+> the premium UI/import work.
+>
+> **The grocery list was deleted** (owner decision, 2026-08-31). Don't bring it back.
 
 ## Start here
 
-- `presentation/pages/diet_plan_page.dart` — main diet surface (the plan + today).
+- `presentation/pages/diet_plan_page.dart` — main diet surface. Deliberately **two things**:
+  one number (kcal left) and the meals, as `Meal 1 … Meal N`, then **Eaten today**. Anything
+  that explains or measures rather than being eaten belongs one level down.
+- `diet_plan_details_page.dart` — **Plan details**: today's consumed figure (with its
+  basis), the target, the macro bars, the plan verdict, Today's read, and the full plan.
+  Everything the Diet screen used to stack above the meals. It builds its **own** streams,
+  so a target edited here is visible here.
 - `presentation/today_diet.dart` — the Diet glance embedded in Today (calorie ring,
   macro chips, completion state).
 - `diet_plan_edit_page.dart`, `meal_detail_page.dart` — edit plan / drill into a meal.
@@ -21,7 +29,6 @@
   likes, won't-eats, allergies, cuisine). Pairs with `functions/ai/diet_generate.js`.
 - `presentation/widgets/todays_read_card.dart` — **Today's read**: the coaching
   engine's findings on the screen, each openable to the state fields it rests on.
-- `grocery_list_page.dart` — generated grocery list (`domain/grocery_list.dart`).
 - `body_profile_page.dart` — the body data behind every energy figure (height · sex ·
   activity · optional known maintenance; weight goes to the weigh-in log).
 - `diet_plans_page.dart` — the **library**: every plan, its verdict, and which one is being
@@ -156,6 +163,15 @@ and pinned by `test/fixtures/energy_vectors.json`, which **both** suites run.
 `DietState` — there is no separate progress type. Set at
 `presentation/pages/diet_targets_page.dart`; stored at `dietTargets/current`.
 `targetSourceLabel` / `targetBasisSummary` are how a target explains itself on screen.
+
+## Strings
+
+Diet is the first feature on the app's l10n foundation. Every user-facing string goes
+through **`l(context).someKey`** (`lib/l10n/l10n.dart`) and is defined in
+`lib/l10n/app_en.arb` **with a `@description`**, then translated in `app_ar.arb` —
+`test/core/l10n_test.dart` fails on a key present in one and not the other. Never call
+`AppLocalizations.of(context)` directly: it throws in a widget test that pumps a bare page,
+which `l` is there to survive. Not every diet string is keyed yet; key the ones you touch.
 
 ## Gotchas
 

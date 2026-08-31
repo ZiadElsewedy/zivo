@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../core/env/app_environment.dart';
 import '../core/firebase/uid_source.dart';
+import '../core/l10n/locale_controller.dart';
 import '../core/media/data/device_gallery_target.dart';
 import '../core/media/data/firestore_media_preferences_repository.dart';
 import '../core/media/data/firestore_media_registry.dart';
@@ -20,6 +21,7 @@ import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
+import '../l10n/app_localizations.dart';
 import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
 import '../features/ai/data/firebase_ai_repository.dart';
@@ -106,6 +108,7 @@ class ZivoApp extends StatefulWidget {
     this.media,
     this.mediaPreferences,
     this.music,
+    this.locale,
     super.key,
   });
 
@@ -131,6 +134,10 @@ class ZivoApp extends StatefulWidget {
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
   final MusicController? music;
+
+  /// Overridable so a test can pin the app to a locale instead of the
+  /// device's.
+  final LocaleController? locale;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -199,6 +206,12 @@ class _ZivoAppState extends State<ZivoApp> {
   // to construct and harmless to leave running unused.
   late final MusicController _music = widget.music ?? _defaultMusic();
 
+  /// The app language. Constructed on "match the phone" and then asked to
+  /// restore the stored choice in [initState] — reading preferences is async,
+  /// and blocking first paint on it would trade a correct first frame for a
+  /// blank one.
+  late final LocaleController _locale = widget.locale ?? LocaleController();
+
   /// Watches the signed-in account and clears the device-local backup
   /// connection when it changes away from a signed-in account (sign-out or
   /// account switch), so account A's backup connection can never leak into
@@ -210,6 +223,7 @@ class _ZivoAppState extends State<ZivoApp> {
   @override
   void initState() {
     super.initState();
+    if (widget.locale == null) _locale.load();
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
       if (_prevUid != null && _prevUid != uid) {
@@ -225,6 +239,7 @@ class _ZivoAppState extends State<ZivoApp> {
     // Only when we own it (the default) — a caller-supplied controller
     // (a test passing its own fake) stays theirs to dispose.
     if (widget.music == null) _music.dispose();
+    if (widget.locale == null) _locale.dispose();
     super.dispose();
   }
 
@@ -324,18 +339,29 @@ class _ZivoAppState extends State<ZivoApp> {
       stepCounter: _stepCounter,
       media: _media,
       music: _music,
-      child: MaterialApp(
-        title: 'ZIVO',
-        debugShowCheckedModeBanner: false,
-        scrollBehavior: const ZivoScrollBehavior(),
-        theme: AppTheme.dark,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
-        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light,
-          child: child ?? const SizedBox.shrink(),
+      locale: _locale,
+      // Rebuilds the whole MaterialApp on a language change, which is what
+      // swaps both the strings and the text direction: `locale: null` means
+      // "resolve against the device", so RTL follows from the locale itself
+      // rather than from anything the screens do.
+      child: ValueListenableBuilder<Locale?>(
+        valueListenable: _locale.locale,
+        builder: (context, locale, _) => MaterialApp(
+          title: 'ZIVO',
+          debugShowCheckedModeBanner: false,
+          scrollBehavior: const ZivoScrollBehavior(),
+          theme: AppTheme.dark,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle.light,
+            child: child ?? const SizedBox.shrink(),
+          ),
+          home: const AuthGate(),
         ),
-        home: const AuthGate(),
       ),
     );
   }

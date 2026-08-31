@@ -19,6 +19,7 @@ import '../../../workout/domain/session_status.dart';
 import '../../../workout/domain/training_volume.dart';
 import '../../domain/today_pulse.dart';
 import 'common.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Today dashboard's living sections — the answer layer on top of real
 /// data. Three sections live here:
@@ -41,9 +42,9 @@ class TodayPulseSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 30, bottom: 12),
-          child: TrainCaption('TODAY'),
+        Padding(
+          padding: const EdgeInsets.only(top: 30, bottom: 12),
+          child: TrainCaption(l(context).pulseToday),
         ),
         TrainCard(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 6),
@@ -118,13 +119,13 @@ class _TrainedRing extends StatelessWidget {
         } else if (midSession != null) {
           sub = '${midSession.dayLabel.toUpperCase()} · UNDER WAY';
         } else {
-          sub = 'NOT YET TODAY';
+          sub = l(context).pulseNotYetToday;
         }
 
         return TrainMetricRing(
           progress: done != null ? 1 : (midSession?.progress ?? 0),
           color: TrainColors.green,
-          label: 'Trained',
+          label: l(context).pulseTrained,
           sub: sub,
           subColor: done != null || midSession != null
               ? TrainColors.green.withValues(alpha: 0.7)
@@ -149,18 +150,20 @@ class _StepsRing extends StatelessWidget {
 
   final AppScope scope;
 
-  static const _goalLabel = 'OF 8K';
+  /// The daily step goal, as a caption. Not a `static const` any more — the
+  /// label is localized, so it belongs to a build, not to the class.
+  String _goalLabel(BuildContext context) => l(context).pulseOfGoal('8K');
 
   @override
   Widget build(BuildContext context) {
     final counter = scope.stepCounter;
     if (counter == null) {
       // No step sensor on this host — an honest dash, never a fake number.
-      return const TrainMetricRing(
+      return TrainMetricRing(
         progress: 0,
         color: TrainColors.inkPlain,
-        label: 'Steps',
-        sub: 'NO SENSOR',
+        label: l(context).pulseSteps,
+        sub: l(context).pulseNoSensor,
         value: '–',
       );
     }
@@ -169,11 +172,11 @@ class _StepsRing extends StatelessWidget {
       builder: (context, snapshot) {
         final steps = snapshot.data;
         if (steps == null) {
-          return const TrainMetricRing(
+          return TrainMetricRing(
             progress: 0,
             color: TrainColors.inkPlain,
-            label: 'Steps',
-            sub: _goalLabel,
+            label: l(context).pulseSteps,
+            sub: _goalLabel(context),
             value: '…',
           );
         }
@@ -181,8 +184,8 @@ class _StepsRing extends StatelessWidget {
         return TrainMetricRing(
           progress: (steps / kDefaultStepGoal).clamp(0.0, 1.0),
           color: TrainColors.inkPlain,
-          label: 'Steps',
-          sub: _goalLabel,
+          label: l(context).pulseSteps,
+          sub: _goalLabel(context),
           value: parts.value,
           unit: parts.unit,
         );
@@ -211,11 +214,11 @@ class _VolumeRing extends StatelessWidget {
           DateTime.now(),
         );
         if (trend.isEmpty) {
-          return const TrainMetricRing(
+          return TrainMetricRing(
             progress: 0,
             color: TrainColors.green,
-            label: 'Volume',
-            sub: 'NO SETS YET',
+            label: l(context).pulseVolume,
+            sub: l(context).pulseNoSetsYet,
             value: '–',
           );
         }
@@ -229,9 +232,9 @@ class _VolumeRing extends StatelessWidget {
         return TrainMetricRing(
           progress: progress,
           color: TrainColors.green,
-          label: 'Volume',
+          label: l(context).pulseVolume,
           sub: change == null
-              ? 'FIRST WEEK'
+              ? l(context).pulseFirstWeek
               : '${change >= 0 ? '+' : ''}${change.round()}% WoW',
           subColor: change == null
               ? null
@@ -287,7 +290,7 @@ class MomentumSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader('Momentum'),
+            SectionHeader(l(context).pulseMomentum),
             Container(
               padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
               decoration: BoxDecoration(
@@ -363,7 +366,7 @@ class _StreakRow extends StatelessWidget {
                   ),
                 )
               : Text(
-                  'NO STREAK YET',
+                  l(context).pulseNoStreakYet,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.caption(
@@ -378,7 +381,7 @@ class _StreakRow extends StatelessWidget {
         Flexible(
           child: Text(
             weekTotal == 0
-                ? 'NO SESSIONS YET'
+                ? l(context).pulseNoSessionsYet
                 : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -691,7 +694,7 @@ class _InsightsInputsState extends State<_InsightsInputs> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader('Worth knowing'),
+        SectionHeader(l(context).pulseWorthKnowing),
         const SizedBox(height: 2),
         for (final insight in insights)
           Padding(

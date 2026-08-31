@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
@@ -53,6 +54,11 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
   int? _age;
 
   bool _loaded = false;
+
+  /// Whether the optional "I already know my daily calories" field is open.
+  /// Starts open when there IS a stored figure — hiding a value the user
+  /// previously entered is how it gets silently lost on the next save.
+  bool _showMaintenance = false;
   bool _saving = false;
 
   @override
@@ -82,6 +88,9 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
         _sex = profile.sex;
         _activity = profile.activity;
         _maintenance.text = profile.statedMaintenanceKcal?.toString() ?? '';
+        // Open when there's already a figure: a stored value hidden behind a
+        // collapsed row is a value the user can't see they still have.
+        _showMaintenance = profile.statedMaintenanceKcal != null;
       }
       if (latest != null) {
         _prefilledWeightKg = latest.weightKg;
@@ -207,7 +216,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
       child: Column(
         children: [
           CaptureTopBar(
-            title: 'Your body data',
+            title: l(context).bodyTitle,
             onClose: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -217,59 +226,76 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                     key: const Key('body-profile-list'),
                     padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
                     children: [
+                      // One line, not four. Why the screen exists is worth a
+                      // sentence; how Mifflin-St Jeor works is not — that is
+                      // the engine, and the user asked not to be shown it.
                       Text(
-                        'These are the numbers behind every energy figure ZIVO '
-                        'gives you — what your plan does to your weight, and '
-                        'what a target would have to be. Without them it can '
-                        'read your plan, but not tell you what it means.',
+                        l(context).bodyIntro,
                         style: AppText.body.copyWith(
                           color: TrainColors.ink2,
                           height: 1.45,
                         ),
                       ),
-                      const SizedBox(height: 22),
-                      const TrainSectionLabel('You'),
+                      const SizedBox(height: 24),
+                      // Plain questions rather than labelled form fields:
+                      // "What do you weigh?" needs no explanation, where
+                      // "Weight (kg)" under a section header called "You"
+                      // needs the header to make sense.
+                      Text(
+                        l(context).bodyWeightQuestion,
+                        style: AppText.rowTitle,
+                      ),
                       const SizedBox(height: 11),
                       Row(
                         children: [
                           DietNumberField(
-                            label: 'Weight (kg)',
+                            label: l(context).unitKg,
                             controller: _weight,
                             hint: '82',
                             fieldKey: const Key('body-weight'),
                           ),
                           const SizedBox(width: 12),
+                          const Expanded(child: SizedBox.shrink()),
+                        ],
+                      ),
+                      const SizedBox(height: 9),
+                      Text(
+                        staleDays == null
+                            ? l(context).bodyWeighInNote
+                            : l(context).bodyLastWeighIn(_agoLabel(staleDays)),
+                        key: const Key('weigh-in-note'),
+                        style: AppText.meta.copyWith(color: TrainColors.ink3),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        l(context).bodyHeightQuestion,
+                        style: AppText.rowTitle,
+                      ),
+                      const SizedBox(height: 11),
+                      Row(
+                        children: [
                           DietNumberField(
-                            label: 'Height (cm)',
+                            label: l(context).unitCm,
                             controller: _height,
                             hint: '178',
                             fieldKey: const Key('body-height'),
                           ),
+                          const SizedBox(width: 12),
+                          const Expanded(child: SizedBox.shrink()),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        staleDays == null
-                            ? 'Your weight is saved to your weigh-in log, so '
-                                  'the rest of the app stays in step with it.'
-                            : 'Last weigh-in ${_agoLabel(staleDays)}. Change '
-                                  'the number to log a new one.',
-                        key: const Key('weigh-in-note'),
-                        style: AppText.meta.copyWith(color: TrainColors.ink3),
-                      ),
                       if (_heightOutOfRange) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 9),
                         Text(
-                          'That height is outside ${kMinHeightCm.round()}–'
-                          '${kMaxHeightCm.round()} cm — centimetres, not metres.',
+                          l(context).bodyHeightRange,
                           key: const Key('height-range-note'),
                           style: AppText.meta.copyWith(
                             color: TrainColors.ember,
                           ),
                         ),
                       ],
-                      const SizedBox(height: 26),
-                      const TrainSectionLabel('BMR formula'),
+                      const SizedBox(height: 24),
+                      Text(l(context).bodySexQuestion, style: AppText.rowTitle),
                       const SizedBox(height: 11),
                       Wrap(
                         spacing: 7,
@@ -278,21 +304,19 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                           for (final sex in TargetSex.values)
                             SelectChip(
                               key: Key('sex-${sex.name}'),
-                              label: sex == TargetSex.male ? 'Male' : 'Female',
+                              label: sex == TargetSex.male
+                                  ? l(context).bodySexMale
+                                  : l(context).bodySexFemale,
                               selected: _sex == sex,
                               onTap: () => setState(() => _sex = sex),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 24),
                       Text(
-                        'The Mifflin-St Jeor equation has two forms, about 166 '
-                        'kcal apart. This picks which one ZIVO uses and is not '
-                        'read by anything else in the app.',
-                        style: AppText.meta.copyWith(color: TrainColors.ink3),
+                        l(context).bodyActivityQuestion,
+                        style: AppText.rowTitle,
                       ),
-                      const SizedBox(height: 26),
-                      const TrainSectionLabel('Activity'),
                       const SizedBox(height: 11),
                       Wrap(
                         spacing: 7,
@@ -307,48 +331,29 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                             ),
                         ],
                       ),
+                      // Kept: this one line is what makes "moderate" mean
+                      // something, and it describes the user's week rather
+                      // than the equation.
                       if (_activity != null) ...[
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 9),
                         Text(
                           activityDescription(_activity!),
                           style: AppText.meta.copyWith(color: TrainColors.ink3),
                         ),
                       ],
-                      const SizedBox(height: 26),
-                      const TrainSectionLabel(
-                        'Maintenance',
-                        trailing: 'OPTIONAL',
-                      ),
-                      const SizedBox(height: 11),
-                      Row(
-                        children: [
-                          DietNumberField(
-                            label: 'Known maintenance (kcal)',
-                            controller: _maintenance,
-                            hint: '—',
-                            decimal: false,
-                            fieldKey: const Key('body-maintenance'),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(child: SizedBox.shrink()),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _maintenanceOutOfRange
-                            ? 'That looks like a typo — a maintenance figure '
-                                  'sits between $kMinStatedMaintenanceKcal and '
-                                  '$kMaxStatedMaintenanceKcal kcal.'
-                            : 'If you already know what you burn in a day — '
-                                  'from a test, a coach, or your own tracking — '
-                                  'put it here and ZIVO will use it instead of '
-                                  'its estimate. Leave it blank otherwise.',
-                        key: const Key('maintenance-note'),
-                        style: AppText.meta.copyWith(
-                          color: _maintenanceOutOfRange
-                              ? TrainColors.ember
-                              : TrainColors.ink3,
+                      const SizedBox(height: 20),
+                      // Behind a tap. Almost nobody knows this number, and a
+                      // labelled "Known maintenance (kcal)" box sitting open
+                      // on the screen is the engine showing through — but the
+                      // capability is load-bearing (a stated figure outranks
+                      // the estimate), so it stays reachable.
+                      _KnownCaloriesDisclosure(
+                        expanded: _showMaintenance,
+                        onToggle: () => setState(
+                          () => _showMaintenance = !_showMaintenance,
                         ),
+                        controller: _maintenance,
+                        outOfRange: _maintenanceOutOfRange,
                       ),
                       if (_previewMaintenance != null) ...[
                         const SizedBox(height: 20),
@@ -364,7 +369,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                       const SizedBox(height: 26),
                       PillButton(
                         key: const Key('save-body-profile'),
-                        label: 'Save body data',
+                        label: l(context).actionSave,
                         icon: Icons.check_rounded,
                         enabled: _canSave,
                         onTap: _save,
@@ -429,6 +434,88 @@ class _MaintenancePreview extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The one engine-facing input on this screen, kept off it until asked for.
+///
+/// A stated maintenance figure outranks the estimate (`MaintenanceSource`), so
+/// removing it would cost real accuracy for the few people who have one. A
+/// labelled kcal box sitting open on a screen otherwise made of plain
+/// questions is what makes the app feel like a calculator, so it lives behind
+/// a sentence about the user instead of a field about the formula.
+class _KnownCaloriesDisclosure extends StatelessWidget {
+  const _KnownCaloriesDisclosure({
+    required this.expanded,
+    required this.onToggle,
+    required this.controller,
+    required this.outOfRange,
+  });
+
+  final bool expanded;
+  final VoidCallback onToggle;
+  final TextEditingController controller;
+  final bool outOfRange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          key: const Key('known-calories-toggle'),
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_right_rounded,
+                  size: 20,
+                  color: TrainColors.ink3,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l(context).bodyKnowMaintenance,
+                    style: AppText.meta.copyWith(color: TrainColors.ink2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (expanded) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              DietNumberField(
+                label: l(context).unitKcal,
+                controller: controller,
+                hint: '—',
+                decimal: false,
+                fieldKey: const Key('body-maintenance'),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox.shrink()),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Text(
+            outOfRange
+                ? l(context).bodyMaintenanceRange
+                : l(context).bodyMaintenanceNote,
+            key: const Key('maintenance-note'),
+            style: AppText.meta.copyWith(
+              color: outOfRange ? TrainColors.ember : TrainColors.ink3,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

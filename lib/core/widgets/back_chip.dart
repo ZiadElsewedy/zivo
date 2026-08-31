@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_icons.dart';
 import 'pressable_scale.dart';
 import '../theme/train_tokens.dart';
+import '../../l10n/l10n.dart';
 
 /// The app's ONE back affordance for pushed pages — the 38px neutral chip
 /// (surfaceRaised circle, hairline edge, left arrow) used by Settings,
@@ -37,7 +38,7 @@ class BackChip extends StatelessWidget {
         child: PressableScale(
           enabled: enabled,
           child: Tooltip(
-            message: 'Back',
+            message: l(context).actionBack,
             child: InkWell(
               onTap: enabled
                   ? (onTap ?? () => Navigator.of(context).maybePop())

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_typography.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Placeholder for tabs not yet built, kept intentional rather than blank.
 class ComingSoon extends StatelessWidget {
@@ -16,7 +17,7 @@ class ComingSoon extends StatelessWidget {
         children: [
           Text(title, style: AppText.cardTitle),
           const SizedBox(height: 8),
-          Text('Coming next.', style: AppText.aside),
+          Text(l(context).comingNext, style: AppText.aside),
         ],
       ),
     );

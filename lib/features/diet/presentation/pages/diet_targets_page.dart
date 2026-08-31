@@ -6,10 +6,12 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../domain/body_measures.dart';
 import '../../domain/diet_goal.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
 import '../widgets/diet_number_field.dart';
+import 'body_profile_page.dart';
 
 /// Where the user says what they are actually trying to do, and what numbers
 /// serve it.
@@ -112,43 +114,67 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
   Future<void> _openCalculator() async {
     final scope = AppScope.of(context);
 
-    // Prefill from what the app already knows rather than asking twice: the
-    // most recent weigh-in from the workout feature's body-weight log, and
-    // age from the profile's date of birth. Both are best-effort — a failure
-    // to read either just means an empty field, never a guessed value.
+    // Body data is READ here, never asked for. Height, sex and activity live
+    // in the body profile; weight is the workout feature's weigh-in log; age
+    // comes from the account's date of birth. `resolveBodyMeasures` is the one
+    // place that knows how to put those three together.
+    //
+    // This sheet used to render the same fields again, prefilled — which meant
+    // a user could type a weight here that never reached the weigh-in log, and
+    // ZIVO would then hold two different weights and disagree with itself
+    // about maintenance. Asked once, in one place, or not at all.
     final weights = scope.bodyWeight?.current ?? const [];
-    final latestWeight = weights.isEmpty ? null : weights.first.weightKg;
-    // Height/sex/activity come from the stored body profile when there is one
-    // — the whole reason it's stored is so this sheet stops asking for the
-    // same three numbers every time it opens.
-    final body = scope.diet.currentBodyProfile;
-
-    int? age;
+    DateTime? dateOfBirth;
     final uid = scope.auth.currentUser?.uid;
     if (uid != null) {
       try {
         final profile = await scope.profiles.fetchProfile(uid);
-        if (profile != null) age = ageFrom(profile.dateOfBirth, DateTime.now());
+        dateOfBirth = profile?.dateOfBirth;
       } catch (_) {
-        // Offline or unreadable: fall through with no prefill.
+        // Offline or unreadable: treated as missing, which routes the user to
+        // the body-data screen rather than to a guessed age.
       }
     }
     if (!mounted) return;
 
-    final proposal = await showModalBottomSheet<TargetProposal>(
+    final resolution = resolveBodyMeasures(
+      profile: scope.diet.currentBodyProfile,
+      latestWeightKg: weights.isEmpty ? null : weights.first.weightKg,
+      weighedAt: weights.isEmpty ? null : weights.first.loggedAt,
+      dateOfBirth: dateOfBirth,
+      now: DateTime.now(),
+    );
+
+    // Something's missing: send them to the one screen that collects it,
+    // rather than growing a second form here.
+    if (!resolution.isComplete) {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const BodyProfilePage()));
+      return;
+    }
+
+    final measures = resolution.measures!;
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CalculatorSheet(
         goal: _goal ?? DietGoal.maintain,
-        initialWeightKg: latestWeight,
-        initialAge: age,
-        initialHeightCm: body?.heightCm,
-        initialSex: body?.sex,
-        initialActivity: body?.activity,
+        measures: measures,
       ),
     );
-    if (proposal == null || !mounted) return;
+    if (confirmed != true || !mounted) return;
+
+    final proposal = calculateTargets(
+      weightKg: measures.weightKg,
+      heightCm: measures.heightCm,
+      age: measures.age,
+      sex: measures.sex,
+      activity: measures.activity,
+      goal: _goal ?? DietGoal.maintain,
+      now: DateTime.now(),
+    );
 
     // Fill the fields — a proposal to review, not a saved target.
     _applyingProposal = true;
@@ -437,213 +463,136 @@ class _BasisNote extends StatelessWidget {
 /// Collects the inputs Mifflin-St Jeor needs and returns a [TargetProposal].
 /// Returns null if the user backs out — and returns a proposal, never a saved
 /// target: the caller puts the numbers in front of the user to approve.
-class _CalculatorSheet extends StatefulWidget {
-  const _CalculatorSheet({
-    required this.goal,
-    this.initialWeightKg,
-    this.initialAge,
-    this.initialHeightCm,
-    this.initialSex,
-    this.initialActivity,
-  });
+/// What ZIVO will run the equation on — shown, not asked.
+///
+/// Everything here is already stored somewhere the user entered it once. The
+/// sheet exists so the figures aren't applied invisibly (a stale weigh-in is
+/// the common case, and it moves every number downstream), and its "Change"
+/// route is the body-data screen — the single place any of this is edited.
+class _CalculatorSheet extends StatelessWidget {
+  const _CalculatorSheet({required this.goal, required this.measures});
 
   final DietGoal goal;
-
-  /// Prefilled from the user's most recent weigh-in, so they aren't asked for
-  /// something the app already knows.
-  final double? initialWeightKg;
-
-  /// Prefilled from the profile's date of birth.
-  final int? initialAge;
-
-  /// Prefilled from the saved body profile, when there is one — so a user who
-  /// has already given ZIVO their body data isn't asked for it again here.
-  final double? initialHeightCm;
-  final TargetSex? initialSex;
-  final ActivityLevel? initialActivity;
-
-  @override
-  State<_CalculatorSheet> createState() => _CalculatorSheetState();
-}
-
-class _CalculatorSheetState extends State<_CalculatorSheet> {
-  late final TextEditingController _weight = TextEditingController(
-    text: widget.initialWeightKg == null
-        ? ''
-        : widget.initialWeightKg!.toStringAsFixed(
-            widget.initialWeightKg! == widget.initialWeightKg!.roundToDouble()
-                ? 0
-                : 1,
-          ),
-  );
-  late final TextEditingController _height = TextEditingController(
-    text: widget.initialHeightCm == null
-        ? ''
-        : widget.initialHeightCm!.toStringAsFixed(
-            widget.initialHeightCm! == widget.initialHeightCm!.roundToDouble()
-                ? 0
-                : 1,
-          ),
-  );
-  late final TextEditingController _age = TextEditingController(
-    text: widget.initialAge?.toString() ?? '',
-  );
-  late TargetSex? _sex = widget.initialSex;
-  late ActivityLevel _activity =
-      widget.initialActivity ?? ActivityLevel.moderate;
-
-  @override
-  void dispose() {
-    _weight.dispose();
-    _height.dispose();
-    _age.dispose();
-    super.dispose();
-  }
-
-  double? get _weightKg => parsePositiveDecimal(_weight.text);
-
-  double? get _heightCm => parsePositiveDecimal(_height.text);
-
-  int? get _ageYears => parsePositiveInt(_age.text);
-
-  bool get _canCalculate =>
-      _weightKg != null &&
-      _heightCm != null &&
-      _ageYears != null &&
-      _sex != null;
-
-  void _calculate() {
-    if (!_canCalculate) return;
-    Navigator.of(context).pop(
-      calculateTargets(
-        weightKg: _weightKg!,
-        heightCm: _heightCm!,
-        age: _ageYears!,
-        sex: _sex!,
-        activity: _activity,
-        goal: widget.goal,
-        now: DateTime.now(),
-      ),
-    );
-  }
+  final BodyMeasures measures;
 
   @override
   Widget build(BuildContext context) {
+    final stale = measures.weighInAgeDays(DateTime.now());
     return Container(
       decoration: const BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
       child: SingleChildScrollView(
         key: const Key('calculator-scroll'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your numbers', style: AppText.rowTitle),
-            const SizedBox(height: 4),
-            Text(
-              'Used once, on this device, to work out a starting point.',
-              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            Text('ZIVO will use', style: AppText.rowTitle),
+            const SizedBox(height: 14),
+            _Fact(
+              factKey: const Key('calc-fact-weight'),
+              label: 'Weight',
+              value: '${_trim(measures.weightKg)} kg',
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                DietNumberField(
-                  label: 'Weight (kg)',
-                  controller: _weight,
-                  hint: '82',
-                  fieldKey: const Key('calc-weight'),
-                ),
-                const SizedBox(width: 12),
-                DietNumberField(
-                  label: 'Height (cm)',
-                  controller: _height,
-                  hint: '178',
-                  fieldKey: const Key('calc-height'),
-                ),
-              ],
+            _Fact(
+              factKey: const Key('calc-fact-height'),
+              label: 'Height',
+              value: '${measures.heightCm.round()} cm',
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                DietNumberField(
-                  label: 'Age',
-                  controller: _age,
-                  hint: '27',
-                  fieldKey: const Key('calc-age'),
-                  decimal: false,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(child: SizedBox()),
-              ],
+            _Fact(
+              factKey: const Key('calc-fact-age'),
+              label: 'Age',
+              value: '${measures.age}',
             ),
-            const SizedBox(height: 18),
-            Text(
-              // Said plainly, because being asked for this without a reason
-              // is a fair thing to wonder about.
-              'THE BMR FORMULA USES THIS',
-              style: AppText.meta.copyWith(
-                color: TrainColors.ink3,
-                letterSpacing: 0.6,
+            _Fact(
+              label: 'Sex',
+              value: measures.sex == TargetSex.male ? 'Male' : 'Female',
+            ),
+            _Fact(
+              label: 'Activity',
+              value: activityLabel(measures.activity),
+              last: true,
+            ),
+            // A four-month-old weigh-in is the usual reason a calculated
+            // target is wrong, and it is invisible unless said.
+            if (stale > kWeighInStaleAfterDays) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Your last weigh-in was $stale days ago. Worth logging a new '
+                'one first.',
+                key: const Key('calc-stale-weight'),
+                style: AppText.meta.copyWith(color: TrainColors.ember),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 7,
-              children: [
-                for (final sex in TargetSex.values)
-                  SelectChip(
-                    key: Key('calc-sex-${sex.name}'),
-                    label: sex == TargetSex.male ? 'Male' : 'Female',
-                    selected: _sex == sex,
-                    onTap: () => setState(() => _sex = sex),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'ACTIVITY',
-              style: AppText.meta.copyWith(
-                color: TrainColors.ink3,
-                letterSpacing: 0.6,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                for (final level in ActivityLevel.values)
-                  SelectChip(
-                    key: Key('calc-activity-${level.name}'),
-                    label: activityLabel(level),
-                    selected: _activity == level,
-                    onTap: () => setState(() => _activity = level),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              activityDescription(_activity),
-              style: AppText.meta.copyWith(color: TrainColors.ink3),
-            ),
+            ],
             const SizedBox(height: 22),
             PillButton(
               key: const Key('run-calculator'),
               label: 'Fill the fields',
               icon: Icons.arrow_forward_rounded,
-              enabled: _canCalculate,
-              onTap: _calculate,
+              enabled: true,
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                key: const Key('calc-change-body-data'),
+                onPressed: () {
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.push(
+                    MaterialPageRoute(builder: (_) => const BodyProfilePage()),
+                  );
+                },
+                child: Text(
+                  'Change my body data',
+                  style: AppText.meta.copyWith(color: TrainColors.ink3),
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One stored fact, stated flatly. Not a field — nothing here is editable on
+/// this sheet by design.
+/// "82" not "82.0"; "82.4" when the decimal is real.
+String _trim(double v) =>
+    v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+
+class _Fact extends StatelessWidget {
+  const _Fact({
+    required this.label,
+    required this.value,
+    this.factKey,
+    this.last = false,
+  });
+
+  final String label;
+  final String value;
+  final Key? factKey;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: factKey,
+      padding: EdgeInsets.only(bottom: last ? 0 : 11),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppText.meta.copyWith(color: TrainColors.ink3),
+            ),
+          ),
+          Text(value, style: AppText.rowTitle),
+        ],
       ),
     );
   }

@@ -56,6 +56,54 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Simplification pass — the diet a 15-year-old can read (in flight).** The owner's
+  verdict on the diet epic was that it worked but read like the engine: too many numbers,
+  too much text, arithmetic stacked above the meals. Three parts have landed.
+  - **Arabic + English, app-wide (foundation done, copy pass in flight).** `flutter_localizations`
+    + `intl` + `l10n.yaml`, ARB files at [`lib/l10n/`](../lib/l10n), and a `LocaleController`
+    (device-local, `shared_preferences`) on `AppScope`, driving `MaterialApp.locale` through a
+    `ValueListenableBuilder` in `app.dart` — so a language change re-renders the app **and**
+    flips it RTL, because direction follows the locale and nothing else. Strings are read
+    through **`l(context)`** ([`lib/l10n/l10n.dart`](../lib/l10n/l10n.dart)), never
+    `AppLocalizations.of` — `l` falls back to English when no delegate is installed, which is
+    what lets 120-odd widget tests keep pumping a bare page. Picker: Settings → Language
+    ([`core/l10n/language_sheet.dart`](../lib/core/l10n/language_sheet.dart)), options written
+    in their own language. `test/core/l10n_test.dart` fails the build on an en/ar key gap.
+    **Only the diet + shell + settings strings are keyed so far** — the rest of the app is
+    still hardcoded English; that is the remaining work.
+  - **Groceries deleted.** `grocery_list_page.dart`, `domain/grocery_list.dart`, the Diet
+    header's basket action and both tests are gone, at the owner's instruction. The
+    *Expenses* category named "Groceries" is untouched — that is money, not diet.
+  - **The Diet screen: seven blocks to two.** `diet_plan_page.dart` now shows **one number**
+    (kcal left), the meals as **Meal 1 … Meal N** (the plan's own name for each demoted
+    beside it), supplements, and **Eaten today**. The plan-vs-target caption, the macro bars,
+    the plan verdict, the target row and Today's read all moved down a level to the new
+    [`diet_plan_details_page.dart`](../lib/features/diet/presentation/pages/diet_plan_details_page.dart),
+    reached by one quiet row at the foot of the screen. **The `ConsumedBasis` rule moved with
+    them, it did not lapse:** the hero dropped its "1400 EATEN" figure, so it no longer makes
+    the claim the basis qualifies — and Plan details, which does print an eaten figure,
+    prints the basis with it (`Key('consumed-basis')`). Tests moved rather than weakened:
+    `diet_plan_details_page_test.dart` + the retargeted `plan_verdict_card_test.dart`.
+  - **Body data is asked once.** The target calculator's sheet no longer renders weight,
+    height, age, sex and activity as editable fields — it **reads** them through
+    `resolveBodyMeasures` (body profile + weigh-in log + the account's date of birth),
+    states what it will use, and routes to `body_profile_page.dart` when something is
+    missing or needs changing. The old sheet let a user type a weight that never reached
+    the weigh-in log, so ZIVO could hold two. `body_profile_page.dart` itself dropped its
+    four-sentence preamble for plain questions ("What do you weigh?"), and the optional
+    known-maintenance field moved behind "I already know my daily calories" — the one
+    engine-facing input on the screen, kept off it until asked for.
+  - **Preferences are tapped, not typed.** `diet_preferences_page.dart`'s four free-text
+    boxes are now chips (`presentation/widgets/food_chip_picker.dart` over
+    `domain/common_foods.dart`), with an **Other…** chip for anything a fixed list can't
+    cover — non-negotiable for allergies. Chip ids are **English and stay English** on the
+    wire: `functions/ai/diet_generate.js` resolves against an English USDA catalog, so only
+    the label is localized. "Anything else" stays a text field, deliberately.
+  - **Still to do:** the app-wide Arabic copy pass — **84 keys** exist and 43 call sites go
+    through `l(context)`, against roughly **330** user-facing literals still hardcoded
+    (workout ~105, diet ~76, auth ~45, ai ~28, the rest smaller). The AI coach answering in
+    Arabic is a `functions/ai/gateway.js` change and therefore an **owner deploy**.
+
 - **Diet onboarding — Phase E: the coach knows what you burn.** ZIVO now **measures**
   maintenance from the user's own weigh-ins and food log instead of only estimating it from
   an equation (`domain/analysis/maintenance_calibration.dart`), refusing unless there are ≥2
