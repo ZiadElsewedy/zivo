@@ -16,6 +16,7 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
 import 'diet_plan_edit_page.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The largest file the import flow will upload. Cloud Functions callables
 /// reject requests past ~10 MiB at the transport layer — before the server's
@@ -644,7 +645,7 @@ class _ErrorMessage extends StatelessWidget {
             SizedBox(
               width: 180,
               child: PillButton(
-                label: 'Try again',
+                label: l(context).actionRetry,
                 icon: Icons.refresh_rounded,
                 color: TrainColors.green,
                 enabled: true,

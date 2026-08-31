@@ -12,6 +12,7 @@ import '../../domain/nutrition/custom_food.dart';
 import '../../domain/nutrition/food_log_entry.dart';
 import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition/nutrition_calculator.dart';
+import '../../../../l10n/l10n.dart';
 
 /// "What did you eat?" — search the catalog, pick a food, give an amount.
 ///
@@ -184,7 +185,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('What did you eat?', style: AppText.rowTitle),
+        Text(l(context).logWhatDidYouEat, style: AppText.rowTitle),
         const SizedBox(height: 4),
         Text(
           'Searching ${nutritionSourceLabel(NutritionSource.usdaFdc)}.',
@@ -263,7 +264,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
             CaptureIconButton(
               icon: Icons.arrow_back_rounded,
               onTap: () => setState(() => _picked = null),
-              semanticLabel: 'Back to search',
+              semanticLabel: l(context).logBackToSearch,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -343,7 +344,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
         const Spacer(),
         PillButton(
           key: const Key('log-food-confirm'),
-          label: 'Log it',
+          label: l(context).logIt,
           icon: Icons.check_rounded,
           enabled: preview is ResolvedNutrition,
           onTap: _commit,
@@ -476,7 +477,7 @@ class _EmptyResults extends StatelessWidget {
           if (onDefine != null)
             PillButton(
               key: const Key('define-custom-food'),
-              label: 'Add "$query" as my own food',
+              label: l(context).logAddOwnFood(query),
               icon: Icons.add_rounded,
               color: TrainColors.green,
               textColor: const Color(0xFF04140D),
@@ -627,7 +628,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your own food', style: AppText.rowTitle),
+            Text(l(context).logYourOwnFood, style: AppText.rowTitle),
             const SizedBox(height: 4),
             Text(
               'Per 100g, from the label or your own measure. ZIVO stores these '
@@ -639,7 +640,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
             ),
             const SizedBox(height: 16),
             _Field(
-              label: 'Name',
+              label: l(context).logFoodName,
               controller: _name,
               fieldKey: const Key('custom-name'),
               numeric: false,
@@ -650,7 +651,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
               children: [
                 Expanded(
                   child: _Field(
-                    label: 'Calories / 100g',
+                    label: l(context).nutritionCaloriesPer100g,
                     controller: _kcal,
                     fieldKey: const Key('custom-kcal'),
                     onChanged: () => setState(() {}),
@@ -659,7 +660,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _Field(
-                    label: 'Protein (g)',
+                    label: l(context).nutritionProtein,
                     controller: _protein,
                     fieldKey: const Key('custom-protein'),
                     onChanged: () => setState(() {}),
@@ -672,7 +673,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
               children: [
                 Expanded(
                   child: _Field(
-                    label: 'Carbs (g)',
+                    label: l(context).nutritionCarbs,
                     controller: _carbs,
                     fieldKey: const Key('custom-carbs'),
                     onChanged: () => setState(() {}),
@@ -681,7 +682,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _Field(
-                    label: 'Fat (g)',
+                    label: l(context).nutritionFat,
                     controller: _fat,
                     fieldKey: const Key('custom-fat'),
                     onChanged: () => setState(() {}),
@@ -692,7 +693,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
             const SizedBox(height: 22),
             PillButton(
               key: const Key('save-custom-food'),
-              label: 'Save food',
+              label: l(context).logSaveFood,
               icon: Icons.check_rounded,
               enabled: _canSave,
               onTap: _save,

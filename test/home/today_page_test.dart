@@ -204,7 +204,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Full Arm'), findsOneWidget);
-      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsOneWidget);
       expect(find.text('Pull'), findsNothing);
       expect(find.text('Lat Pulldown'), findsNothing);
       expect(find.text('No training plan yet'), findsNothing);
@@ -254,7 +254,7 @@ void main() {
       expect(find.text('EXERCISES'), findsOneWidget);
       expect(find.text('SETS'), findsOneWidget);
       expect(find.text('1'), findsNWidgets(2));
-      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsOneWidget);
       expect(find.text('No training plan yet'), findsNothing);
     },
   );
@@ -275,7 +275,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsNothing);
-      await tester.tap(find.text('Start Workout'));
+      await tester.tap(find.text('Start workout'));
       await _settle(tester);
 
       expect(find.byType(LiveSessionPage), findsOneWidget);
@@ -366,9 +366,9 @@ void main() {
 
       // Home follows the running session's day, not the next-due day.
       expect(find.text('Legs'), findsOneWidget);
-      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsOneWidget);
       expect(find.text('Full Arm'), findsNothing);
-      expect(find.text('Start Workout'), findsNothing);
+      expect(find.text('Start workout'), findsNothing);
     },
   );
 
@@ -395,7 +395,7 @@ void main() {
         ),
       );
       await _settle(tester);
-      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsOneWidget);
 
       // Completing the session clears "active" — Home reactively falls back to
       // the next-due day (no rebuild/navigation needed).
@@ -403,8 +403,8 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Full Arm'), findsOneWidget);
-      expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('Resume Workout'), findsNothing);
+      expect(find.text('Start workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsNothing);
     },
   );
 

@@ -41,6 +41,7 @@ import '../widgets/animated_stat_value.dart';
 import '../widgets/session_ambience.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The premium guided workout player (M1b) — walks the user set-by-set through
 /// the day's exercises around the editable [LiveSession] model (M1a),
@@ -368,7 +369,11 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       previous: _previousSetFor(exercise, set),
       muscleGroup: exercise.muscleGroup,
     );
-    _reps.text = goal.repsLabel == 'AMRAP' ? '' : goal.repsLabel;
+    // Compared against the domain's own sentinel, not a translated string:
+    // `computeGoal` returns the literal 'AMRAP' for a to-failure target, so
+    // localizing this comparison would break it in every language but English
+    // — and reading Localizations here is illegal anyway (initState).
+    _reps.text = goal.repsLabel == kAmrapLabel ? '' : goal.repsLabel;
     _weight.text = goal.weightKg != null ? _trimWeight(goal.weightKg!) : '';
   }
 
@@ -918,23 +923,23 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: TrainColors.raised,
-        title: Text('Discard this workout?', style: AppText.cardTitle),
+        title: Text(l(context).liveDiscardTitle, style: AppText.cardTitle),
         content: Text(
-          "You'll lose this session's progress and the plan won't advance.",
+          l(context).liveDiscardBody,
           style: AppText.body,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Keep going',
+              l(context).liveKeepGoing,
               style: AppText.button.copyWith(color: TrainColors.ink3),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              'Discard',
+              l(context).liveDiscard,
               style: AppText.button.copyWith(color: TrainColors.ember),
             ),
           ),
@@ -1002,7 +1007,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                         child: Column(
                           children: [
                             _SessionHeader(
-                              title: _dayTitle(widget.day).toUpperCase(),
+                              title: _dayTitle(
+                                context,
+                                widget.day,
+                              ).toUpperCase(),
                               elapsed: _session.isComplete
                                   ? _session.elapsed
                                   : _session.activeElapsed(now: widget.now()),
@@ -1097,7 +1105,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                               Positioned.fill(
                                 child: Semantics(
                                   button: true,
-                                  label: 'Resume workout',
+                                  label: l(context).workoutResume,
                                   child: GestureDetector(
                                     key: const Key('paused-resume-overlay'),
                                     behavior: HitTestBehavior.opaque,
@@ -1158,7 +1166,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   int get _exercisesBehind => _currentExerciseIndex ?? _exerciseCount;
 
   String get _exerciseCaption {
-    if (_exerciseCount == 0) return 'NO EXERCISES';
+    if (_exerciseCount == 0) return l(context).liveNoExercises;
     final position = (_currentExerciseIndex ?? _exerciseCount - 1) + 1;
     return 'EXERCISE $position / $_exerciseCount';
   }
@@ -1175,13 +1183,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         final weight = set.actualWeightKg;
         if (reps != null) {
           final load = weight == null ? '' : ' × ${_trimWeight(weight)}';
-          return 'SET LOGGED · $reps$load';
+          return l(context).liveSetLoggedDetail('$reps$load');
         }
       }
-      return 'SET LOGGED';
+      return l(context).liveSetLogged;
     }
     final done = _session.completedSetCount;
-    return '${done.toString().padLeft(2, '0')} SETS LOGGED';
+    return l(context).liveSetsLogged(done.toString().padLeft(2, '0'));
   }
 
   String get _phaseKey {
@@ -1202,7 +1210,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     final exercise = _session.currentExercise;
     final set = _session.currentSet;
     if (exercise == null || set == null) {
-      return const Center(child: Text('Nothing to do.'));
+      return Center(child: Text(l(context).liveNothingToDo));
     }
 
     final target = set.target;
@@ -1210,7 +1218,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ? null
         : '${repTargetLabel(target)} reps';
     final previousSet = _previousSetFor(exercise, set);
-    final lastTimeLabel = _formatLastTime(previousSet);
+    final lastTimeLabel = _formatLastTime(l(context), previousSet);
     final goal = computeGoal(
       target: target,
       targetWeightKg: set.targetWeightKg,
@@ -1223,6 +1231,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
     );
     final intraSessionDelta = _intraSessionDeltaLabel(
+      strings: l(context),
       previous: _previousSetInSession(exercise, set),
       actualReps: int.tryParse(_reps.text.trim()),
       actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
@@ -1270,14 +1279,14 @@ class _LiveSessionPageState extends State<LiveSessionPage>
               Row(
                 children: [
                   _StepperField(
-                    label: 'REPS',
+                    label: l(context).liveReps,
                     controller: _reps,
                     step: 1,
                     onChanged: _onActualChanged,
                   ),
                   const SizedBox(width: 10),
                   _StepperField(
-                    label: 'WEIGHT · KG',
+                    label: l(context).liveWeightKg,
                     controller: _weight,
                     step: 2.5,
                     hint: '—',
@@ -1482,7 +1491,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
   Widget _exerciseHeader(SessionExercise exercise) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const TrainCaption('NOW', color: Color(0xCCFF5C1A)),
+      TrainCaption(l(context).liveNow, color: const Color(0xCCFF5C1A)),
       const SizedBox(height: 11),
       Text(
         exercise.name,
@@ -1527,7 +1536,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       children: [
         Center(
           child: _Eyebrow(
-            _session.isPaused ? 'Paused' : 'Pre-workout',
+            _session.isPaused ? l(context).livePaused : l(context).livePreWorkout,
             color: TrainColors.ember,
             icon: _session.isPaused ? null : AppIcons.streak,
             glyph: _session.isPaused
@@ -1535,8 +1544,8 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                 : null,
             onTap: _onTogglePause,
             semanticLabel: _session.isPaused
-                ? 'Resume workout'
-                : 'Pause workout',
+                ? l(context).workoutResume
+                : l(context).workoutPause,
           ),
         ),
         const SizedBox(height: 26),
@@ -1553,7 +1562,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
         const SizedBox(height: 26),
         _UpNextCard(
-          label: 'FIRST UP',
+          label: l(context).liveFirstUp,
           exercise: _session.currentExercise,
           set: _session.currentSet,
         ),
@@ -1602,7 +1611,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // user could feel. Ember stays reserved for the action that
         // actually commits something.
         TrainGhostButton(
-          label: 'Skip warm-up',
+          label: l(context).liveSkipWarmUp,
           mono: false,
           height: 60,
           icon: const TrainPlayGlyph(
@@ -1626,15 +1635,15 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         // to a play mark while held.
         Center(
           child: _Eyebrow(
-            _session.isPaused ? 'PAUSED' : 'REST',
+            _session.isPaused ? l(context).livePausedCaps : l(context).liveRest,
             color: TrainColors.green,
             glyph: _session.isPaused
                 ? const TrainPlayGlyph(color: TrainColors.green, size: 11)
                 : const TrainPauseGlyph(color: TrainColors.green, size: 11),
             onTap: _onTogglePause,
             semanticLabel: _session.isPaused
-                ? 'Resume workout'
-                : 'Pause workout',
+                ? l(context).workoutResume
+                : l(context).workoutPause,
           ),
         ),
         const SizedBox(height: 26),
@@ -1691,7 +1700,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         ),
         const SizedBox(height: 11),
         TrainGhostButton(
-          label: 'Skip rest',
+          label: l(context).liveSkipRest,
           mono: false,
           height: 60,
           icon: const TrainPlayGlyph(
@@ -1719,7 +1728,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       children: [
         Center(
           child: _Eyebrow(
-            'Workout complete',
+            l(context).liveWorkoutComplete,
             color: TrainColors.green,
             icon: AppIcons.check,
           ),
@@ -1769,7 +1778,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         StaggeredReveal(
           index: reviewedExercises.length,
           child: PillButton(
-            label: 'Finish',
+            label: l(context).liveFinish,
             icon: Icons.check_rounded,
             color: TrainColors.green,
             enabled: !_busy,
@@ -1825,8 +1834,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 String _trimWeight(double v) =>
     v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
-/// "Day A · Push".
-String _dayTitle(WorkoutDay day) => 'Day ${day.slot} · ${day.label}';
+/// "Day A · Push". Takes a context because the separator and the word order
+/// belong to the translator, not to this function.
+String _dayTitle(BuildContext context, WorkoutDay day) =>
+    l(context).workoutDayLabel(day.slot, day.label);
 
 /// "4:05" under an hour, "1:04:05" past one — the "time in workout" label.
 String _formatElapsed(Duration d) {
@@ -1861,6 +1872,7 @@ String _formatElapsed(Duration d) {
 /// from set two onward keeps the card one height while you step, and
 /// "matching your previous set" is worth saying on its own.
 ({String label, bool changed})? _intraSessionDeltaLabel({
+  required AppLocalizations strings,
   required LoggedSet? previous,
   required int? actualReps,
   required double? actualWeightKg,
@@ -1872,8 +1884,9 @@ String _formatElapsed(Duration d) {
       actualWeightKg != prevWeight) {
     final delta = actualWeightKg - prevWeight;
     return (
-      label:
-          '${delta > 0 ? '+' : ''}${_trimWeight(delta)}kg from your previous set',
+      label: strings.liveDeltaWeight(
+        '${delta > 0 ? '+' : ''}${_trimWeight(delta)}',
+      ),
       changed: true,
     );
   }
@@ -1881,25 +1894,24 @@ String _formatElapsed(Duration d) {
   if (prevReps != null && actualReps != null && actualReps != prevReps) {
     final delta = actualReps - prevReps;
     return (
-      label:
-          '${delta > 0 ? '+' : ''}$delta rep${delta.abs() == 1 ? '' : 's'} from your previous set',
+      label: strings.liveDeltaReps('${delta > 0 ? '+' : ''}$delta'),
       changed: true,
     );
   }
-  return (label: 'Matching your previous set', changed: false);
+  return (label: strings.liveMatchingPrevious, changed: false);
 }
 
 /// "60kg × 8" — omits either half when unset; "First time" when there's no
 /// previous performance to show at all (never trained, or never logged).
-String _formatLastTime(LoggedSet? previous) {
+String _formatLastTime(AppLocalizations strings, LoggedSet? previous) {
   // Reps first, then load — the same reading order as the set chips and the
   // goal card's hero, so the eye never has to re-orient between them.
   final reps = previous?.actualReps;
   final weight = previous?.actualWeightKg;
-  if (reps == null && weight == null) return 'First time';
-  if (reps == null) return '${_trimWeight(weight!)} kg';
-  if (weight == null) return '$reps reps';
-  return '$reps × ${_trimWeight(weight)} kg';
+  if (reps == null && weight == null) return strings.liveFirstTime;
+  if (reps == null) return strings.liveWeightValue(_trimWeight(weight!));
+  if (weight == null) return strings.liveRepsValue(reps);
+  return strings.liveRepsByWeight(reps, _trimWeight(weight));
 }
 
 /// "60kg × 8" for a set's OWN actuals — omits either half when unset, "—"
@@ -2022,7 +2034,7 @@ class _ReviewSetRow extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Set $position',
+                  l(context).liveSetNumber(position),
                   style: AppText.body.copyWith(
                     fontSize: 14,
                     color: TrainColors.ink2,
@@ -2030,7 +2042,7 @@ class _ReviewSetRow extends StatelessWidget {
                 ),
               ),
               Text(
-                skipped ? 'Skipped' : _formatSetActuals(set),
+                skipped ? l(context).liveSkipped : _formatSetActuals(set),
                 style: AppText.meta.copyWith(
                   color: skipped ? TrainColors.ink3 : TrainColors.ink2,
                   fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,
@@ -2133,22 +2145,22 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
           const SizedBox(height: 4),
           Text(
             widget.wasSkipped
-                ? 'Enter what you actually did to mark this done.'
-                : 'Correct the reps or weight actually logged.',
+                ? l(context).liveCorrectSkipped
+                : l(context).liveCorrectLogged,
             style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
           const SizedBox(height: 18),
           Row(
             children: [
               _StepperField(
-                label: 'Reps',
+                label: l(context).liveRepsField,
                 controller: _reps,
                 step: 1,
                 onChanged: () => setState(() {}),
               ),
               const SizedBox(width: AppSpacing.m),
               _StepperField(
-                label: 'Weight (kg)',
+                label: l(context).liveWeightField,
                 controller: _weight,
                 step: 2.5,
                 hint: '—',
@@ -2158,7 +2170,9 @@ class _SetReviewSheetState extends State<_SetReviewSheet> {
           ),
           const SizedBox(height: 20),
           PillButton(
-            label: widget.wasSkipped ? 'Mark done' : 'Save',
+            label: widget.wasSkipped
+                ? l(context).liveMarkDone
+                : l(context).actionSave,
             icon: Icons.check_rounded,
             enabled: true,
             onTap: _save,
@@ -2207,7 +2221,7 @@ class _SessionHeader extends StatelessWidget {
     return Row(
       children: [
         TrainCircleButton(
-          semanticLabel: 'Close',
+          semanticLabel: l(context).actionClose,
           onTap: onClose,
           child: const Icon(
             Icons.close_rounded,
@@ -2218,7 +2232,7 @@ class _SessionHeader extends StatelessWidget {
         Expanded(
           child: Semantics(
             button: onTogglePause != null,
-            label: isPaused ? 'Resume workout' : 'Pause workout',
+            label: isPaused ? l(context).workoutResume : l(context).workoutPause,
             child: GestureDetector(
               key: const Key('pause-toggle'),
               behavior: HitTestBehavior.opaque,
@@ -2246,7 +2260,7 @@ class _SessionHeader extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'PAUSED · TAP TO RESUME',
+                        l(context).livePausedTapResume,
                         style: TrainType.mono(
                           size: 8.5,
                           weight: FontWeight.w600,
@@ -2284,7 +2298,7 @@ class _SessionHeader extends StatelessWidget {
           ),
         ),
         TrainCircleButton(
-          semanticLabel: 'Discard workout',
+          semanticLabel: l(context).liveDiscardWorkout,
           onTap: onDiscard,
           // Neutral, same weight as Close — a destructive action still gated
           // behind its own confirm dialog shouldn't also be the loudest thing
@@ -2326,7 +2340,7 @@ class _BackChip extends StatelessWidget {
               const Icon(AppIcons.back, size: 11, color: Color(0x66F4F4F0)),
               const SizedBox(width: 5),
               Text(
-                'BACK',
+                l(context).actionBackCaps,
                 style: TrainType.mono(
                   size: 8.5,
                   weight: FontWeight.w600,
@@ -2494,7 +2508,7 @@ class _GoalBlock extends StatelessWidget {
   /// so "same weight, one more rep" still reads as progress rather than as
   /// "matching last". This replaces the separate verdict badge the card used
   /// to carry: one caption, one place to look.
-  (String, Color)? get _delta {
+  (String, Color)? _deltaFor(BuildContext context) {
     final prevWeight = previous?.actualWeightKg;
     final current = double.tryParse(liveWeight.replaceAll(',', '.'));
     if (prevWeight != null && current != null && current != prevWeight) {
@@ -2516,11 +2530,11 @@ class _GoalBlock extends StatelessWidget {
           '↓ ${percent.abs()}% VS LAST',
           TrainColors.ember,
         ),
-        ProgressVerdict.matched => ('MATCHING LAST', const Color(0x59F4F4F0)),
+        ProgressVerdict.matched => (l(context).liveMatchingLast, const Color(0x59F4F4F0)),
       };
     }
     if (prevWeight != null && current != null) {
-      return ('MATCHING LAST', const Color(0x59F4F4F0));
+      return (l(context).liveMatchingLast, const Color(0x59F4F4F0));
     }
     return null;
   }
@@ -2539,21 +2553,21 @@ class _GoalBlock extends StatelessWidget {
 
   /// The one-line "why" under the goal — makes the progression engine's
   /// decision legible instead of a number appearing from nowhere.
-  String? get _hint {
+  String? _hintFor(BuildContext context) {
     final prevWeight = previous?.actualWeightKg;
     if (goal.weightKg != null && prevWeight != null) {
       if (goal.weightKg! > prevWeight) {
-        return 'Weight up — you hit your reps last time';
+        return l(context).liveWeightUp;
       }
       if (goal.weightKg! < prevWeight) {
-        return 'Weight eased — rebuild with clean reps';
+        return l(context).liveWeightEased;
       }
     }
     final prevReps = previous?.actualReps;
-    if (prevReps != null && goal.repsLabel != 'AMRAP') {
+    if (prevReps != null && goal.repsLabel != kAmrapLabel) {
       final suggested = int.tryParse(goal.repsLabel);
       if (suggested != null && suggested > prevReps) {
-        return 'Same load, one more rep';
+        return l(context).liveSameLoadMoreRep;
       }
     }
     return null;
@@ -2562,7 +2576,7 @@ class _GoalBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final glowColor = accent ?? TrainColors.green;
-    final delta = _delta;
+    final delta = _deltaFor(context);
     return AnimatedContainer(
       key: const Key('goal-card'),
       duration: reducedMotion(context)
@@ -2585,7 +2599,7 @@ class _GoalBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TrainCaption(
-            'GOAL',
+            l(context).liveGoal,
             color: TrainColors.green.withValues(alpha: 0.85),
           ),
           const SizedBox(height: 14),
@@ -2618,7 +2632,7 @@ class _GoalBlock extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'REPS',
+                  l(context).liveReps,
                   style: TrainType.mono(
                     size: 12,
                     weight: FontWeight.w500,
@@ -2698,7 +2712,7 @@ class _GoalBlock extends StatelessWidget {
               ],
             ),
           ),
-          if (_hint != null) ...[
+          if (_hintFor(context) != null) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -2710,7 +2724,7 @@ class _GoalBlock extends StatelessWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    _hint!,
+                    _hintFor(context)!,
                     style: TrainType.ui(
                       size: 11.5,
                       weight: FontWeight.w600,
@@ -2733,7 +2747,7 @@ class _GoalBlock extends StatelessWidget {
               children: [
                 Expanded(
                   child: _GoalStatCell(
-                    label: 'LAST TIME',
+                    label: l(context).liveLastTime,
                     value: lastTimeLabel,
                     valueKey: const Key('last-time-label'),
                   ),
@@ -2745,7 +2759,7 @@ class _GoalBlock extends StatelessWidget {
                 ),
                 Expanded(
                   child: _GoalStatCell(
-                    label: 'TARGET RANGE',
+                    label: l(context).liveTargetRange,
                     value: targetText ?? '—',
                     valueKey: const Key('target-label'),
                     accent: TrainColors.green,
@@ -2759,7 +2773,7 @@ class _GoalBlock extends StatelessWidget {
                 ),
                 Expanded(
                   child: _GoalStatCell(
-                    label: 'REST',
+                    label: l(context).liveRest,
                     value: _formatRest(restSeconds),
                     valueKey: const Key('rest-label'),
                     inset: true,
@@ -3007,18 +3021,24 @@ class _UpNextCard extends StatelessWidget {
   const _UpNextCard({
     required this.exercise,
     required this.set,
-    this.label = 'UP NEXT',
+    /// Overridden by the rest screen, which calls this card something else.
+    /// Null means "UP NEXT", resolved at build time because it's localized.
+    this.label,
   });
 
   final SessionExercise? exercise;
   final LoggedSet? set;
 
-  /// 'UP NEXT' during rest, 'FIRST UP' during the warm-up — the same card
+  /// "UP NEXT" during rest, "FIRST UP" during the warm-up — the same card
   /// answering the same question at two different points in the session.
-  final String label;
+  ///
+  /// Nullable now that it's localized: a default argument has to be a constant
+  /// expression, and a translated string isn't one. Null means "UP NEXT".
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
+    final label = this.label ?? l(context).workoutUpNext;
     final exercise = this.exercise;
     final set = this.set;
     if (exercise == null || set == null) {
@@ -3033,7 +3053,7 @@ class _UpNextCard extends StatelessWidget {
             TrainCaption(label),
             const Spacer(),
             Text(
-              'Finish',
+              l(context).liveFinish,
               style: TrainType.ui(
                 size: 16,
                 weight: FontWeight.w700,
@@ -3089,7 +3109,9 @@ class _UpNextCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'SET ${workingIndex + 1}${weight == null ? '' : ' · KG'}',
+                weight == null
+                    ? l(context).liveSetNumberCaps(workingIndex + 1)
+                    : l(context).liveSetNumberKg(workingIndex + 1),
                 style: TrainType.mono(
                   size: 8.5,
                   weight: FontWeight.w500,
@@ -3211,7 +3233,7 @@ class _ConnectMusicChip extends StatelessWidget {
               const Icon(AppIcons.music, size: 14, color: Color(0x66F4F4F0)),
               const SizedBox(width: 10),
               Text(
-                'CONNECT MUSIC',
+                l(context).liveConnectMusic,
                 style: TrainType.mono(
                   size: 9,
                   weight: FontWeight.w500,
@@ -3245,7 +3267,7 @@ class _ActionCluster extends StatelessWidget {
           height: 60,
           child: TrainGhostButton(
             key: const Key('skip-set'),
-            label: 'Skip',
+            label: l(context).liveSkip,
             mono: false,
             height: 60,
             icon: const TrainPlayGlyph(
@@ -3260,7 +3282,7 @@ class _ActionCluster extends StatelessWidget {
         Expanded(
           child: TrainPrimaryButton(
             key: const Key('log-set'),
-            label: 'Log set',
+            label: l(context).liveLogSet,
             icon: const Icon(
               Icons.check_rounded,
               size: 19,
@@ -3446,7 +3468,7 @@ class _QuickWeightRow extends StatelessWidget {
     return Row(
       children: [
         _QuickWeightChip(
-          label: 'Same · ${_trimWeight(baseWeight)}kg',
+          label: l(context).liveSameWeight(_trimWeight(baseWeight)),
           onTap: () => onPick(baseWeight),
           primary: true,
         ),
@@ -3655,7 +3677,7 @@ class _SetChipRow extends StatelessWidget {
   /// scrolls instead of squeezing.
   static const _maxInlineChips = 4;
 
-  String _labelFor(LoggedSet set, _ChipState state) {
+  String _labelFor(BuildContext context, LoggedSet set, _ChipState state) {
     if (state == _ChipState.current) {
       if (liveReps.isEmpty && liveWeight.isEmpty) return '— × —';
       return '${liveReps.isEmpty ? '—' : liveReps} × '
@@ -3664,7 +3686,7 @@ class _SetChipRow extends StatelessWidget {
     if (state == _ChipState.done) {
       final reps = set.actualReps;
       final weight = set.actualWeightKg;
-      if (reps == null) return 'SKIPPED';
+      if (reps == null) return l(context).liveSkippedCaps;
       return '$reps × ${weight == null ? '—' : _trimWeight(weight)}';
     }
     return '— × —';
@@ -3690,7 +3712,7 @@ class _SetChipRow extends StatelessWidget {
           key: Key('set-chip-$number-${state.name}'),
           number: number,
           state: state,
-          label: _labelFor(s, state),
+          label: _labelFor(context, s, state),
         ),
       );
     }
@@ -3804,7 +3826,7 @@ class _SetChipState extends State<_SetChip>
             children: [
               Flexible(
                 child: Text(
-                  'SET ${widget.number}',
+                  l(context).liveSetNumberCaps(widget.number),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.mono(
@@ -4061,7 +4083,7 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
             child: Align(
               alignment: const Alignment(0, 0.44),
               child: Text(
-                'OF ${_formatRest(widget.total)} PLANNED',
+                l(context).liveRestPlanned(_formatRest(widget.total)),
                 style: TrainType.mono(
                   size: 9,
                   weight: FontWeight.w500,
@@ -4079,7 +4101,7 @@ class _RestRingState extends State<_RestRing> with TickerProviderStateMixin {
     if (onTap == null) return ring;
     return Semantics(
       button: true,
-      label: widget.isPaused ? 'Resume workout' : 'Pause workout',
+      label: widget.isPaused ? l(context).workoutResume : l(context).workoutPause,
       child: GestureDetector(
         key: const Key('rest-ring-pause'),
         behavior: HitTestBehavior.opaque,

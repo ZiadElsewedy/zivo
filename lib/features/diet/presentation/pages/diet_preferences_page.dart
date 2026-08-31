@@ -91,7 +91,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
       child: Column(
         children: [
           CaptureTopBar(
-            title: 'Build me a plan',
+            title: l(context).prefsBuildTitle,
             onClose: () => Navigator.of(context).maybePop(),
           ),
           Expanded(
@@ -200,7 +200,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                 const SizedBox(height: 26),
                 PillButton(
                   key: const Key('prefs-build'),
-                  label: 'Build my plan',
+                  label: l(context).prefsBuild,
                   icon: Icons.auto_awesome_rounded,
                   enabled: _preferences.isUsable,
                   onTap: _build,
@@ -269,7 +269,7 @@ class _TargetNote extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('No daily target set', style: AppText.rowTitle),
+                Text(l(context).targetsNoneSet, style: AppText.rowTitle),
                 const SizedBox(height: 3),
                 Text(
                   'ZIVO will still build the plan, but it has no figure to '

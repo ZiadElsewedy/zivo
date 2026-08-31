@@ -12,6 +12,7 @@ import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
 import '../widgets/diet_number_field.dart';
 import 'body_profile_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Where the user says what they are actually trying to do, and what numbers
 /// serve it.
@@ -279,7 +280,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 Row(
                   children: [
                     DietNumberField(
-                      label: 'Calories',
+                      label: l(context).nutritionCalories,
                       controller: _calories,
                       hint: '2200',
                       fieldKey: const Key('target-calories'),
@@ -287,7 +288,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                     ),
                     const SizedBox(width: 12),
                     DietNumberField(
-                      label: 'Protein (g)',
+                      label: l(context).nutritionProtein,
                       controller: _protein,
                       hint: '—',
                       fieldKey: const Key('target-protein'),
@@ -298,14 +299,14 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 Row(
                   children: [
                     DietNumberField(
-                      label: 'Carbs (g)',
+                      label: l(context).nutritionCarbs,
                       controller: _carbs,
                       hint: '—',
                       fieldKey: const Key('target-carbs'),
                     ),
                     const SizedBox(width: 12),
                     DietNumberField(
-                      label: 'Fat (g)',
+                      label: l(context).nutritionFat,
                       controller: _fat,
                       hint: '—',
                       fieldKey: const Key('target-fat'),
@@ -338,7 +339,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Work it out from my body data',
+                              l(context).targetsFromBodyData,
                               style: AppText.rowTitle,
                             ),
                             const SizedBox(height: 3),
@@ -362,7 +363,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 const SizedBox(height: 26),
                 PillButton(
                   key: const Key('save-targets'),
-                  label: 'Save target',
+                  label: l(context).targetsSave,
                   icon: Icons.check_rounded,
                   enabled: _canSave,
                   onTap: _save,
@@ -374,7 +375,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                       key: const Key('remove-targets'),
                       onPressed: _remove,
                       child: Text(
-                        'Remove target',
+                        l(context).actionRemove,
                         style: AppText.meta.copyWith(color: TrainColors.ink3),
                       ),
                     ),
@@ -490,29 +491,29 @@ class _CalculatorSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ZIVO will use', style: AppText.rowTitle),
+            Text(l(context).targetsZivoWillUse, style: AppText.rowTitle),
             const SizedBox(height: 14),
             _Fact(
               factKey: const Key('calc-fact-weight'),
-              label: 'Weight',
+              label: l(context).bodyWeightLabel,
               value: '${_trim(measures.weightKg)} kg',
             ),
             _Fact(
               factKey: const Key('calc-fact-height'),
-              label: 'Height',
+              label: l(context).bodyHeightLabel,
               value: '${measures.heightCm.round()} cm',
             ),
             _Fact(
               factKey: const Key('calc-fact-age'),
-              label: 'Age',
+              label: l(context).bodyAgeLabel,
               value: '${measures.age}',
             ),
             _Fact(
-              label: 'Sex',
+              label: l(context).bodySexQuestion,
               value: measures.sex == TargetSex.male ? 'Male' : 'Female',
             ),
             _Fact(
-              label: 'Activity',
+              label: l(context).bodyActivityLabel,
               value: activityLabel(measures.activity),
               last: true,
             ),
@@ -530,7 +531,7 @@ class _CalculatorSheet extends StatelessWidget {
             const SizedBox(height: 22),
             PillButton(
               key: const Key('run-calculator'),
-              label: 'Fill the fields',
+              label: l(context).targetsFillFields,
               icon: Icons.arrow_forward_rounded,
               enabled: true,
               onTap: () => Navigator.of(context).pop(true),
@@ -547,7 +548,7 @@ class _CalculatorSheet extends StatelessWidget {
                   );
                 },
                 child: Text(
-                  'Change my body data',
+                  l(context).targetsChangeBodyData,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
               ),

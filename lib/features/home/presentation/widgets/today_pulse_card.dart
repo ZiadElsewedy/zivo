@@ -682,6 +682,7 @@ class _InsightsInputsState extends State<_InsightsInputs> {
             .toList() ??
         const <(DateTime, double)>[];
     final insights = buildInsights(
+      strings: l(context),
       sessions: widget.sessions,
       expenses: widget.expenses,
       kcalLeft: kcalLeft,

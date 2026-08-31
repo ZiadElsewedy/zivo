@@ -413,4 +413,719 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pulseWorthKnowing => 'يستحق المعرفة';
+
+  @override
+  String insightStreakTitle(int days) {
+    return 'سلسلة تمرين $days أيام';
+  }
+
+  @override
+  String get insightStreakBody => 'الاندفاع حقيقي الآن — احمِه بتمرين اليوم.';
+
+  @override
+  String insightRestTitle(int days) {
+    return 'امتدت الراحة إلى $days أيام';
+  }
+
+  @override
+  String get insightRestBody =>
+      'لا تلم نفسك — فقط ابدأ تمرينًا صغيرًا وقتما تكون جاهزًا.';
+
+  @override
+  String get insightEveningTitle => 'مراجعة المساء';
+
+  @override
+  String get insightMealsLeftOne =>
+      'ما زالت هناك وجبة واحدة اليوم — يستحق إنهاؤها.';
+
+  @override
+  String insightMealsLeftOneKcal(int kcal) {
+    return 'ما زالت هناك وجبة واحدة اليوم (~$kcal سعرة) — يستحق إنهاؤها.';
+  }
+
+  @override
+  String insightMealsLeftMany(int count) {
+    return 'ما زالت هناك $count وجبات اليوم.';
+  }
+
+  @override
+  String insightMealsLeftManyKcal(int count, int kcal) {
+    return 'ما زالت هناك $count وجبات اليوم (باقي ~$kcal سعرة).';
+  }
+
+  @override
+  String insightSpendTitle(int percent) {
+    return 'إنفاقك أعلى بنحو $percent%';
+  }
+
+  @override
+  String get insightSpendBody =>
+      'هذا الأسبوع مقارنة بالفترة نفسها الأسبوع الماضي — يستحق نظرة.';
+
+  @override
+  String get insightStepsTitle => 'خطواتك متأخرة اليوم';
+
+  @override
+  String insightStepsClose(int steps) {
+    return 'باقي $steps خطوة فقط للهدف — مشية قصيرة تكفي.';
+  }
+
+  @override
+  String insightStepsFar(int steps) {
+    return 'باقي $steps خطوة — حتى عشر دقائق تساعد.';
+  }
+
+  @override
+  String insightWeightDownTitle(String kg, int days) {
+    return 'نزل وزنك $kg كجم خلال $days يومًا';
+  }
+
+  @override
+  String insightWeightUpTitle(String kg, int days) {
+    return 'زاد وزنك $kg كجم خلال $days يومًا';
+  }
+
+  @override
+  String get insightWeightDownBody =>
+      'تقدم ثابت — استمر في الأكل الكافي لتتمرن بقوة.';
+
+  @override
+  String get insightWeightUpBody =>
+      'لا شيء مقلق — تابع الاتجاه العام، لا يومًا بعينه.';
+
+  @override
+  String get workoutTitle => 'التمرين';
+
+  @override
+  String get workoutProgress => 'التقدم';
+
+  @override
+  String get workoutTraining => 'التدريب';
+
+  @override
+  String get workoutBodyweight => 'وزن الجسم';
+
+  @override
+  String get workoutSplits => 'الجداول';
+
+  @override
+  String get workoutAnalysis => 'التحليل';
+
+  @override
+  String get workoutHistory => 'السجل';
+
+  @override
+  String get workoutCreatePlan => 'إنشاء خطة';
+
+  @override
+  String get workoutEditPlan => 'تعديل الخطة';
+
+  @override
+  String get workoutNoPlanYet => 'لا توجد خطة تمرين بعد';
+
+  @override
+  String get workoutNoDayUpNext => 'لا يوجد يوم تالٍ.';
+
+  @override
+  String get workoutFullCycle => 'الدورة كاملة';
+
+  @override
+  String get workoutAnyDayNote =>
+      'يوم اليوم مُعلَّم — لكن أي يوم متاح. الحياة لا تتبع الدورة دائمًا.';
+
+  @override
+  String get workoutUpNext => 'التالي';
+
+  @override
+  String get workoutNextUp => 'التالي';
+
+  @override
+  String get workoutInProgress => 'جارٍ الآن';
+
+  @override
+  String get workoutInProgressCaps => 'جارٍ الآن';
+
+  @override
+  String get workoutStart => 'ابدأ التمرين';
+
+  @override
+  String get workoutResume => 'أكمل التمرين';
+
+  @override
+  String get workoutPause => 'إيقاف مؤقت';
+
+  @override
+  String get workoutStartThisDay => 'ابدأ هذا اليوم';
+
+  @override
+  String get workoutChange => 'تغيير';
+
+  @override
+  String get workoutChangeWorkout => 'تغيير التمرين';
+
+  @override
+  String workoutDayLabel(String slot, String label) {
+    return 'اليوم $slot · $label';
+  }
+
+  @override
+  String workoutDaySlot(String slot) {
+    return 'اليوم $slot';
+  }
+
+  @override
+  String get workoutExercises => 'تمارين';
+
+  @override
+  String get workoutSets => 'مجموعات';
+
+  @override
+  String get workoutMinutes => 'دقيقة';
+
+  @override
+  String workoutReadyToStart(String day) {
+    return 'جاهز لبدء $day؟';
+  }
+
+  @override
+  String get workoutReadyToResume => 'جاهز للعودة؟';
+
+  @override
+  String get actionResume => 'أكمل';
+
+  @override
+  String get actionStart => 'ابدأ';
+
+  @override
+  String weighInLast(String kg) {
+    return 'آخر قياس: $kg كجم';
+  }
+
+  @override
+  String get weighInLog => 'سجّل وزنك';
+
+  @override
+  String get weighInNone => 'لا توجد قياسات بعد';
+
+  @override
+  String get weighInStartTrend => 'سجّل واحدًا لتبدأ المتابعة.';
+
+  @override
+  String weighInLoggedAgo(String ago) {
+    return 'سُجّل منذ $ago';
+  }
+
+  @override
+  String get statTotal => 'الإجمالي';
+
+  @override
+  String get statSessions => 'الجلسات';
+
+  @override
+  String get statDays => 'يوم';
+
+  @override
+  String get statStreak => 'السلسلة';
+
+  @override
+  String get statMinAvg => 'متوسط الدقائق';
+
+  @override
+  String get statDuration => 'المدة';
+
+  @override
+  String get statUsualStart => 'وقت البدء المعتاد';
+
+  @override
+  String get commonToday => 'اليوم';
+
+  @override
+  String weighInOneMore(String ago) {
+    return 'سُجّل منذ $ago · قياس آخر يرسم الاتجاه.';
+  }
+
+  @override
+  String get liveDiscardTitle => 'تجاهل هذا التمرين؟';
+
+  @override
+  String get liveDiscardBody => 'ستفقد تقدم هذه الجلسة ولن تتقدم الخطة.';
+
+  @override
+  String get liveKeepGoing => 'أكمل';
+
+  @override
+  String get liveDiscard => 'تجاهل';
+
+  @override
+  String get liveDiscardWorkout => 'تجاهل التمرين';
+
+  @override
+  String get liveNoExercises => 'لا توجد تمارين';
+
+  @override
+  String get liveNothingToDo => 'لا يوجد ما تفعله.';
+
+  @override
+  String get liveSetLogged => 'سُجّلت المجموعة';
+
+  @override
+  String liveSetLoggedDetail(String detail) {
+    return 'سُجّلت المجموعة · $detail';
+  }
+
+  @override
+  String liveSetsLogged(String count) {
+    return '$count مجموعات مسجلة';
+  }
+
+  @override
+  String get liveReps => 'التكرارات';
+
+  @override
+  String get liveWeightKg => 'الوزن · كجم';
+
+  @override
+  String get liveRepsField => 'التكرارات';
+
+  @override
+  String get liveWeightField => 'الوزن (كجم)';
+
+  @override
+  String get liveNow => 'الآن';
+
+  @override
+  String get livePaused => 'متوقف';
+
+  @override
+  String get livePausedCaps => 'متوقف';
+
+  @override
+  String get livePausedTapResume => 'متوقف · اضغط للمتابعة';
+
+  @override
+  String get livePreWorkout => 'قبل التمرين';
+
+  @override
+  String get liveFirstUp => 'الأول';
+
+  @override
+  String get liveSkipWarmUp => 'تخطَّ الإحماء';
+
+  @override
+  String get liveRest => 'راحة';
+
+  @override
+  String get liveSkipRest => 'تخطَّ الراحة';
+
+  @override
+  String liveRestPlanned(String total) {
+    return 'من $total مخططة';
+  }
+
+  @override
+  String get liveWorkoutComplete => 'اكتمل التمرين';
+
+  @override
+  String get liveFinish => 'إنهاء';
+
+  @override
+  String get liveMatchingPrevious => 'مطابق لمجموعتك السابقة';
+
+  @override
+  String get liveFirstTime => 'المرة الأولى';
+
+  @override
+  String get liveMatchingLast => 'مطابق للمرة السابقة';
+
+  @override
+  String liveSetNumber(int position) {
+    return 'المجموعة $position';
+  }
+
+  @override
+  String liveSetNumberCaps(int number) {
+    return 'المجموعة $number';
+  }
+
+  @override
+  String liveSetNumberKg(int number) {
+    return 'المجموعة $number · كجم';
+  }
+
+  @override
+  String get liveSkipped => 'تم تخطيها';
+
+  @override
+  String get liveSkippedCaps => 'تم تخطيها';
+
+  @override
+  String get liveSkip => 'تخطَّ';
+
+  @override
+  String get liveLogSet => 'سجّل المجموعة';
+
+  @override
+  String get liveMarkDone => 'علّمها كمنجزة';
+
+  @override
+  String get liveCorrectSkipped => 'أدخل ما فعلته بالفعل لتعليمها كمنجزة.';
+
+  @override
+  String get liveCorrectLogged => 'صحّح التكرارات أو الوزن المسجل.';
+
+  @override
+  String get liveGoal => 'الهدف';
+
+  @override
+  String get liveLastTime => 'المرة السابقة';
+
+  @override
+  String get liveTargetRange => 'النطاق المستهدف';
+
+  @override
+  String get liveWeightUp => 'زاد الوزن — أكملت تكراراتك آخر مرة';
+
+  @override
+  String get liveWeightEased => 'خُفّف الوزن — أعد البناء بتكرارات نظيفة';
+
+  @override
+  String get liveSameLoadMoreRep => 'نفس الوزن، تكرار إضافي';
+
+  @override
+  String liveSameWeight(String kg) {
+    return 'نفسه · $kg كجم';
+  }
+
+  @override
+  String get liveConnectMusic => 'اربط الموسيقى';
+
+  @override
+  String get actionClose => 'إغلاق';
+
+  @override
+  String get actionBackCaps => 'رجوع';
+
+  @override
+  String liveDeltaWeight(String delta) {
+    return '$delta كجم عن مجموعتك السابقة';
+  }
+
+  @override
+  String liveDeltaReps(String delta) {
+    return '$delta تكرار عن مجموعتك السابقة';
+  }
+
+  @override
+  String liveRepsValue(int reps) {
+    return '$reps تكرار';
+  }
+
+  @override
+  String liveWeightValue(String kg) {
+    return '$kg كجم';
+  }
+
+  @override
+  String liveRepsByWeight(int reps, String kg) {
+    return '$reps × $kg كجم';
+  }
+
+  @override
+  String get categoryFood => 'طعام';
+
+  @override
+  String get categoryCoffee => 'قهوة';
+
+  @override
+  String get categoryTransport => 'مواصلات';
+
+  @override
+  String get categoryGroceries => 'بقالة';
+
+  @override
+  String get categoryShopping => 'تسوق';
+
+  @override
+  String get categoryOther => 'أخرى';
+
+  @override
+  String get expensesTitle => 'المصروفات';
+
+  @override
+  String get expensesEmpty => 'لا يوجد إنفاق بعد — بداية هادئة.';
+
+  @override
+  String get expenseNew => 'مصروف جديد';
+
+  @override
+  String get expenseEdit => 'تعديل المصروف';
+
+  @override
+  String get expenseDelete => 'حذف المصروف';
+
+  @override
+  String get expenseNote => 'ملاحظة';
+
+  @override
+  String get expenseNoteHint => 'على ماذا كان؟';
+
+  @override
+  String get expenseAddNote => 'أضف ملاحظة';
+
+  @override
+  String expenseSaveAmount(String amount) {
+    return 'حفظ · $amount';
+  }
+
+  @override
+  String get walletCaps => 'المحفظة';
+
+  @override
+  String get walletSetUp => 'أعدّ محفظتك';
+
+  @override
+  String get walletHowMuchNow => 'كم معك الآن؟';
+
+  @override
+  String get walletDeductNote => 'كل مصروف تسجله يُخصم منها تلقائيًا.';
+
+  @override
+  String get walletSetStarting => 'حدد الرصيد المبدئي';
+
+  @override
+  String get walletTopUp => 'إضافة رصيد';
+
+  @override
+  String get walletTopUpTitle => 'إضافة رصيد للمحفظة';
+
+  @override
+  String get walletSetBalanceTitle => 'تحديد رصيد المحفظة';
+
+  @override
+  String get walletHowMuchAdding => 'كم ستضيف؟';
+
+  @override
+  String get walletSaveBalance => 'حفظ الرصيد';
+
+  @override
+  String get walletAddFunds => 'إضافة الرصيد';
+
+  @override
+  String get expensesThisWeek => 'هذا الأسبوع';
+
+  @override
+  String get categoryNew => 'فئة جديدة';
+
+  @override
+  String get categoryNewHint => 'مثال: الاشتراكات';
+
+  @override
+  String get categoryIconCaps => 'الأيقونة';
+
+  @override
+  String get categoryAdd => 'إضافة فئة';
+
+  @override
+  String get captureTitle => 'تسجيل سريع';
+
+  @override
+  String get captureExpense => 'مصروف';
+
+  @override
+  String get captureExpenseDetail => 'المبلغ والفئة — في ثوانٍ';
+
+  @override
+  String get captureMoment => 'لحظة';
+
+  @override
+  String get captureMomentDetail => 'صورة + سطر';
+
+  @override
+  String get captureWorkout => 'تمرين';
+
+  @override
+  String get captureWorkoutDetail => 'سجّل جلسة تدريب';
+
+  @override
+  String get dateToday => 'اليوم';
+
+  @override
+  String get dateYesterday => 'أمس';
+
+  @override
+  String get nutritionCalories => 'السعرات';
+
+  @override
+  String get nutritionProtein => 'البروتين (جم)';
+
+  @override
+  String get nutritionCarbs => 'الكربوهيدرات (جم)';
+
+  @override
+  String get nutritionFat => 'الدهون (جم)';
+
+  @override
+  String get nutritionCaloriesPer100g => 'السعرات / ١٠٠ جم';
+
+  @override
+  String get targetsSave => 'حفظ الهدف';
+
+  @override
+  String get targetsNoneSet => 'لم يُحدد هدف يومي';
+
+  @override
+  String get targetsZivoWillUse => 'سيستخدم زيفو';
+
+  @override
+  String get targetsFillFields => 'املأ الحقول';
+
+  @override
+  String get targetsChangeBodyData => 'تعديل بيانات جسمي';
+
+  @override
+  String get targetsFromBodyData => 'احسبه من بيانات جسمي';
+
+  @override
+  String get bodyWeightLabel => 'الوزن';
+
+  @override
+  String get bodyHeightLabel => 'الطول';
+
+  @override
+  String get bodyAgeLabel => 'العمر';
+
+  @override
+  String get bodyActivityLabel => 'النشاط';
+
+  @override
+  String get planDeleteTitle => 'حذف هذه الخطة؟';
+
+  @override
+  String get planEditTitle => 'تعديل الخطة الغذائية';
+
+  @override
+  String get planDelete => 'حذف الخطة';
+
+  @override
+  String get planNameHint => 'اسم الخطة';
+
+  @override
+  String get planSave => 'حفظ الخطة';
+
+  @override
+  String get planNoDays => 'لا توجد أيام بعد.';
+
+  @override
+  String get planAddDay => 'أضف يومًا';
+
+  @override
+  String get planAddMeal => 'أضف وجبة';
+
+  @override
+  String get planAddItem => 'أضف صنفًا';
+
+  @override
+  String get planAddFoodItem => 'أضف صنف طعام';
+
+  @override
+  String get planEveryDay => 'كل يوم';
+
+  @override
+  String get planDayLabelHint => 'اسم اليوم (اختياري)';
+
+  @override
+  String get planMealNameHint => 'اسم الوجبة';
+
+  @override
+  String get planFoodNameHint => 'اسم الطعام';
+
+  @override
+  String get planQty => 'الكمية';
+
+  @override
+  String get plansTitle => 'خططك';
+
+  @override
+  String get plansFollow => 'اتبع هذه الخطة';
+
+  @override
+  String get plansStopFollowing => 'إيقاف المتابعة';
+
+  @override
+  String get prefsBuildTitle => 'ابنِ لي خطة';
+
+  @override
+  String get prefsBuild => 'ابنِ خطتي';
+
+  @override
+  String get dictateHint => 'الإفطار هو…';
+
+  @override
+  String get dictateTurnIntoPlan => 'حوّل هذا إلى خطة';
+
+  @override
+  String get dictateDoneTalking => 'انتهيت';
+
+  @override
+  String get logWhatDidYouEat => 'ماذا أكلت؟';
+
+  @override
+  String get logBackToSearch => 'العودة للبحث';
+
+  @override
+  String get logIt => 'سجّلها';
+
+  @override
+  String logAddOwnFood(String query) {
+    return 'أضف \"$query\" كطعام خاص بي';
+  }
+
+  @override
+  String get logYourOwnFood => 'طعامك الخاص';
+
+  @override
+  String get logFoodName => 'الاسم';
+
+  @override
+  String get logSaveFood => 'حفظ الطعام';
+
+  @override
+  String get dietEaten => 'أُكلت';
+
+  @override
+  String get adoptSaveAsTarget => 'احفظه كهدفي';
+
+  @override
+  String get addDietPdfOrPhoto => 'ملف أو صورة';
+
+  @override
+  String get addDietPdfOrPhotoDetail => 'خطة أخصائي التغذية، أو صورة لها.';
+
+  @override
+  String get addDietDictate => 'قلها بصوتك';
+
+  @override
+  String get addDietDictateDetail => 'صف وجباتك؛ وزيفو يكتبها.';
+
+  @override
+  String get addDietType => 'اكتبها';
+
+  @override
+  String get addDietTypeDetail => 'اكتب وجباتك بكلماتك.';
+
+  @override
+  String get addDietGenerate => 'ابنِها لي';
+
+  @override
+  String get addDietGenerateDetail => 'أخبر زيفو بما تأكله؛ وهو يصمم الخطة.';
+
+  @override
+  String get addDietManual => 'ابنِها وجبة بوجبة';
+
+  @override
+  String get addDietManualDetail => 'المحرر الكامل، دون استخراج تلقائي.';
+
+  @override
+  String get addDietIntro =>
+      'مهما وصلت إلى زيفو، ستراجع كل وجبة وكل رقم قبل الحفظ.';
 }

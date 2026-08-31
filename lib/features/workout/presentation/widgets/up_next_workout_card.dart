@@ -12,6 +12,7 @@ import '../pages/live_session_page.dart';
 import '../pages/workout_day_details_page.dart';
 import 'change_workout_sheet.dart';
 import 'workout_start_sheet.dart' show CardScale;
+import '../../../../l10n/l10n.dart';
 
 /// The "up next" training card — the day due next in the active plan's
 /// rotation, built to the workout-tracking design handoff: a green slab with
@@ -159,8 +160,8 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
                       Expanded(
                         child: Text(
                           isResume
-                              ? 'IN PROGRESS'
-                              : 'DAY ${day.slot.toUpperCase()}',
+                              ? l(context).workoutInProgressCaps
+                              : l(context).workoutDaySlot(day.slot.toUpperCase()),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TrainType.mono(
@@ -189,9 +190,9 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
                   const SizedBox(height: 16),
                   _StatRow(
                     stats: [
-                      ('${day.exerciseCount}', 'EXERCISES'),
-                      ('${plannedSetCount(day)}', 'SETS'),
-                      if (minutes > 0) ('~$minutes', 'MINUTES'),
+                      ('${day.exerciseCount}', l(context).workoutExercises),
+                      ('${plannedSetCount(day)}', l(context).workoutSets),
+                      if (minutes > 0) ('~$minutes', l(context).workoutMinutes),
                     ],
                   ),
                   const SizedBox(height: 22),
@@ -199,7 +200,7 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
                     key: isResume
                         ? const Key('training-resume')
                         : const Key('training-start'),
-                    label: isResume ? 'Resume Workout' : 'Start Workout',
+                    label: isResume ? l(context).workoutResume : l(context).workoutStart,
                     height: 56,
                     glowAlpha: 0.35,
                     icon: const TrainPlayGlyph(color: Colors.white, size: 15),
@@ -237,7 +238,7 @@ class _ChangePill extends StatelessWidget {
             border: Border.all(color: const Color(0x38FFFFFF)),
           ),
           child: Text(
-            'Change',
+            l(context).workoutChange,
             style: TrainType.ui(
               size: 11.5,
               weight: FontWeight.w700,

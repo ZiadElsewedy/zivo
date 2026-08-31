@@ -73,7 +73,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-            child: const TrainPageHeader(title: 'Plan details'),
+            child: TrainPageHeader(title: l(context).dietPlanDetails),
           ),
           Expanded(
             child: StreamBuilder<NutritionTargets?>(
@@ -296,7 +296,7 @@ class _NoTargetCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('No daily target set', style: AppText.rowTitle),
+                    Text(l(context).targetsNoneSet, style: AppText.rowTitle),
                     const SizedBox(height: 3),
                     Text(
                       "Set one and the numbers above become progress toward a "

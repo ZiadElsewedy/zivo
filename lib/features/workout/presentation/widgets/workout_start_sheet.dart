@@ -11,6 +11,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Shared "Start a workout" chrome for the Today page's training card
 /// ([UpNextWorkoutCard]) — factored out of it so a future second card in
@@ -247,7 +248,7 @@ Future<bool?> showStartConfirmSheet({
     // [_StartConfirmSheetState._resolve]) so the exit stays symmetric with
     // the entrance rather than the framework's instant barrier-tap pop.
     barrierDismissible: false,
-    barrierLabel: 'Start workout',
+    barrierLabel: l(context).workoutStart,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     // Zero — the built-in route transition is skipped entirely; the sheet
     // drives its own spring on mount/dismiss (see [_StartConfirmSheet]),
@@ -489,7 +490,7 @@ class _StartConfirmCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              isResume ? 'Ready to jump back in?' : 'Ready to start $dayLabel?',
+              isResume ? l(context).workoutReadyToResume : l(context).workoutReadyToStart(dayLabel),
               style: AppText.cardTitle.copyWith(
                 color: TrainColors.ink,
                 fontSize: 21,
@@ -523,7 +524,7 @@ class _StartConfirmCard extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          'Cancel',
+                          l(context).actionCancel,
                           style: AppText.button.copyWith(
                             color: TrainColors.ink2,
                           ),
@@ -535,7 +536,7 @@ class _StartConfirmCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: PillButton(
-                    label: isResume ? 'Resume' : 'Start',
+                    label: isResume ? l(context).actionResume : l(context).actionStart,
                     icon: Icons.play_arrow_rounded,
                     color: TrainColors.ember,
                     enabled: true,

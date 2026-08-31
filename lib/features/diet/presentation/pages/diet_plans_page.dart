@@ -15,6 +15,7 @@ import '../../domain/diet_plan_status.dart';
 import '../../domain/diet_source.dart';
 import '../widgets/body_measures_builder.dart';
 import '../widgets/add_diet_sheet.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The user's **library of plans** — the cut, the bulk, the one their coach
 /// wrote — with exactly one in force.
@@ -34,14 +35,14 @@ class DietPlansPage extends StatelessWidget {
       tint: TrainColors.dietTint,
       floatingActionButton: TrainFab(
         icon: Icons.add_rounded,
-        semanticLabel: 'Add a diet',
+        semanticLabel: l(context).dietAddPlan,
         onTap: () => showAddDietSheet(context),
       ),
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(22, 12, 22, 0),
-            child: TrainPageHeader(title: 'Your plans'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+            child: TrainPageHeader(title: l(context).plansTitle),
           ),
           Expanded(
             child: StreamBuilder<List<DietPlan>>(
@@ -139,7 +140,7 @@ class _PlanCard extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: TrainColors.raised,
-        title: Text('Delete this plan?', style: AppText.rowTitle),
+        title: Text(l(context).planDeleteTitle, style: AppText.rowTitle),
         content: Text(
           'This removes ${plan.name} for good. Archiving keeps it and takes '
           'it off the Diet screen just the same.',
@@ -231,7 +232,7 @@ class _PlanCard extends StatelessWidget {
                 Expanded(
                   child: PillButton(
                     key: Key('activate-${plan.id}'),
-                    label: 'Follow this plan',
+                    label: l(context).plansFollow,
                     icon: Icons.check_rounded,
                     enabled: true,
                     onTap: () => _activate(context),
@@ -241,14 +242,14 @@ class _PlanCard extends StatelessWidget {
                 Expanded(
                   child: _QuietAction(
                     actionKey: Key('archive-${plan.id}'),
-                    label: 'Stop following',
+                    label: l(context).plansStopFollowing,
                     onTap: () => _archive(context),
                   ),
                 ),
               const SizedBox(width: 8),
               _QuietAction(
                 actionKey: Key('delete-${plan.id}'),
-                label: 'Delete',
+                label: l(context).actionDelete,
                 color: TrainColors.ember,
                 onTap: () => _delete(context),
               ),

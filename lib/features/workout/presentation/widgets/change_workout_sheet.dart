@@ -6,6 +6,7 @@ import '../../domain/live_session.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The result of picking from the change-workout sheet: the [day] to train
 /// instead, plus the plan's active [resumable] session when that day is
@@ -70,7 +71,7 @@ class _ChangeWorkoutSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Text(
-                'Change workout',
+                l(context).workoutChangeWorkout,
                 style: AppText.cardTitle.copyWith(fontSize: 19),
               ),
             ),
@@ -129,13 +130,13 @@ class _ChangeWorkoutSheet extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 if (isNext)
-                                  const _Badge(
-                                    label: 'Next up',
+                                  _Badge(
+                                    label: l(context).workoutNextUp,
                                     color: TrainColors.green,
                                   )
                                 else if (resumable != null)
-                                  const _Badge(
-                                    label: 'In progress',
+                                  _Badge(
+                                    label: l(context).workoutInProgress,
                                     color: TrainColors.amber,
                                   ),
                               ],

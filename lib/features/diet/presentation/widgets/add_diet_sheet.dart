@@ -9,6 +9,7 @@ import '../pages/diet_dictate_page.dart';
 import '../pages/diet_import_page.dart';
 import '../pages/diet_plan_edit_page.dart';
 import '../pages/diet_preferences_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Every way a plan gets into ZIVO, in one place.
 ///
@@ -58,49 +59,48 @@ class _AddDietSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Add a diet', style: AppText.rowTitle),
+          Text(l(context).dietAddPlan, style: AppText.rowTitle),
           const SizedBox(height: 4),
           Text(
-            'However it reaches ZIVO, you review every meal and every figure '
-            'before it is saved.',
+            l(context).addDietIntro,
             style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
           ),
           const SizedBox(height: 18),
           _Route(
             routeKey: const Key('add-diet-document'),
             icon: Icons.description_outlined,
-            label: 'PDF or photo',
-            detail: "Your nutritionist's plan, or a picture of one.",
+            label: l(context).addDietPdfOrPhoto,
+            detail: l(context).addDietPdfOrPhotoDetail,
             onTap: () => _open(context, const DietImportPage()),
           ),
           if (hasRecorder)
             _Route(
               routeKey: const Key('add-diet-dictate'),
               icon: Icons.mic_none_rounded,
-              label: 'Say it out loud',
-              detail: 'Describe your meals; ZIVO writes them down.',
+              label: l(context).addDietDictate,
+              detail: l(context).addDietDictateDetail,
               onTap: () => _open(context, const DietDictatePage()),
             ),
           _Route(
             routeKey: const Key('add-diet-type'),
             icon: Icons.notes_rounded,
-            label: 'Type it out',
-            detail: 'Write your meals in your own words.',
+            label: l(context).addDietType,
+            detail: l(context).addDietTypeDetail,
             onTap: () =>
                 _open(context, const DietDictatePage(startRecording: false)),
           ),
           _Route(
             routeKey: const Key('add-diet-generate'),
             icon: Icons.auto_awesome_rounded,
-            label: 'Build one for me',
-            detail: "Tell ZIVO what you eat; it designs the plan.",
+            label: l(context).addDietGenerate,
+            detail: l(context).addDietGenerateDetail,
             onTap: () => _open(context, const DietPreferencesPage()),
           ),
           _Route(
             routeKey: const Key('add-diet-manual'),
             icon: Icons.edit_outlined,
-            label: 'Build it meal by meal',
-            detail: 'The full editor, nothing extracted for you.',
+            label: l(context).addDietManual,
+            detail: l(context).addDietManualDetail,
             onTap: () => _open(context, const DietPlanEditPage()),
             last: true,
           ),

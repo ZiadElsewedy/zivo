@@ -239,7 +239,7 @@ void main() {
     await tester.pumpWidget(_wrap(child: const WorkoutPlanPage(), plansOverride: plans));
 
     expect(find.byType(Lottie), findsOneWidget);
-    expect(find.text('No workout plan yet.'), findsNothing);
+    expect(find.text('No workout plan yet'), findsNothing);
   });
 
   testWidgets('shows the empty state once the plan stream settles with no data', (tester) async {
@@ -252,7 +252,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('No workout plan yet.'), findsOneWidget);
+    expect(find.text('No workout plan yet'), findsOneWidget);
   });
 
   testWidgets('shows the error view when the plan stream errors', (tester) async {
@@ -268,7 +268,7 @@ void main() {
     expect(find.text("Couldn't load this."), findsOneWidget);
     expect(find.byIcon(Icons.cloud_off_rounded), findsOneWidget);
     expect(find.byType(Lottie), findsNothing);
-    expect(find.text('No workout plan yet.'), findsNothing);
+    expect(find.text('No workout plan yet'), findsNothing);
   });
 
   testWidgets('history is reachable from the AppBar action', (tester) async {

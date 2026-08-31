@@ -415,4 +415,727 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pulseWorthKnowing => 'Worth knowing';
+
+  @override
+  String insightStreakTitle(int days) {
+    return '$days-day training streak';
+  }
+
+  @override
+  String get insightStreakBody =>
+      'Momentum is real right now — protect it with today\'s session.';
+
+  @override
+  String insightRestTitle(int days) {
+    return 'Rest has stretched to $days days';
+  }
+
+  @override
+  String get insightRestBody =>
+      'No guilt — just the next small session whenever you\'re ready.';
+
+  @override
+  String get insightEveningTitle => 'Evening check-in';
+
+  @override
+  String get insightMealsLeftOne =>
+      'One meal still open today — worth closing it out.';
+
+  @override
+  String insightMealsLeftOneKcal(int kcal) {
+    return 'One meal still open today (~$kcal kcal) — worth closing it out.';
+  }
+
+  @override
+  String insightMealsLeftMany(int count) {
+    return '$count meals still open today.';
+  }
+
+  @override
+  String insightMealsLeftManyKcal(int count, int kcal) {
+    return '$count meals still open today (~$kcal kcal left).';
+  }
+
+  @override
+  String insightSpendTitle(int percent) {
+    return 'Spending is running ~$percent% hot';
+  }
+
+  @override
+  String get insightSpendBody =>
+      'This week vs the same stretch last week — worth a glance.';
+
+  @override
+  String get insightStepsTitle => 'Steps are behind today';
+
+  @override
+  String insightStepsClose(int steps) {
+    return 'Only $steps steps from the goal — an easy walk closes it.';
+  }
+
+  @override
+  String insightStepsFar(int steps) {
+    return '$steps steps to go — even ten minutes helps.';
+  }
+
+  @override
+  String insightWeightDownTitle(String kg, int days) {
+    return 'Weight down $kg kg over $days days';
+  }
+
+  @override
+  String insightWeightUpTitle(String kg, int days) {
+    return 'Weight up $kg kg over $days days';
+  }
+
+  @override
+  String get insightWeightDownBody =>
+      'Steady progress — keep eating enough to train hard.';
+
+  @override
+  String get insightWeightUpBody =>
+      'Nothing dramatic — watch the trend, not any single day.';
+
+  @override
+  String get workoutTitle => 'Workout';
+
+  @override
+  String get workoutProgress => 'Progress';
+
+  @override
+  String get workoutTraining => 'Training';
+
+  @override
+  String get workoutBodyweight => 'Bodyweight';
+
+  @override
+  String get workoutSplits => 'Splits';
+
+  @override
+  String get workoutAnalysis => 'Analysis';
+
+  @override
+  String get workoutHistory => 'History';
+
+  @override
+  String get workoutCreatePlan => 'Create plan';
+
+  @override
+  String get workoutEditPlan => 'Edit plan';
+
+  @override
+  String get workoutNoPlanYet => 'No workout plan yet';
+
+  @override
+  String get workoutNoDayUpNext => 'No day up next.';
+
+  @override
+  String get workoutFullCycle => 'Full cycle';
+
+  @override
+  String get workoutAnyDayNote =>
+      'Today\'s pick is marked — but any day is fair game. Life doesn\'t always follow the rotation.';
+
+  @override
+  String get workoutUpNext => 'UP NEXT';
+
+  @override
+  String get workoutNextUp => 'Next up';
+
+  @override
+  String get workoutInProgress => 'In progress';
+
+  @override
+  String get workoutInProgressCaps => 'IN PROGRESS';
+
+  @override
+  String get workoutStart => 'Start workout';
+
+  @override
+  String get workoutResume => 'Resume workout';
+
+  @override
+  String get workoutPause => 'Pause workout';
+
+  @override
+  String get workoutStartThisDay => 'Start this day';
+
+  @override
+  String get workoutChange => 'Change';
+
+  @override
+  String get workoutChangeWorkout => 'Change workout';
+
+  @override
+  String workoutDayLabel(String slot, String label) {
+    return 'Day $slot · $label';
+  }
+
+  @override
+  String workoutDaySlot(String slot) {
+    return 'DAY $slot';
+  }
+
+  @override
+  String get workoutExercises => 'EXERCISES';
+
+  @override
+  String get workoutSets => 'SETS';
+
+  @override
+  String get workoutMinutes => 'MINUTES';
+
+  @override
+  String workoutReadyToStart(String day) {
+    return 'Ready to start $day?';
+  }
+
+  @override
+  String get workoutReadyToResume => 'Ready to jump back in?';
+
+  @override
+  String get actionResume => 'Resume';
+
+  @override
+  String get actionStart => 'Start';
+
+  @override
+  String weighInLast(String kg) {
+    return 'Last weigh-in: $kg kg';
+  }
+
+  @override
+  String get weighInLog => 'Log weigh-in';
+
+  @override
+  String get weighInNone => 'NO WEIGH-INS YET';
+
+  @override
+  String get weighInStartTrend => 'Log one to start the trend.';
+
+  @override
+  String weighInLoggedAgo(String ago) {
+    return 'Logged $ago ago';
+  }
+
+  @override
+  String get statTotal => 'TOTAL';
+
+  @override
+  String get statSessions => 'Sessions';
+
+  @override
+  String get statDays => 'DAYS';
+
+  @override
+  String get statStreak => 'Streak';
+
+  @override
+  String get statMinAvg => 'MIN AVG';
+
+  @override
+  String get statDuration => 'Duration';
+
+  @override
+  String get statUsualStart => 'Usual start';
+
+  @override
+  String get commonToday => 'TODAY';
+
+  @override
+  String weighInOneMore(String ago) {
+    return 'Logged $ago ago · one more reading draws the trend.';
+  }
+
+  @override
+  String get liveDiscardTitle => 'Discard this workout?';
+
+  @override
+  String get liveDiscardBody =>
+      'You\'ll lose this session\'s progress and the plan won\'t advance.';
+
+  @override
+  String get liveKeepGoing => 'Keep going';
+
+  @override
+  String get liveDiscard => 'Discard';
+
+  @override
+  String get liveDiscardWorkout => 'Discard workout';
+
+  @override
+  String get liveNoExercises => 'NO EXERCISES';
+
+  @override
+  String get liveNothingToDo => 'Nothing to do.';
+
+  @override
+  String get liveSetLogged => 'SET LOGGED';
+
+  @override
+  String liveSetLoggedDetail(String detail) {
+    return 'SET LOGGED · $detail';
+  }
+
+  @override
+  String liveSetsLogged(String count) {
+    return '$count SETS LOGGED';
+  }
+
+  @override
+  String get liveReps => 'REPS';
+
+  @override
+  String get liveWeightKg => 'WEIGHT · KG';
+
+  @override
+  String get liveRepsField => 'Reps';
+
+  @override
+  String get liveWeightField => 'Weight (kg)';
+
+  @override
+  String get liveNow => 'NOW';
+
+  @override
+  String get livePaused => 'Paused';
+
+  @override
+  String get livePausedCaps => 'PAUSED';
+
+  @override
+  String get livePausedTapResume => 'PAUSED · TAP TO RESUME';
+
+  @override
+  String get livePreWorkout => 'Pre-workout';
+
+  @override
+  String get liveFirstUp => 'FIRST UP';
+
+  @override
+  String get liveSkipWarmUp => 'Skip warm-up';
+
+  @override
+  String get liveRest => 'REST';
+
+  @override
+  String get liveSkipRest => 'Skip rest';
+
+  @override
+  String liveRestPlanned(String total) {
+    return 'OF $total PLANNED';
+  }
+
+  @override
+  String get liveWorkoutComplete => 'Workout complete';
+
+  @override
+  String get liveFinish => 'Finish';
+
+  @override
+  String get liveMatchingPrevious => 'Matching your previous set';
+
+  @override
+  String get liveFirstTime => 'First time';
+
+  @override
+  String get liveMatchingLast => 'MATCHING LAST';
+
+  @override
+  String liveSetNumber(int position) {
+    return 'Set $position';
+  }
+
+  @override
+  String liveSetNumberCaps(int number) {
+    return 'SET $number';
+  }
+
+  @override
+  String liveSetNumberKg(int number) {
+    return 'SET $number · KG';
+  }
+
+  @override
+  String get liveSkipped => 'Skipped';
+
+  @override
+  String get liveSkippedCaps => 'SKIPPED';
+
+  @override
+  String get liveSkip => 'Skip';
+
+  @override
+  String get liveLogSet => 'Log set';
+
+  @override
+  String get liveMarkDone => 'Mark done';
+
+  @override
+  String get liveCorrectSkipped =>
+      'Enter what you actually did to mark this done.';
+
+  @override
+  String get liveCorrectLogged => 'Correct the reps or weight actually logged.';
+
+  @override
+  String get liveGoal => 'GOAL';
+
+  @override
+  String get liveLastTime => 'LAST TIME';
+
+  @override
+  String get liveTargetRange => 'TARGET RANGE';
+
+  @override
+  String get liveWeightUp => 'Weight up — you hit your reps last time';
+
+  @override
+  String get liveWeightEased => 'Weight eased — rebuild with clean reps';
+
+  @override
+  String get liveSameLoadMoreRep => 'Same load, one more rep';
+
+  @override
+  String liveSameWeight(String kg) {
+    return 'Same · ${kg}kg';
+  }
+
+  @override
+  String get liveConnectMusic => 'CONNECT MUSIC';
+
+  @override
+  String get actionClose => 'Close';
+
+  @override
+  String get actionBackCaps => 'BACK';
+
+  @override
+  String liveDeltaWeight(String delta) {
+    return '${delta}kg from your previous set';
+  }
+
+  @override
+  String liveDeltaReps(String delta) {
+    return '$delta reps from your previous set';
+  }
+
+  @override
+  String liveRepsValue(int reps) {
+    return '$reps reps';
+  }
+
+  @override
+  String liveWeightValue(String kg) {
+    return '$kg kg';
+  }
+
+  @override
+  String liveRepsByWeight(int reps, String kg) {
+    return '$reps × $kg kg';
+  }
+
+  @override
+  String get categoryFood => 'Food';
+
+  @override
+  String get categoryCoffee => 'Coffee';
+
+  @override
+  String get categoryTransport => 'Transport';
+
+  @override
+  String get categoryGroceries => 'Groceries';
+
+  @override
+  String get categoryShopping => 'Shopping';
+
+  @override
+  String get categoryOther => 'Other';
+
+  @override
+  String get expensesTitle => 'Expenses';
+
+  @override
+  String get expensesEmpty => 'Nothing spent yet — a calm start.';
+
+  @override
+  String get expenseNew => 'New expense';
+
+  @override
+  String get expenseEdit => 'Edit expense';
+
+  @override
+  String get expenseDelete => 'Delete expense';
+
+  @override
+  String get expenseNote => 'Note';
+
+  @override
+  String get expenseNoteHint => 'What was it for?';
+
+  @override
+  String get expenseAddNote => 'Add note';
+
+  @override
+  String expenseSaveAmount(String amount) {
+    return 'Save · $amount';
+  }
+
+  @override
+  String get walletCaps => 'WALLET';
+
+  @override
+  String get walletSetUp => 'SET UP YOUR WALLET';
+
+  @override
+  String get walletHowMuchNow => 'How much do you have right now?';
+
+  @override
+  String get walletDeductNote =>
+      'Every expense you log deducts from it automatically.';
+
+  @override
+  String get walletSetStarting => 'Set starting balance';
+
+  @override
+  String get walletTopUp => 'Top up';
+
+  @override
+  String get walletTopUpTitle => 'Top up wallet';
+
+  @override
+  String get walletSetBalanceTitle => 'Set wallet balance';
+
+  @override
+  String get walletHowMuchAdding => 'How much are you adding?';
+
+  @override
+  String get walletSaveBalance => 'Save balance';
+
+  @override
+  String get walletAddFunds => 'Add funds';
+
+  @override
+  String get expensesThisWeek => 'THIS WEEK';
+
+  @override
+  String get categoryNew => 'New category';
+
+  @override
+  String get categoryNewHint => 'e.g. Subscriptions';
+
+  @override
+  String get categoryIconCaps => 'ICON';
+
+  @override
+  String get categoryAdd => 'Add category';
+
+  @override
+  String get captureTitle => 'Capture';
+
+  @override
+  String get captureExpense => 'Expense';
+
+  @override
+  String get captureExpenseDetail => 'Amount, category — in seconds';
+
+  @override
+  String get captureMoment => 'Moment';
+
+  @override
+  String get captureMomentDetail => 'Photo + a line';
+
+  @override
+  String get captureWorkout => 'Workout';
+
+  @override
+  String get captureWorkoutDetail => 'Log a training session';
+
+  @override
+  String get dateToday => 'Today';
+
+  @override
+  String get dateYesterday => 'Yesterday';
+
+  @override
+  String get nutritionCalories => 'Calories';
+
+  @override
+  String get nutritionProtein => 'Protein (g)';
+
+  @override
+  String get nutritionCarbs => 'Carbs (g)';
+
+  @override
+  String get nutritionFat => 'Fat (g)';
+
+  @override
+  String get nutritionCaloriesPer100g => 'Calories / 100g';
+
+  @override
+  String get targetsSave => 'Save target';
+
+  @override
+  String get targetsNoneSet => 'No daily target set';
+
+  @override
+  String get targetsZivoWillUse => 'ZIVO will use';
+
+  @override
+  String get targetsFillFields => 'Fill the fields';
+
+  @override
+  String get targetsChangeBodyData => 'Change my body data';
+
+  @override
+  String get targetsFromBodyData => 'Work it out from my body data';
+
+  @override
+  String get bodyWeightLabel => 'Weight';
+
+  @override
+  String get bodyHeightLabel => 'Height';
+
+  @override
+  String get bodyAgeLabel => 'Age';
+
+  @override
+  String get bodyActivityLabel => 'Activity';
+
+  @override
+  String get planDeleteTitle => 'Delete this plan?';
+
+  @override
+  String get planEditTitle => 'Edit diet plan';
+
+  @override
+  String get planDelete => 'Delete plan';
+
+  @override
+  String get planNameHint => 'Plan name';
+
+  @override
+  String get planSave => 'Save plan';
+
+  @override
+  String get planNoDays => 'No days yet.';
+
+  @override
+  String get planAddDay => 'Add day';
+
+  @override
+  String get planAddMeal => 'Add meal';
+
+  @override
+  String get planAddItem => 'Add item';
+
+  @override
+  String get planAddFoodItem => 'Add food item';
+
+  @override
+  String get planEveryDay => 'Every day';
+
+  @override
+  String get planDayLabelHint => 'Day label (optional)';
+
+  @override
+  String get planMealNameHint => 'Meal name';
+
+  @override
+  String get planFoodNameHint => 'Food name';
+
+  @override
+  String get planQty => 'Qty';
+
+  @override
+  String get plansTitle => 'Your plans';
+
+  @override
+  String get plansFollow => 'Follow this plan';
+
+  @override
+  String get plansStopFollowing => 'Stop following';
+
+  @override
+  String get prefsBuildTitle => 'Build me a plan';
+
+  @override
+  String get prefsBuild => 'Build my plan';
+
+  @override
+  String get dictateHint => 'Breakfast is…';
+
+  @override
+  String get dictateTurnIntoPlan => 'Turn this into a plan';
+
+  @override
+  String get dictateDoneTalking => 'Done talking';
+
+  @override
+  String get logWhatDidYouEat => 'What did you eat?';
+
+  @override
+  String get logBackToSearch => 'Back to search';
+
+  @override
+  String get logIt => 'Log it';
+
+  @override
+  String logAddOwnFood(String query) {
+    return 'Add \"$query\" as my own food';
+  }
+
+  @override
+  String get logYourOwnFood => 'Your own food';
+
+  @override
+  String get logFoodName => 'Name';
+
+  @override
+  String get logSaveFood => 'Save food';
+
+  @override
+  String get dietEaten => 'Eaten';
+
+  @override
+  String get adoptSaveAsTarget => 'Save as my target';
+
+  @override
+  String get addDietPdfOrPhoto => 'PDF or photo';
+
+  @override
+  String get addDietPdfOrPhotoDetail =>
+      'Your nutritionist\'s plan, or a picture of one.';
+
+  @override
+  String get addDietDictate => 'Say it out loud';
+
+  @override
+  String get addDietDictateDetail =>
+      'Describe your meals; ZIVO writes them down.';
+
+  @override
+  String get addDietType => 'Type it out';
+
+  @override
+  String get addDietTypeDetail => 'Write your meals in your own words.';
+
+  @override
+  String get addDietGenerate => 'Build one for me';
+
+  @override
+  String get addDietGenerateDetail =>
+      'Tell ZIVO what you eat; it designs the plan.';
+
+  @override
+  String get addDietManual => 'Build it meal by meal';
+
+  @override
+  String get addDietManualDetail =>
+      'The full editor, nothing extracted for you.';
+
+  @override
+  String get addDietIntro =>
+      'However it reaches ZIVO, you review every meal and every figure before it is saved.';
 }

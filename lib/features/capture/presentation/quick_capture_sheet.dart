@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/train_tokens.dart';
+import '../../../l10n/l10n.dart';
 
 /// What the user chose to capture.
 enum CaptureChoice { expense, moment, workout }
@@ -53,31 +54,31 @@ class _QuickCaptureSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 6),
-            child: Text('Capture', style: AppText.cardTitle),
+            child: Text(l(context).captureTitle, style: AppText.cardTitle),
           ),
           _Option(
             choice: CaptureChoice.expense,
             icon: Icons.payments_rounded,
             iconBg: TrainColors.amberWash,
             iconColor: TrainColors.amber,
-            label: 'Expense',
-            hint: 'Amount, category — in seconds',
+            label: l(context).captureExpense,
+            hint: l(context).captureExpenseDetail,
           ),
           _Option(
             choice: CaptureChoice.moment,
             icon: Icons.photo_camera_rounded,
             iconBg: _neutralTile,
             iconColor: TrainColors.ink,
-            label: 'Moment',
-            hint: 'Photo + a line',
+            label: l(context).captureMoment,
+            hint: l(context).captureMomentDetail,
           ),
           _Option(
             choice: CaptureChoice.workout,
             icon: Icons.fitness_center_rounded,
             iconBg: TrainColors.greenWash,
             iconColor: TrainColors.green,
-            label: 'Workout',
-            hint: 'Log a training session',
+            label: l(context).captureWorkout,
+            hint: l(context).captureWorkoutDetail,
             last: true,
           ),
         ],

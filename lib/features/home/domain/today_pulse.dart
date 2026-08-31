@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/train_tokens.dart';
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../expenses/domain/expense.dart';
 import '../../workout/domain/live_session.dart';
@@ -164,6 +165,16 @@ const kDefaultStepGoal = 8000;
 /// signal, it never scolds, and it always points somewhere ("…and here's the
 /// next small step") rather than just reporting.
 List<PulseInsight> buildInsights({
+  /// The strings the nudges are written in.
+  ///
+  /// Handed in rather than looked up, exactly as the icons and hues above
+  /// already are — this file has always been presentation-adjacent (it imports
+  /// Material for `IconData` and `Color`), and the alternative, returning a
+  /// kind + parameters for the card to render, would be the right shape for a
+  /// rules engine but is more machinery than five nudges are worth. The
+  /// function stays pure and fully testable: pass `AppLocalizationsEn()` or
+  /// `AppLocalizationsAr()` and assert on either language.
+  required AppLocalizations strings,
   required List<LiveSession> sessions,
   required List<Expense> expenses,
   required int? kcalLeft,
@@ -188,8 +199,8 @@ List<PulseInsight> buildInsights({
       PulseInsight(
         icon: AppIcons.streak,
         hue: TrainColors.green,
-        title: '$streak-day training streak',
-        body: 'Momentum is real right now — protect it with today\'s session.',
+        title: strings.insightStreakTitle(streak),
+        body: strings.insightStreakBody,
       ),
     );
   } else if (gapDays >= 3) {
@@ -197,8 +208,8 @@ List<PulseInsight> buildInsights({
       PulseInsight(
         icon: AppIcons.timer,
         hue: TrainColors.amber,
-        title: 'Rest has stretched to $gapDays days',
-        body: 'No guilt — just the next small session whenever you\'re ready.',
+        title: strings.insightRestTitle(gapDays),
+        body: strings.insightRestBody,
       ),
     );
   }
@@ -209,13 +220,19 @@ List<PulseInsight> buildInsights({
       PulseInsight(
         icon: AppIcons.diet,
         hue: TrainColors.green,
-        title: 'Evening check-in',
-        body: mealsLeft == 1
-            ? 'One meal still open today'
-                  '${kcalLeft != null ? ' (~$kcalLeft kcal)' : ''} — worth '
-                  'closing it out.'
-            : '$mealsLeft meals still open today'
-                  '${kcalLeft != null ? ' (~$kcalLeft kcal left)' : ''}.',
+        title: strings.insightEveningTitle,
+        // Four phrasings rather than one with optional fragments: a sentence
+        // assembled from clauses cannot be reordered by a translator, and
+        // Arabic needs to reorder this one.
+        body: switch ((mealsLeft, kcalLeft)) {
+          (1, null) => strings.insightMealsLeftOne,
+          (1, final kcal?) => strings.insightMealsLeftOneKcal(kcal),
+          (final count, null) => strings.insightMealsLeftMany(count),
+          (final count, final kcal?) => strings.insightMealsLeftManyKcal(
+            count,
+            kcal,
+          ),
+        },
       ),
     );
   }
@@ -235,8 +252,8 @@ List<PulseInsight> buildInsights({
         PulseInsight(
           icon: AppIcons.expenses,
           hue: TrainColors.amber,
-          title: 'Spending is running ~$pct% hot',
-          body: 'This week vs the same stretch last week — worth a glance.',
+          title: strings.insightSpendTitle(pct),
+          body: strings.insightSpendBody,
         ),
       );
     }
@@ -249,26 +266,30 @@ List<PulseInsight> buildInsights({
       PulseInsight(
         icon: AppIcons.bolt,
         hue: TrainColors.violet,
-        title: 'Steps are behind today',
+        title: strings.insightStepsTitle,
         body: left <= 2000
-            ? 'Only $left steps from the goal — an easy walk closes it.'
-            : '$left steps to go — even ten minutes helps.',
+            ? strings.insightStepsClose(left)
+            : strings.insightStepsFar(left),
       ),
     );
   }
 
   // -- Weight ------------------------------------------------------------------
   if (weight != null && weight.deltaKg.abs() >= 0.3) {
-    final dir = weight.deltaKg < 0 ? 'down' : 'up';
+    // Direction is a branch, not an interpolated word: "down"/"up" dropped
+    // into a sentence is untranslatable — Arabic inflects the verb instead.
+    final down = weight.deltaKg < 0;
     final kg = weight.deltaKg.abs().toStringAsFixed(1);
     result.add(
       PulseInsight(
         icon: AppIcons.scale,
         hue: TrainColors.green,
-        title: 'Weight $dir ${kg}kg over ${weight.spanDays} days',
-        body: dir == 'down'
-            ? 'Steady progress — keep eating enough to train hard.'
-            : 'Nothing dramatic — watch the trend, not any single day.',
+        title: down
+            ? strings.insightWeightDownTitle(kg, weight.spanDays)
+            : strings.insightWeightUpTitle(kg, weight.spanDays),
+        body: down
+            ? strings.insightWeightDownBody
+            : strings.insightWeightUpBody,
       ),
     );
   }

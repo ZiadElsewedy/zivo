@@ -99,10 +99,30 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     cover — non-negotiable for allergies. Chip ids are **English and stay English** on the
     wire: `functions/ai/diet_generate.js` resolves against an English USDA catalog, so only
     the label is localized. "Anything else" stays a text field, deliberately.
-  - **Still to do:** the app-wide Arabic copy pass — **84 keys** exist and 43 call sites go
-    through `l(context)`, against roughly **330** user-facing literals still hardcoded
-    (workout ~105, diet ~76, auth ~45, ai ~28, the rest smaller). The AI coach answering in
-    Arabic is a `functions/ai/gateway.js` change and therefore an **owner deploy**.
+  - **The Arabic copy pass — about 40% through.** **344 keys** in both languages. Done:
+    **diet, home/Today, shell, hub, capture, expenses**, and the workout surfaces a user
+    touches daily (hub, plan, up-next card, start/change sheets, and the whole **live
+    session** screen). Remaining, on the same metric that started at ~330 literals and now
+    reads **197**: workout drill-downs ~75 (analysis, stats, history, splits, PDF import,
+    plan editor, session details), auth ~45, ai ~28, moments ~13, music ~12, core ~9,
+    expenses ~8.
+  - **Three rules the pass established, worth keeping:**
+    - **Calendar names come from `intl`, never from ARB.** `formatTodayShort` and the
+      dashboard's `_shortDate` take a locale and use `DateFormat`; both fall back to the
+      default locale, because `intl` only ships `en_US` eagerly and a widget test with no
+      delegates would otherwise throw on a date caption.
+    - **`l(context)` is illegal in `initState`.** It reads an inherited widget. This bit
+      once already: a `goal.repsLabel == 'AMRAP'` comparison was localized, which both
+      crashed the live session in tests and would have silently stopped matching in Arabic.
+      The sentinel is now `kAmrapLabel` in `workout/domain/progression.dart` — a **value**,
+      not copy. Same shape as `common_foods.dart`'s English chip ids and
+      `expense_category.dart`'s ids: ids travel, labels translate.
+    - **Whole sentences are keys, not templates.** Arabic attaches a name with **يا** and
+      has no separate afternoon greeting, so `greetingFor` branches to six keys rather than
+      filling "{greeting}, {name}"; the same reasoning split the meals-left nudge into four
+      phrasings and the weight-trend nudge into up/down pairs.
+  - **Owner action:** the AI coach answering in Arabic is a `functions/ai/gateway.js` change
+    and therefore an **owner deploy**.
 
 - **Diet onboarding — Phase E: the coach knows what you burn.** ZIVO now **measures**
   maintenance from the user's own weigh-ins and food log instead of only estimating it from

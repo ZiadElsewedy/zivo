@@ -5,6 +5,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
 import 'category_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Bottom sheet for creating a custom expense category: a name and a stroked
 /// icon from the app's category vocabulary. Returns the new category's id on
@@ -80,17 +81,17 @@ class _AddCategorySheetState extends State<AddCategorySheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          Text('New category', style: AppText.cardTitle),
+          Text(l(context).categoryNew, style: AppText.cardTitle),
           const SizedBox(height: 18),
           TextField(
             controller: _nameController,
             autofocus: true,
             style: AppText.rowTitle,
-            decoration: const InputDecoration(hintText: 'e.g. Subscriptions'),
+            decoration: InputDecoration(hintText: l(context).categoryNewHint),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 20),
-          Text('ICON', style: AppText.sectionLabel),
+          Text(l(context).categoryIconCaps, style: AppText.sectionLabel),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -176,7 +177,7 @@ class _SaveButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 16),
             alignment: Alignment.center,
             child: Text(
-              'Add category',
+              l(context).categoryAdd,
               style: AppText.button.copyWith(
                 fontSize: 16,
                 color: const Color(0xFF2A2205),

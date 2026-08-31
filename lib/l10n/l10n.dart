@@ -16,6 +16,13 @@ export 'app_localizations.dart';
 ///
 /// Never call `AppLocalizations.of(context)` directly — it throws in exactly
 /// that test case.
+///
+/// **Not callable from `initState`.** This reads an inherited widget, so it is
+/// only legal from `build`, `didChangeDependencies`, or a callback. If you need
+/// a string during initialisation, you almost certainly want a value rather
+/// than copy — see `kAmrapLabel` in `workout/domain/progression.dart`, which
+/// exists because a sentinel that was compared against a *translated* string
+/// silently changed meaning in Arabic.
 AppLocalizations l(BuildContext context) =>
     Localizations.of<AppLocalizations>(context, AppLocalizations) ??
     AppLocalizationsEn();

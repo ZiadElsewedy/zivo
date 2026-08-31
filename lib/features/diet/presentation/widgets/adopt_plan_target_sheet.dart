@@ -11,6 +11,7 @@ import '../../domain/diet_format.dart';
 import '../../domain/diet_goal.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/nutrition_targets.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Adopting the plan's own numbers as the daily target — the shortest honest
 /// route from "I have a plan" to "the app can tell me how I'm doing".
@@ -178,7 +179,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
             const SizedBox(height: 22),
             PillButton(
               key: const Key('adopt-save'),
-              label: 'Save as my target',
+              label: l(context).adoptSaveAsTarget,
               icon: Icons.check_rounded,
               enabled: _goal != null && !_saving,
               onTap: _save,

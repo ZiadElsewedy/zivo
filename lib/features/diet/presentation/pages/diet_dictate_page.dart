@@ -13,6 +13,7 @@ import '../../../ai/domain/stt_outcome.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/diet_import_input.dart';
 import 'diet_import_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Describing your diet in your own words — spoken or typed — instead of
 /// having a document to import.
@@ -254,7 +255,7 @@ class _DietDictatePageState extends State<DietDictatePage> {
                       height: 1.5,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Breakfast is…',
+                      hintText: l(context).dictateHint,
                       hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
                       filled: true,
                       fillColor: TrainColors.base,
@@ -311,7 +312,7 @@ class _DietDictatePageState extends State<DietDictatePage> {
                 const SizedBox(height: 24),
                 PillButton(
                   key: const Key('dictate-extract'),
-                  label: 'Turn this into a plan',
+                  label: l(context).dictateTurnIntoPlan,
                   icon: Icons.auto_awesome_rounded,
                   enabled: _canExtract,
                   onTap: _extract,
@@ -386,7 +387,7 @@ class _RecordingCard extends StatelessWidget {
         if (!transcribing) ...[
           PillButton(
             key: const Key('dictate-stop'),
-            label: 'Done talking',
+            label: l(context).dictateDoneTalking,
             icon: Icons.check_rounded,
             enabled: true,
             onTap: onStop,

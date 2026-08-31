@@ -13,6 +13,7 @@ import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
 import '../../domain/nutrition/plausibility.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 String _weekdayLabel(int? weekday) =>
@@ -202,7 +203,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: TrainColors.raised,
-        title: Text('Delete this plan?', style: AppText.cardTitle),
+        title: Text(l(context).planDeleteTitle, style: AppText.cardTitle),
         content: Text(
           'This removes "${plan.name}" and all its days and meals. This can\'t be undone.',
           style: AppText.body,
@@ -239,14 +240,14 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: 'Edit diet plan',
+              title: l(context).planEditTitle,
               onClose: () => Navigator.of(context).maybePop(),
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('diet-plan-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete plan',
+                      semanticLabel: l(context).planDelete,
                       iconColor: TrainColors.ember,
                     )
                   : null,
@@ -261,7 +262,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Plan name',
+                  hintText: l(context).planNameHint,
                   hintStyle: AppText.cardTitle.copyWith(
                     fontSize: 24,
                     color: TrainColors.ink3,
@@ -278,7 +279,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         if (i == _days.length) {
-                          return _AddButton(label: 'Add day', onTap: _addDay);
+                          return _AddButton(label: l(context).planAddDay, onTap: _addDay);
                         }
                         return _DayCard(
                           day: _days[i],
@@ -299,7 +300,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
               child: PillButton(
-                label: 'Save plan',
+                label: l(context).planSave,
                 icon: Icons.check_rounded,
                 color: TrainColors.green,
                 enabled: _canSave,
@@ -330,9 +331,9 @@ class _EmptyDays extends StatelessWidget {
             color: TrainColors.ink3,
           ),
           const SizedBox(height: 12),
-          Text('No days yet.', style: AppText.aside),
+          Text(l(context).planNoDays, style: AppText.aside),
           const SizedBox(height: 14),
-          _AddButton(label: 'Add day', onTap: onAdd),
+          _AddButton(label: l(context).planAddDay, onTap: onAdd),
         ],
       ),
     );
@@ -447,7 +448,7 @@ class _DayCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 10),
-          _AddButton(label: 'Add meal', onTap: onAddMeal, compact: true),
+          _AddButton(label: l(context).planAddMeal, onTap: onAddMeal, compact: true),
         ],
       ),
     );
@@ -558,7 +559,7 @@ class _MealBlock extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 6),
-          _AddButton(label: 'Add item', onTap: onAddItem, compact: true),
+          _AddButton(label: l(context).planAddItem, onTap: onAddItem, compact: true),
         ],
       ),
     );
@@ -620,7 +621,7 @@ class _DaySheetState extends State<_DaySheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add day', style: AppText.cardTitle),
+            child: Text(l(context).planAddDay, style: AppText.cardTitle),
           ),
           Wrap(
             spacing: 8,
@@ -633,7 +634,7 @@ class _DaySheetState extends State<_DaySheet> {
                   onTap: () => setState(() => _weekday = wd),
                 ),
               SelectChip(
-                label: 'Every day',
+                label: l(context).planEveryDay,
                 selected: _weekday == null,
                 onTap: () => setState(() => _weekday = null),
               ),
@@ -658,13 +659,13 @@ class _DaySheetState extends State<_DaySheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Day label (optional)',
+              hintText: l(context).planDayLabelHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add day',
+            label: l(context).planAddDay,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: true,
@@ -738,7 +739,7 @@ class _MealSheetState extends State<_MealSheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add meal', style: AppText.cardTitle),
+            child: Text(l(context).planAddMeal, style: AppText.cardTitle),
           ),
           TextField(
             controller: _label,
@@ -759,13 +760,13 @@ class _MealSheetState extends State<_MealSheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Meal name',
+              hintText: l(context).planMealNameHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add meal',
+            label: l(context).planAddMeal,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: _canAdd,
@@ -867,7 +868,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add food item', style: AppText.cardTitle),
+            child: Text(l(context).planAddFoodItem, style: AppText.cardTitle),
           ),
           TextField(
             controller: _name,
@@ -887,7 +888,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Food name',
+              hintText: l(context).planFoodNameHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
@@ -895,7 +896,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _NumberField(label: 'Qty', controller: _quantity),
+              _NumberField(label: l(context).planQty, controller: _quantity),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -928,10 +929,10 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 14),
           Row(
             children: [
-              _NumberField(label: 'Calories', controller: _calories, hint: '—'),
+              _NumberField(label: l(context).nutritionCalories, controller: _calories, hint: '—'),
               const SizedBox(width: 12),
               _NumberField(
-                label: 'Protein (g)',
+                label: l(context).nutritionProtein,
                 controller: _protein,
                 hint: '—',
               ),
@@ -940,14 +941,14 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _NumberField(label: 'Carbs (g)', controller: _carbs, hint: '—'),
+              _NumberField(label: l(context).nutritionCarbs, controller: _carbs, hint: '—'),
               const SizedBox(width: 12),
-              _NumberField(label: 'Fat (g)', controller: _fat, hint: '—'),
+              _NumberField(label: l(context).nutritionFat, controller: _fat, hint: '—'),
             ],
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add item',
+            label: l(context).planAddItem,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: _canAdd,

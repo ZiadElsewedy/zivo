@@ -195,7 +195,7 @@ class _EmptyState extends StatelessWidget {
               width: 220,
               child: PillButton(
                 key: const Key('diet-empty-add'),
-                label: 'Add a diet',
+                label: l(context).dietAddPlan,
                 icon: Icons.add_rounded,
                 color: TrainColors.green,
                 enabled: true,
@@ -1293,7 +1293,7 @@ class _CompletionMark extends StatelessWidget {
     return Semantics(
       checked: tc > 0.5,
       button: true,
-      label: 'Eaten',
+      label: l(context).dietEaten,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

@@ -88,7 +88,7 @@ void main() {
     // The plan's up-next day ("Push", order 0) — not "Pull", the workout
     // logged today (see the seeding comment above for why that matters).
     expect(find.text('Push'), findsOneWidget);
-    expect(find.text('Start Workout'), findsOneWidget);
+    expect(find.text('Start workout'), findsOneWidget);
     expect(find.text('Pull'), findsNothing);
     expect(find.text('Bench Press'), findsNothing);
     expect(find.text('TODAY'), findsWidgets); // bottom tab label
