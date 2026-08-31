@@ -37,7 +37,6 @@ import '../../../music/domain/now_playing.dart';
 import '../../../music/music_config.dart';
 import '../../../music/presentation/music_player_page.dart';
 import '../../../music/presentation/spotify_strip.dart';
-import '../widgets/animated_stat_value.dart';
 import '../widgets/session_ambience.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/verdict_style.dart';
@@ -1225,11 +1224,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       previous: previousSet,
       muscleGroup: exercise.muscleGroup,
     );
-    final comparison = compareToLastTime(
-      previous: previousSet,
-      actualReps: int.tryParse(_reps.text.trim()),
-      actualWeightKg: double.tryParse(_weight.text.trim().replaceAll(',', '.')),
-    );
     final intraSessionDelta = _intraSessionDeltaLabel(
       strings: l(context),
       previous: _previousSetInSession(exercise, set),
@@ -1262,7 +1256,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
             lastTimeLabel: lastTimeLabel,
             goal: goal,
             targetText: targetText,
-            comparison: comparison,
             intraSessionDelta: intraSessionDelta,
             previous: previousSet,
             restSeconds: exercise.restSeconds,
@@ -1318,21 +1311,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           ),
         ),
       ],
-      // The music sits at the foot of the SCROLLING content, not in the
-      // pinned row: it's a companion, and reserving its height at the bottom
-      // of every screen pushed the quick-weight chips out of view. The
-      // handoff keeps the top of this screen entirely for what you're about
-      // to lift, which this still respects.
-      musicSlot: kMusicEnabled
-          ? StaggeredReveal(
-              index: 4,
-              child: _SessionNowPlaying(
-                controller: AppScope.of(context).requireMusic,
-                density: SpotifyStripDensity.inline,
-                accent: vivid,
-              ),
-            )
-          : null,
+      // No music on the logging screen: mid-set, the only thing that should
+      // compete for attention is what you're about to lift. The companion
+      // strip still rides the rest and warm-up phases — dead time where
+      // changing a track is natural — see `_buildResting` / `_buildWarmup`.
       done: StaggeredReveal(
         index: 4,
         child: _ActionCluster(onSkip: _onSetSkip, onDone: _onSetDone),
@@ -2460,7 +2442,6 @@ class _GoalBlock extends StatelessWidget {
     required this.liveWeight,
     required this.restSeconds,
     this.targetText,
-    this.comparison,
     this.intraSessionDelta,
     this.previous,
     this.accent,
@@ -2480,14 +2461,9 @@ class _GoalBlock extends StatelessWidget {
 
   final String? targetText;
 
-  /// Today's in-progress verdict against [lastTimeLabel] (see
-  /// [compareToLastTime]) — null whenever there's nothing real to compare
-  /// yet (first time ever, or no rep count typed in).
-  final SetProgressComparison? comparison;
-
   /// How this set compares to this session's own previous set in the same
-  /// exercise, distinct from [comparison]'s cross-session verdict. Null only
-  /// on the first set, where there is nothing to compare against yet — see
+  /// exercise. Null only on the first set, where there is nothing to compare
+  /// against yet — see
   /// [_intraSessionDeltaLabel] for why it is NOT also null when unchanged.
   final ({String label, bool changed})? intraSessionDelta;
 
@@ -2498,58 +2474,6 @@ class _GoalBlock extends StatelessWidget {
   /// The live track's accent color (whole-screen ambience) — tints the
   /// card's glow so the hero element breathes with the music too.
   final Color? accent;
-
-  /// The one caption under the weight: how what you're about to log compares
-  /// to the same set last time. Dim when matched, green when up, ember when
-  /// down — down is not a failure, but it IS the one worth noticing.
-  ///
-  /// Load leads when it moved (that's the decision you just made); otherwise
-  /// it falls back to [comparison]'s overall verdict, which folds reps in —
-  /// so "same weight, one more rep" still reads as progress rather than as
-  /// "matching last". This replaces the separate verdict badge the card used
-  /// to carry: one caption, one place to look.
-  (String, Color)? _deltaFor(BuildContext context) {
-    final prevWeight = previous?.actualWeightKg;
-    final current = double.tryParse(liveWeight.replaceAll(',', '.'));
-    if (prevWeight != null && current != null && current != prevWeight) {
-      final diff = current - prevWeight;
-      final magnitude = _trimWeight(diff.abs());
-      return diff > 0
-          ? ('↑ $magnitude KG VS LAST', TrainColors.green)
-          : ('↓ $magnitude KG VS LAST', TrainColors.ember);
-    }
-    final verdict = comparison;
-    if (verdict != null) {
-      final percent = verdict.overallChangePercent.round();
-      return switch (verdict.verdict) {
-        ProgressVerdict.progressing => (
-          '↑ $percent% VS LAST',
-          TrainColors.green,
-        ),
-        ProgressVerdict.down => (
-          '↓ ${percent.abs()}% VS LAST',
-          TrainColors.ember,
-        ),
-        ProgressVerdict.matched => (l(context).liveMatchingLast, const Color(0x59F4F4F0)),
-      };
-    }
-    if (prevWeight != null && current != null) {
-      return (l(context).liveMatchingLast, const Color(0x59F4F4F0));
-    }
-    return null;
-  }
-
-  /// The product the two factors make — the number progressive overload is
-  /// actually measured in, and the reason the card spells the goal out as a
-  /// multiplication rather than as two readouts that happen to sit together.
-  /// Null for body-weight work (no load to multiply by) or before anything
-  /// is typed.
-  String? get _volume {
-    final reps = int.tryParse(liveReps.trim());
-    final weight = double.tryParse(liveWeight.trim().replaceAll(',', '.'));
-    if (reps == null || weight == null || reps <= 0 || weight <= 0) return null;
-    return '${_trimWeight(reps * weight)} KG THIS SET';
-  }
 
   /// The one-line "why" under the goal — makes the progression engine's
   /// decision legible instead of a number appearing from nowhere.
@@ -2576,7 +2500,6 @@ class _GoalBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final glowColor = accent ?? TrainColors.green;
-    final delta = _deltaFor(context);
     return AnimatedContainer(
       key: const Key('goal-card'),
       duration: reducedMotion(context)
@@ -2672,43 +2595,6 @@ class _GoalBlock extends StatelessWidget {
                     color: const Color(0x59F4F4F0),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Always rendered, even with nothing to put in it. Both halves come
-          // and go with what you type — the volume needs a load to multiply
-          // by, the verdict needs something to compare against — and letting
-          // the row itself appear and disappear resized the card the first
-          // time you entered a weight, which is the same "it moves under your
-          // thumb" problem the delta chip had. A fixed line costs 14px and
-          // makes the card one height for a given set, whatever you type.
-          SizedBox(
-            height: 14,
-            child: Row(
-              children: [
-                if (_volume != null)
-                  AnimatedStatValue(
-                    key: const Key('goal-volume'),
-                    value: _volume!,
-                    style: TrainType.mono(
-                      size: 9.5,
-                      weight: FontWeight.w500,
-                      tracking: 0.12,
-                      color: const Color(0x66F4F4F0),
-                    ),
-                  ),
-                const Spacer(),
-                if (delta != null)
-                  AnimatedStatValue(
-                    value: delta.$1,
-                    style: TrainType.mono(
-                      size: 9.5,
-                      weight: FontWeight.w500,
-                      tracking: 0.1,
-                      color: delta.$2,
-                    ),
-                  ),
               ],
             ),
           ),

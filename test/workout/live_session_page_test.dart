@@ -411,16 +411,11 @@ void main() {
         isTrue,
       );
 
-      // Type a heavier weight than last time (reps unchanged at the
-      // prefilled 5). The redesign folded the old separate "Progressing
-      // +17%" verdict badge into ONE caption under the weight, in which
-      // **load leads whenever it moved** — that's the decision you just
-      // made — and the percentage verdict is the fallback for when it
-      // didn't. 30kg → 35kg, so the caption is the load delta.
+      // Type a heavier weight than the prefilled goal (reps unchanged at 5),
+      // so set 1 logs the 35kg we typed (asserted below).
       // Reps is the first TextField (index 0), Weight the second (index 1).
       await tester.enterText(find.byType(TextField).at(1), '35');
       await tester.pump();
-      expect(find.text('↑ 5 KG VS LAST'), findsOneWidget);
 
       // Complete set 1 → the session counts down the exercise's own plan
       // rest (90s, "1:30") — the plan Ziad set in Edit Workout, not a
@@ -777,11 +772,10 @@ void main() {
       await _tap(tester, find.text('Skip rest'));
 
       // Set 2. Nothing the steppers can do may change this card's height.
-      // Two separate things used to: the comparison chip appeared only once
-      // you'd moved the weight, and the volume line appeared only once a
-      // weight parsed at all — so the card gained a row (shoving the
-      // steppers, the music strip and the commit row down with it) the moment
-      // you tapped +2.5 or typed a load.
+      // The intra-session chip is always reserved (present for every set
+      // after the first, changed or not), so typing a load can't gain the
+      // card a row that shoves the steppers and commit row down under your
+      // thumb the moment you tap +2.5.
       expect(find.byKey(const Key('intra-session-delta')), findsOneWidget);
       final before = tester.getSize(find.byKey(const Key('goal-card'))).height;
 
