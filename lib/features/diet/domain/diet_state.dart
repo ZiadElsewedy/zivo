@@ -1,3 +1,4 @@
+import 'body_measures.dart';
 import 'diet_goal.dart';
 import 'nutrition/food_log_entry.dart';
 import 'nutrition_targets.dart';
@@ -209,6 +210,26 @@ class DietQuality {
   bool get isComplete => !targetsUnset && !nothingLogged && !consumedIsAssumed;
 }
 
+/// The energy context a day sits inside: what this person burns, and how ZIVO
+/// knows.
+///
+/// **An input to the state, not something it computes.** Assembling body data
+/// is `resolveBodyMeasures`'s job on the client and the gateway's on the
+/// server; the builder stays pure and total, and both sides are handed the
+/// same figure rather than each deriving one. Null is a real state — no body
+/// data, no maintenance, and every rule that needs it simply doesn't fire.
+class EnergyState {
+  const EnergyState({required this.maintenanceKcal, required this.source});
+
+  /// What this person burns in a day.
+  final int maintenanceKcal;
+
+  /// Where that figure came from. Carried with it for the same reason
+  /// [ConsumedBasis] is carried with the consumed totals: a coach that can't
+  /// say how it knows shouldn't be saying it.
+  final MaintenanceSource source;
+}
+
 /// **The structured picture of the user's diet right now.**
 ///
 /// One object, built once, from one function. The Diet screen renders it and
@@ -233,6 +254,7 @@ class DietState {
     required this.log,
     required this.history,
     required this.quality,
+    this.energy,
   });
 
   /// The user's local calendar day, 'yyyy-MM-dd'.
@@ -258,6 +280,20 @@ class DietState {
   final List<FoodLogEntry> log;
   final DietHistorySummary history;
   final DietQuality quality;
+
+  /// What this person burns, when ZIVO knows. Null until they've given their
+  /// body data — see [EnergyState].
+  final EnergyState? energy;
+
+  /// The target measured against maintenance: positive is a surplus. Null
+  /// when either is unknown, because "no target" and "no body data" are
+  /// different absences and neither is a zero.
+  int? get targetVersusMaintenance {
+    final target = targets?.calories;
+    final maintenance = energy?.maintenanceKcal;
+    if (target == null || maintenance == null) return null;
+    return target - maintenance;
+  }
 
   /// The day's planned energy total (supplements excluded), or null when the
   /// plan states none. Reported separately from [targets] and never conflated

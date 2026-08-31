@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../workout/domain/body_weight_entry.dart';
+import '../../domain/analysis/maintenance_calibration.dart';
 import '../../domain/body_measures.dart';
 import '../../domain/body_profile.dart';
 
@@ -17,12 +18,25 @@ import '../../domain/body_profile.dart';
 /// maintenance figures for the same person. `resolveBodyMeasures` owns the
 /// rules; this owns the plumbing.
 ///
+/// It also runs the **maintenance calibration** — the measurement of what this
+/// person actually burns, from their own weigh-ins and food log
+/// (`analysis/maintenance_calibration.dart`). That belongs here rather than in
+/// each screen for the same reason the rest does: it reads three repositories
+/// and it must produce one answer, not one per surface. [CalibrationResult] is
+/// handed to the builder alongside the measures, so a screen can say *why*
+/// there is no measurement yet instead of silently falling back to the
+/// equation.
+///
 /// Missing data is a normal outcome, not an error: [builder] is handed a
 /// resolution that names what's absent, and the screen asks for exactly that.
 class BodyMeasuresBuilder extends StatefulWidget {
   const BodyMeasuresBuilder({required this.builder, this.now, super.key});
 
-  final Widget Function(BuildContext context, BodyMeasuresResolution measures)
+  final Widget Function(
+    BuildContext context,
+    BodyMeasuresResolution measures,
+    CalibrationResult calibration,
+  )
   builder;
 
   /// Injected for tests; defaults to the wall clock. Only used to turn a date
@@ -42,6 +56,14 @@ class _BodyMeasuresBuilderState extends State<BodyMeasuresBuilder> {
   StreamSubscription<List<BodyWeightEntry>>? _weighInSub;
   bool _wired = false;
 
+  /// The measurement, or what it's short of. Starts as "needs weigh-ins" —
+  /// the honest state before anything has been read.
+  CalibrationResult _calibration = const CalibrationResult.needs(
+    CalibrationGap.needsWeighIns,
+  );
+  List<BodyWeightEntry> _weighIns = const [];
+  List<DailyIntake> _intake = const [];
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -59,15 +81,33 @@ class _BodyMeasuresBuilderState extends State<BodyMeasuresBuilder> {
     // missing piece.
     final log = scope.bodyWeight;
     if (log != null) {
+      _weighIns = log.current;
       _latestWeighIn = log.current.isEmpty ? null : log.current.first;
       _weighInSub = log.watchAll().listen((entries) {
-        if (mounted) {
-          setState(
-            () => _latestWeighIn = entries.isEmpty ? null : entries.first,
-          );
-        }
+        if (!mounted) return;
+        setState(() {
+          _weighIns = entries;
+          _latestWeighIn = entries.isEmpty ? null : entries.first;
+        });
+        _recalibrate();
       });
     }
+
+    // The intake history behind the calibration. One range read, not a
+    // subscription: this is a measurement over weeks, and nothing about it
+    // needs to change when the user logs lunch.
+    final now = widget.now ?? DateTime.now();
+    scope.diet
+        .dailyIntake(
+          from: now.subtract(const Duration(days: kCalibrationWindowDays)),
+          to: now,
+        )
+        .then((intake) {
+          if (!mounted) return;
+          setState(() => _intake = intake);
+          _recalibrate();
+        })
+        .catchError((_) {});
 
     // Read once, best-effort. A failure here means no verdict — never a
     // guessed age.
@@ -82,6 +122,16 @@ class _BodyMeasuresBuilderState extends State<BodyMeasuresBuilder> {
           })
           .catchError((_) {});
     }
+  }
+
+  void _recalibrate() {
+    if (!mounted) return;
+    final result = calibrateMaintenance(
+      weighIns: _weighIns,
+      intake: _intake,
+      now: widget.now ?? DateTime.now(),
+    );
+    setState(() => _calibration = result);
   }
 
   @override
@@ -100,6 +150,15 @@ class _BodyMeasuresBuilderState extends State<BodyMeasuresBuilder> {
       weighedAt: _latestWeighIn?.loggedAt,
       dateOfBirth: _dateOfBirth,
       now: widget.now ?? DateTime.now(),
+      measuredMaintenanceKcal: _calibration.measured?.maintenanceKcal,
     ),
+    _calibration,
   );
 }
+
+/// How far back the calibration looks for logged intake.
+///
+/// Eight weeks. Long enough that a user who logs most days clears the coverage
+/// bar comfortably, short enough that a metabolism, an activity level and a
+/// body from two months ago are still recognisably this person's.
+const int kCalibrationWindowDays = 56;

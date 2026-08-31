@@ -16,6 +16,7 @@
 library;
 
 import '../diet_format.dart';
+import '../body_measures.dart';
 import '../diet_goal.dart';
 import '../diet_state.dart';
 
@@ -155,6 +156,18 @@ EvidenceValue? _resolve(DietState state, String path) {
             ? 'no day of your plan applies'
             : (state.dayLabel ?? state.planName ?? 'set'),
       );
+
+    case 'energy.maintenanceKcal':
+      final energy = state.energy;
+      return energy == null
+          ? null
+          : at('You burn about', '${energy.maintenanceKcal} kcal a day');
+
+    case 'energy.source':
+      final source = state.energy?.source;
+      return source == null
+          ? null
+          : at('How ZIVO knows that', maintenanceSourceLabel(source));
 
     case 'quality.untrackedMacros':
       final untracked = quality.untrackedMacros;

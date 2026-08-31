@@ -21,7 +21,10 @@ import 'nutrition_targets.dart';
 /// - the food log is the source of consumption when it has anything, and the
 ///   planned figures of ticked meals are a labelled fallback when it doesn't;
 /// - a missing target is null, never zero;
-/// - an empty log is "nothing recorded", never a measured zero.
+/// - an empty log is "nothing recorded", never a measured zero;
+/// - [energy] is passed IN, never derived here: assembling body data belongs
+///   to `resolveBodyMeasures` (client) and the gateway (server), and a builder
+///   that derived it would give the two sides two ways to be right.
 DietState buildDietState({
   required String dayKey,
   required int weekday,
@@ -31,6 +34,7 @@ DietState buildDietState({
   required Set<String> consumedMealIds,
   required List<FoodLogEntry> log,
   DietHistorySummary history = DietHistorySummary.empty,
+  EnergyState? energy,
 }) {
   final allMeals = day?.meals ?? const <Meal>[];
   final meals = [
@@ -66,6 +70,7 @@ DietState buildDietState({
     remaining: remaining,
     log: log,
     history: history,
+    energy: energy,
     quality: DietQuality(
       targetsUnset: targets == null,
       noPlanForDay: day == null,

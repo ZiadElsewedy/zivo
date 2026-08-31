@@ -153,6 +153,76 @@ class FirestoreStore {
   }
 
   /**
+   * The user's stored body data, or null when they haven't given it.
+   *
+   * Height, sex and activity are all required: two out of three cannot
+   * produce a maintenance figure, and a profile that silently defaulted the
+   * third would put a number nobody chose underneath every piece of coaching.
+   * Weight is deliberately NOT here — it lives in `bodyWeights`, which is
+   * where the user actually keeps it.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getBodyProfile(uid) {
+    const snap = await this._user(uid)
+        .collection("bodyProfile")
+        .doc("current")
+        .get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    const heightCm = typeof d.heightCm === "number" ? d.heightCm : null;
+    if (heightCm === null || heightCm < 100 || heightCm > 250) return null;
+    if (d.sex !== "male" && d.sex !== "female") return null;
+    const activity = typeof d.activity === "string" ? d.activity : null;
+    if (!activity) return null;
+    const stated = typeof d.statedMaintenanceKcal === "number" ?
+      Math.round(d.statedMaintenanceKcal) : null;
+    return {
+      heightCm,
+      sex: d.sex,
+      activity,
+      statedMaintenanceKcal:
+        stated !== null && stated >= 800 && stated <= 10000 ? stated : null,
+    };
+  }
+
+  /**
+   * Every logged weigh-in, oldest first. The calibration needs the span, not
+   * just the latest reading.
+   * @param {string} uid
+   * @return {!Promise<!Array<{weightKg: number, loggedAtMs: number}>>}
+   */
+  async listBodyWeights(uid) {
+    const snap = await this._user(uid).collection("bodyWeights").get();
+    return snap.docs
+        .map((doc) => {
+          const d = doc.data() || {};
+          const weightKg = typeof d.weightKg === "number" ? d.weightKg : null;
+          const at = d.loggedAt;
+          const loggedAtMs = at && typeof at.toMillis === "function" ?
+            at.toMillis() : null;
+          if (weightKg === null || loggedAtMs === null) return null;
+          return {weightKg, loggedAtMs};
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.loggedAtMs - b.loggedAtMs);
+  }
+
+  /**
+   * The account profile's date of birth in ms, or null. Age is derived from
+   * it at the moment of use — a stored integer age is wrong within a year of
+   * being written.
+   * @param {string} uid
+   * @return {!Promise<?number>}
+   */
+  async getDateOfBirthMs(uid) {
+    const snap = await this._user(uid).get();
+    if (!snap.exists) return null;
+    const dob = (snap.data() || {}).dateOfBirth;
+    return dob && typeof dob.toMillis === "function" ? dob.toMillis() : null;
+  }
+
+  /**
    * The user's food log for one day — what they actually recorded eating.
    *
    * This is the consumption ledger. An entry is either something the user

@@ -170,6 +170,7 @@ function buildDietState({
   consumedMealIds,
   log,
   history,
+  energy,
 }) {
   const allMeals = (day && Array.isArray(day.meals)) ? day.meals : [];
   const ticked = consumedMealIds instanceof Set ?
@@ -215,6 +216,16 @@ function buildDietState({
     consumed: {...consumed, basisLabel: BASIS_LABEL[consumed.basis]},
     remaining,
     history: history || {days: 0, daysWithLog: 0, averageKcal: null},
+    // What this person burns, and how ZIVO knows. An INPUT, not something
+    // derived here — assembling body data belongs to the caller on both
+    // sides, so the client and the gateway are handed the same figure rather
+    // than each deriving one. Null is a real state: no body data, no
+    // maintenance, and every rule that needs it stays quiet.
+    energy: energy || null,
+    // The target measured against maintenance; null when either is unknown,
+    // because "no target" and "no body data" are different absences.
+    targetVersusMaintenance: (targets && energy) ?
+      targets.calories - energy.maintenanceKcal : null,
     quality: {
       targetsUnset: !targets,
       noPlanForDay: !day,

@@ -1,3 +1,4 @@
+import 'analysis/maintenance_calibration.dart';
 import 'body_profile.dart';
 import 'diet_plan.dart';
 import 'diet_plan_status.dart';
@@ -102,6 +103,18 @@ abstract interface class DietRepository {
 
   /// Removes one entry by id.
   Future<void> removeFoodLogEntry(String id);
+
+  /// Daily calorie totals across [from]..[to], for the days that had anything
+  /// logged. Days with nothing recorded are **absent, not zero** — a zero
+  /// would drag an intake average down and manufacture a deficit that never
+  /// happened (see `analysis/maintenance_calibration.dart`).
+  ///
+  /// A one-shot read rather than a stream: this feeds a measurement over
+  /// weeks, and nothing about it needs to update as the user logs lunch.
+  Future<List<DailyIntake>> dailyIntake({
+    required DateTime from,
+    required DateTime to,
+  });
 
   /// The foods the user has defined themselves, newest first.
   Stream<List<CustomFood>> watchCustomFoods();

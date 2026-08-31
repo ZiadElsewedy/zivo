@@ -127,6 +127,59 @@ const CASES = [
     localHour: null,
     input: {targets: targets({}), day: PLAN_DAY, consumedMealIds: [], log: []},
   },
+  {
+    name: "a fat-loss target ABOVE maintenance is called out",
+    localHour: 12,
+    input: {
+      targets: targets({calories: 3000}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+      energy: {maintenanceKcal: 2500, source: "estimated"},
+    },
+  },
+  {
+    name: "a muscle-gain target BELOW maintenance is called out too",
+    localHour: 12,
+    input: {
+      targets: targets({goal: "muscleGain", calories: 2100}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+      energy: {maintenanceKcal: 2800, source: "measured"},
+    },
+  },
+  {
+    name: "a target that serves its goal draws no objection",
+    localHour: 12,
+    input: {
+      targets: targets({calories: 2100}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+      energy: {maintenanceKcal: 2800, source: "measured"},
+    },
+  },
+  {
+    name: "a target sitting ON maintenance disagrees with a fat-loss goal",
+    localHour: 12,
+    input: {
+      targets: targets({calories: 2520}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+      energy: {maintenanceKcal: 2500, source: "stated"},
+    },
+  },
+  {
+    name: "a maintain goal at maintenance is exactly right, and stays quiet",
+    localHour: 12,
+    input: {
+      targets: targets({goal: "maintain", calories: 2520}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+      energy: {maintenanceKcal: 2500, source: "stated"},
+    },
+  },
+  {
+    name: "with no body data the objection cannot be made, so it isn't",
+    localHour: 12,
+    input: {
+      targets: targets({calories: 3000}), day: PLAN_DAY,
+      consumedMealIds: [], log: [entry({})],
+    },
+  },
 ];
 
 function main() {
@@ -139,6 +192,7 @@ function main() {
       day: spec.input.day,
       consumedMealIds: new Set(spec.input.consumedMealIds),
       log: spec.input.log,
+      energy: spec.input.energy || null,
     });
     return {
       ...spec,

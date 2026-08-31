@@ -53,7 +53,7 @@ class DietPlansPage extends StatelessWidget {
                 // One assembly of body data for the whole list, so every card
                 // measures its plan against the same maintenance figure.
                 return BodyMeasuresBuilder(
-                  builder: (context, measures) => ListView(
+                  builder: (context, measures, _) => ListView(
                     key: const Key('plans-list'),
                     padding: EdgeInsets.fromLTRB(
                       22,

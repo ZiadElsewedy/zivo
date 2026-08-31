@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../domain/analysis/maintenance_calibration.dart';
 import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
 import '../domain/diet_format.dart';
@@ -552,6 +553,35 @@ class FirestoreDietRepository implements DietRepository {
   Future<void> removeFoodLogEntry(String id) {
     final uid = _requireUid();
     return _foodLogsCollection(uid).doc(id).delete();
+  }
+
+  @override
+  Future<List<DailyIntake>> dailyIntake({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final uid = uidSource.currentUid();
+    if (uid == null) return const [];
+    // One range query on `dayKey` — it's a sortable string, so this needs no
+    // composite index and no thirty round-trips.
+    final snapshot = await _foodLogsCollection(uid)
+        .where('dayKey', isGreaterThanOrEqualTo: dayKey(from))
+        .where('dayKey', isLessThanOrEqualTo: dayKey(to))
+        .get();
+
+    final byDay = <String, int>{};
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final key = data['dayKey'];
+      final kcal = data['kcal'];
+      if (key is! String || kcal is! num) continue;
+      byDay[key] = (byDay[key] ?? 0) + kcal.toInt();
+    }
+    final out = [
+      for (final entry in byDay.entries)
+        DailyIntake(dayKey: entry.key, kcal: entry.value),
+    ]..sort((a, b) => a.dayKey.compareTo(b.dayKey));
+    return out;
   }
 
   @override

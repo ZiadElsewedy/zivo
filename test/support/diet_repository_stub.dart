@@ -1,3 +1,4 @@
+import 'package:zivo/features/diet/domain/analysis/maintenance_calibration.dart';
 import 'package:zivo/features/diet/domain/body_profile.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
@@ -81,6 +82,12 @@ abstract class DietRepositoryStub implements DietRepository {
 
   @override
   Future<void> removeFoodLogEntry(String id) async {}
+
+  @override
+  Future<List<DailyIntake>> dailyIntake({
+    required DateTime from,
+    required DateTime to,
+  }) async => const [];
 
   @override
   Stream<List<CustomFood>> watchCustomFoods() =>

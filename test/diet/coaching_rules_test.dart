@@ -6,6 +6,7 @@ import 'package:zivo/features/diet/domain/coaching/finding.dart';
 import 'package:zivo/features/diet/domain/coaching/rules.dart';
 import 'package:zivo/features/diet/domain/diet_day.dart';
 import 'package:zivo/features/diet/domain/diet_goal.dart';
+import 'package:zivo/features/diet/domain/body_measures.dart';
 import 'package:zivo/features/diet/domain/diet_state.dart';
 import 'package:zivo/features/diet/domain/diet_state_builder.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
@@ -83,13 +84,23 @@ FoodLogEntry _entryFrom(Map<String, dynamic> e) => FoodLogEntry(
   mealId: e['mealId'] as String?,
 );
 
+EnergyState? _energyFrom(Map<String, dynamic>? raw) {
+  if (raw == null) return null;
+  return EnergyState(
+    maintenanceKcal: (raw['maintenanceKcal'] as num).toInt(),
+    source: MaintenanceSource.values.byName(raw['source'] as String),
+  );
+}
+
 void main() {
   late Map<String, dynamic> vectors;
 
   setUpAll(() {
-    vectors = json.decode(
-      File('test/fixtures/coaching_vectors.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
+    vectors =
+        json.decode(
+              File('test/fixtures/coaching_vectors.json').readAsStringSync(),
+            )
+            as Map<String, dynamic>;
   });
 
   DietState stateFrom(Map<String, dynamic> input) => buildDietState(
@@ -105,14 +116,19 @@ void main() {
       for (final e in (input['log'] as List).cast<Map<String, dynamic>>())
         _entryFrom(e),
     ],
+    energy: _energyFrom(input['energy'] as Map<String, dynamic>?),
   );
 
   // Convenience for the behaviour tests below: a day with the fixture's plan
   // and whatever overrides a case needs.
   List<CoachingFinding> findingsFor({
     Map<String, dynamic>? targets = const {
-      'goal': 'fatLoss', 'calories': 2200, 'proteinG': 160,
-      'carbsG': 250, 'fatG': 73, 'source': 'manual',
+      'goal': 'fatLoss',
+      'calories': 2200,
+      'proteinG': 160,
+      'carbsG': 250,
+      'fatG': 73,
+      'source': 'manual',
     },
     List<Map<String, dynamic>> log = const [],
     List<String> ticked = const [],
@@ -128,53 +144,74 @@ void main() {
   );
 
   Map<String, dynamic> entry(Map<String, dynamic> patch) => {
-    'id': 'e1', 'foodId': 'usda:1', 'foodName': 'Food',
-    'quantity': 100, 'unit': 'g', 'grams': 100,
-    'kcal': 500, 'proteinG': 20, 'carbsG': 40, 'fatG': 15,
-    'source': 'usdaFdc', 'sourceRef': '1', 'origin': 'logged',
-    'estimated': false, 'mealId': null, ...patch,
+    'id': 'e1',
+    'foodId': 'usda:1',
+    'foodName': 'Food',
+    'quantity': 100,
+    'unit': 'g',
+    'grams': 100,
+    'kcal': 500,
+    'proteinG': 20,
+    'carbsG': 40,
+    'fatG': 15,
+    'source': 'usdaFdc',
+    'sourceRef': '1',
+    'origin': 'logged',
+    'estimated': false,
+    'mealId': null,
+    ...patch,
   };
 
-  List<String> codes(List<CoachingFinding> f) =>
-      f.map((x) => x.code).toList();
+  List<String> codes(List<CoachingFinding> f) => f.map((x) => x.code).toList();
 
   test('golden vectors: every case produces the same findings', () {
-    for (final spec in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
+    for (final spec
+        in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
       final name = spec['name'] as String;
       final findings = coachingFindings(
         stateFrom(spec['input'] as Map<String, dynamic>),
         localHour: (spec['localHour'] as num?)?.toInt(),
       );
-      final expected =
-          (spec['expected'] as List).cast<Map<String, dynamic>>();
+      final expected = (spec['expected'] as List).cast<Map<String, dynamic>>();
 
       expect(findings.length, expected.length, reason: name);
       for (var i = 0; i < expected.length; i++) {
         expect(findings[i].code, expected[i]['code'], reason: name);
         expect(findings[i].kind.name, expected[i]['kind'], reason: name);
-        expect(findings[i].severity.name, expected[i]['severity'],
-            reason: name);
+        expect(
+          findings[i].severity.name,
+          expected[i]['severity'],
+          reason: name,
+        );
         expect(findings[i].text, expected[i]['text'], reason: name);
-        expect(findings[i].evidence,
-            (expected[i]['evidence'] as List).cast<String>(), reason: name);
+        expect(
+          findings[i].evidence,
+          (expected[i]['evidence'] as List).cast<String>(),
+          reason: name,
+        );
       }
     }
   });
 
   test('no turn is handed more than three findings', () {
-    for (final spec in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
+    for (final spec
+        in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
       final findings = coachingFindings(
         stateFrom(spec['input'] as Map<String, dynamic>),
         localHour: (spec['localHour'] as num?)?.toInt(),
       );
-      expect(findings.length, lessThanOrEqualTo(kMaxFindings),
-          reason: spec['name'] as String);
+      expect(
+        findings.length,
+        lessThanOrEqualTo(kMaxFindings),
+        reason: spec['name'] as String,
+      );
     }
   });
 
   test('every finding names the state it rests on', () {
     // "Why is this being said?" has to be answerable, not asserted.
-    for (final spec in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
+    for (final spec
+        in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
       for (final finding in coachingFindings(
         stateFrom(spec['input'] as Map<String, dynamic>),
         localHour: (spec['localHour'] as num?)?.toInt(),
@@ -188,8 +225,12 @@ void main() {
   test('a target below the safety floor always survives the cap', () {
     final findings = findingsFor(
       targets: const {
-        'goal': 'fatLoss', 'calories': 900, 'proteinG': 160,
-        'carbsG': 250, 'fatG': 73, 'source': 'manual',
+        'goal': 'fatLoss',
+        'calories': 900,
+        'proteinG': 160,
+        'carbsG': 250,
+        'fatG': 73,
+        'source': 'manual',
       },
       log: [entry(const {})],
       hour: 12,
@@ -202,7 +243,9 @@ void main() {
   group('the negatives — what the engine must NOT say', () {
     test('a met protein target produces encouragement and no shortfall', () {
       final findings = findingsFor(
-        log: [entry(const {'kcal': 1900, 'proteinG': 175})],
+        log: [
+          entry(const {'kcal': 1900, 'proteinG': 175}),
+        ],
         hour: 19,
       );
       expect(codes(findings), contains('protein_met'));
@@ -212,7 +255,9 @@ void main() {
     test('a protein gap early in the day stays quiet', () {
       // There is a whole day left to close it; saying so would be nagging.
       final findings = findingsFor(
-        log: [entry(const {'kcal': 400, 'proteinG': 25})],
+        log: [
+          entry(const {'kcal': 400, 'proteinG': 25}),
+        ],
         hour: 9,
       );
       expect(codes(findings), isNot(contains('protein_shortfall')));
@@ -220,11 +265,14 @@ void main() {
 
     test('the same gap fires once the calorie budget is running out', () {
       final findings = findingsFor(
-        log: [entry(const {'kcal': 1850, 'proteinG': 125})],
+        log: [
+          entry(const {'kcal': 1850, 'proteinG': 125}),
+        ],
         hour: 19,
       );
-      final shortfall =
-          findings.firstWhere((f) => f.code == 'protein_shortfall');
+      final shortfall = findings.firstWhere(
+        (f) => f.code == 'protein_shortfall',
+      );
       expect(shortfall.kind, FindingKind.recommendation);
       // The recommendation carries its own reason AND the budget it has to
       // work within — the difference between coaching and a slogan.
@@ -236,7 +284,9 @@ void main() {
 
     test('a trivial protein gap is inside the noise and is not raised', () {
       final findings = findingsFor(
-        log: [entry(const {'kcal': 2100, 'proteinG': 150})],
+        log: [
+          entry(const {'kcal': 2100, 'proteinG': 150}),
+        ],
         hour: 20,
       );
       expect(codes(findings), isNot(contains('protein_shortfall')));
@@ -262,8 +312,11 @@ void main() {
     });
 
     test('with no targets, only the blocker fires — no invented analysis', () {
-      final findings =
-          findingsFor(targets: null, log: [entry(const {})], hour: 14);
+      final findings = findingsFor(
+        targets: null,
+        log: [entry(const {})],
+        hour: 14,
+      );
       expect(codes(findings), ['targets_unset']);
     });
 
@@ -286,14 +339,17 @@ void main() {
   test('an untracked macro is named so nobody is told they are over on it', () {
     final findings = findingsFor(
       targets: const {
-        'goal': 'fatLoss', 'calories': 2200, 'proteinG': 160,
-        'carbsG': null, 'fatG': null, 'source': 'manual',
+        'goal': 'fatLoss',
+        'calories': 2200,
+        'proteinG': 160,
+        'carbsG': null,
+        'fatG': null,
+        'source': 'manual',
       },
       log: [entry(const {})],
       hour: 14,
     );
-    final untracked =
-        findings.firstWhere((f) => f.code == 'untracked_macros');
+    final untracked = findings.firstWhere((f) => f.code == 'untracked_macros');
     expect(untracked.text, contains('carbs, fat'));
   });
 }

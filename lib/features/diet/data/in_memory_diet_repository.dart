@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../domain/analysis/maintenance_calibration.dart';
 import '../domain/body_profile.dart';
 import '../domain/diet_day.dart';
 import '../domain/diet_format.dart';
@@ -380,6 +381,29 @@ class InMemoryDietRepository implements DietRepository {
     if (gone.isEmpty) return;
     consumed.removeAll(gone);
     _consumedController.add(key);
+  }
+
+  @override
+  Future<List<DailyIntake>> dailyIntake({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final fromKey = _dayKey(from);
+    final toKey = _dayKey(to);
+    final out = <DailyIntake>[];
+    for (final entry in _foodLog.entries) {
+      if (entry.key.compareTo(fromKey) < 0) continue;
+      if (entry.key.compareTo(toKey) > 0) continue;
+      if (entry.value.isEmpty) continue;
+      out.add(
+        DailyIntake(
+          dayKey: entry.key,
+          kcal: entry.value.fold<int>(0, (sum, e) => sum + e.kcal),
+        ),
+      );
+    }
+    out.sort((a, b) => a.dayKey.compareTo(b.dayKey));
+    return out;
   }
 
   @override

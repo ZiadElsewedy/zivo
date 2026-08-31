@@ -72,6 +72,14 @@ that interprets the numbers independently is how a screen and a coach end up rec
 different things from identical data — and it means the coaching still works with no model
 call at all.
 
+**`DietState.energy`** carries that maintenance figure and its source into the one state
+the screen and the coach share, alongside `targetVersusMaintenance`. It is an **input** to
+`buildDietState` on both sides, never derived by it — assembling body data belongs to
+`resolveBodyMeasures` (client) and the gateway (server), and a builder that derived it would
+give the two sides two ways to be right. The coaching rule `target_does_not_serve_goal` is
+what it buys: the one problem no amount of daily logging reveals, because hitting the wrong
+target perfectly looks exactly like doing well.
+
 **`DietState` — the one structured picture, and the thing to reach for first:**
 `domain/diet_state.dart` + `diet_state_builder.dart`. Goal · targets · consumed (with its
 `ConsumedBasis`) · remaining · meals · history · `DietQuality` flags. The Diet screen
@@ -130,6 +138,17 @@ rather than blending with it, and `MaintenanceSource` records which was used. St
 data still implies **no target** — see the rule below, which is unchanged. Decisions:
 [ADR-007](../../../docs/DECISIONS/ADR-007-diet-onboarding-body-data-and-generation.md);
 the epic's remaining phases: [`docs/DIET_ONBOARDING_PLAN.md`](../../../docs/DIET_ONBOARDING_PLAN.md).
+
+**What this person actually burns (`domain/analysis/maintenance_calibration.dart`):**
+`calibrateMaintenance` measures maintenance from the user's own weigh-ins and food log —
+`average intake − (weight change × 7700 ÷ days)` — which makes it **the only figure in the
+app that is an observation of this person** rather than a population estimate. It refuses
+more often than it answers (≥2 weigh-ins ≥14 days apart, ≥10 logged days at ≥⅔ coverage),
+and every refusal names its `CalibrationGap` so the UI asks for that instead of going quiet.
+Precedence is **stated > measured > estimated** (`BodyMeasures.maintenanceSource`): a
+measurement replaces the equation outright but never a figure the user stated themselves —
+that disagreement is surfaced, not resolved silently. Mirrored in `functions/diet/energy.js`
+and pinned by `test/fixtures/energy_vectors.json`, which **both** suites run.
 
 **Targets (the objective):** `diet_goal.dart` (`DietGoal`) + `nutrition_targets.dart`
 (`NutritionTargets`, `TargetSource`, `TargetBasis`, `kMinimumSafeCalories`) +

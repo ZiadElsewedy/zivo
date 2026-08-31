@@ -255,6 +255,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -424,6 +426,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -592,6 +596,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -742,6 +748,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -890,6 +898,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -1040,6 +1050,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -1171,6 +1183,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": true,
           "noPlanForDay": false,
@@ -1341,6 +1355,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,
@@ -1429,6 +1445,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": true,
@@ -1436,6 +1454,687 @@
           "consumedIsAssumed": false,
           "hasEstimatedValues": false,
           "untrackedMacros": []
+        }
+      }
+    },
+    {
+      "name": "maintenance is carried through, with where it came from",
+      "input": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Rice",
+                  "quantity": 150,
+                  "unit": "g",
+                  "calories": 210,
+                  "proteinG": 4,
+                  "carbsG": 45,
+                  "fatG": 0.5
+                },
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            },
+            {
+              "id": "m3-supplements",
+              "label": "Supplements",
+              "items": [
+                {
+                  "name": "Creatine",
+                  "quantity": 5,
+                  "unit": "g",
+                  "calories": 20
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:171477",
+            "foodName": "Chicken breast, roasted",
+            "quantity": 200,
+            "unit": "g",
+            "grams": 200,
+            "kcal": 330,
+            "proteinG": 62,
+            "carbsG": 0,
+            "fatG": 7.2,
+            "source": "usdaFdc",
+            "sourceRef": "171477",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2771,
+          "source": "estimated"
+        }
+      },
+      "expected": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "dayLabel": "Every day",
+        "plannedKcal": 760,
+        "meals": [
+          {
+            "id": "m1-breakfast",
+            "label": "Breakfast",
+            "eaten": false,
+            "kcal": 220,
+            "estimated": true,
+            "isSupplement": false
+          },
+          {
+            "id": "m2-lunch",
+            "label": "Lunch",
+            "eaten": false,
+            "kcal": 540,
+            "estimated": false,
+            "isSupplement": false
+          },
+          {
+            "id": "m3-supplements",
+            "label": "Supplements",
+            "eaten": false,
+            "kcal": 20,
+            "estimated": false,
+            "isSupplement": true
+          }
+        ],
+        "mealsEaten": 0,
+        "mealsTotal": 2,
+        "consumed": {
+          "kcal": 330,
+          "proteinG": 62,
+          "carbsG": 0,
+          "fatG": 7.2,
+          "basis": "logged",
+          "estimated": false,
+          "entryCount": 1,
+          "loggedCount": 1,
+          "basisLabel": "logged by you"
+        },
+        "remaining": {
+          "kcal": 1870,
+          "proteinG": 98,
+          "carbsG": 250,
+          "fatG": 65.8
+        },
+        "history": {
+          "days": 0,
+          "daysWithLog": 0,
+          "averageKcal": null
+        },
+        "energy": {
+          "maintenanceKcal": 2771,
+          "source": "estimated"
+        },
+        "targetVersusMaintenance": -571,
+        "quality": {
+          "targetsUnset": false,
+          "noPlanForDay": false,
+          "nothingLogged": false,
+          "consumedIsAssumed": false,
+          "hasEstimatedValues": false,
+          "untrackedMacros": []
+        }
+      }
+    },
+    {
+      "name": "a target above maintenance reports a positive difference",
+      "input": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "muscleGain",
+          "calories": 3000,
+          "proteinG": 170,
+          "carbsG": null,
+          "fatG": null,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Rice",
+                  "quantity": 150,
+                  "unit": "g",
+                  "calories": 210,
+                  "proteinG": 4,
+                  "carbsG": 45,
+                  "fatG": 0.5
+                },
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            },
+            {
+              "id": "m3-supplements",
+              "label": "Supplements",
+              "items": [
+                {
+                  "name": "Creatine",
+                  "quantity": 5,
+                  "unit": "g",
+                  "calories": 20
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:171477",
+            "foodName": "Chicken breast, roasted",
+            "quantity": 200,
+            "unit": "g",
+            "grams": 200,
+            "kcal": 330,
+            "proteinG": 62,
+            "carbsG": 0,
+            "fatG": 7.2,
+            "source": "usdaFdc",
+            "sourceRef": "171477",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2771,
+          "source": "measured"
+        }
+      },
+      "expected": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "muscleGain",
+          "calories": 3000,
+          "proteinG": 170,
+          "carbsG": null,
+          "fatG": null,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "dayLabel": "Every day",
+        "plannedKcal": 760,
+        "meals": [
+          {
+            "id": "m1-breakfast",
+            "label": "Breakfast",
+            "eaten": false,
+            "kcal": 220,
+            "estimated": true,
+            "isSupplement": false
+          },
+          {
+            "id": "m2-lunch",
+            "label": "Lunch",
+            "eaten": false,
+            "kcal": 540,
+            "estimated": false,
+            "isSupplement": false
+          },
+          {
+            "id": "m3-supplements",
+            "label": "Supplements",
+            "eaten": false,
+            "kcal": 20,
+            "estimated": false,
+            "isSupplement": true
+          }
+        ],
+        "mealsEaten": 0,
+        "mealsTotal": 2,
+        "consumed": {
+          "kcal": 330,
+          "proteinG": 62,
+          "carbsG": 0,
+          "fatG": 7.2,
+          "basis": "logged",
+          "estimated": false,
+          "entryCount": 1,
+          "loggedCount": 1,
+          "basisLabel": "logged by you"
+        },
+        "remaining": {
+          "kcal": 2670,
+          "proteinG": 108,
+          "carbsG": null,
+          "fatG": null
+        },
+        "history": {
+          "days": 0,
+          "daysWithLog": 0,
+          "averageKcal": null
+        },
+        "energy": {
+          "maintenanceKcal": 2771,
+          "source": "measured"
+        },
+        "targetVersusMaintenance": 229,
+        "quality": {
+          "targetsUnset": false,
+          "noPlanForDay": false,
+          "nothingLogged": false,
+          "consumedIsAssumed": false,
+          "hasEstimatedValues": false,
+          "untrackedMacros": [
+            "carbs",
+            "fat"
+          ]
+        }
+      }
+    },
+    {
+      "name": "no body data: energy is null and so is the comparison",
+      "input": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Rice",
+                  "quantity": 150,
+                  "unit": "g",
+                  "calories": 210,
+                  "proteinG": 4,
+                  "carbsG": 45,
+                  "fatG": 0.5
+                },
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            },
+            {
+              "id": "m3-supplements",
+              "label": "Supplements",
+              "items": [
+                {
+                  "name": "Creatine",
+                  "quantity": 5,
+                  "unit": "g",
+                  "calories": 20
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:171477",
+            "foodName": "Chicken breast, roasted",
+            "quantity": 200,
+            "unit": "g",
+            "grams": 200,
+            "kcal": 330,
+            "proteinG": 62,
+            "carbsG": 0,
+            "fatG": 7.2,
+            "source": "usdaFdc",
+            "sourceRef": "171477",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "planName": "Cut",
+        "dayLabel": "Every day",
+        "plannedKcal": 760,
+        "meals": [
+          {
+            "id": "m1-breakfast",
+            "label": "Breakfast",
+            "eaten": false,
+            "kcal": 220,
+            "estimated": true,
+            "isSupplement": false
+          },
+          {
+            "id": "m2-lunch",
+            "label": "Lunch",
+            "eaten": false,
+            "kcal": 540,
+            "estimated": false,
+            "isSupplement": false
+          },
+          {
+            "id": "m3-supplements",
+            "label": "Supplements",
+            "eaten": false,
+            "kcal": 20,
+            "estimated": false,
+            "isSupplement": true
+          }
+        ],
+        "mealsEaten": 0,
+        "mealsTotal": 2,
+        "consumed": {
+          "kcal": 330,
+          "proteinG": 62,
+          "carbsG": 0,
+          "fatG": 7.2,
+          "basis": "logged",
+          "estimated": false,
+          "entryCount": 1,
+          "loggedCount": 1,
+          "basisLabel": "logged by you"
+        },
+        "remaining": {
+          "kcal": 1870,
+          "proteinG": 98,
+          "carbsG": 250,
+          "fatG": 65.8
+        },
+        "history": {
+          "days": 0,
+          "daysWithLog": 0,
+          "averageKcal": null
+        },
+        "energy": null,
+        "targetVersusMaintenance": null,
+        "quality": {
+          "targetsUnset": false,
+          "noPlanForDay": false,
+          "nothingLogged": false,
+          "consumedIsAssumed": false,
+          "hasEstimatedValues": false,
+          "untrackedMacros": []
+        }
+      }
+    },
+    {
+      "name": "maintenance with no target compares to nothing",
+      "input": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": null,
+        "planName": "Cut",
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Rice",
+                  "quantity": 150,
+                  "unit": "g",
+                  "calories": 210,
+                  "proteinG": 4,
+                  "carbsG": 45,
+                  "fatG": 0.5
+                },
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            },
+            {
+              "id": "m3-supplements",
+              "label": "Supplements",
+              "items": [
+                {
+                  "name": "Creatine",
+                  "quantity": 5,
+                  "unit": "g",
+                  "calories": 20
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:171477",
+            "foodName": "Chicken breast, roasted",
+            "quantity": 200,
+            "unit": "g",
+            "grams": 200,
+            "kcal": 330,
+            "proteinG": 62,
+            "carbsG": 0,
+            "fatG": 7.2,
+            "source": "usdaFdc",
+            "sourceRef": "171477",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2500,
+          "source": "stated"
+        }
+      },
+      "expected": {
+        "dayKey": "2026-08-30",
+        "weekday": 7,
+        "targets": null,
+        "planName": "Cut",
+        "dayLabel": "Every day",
+        "plannedKcal": 760,
+        "meals": [
+          {
+            "id": "m1-breakfast",
+            "label": "Breakfast",
+            "eaten": false,
+            "kcal": 220,
+            "estimated": true,
+            "isSupplement": false
+          },
+          {
+            "id": "m2-lunch",
+            "label": "Lunch",
+            "eaten": false,
+            "kcal": 540,
+            "estimated": false,
+            "isSupplement": false
+          },
+          {
+            "id": "m3-supplements",
+            "label": "Supplements",
+            "eaten": false,
+            "kcal": 20,
+            "estimated": false,
+            "isSupplement": true
+          }
+        ],
+        "mealsEaten": 0,
+        "mealsTotal": 2,
+        "consumed": {
+          "kcal": 330,
+          "proteinG": 62,
+          "carbsG": 0,
+          "fatG": 7.2,
+          "basis": "logged",
+          "estimated": false,
+          "entryCount": 1,
+          "loggedCount": 1,
+          "basisLabel": "logged by you"
+        },
+        "remaining": null,
+        "history": {
+          "days": 0,
+          "daysWithLog": 0,
+          "averageKcal": null
+        },
+        "energy": {
+          "maintenanceKcal": 2500,
+          "source": "stated"
+        },
+        "targetVersusMaintenance": null,
+        "quality": {
+          "targetsUnset": true,
+          "noPlanForDay": false,
+          "nothingLogged": false,
+          "consumedIsAssumed": false,
+          "hasEstimatedValues": false,
+          "untrackedMacros": [
+            "protein",
+            "carbs",
+            "fat"
+          ]
         }
       }
     },
@@ -1595,6 +2294,8 @@
           "daysWithLog": 0,
           "averageKcal": null
         },
+        "energy": null,
+        "targetVersusMaintenance": null,
         "quality": {
           "targetsUnset": false,
           "noPlanForDay": false,

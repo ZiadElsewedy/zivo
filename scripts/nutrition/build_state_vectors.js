@@ -141,6 +141,40 @@ const CASES = [
     },
   },
   {
+    name: "maintenance is carried through, with where it came from",
+    input: {
+      dayKey: "2026-08-30", weekday: 7, targets: TARGETS,
+      planName: "Cut", day: PLAN_DAY,
+      consumedMealIds: [], log: [LOGGED],
+      energy: {maintenanceKcal: 2771, source: "estimated"},
+    },
+  },
+  {
+    name: "a target above maintenance reports a positive difference",
+    input: {
+      dayKey: "2026-08-30", weekday: 7,
+      targets: {goal: "muscleGain", calories: 3000, proteinG: 170,
+        carbsG: null, fatG: null, source: "manual"},
+      planName: "Cut", day: PLAN_DAY, consumedMealIds: [], log: [LOGGED],
+      energy: {maintenanceKcal: 2771, source: "measured"},
+    },
+  },
+  {
+    name: "no body data: energy is null and so is the comparison",
+    input: {
+      dayKey: "2026-08-30", weekday: 7, targets: TARGETS,
+      planName: "Cut", day: PLAN_DAY, consumedMealIds: [], log: [LOGGED],
+    },
+  },
+  {
+    name: "maintenance with no target compares to nothing",
+    input: {
+      dayKey: "2026-08-30", weekday: 7, targets: null,
+      planName: "Cut", day: PLAN_DAY, consumedMealIds: [], log: [LOGGED],
+      energy: {maintenanceKcal: 2500, source: "stated"},
+    },
+  },
+  {
     name: "over target reports a negative remainder, never a clamped zero",
     input: {
       dayKey: "2026-08-30", weekday: 7,

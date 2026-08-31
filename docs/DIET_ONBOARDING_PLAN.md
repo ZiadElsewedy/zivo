@@ -186,10 +186,33 @@ problem, and the review editor shows what the day actually came out at.
 
 ### Phase E — The coach knows all of it
 
-- `PlanVerdict` + `BodyProfile` into `DietState` (and its `functions/diet/state.js` mirror
-  + shared vectors), so Today's glance and the coach read the same verdict the screen does.
-- A coaching rule for **plan vs goal disagreement** ("your plan runs ~380 over maintenance
-  and your goal is fat loss").
-- **Calibration** (the real prize): with ≥2 weigh-ins over ≥2 weeks and a food log, observed
-  weight change is a *measurement* of maintenance. When reality and the equation disagree,
-  reality wins and the verdict says so.
+- **Calibration** (the prize): `domain/analysis/maintenance_calibration.dart` measures what
+  the user actually burns from their own weigh-ins and food log —
+  `maintenance = average intake − (weight change × 7700 ÷ days)`. The arithmetic is trivial;
+  the honesty is not, so it **refuses far more often than it answers**: ≥2 weigh-ins, ≥14
+  days apart (below that bodyweight is measuring hydration), ≥10 logged days covering ≥⅔ of
+  the window. Every refusal names what's missing so the screen can ask for that rather than
+  going quiet.
+- **Precedence: stated > measured > estimated.** A measurement of the actual person replaces
+  a population equation outright. It does **not** replace a figure the user stated
+  themselves — overriding what someone explicitly told the app would be the app contradicting
+  them silently. The disagreement is surfaced instead.
+- `DietState.energy` (`EnergyState`: maintenance + its source) — an **input** to the builder
+  on both sides, never derived by it, so the app and the gateway are handed the same figure
+  rather than each computing one. Plus `targetVersusMaintenance`.
+- A coaching rule, `target_does_not_serve_goal`: the one thing no amount of daily logging
+  reveals. Someone can hit a 2,600 target every day and be congratulated, while the target
+  itself is 200 above their maintenance and their goal is fat loss.
+- Mirrors + vectors: `functions/diet/energy.js` with `test/fixtures/energy_vectors.json`
+  (run by **both** suites), `energy` threaded through `functions/diet/state.js` and
+  `functions/diet/rules.js`, and both existing vector fixtures regenerated. The gateway
+  reads body profile, weigh-ins and DOB (`store.js`) and hands the coach the same
+  maintenance the screen shows.
+- UI: the verdict card carries the measurement — or names the gap ("log two weigh-ins and
+  ZIVO can measure what you actually burn"), and says plainly when a measurement disagrees
+  with a stated figure. **Owner action: deploy.**
+
+**Not done:** `PlanVerdict` itself is still computed client-side only; the coach gets
+maintenance and the target comparison, not the plan-average verdict object. It would need a
+JS mirror of `planDailyEnergy`, and the target-versus-goal rule covers the same ground more
+directly.

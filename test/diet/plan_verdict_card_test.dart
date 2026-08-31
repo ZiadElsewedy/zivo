@@ -6,6 +6,9 @@ import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/body_profile.dart';
+import 'package:zivo/features/diet/domain/diet_goal.dart';
+import 'package:zivo/features/diet/domain/nutrition/food_log_entry.dart';
+import 'package:zivo/features/diet/domain/nutrition/food_reference.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/target_calculator.dart';
 import 'package:zivo/features/diet/presentation/pages/body_profile_page.dart';
@@ -256,5 +259,133 @@ void main() {
     await tester.tap(find.byKey(const Key('save-body-profile')));
     await tester.pumpAndSettle();
     expect(diet.currentBodyProfile, isNull);
+  });
+
+  group('what this person actually burns', () {
+    testWidgets('with too little data, the card says what would be needed', (
+      tester,
+    ) async {
+      _tallViewport(tester);
+      final diet = InMemoryDietRepository();
+      addTearDown(diet.dispose);
+      await diet.saveBodyProfile(_profile());
+      final weights = InMemoryBodyWeightRepository(
+        seed: [
+          BodyWeightEntry(id: 'w1', weightKg: 82, loggedAt: DateTime.now()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+      );
+      await tester.pumpAndSettle();
+
+      // One weigh-in measures nothing — and the prompt names the gap rather
+      // than the screen quietly falling back to the equation.
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('verdict-calibration-gap')))
+            .data,
+        contains('two weigh-ins'),
+      );
+      expect(find.byKey(const Key('verdict-calibration')), findsNothing);
+    });
+
+    testWidgets('with a month of weigh-ins and logs, it measures and says so', (
+      tester,
+    ) async {
+      _tallViewport(tester);
+      final now = DateTime.now();
+      final diet = InMemoryDietRepository();
+      addTearDown(diet.dispose);
+      await diet.saveBodyProfile(_profile());
+      // 28 days at 2,600 kcal with weight up 0.8 kg → maintenance ~2,380,
+      // well below the ~2,725 the equation would have estimated.
+      for (var i = 0; i < 28; i++) {
+        await diet.logFood([
+          FoodLogEntry(
+            id: 'e$i',
+            day: now.subtract(Duration(days: 28 - i)),
+            loggedAt: now.subtract(Duration(days: 28 - i)),
+            foodId: 'usda:1',
+            foodName: 'Food',
+            quantity: 100,
+            unit: 'g',
+            grams: 100,
+            kcal: 2600,
+            proteinG: 100,
+            carbsG: 300,
+            fatG: 80,
+            source: NutritionSource.usdaFdc,
+            sourceRef: '1',
+            origin: FoodLogOrigin.logged,
+            estimated: false,
+          ),
+        ]);
+      }
+      final weights = InMemoryBodyWeightRepository(
+        seed: [
+          BodyWeightEntry(
+            id: 'w1',
+            weightKg: 82,
+            loggedAt: now.subtract(const Duration(days: 28)),
+          ),
+          BodyWeightEntry(id: 'w2', weightKg: 82.8, loggedAt: now),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+      );
+      await tester.pumpAndSettle();
+
+      final line = tester
+          .widget<Text>(find.byKey(const Key('verdict-calibration')))
+          .data!;
+      expect(line, contains('Measured from your last 28 days'));
+      expect(line, contains('2600 kcal a day eaten'));
+
+      // And the verdict itself now rests on the measurement, not the equation.
+      final detail = tester
+          .widget<Text>(find.byKey(const Key('verdict-detail')))
+          .data!;
+      expect(detail, contains('2380 kcal maintenance'));
+      expect(detail, contains('your own weigh-ins and food log'));
+    });
+
+    testWidgets('a target that fights its goal is called out on the screen', (
+      tester,
+    ) async {
+      _tallViewport(tester);
+      final diet = InMemoryDietRepository();
+      addTearDown(diet.dispose);
+      await diet.saveBodyProfile(_profile());
+      // Maintenance ~2,725 for this fake profile; a 3,200 kcal target with a
+      // fat-loss goal is a plan to gain weight, and no amount of daily
+      // logging would ever reveal it.
+      await diet.saveTargets(
+        NutritionTargets(
+          goal: DietGoal.fatLoss,
+          calories: 3200,
+          source: TargetSource.manual,
+          updatedAt: DateTime(2026, 8, 30),
+        ),
+      );
+      final weights = InMemoryBodyWeightRepository(
+        seed: [
+          BodyWeightEntry(id: 'w1', weightKg: 82, loggedAt: DateTime.now()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrap(child: const DietPlanPage(), diet: diet, bodyWeight: weights),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('but the goal is set to fat loss'),
+        findsOneWidget,
+      );
+    });
   });
 }

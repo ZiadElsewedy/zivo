@@ -40,11 +40,64 @@ const GOAL_LABEL = {
   recomp: "Recomposition",
 };
 
+/** Mirrors the Dart `kEnergyDeadbandKcal`. */
+const ENERGY_DEADBAND_KCAL = 100;
+
+/** Mirrors the Dart `maintenanceSourceLabel`. */
+const MAINTENANCE_SOURCE_LABEL = {
+  measured: "your own weigh-ins and food log",
+  stated: "the maintenance figure you gave",
+  estimated: "an estimate from your body data",
+};
+
 const BASIS_LABEL = {
   logged: "logged by you",
   tickedPlanMeals: "from the meals you ticked, not weighed",
   nothingLogged: "nothing logged yet",
 };
+
+/**
+ * Whether the target the user set actually serves the goal they chose — the
+ * one thing no amount of daily logging will reveal. Mirrors the Dart
+ * `_objective`.
+ * @param {!Object} state
+ * @return {!Array<Object>}
+ */
+function objective(state) {
+  const targets = state.targets;
+  const energy = state.energy;
+  const delta = state.targetVersusMaintenance;
+  if (!targets || !energy || delta === null || delta === undefined) return [];
+
+  const mismatch = (effect) => [{
+    code: "target_does_not_serve_goal",
+    kind: "warning",
+    severity: "important",
+    text:
+      `The ${targets.calories} kcal target is ${Math.abs(delta)} kcal ` +
+      `${delta > 0 ? "above" : "below"} the ${energy.maintenanceKcal} kcal ` +
+      `you burn in a day, which ${effect} — but the goal is set to ` +
+      `${(GOAL_LABEL[targets.goal] || targets.goal).toLowerCase()}. Worth ` +
+      "changing one or the other. Maintenance here comes from " +
+      `${MAINTENANCE_SOURCE_LABEL[energy.source] || energy.source}.`,
+    evidence: [
+      "targets.calories",
+      "targets.goal",
+      "energy.maintenanceKcal",
+      "energy.source",
+    ],
+  }];
+
+  if (Math.abs(delta) < ENERGY_DEADBAND_KCAL) {
+    return (targets.goal === "fatLoss" || targets.goal === "muscleGain") ?
+      mismatch("holds you steady") : [];
+  }
+  if (delta > 0 && targets.goal === "fatLoss") return mismatch("puts weight on");
+  if (delta < 0 && targets.goal === "muscleGain") {
+    return mismatch("takes weight off");
+  }
+  return [];
+}
 
 /**
  * Findings for a target below the safety floor. These outrank everything and
@@ -287,6 +340,7 @@ function provenance(state) {
 function coachingFindings(state, localHour) {
   const all = [
     ...safety(state),
+    ...objective(state),
     ...blockers(state, localHour),
     ...progress(state),
     ...wins(state),
@@ -300,6 +354,7 @@ function coachingFindings(state, localHour) {
 }
 
 module.exports = {
+  objective,
   coachingFindings,
   MAX_FINDINGS,
   MINIMUM_SAFE_CALORIES,

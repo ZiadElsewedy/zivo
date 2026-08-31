@@ -50,6 +50,7 @@ const {
   resolveDietDay,
 } = require("./dates");
 const {buildDietState, summariseHistory} = require("../diet/state");
+const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
 const {coachingFindings} = require("../diet/rules");
 const {
   resolveComposite,
@@ -161,6 +162,11 @@ function stateForModel(state, log, localHour) {
     // What the app knows it doesn't know — handed over rather than left for
     // the model to infer.
     quality: state.quality,
+    // What this person burns, and how ZIVO knows — null when it doesn't.
+    // Carried with its source for the same reason `consumed.basis` is: a
+    // coach that can't say how it knows shouldn't be saying it.
+    energy: state.energy,
+    targetVersusMaintenance: state.targetVersusMaintenance,
     plan: state.planName,
     day: state.dayLabel,
     // The plan's own daily sum, reported separately from `targets` and never
@@ -238,13 +244,46 @@ const TODAY_TOOL = {
     // A week's history in one range query — `dayKey` is a sortable string, so
     // no composite index and no seven round-trips.
     const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
-    const [workouts, dietDay, targets, historyRows] = await Promise.all([
+    // Eight weeks for the maintenance calibration — the same window the app
+    // uses (`kCalibrationWindowDays`), so the coach measures over exactly the
+    // period the Diet screen does.
+    const calibrationStart =
+      new Date(now.getTime() - CALIBRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const [
+      workouts, dietDay, targets, historyRows,
+      bodyProfile, weighIns, dobMs, calibrationRows,
+    ] = await Promise.all([
       store.listWorkouts(uid, {fromMs, toMs}),
       loadDietDay(store, uid, now, offsetMinutes),
       store.getDietTargets(uid),
       store.listFoodLogRange(
           uid, dayKeyFor(weekAgo, offsetMinutes), dayKey),
+      store.getBodyProfile ? store.getBodyProfile(uid) : null,
+      store.listBodyWeights ? store.listBodyWeights(uid) : [],
+      store.getDateOfBirthMs ? store.getDateOfBirthMs(uid) : null,
+      store.listFoodLogRange ?
+        store.listFoodLogRange(
+            uid, dayKeyFor(calibrationStart, offsetMinutes), dayKey) : [],
     ]);
+
+    // What this person burns, measured from their own data where possible and
+    // estimated only as a last resort. Assembled HERE and handed to the
+    // builder, mirroring the app: `buildDietState` derives nothing about
+    // bodies, so the coach and the screen are given the same figure rather
+    // than each computing one (`functions/diet/energy.js`).
+    const calibration = calibrateMaintenance({
+      weighIns: weighIns || [],
+      intake: dailyTotals(calibrationRows || []),
+    });
+    const energy = energyFor({
+      profile: bodyProfile,
+      weightKg: (weighIns || []).length > 0 ?
+        weighIns[weighIns.length - 1].weightKg : null,
+      age: dobMs === null || dobMs === undefined ?
+        null : ageFrom(dobMs, now.getTime()),
+      measuredMaintenanceKcal: calibration.measured ?
+        calibration.measured.maintenanceKcal : null,
+    });
 
     const {plan, dietDay: day, eaten, log} = dietDay;
     const state = buildDietState({
@@ -256,6 +295,7 @@ const TODAY_TOOL = {
       consumedMealIds: eaten,
       log,
       history: summariseHistory(historyRows, 7),
+      energy,
     });
 
     // The diet block leads the payload deliberately. Tool results are capped
@@ -372,6 +412,27 @@ const WORKOUTS_TOOL = {
     };
   },
 };
+
+/** Mirrors the app's `kCalibrationWindowDays`. */
+const CALIBRATION_WINDOW_DAYS = 56;
+
+/**
+ * Per-day kcal totals from raw log rows. Days with nothing logged are ABSENT,
+ * never zero — a zero would drag the intake average down and manufacture a
+ * deficit that never happened.
+ * @param {!Array<{dayKey: string, kcal: number}>} rows
+ * @return {!Array<{dayKey: string, kcal: number}>}
+ */
+function dailyTotals(rows) {
+  const byDay = new Map();
+  for (const row of rows) {
+    if (!row || !row.dayKey) continue;
+    byDay.set(row.dayKey, (byDay.get(row.dayKey) || 0) + (row.kcal || 0));
+  }
+  return [...byDay.entries()]
+      .map(([dayKey, kcal]) => ({dayKey, kcal}))
+      .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+}
 
 const DIET_TOOL = {
   name: "get_diet",

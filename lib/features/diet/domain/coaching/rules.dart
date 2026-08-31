@@ -15,6 +15,8 @@
 /// both directions.
 library;
 
+import '../analysis/plan_verdict.dart' show kEnergyDeadbandKcal;
+import '../body_measures.dart';
 import '../diet_goal.dart';
 import '../diet_state.dart';
 import '../nutrition_targets.dart';
@@ -51,6 +53,7 @@ const int _kEveningHour = 18;
 List<CoachingFinding> coachingFindings(DietState state, {int? localHour}) {
   final findings = <CoachingFinding>[
     ..._safety(state),
+    ..._objective(state),
     ..._blockers(state, localHour),
     ..._progress(state),
     ..._wins(state),
@@ -83,6 +86,78 @@ List<CoachingFinding> _safety(DietState state) {
       evidence: const ['targets.calories'],
     ),
   ];
+}
+
+/// Whether the target the user set actually serves the goal they chose.
+///
+/// This is the one thing the app can check that no amount of daily logging
+/// will reveal: someone can hit a 2,600 kcal target every single day and be
+/// told they are doing well, while the target itself is 200 above their
+/// maintenance and their goal is fat loss. Every other rule measures the day
+/// against the target; this measures the target against reality.
+///
+/// It needs [DietState.energy], so it stays silent until ZIVO knows what the
+/// person burns — an objection to a target with no idea of maintenance would
+/// be a guess with a warning label.
+List<CoachingFinding> _objective(DietState state) {
+  final targets = state.targets;
+  final energy = state.energy;
+  final delta = state.targetVersusMaintenance;
+  if (targets == null || energy == null || delta == null) return const [];
+
+  // The same deadband the plan verdict uses, for the same reason: below it,
+  // the difference is inside the error of the maintenance figure itself.
+  if (delta.abs() < kEnergyDeadbandKcal) {
+    // A near-maintenance target only disagrees with a goal that wanted
+    // movement in one direction or the other.
+    if (targets.goal == DietGoal.fatLoss ||
+        targets.goal == DietGoal.muscleGain) {
+      return [_mismatch(state, targets, energy, delta, 'holds you steady')];
+    }
+    return const [];
+  }
+  final surplus = delta > 0;
+  final wantsSurplus = targets.goal == DietGoal.muscleGain;
+  final wantsDeficit = targets.goal == DietGoal.fatLoss;
+  if (surplus && wantsDeficit) {
+    return [_mismatch(state, targets, energy, delta, 'puts weight on')];
+  }
+  if (!surplus && wantsSurplus) {
+    return [_mismatch(state, targets, energy, delta, 'takes weight off')];
+  }
+  return const [];
+}
+
+/// The target-versus-goal disagreement, said plainly and with both numbers.
+CoachingFinding _mismatch(
+  DietState state,
+  NutritionTargets targets,
+  EnergyState energy,
+  int delta,
+  String effect,
+) {
+  final direction = delta > 0 ? 'above' : 'below';
+  return CoachingFinding(
+    code: 'target_does_not_serve_goal',
+    kind: FindingKind.warning,
+    // Outranks every daily-progress note: hitting the wrong target perfectly
+    // is worse than missing the right one, because nothing about the day's
+    // numbers will ever reveal it.
+    severity: FindingSeverity.important,
+    text:
+        'The ${targets.calories} kcal target is ${delta.abs()} kcal '
+        '$direction the ${energy.maintenanceKcal} kcal you burn in a day, '
+        'which $effect — but the goal is set to '
+        '${dietGoalLabel(targets.goal).toLowerCase()}. Worth changing one or '
+        'the other. Maintenance here comes from '
+        '${maintenanceSourceLabel(energy.source)}.',
+    evidence: const [
+      'targets.calories',
+      'targets.goal',
+      'energy.maintenanceKcal',
+      'energy.source',
+    ],
+  );
 }
 
 /// The state is too thin to coach from. Saying so IS the coaching — it is the

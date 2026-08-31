@@ -42,6 +42,11 @@ String missingBodyDataLabel(MissingBodyData missing) => switch (missing) {
 /// reason [TargetSource] is carried with a target: "how do you know that" is
 /// part of the answer, not a footnote.
 enum MaintenanceSource {
+  /// Measured from this person's own weigh-ins and logged intake — the only
+  /// figure here that is an observation rather than a projection. See
+  /// `analysis/maintenance_calibration.dart`.
+  measured,
+
   /// The user told ZIVO their own maintenance figure.
   stated,
 
@@ -50,6 +55,7 @@ enum MaintenanceSource {
 }
 
 String maintenanceSourceLabel(MaintenanceSource source) => switch (source) {
+  MaintenanceSource.measured => 'your own weigh-ins and food log',
   MaintenanceSource.stated => 'the maintenance figure you gave',
   MaintenanceSource.estimated => 'an estimate from your body data',
 };
@@ -67,6 +73,7 @@ class BodyMeasures {
     required this.sex,
     required this.activity,
     this.statedMaintenanceKcal,
+    this.measuredMaintenanceKcal,
   });
 
   final double weightKg;
@@ -82,6 +89,18 @@ class BodyMeasures {
   final ActivityLevel activity;
   final int? statedMaintenanceKcal;
 
+  /// Maintenance measured from this person's own weigh-ins and food log, when
+  /// there is enough data to measure it (`maintenance_calibration.dart`).
+  ///
+  /// **This outranks the equation, and only the equation.** A population
+  /// estimate is a number nobody chose, so an observation of the actual person
+  /// replaces it outright. A figure the USER stated is different: overriding
+  /// what they explicitly told ZIVO would be the app contradicting them
+  /// silently. When a measurement disagrees with a stated figure, the
+  /// disagreement is surfaced (see `coaching/rules.dart`) and the stated one
+  /// still stands until they change it.
+  final int? measuredMaintenanceKcal;
+
   /// Basal metabolic rate (Mifflin-St Jeor) — the same function the target
   /// calculator uses, so a target and a verdict can never disagree about this
   /// person's BMR.
@@ -92,14 +111,23 @@ class BodyMeasures {
     sex: sex,
   );
 
-  /// The "eat this to stay the same" figure: the user's own if they gave one,
-  /// otherwise BMR × activity factor.
+  /// The "eat this to stay the same" figure, from the best source available:
+  /// what the user stated, else what their own data measures, else the
+  /// equation. See [measuredMaintenanceKcal] for why stated outranks measured.
   int get maintenanceKcal =>
-      statedMaintenanceKcal ?? (bmr * activityFactor(activity)).round();
+      statedMaintenanceKcal ??
+      measuredMaintenanceKcal ??
+      (bmr * activityFactor(activity)).round();
 
-  MaintenanceSource get maintenanceSource => statedMaintenanceKcal != null
-      ? MaintenanceSource.stated
-      : MaintenanceSource.estimated;
+  MaintenanceSource get maintenanceSource {
+    if (statedMaintenanceKcal != null) return MaintenanceSource.stated;
+    if (measuredMaintenanceKcal != null) return MaintenanceSource.measured;
+    return MaintenanceSource.estimated;
+  }
+
+  /// What Mifflin-St Jeor alone says, ignoring every better source. Kept so a
+  /// measurement can be compared against the estimate it replaced.
+  int get estimatedMaintenanceKcal => (bmr * activityFactor(activity)).round();
 
   /// How stale the weigh-in is at [now], in whole days.
   int weighInAgeDays(DateTime now) => DateTime(
@@ -147,6 +175,7 @@ BodyMeasuresResolution resolveBodyMeasures({
   required DateTime? weighedAt,
   required DateTime? dateOfBirth,
   required DateTime now,
+  int? measuredMaintenanceKcal,
 }) {
   final missing = <MissingBodyData>{};
   // A weight with no timestamp is not a usable weigh-in — it can't be aged,
@@ -172,6 +201,7 @@ BodyMeasuresResolution resolveBodyMeasures({
       sex: profile.sex,
       activity: profile.activity,
       statedMaintenanceKcal: profile.statedMaintenanceKcal,
+      measuredMaintenanceKcal: measuredMaintenanceKcal,
     ),
   );
 }

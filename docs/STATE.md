@@ -56,6 +56,17 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Diet onboarding — Phase E: the coach knows what you burn.** ZIVO now **measures**
+  maintenance from the user's own weigh-ins and food log instead of only estimating it from
+  an equation (`domain/analysis/maintenance_calibration.dart`), refusing unless there are ≥2
+  weigh-ins ≥14 days apart and ≥10 logged days covering ≥⅔ of the window — and naming what's
+  missing when it refuses. Precedence is **stated > measured > estimated**: a measurement
+  replaces the equation but never overrides a figure the user gave, which is surfaced as a
+  disagreement instead. That figure rides in `DietState.energy` (an input on both sides, so
+  the screen and the coach cannot diverge), mirrored in `functions/diet/energy.js` and pinned
+  by `test/fixtures/energy_vectors.json` across both suites. New coaching rule
+  `target_does_not_serve_goal` catches the one failure daily logging can never reveal: a
+  target that quietly fights the goal. **Needs a functions deploy.**
 - **Diet onboarding — Phase D: ZIVO builds the plan.** A preferences screen (meals/day,
   likes, won't-eats, allergies, cuisine) feeds `aiGenerateDietPlan`, where **the model picks
   foods and amounts but never calories** — every item is priced through the same USDA +
@@ -199,7 +210,10 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     deploys, the "say it out loud" and "type it out" routes reach an extractor that only
     understands files and fail with an invalid-argument. **Phase D adds the whole
     `aiGenerateDietPlan` callable** (`ai/diet_generate.js`, `ai/plan_fitting.js`,
-    `index.js`); until it deploys, "Build one for me" fails with not-found. Command:
+    `index.js`); until it deploys, "Build one for me" fails with not-found. **Phase E adds
+    `diet/energy.js` and body-data reads to `ai/store.js` + `ai/tools.js`**; until it
+    deploys the coach keeps estimating maintenance from nothing and can't see the
+    target-vs-goal problem the app now shows. Command:
     `firebase deploy --only functions,firestore:rules` — worth running with `--dry-run`
     first, since nothing here can validate rules syntax locally.
   - **Pending now (1):** the Ask **edit/delete-expense** tools (ADR-005 — `mutations.js`, `store.js`,

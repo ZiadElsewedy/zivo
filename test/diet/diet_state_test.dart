@@ -7,6 +7,7 @@ import 'package:zivo/features/diet/domain/diet_goal.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
+import 'package:zivo/features/diet/domain/body_measures.dart';
 import 'package:zivo/features/diet/domain/diet_state.dart';
 import 'package:zivo/features/diet/domain/diet_state_builder.dart';
 import 'package:zivo/features/diet/domain/food_item.dart';
@@ -87,17 +88,28 @@ List<FoodLogEntry> _logFrom(List<dynamic> raw) => [
     ),
 ];
 
+EnergyState? _energyFrom(Map<String, dynamic>? raw) {
+  if (raw == null) return null;
+  return EnergyState(
+    maintenanceKcal: (raw['maintenanceKcal'] as num).toInt(),
+    source: MaintenanceSource.values.byName(raw['source'] as String),
+  );
+}
+
 void main() {
   late Map<String, dynamic> vectors;
 
   setUpAll(() {
-    vectors = json.decode(
-      File('test/fixtures/diet_state_vectors.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
+    vectors =
+        json.decode(
+              File('test/fixtures/diet_state_vectors.json').readAsStringSync(),
+            )
+            as Map<String, dynamic>;
   });
 
   test('golden vectors: every state case rebuilds exactly', () {
-    for (final spec in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
+    for (final spec
+        in (vectors['cases'] as List).cast<Map<String, dynamic>>()) {
       final input = spec['input'] as Map<String, dynamic>;
       final expected = spec['expected'] as Map<String, dynamic>;
       final name = spec['name'] as String;
@@ -108,9 +120,32 @@ void main() {
         targets: _targetsFrom(input['targets'] as Map<String, dynamic>?),
         planName: input['planName'] as String?,
         day: _dayFrom(input['day'] as Map<String, dynamic>?),
-        consumedMealIds:
-            (input['consumedMealIds'] as List).cast<String>().toSet(),
+        consumedMealIds: (input['consumedMealIds'] as List)
+            .cast<String>()
+            .toSet(),
         log: _logFrom(input['log'] as List),
+        energy: _energyFrom(input['energy'] as Map<String, dynamic>?),
+      );
+
+      // Maintenance rides through the builder untouched, and the comparison
+      // against the target is derived from it identically on both sides —
+      // the coach and the screen must never disagree about what the user
+      // burns, or about whether their target serves their goal.
+      final energy = expected['energy'] as Map<String, dynamic>?;
+      if (energy == null) {
+        expect(state.energy, isNull, reason: name);
+      } else {
+        expect(
+          state.energy!.maintenanceKcal,
+          energy['maintenanceKcal'],
+          reason: name,
+        );
+        expect(state.energy!.source.name, energy['source'], reason: name);
+      }
+      expect(
+        state.targetVersusMaintenance,
+        expected['targetVersusMaintenance'],
+        reason: name,
       );
 
       expect(state.dayKey, expected['dayKey'], reason: name);
@@ -144,14 +179,26 @@ void main() {
       final quality = expected['quality'] as Map<String, dynamic>;
       expect(state.quality.targetsUnset, quality['targetsUnset'], reason: name);
       expect(state.quality.noPlanForDay, quality['noPlanForDay'], reason: name);
-      expect(state.quality.nothingLogged, quality['nothingLogged'],
-          reason: name);
-      expect(state.quality.consumedIsAssumed, quality['consumedIsAssumed'],
-          reason: name);
-      expect(state.quality.hasEstimatedValues, quality['hasEstimatedValues'],
-          reason: name);
-      expect(state.quality.untrackedMacros,
-          (quality['untrackedMacros'] as List).cast<String>(), reason: name);
+      expect(
+        state.quality.nothingLogged,
+        quality['nothingLogged'],
+        reason: name,
+      );
+      expect(
+        state.quality.consumedIsAssumed,
+        quality['consumedIsAssumed'],
+        reason: name,
+      );
+      expect(
+        state.quality.hasEstimatedValues,
+        quality['hasEstimatedValues'],
+        reason: name,
+      );
+      expect(
+        state.quality.untrackedMacros,
+        (quality['untrackedMacros'] as List).cast<String>(),
+        reason: name,
+      );
 
       final meals = (expected['meals'] as List).cast<Map<String, dynamic>>();
       expect(state.meals.length, meals.length, reason: name);
@@ -160,8 +207,11 @@ void main() {
         expect(state.meals[i].eaten, meals[i]['eaten'], reason: name);
         expect(state.meals[i].kcal, meals[i]['kcal'], reason: name);
         expect(state.meals[i].estimated, meals[i]['estimated'], reason: name);
-        expect(state.meals[i].isSupplement, meals[i]['isSupplement'],
-            reason: name);
+        expect(
+          state.meals[i].isSupplement,
+          meals[i]['isSupplement'],
+          reason: name,
+        );
       }
     }
   });
@@ -201,9 +251,8 @@ void main() {
   });
 
   group('rules the state enforces in one place', () {
-    DietDay planDay() => _dayFrom(
-      (vectors['planDay'] as Map<String, dynamic>),
-    )!;
+    DietDay planDay() =>
+        _dayFrom((vectors['planDay'] as Map<String, dynamic>))!;
 
     test('an empty log is "nothing logged", never a measured zero', () {
       final state = buildDietState(

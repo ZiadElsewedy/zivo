@@ -37,6 +37,7 @@ function stateFor(spec) {
     day: spec.day,
     consumedMealIds: new Set(spec.consumedMealIds),
     log: spec.log,
+    energy: spec.energy || null,
   });
 }
 

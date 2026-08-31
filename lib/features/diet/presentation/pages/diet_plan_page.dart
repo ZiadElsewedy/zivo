@@ -27,6 +27,7 @@ import '../../domain/nutrition_targets.dart';
 import '../../domain/diet_state.dart';
 import '../../domain/diet_state_builder.dart';
 import '../widgets/add_diet_sheet.dart';
+import '../../domain/analysis/maintenance_calibration.dart';
 import '../widgets/adopt_plan_target_sheet.dart';
 import '../widgets/body_measures_builder.dart';
 import '../widgets/log_food_sheet.dart';
@@ -325,12 +326,21 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
       builder: (context, logSnapshot) => StreamBuilder<Set<String>>(
         stream: _consumedStream,
         initialData: const <String>{},
-        builder: (context, consumedSnapshot) => _buildList(
-          context,
-          log: logSnapshot.data ?? const <FoodLogEntry>[],
-          consumed: consumedSnapshot.data ?? const <String>{},
-          consumedLoading:
-              consumedSnapshot.connectionState == ConnectionState.waiting,
+        // Body data is assembled ONCE for the whole screen and passed down,
+        // for the same reason `DietState` is: the hero, the verdict and the
+        // coaching read must all rest on one maintenance figure. A widget
+        // that assembled its own is how a screen starts disagreeing with
+        // itself.
+        builder: (context, consumedSnapshot) => BodyMeasuresBuilder(
+          builder: (context, measures, calibration) => _buildList(
+            context,
+            log: logSnapshot.data ?? const <FoodLogEntry>[],
+            consumed: consumedSnapshot.data ?? const <String>{},
+            consumedLoading:
+                consumedSnapshot.connectionState == ConnectionState.waiting,
+            measures: measures,
+            calibration: calibration,
+          ),
         ),
       ),
     );
@@ -341,6 +351,8 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
     required List<FoodLogEntry> log,
     required Set<String> consumed,
     required bool consumedLoading,
+    required BodyMeasuresResolution measures,
+    required CalibrationResult calibration,
   }) {
     final diet = AppScope.of(context).diet;
     final plan = widget.plan;
@@ -354,9 +366,20 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
     // quote a figure the other doesn't have. Built even with no targets set —
     // "no objective" is a state the engine has something to say about, not a
     // reason to have no state.
+    final body = measures.measures;
     final state = buildDietState(
       dayKey: dietDayKey(now),
       weekday: now.weekday,
+      // What this person burns, handed to the state rather than derived by
+      // it — the same figure the server's `buildDietState` is given, so the
+      // coach and this screen can't disagree about whether the target serves
+      // the goal.
+      energy: body == null
+          ? null
+          : EnergyState(
+              maintenanceKcal: body.maintenanceKcal,
+              source: body.maintenanceSource,
+            ),
       targets: targets,
       planName: plan.name,
       day: today,
@@ -433,6 +456,8 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
           // response to.
           _PlanVerdictSection(
             plan: plan,
+            measures: measures,
+            calibration: calibration,
             onAddBodyData: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const BodyProfilePage())),
@@ -1263,15 +1288,23 @@ class _MacroBar extends StatelessWidget {
 /// - **A verdict** — the headline, the arithmetic under it, and the two
 ///   things that qualify it (protein, and the safety floor).
 class _PlanVerdictSection extends StatelessWidget {
-  const _PlanVerdictSection({required this.plan, required this.onAddBodyData});
+  const _PlanVerdictSection({
+    required this.plan,
+    required this.measures,
+    required this.calibration,
+    required this.onAddBodyData,
+  });
 
   final DietPlan plan;
+
+  /// Assembled once by the screen above and passed in — see the note at the
+  /// `BodyMeasuresBuilder` call site.
+  final BodyMeasuresResolution measures;
+  final CalibrationResult calibration;
   final VoidCallback onAddBodyData;
 
   @override
-  Widget build(BuildContext context) => BodyMeasuresBuilder(builder: _build);
-
-  Widget _build(BuildContext context, BodyMeasuresResolution measures) {
+  Widget build(BuildContext context) {
     final resolved = measures.measures;
     if (resolved == null) {
       return Padding(
@@ -1286,6 +1319,8 @@ class _PlanVerdictSection extends StatelessWidget {
       child: _VerdictCard(
         verdict: verdict,
         weighInAgeDays: resolved.weighInAgeDays(DateTime.now()),
+        calibration: calibration,
+        measures: resolved,
         onEditBodyData: onAddBodyData,
       ),
     );
@@ -1363,11 +1398,19 @@ class _VerdictCard extends StatelessWidget {
   const _VerdictCard({
     required this.verdict,
     required this.weighInAgeDays,
+    required this.calibration,
+    required this.measures,
     required this.onEditBodyData,
   });
 
   final PlanVerdict verdict;
   final int weighInAgeDays;
+
+  /// The measurement of what this person actually burns, or what it's short
+  /// of. Shown either way: a measured figure is the strongest thing on this
+  /// card, and the reason there isn't one yet is actionable.
+  final CalibrationResult calibration;
+  final BodyMeasures measures;
   final VoidCallback onEditBodyData;
 
   Color get _hue => switch (verdict.direction) {
@@ -1473,6 +1516,7 @@ class _VerdictCard extends StatelessWidget {
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
           ],
+          _CalibrationLine(calibration: calibration, measures: measures),
           if (verdict.belowSafetyFloor) ...[
             const SizedBox(height: 10),
             Text(
@@ -1488,6 +1532,68 @@ class _VerdictCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// What this person's own data says they burn — or what it would take to know.
+///
+/// This is the strongest line on the card when it's there: every other figure
+/// on this screen is a projection from a population equation, and this one is
+/// an observation of them. When it disagrees materially with the figure the
+/// verdict actually used, the disagreement is stated rather than resolved
+/// silently — that only happens when the user gave a maintenance figure of
+/// their own, and overriding what they told ZIVO is not the app's call.
+class _CalibrationLine extends StatelessWidget {
+  const _CalibrationLine({required this.calibration, required this.measures});
+
+  final CalibrationResult calibration;
+  final BodyMeasures measures;
+
+  @override
+  Widget build(BuildContext context) {
+    final measured = calibration.measured;
+    if (measured == null) {
+      final gap = calibration.gap;
+      if (gap == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          'Log ${calibrationGapLabel(gap)} and ZIVO can measure what you '
+          'actually burn, instead of estimating it.',
+          key: const Key('verdict-calibration-gap'),
+          style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+        ),
+      );
+    }
+
+    final used = measures.maintenanceKcal;
+    final disagrees =
+        measures.maintenanceSource != MaintenanceSource.measured &&
+        maintenanceDisagrees(measured.maintenanceKcal, used);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        disagrees
+            ? 'Your last ${measured.days} days say you actually burn about '
+                  '${measured.maintenanceKcal} — not the $used above. Worth '
+                  'updating.'
+            : 'Measured from your last ${measured.days} days: '
+                  '${measured.averageIntakeKcal} kcal a day eaten, '
+                  '${_change(measured)}.',
+        key: const Key('verdict-calibration'),
+        style: AppText.meta.copyWith(
+          color: disagrees ? TrainColors.ember : TrainColors.ink3,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+
+  static String _change(MeasuredMaintenance measured) {
+    final kg = measured.weightChangeKg;
+    if (kg.abs() < 0.2) return 'weight steady';
+    final direction = kg > 0 ? 'up' : 'down';
+    return 'weight $direction ${formatKgPerWeek(kg)} kg';
   }
 }
 
