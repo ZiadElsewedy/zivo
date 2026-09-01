@@ -73,6 +73,30 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Capture save is re-entrancy-guarded — a double-tap used to write twice** (owner report,
+  2026-09-01, on `core-edits`). `_save` is async and the button stayed live across the
+  await, so a second tap ran the whole handler again before the first one's write and pop
+  landed. A new expense/moment mints its id from `microsecondsSinceEpoch` **per call**, so
+  the second tap wrote a *second* row rather than overwriting the first, and the second
+  `pop` popped the route underneath. Same hole in three flows — `expense_capture_page`
+  (`_save` **and** `_delete`), `moment_capture_page` (also ran a second media capture racing
+  the first on one store path), and `wallet_balance_sheet`, the silent one: `topUpWallet` is
+  **additive**, so there was no duplicate row to notice, the balance was just credited
+  twice. `add_category_sheet` already had the guard. All three now use the `_busy` pattern
+  from `LiveSessionController` (`:164`), guarding the write *and* the pop with the button
+  disabled in flight, while `_canSave` still drives the label so it doesn't flip back to a
+  bare "Save" the instant it's tapped. Covered by `test/expenses/capture_double_tap_test.dart`
+  — which blocks the repository write on a `Completer` **on purpose**: with the plain
+  in-memory repos the first tap resolves and pops before a second can land, so a test
+  written the obvious way passes against the unguarded code.
+  - **Known unrelated failure:** two `today_dashboard_widget_test.dart` momentum tests fail
+    when the suite runs after **23:20 local**. `_done(at, id)` completes its session at
+    `at + 40 min`, and the tests seed off the real clock, so the completion crosses midnight
+    into the next day's bucket and the streak collapses. `_StreakRow` (`today_pulse_card.dart:332`)
+    also still reads `DateTime.now()` directly, where the insights strip beside it takes an
+    injected clock (that was commit `2e24991`; momentum was never covered). Pre-existing —
+    reproduces on a clean tree.
+
 - **Live session — the logging screen, on the owner's own report from a real session.**
   Five complaints, five causes, all in `widgets/live_session/`:
   - **"I don't want to log the weight every time."** The weight field now **carries the

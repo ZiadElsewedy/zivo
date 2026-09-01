@@ -48,6 +48,13 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
 
   bool _canSave = false;
 
+  /// Guards [_save] against re-entrancy. It is async — it awaits a media
+  /// import before writing the moment — and a second tap during that await
+  /// minted a fresh `microsecondsSinceEpoch` id, so it wrote a *second*
+  /// moment and ran a *second* media capture racing the first on the store
+  /// path, then popped the route underneath.
+  bool _busy = false;
+
   bool get _editing => widget.initial != null;
 
   /// A moment is saveable with *either* a caption or a photo — a photo on its
@@ -186,7 +193,8 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   }
 
   Future<void> _save() async {
-    if (!_canSave) return;
+    if (_busy || !_canSave) return;
+    setState(() => _busy = true);
     final scope = AppScope.of(context);
     final moments = scope.moments;
     final initial = widget.initial;
@@ -317,7 +325,7 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
               child: PillButton(
                 label: _editing ? 'Save moment' : 'Add moment',
                 icon: _editing ? Icons.check_rounded : Icons.add_rounded,
-                enabled: _canSave,
+                enabled: _canSave && !_busy,
                 onTap: _save,
               ),
             ),

@@ -31,6 +31,14 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
   String _categoryId = 'food';
   String? _note;
 
+  /// Guards [_save]/[_delete] against re-entrancy. Both are async and were
+  /// otherwise callable again — double-tap, or Save racing Delete — before the
+  /// first call's write and pop landed. On a NEW expense that was not a
+  /// harmless repeat: the id is minted from `microsecondsSinceEpoch` per call,
+  /// so a second tap wrote a *second* row rather than overwriting the first,
+  /// and the second `pop` then popped the route underneath.
+  bool _busy = false;
+
   bool get _editing => widget.initial != null;
 
   int get _amountMinor => parseMinor(_digits);
@@ -144,7 +152,8 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
   }
 
   Future<void> _save() async {
-    if (!_canSave) return;
+    if (_busy || !_canSave) return;
+    setState(() => _busy = true);
     final service = AppScope.of(context).expensesService;
     final initial = widget.initial;
     final expense = Expense(
@@ -165,7 +174,8 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
 
   Future<void> _delete() async {
     final initial = widget.initial;
-    if (initial == null) return;
+    if (_busy || initial == null) return;
+    setState(() => _busy = true);
     final service = AppScope.of(context).expensesService;
     await service.removeExpense(initial);
     if (mounted) Navigator.of(context).pop();
@@ -234,9 +244,14 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: _SaveButton(
-                enabled: _canSave,
+                // `_canSave` alone drives the LABEL so it doesn't flip back to
+                // a bare "Save" the instant the button is tapped; `_busy` only
+                // disables.
+                enabled: _canSave && !_busy,
                 label: _canSave
-                    ? l(context).expenseSaveAmount('${formatAmount(_amountMinor)} $_currency')
+                    ? l(context).expenseSaveAmount(
+                        '${formatAmount(_amountMinor)} $_currency',
+                      )
                     : l(context).actionSave,
                 onTap: _save,
               ),

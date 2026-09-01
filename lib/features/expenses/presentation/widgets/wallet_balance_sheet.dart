@@ -56,6 +56,12 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
   bool get _canSave =>
       _amountMinor > 0 || widget.mode == WalletSheetMode.setBalance;
 
+  /// Guards [_save] against re-entrancy. This one is the worst of the capture
+  /// sheets to leave open: `topUpWallet` is **additive**, so a double-tap did
+  /// not write a duplicate row you could see and delete — it silently added
+  /// the amount to the balance twice.
+  bool _busy = false;
+
   void _onKey(KeypadKey key) {
     setState(() {
       switch (key) {
@@ -82,7 +88,8 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
   }
 
   Future<void> _save() async {
-    if (!_canSave) return;
+    if (_busy || !_canSave) return;
+    setState(() => _busy = true);
     final service = AppScope.of(context).expensesService;
     if (widget.mode == WalletSheetMode.setBalance) {
       await service.setWalletBalance(_amountMinor, currency: widget.currency);
@@ -156,7 +163,7 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),
             child: _SaveButton(
-              enabled: _canSave,
+              enabled: _canSave && !_busy,
               label: isSet
                   ? l(context).walletSaveBalance
                   : l(context).walletAddFunds,
