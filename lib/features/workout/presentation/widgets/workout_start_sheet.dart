@@ -490,7 +490,9 @@ class _StartConfirmCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              isResume ? l(context).workoutReadyToResume : l(context).workoutReadyToStart(dayLabel),
+              isResume
+                  ? l(context).workoutReadyToResume
+                  : l(context).workoutReadyToStart(dayLabel),
               style: AppText.cardTitle.copyWith(
                 color: TrainColors.ink,
                 fontSize: 21,
@@ -536,7 +538,9 @@ class _StartConfirmCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: PillButton(
-                    label: isResume ? l(context).actionResume : l(context).actionStart,
+                    label: isResume
+                        ? l(context).actionResume
+                        : l(context).actionStart,
                     icon: Icons.play_arrow_rounded,
                     color: TrainColors.ember,
                     enabled: true,

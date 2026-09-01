@@ -26,6 +26,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import 'package:zivo/features/ai/presentation/widgets/ask/ask_effects.dart';
 
 /// A scripted repository whose message stream is driven BY HAND, so tests
 /// can reproduce the exact snapshot sequences real Firestore produces —
@@ -284,11 +285,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    Element riseElement() => tester.element(
-      find
-          .byWidgetPredicate((w) => w.runtimeType.toString() == '_RiseOnce')
-          .last,
-    );
+    // `RiseOnce` used to be private to the page, so this could only be found
+    // by matching its runtime type's *name*. It is a real exported widget
+    // now, so the finder can name the type.
+    Element riseElement() => tester.element(find.byType(RiseOnce).last);
     final before = riseElement();
 
     final turnId = ai.sentTurnIds.single;

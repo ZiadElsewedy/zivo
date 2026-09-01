@@ -8,14 +8,41 @@
 | Page | Role |
 |---|---|
 | `workout_dashboard_page.dart` | Main workout surface / interactive dashboard |
-| `workout_plan_page.dart`, `workout_plan_edit_page.dart` | View / edit the active split's plan |
+| `workout_plan_page.dart` | View the active split's plan |
+| `workout_plan_edit_page.dart` | Edit a split — **renders + owns its sheets**; the document is `presentation/controllers/plan_edit_controller.dart` (day/exercise mutation and the rotation-cursor rule) |
 | `split_management_page.dart` | Create / switch / edit / delete splits (multi-split) |
-| `live_session_page.dart` | The guided live workout session (logging sets in real time) |
+| `live_session_page.dart` | The guided live workout session — **renders only**; its logic is `presentation/controllers/live_session_controller.dart` (see below) |
 | `session_details_page.dart`, `workout_history_page.dart` | Past sessions + history |
 | `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progressive-overload analysis, scoped to the active split |
 | `workout_pdf_import_page.dart` | AI PDF import → review UI (pairs with `functions/ai/workout_import.js`) |
 | `bodyweight_history_page.dart` | Body-weight log + trend |
 | `workout_capture_page.dart`, `workout_day_details_page.dart` | Quick capture + day drill-in |
+
+## The live session's three parts ([ADR-008](../../../docs/DECISIONS/ADR-008-presentation-controllers.md))
+
+The session used to be one 4,236-line file. It is now:
+
+| Where | What |
+|---|---|
+| `presentation/controllers/live_session_controller.dart` | **Everything the session *does*.** A plain `ChangeNotifier`: the rest / warm-up / elapsed clocks, the `SharedPreferences` countdown that survives an app kill, the debounced draft autosave, the history subscription, set resolution + undo, pause/resume, and `finish`/`leave`/`discard`. It never navigates and never holds a `BuildContext` — the page pops, and reduced-motion + the `TickerProvider` are passed in. |
+| `presentation/pages/live_session_page.dart` | `build` and the four phase layouts (running · warm-up · resting · completed). |
+| `presentation/widgets/live_session/` | The 9 files the ~30 private widget classes became — `session_header`, `goal_block`, `set_chips`, `rest_ring`, `set_input`, `session_review`, `up_next_card`, `session_effects`, plus `live_session_format.dart` (how ZIVO writes a weight, a rest, an elapsed time). |
+
+The four phase layouts live in `widgets/live_session/phases/` — and warm-up and
+rest are ONE `CountdownPhase`, because they were always meant to be the same
+screen (the old comments said so while keeping two copies).
+
+Session rules are unit-tested directly in `test/workout/live_session_controller_test.dart`
+— no widget tree. `live_session_page_test.dart` still covers what the screen shows.
+
+## The split editor ([ADR-008](../../../docs/DECISIONS/ADR-008-presentation-controllers.md))
+
+`presentation/controllers/plan_edit_controller.dart` holds the days being
+edited and, critically, the **rotation-cursor rule**: `WorkoutPlan.cycleCursor`
+is an index, but days can be reordered, so the cursor is tracked by day id and
+resolved back to an index in `buildPlan()`. Asserted in
+`test/workout/plan_edit_controller_test.dart`. The page owns every sheet it
+opens and the remove animations; widgets are in `widgets/plan_edit/`.
 
 ## Repositories (the seam — `domain/` interface, `data/` impls)
 

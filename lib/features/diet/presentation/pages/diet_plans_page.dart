@@ -6,6 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/analysis/plan_verdict.dart';
 import '../../domain/body_measures.dart';
@@ -136,36 +137,13 @@ class _PlanCard extends StatelessWidget {
 
   Future<void> _delete(BuildContext context) async {
     final diet = AppScope.of(context).diet;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TrainColors.raised,
-        title: Text(l(context).planDeleteTitle, style: AppText.rowTitle),
-        content: Text(
-          'This removes ${plan.name} for good. Archiving keeps it and takes '
-          'it off the Diet screen just the same.',
-          style: AppText.meta.copyWith(color: TrainColors.ink2),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              'Cancel',
-              style: AppText.meta.copyWith(color: TrainColors.ink2),
-            ),
-          ),
-          TextButton(
-            key: const Key('confirm-delete-plan'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(
-              'Delete',
-              style: AppText.meta.copyWith(color: TrainColors.ember),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).planDeleteTitle,
+      body: l(context).dietPlanArchiveHint(plan.name),
+      confirmKey: const Key('confirm-delete-plan'),
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await diet.deletePlan(plan.id);
   }
 

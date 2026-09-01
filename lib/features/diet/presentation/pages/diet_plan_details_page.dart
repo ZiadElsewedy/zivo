@@ -84,29 +84,22 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
                 return StreamBuilder<List<FoodLogEntry>>(
                   stream: _logStream,
                   initialData: const <FoodLogEntry>[],
-                  builder: (context, logSnapshot) =>
-                      StreamBuilder<Set<String>>(
-                        stream: _consumedStream,
-                        initialData: const <String>{},
-                        builder: (context, consumedSnapshot) =>
-                            BodyMeasuresBuilder(
-                              builder: (context, measures, calibration) =>
-                                  _body(
-                                    context,
-                                    plan: plan,
-                                    today: today,
-                                    targets: targets,
-                                    log:
-                                        logSnapshot.data ??
-                                        const <FoodLogEntry>[],
-                                    consumed:
-                                        consumedSnapshot.data ??
-                                        const <String>{},
-                                    measures: measures,
-                                    calibration: calibration,
-                                  ),
-                            ),
+                  builder: (context, logSnapshot) => StreamBuilder<Set<String>>(
+                    stream: _consumedStream,
+                    initialData: const <String>{},
+                    builder: (context, consumedSnapshot) => BodyMeasuresBuilder(
+                      builder: (context, measures, calibration) => _body(
+                        context,
+                        plan: plan,
+                        today: today,
+                        targets: targets,
+                        log: logSnapshot.data ?? const <FoodLogEntry>[],
+                        consumed: consumedSnapshot.data ?? const <String>{},
+                        measures: measures,
+                        calibration: calibration,
                       ),
+                    ),
+                  ),
                 );
               },
             ),

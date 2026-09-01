@@ -71,8 +71,9 @@ class LiveSession {
   /// set's leftover actuals are no longer a "draft" — they're already
   /// committed as skipped — so this deliberately checks [LoggedSet.pending],
   /// not just "not completed".
-  bool get hasDraftActuals =>
-      allSets.any((s) => s.pending && (s.actualReps != null || s.actualWeightKg != null));
+  bool get hasDraftActuals => allSets.any(
+    (s) => s.pending && (s.actualReps != null || s.actualWeightKg != null),
+  );
 
   /// 0..1 progress across all sets (0 when the session has no sets).
   double get progress => totalSets == 0 ? 0 : completedSetCount / totalSets;
@@ -128,7 +129,8 @@ class LiveSession {
   /// The session's final, official duration once it's [complete] — active
   /// training time, with every pause (accumulated by [complete] closing any
   /// still-open one first) excluded. Zero while still active.
-  Duration get elapsed => (completedAt ?? startedAt).difference(startedAt) - pausedAccum;
+  Duration get elapsed =>
+      (completedAt ?? startedAt).difference(startedAt) - pausedAccum;
 
   /// The *live*, still-running active-time reading for an in-progress
   /// session — wall time since [startedAt], minus accumulated pauses, frozen
@@ -187,7 +189,9 @@ class LiveSession {
     double? actualWeightKg,
     double? rpe,
   }) => _mapSet(exerciseId, setId, (s) {
-    final reps = actualReps ?? (s.target.kind == RepTargetKind.fixed ? s.target.min : null);
+    final reps =
+        actualReps ??
+        (s.target.kind == RepTargetKind.fixed ? s.target.min : null);
     return s.copyWith(
       outcome: SetOutcome.completed,
       actualReps: reps,
@@ -201,14 +205,20 @@ class LiveSession {
   /// [completedSetCount]/history exclude it. Any actuals already typed for it
   /// (an abandoned draft) are preserved as-is, not cleared, so the end-of-
   /// workout review can still show what was entered.
-  LiveSession markSetSkipped(String exerciseId, String setId) =>
-      _mapSet(exerciseId, setId, (s) => s.copyWith(outcome: SetOutcome.skipped));
+  LiveSession markSetSkipped(String exerciseId, String setId) => _mapSet(
+    exerciseId,
+    setId,
+    (s) => s.copyWith(outcome: SetOutcome.skipped),
+  );
 
   /// Un-does a completed or skipped set back to [SetOutcome.pending], making
   /// it the current set again — the Back/Undo primitive. Actuals are left
   /// untouched (Undo restores "current", it doesn't erase what was typed).
-  LiveSession clearOutcome(String exerciseId, String setId) =>
-      _mapSet(exerciseId, setId, (s) => s.copyWith(outcome: SetOutcome.pending));
+  LiveSession clearOutcome(String exerciseId, String setId) => _mapSet(
+    exerciseId,
+    setId,
+    (s) => s.copyWith(outcome: SetOutcome.pending),
+  );
 
   /// Edits a set's fields in place. Pass an explicit `null` to clear a nullable
   /// (weight/reps/rpe); omit an argument to keep it.
@@ -220,17 +230,24 @@ class LiveSession {
     Object? rpe = _keep,
     SetOutcome? outcome,
     SetType? type,
-  }) => _mapSet(exerciseId, setId, (s) => LoggedSet(
-    id: s.id,
-    target: s.target,
-    targetWeightKg: s.targetWeightKg,
-    actualReps: actualReps == _keep ? s.actualReps : (actualReps as num?)?.toInt(),
-    actualWeightKg:
-        actualWeightKg == _keep ? s.actualWeightKg : (actualWeightKg as num?)?.toDouble(),
-    rpe: rpe == _keep ? s.rpe : (rpe as num?)?.toDouble(),
-    type: type ?? s.type,
-    outcome: outcome ?? s.outcome,
-  ));
+  }) => _mapSet(
+    exerciseId,
+    setId,
+    (s) => LoggedSet(
+      id: s.id,
+      target: s.target,
+      targetWeightKg: s.targetWeightKg,
+      actualReps: actualReps == _keep
+          ? s.actualReps
+          : (actualReps as num?)?.toInt(),
+      actualWeightKg: actualWeightKg == _keep
+          ? s.actualWeightKg
+          : (actualWeightKg as num?)?.toDouble(),
+      rpe: rpe == _keep ? s.rpe : (rpe as num?)?.toDouble(),
+      type: type ?? s.type,
+      outcome: outcome ?? s.outcome,
+    ),
+  );
 
   /// Appends a set to [exerciseId], inheriting the last set's target/type/rest
   /// as sensible defaults. [setId] is caller-supplied.
@@ -252,7 +269,9 @@ class LiveSession {
 
   LiveSession removeSet(String exerciseId, String setId) => _mapExercise(
     exerciseId,
-    (e) => e.copyWith(sets: e.sets.where((s) => s.id != setId).toList(growable: false)),
+    (e) => e.copyWith(
+      sets: e.sets.where((s) => s.id != setId).toList(growable: false),
+    ),
   );
 
   // ---- Exercise-level CRUD -------------------------------------------------
@@ -261,7 +280,9 @@ class LiveSession {
       copyWith(exercises: [...exercises, exercise]);
 
   LiveSession removeExercise(String exerciseId) => copyWith(
-    exercises: exercises.where((e) => e.id != exerciseId).toList(growable: false),
+    exercises: exercises
+        .where((e) => e.id != exerciseId)
+        .toList(growable: false),
   );
 
   /// Renames an exercise (e.g. a machine swap) while keeping its [exerciseId] so
@@ -307,22 +328,30 @@ class LiveSession {
     final at = pausedAt;
     if (at == null) return this;
     final addedMs = now.difference(at).inMilliseconds;
-    return copyWith(pausedAt: null, pausedAccumMs: pausedAccumMs + (addedMs < 0 ? 0 : addedMs));
+    return copyWith(
+      pausedAt: null,
+      pausedAccumMs: pausedAccumMs + (addedMs < 0 ? 0 : addedMs),
+    );
   }
 
   // ---- Internals -----------------------------------------------------------
 
-  LiveSession _mapExercise(String exerciseId, SessionExercise Function(SessionExercise) fn) =>
-      copyWith(
-        exercises: [
-          for (final e in exercises) e.id == exerciseId ? fn(e) : e,
-        ],
-      );
+  LiveSession _mapExercise(
+    String exerciseId,
+    SessionExercise Function(SessionExercise) fn,
+  ) => copyWith(
+    exercises: [for (final e in exercises) e.id == exerciseId ? fn(e) : e],
+  );
 
-  LiveSession _mapSet(String exerciseId, String setId, LoggedSet Function(LoggedSet) fn) =>
-      _mapExercise(exerciseId, (e) => e.copyWith(
-        sets: [for (final s in e.sets) s.id == setId ? fn(s) : s],
-      ));
+  LiveSession _mapSet(
+    String exerciseId,
+    String setId,
+    LoggedSet Function(LoggedSet) fn,
+  ) => _mapExercise(
+    exerciseId,
+    (e) =>
+        e.copyWith(sets: [for (final s in e.sets) s.id == setId ? fn(s) : s]),
+  );
 
   LiveSession copyWith({
     SessionStatus? status,
@@ -338,7 +367,9 @@ class LiveSession {
     startedAt: startedAt,
     status: status ?? this.status,
     exercises: exercises ?? this.exercises,
-    completedAt: completedAt == _keep ? this.completedAt : completedAt as DateTime?,
+    completedAt: completedAt == _keep
+        ? this.completedAt
+        : completedAt as DateTime?,
     pausedAt: pausedAt == _keep ? this.pausedAt : pausedAt as DateTime?,
     pausedAccumMs: pausedAccumMs ?? this.pausedAccumMs,
   );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/train_tokens.dart';
+import '../../../core/widgets/zivo_sheet.dart';
 import '../../../l10n/l10n.dart';
 
 /// What the user chose to capture.
@@ -11,10 +12,8 @@ enum CaptureChoice { expense, moment, workout }
 /// Opens the Quick Capture bottom sheet and resolves to the chosen kind.
 /// Capture is a verb, not five destinations: one sheet, one pick.
 Future<CaptureChoice?> showQuickCaptureSheet(BuildContext context) {
-  return showModalBottomSheet<CaptureChoice>(
+  return showZivoSheet<CaptureChoice>(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
     builder: (_) => const _QuickCaptureSheet(),
   );
 }
@@ -41,16 +40,7 @@ class _QuickCaptureSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 6),

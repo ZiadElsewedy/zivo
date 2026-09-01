@@ -14,6 +14,8 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/body_weight_repository.dart';
 import '../../domain/live_session.dart';
@@ -235,140 +237,137 @@ Future<void> _showLogWeightSheet(
   final controller = TextEditingController(
     text: lastWeight == null ? '' : _trimNumber(lastWeight),
   );
-  return showModalBottomSheet<void>(
+  return showZivoSheet<void>(
     context: context,
-    backgroundColor: TrainColors.raised,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-    ),
     builder: (sheetContext) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          22,
-          20,
-          22,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 22,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Log today's weight",
-              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                _WeightStepper(
-                  icon: AppIcons.minus,
-                  onTap: () {
-                    final v =
-                        double.tryParse(controller.text) ?? lastWeight ?? 0;
-                    if (v <= 0.1) return;
-                    controller.text = _trimNumber(v - 0.1);
-                  },
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,1}$'),
-                      ),
-                    ],
-                    style: AppText.heroNumber.copyWith(
-                      fontSize: 40,
-                      color: TrainColors.ink,
-                    ),
-                    cursorColor: TrainColors.green,
-                    decoration: InputDecoration(
-                      suffixText: 'kg',
-                      suffixStyle: AppText.meta.copyWith(
-                        color: TrainColors.ink3,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                _WeightStepper(
-                  icon: AppIcons.add,
-                  onTap: () {
-                    final v =
-                        double.tryParse(controller.text) ?? lastWeight ?? 0;
-                    controller.text = _trimNumber(v + 0.1);
-                  },
-                ),
-              ],
-            ),
-            if (lastWeight != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Center(
-                  child: Text(
-                    l(context).weighInLast(_trimNumber(lastWeight)),
-                    style: AppText.meta.copyWith(
-                      color: TrainColors.ink3,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+      return ZivoSheetSurface(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            22,
+            20,
+            22,
+            MediaQuery.of(sheetContext).viewInsets.bottom + 22,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Log today's weight",
+                style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               ),
-            const SizedBox(height: 20),
-            PillButton(
-              label: l(context).actionSave,
-              icon: Icons.check_rounded,
-              color: TrainColors.green,
-              enabled: true,
-              onTap: () {
-                final value = double.tryParse(controller.text);
-                if (value == null || value <= 0) return;
-                HapticFeedback.lightImpact();
-                final entry = BodyWeightEntry(
-                  id: DateTime.now().microsecondsSinceEpoch.toString(),
-                  weightKg: value,
-                  loggedAt: DateTime.now(),
-                );
-                Navigator.of(sheetContext).pop();
-                // Fire-and-forget like every other write in the app —
-                // Firestore commits cache-first, so awaiting would hang the
-                // button offline (see live_session_page's _onFinish note) —
-                // but never SILENTLY: a rejected save (rules, signed-out)
-                // used to vanish without a trace, reading as "weight doesn't
-                // save". Surface it on the page beneath the sheet.
-                // Future.sync also catches save()'s synchronous signed-out
-                // StateError, which a bare catchError would miss.
-                unawaited(
-                  Future.sync(() => bodyWeight.save(entry)).catchError((
-                    Object error,
-                  ) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: TrainColors.raised,
-                        content: Text(
-                          "Couldn't save that weigh-in — check your "
-                          'connection and try again.',
-                          style: AppText.body.copyWith(
-                            color: TrainColors.ink,
-                            fontSize: 13.5,
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  _WeightStepper(
+                    icon: AppIcons.minus,
+                    onTap: () {
+                      final v =
+                          parseDecimal(controller.text) ?? lastWeight ?? 0;
+                      if (v <= 0.1) return;
+                      controller.text = _trimNumber(v - 0.1);
+                    },
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      textAlign: TextAlign.center,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,1}$'),
+                        ),
+                      ],
+                      style: AppText.heroNumber.copyWith(
+                        fontSize: 40,
+                        color: TrainColors.ink,
+                      ),
+                      cursorColor: TrainColors.green,
+                      decoration: InputDecoration(
+                        suffixText: 'kg',
+                        suffixStyle: AppText.meta.copyWith(
+                          color: TrainColors.ink3,
+                          fontSize: 16,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  _WeightStepper(
+                    icon: AppIcons.add,
+                    onTap: () {
+                      final v =
+                          parseDecimal(controller.text) ?? lastWeight ?? 0;
+                      controller.text = _trimNumber(v + 0.1);
+                    },
+                  ),
+                ],
+              ),
+              if (lastWeight != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Center(
+                    child: Text(
+                      l(context).weighInLast(_trimNumber(lastWeight)),
+                      style: AppText.meta.copyWith(
+                        color: TrainColors.ink3,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              PillButton(
+                label: l(context).actionSave,
+                icon: Icons.check_rounded,
+                color: TrainColors.green,
+                enabled: true,
+                onTap: () {
+                  final value = parsePositiveDecimal(controller.text);
+                  if (value == null) return;
+                  HapticFeedback.lightImpact();
+                  final entry = BodyWeightEntry(
+                    id: DateTime.now().microsecondsSinceEpoch.toString(),
+                    weightKg: value,
+                    loggedAt: DateTime.now(),
+                  );
+                  Navigator.of(sheetContext).pop();
+                  // Fire-and-forget like every other write in the app —
+                  // Firestore commits cache-first, so awaiting would hang the
+                  // button offline (see live_session_page's _onFinish note) —
+                  // but never SILENTLY: a rejected save (rules, signed-out)
+                  // used to vanish without a trace, reading as "weight doesn't
+                  // save". Surface it on the page beneath the sheet.
+                  // Future.sync also catches save()'s synchronous signed-out
+                  // StateError, which a bare catchError would miss.
+                  unawaited(
+                    Future.sync(() => bodyWeight.save(entry)).catchError((
+                      Object error,
+                    ) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: TrainColors.raised,
+                          content: Text(
+                            "Couldn't save that weigh-in — check your "
+                            'connection and try again.',
+                            style: AppText.body.copyWith(
+                              color: TrainColors.ink,
+                              fontSize: 13.5,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
-                );
-              },
-            ),
-          ],
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       );
     },
@@ -499,7 +498,9 @@ class _StatsGrid extends StatelessWidget {
                   value: stats.averageSessionDuration == null
                       ? '—'
                       : '${stats.averageSessionDuration!.inMinutes}',
-                  unit: stats.averageSessionDuration == null ? null : l(context).statMinAvg,
+                  unit: stats.averageSessionDuration == null
+                      ? null
+                      : l(context).statMinAvg,
                   label: l(context).statDuration,
                   chart: durations.length >= 2
                       ? TrainSparkline(

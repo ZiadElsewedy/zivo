@@ -11,6 +11,7 @@ import '../../domain/auth_result.dart';
 import 'auth_backdrop.dart';
 import 'auth_text_field.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 
 /// The account-deletion confirmation sheet, opened from [SettingsPage].
 ///
@@ -32,10 +33,8 @@ class DeleteAccountSheet extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     final user = AppScope.of(context).auth.currentUser;
     final isPassword = user?.providerIds.contains('password') ?? false;
-    return showModalBottomSheet<void>(
+    return showZivoSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       useSafeArea: true,
       // A modal, irreversible task: push the page behind it properly back
       // rather than leaving Settings legible right up against the sheet. The
@@ -138,16 +137,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: TrainColors.hairlineStrong,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
+                  const Center(child: ZivoSheetHandle()),
                   const SizedBox(height: 22),
                   Row(
                     children: [

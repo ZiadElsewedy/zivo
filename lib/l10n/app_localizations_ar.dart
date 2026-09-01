@@ -1128,4 +1128,49 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get addDietIntro =>
       'مهما وصلت إلى زيفو، ستراجع كل وجبة وكل رقم قبل الحفظ.';
+
+  @override
+  String get momentDeleteTitle => 'حذف اللحظة؟';
+
+  @override
+  String get momentDeleteBody =>
+      'سيؤدي هذا إلى إزالتها من لحظاتك. كما ستُحذف الصورة من جهازك.';
+
+  @override
+  String dietPlanDeleteBody(String name) {
+    return 'سيؤدي هذا إلى حذف \"$name\" وكل أيامها ووجباتها. لا يمكن التراجع عن هذا.';
+  }
+
+  @override
+  String dietPlanArchiveHint(String name) {
+    return 'سيؤدي هذا إلى حذف $name نهائيًا. الأرشفة تحتفظ بها وتزيلها من شاشة التغذية بالمثل.';
+  }
+
+  @override
+  String get sessionDeleteTitle => 'حذف هذه الجلسة؟';
+
+  @override
+  String sessionDeleteBody(String day) {
+    return 'سيؤدي هذا إلى حذف جلسة \"$day\" وكل ما سُجّل فيها نهائيًا. لا يمكن التراجع عن هذا.';
+  }
+
+  @override
+  String splitDeleteTitle(String name) {
+    return 'حذف \"$name\"؟';
+  }
+
+  @override
+  String get splitDeleteBody =>
+      'سيؤدي هذا إلى حذف التقسيمة وكل أيامها وتمارينها. يبقى السجل المُسجَّل لها محفوظًا، لكن لا يمكن تعديله من هنا. لا يمكن التراجع عن هذا.';
+
+  @override
+  String get workoutPlanDeleteTitle => 'حذف هذه الخطة؟';
+
+  @override
+  String workoutPlanDeleteBody(String name) {
+    return 'سيؤدي هذا إلى حذف \"$name\" وكل أيامها وتمارينها. لا يمكن التراجع عن هذا.';
+  }
+
+  @override
+  String get splitDeleteTitlePlain => 'حذف هذه التقسيمة؟';
 }

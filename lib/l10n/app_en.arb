@@ -1633,5 +1633,79 @@
   "addDietIntro": "However it reaches ZIVO, you review every meal and every figure before it is saved.",
   "@addDietIntro": {
     "description": "Note under the add-a-diet sheet's title."
+  },
+  "momentDeleteTitle": "Delete moment?",
+  "@momentDeleteTitle": {
+    "description": "Title of the delete-moment confirmation."
+  },
+  "momentDeleteBody": "This removes it from your moments. The photo on your device is also removed.",
+  "@momentDeleteBody": {
+    "description": "Body of the delete-moment confirmation. Names both consequences."
+  },
+  "dietPlanDeleteBody": "This removes \"{name}\" and all its days and meals. This can't be undone.",
+  "@dietPlanDeleteBody": {
+    "description": "Body of the delete-diet-plan confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Cutting Plan"
+      }
+    }
+  },
+  "dietPlanArchiveHint": "This removes {name} for good. Archiving keeps it and takes it off the Diet screen just the same.",
+  "@dietPlanArchiveHint": {
+    "description": "Body of the delete-diet-plan confirmation shown where archiving is the gentler alternative.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Cutting Plan"
+      }
+    }
+  },
+  "sessionDeleteTitle": "Delete this session?",
+  "@sessionDeleteTitle": {
+    "description": "Title of the delete-logged-session confirmation."
+  },
+  "sessionDeleteBody": "This permanently removes your \"{day}\" session and everything logged in it. This can't be undone.",
+  "@sessionDeleteBody": {
+    "description": "Body of the delete-logged-session confirmation.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Push"
+      }
+    }
+  },
+  "splitDeleteTitle": "Delete \"{name}\"?",
+  "@splitDeleteTitle": {
+    "description": "Title of the delete-split confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Push Pull Legs"
+      }
+    }
+  },
+  "splitDeleteBody": "This removes the split and all its days and exercises. Logged history for it is kept, just no longer editable here. This can't be undone.",
+  "@splitDeleteBody": {
+    "description": "Body of the delete-split confirmation. Says explicitly that history survives."
+  },
+  "workoutPlanDeleteTitle": "Delete this plan?",
+  "@workoutPlanDeleteTitle": {
+    "description": "Title of the delete-workout-plan confirmation."
+  },
+  "workoutPlanDeleteBody": "This removes \"{name}\" and all its days and exercises. This can't be undone.",
+  "@workoutPlanDeleteBody": {
+    "description": "Body of the delete-workout-plan confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Push Pull Legs"
+      }
+    }
+  },
+  "splitDeleteTitlePlain": "Delete this split?",
+  "@splitDeleteTitlePlain": {
+    "description": "Title of the delete confirmation inside the split editor, where which split is being edited is already obvious."
   }
 }

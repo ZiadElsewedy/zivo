@@ -9,7 +9,8 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/moment.dart';
 import '../moment_metadata.dart';
-import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
+import '../../../../l10n/l10n.dart';
 
 /// A full-screen, swipeable, pinch-zoomable photo viewer — the "open a photo"
 /// half of the gallery. Swipe left/right between photos, pinch or double-tap to
@@ -83,37 +84,12 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
   Future<void> _confirmDelete() async {
     final moment = _current;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TrainColors.raised,
-        title: Text(
-          'Delete moment?',
-          style: AppText.cardTitle.copyWith(fontSize: 18),
-        ),
-        content: Text(
-          'This removes it from your moments. The photo on your device is also removed.',
-          style: AppText.body.copyWith(color: TrainColors.ink2),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              'Cancel',
-              style: AppText.button.copyWith(color: TrainColors.ink2),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              'Delete',
-              style: AppText.button.copyWith(color: TrainColors.ember),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).momentDeleteTitle,
+      body: l(context).momentDeleteBody,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await widget.onDelete(moment);
     if (!mounted) return;
     setState(() {

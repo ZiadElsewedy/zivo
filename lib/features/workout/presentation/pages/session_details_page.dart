@@ -6,6 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/rep_target.dart';
@@ -14,6 +15,7 @@ import '../../domain/session_status.dart';
 import '../../domain/set_outcome.dart';
 import '../widgets/staggered_reveal.dart';
 import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
+import '../../../../l10n/l10n.dart';
 
 /// The full detail view of one logged/live session — a designed screen, not
 /// a table: a hero header (day, date, status, duration, time range,
@@ -98,38 +100,11 @@ class _DetailsHeader extends StatelessWidget {
 /// [SessionDetailsPage]'s delete action and History's swipe-to-delete so both
 /// use the exact same wording and guard.
 Future<bool> confirmDeleteSession(BuildContext context, String dayLabel) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: const Color(0x08FFFFFF),
-      title: Text(
-        'Delete this session?',
-        style: AppText.cardTitle.copyWith(color: TrainColors.ink),
-      ),
-      content: Text(
-        'This permanently removes your "$dayLabel" session and everything '
-        "logged in it. This can't be undone.",
-        style: AppText.body.copyWith(color: TrainColors.ink2),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(
-            'Cancel',
-            style: AppText.button.copyWith(color: TrainColors.ink4),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(
-            'Delete',
-            style: AppText.button.copyWith(color: TrainColors.ember),
-          ),
-        ),
-      ],
-    ),
+  return confirmDestructive(
+    context,
+    title: l(context).sessionDeleteTitle,
+    body: l(context).sessionDeleteBody(dayLabel),
   );
-  return confirmed ?? false;
 }
 
 class _SessionHeroHeader extends StatelessWidget {

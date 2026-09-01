@@ -7,6 +7,9 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/widgets/zivo_field.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/nutrition/custom_food.dart';
 import '../../domain/nutrition/food_log_entry.dart';
@@ -29,10 +32,8 @@ Future<List<FoodLogEntry>?> showLogFoodSheet(
   BuildContext context, {
   required DateTime day,
 }) {
-  return showModalBottomSheet<List<FoodLogEntry>>(
+  return showZivoSheet<List<FoodLogEntry>>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _LogFoodSheet(day: day),
   );
 }
@@ -104,7 +105,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
   }
 
   double? get _quantityValue {
-    final parsed = double.tryParse(_quantity.text.trim().replaceAll(',', '.'));
+    final parsed = parseDecimal(_quantity.text);
     return (parsed == null || parsed <= 0) ? null : parsed;
   }
 
@@ -118,10 +119,8 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
   }
 
   Future<void> _defineCustomFood() async {
-    final created = await showModalBottomSheet<CustomFood>(
+    final created = await showZivoSheet<CustomFood>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _CustomFoodSheet(initialName: _query.text.trim()),
     );
     if (created == null || !mounted) return;
@@ -199,9 +198,8 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
           onChanged: _onQueryChanged,
           cursorColor: TrainColors.green,
           style: AppText.rowTitle,
-          decoration: InputDecoration(
+          decoration: zivoFieldDecoration(
             hintText: 'chicken breast, rice, olive oil…',
-            hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             prefixIcon: const Icon(
               Icons.search_rounded,
               size: 18,
@@ -212,12 +210,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
               vertical: 12,
               horizontal: 12,
             ),
-            filled: true,
-            fillColor: TrainColors.base,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+            focusRing: false,
           ),
         ),
         const SizedBox(height: 12),
@@ -298,18 +291,13 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
                 onChanged: (_) => setState(() {}),
                 cursorColor: TrainColors.green,
                 style: AppText.rowTitle,
-                decoration: InputDecoration(
+                decoration: zivoFieldDecoration(
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                     vertical: 12,
                     horizontal: 12,
                   ),
-                  filled: true,
-                  fillColor: TrainColors.base,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+                  focusRing: false,
                 ),
               ),
             ),
@@ -586,7 +574,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
   }
 
   double? _value(TextEditingController c) {
-    final parsed = double.tryParse(c.text.trim().replaceAll(',', '.'));
+    final parsed = parseDecimal(c.text);
     return (parsed == null || parsed < 0) ? null : parsed;
   }
 
@@ -745,19 +733,7 @@ class _Field extends StatelessWidget {
               : null,
           cursorColor: TrainColors.green,
           style: AppText.rowTitle,
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 10,
-              horizontal: 12,
-            ),
-            filled: true,
-            fillColor: TrainColors.base,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
+          decoration: zivoFieldDecoration(isDense: true, focusRing: false),
         ),
       ],
     );

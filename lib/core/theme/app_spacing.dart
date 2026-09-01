@@ -12,6 +12,15 @@ abstract final class AppSpacing {
 /// ZIVO corner radii.
 abstract final class AppRadius {
   static const double chip = 8;
+
+  /// A filled input box. The hand-rolled fields had drifted to 12 and 14;
+  /// 12 was the more common and the one the compact/numeric fields need.
+  static const double field = 12;
   static const double card = 20;
+
+  /// The top corner of a modal bottom sheet. One value, because the
+  /// hand-rolled sheets had drifted to 24/26/28 and the difference was
+  /// visible when one sheet opened over another.
+  static const double sheet = 26;
   static const double pill = 999;
 }

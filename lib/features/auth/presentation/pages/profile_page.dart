@@ -25,6 +25,7 @@ import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/user_profile.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import 'settings_page.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account
@@ -46,10 +47,8 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _editName(BuildContext context, UserProfile profile) async {
-    final name = await showModalBottomSheet<String>(
+    final name = await showZivoSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => _EditTextSheet(
         title: 'Edit name',
         hint: 'Your name',
@@ -1155,16 +1154,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: TrainColors.hairlineStrong,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
+              Center(child: const ZivoSheetHandle()),
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.only(left: 2, bottom: 12),

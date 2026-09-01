@@ -5,6 +5,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/analysis/plan_verdict.dart';
 import '../../domain/diet_format.dart';
@@ -32,10 +33,8 @@ Future<bool> showAdoptPlanTargetSheet(
 }) async {
   final energy = planDailyEnergy(plan);
   if (energy.kcalPerDay == null) return false;
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showZivoSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _AdoptSheet(plan: plan, energy: energy),
   );
   return saved ?? false;

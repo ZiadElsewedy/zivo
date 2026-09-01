@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-08-31 · **Active branch:** `version-1`
-(`version-1` is 51 commits ahead of `main` — worth a merge).
+**Last updated:** 2026-09-01 · **Active branch:** `claude/code-refactor-structure-716ef8`
+(off `version-1`, which is 51 commits ahead of `main` — worth a merge).
 
 ---
 
@@ -55,6 +55,83 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Structural refactor — a controller layer, and one way to do the common things.**
+  Nothing about what the app *does* changed: the 992 pre-existing tests all pass
+  untouched, which is the evidence. What changed is where the code lives.
+  - **Presentation controllers** ([ADR-008](DECISIONS/ADR-008-presentation-controllers.md)).
+    The two screens that had outgrown `setState` now hold their logic in a plain
+    `ChangeNotifier` beside the page:
+    [`LiveSessionController`](../lib/features/workout/presentation/controllers/live_session_controller.dart)
+    (three clocks, the kill-proof rest countdown, draft autosave, set resolution,
+    the exits) and
+    [`AskController`](../lib/features/ai/presentation/controllers/ask_controller.dart)
+    (optimistic/durable reconciliation, idempotent retries, the streamed-reply
+    pacer, the voice path), and
+    [`PlanEditController`](../lib/features/workout/presentation/controllers/plan_edit_controller.dart)
+    (the split editor's day/exercise mutation and — the reason it exists — the
+    **rotation-cursor rule**: `cycleCursor` is stored as an index but days can
+    be dragged, so the cursor is tracked by day *identity* and resolved back to
+    an index on save; getting it wrong silently changes which workout Home
+    offers next). **No new dependency** — the ADR explains why this is not
+    riverpod/bloc.
+
+    | Page | Before | After |
+    |---|---|---|
+    | `live_session_page.dart` | 4,236 | **519** |
+    | `workout_plan_edit_page.dart` | 1,813 | **416** |
+    | `ask_page.dart` | 3,061 | **781** |
+
+  - **33 new unit tests** assert session, turn and plan-edit rules directly,
+    with no widget tree, in under a second
+    (`test/workout/live_session_controller_test.dart`,
+    `test/workout/plan_edit_controller_test.dart`,
+    `test/ai/ask_controller_test.dart`). Suite 992 → 1,025 green.
+  - **~65 private widget classes became real files** under
+    `workout/presentation/widgets/live_session/` (9 + a `phases/` folder),
+    `workout/presentation/widgets/plan_edit/` (5) and
+    `ai/presentation/widgets/ask/` (7). One test that had to find a widget by
+    matching `runtimeType.toString() == '_RiseOnce'` now names the type.
+  - **Warm-up and rest are one widget now.** The code already said they were
+    "the SAME screen, element for element" and kept two ~90-line copies to
+    prove it; `CountdownPhase` makes that structural — a phase only chooses its
+    hue, its words and what its buttons do.
+  - **`trimWeight` existed twice** (live-session format + a private copy in the
+    plan editor) with identical bodies. Now one
+    [`workout_format.dart`](../lib/features/workout/presentation/workout_format.dart).
+  - **One way to open a sheet.** All 28 hand-rolled `showModalBottomSheet` call
+    sites go through [`showZivoSheet`](../lib/core/widgets/zivo_sheet.dart); the
+    grab handle that was copy-pasted into 14 files is `ZivoSheetHandle`. This
+    also settled a drift nobody chose: the sheet top radius was 24 in six places,
+    26 in eighteen and 28 in one — now `AppRadius.sheet`.
+  - **One filled-field decoration.** 11 hand-written `InputDecoration` blocks
+    across diet/workout/auth/ai became
+    [`zivoFieldDecoration`](../lib/core/widgets/zivo_field.dart), which takes the
+    feature's hue as an argument (ADR-006 hue ownership, so **not** one universal
+    field). Only four of the eleven drew a focus ring before; all do now.
+  - **One destructive confirmation, and a real i18n bug fixed.** Seven screens
+    each hand-wrote the "are you sure?" dialog (delete a moment · session ·
+    split · workout plan · diet plan, discard a live session), and **six of
+    them hard-coded the English `'Cancel'`/`'Delete'`** — while `actionCancel`
+    ("إلغاء") and `actionDelete` ("حذف") had been sitting translated in both
+    `.arb` files, unused. An Arabic user deleting anything saw English buttons.
+    All seven now go through
+    [`confirmDestructive`](../lib/core/widgets/zivo_confirm.dart), which reads
+    its labels from `l(context)` by default; 10 new title/body keys were added
+    to both `.arb` files. Copy is byte-identical to before, so the whole
+    migration landed with **zero test changes**. It also settles the look: the
+    background was `TrainColors.raised` in some and a near-invisible
+    `Color(0x08FFFFFF)` in others, across four title styles.
+    **Owner check wanted:** the 10 new Arabic strings are mine, not a native
+    speaker's.
+  - **Still unlocalized (not in this pass):** four hard-coded `'Cancel'`s in
+    `CupertinoActionSheet`s (`moment_capture_page.dart`, `profile_page.dart`).
+  - **Number parsing moved to [`core/util/parse.dart`](../lib/core/util/parse.dart)**
+    from the bottom of a *diet widget* file, which is why 13 call sites had
+    hand-written `double.tryParse(x.trim().replaceAll(',', '.'))` instead of
+    importing it. **This fixed a real bug:** the bodyweight weigh-in sheet used a
+    bare `double.tryParse`, so it silently rejected "72,5" — every value typed on
+    a keyboard whose decimal mark is a comma.
 
 - **Simplification pass — the diet a 15-year-old can read (in flight).** The owner's
   verdict on the diet epic was that it worked but read like the engine: too many numbers,

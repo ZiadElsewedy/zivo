@@ -1138,4 +1138,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get addDietIntro =>
       'However it reaches ZIVO, you review every meal and every figure before it is saved.';
+
+  @override
+  String get momentDeleteTitle => 'Delete moment?';
+
+  @override
+  String get momentDeleteBody =>
+      'This removes it from your moments. The photo on your device is also removed.';
+
+  @override
+  String dietPlanDeleteBody(String name) {
+    return 'This removes \"$name\" and all its days and meals. This can\'t be undone.';
+  }
+
+  @override
+  String dietPlanArchiveHint(String name) {
+    return 'This removes $name for good. Archiving keeps it and takes it off the Diet screen just the same.';
+  }
+
+  @override
+  String get sessionDeleteTitle => 'Delete this session?';
+
+  @override
+  String sessionDeleteBody(String day) {
+    return 'This permanently removes your \"$day\" session and everything logged in it. This can\'t be undone.';
+  }
+
+  @override
+  String splitDeleteTitle(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get splitDeleteBody =>
+      'This removes the split and all its days and exercises. Logged history for it is kept, just no longer editable here. This can\'t be undone.';
+
+  @override
+  String get workoutPlanDeleteTitle => 'Delete this plan?';
+
+  @override
+  String workoutPlanDeleteBody(String name) {
+    return 'This removes \"$name\" and all its days and exercises. This can\'t be undone.';
+  }
+
+  @override
+  String get splitDeleteTitlePlain => 'Delete this split?';
 }

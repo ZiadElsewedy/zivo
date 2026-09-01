@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/widgets/zivo_field.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 
@@ -58,10 +60,8 @@ class FoodChipPicker extends StatelessWidget {
   }
 
   Future<void> _addCustom(BuildContext context) async {
-    final value = await showModalBottomSheet<String>(
+    final value = await showZivoSheet<String>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _CustomEntrySheet(title: l(context).prefsAddYourOwn),
     );
     final trimmed = value?.trim() ?? '';
@@ -166,17 +166,14 @@ class _CustomEntrySheetState extends State<_CustomEntrySheet> {
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
             style: AppText.body,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: const Color(0x08FFFFFF),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
+            decoration: zivoFieldDecoration(
+              fill: const Color(0x08FFFFFF),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 14,
               ),
+              radius: 14,
+              focusRing: false,
             ),
           ),
           const SizedBox(height: 16),

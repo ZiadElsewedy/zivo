@@ -6,6 +6,7 @@ import '../../domain/live_session.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../l10n/l10n.dart';
 
 /// The result of picking from the change-workout sheet: the [day] to train
@@ -28,15 +29,11 @@ Future<ChangeWorkoutSelection?> showChangeWorkoutSheet(
   required WorkoutPlan plan,
   LiveSession? activeSession,
 }) {
-  return showModalBottomSheet<ChangeWorkoutSelection>(
+  return showZivoSheet<ChangeWorkoutSelection>(
     context: context,
-    backgroundColor: TrainColors.raised,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    builder: (_) => ZivoSheetSurface(
+      child: _ChangeWorkoutSheet(plan: plan, activeSession: activeSession),
     ),
-    builder: (_) =>
-        _ChangeWorkoutSheet(plan: plan, activeSession: activeSession),
   );
 }
 
@@ -57,16 +54,7 @@ class _ChangeWorkoutSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: TrainColors.hairlineStrong,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const Center(child: ZivoSheetHandle()),
             const SizedBox(height: 18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),

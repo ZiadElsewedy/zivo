@@ -2161,6 +2161,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'However it reaches ZIVO, you review every meal and every figure before it is saved.'**
   String get addDietIntro;
+
+  /// Title of the delete-moment confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete moment?'**
+  String get momentDeleteTitle;
+
+  /// Body of the delete-moment confirmation. Names both consequences.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes it from your moments. The photo on your device is also removed.'**
+  String get momentDeleteBody;
+
+  /// Body of the delete-diet-plan confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes \"{name}\" and all its days and meals. This can\'t be undone.'**
+  String dietPlanDeleteBody(String name);
+
+  /// Body of the delete-diet-plan confirmation shown where archiving is the gentler alternative.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes {name} for good. Archiving keeps it and takes it off the Diet screen just the same.'**
+  String dietPlanArchiveHint(String name);
+
+  /// Title of the delete-logged-session confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this session?'**
+  String get sessionDeleteTitle;
+
+  /// Body of the delete-logged-session confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently removes your \"{day}\" session and everything logged in it. This can\'t be undone.'**
+  String sessionDeleteBody(String day);
+
+  /// Title of the delete-split confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String splitDeleteTitle(String name);
+
+  /// Body of the delete-split confirmation. Says explicitly that history survives.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the split and all its days and exercises. Logged history for it is kept, just no longer editable here. This can\'t be undone.'**
+  String get splitDeleteBody;
+
+  /// Title of the delete-workout-plan confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this plan?'**
+  String get workoutPlanDeleteTitle;
+
+  /// Body of the delete-workout-plan confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes \"{name}\" and all its days and exercises. This can\'t be undone.'**
+  String workoutPlanDeleteBody(String name);
+
+  /// Title of the delete confirmation inside the split editor, where which split is being edited is already obvious.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this split?'**
+  String get splitDeleteTitlePlain;
 }
 
 class _AppLocalizationsDelegate

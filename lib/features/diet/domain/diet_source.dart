@@ -16,8 +16,10 @@ enum DietSource { manual, pdf, photo, dictated, generated }
 
 /// Parses a stored [DietSource] name, falling back to `manual` for any
 /// unknown or legacy value.
-DietSource dietSourceFromName(String? name) =>
-    DietSource.values.firstWhere((s) => s.name == name, orElse: () => DietSource.manual);
+DietSource dietSourceFromName(String? name) => DietSource.values.firstWhere(
+  (s) => s.name == name,
+  orElse: () => DietSource.manual,
+);
 
 /// How a plan's origin reads on screen.
 String dietSourceLabel(DietSource source) => switch (source) {

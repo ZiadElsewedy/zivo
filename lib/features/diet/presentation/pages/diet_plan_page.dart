@@ -404,10 +404,9 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
         // which is what makes the list scannable without reading it — the
         // plan's own name for it rides underneath.
         if (today != null) ...[
-          for (final (index, meal)
-              in ([...regularMeals(today.meals)]
-                    ..sort((a, b) => a.order.compareTo(b.order)))
-                  .indexed)
+          for (final (index, meal) in ([
+            ...regularMeals(today.meals),
+          ]..sort((a, b) => a.order.compareTo(b.order))).indexed)
             Padding(
               padding: const EdgeInsets.only(bottom: 9),
               child: _MealRow(
@@ -505,11 +504,7 @@ class _PlanDetailsRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
           child: Row(
             children: [
-              const Icon(
-                Icons.tune_rounded,
-                size: 17,
-                color: TrainColors.ink3,
-              ),
+              const Icon(Icons.tune_rounded, size: 17, color: TrainColors.ink3),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -559,10 +554,7 @@ class _LogFoodButton extends StatelessWidget {
           const Icon(Icons.add_rounded, size: 18, color: TrainColors.ink2),
           const SizedBox(width: 11),
           Expanded(
-            child: Text(
-              l(context).dietLogSomething,
-              style: AppText.rowTitle,
-            ),
+            child: Text(l(context).dietLogSomething, style: AppText.rowTitle),
           ),
         ],
       ),
@@ -640,7 +632,6 @@ class _LogEntryRow extends StatelessWidget {
   static String _trim(double v) =>
       v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 }
-
 
 /// The Diet hero — the screen's **one hero number**: calories left, inside a
 /// 104px green ring. Everything else demotes: the meals-eaten line, the mono
@@ -901,8 +892,6 @@ String _heroLabel(
       ? 'EST. KCAL LEFT OF PLAN'
       : 'KCAL LEFT OF PLAN';
 }
-
-
 
 /// The widest the hero's figure + label may be inside the 104px ring.
 ///

@@ -13,6 +13,10 @@ import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
 import '../../domain/nutrition/plausibility.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/widgets/zivo_field.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../../l10n/l10n.dart';
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -107,10 +111,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addDay() async {
-    final result = await showModalBottomSheet<_DayDraft>(
+    final result = await showZivoSheet<_DayDraft>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _DaySheet(),
     );
     if (result == null) return;
@@ -124,10 +126,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addMeal(int dayIndex) async {
-    final label = await showModalBottomSheet<String>(
+    final label = await showZivoSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _MealSheet(),
     );
     if (label == null) return;
@@ -148,10 +148,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addItem(int dayIndex, int mealIndex) async {
-    final item = await showModalBottomSheet<FoodItem>(
+    final item = await showZivoSheet<FoodItem>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _FoodItemSheet(),
     );
     if (item == null) return;
@@ -199,34 +197,12 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     final plan = widget.initialPlan;
     if (plan == null) return;
     final diet = AppScope.of(context).diet;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TrainColors.raised,
-        title: Text(l(context).planDeleteTitle, style: AppText.cardTitle),
-        content: Text(
-          'This removes "${plan.name}" and all its days and meals. This can\'t be undone.',
-          style: AppText.body,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: AppText.button.copyWith(color: TrainColors.ink3),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Delete',
-              style: AppText.button.copyWith(color: TrainColors.ember),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).planDeleteTitle,
+      body: l(context).dietPlanDeleteBody(plan.name),
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await diet.deletePlan(plan.id);
     if (mounted) Navigator.of(context).pop();
   }
@@ -279,7 +255,10 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         if (i == _days.length) {
-                          return _AddButton(label: l(context).planAddDay, onTap: _addDay);
+                          return _AddButton(
+                            label: l(context).planAddDay,
+                            onTap: _addDay,
+                          );
                         }
                         return _DayCard(
                           day: _days[i],
@@ -448,7 +427,11 @@ class _DayCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 10),
-          _AddButton(label: l(context).planAddMeal, onTap: onAddMeal, compact: true),
+          _AddButton(
+            label: l(context).planAddMeal,
+            onTap: onAddMeal,
+            compact: true,
+          ),
         ],
       ),
     );
@@ -559,7 +542,11 @@ class _MealBlock extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 6),
-          _AddButton(label: l(context).planAddItem, onTap: onAddItem, compact: true),
+          _AddButton(
+            label: l(context).planAddItem,
+            onTap: onAddItem,
+            compact: true,
+          ),
         ],
       ),
     );
@@ -608,16 +595,7 @@ class _DaySheetState extends State<_DaySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
@@ -726,16 +704,7 @@ class _MealSheetState extends State<_MealSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
@@ -819,12 +788,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
 
   void _submit() {
     if (!_canAdd) return;
-    final quantity =
-        double.tryParse(_quantity.text.trim().replaceAll(',', '.')) ?? 0;
-    final calories = int.tryParse(_calories.text.trim());
-    final protein = double.tryParse(_protein.text.trim().replaceAll(',', '.'));
-    final carbs = double.tryParse(_carbs.text.trim().replaceAll(',', '.'));
-    final fat = double.tryParse(_fat.text.trim().replaceAll(',', '.'));
+    final quantity = parseDecimal(_quantity.text) ?? 0;
+    final calories = parseWhole(_calories.text);
+    final protein = parseDecimal(_protein.text);
+    final carbs = parseDecimal(_carbs.text);
+    final fat = parseDecimal(_fat.text);
     Navigator.of(context).pop(
       FoodItem(
         name: _name.text.trim(),
@@ -855,16 +823,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
@@ -929,7 +888,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 14),
           Row(
             children: [
-              _NumberField(label: l(context).nutritionCalories, controller: _calories, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionCalories,
+                controller: _calories,
+                hint: '—',
+              ),
               const SizedBox(width: 12),
               _NumberField(
                 label: l(context).nutritionProtein,
@@ -941,9 +904,17 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _NumberField(label: l(context).nutritionCarbs, controller: _carbs, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionCarbs,
+                controller: _carbs,
+                hint: '—',
+              ),
               const SizedBox(width: 12),
-              _NumberField(label: l(context).nutritionFat, controller: _fat, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionFat,
+                controller: _fat,
+                hint: '—',
+              ),
             ],
           ),
           const SizedBox(height: 22),
@@ -993,28 +964,7 @@ class _NumberField extends StatelessWidget {
             ],
             cursorColor: TrainColors.green,
             style: AppText.rowTitle,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: 12,
-              ),
-              filled: true,
-              fillColor: TrainColors.base,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: TrainColors.green,
-                  width: 1.4,
-                ),
-              ),
-            ),
+            decoration: zivoFieldDecoration(isDense: true, hintText: hint),
           ),
         ],
       ),

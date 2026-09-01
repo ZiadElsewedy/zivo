@@ -9,10 +9,25 @@
 
 ## Start here
 
-- `presentation/pages/ask_page.dart` — the Ask tab (chat, streaming, empty-state
-  suggestions). Reached as tab index 2 in the shell; other surfaces switch to it via
-  `HomeShell`'s `onOpenAsk`.
-- Widgets: `chat_header.dart`, `voice_composer.dart` (mic → transcript), `quick_log_sheet.dart`.
+- `presentation/controllers/ask_controller.dart` — **everything a turn does**
+  ([ADR-008](../../../docs/DECISIONS/ADR-008-presentation-controllers.md)): conversation
+  resolution and switching, the send path with its idempotency key, optimistic-bubble ↔
+  durable-message reconciliation, the streamed-reply pacer, the slow-turn admission and
+  landing watchdog, proposal confirm/cancel, and the voice path. A plain `ChangeNotifier`;
+  it reaches the screen only through `onError`/`onContentGrew` callbacks, never a
+  `BuildContext`. **Start here for behaviour.**
+- `presentation/pages/ask_page.dart` — the Ask tab's `build`, plus the state that is
+  genuinely about a list of widgets: scroll position and auto-follow, the entrance ledger,
+  and which bubble is mid-typewriter. Reached as tab index 2 in the shell; other surfaces
+  switch to it via `HomeShell`'s `onOpenAsk`.
+- `presentation/ask_constants.dart` — the turn timings and the composer's float clearance,
+  shared by the page and its widgets.
+- Widgets: `presentation/widgets/ask/` (`message_bubble`, `proposal_card`, `thinking_rail`,
+  `sessions_sheet`, `ask_empty_state`, `error_retry`, `ask_effects`), plus the older
+  `chat_header.dart`, `voice_composer.dart` (mic → transcript), `quick_log_sheet.dart`.
+
+Turn rules are unit-tested directly in `test/ai/ask_controller_test.dart` — no widget
+tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 
 ## Repository (`AppScope.ai`)
 

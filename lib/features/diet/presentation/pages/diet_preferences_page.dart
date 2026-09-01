@@ -5,6 +5,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/widgets/zivo_field.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../l10n/l10n.dart';
 import '../../domain/common_foods.dart';
@@ -325,16 +326,12 @@ class _NotesField extends StatelessWidget {
           textCapitalization: TextCapitalization.sentences,
           cursorColor: TrainColors.green,
           style: AppText.body.copyWith(color: TrainColors.ink, height: 1.5),
-          decoration: InputDecoration(
+          decoration: zivoFieldDecoration(
             hintText: hint,
             hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
-            filled: true,
-            fillColor: TrainColors.base,
             contentPadding: const EdgeInsets.all(14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
+            radius: 14,
+            focusRing: false,
           ),
         ),
       ],

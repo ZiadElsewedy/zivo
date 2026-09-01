@@ -5,6 +5,7 @@ import '../../l10n/l10n.dart';
 import '../scope/app_scope.dart';
 import '../theme/app_typography.dart';
 import '../theme/train_tokens.dart';
+import '../widgets/zivo_sheet.dart';
 
 /// The language picker: Arabic, English, or whatever the phone is set to.
 ///
@@ -14,9 +15,9 @@ import '../theme/train_tokens.dart';
 /// be a row that cycles: a user who lands in a language they don't read has to
 /// be able to see their own listed and tap it.
 Future<void> showLanguageSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showZivoSheet<void>(
     context: context,
-    backgroundColor: Colors.transparent,
+    isScrollControlled: false,
     builder: (sheetContext) => const _LanguageSheet(),
   );
 }
@@ -44,8 +45,16 @@ class _LanguageSheet extends StatelessWidget {
             const SizedBox(height: 18),
             for (final (key, locale, label) in <(String, Locale?, String)>[
               ('language-system', null, strings.settingsLanguageSystem),
-              ('language-en', const Locale('en'), strings.settingsLanguageEnglish),
-              ('language-ar', const Locale('ar'), strings.settingsLanguageArabic),
+              (
+                'language-en',
+                const Locale('en'),
+                strings.settingsLanguageEnglish,
+              ),
+              (
+                'language-ar',
+                const Locale('ar'),
+                strings.settingsLanguageArabic,
+              ),
             ])
               _Option(
                 key: Key(key),

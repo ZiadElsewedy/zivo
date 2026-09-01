@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_field.dart';
 
 /// A labelled numeric field on the handoff's material — the one used by every
 /// diet screen that asks for a number (targets, body data).
@@ -54,38 +55,14 @@ class DietNumberField extends StatelessWidget {
             ],
             cursorColor: TrainColors.green,
             style: AppText.rowTitle,
-            decoration: InputDecoration(
+            decoration: zivoFieldDecoration(
               isDense: true,
               hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: 12,
-              ),
-              filled: true,
-              fillColor: TrainColors.base,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+              focusRing: false,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-/// Parses a decimal the user typed, accepting a comma as the decimal mark.
-/// Null for anything that isn't a positive number — a blank field and "abc"
-/// are the same thing here: not a number.
-double? parsePositiveDecimal(String text) {
-  final parsed = double.tryParse(text.trim().replaceAll(',', '.'));
-  return (parsed == null || parsed <= 0) ? null : parsed;
-}
-
-/// Parses a whole number the user typed; null unless it's positive.
-int? parsePositiveInt(String text) {
-  final parsed = int.tryParse(text.trim());
-  return (parsed == null || parsed <= 0) ? null : parsed;
 }

@@ -5,6 +5,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_chrome.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../pages/diet_dictate_page.dart';
 import '../pages/diet_import_page.dart';
 import '../pages/diet_plan_edit_page.dart';
@@ -24,10 +25,8 @@ import '../../../../l10n/l10n.dart';
 /// then they photograph one, then they describe their own — and last, for the
 /// people who have no plan at all, ZIVO builds one.
 Future<void> showAddDietSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showZivoSheet<void>(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
     builder: (sheetContext) => _AddDietSheet(sheetContext: sheetContext),
   );
 }

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../domain/expense_category.dart';
 import 'category_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../l10n/l10n.dart';
 
 /// Bottom sheet for creating a custom expense category: a name and a stroked
@@ -18,14 +19,9 @@ class AddCategorySheet extends StatefulWidget {
   const AddCategorySheet({super.key});
 
   static Future<String?> show(BuildContext context) {
-    return showModalBottomSheet<String>(
+    return showZivoSheet<String>(
       context: context,
-      backgroundColor: TrainColors.raised,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const AddCategorySheet(),
+      builder: (_) => const ZivoSheetSurface(child: AddCategorySheet()),
     );
   }
 

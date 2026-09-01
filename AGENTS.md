@@ -47,7 +47,9 @@ spirit. Owner: Ziad.
   [`AppScope`](lib/core/scope/app_scope.dart). This is the backend swap point and the
   reason tests run without Firebase. Presentation depends on `domain/` interfaces only.
 - **No new foundational framework** as a side effect of feature work. The app
-  deliberately uses **plain `setState` + streams + the `AppScope` `InheritedWidget`**,
+  deliberately uses **plain `setState` + streams + the `AppScope` `InheritedWidget`**
+  (and, for a screen whose rules outgrew `setState`, a plain `ChangeNotifier`
+  controller in `presentation/controllers/` — [ADR-008](docs/DECISIONS/ADR-008-presentation-controllers.md)),
   `IndexedStack` + `Navigator` for routing. Do **not** introduce `go_router`,
   `riverpod`/`bloc`/`provider`/`get_it`, etc. without an ADR. *(Firebase is the adopted
   backend — that ship has sailed; everything else above has not.)*
@@ -106,7 +108,8 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | [`core/media/`](lib/core/media) | Storage-agnostic media pipeline: local-first store + registry + Google Drive backup |
 | [`core/env/app_environment.dart`](lib/core/env/app_environment.dart) | `USE_FIRESTORE` and other dart-define flags |
 | [`core/firebase/uid_source.dart`](lib/core/firebase/uid_source.dart) | Current-uid source injected into every Firestore repo |
-| [`core/widgets/`](lib/core/widgets) | Shared widgets (RiseIn, reactive state views, toasts, loading bar, marks) |
+| [`core/widgets/`](lib/core/widgets) | Shared widgets (RiseIn, reactive state views, toasts, loading bar, marks). **`zivo_sheet.dart` is the one way to open a bottom sheet** (`showZivoSheet`, + `ZivoSheetSurface`/`ZivoSheetHandle` for the chrome); **`zivo_field.dart` is the one filled-input decoration** (`zivoFieldDecoration`, which takes the feature's hue); **`zivo_confirm.dart` is the one destructive confirmation** (`confirmDestructive`, whose labels default to the localized `actionDelete`/`actionCancel`) |
+| [`core/util/`](lib/core/util) | Small shared functions — `parse.dart` (every number a user types), `money.dart`, `time_ago.dart` |
 
 **Backend ([`functions/`](functions), Node — Cloud Functions):** `functions/ai/` —
 `gateway.js` (Ask streaming + tool loop + coach persona), `tools.js` (read tools),
@@ -174,4 +177,5 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Type · motion · tone identity (colour superseded by ADR-006) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
+| [`docs/DECISIONS/ADR-008-presentation-controllers.md`](docs/DECISIONS/ADR-008-presentation-controllers.md) | **When a page gets a controller, and the rules that keep the seam honest** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

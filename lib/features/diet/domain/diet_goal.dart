@@ -18,11 +18,13 @@ String dietGoalLabel(DietGoal goal) => switch (goal) {
 /// One line explaining what choosing this goal means for the numbers — shown
 /// under each option so the user is picking an outcome, not a jargon word.
 String dietGoalDescription(DietGoal goal) => switch (goal) {
-  DietGoal.fatLoss => 'Eat below maintenance to lose fat, keeping protein high.',
+  DietGoal.fatLoss =>
+    'Eat below maintenance to lose fat, keeping protein high.',
   DietGoal.maintain => 'Hold weight steady at roughly maintenance calories.',
   DietGoal.muscleGain => 'Eat above maintenance to support building muscle.',
-  DietGoal.recomp => 'Hold calories near maintenance with protein high enough '
-      'to build while leaning out.',
+  DietGoal.recomp =>
+    'Hold calories near maintenance with protein high enough '
+        'to build while leaning out.',
 };
 
 /// Parses a stored [DietGoal] name. Returns null — never a default — for an

@@ -7,6 +7,7 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/util/parse.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../workout/domain/body_weight_entry.dart';
 import '../../domain/body_measures.dart';

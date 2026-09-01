@@ -5,6 +5,8 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/body_measures.dart';
 import '../../domain/diet_goal.dart';
@@ -156,10 +158,8 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
     }
 
     final measures = resolution.measures!;
-    final confirmed = await showModalBottomSheet<bool>(
+    final confirmed = await showZivoSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _CalculatorSheet(
         goal: _goal ?? DietGoal.maintain,
         measures: measures,
