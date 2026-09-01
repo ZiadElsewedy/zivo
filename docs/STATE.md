@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-01 · **Active branch:** `version-1`
-(51 commits ahead of `main` — worth a merge).
+**Last updated:** 2026-09-01 · **Active branch:** `core-edits`
+(`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
 
@@ -43,6 +43,23 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   The two foundational edits did the most work: `AppText`'s default ink and
   `AppTheme`'s `scaffoldBackgroundColor` were warm, so every screen that didn't override
   them inherited a warm cast — including the cool handoff ones.
+- **One type system, app-wide** (done 2026-09-01). Recorded as
+  [ADR-009](DECISIONS/ADR-009-one-type-system.md). ADR-006 unified colour but left
+  typography split: `AppText` was still Brand v2's **Bricolage Grotesque / Hanken Grotesk /
+  Fraunces** — three faces chosen for the deleted warm off-white skin — while `TrainType`
+  carried the handoff's **Azeret Mono / Manrope / Instrument Serif**. Five families, two
+  systems, meeting on 14 files (`today_page.dart` included). Now **three families, named in
+  exactly one file** (`train_tokens.dart`): Manrope = text/prose/titles/chrome, Azeret Mono =
+  numbers/timers/micro-labels (tabular, never prose), Instrument Serif italic = ZIVO
+  speaking. `AppText` survives as the **named ladder** built on those builders — its ~500
+  call sites are untouched — because `AppText.rowTitle` (what a thing *is*) and
+  `TrainType.mono(size: 54)` (a size) answer different questions. `GoogleFonts` is called in
+  one file. Deliberate visual changes: display steps up one weight, `body` w400→w500 (45%
+  ink on near-black), `heroNumber`/`amount` to mono, and `aside` to Instrument Serif — which
+  fixes a rule that was inverted in practice (the "reserved" serif had 1 call site while
+  Fraunces did the same job at 24). `AppText.dateLabel` was dead and is deleted.
+  **Follow-up not done:** the three families are still fetched at runtime by `google_fonts`;
+  bundling them in `pubspec.yaml` would remove the first-launch fallback-then-reflow.
 - **Hue discipline: hold the rule strictly** (owner decision, 2026-08-29, audit C2 —
   **implemented**; rationale in [ADR-006](DECISIONS/ADR-006-one-design-system.md)). A hue appears only where it means its thing: green = training/state,
   ember = the single committing action, amber = money, violet = system/meta. Grids

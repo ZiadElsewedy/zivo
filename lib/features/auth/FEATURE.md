@@ -24,7 +24,7 @@
   deletion), `media_backup_section.dart` (the Media & Backup settings block).
 - Shared auth chrome — use these on any new auth surface so the flow stays one system:
   `auth_backdrop.dart` (the warm hue bloom over the ground), `auth_header.dart`
-  (`AuthHeader` title + Fraunces aside, `AuthSectionLabel` for a field group), and
+  (`AuthHeader` title + italic-serif aside, `AuthSectionLabel` for a field group), and
   `auth_footer_bar.dart` (`AuthFooterBar`: bottom-anchored primary action with a scroll-edge
   fade). `AuthTextField` owns the floating label, focus glow, and password reveal —
   don't hand-roll an `InputDecoration` field alongside it.

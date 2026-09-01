@@ -61,8 +61,11 @@ spirit. Owner: Ziad.
   [`lib/core/theme/`](lib/core/theme) and [`lib/core/motion/springs.dart`](lib/core/motion/springs.dart),
   and the shared capture widgets. **One palette only — `TrainColors`; `AppColors`/`AppShadows`
   are deleted and must not come back** ([ADR-006](docs/DECISIONS/ADR-006-one-design-system.md)).
+  **One type system only — three families, all named in `train_tokens.dart`: Manrope (text),
+  Azeret Mono (numbers), Instrument Serif italic (ZIVO speaking). Never call `GoogleFonts`
+  anywhere else** ([ADR-009](docs/DECISIONS/ADR-009-one-type-system.md)).
   See also [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) for intent (superseded for
-  colour values by ADR-006).
+  colour values by ADR-006 and for typography by ADR-009).
 - **Security is deny-by-default, owner-scoped.** All persistence goes through Firestore
   with per-collection field validation in [`firestore.rules`](firestore.rules), covered by
   the emulator suite in [`firestore-tests/`](firestore-tests). A new collection needs a
@@ -174,8 +177,9 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference | reference |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits · sessions · progression engine | reference |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction/screen blueprints | design intent |
-| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Type · motion · tone identity (colour superseded by ADR-006) | reference |
+| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Motion · tone · meaning identity (colour superseded by ADR-006, type by ADR-009) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
 | [`docs/DECISIONS/ADR-008-presentation-controllers.md`](docs/DECISIONS/ADR-008-presentation-controllers.md) | **When a page gets a controller, and the rules that keep the seam honest** | reference |
+| [`docs/DECISIONS/ADR-009-one-type-system.md`](docs/DECISIONS/ADR-009-one-type-system.md) | **Three typefaces, one system — what `AppText` and `TrainType` are each for** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

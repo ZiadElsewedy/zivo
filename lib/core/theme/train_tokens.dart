@@ -224,15 +224,26 @@ abstract final class TrainColors {
   ];
 }
 
-/// The handoff's two type families.
+/// **The app's three type families — the only place ZIVO names a typeface.**
 ///
 /// * [mono] — **Azeret Mono**, for every number, timer and micro-caption.
 ///   Always tabular so a running value never shifts width.
-/// * [ui] — **Manrope**, for names, titles and button labels.
+/// * [ui] — **Manrope**, for names, titles, prose and button labels.
+/// * [serif] — **Instrument Serif** italic, for the assistant's voice.
 ///
-/// Both are builders rather than a fixed scale: the handoff specifies a size
-/// per element (54/34/27/20/13…) rather than a ladder, so pinning named steps
-/// would just make every call site fight them.
+/// These began as the handoff's families, scoped to eleven workout screens,
+/// while the rest of the app ran on Brand v2's Bricolage Grotesque / Hanken
+/// Grotesk / Fraunces. ADR-006 collapsed the two *palettes* and left the two
+/// *type systems* standing — five families meeting on fourteen screens, with
+/// Hanken and Manrope doing the identical job. `ADR-009` finished the job:
+/// v2's three faces are gone and [AppText]'s named ladder is built from these
+/// builders. Do not add a fourth family, and do not call `GoogleFonts`
+/// anywhere else — if a surface needs type, it comes from here.
+///
+/// [mono] and [ui] are builders rather than a fixed scale: the handoff
+/// specifies a size per element (54/34/27/20/13…) rather than a ladder, so
+/// pinning named steps would just make every call site fight them. Prose and
+/// chrome want the opposite, and get it from `AppText`.
 abstract final class TrainType {
   static const _tabular = [FontFeature.tabularFigures()];
 
@@ -268,14 +279,19 @@ abstract final class TrainType {
     color: color,
   );
 
-  /// **Instrument Serif, italic — the ZIVO assistant's voice, and nothing
-  /// else in the app** (identity §3).
+  /// **Instrument Serif, italic — ZIVO speaking, and nothing else** (identity
+  /// §3).
   ///
   /// This is the one place the app speaks rather than reports, so it gets the
   /// one typeface neither of the other two families can imitate. Using it for
   /// anything else — a section header, a marketing line, a headline that
   /// isn't ZIVO talking — would spend the distinction and leave the assistant
   /// sounding like the rest of the UI.
+  ///
+  /// The rule used to be true only on paper: `AppText.aside` was a *second*
+  /// italic serif (Fraunces) doing the same job at 24 call sites while this
+  /// one was used at exactly one. `AppText.aside` is now this face, so the
+  /// per-screen quiet line and ZIVO's own greeting are one voice.
   static TextStyle serif({
     required double size,
     Color color = const Color(0xFFF9F9F5),
