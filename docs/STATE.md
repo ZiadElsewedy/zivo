@@ -74,9 +74,11 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 ## Recently landed (verified in code on `version-1`)
 
 - **The app now streams what it is actually doing — Ask and PDF import** (2026-09-01, on
-  `core-edits`). **Owner action: needs a `functions` deploy** before any of the live
-  progress appears on device; without it both surfaces fall back to their buffered paths
-  and behave exactly as before (no breakage, just no progress).
+  `core-edits`). **Deployed to `zivo-63f15` 2026-09-01** — `aiChat` rev `aichat-00023-jiw`,
+  `aiImportWorkoutPlan` rev `aiimportworkoutplan-00018-jag`, `aiImportDietPlan` rev
+  `aiimportdietplan-00012-xoc`, all ACTIVE. Verified on device: a live turn's rail rendered
+  the streamed `working` phase (the buffered path can only ever show "Thinking…"), and two
+  multi-tool questions answered from real account data.
   - **Ask.** The rail sat on one `working` label for the whole tool loop. `gateway.js` now
     emits `{type:'step', tool, status}` as each **read** tool starts/finishes, and
     `AskController` maps the name to copy ("Reading today's diet…", "Looking that food
