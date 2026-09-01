@@ -25,6 +25,7 @@ import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/user_profile.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import 'settings_page.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account
@@ -46,10 +47,8 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _editName(BuildContext context, UserProfile profile) async {
-    final name = await showModalBottomSheet<String>(
+    final name = await showZivoSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => _EditTextSheet(
         title: 'Edit name',
         hint: 'Your name',
@@ -206,6 +205,12 @@ class ProfilePage extends StatelessWidget {
         builder: (context, snapshot) {
           final profile = snapshot.data;
           return SingleChildScrollView(
+            // A downward drag puts the keyboard away. The About card is
+            // edited in place with a multi-line field, whose Return key
+            // inserts a newline rather than closing anything — so without
+            // this (and the field's own tap-outside) the only exits were the
+            // Cancel/Save pair the keyboard was sitting on top of.
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             // The page scrolls UNDER the bottom object — the floating tab bar
             // plus the now-playing strip fused to it (the shell runs
             // `extendBody: true`). [BottomChrome] is that object's live
@@ -814,7 +819,23 @@ class _AboutSectionState extends State<_AboutSection> {
     if (widget.onSave == null) return;
     _controller.text = widget.bio ?? '';
     setState(() => _editing = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focus.requestFocus();
+      // Put the WHOLE card - field, counter and the Cancel/Save pair - above
+      // the keyboard, not just the caret. `alignment: 1.0` parks its bottom
+      // edge at the bottom of the (already keyboard-shortened) viewport;
+      // without it the field scrolled itself just far enough to show the
+      // cursor and left the two buttons under the keyboard, with no way to
+      // reach them and - on a multi-line field, whose Return key inserts a
+      // newline - no way to put the keyboard down either.
+      Scrollable.ensureVisible(
+        context,
+        alignment: 1,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _cancel() {
@@ -978,6 +999,11 @@ class _AboutSectionState extends State<_AboutSection> {
           maxLength: _maxLength,
           textCapitalization: TextCapitalization.sentences,
           cursorColor: TrainColors.ember,
+          // A tap anywhere off the card puts the keyboard down. A multi-line
+          // field's Return key makes a newline, so it cannot close its own
+          // keyboard - and Flutter only dismisses on tap-outside by default
+          // on desktop.
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           onChanged: (_) => setState(() {}),
           style: TrainType.ui(
             size: 13.5,
@@ -1155,16 +1181,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: TrainColors.hairlineStrong,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
+              Center(child: const ZivoSheetHandle()),
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.only(left: 2, bottom: 12),

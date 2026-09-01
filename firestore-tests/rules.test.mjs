@@ -40,7 +40,7 @@ const valid = {
   workouts: { title: 'W', performedAt: ts(), exercises: [], schemaVersion: 1 },
   moments: { caption: 'M', takenAt: ts(), schemaVersion: 1 },
   dietPlans: { name: 'Cut', status: 'active', days: [], schemaVersion: 1 },
-  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: true, schemaVersion: 1 },
+  dietEntries: { dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: true, schemaVersion: 1 },
   workoutPlans: { name: 'PPL', status: 'active', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 },
   workoutMeta: { activeSplitId: 'plan1' },
   workoutSessions: { dayLabel: 'Push', status: 'active', startedAt: ts(), exercises: [], schemaVersion: 1 },
@@ -55,7 +55,7 @@ const invalid = {
   workouts: { title: 'W', performedAt: ts(), exercises: 'nope', schemaVersion: 1 }, // exercises not a list
   moments: { caption: 'M', takenAt: ts() }, // missing schemaVersion
   dietPlans: { name: 'Cut', status: 'active', days: 'nope', schemaVersion: 1 }, // days not a list
-  dietEntries: { dayKey: '2026-01-01', mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
+  dietEntries: { dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: 'yes', schemaVersion: 1 }, // eaten not bool
   workoutPlans: { name: 'PPL', status: 'paused', source: 'manual', days: [], cycleCursor: 0, schemaVersion: 1 }, // status not in enum
   workoutMeta: { activeSplitId: 123 }, // activeSplitId neither string nor null
   workoutSessions: { dayLabel: 'Push', status: 'paused', startedAt: ts(), exercises: [], schemaVersion: 1 }, // status not in enum
@@ -259,6 +259,41 @@ describe('workouts delete path', () => {
   });
 });
 
+// The user keeps a LIBRARY of plans, of which one is active. The rules cannot
+// enforce "exactly one active" — that needs a read of sibling documents, which
+// rules cannot do, and it is held by the repository's batched write instead.
+// What the rules do hold is the shape of each document and the vocabulary its
+// status comes from.
+describe('dietPlans as a library', () => {
+  const plan = (patch = {}) => ({
+    name: 'Cut', status: 'active', days: [], schemaVersion: 1, ...patch,
+  });
+  const write = (id, data) =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/dietPlans/${id}`), data);
+
+  it('accepts several plans side by side', async () => {
+    await assertSucceeds(write('p1', plan({ updatedAt: ts() })));
+    await assertSucceeds(
+      write('p2', plan({ name: 'Bulk', status: 'archived', updatedAt: ts() })),
+    );
+    await assertSucceeds(
+      write('p3', plan({ name: 'Draft', status: 'draft', updatedAt: ts() })),
+    );
+  });
+
+  it('rejects a status outside the vocabulary', async () => {
+    await assertFails(write('p4', plan({ status: 'following' })));
+  });
+
+  it("a different signed-in user cannot read or reshuffle someone's library", async () => {
+    await seed(`users/${OWNER}/dietPlans/p1`, plan());
+    await assertFails(getDoc(doc(otherDb(), `users/${OWNER}/dietPlans/p1`)));
+    await assertFails(
+      setDoc(doc(otherDb(), `users/${OWNER}/dietPlans/p1`), plan({ status: 'archived' })),
+    );
+  });
+});
+
 describe('dietPlans delete path', () => {
   it('owner can delete their own plan; non-owner cannot', async () => {
     await seed(collPath(OWNER, 'dietPlans'), valid.dietPlans);
@@ -375,3 +410,254 @@ describe('users/{uid}/authEvents is an append-only audit log', () => {
   });
 });
 
+// The consumption log is what every "meals eaten" and "kcal left" figure in
+// the app is computed from, so its shape is validated tightly. These cover the
+// clauses added when the AI write path was hardened: a malformed entry is not
+// a loud failure, it is a quietly wrong number on the Diet screen.
+describe('dietEntries shape validation', () => {
+  const entry = (patch = {}) => ({
+    dayKey: '2026-01-01', date: ts(), mealId: 'm1', eaten: true,
+    schemaVersion: 1, ...patch,
+  });
+  const write = (data, id = 'e1') =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/dietEntries/${id}`), data);
+
+  it('accepts the shape the app actually writes', async () => {
+    await assertSucceeds(write(entry({ createdAt: ts(), updatedAt: ts() })));
+  });
+
+  it('rejects a dayKey that is not a yyyy-MM-dd calendar date', async () => {
+    await assertFails(write(entry({ dayKey: '2026-1-1' })));
+    await assertFails(write(entry({ dayKey: 'today' })));
+  });
+
+  it('rejects an empty or oversized mealId', async () => {
+    await assertFails(write(entry({ mealId: '' })));
+    await assertFails(write(entry({ mealId: 'm'.repeat(201) })));
+  });
+
+  it('rejects a missing or non-timestamp date', async () => {
+    await assertFails(write(entry({ date: '2026-01-01' })));
+    const { date, ...noDate } = entry();
+    await assertFails(write(noDate));
+  });
+
+  it('rejects unknown fields smuggled onto the entry', async () => {
+    await assertFails(write(entry({ calories: 9999 })));
+  });
+});
+
+// The user's objective. Everything the coach says is measured against this, so
+// an unreadable target is worse than none at all — the app would end up
+// coaching against a number nobody chose.
+describe('dietTargets shape validation', () => {
+  const targets = (patch = {}) => ({
+    goal: 'fatLoss', calories: 2200, proteinG: 160, carbsG: 250, fatG: 73,
+    source: 'calculated', schemaVersion: 1, ...patch,
+  });
+  const write = (data) =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/dietTargets/current`), data);
+
+  it('accepts the shape the app writes', async () => {
+    await assertSucceeds(write(targets({ updatedAt: ts() })));
+  });
+
+  it('accepts a target with no macro targets — blank means untracked', async () => {
+    await assertSucceeds(
+      write(targets({ proteinG: null, carbsG: null, fatG: null })),
+    );
+  });
+
+  it('rejects an unknown goal', async () => {
+    await assertFails(write(targets({ goal: 'shredded' })));
+  });
+
+  it('rejects a missing, zero or absurd calorie figure', async () => {
+    const { calories, ...noCalories } = targets();
+    await assertFails(write(noCalories));
+    await assertFails(write(targets({ calories: 0 })));
+    await assertFails(write(targets({ calories: 99999 })));
+    await assertFails(write(targets({ calories: 2200.5 })));
+  });
+
+  it('rejects an unknown provenance', async () => {
+    // A target has to say where it came from, from a fixed vocabulary — the
+    // same rule food figures follow with `estimated`.
+    await assertFails(write(targets({ source: 'vibes' })));
+  });
+
+  it('rejects unknown fields', async () => {
+    await assertFails(write(targets({ secretMultiplier: 2 })));
+  });
+
+  it('a different signed-in user can neither read nor write them', async () => {
+    await seed(`users/${OWNER}/dietTargets/current`, targets());
+    await assertFails(
+      getDoc(doc(otherDb(), `users/${OWNER}/dietTargets/current`)),
+    );
+    await assertFails(
+      setDoc(doc(otherDb(), `users/${OWNER}/dietTargets/current`), targets()),
+    );
+  });
+
+  it('the owner can delete their target', async () => {
+    await seed(`users/${OWNER}/dietTargets/current`, targets());
+    await assertSucceeds(
+      deleteDoc(doc(ownerDb(), `users/${OWNER}/dietTargets/current`)),
+    );
+  });
+});
+
+// Body data underwrites every "this plan makes you gain" answer the app gives.
+// A doc that stored two of its three required fields wouldn't fail loudly — it
+// would produce a maintenance figure resting on a default nobody chose.
+describe('bodyProfile shape validation', () => {
+  const profile = (patch = {}) => ({
+    heightCm: 178, sex: 'male', activity: 'moderate',
+    statedMaintenanceKcal: null, schemaVersion: 1, ...patch,
+  });
+  const write = (data) =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/bodyProfile/current`), data);
+
+  it('accepts the shape the app writes', async () => {
+    await assertSucceeds(write(profile({ updatedAt: ts() })));
+  });
+
+  it('accepts a stated maintenance figure the user knows', async () => {
+    await assertSucceeds(write(profile({ statedMaintenanceKcal: 2900 })));
+  });
+
+  it('rejects a profile missing any equation input', async () => {
+    const { heightCm, ...noHeight } = profile();
+    const { sex, ...noSex } = profile();
+    const { activity, ...noActivity } = profile();
+    await assertFails(write(noHeight));
+    await assertFails(write(noSex));
+    await assertFails(write(noActivity));
+  });
+
+  it('rejects an implausible height — a typo, not a person', async () => {
+    await assertFails(write(profile({ heightCm: 1.78 })));
+    await assertFails(write(profile({ heightCm: 300 })));
+  });
+
+  it('rejects unknown vocabularies', async () => {
+    await assertFails(write(profile({ sex: 'unspecified' })));
+    await assertFails(write(profile({ activity: 'olympian' })));
+  });
+
+  it('rejects an absurd stated maintenance figure', async () => {
+    await assertFails(write(profile({ statedMaintenanceKcal: 100 })));
+    await assertFails(write(profile({ statedMaintenanceKcal: 50000 })));
+  });
+
+  it('rejects unknown fields — no weight here, it lives in bodyWeights', async () => {
+    await assertFails(write(profile({ weightKg: 82 })));
+  });
+
+  it('a different signed-in user can neither read nor write it', async () => {
+    await seed(`users/${OWNER}/bodyProfile/current`, profile());
+    await assertFails(
+      getDoc(doc(otherDb(), `users/${OWNER}/bodyProfile/current`)),
+    );
+    await assertFails(
+      setDoc(doc(otherDb(), `users/${OWNER}/bodyProfile/current`), profile()),
+    );
+  });
+
+  it('the owner can delete their body data', async () => {
+    await seed(`users/${OWNER}/bodyProfile/current`, profile());
+    await assertSucceeds(
+      deleteDoc(doc(ownerDb(), `users/${OWNER}/bodyProfile/current`)),
+    );
+  });
+});
+
+// The food log is the ledger every consumed/remaining figure is computed from,
+// so a malformed entry doesn't fail loudly — it quietly makes the coach wrong.
+describe('foodLogs shape validation', () => {
+  const entry = (patch = {}) => ({
+    dayKey: '2026-01-01', date: ts(), loggedAt: ts(),
+    foodId: 'usda:171477', foodName: 'Chicken breast, roasted',
+    quantity: 200, unit: 'g', grams: 200,
+    kcal: 330, proteinG: 62, carbsG: 0, fatG: 7.2,
+    source: 'usdaFdc', sourceRef: '171477', origin: 'logged',
+    estimated: false, mealId: null, schemaVersion: 1, ...patch,
+  });
+  const write = (data, id = 'e1') =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/foodLogs/${id}`), data);
+
+  it('accepts the shape the app writes', async () => {
+    await assertSucceeds(write(entry()));
+  });
+
+  it('requires a food reference — a figure with nothing behind it is the '
+    + 'exact thing this design forbids', async () => {
+    await assertFails(write(entry({ foodId: '' })));
+    const { foodId, ...noFood } = entry();
+    await assertFails(write(noFood));
+  });
+
+  it('requires provenance from a fixed vocabulary', async () => {
+    await assertFails(write(entry({ source: 'guessed' })));
+    await assertFails(write(entry({ origin: 'probably' })));
+    // The three real sources are all accepted.
+    for (const source of ['usdaFdc', 'userCustom', 'dietPlan']) {
+      await assertSucceeds(write(entry({ source }), `ok-${source}`));
+    }
+  });
+
+  it('rejects negative or absurd nutrition', async () => {
+    await assertFails(write(entry({ kcal: -1 })));
+    await assertFails(write(entry({ kcal: 99999 })));
+    await assertFails(write(entry({ proteinG: -5 })));
+    await assertFails(write(entry({ kcal: 330.5 })));
+  });
+
+  it('rejects a malformed dayKey and unknown fields', async () => {
+    await assertFails(write(entry({ dayKey: 'today' })));
+    await assertFails(write(entry({ verified: true })));
+  });
+
+  it('a different signed-in user cannot read or write it', async () => {
+    await seed(`users/${OWNER}/foodLogs/e9`, entry());
+    await assertFails(getDoc(doc(otherDb(), `users/${OWNER}/foodLogs/e9`)));
+    await assertFails(setDoc(doc(otherDb(), `users/${OWNER}/foodLogs/e9`), entry()));
+  });
+});
+
+// A user's own foods: validated for shape and plausibility, never for
+// "correctness" — it is not the app's place to tell someone their own recipe
+// is wrong.
+describe('customFoods shape validation', () => {
+  const food = (patch = {}) => ({
+    name: 'Koshari (mum)', kcalPer100g: 150, proteinPer100g: 5,
+    carbsPer100g: 27, fatPer100g: 3, preparation: 'cooked',
+    portions: [{ label: 'plate', grams: 350 }],
+    schemaVersion: 1, createdAt: ts(), ...patch,
+  });
+  const write = (data, id = 'f1') =>
+    setDoc(doc(ownerDb(), `users/${OWNER}/customFoods/${id}`), data);
+
+  it('accepts a food the user defined', async () => {
+    await assertSucceeds(write(food()));
+  });
+
+  it('requires a name and a per-100g energy figure', async () => {
+    await assertFails(write(food({ name: '' })));
+    const { kcalPer100g, ...noEnergy } = food();
+    await assertFails(write(noEnergy));
+  });
+
+  it('rejects physically impossible composition', async () => {
+    // Nothing is more than 100g of macro per 100g, and no food exceeds pure
+    // fat's energy density.
+    await assertFails(write(food({ proteinPer100g: 150 })));
+    await assertFails(write(food({ kcalPer100g: 5000 })));
+    await assertFails(write(food({ fatPer100g: -1 })));
+  });
+
+  it('rejects unknown fields', async () => {
+    await assertFails(write(food({ verified: true })));
+  });
+});

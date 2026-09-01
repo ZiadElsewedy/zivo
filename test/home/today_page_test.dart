@@ -12,7 +12,9 @@ import 'package:zivo/features/diet/data/firestore_diet_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_plan.dart';
 import 'package:zivo/features/diet/domain/diet_plan_status.dart';
+import 'package:zivo/features/diet/domain/diet_goal.dart';
 import 'package:zivo/features/diet/domain/diet_repository.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/expenses/domain/expense.dart';
@@ -40,6 +42,7 @@ import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_day_details_page.dart';
 
+import '../support/diet_repository_stub.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/inert_music_controller.dart';
@@ -201,7 +204,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Full Arm'), findsOneWidget);
-      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsOneWidget);
       expect(find.text('Pull'), findsNothing);
       expect(find.text('Lat Pulldown'), findsNothing);
       expect(find.text('No training plan yet'), findsNothing);
@@ -251,7 +254,7 @@ void main() {
       expect(find.text('EXERCISES'), findsOneWidget);
       expect(find.text('SETS'), findsOneWidget);
       expect(find.text('1'), findsNWidgets(2));
-      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsOneWidget);
       expect(find.text('No training plan yet'), findsNothing);
     },
   );
@@ -272,7 +275,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Ready to start Full Arm?'), findsNothing);
-      await tester.tap(find.text('Start Workout'));
+      await tester.tap(find.text('Start workout'));
       await _settle(tester);
 
       expect(find.byType(LiveSessionPage), findsOneWidget);
@@ -363,9 +366,9 @@ void main() {
 
       // Home follows the running session's day, not the next-due day.
       expect(find.text('Legs'), findsOneWidget);
-      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsOneWidget);
       expect(find.text('Full Arm'), findsNothing);
-      expect(find.text('Start Workout'), findsNothing);
+      expect(find.text('Start workout'), findsNothing);
     },
   );
 
@@ -392,7 +395,7 @@ void main() {
         ),
       );
       await _settle(tester);
-      expect(find.text('Resume Workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsOneWidget);
 
       // Completing the session clears "active" — Home reactively falls back to
       // the next-due day (no rebuild/navigation needed).
@@ -400,8 +403,8 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Full Arm'), findsOneWidget);
-      expect(find.text('Start Workout'), findsOneWidget);
-      expect(find.text('Resume Workout'), findsNothing);
+      expect(find.text('Start workout'), findsOneWidget);
+      expect(find.text('Resume workout'), findsNothing);
     },
   );
 
@@ -417,6 +420,58 @@ void main() {
 
     // Seeded plan: 3 meals (Breakfast/Lunch/Dinner), none eaten yet.
     expect(find.textContaining('of 3 meals eaten'), findsOneWidget);
+    // With no target set, the line names the plan as its baseline rather than
+    // implying a goal the user never chose.
+    expect(find.textContaining('kcal left of plan'), findsOneWidget);
+  });
+
+  testWidgets('Diet glance measures the target once one is set — the same '
+      'yardstick the Diet screen uses', (tester) async {
+    // Today and Diet quoting "kcal left" against different baselines is the
+    // quiet disagreement that makes a number untrustworthy.
+    await tallView(tester);
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 2000,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(child: const TodayPage(), diet: diet));
+    await _settle(tester);
+
+    expect(find.textContaining('2000 kcal left of target'), findsOneWidget);
+    expect(find.textContaining('of plan'), findsNothing);
+  });
+
+  testWidgets('Diet glance says "over target" rather than a clamped zero',
+      (tester) async {
+    await tallView(tester);
+    final diet = InMemoryDietRepository();
+    addTearDown(diet.dispose);
+    await diet.saveTargets(
+      NutritionTargets(
+        goal: DietGoal.fatLoss,
+        calories: 200,
+        source: TargetSource.manual,
+        updatedAt: DateTime(2026, 8, 30),
+      ),
+    );
+    // Breakfast is 310 kcal in the seeded plan.
+    await diet.setMealEaten(
+      mealId: 'seed-meal-breakfast',
+      day: DateTime.now(),
+      eaten: true,
+    );
+
+    await tester.pumpWidget(_wrap(child: const TodayPage(), diet: diet));
+    await _settle(tester);
+
+    expect(find.textContaining('110 kcal over target'), findsOneWidget);
   });
 
   testWidgets('Diet glance is hidden when there is no active plan', (
@@ -554,7 +609,7 @@ Future<void> _settle(WidgetTester tester) async {
 /// A [DietRepository] that starts with (or without) a plan and rebroadcasts
 /// reactively on [savePlan]/[deletePlan] — used to prove the Get Started
 /// card collapses the moment a diet plan shows up.
-class _TestDietRepository implements DietRepository {
+class _TestDietRepository extends DietRepositoryStub {
   _TestDietRepository([DietPlan? initial]) : _plan = initial;
 
   DietPlan? _plan;
@@ -590,7 +645,37 @@ class _TestDietRepository implements DietRepository {
     required bool eaten,
   }) async {}
 
-  void dispose() => _controller.close();
+  @override
+  NutritionTargets? get currentTargets => _targets;
+
+  @override
+  Stream<NutritionTargets?> watchTargets() async* {
+    yield _targets;
+    yield* _targetsController.stream;
+  }
+
+  @override
+  Future<void> saveTargets(NutritionTargets targets) async {
+    _targets = targets;
+    _targetsController.add(_targets);
+  }
+
+  @override
+  Future<void> clearTargets() async {
+    _targets = null;
+    _targetsController.add(null);
+  }
+
+
+
+  NutritionTargets? _targets;
+  final StreamController<NutritionTargets?> _targetsController =
+      StreamController<NutritionTargets?>.broadcast();
+
+  void dispose() {
+    _controller.close();
+    _targetsController.close();
+  }
 }
 
 /// An [ExpenseRepository] that starts with (or without) items and

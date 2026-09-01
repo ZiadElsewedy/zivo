@@ -6,6 +6,38 @@
  * directly, so it runs offline under `node --test`.
  *
  * Strictly READ-ONLY: no tool writes, creates, or deletes anything.
+ *
+ * Two rules this registry holds to, both about trust rather than mechanics:
+ *
+ * 1. **Every payload states its own date.** Nothing else in a turn tells the
+ *    model what day it is. A tool that resolves "today" says which day that
+ *    was, in the user's timezone (`offsetMinutes`, forwarded from the client
+ *    by `aiChat` — see `./dates.js`).
+ * 2. **Nutrition carries its provenance.** A calorie/macro figure that was
+ *    AI-estimated at PDF import time (`FoodItem.estimated`) travels with that
+ *    flag, per item and aggregated onto the day totals, so the coach can say
+ *    "about" where the number is a guess instead of quoting it as measured.
+ * 3. **The coach is handed decisions, not just data.** Alongside the state
+ *    comes `findings` — what the deterministic rules engine
+ *    (`functions/diet/rules.js`) concluded, each typed, ranked, and carrying
+ *    the state fields it rests on. The model phrases them; it does not decide
+ *    them.
+ * 4. **One state, both surfaces.** The diet payload IS the `DietState` the
+ *    Diet screen renders, built by the same rules (`functions/diet/state.js`,
+ *    mirrored from Dart and pinned by shared golden vectors). Two surfaces
+ *    deriving "how am I doing" independently is how they end up disagreeing,
+ *    and a coach that contradicts the screen is worse than no coach.
+ * 5. **Consumption is the LOG, not the plan.** What the user recorded eating
+ *    (`foodLogs`) is what `consumed`/`remaining` are computed from. Each entry
+ *    says whether a person logged it or the app materialised it from a ticked
+ *    meal, and the payload says which kind the day is made of — "you ate 1,850"
+ *    and "the plan values what you ticked at 1,850" are different claims.
+ * 6. **"Target" is never implied.** The user's own objective
+ *    (`dietTargets/current`) is reported as `targets`, and `null` when they
+ *    haven't set one; a plan day's own sum is reported separately as
+ *    `nutrition.target` and never passed off as a goal anyone chose. Where
+ *    real targets exist, the remaining budget is computed here so the coach
+ *    doesn't have to derive it.
  */
 
 const {
@@ -13,8 +45,19 @@ const {
   dayRangeMs,
   weekRangeMs,
   monthRangeMs,
+  isoWeekday,
+  localHourAt,
   resolveDietDay,
 } = require("./dates");
+const {buildDietState, summariseHistory} = require("../diet/state");
+const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
+const {coachingFindings} = require("../diet/rules");
+const {
+  resolveComposite,
+  resolveAndCompute,
+  normalizeItem,
+  summariseFood,
+} = require("../nutrition/resolve");
 
 /**
  * ISO string for `date`, or null.
@@ -23,37 +66,6 @@ const {
  */
 function iso(date) {
   return date ? date.toISOString() : null;
-}
-
-/**
- * A short excerpt of `body` centered on the first case-insensitive match of
- * `query`, ellipsized at either end when truncated.
- * @param {string} body
- * @param {string} query
- * @return {string}
- */
-function snippetAround(body, query) {
-  const lower = body.toLowerCase();
-  const idx = lower.indexOf(query.toLowerCase());
-  if (idx === -1) return body.slice(0, 140);
-  const radius = 60;
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(body.length, idx + query.length + radius);
-  const prefix = start > 0 ? "…" : "";
-  const suffix = end < body.length ? "…" : "";
-  return `${prefix}${body.slice(start, end)}${suffix}`;
-}
-
-/**
- * `tasks` filtered by 'open' (default, not done) | 'done' | 'all'.
- * @param {!Array<Object>} tasks
- * @param {string} filter
- * @return {!Array<Object>}
- */
-function filterTasks(tasks, filter) {
-  if (filter === "done") return tasks.filter((t) => t.done);
-  if (filter === "all") return tasks;
-  return tasks.filter((t) => !t.done);
 }
 
 /**
@@ -77,11 +89,22 @@ function sumItemField(items, field) {
 }
 
 /**
+ * Whether any of `items` carries AI-estimated nutrition — the aggregate form
+ * of `FoodItem.estimated`. A total built from even one estimated item is
+ * itself an estimate, and must not be quoted as a measured value.
+ * @param {!Array<Object>} items
+ * @return {boolean}
+ */
+function anyEstimated(items) {
+  return items.some((item) => item && item.estimated === true);
+}
+
+/**
  * Aggregates a set of planned meals into day-level nutrition totals — the
  * target side when fed every meal, the consumed side when fed only the eaten
  * ones. Each component is null when no contributing item states it.
  * @param {!Array<Object>} meals Planned meals (label/items shape).
- * @return {!Object} `{calories, proteinG, carbsG, fatG}` totals or nulls.
+ * @return {!Object} `{kcal, proteinG, carbsG, fatG, estimated}`.
  */
 function dayNutrition(meals) {
   const items = meals.flatMap(
@@ -91,152 +114,201 @@ function dayNutrition(meals) {
     proteinG: sumItemField(items, "proteinG"),
     carbsG: sumItemField(items, "carbsG"),
     fatG: sumItemField(items, "fatG"),
+    // True when at least one contributing item's figures were AI-estimated
+    // rather than stated by the user's own plan document.
+    estimated: anyEstimated(items),
   };
 }
 
 /**
- * The target-vs-consumed adherence block for one resolved diet day — consumed
- * counts only the meals whose eaten-toggle is set, so a checked-off meal
- * contributes its planned macros. Null components mean the plan doesn't state
- * that nutrient anywhere; they stay null rather than reading as zero.
- * @param {!Array<Object>} meals The day's planned meals.
- * @param {!Set<string>} eatenMealIds
- * @return {!Object} `{target, consumed}` nutrition totals.
+ * The user's objective as the model should see it — or null when unset.
+ * `source` travels with it for the same reason `estimated` travels with a
+ * calorie: a figure the user typed and one a formula proposed are different
+ * kinds of fact.
+ * @param {?Object} targets A `store.getDietTargets` result.
+ * @return {?Object}
  */
-function adherenceFor(meals, eatenMealIds) {
+function targetsPayload(targets) {
+  if (!targets) return null;
   return {
-    target: dayNutrition(meals),
-    consumed: dayNutrition(meals.filter((m) => m && eatenMealIds.has(m.id))),
+    goal: targets.goal,
+    calories: targets.calories,
+    proteinG: targets.proteinG,
+    carbsG: targets.carbsG,
+    fatG: targets.fatG,
+    source: targets.source,
+  };
+}
+
+/**
+ * Projects a `DietState` into the shape the model reads. Field order matters:
+ * tool results are truncated from the END, so what the coach must never lose —
+ * the date, the objective, where the user stands — is serialized first.
+ * @param {!Object} state
+ * @param {!Array<Object>} log The day's raw entries.
+ * @param {?number} localHour The user's own hour of day, when known.
+ * @return {!Object}
+ */
+function stateForModel(state, log, localHour) {
+  return {
+    date: state.dayKey,
+    targets: state.targets,
+    consumed: state.consumed,
+    remaining: state.remaining,
+    // What the rules engine concluded — typed, ranked and evidenced. These are
+    // decisions, already made; the model's job is to phrase them, not to
+    // second-guess them or to invent others.
+    findings: coachingFindings(state, localHour),
+    // What the app knows it doesn't know — handed over rather than left for
+    // the model to infer.
+    quality: state.quality,
+    // What this person burns, and how ZIVO knows — null when it doesn't.
+    // Carried with its source for the same reason `consumed.basis` is: a
+    // coach that can't say how it knows shouldn't be saying it.
+    energy: state.energy,
+    targetVersusMaintenance: state.targetVersusMaintenance,
+    plan: state.planName,
+    day: state.dayLabel,
+    // The plan's own daily sum, reported separately from `targets` and never
+    // to be described as a goal the user chose.
+    plannedKcal: state.plannedKcal,
+    mealsEaten: state.mealsEaten,
+    mealsTotal: state.mealsTotal,
+    meals: state.meals,
+    history: state.history,
+    // The individual foods, so the coach can talk about what was eaten rather
+    // than only about totals.
+    logEntries: log.map((e) => ({
+      food: e.foodName,
+      quantity: e.quantity,
+      unit: e.unit,
+      kcal: e.kcal,
+      proteinG: e.proteinG,
+      carbsG: e.carbsG,
+      fatG: e.fatG,
+      source: e.source,
+      origin: e.origin,
+      estimated: e.estimated,
+    })),
+  };
+}
+
+/**
+ * Loads the active plan's resolved day for `date` plus that day's eaten-meal
+ * ids — the shared read behind `get_diet` and `get_today`'s diet block.
+ * @param {!Object} store
+ * @param {string} uid
+ * @param {!Date} date
+ * @param {number=} offsetMinutes
+ * @return {!Promise<?{plan: !Object, dietDay: !Object, eaten: !Set<string>}>}
+ */
+async function loadDietDay(store, uid, date, offsetMinutes) {
+  const key = dayKeyFor(date, offsetMinutes);
+  const [plan, log] = await Promise.all([
+    store.getActiveDietPlan(uid),
+    store.listFoodLogs(uid, key),
+  ]);
+  if (!plan) return {plan: null, dietDay: null, eaten: new Set(), log};
+  const dietDay = resolveDietDay(plan.days, date, offsetMinutes);
+  if (!dietDay) return {plan, dietDay: null, eaten: new Set(), log};
+  const entries = await store.listDietEntries(uid, key);
+  return {
+    plan,
+    dietDay,
+    eaten: new Set(entries.filter((e) => e.eaten).map((e) => e.mealId)),
+    log,
   };
 }
 
 const TODAY_TOOL = {
   name: "get_today",
   description:
-    "A composed snapshot of 'today': schedule events, tasks due today or " +
-    "overdue (and still open), university items due today, today's " +
-    "workout(s), and today's diet plan with which meals are eaten and " +
-    "target-vs-consumed nutrition totals.",
+    "A composed snapshot of 'today' in the user's own timezone: the date, " +
+    "the user's diet targets and what's left of them, today's diet plan " +
+    "(which meals are eaten, plan-vs-consumed nutrition totals, and whether " +
+    "those figures are estimated), and today's workout(s). `targets` is null " +
+    "when the user hasn't set an objective — say so rather than treating the " +
+    "plan's own total as a goal.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const {fromMs, toMs} = dayRangeMs(now);
-    const [schedule, tasks, university, workouts, plan] = await Promise.all([
-      store.listSchedule(uid, {fromMs, toMs}),
-      store.listTasks(uid),
-      store.listUniversity(uid),
+  async execute(store, uid, input, now, offsetMinutes) {
+    const {fromMs, toMs} = dayRangeMs(now, offsetMinutes);
+    const dayKey = dayKeyFor(now, offsetMinutes);
+    // A week's history in one range query — `dayKey` is a sortable string, so
+    // no composite index and no seven round-trips.
+    const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    // Eight weeks for the maintenance calibration — the same window the app
+    // uses (`kCalibrationWindowDays`), so the coach measures over exactly the
+    // period the Diet screen does.
+    const calibrationStart =
+      new Date(now.getTime() - CALIBRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const [
+      workouts, dietDay, targets, historyRows,
+      bodyProfile, weighIns, dobMs, calibrationRows,
+    ] = await Promise.all([
       store.listWorkouts(uid, {fromMs, toMs}),
-      store.getActiveDietPlan(uid),
+      loadDietDay(store, uid, now, offsetMinutes),
+      store.getDietTargets(uid),
+      store.listFoodLogRange(
+          uid, dayKeyFor(weekAgo, offsetMinutes), dayKey),
+      store.getBodyProfile ? store.getBodyProfile(uid) : null,
+      store.listBodyWeights ? store.listBodyWeights(uid) : [],
+      store.getDateOfBirthMs ? store.getDateOfBirthMs(uid) : null,
+      store.listFoodLogRange ?
+        store.listFoodLogRange(
+            uid, dayKeyFor(calibrationStart, offsetMinutes), dayKey) : [],
     ]);
 
-    const tasksDueTodayOrOverdue = tasks.filter(
-        (t) => !t.done && t.due && t.due.getTime() < toMs,
-    );
-    const universityDueToday = university.filter(
-        (u) =>
-          !u.done && u.due && u.due.getTime() >= fromMs &&
-          u.due.getTime() < toMs,
-    );
+    // What this person burns, measured from their own data where possible and
+    // estimated only as a last resort. Assembled HERE and handed to the
+    // builder, mirroring the app: `buildDietState` derives nothing about
+    // bodies, so the coach and the screen are given the same figure rather
+    // than each computing one (`functions/diet/energy.js`).
+    const calibration = calibrateMaintenance({
+      weighIns: weighIns || [],
+      intake: dailyTotals(calibrationRows || []),
+    });
+    const energy = energyFor({
+      profile: bodyProfile,
+      weightKg: (weighIns || []).length > 0 ?
+        weighIns[weighIns.length - 1].weightKg : null,
+      age: dobMs === null || dobMs === undefined ?
+        null : ageFrom(dobMs, now.getTime()),
+      measuredMaintenanceKcal: calibration.measured ?
+        calibration.measured.maintenanceKcal : null,
+    });
 
-    const dietDay = resolveDietDay(plan ? plan.days : [], now);
-    let diet = null;
-    if (plan && dietDay) {
-      const entries = await store.listDietEntries(uid, dayKeyFor(now));
-      const eaten = new Set(
-          entries.filter((e) => e.eaten).map((e) => e.mealId),
-      );
-      diet = {
-        planName: plan.name,
-        dayLabel: dietDay.label,
-        nutrition: adherenceFor(dietDay.meals, eaten),
-        meals: dietDay.meals.map((m) => ({
-          id: m.id,
-          label: m.label,
-          eaten: eaten.has(m.id),
-          kcal: sumItemField(
-              Array.isArray(m.items) ? m.items : [], "calories"),
-        })),
-      };
-    }
+    const {plan, dietDay: day, eaten, log} = dietDay;
+    const state = buildDietState({
+      dayKey,
+      weekday: isoWeekday(now, offsetMinutes),
+      targets: targetsPayload(targets),
+      planName: plan ? plan.name : null,
+      day,
+      consumedMealIds: eaten,
+      log,
+      history: summariseHistory(historyRows, 7),
+      energy,
+    });
 
+    // The diet block leads the payload deliberately. Tool results are capped
+    // at `maxToolResultChars` and truncated from the END, so whatever is
+    // serialized last is what disappears — the user's objective and where they
+    // stand must never be silently half-delivered.
     return {
-      schedule: schedule.map((e) => ({title: e.title, start: iso(e.start)})),
-      tasksDueOrOverdue: tasksDueTodayOrOverdue.map((t) => ({
-        title: t.title,
-        priority: t.priority,
-        due: iso(t.due),
-      })),
-      universityDueToday: universityDueToday.map((u) => ({
-        title: u.title,
-        type: u.type,
-        due: iso(u.due),
-        courseName: u.courseName,
-      })),
+      ...stateForModel(state, log, localHourAt(now, offsetMinutes)),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
         durationMinutes: w.durationMinutes,
       })),
-      diet,
-    };
-  },
-};
-
-const TASKS_TOOL = {
-  name: "get_tasks",
-  description:
-    "List the user's tasks. filter: 'open' (default, not done), 'done', " +
-    "or 'all'.",
-  inputSchema: {
-    type: "object",
-    properties: {filter: {type: "string", enum: ["open", "done", "all"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input) {
-    const tasks = await store.listTasks(uid);
-    const filtered = filterTasks(tasks, input.filter || "open");
-    return {
-      tasks: filtered.map((t) => ({
-        title: t.title,
-        done: t.done,
-        priority: t.priority,
-        due: iso(t.due),
-      })),
-    };
-  },
-};
-
-const SCHEDULE_TOOL = {
-  name: "get_schedule",
-  description: "List schedule events. range: 'today' (default) or 'week'.",
-  inputSchema: {
-    type: "object",
-    properties: {range: {type: "string", enum: ["today", "week"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @param {Date} now
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input, now) {
-    const range = input.range === "week" ? weekRangeMs(now) : dayRangeMs(now);
-    const events = await store.listSchedule(uid, range);
-    return {
-      range: input.range === "week" ? "week" : "today",
-      events: events.map((e) => ({title: e.title, start: iso(e.start)})),
     };
   },
 };
@@ -260,11 +332,12 @@ const EXPENSES_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const range =
-      input.range === "month" ? monthRangeMs(now) : weekRangeMs(now);
+  async execute(store, uid, input, now, offsetMinutes) {
+    const range = input.range === "month" ?
+      monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
     const all = await store.listExpenses(uid, range);
     const items = input.category ?
       all.filter((e) => e.category === input.category) :
@@ -282,6 +355,7 @@ const EXPENSES_TOOL = {
 
     return {
       range: input.range === "month" ? "month" : "week",
+      today: dayKeyFor(now, offsetMinutes),
       currency,
       totalMinor,
       totalByCategory,
@@ -295,37 +369,6 @@ const EXPENSES_TOOL = {
         category: e.category,
         note: e.note || null,
         spentAt: iso(e.spentAt),
-      })),
-    };
-  },
-};
-
-const UNIVERSITY_TOOL = {
-  name: "get_university",
-  description:
-    "List university items (assignments/exams). filter: 'open' " +
-    "(default, not done) or 'all'.",
-  inputSchema: {
-    type: "object",
-    properties: {filter: {type: "string", enum: ["open", "all"]}},
-  },
-  /**
-   * @param {!Object} store
-   * @param {string} uid
-   * @param {!Object} input
-   * @return {!Promise<!Object>}
-   */
-  async execute(store, uid, input) {
-    const items = await store.listUniversity(uid);
-    const filtered =
-      input.filter === "all" ? items : items.filter((i) => !i.done);
-    return {
-      items: filtered.map((i) => ({
-        title: i.title,
-        type: i.type,
-        due: iso(i.due),
-        courseName: i.courseName,
-        done: i.done,
       })),
     };
   },
@@ -345,14 +388,16 @@ const WORKOUTS_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const range =
-      input.range === "month" ? monthRangeMs(now) : weekRangeMs(now);
+  async execute(store, uid, input, now, offsetMinutes) {
+    const range = input.range === "month" ?
+      monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
     const workouts = await store.listWorkouts(uid, range);
     return {
       range: input.range === "month" ? "month" : "week",
+      today: dayKeyFor(now, offsetMinutes),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
@@ -368,12 +413,37 @@ const WORKOUTS_TOOL = {
   },
 };
 
+/** Mirrors the app's `kCalibrationWindowDays`. */
+const CALIBRATION_WINDOW_DAYS = 56;
+
+/**
+ * Per-day kcal totals from raw log rows. Days with nothing logged are ABSENT,
+ * never zero — a zero would drag the intake average down and manufacture a
+ * deficit that never happened.
+ * @param {!Array<{dayKey: string, kcal: number}>} rows
+ * @return {!Array<{dayKey: string, kcal: number}>}
+ */
+function dailyTotals(rows) {
+  const byDay = new Map();
+  for (const row of rows) {
+    if (!row || !row.dayKey) continue;
+    byDay.set(row.dayKey, (byDay.get(row.dayKey) || 0) + (row.kcal || 0));
+  }
+  return [...byDay.entries()]
+      .map(([dayKey, kcal]) => ({dayKey, kcal}))
+      .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+}
+
 const DIET_TOOL = {
   name: "get_diet",
   description:
-    "The active diet plan's meals for a day (default today), with " +
-    "calories/macros, which meals are already eaten, and target-vs-consumed " +
-    "nutrition totals. day: optional 'yyyy-MM-dd'.",
+    "The active diet plan's meals for a day (default today, in the user's " +
+    "own timezone), with calories/macros, which meals are already eaten, " +
+    "plan-vs-consumed nutrition totals, the user's own daily `targets` and " +
+    "what's `remaining` of them. Every figure carries an `estimated` flag: " +
+    "true means it was AI-estimated when the plan was imported, not stated " +
+    "by the plan itself. `targets` is null when the user hasn't set an " +
+    "objective. day: optional 'yyyy-MM-dd'.",
   inputSchema: {
     type: "object",
     properties: {day: {type: "string"}},
@@ -383,29 +453,44 @@ const DIET_TOOL = {
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const date = input.day ? new Date(`${input.day}T00:00:00`) : now;
-    const plan = await store.getActiveDietPlan(uid);
-    if (!plan) return {plan: null};
+  async execute(store, uid, input, now, offsetMinutes) {
+    // An explicit `day` is a bare calendar date with no timezone of its own;
+    // anchor it at the user's local midnight so it resolves to that same
+    // calendar day rather than sliding into a neighbouring one.
+    const requested = typeof input.day === "string" ?
+      /^\d{4}-\d{2}-\d{2}$/.exec(input.day.trim()) : null;
+    const date = requested ?
+      new Date(`${requested[0]}T12:00:00Z`) : now;
+    const dateOffset = requested ? 0 : offsetMinutes;
 
-    const dietDay = resolveDietDay(plan.days, date);
-    if (!dietDay) return {plan: plan.name, day: null};
-
-    const entries = await store.listDietEntries(uid, dayKeyFor(date));
-    const eaten = new Set(
-        entries.filter((e) => e.eaten).map((e) => e.mealId),
-    );
+    const [{plan, dietDay, eaten, log}, targets] = await Promise.all([
+      loadDietDay(store, uid, date, dateOffset),
+      store.getDietTargets(uid),
+    ]);
+    const state = buildDietState({
+      dayKey: dayKeyFor(date, dateOffset),
+      weekday: isoWeekday(date, dateOffset),
+      targets: targetsPayload(targets),
+      planName: plan ? plan.name : null,
+      day: dietDay,
+      consumedMealIds: eaten,
+      log,
+    });
 
     return {
-      plan: plan.name,
-      day: dietDay.label,
-      nutrition: adherenceFor(dietDay.meals, eaten),
-      meals: dietDay.meals.map((m) => ({
+      // An explicit `day` is a past/future date, so "what hour is it" doesn't
+      // apply to it — time-sensitive rules correctly stay quiet.
+      ...stateForModel(
+          state, log, requested ? null : localHourAt(now, offsetMinutes)),
+      // The plan's items, so the coach can discuss what the plan prescribes
+      // rather than only its totals. Last in the payload: it is the block
+      // that can most afford to be truncated.
+      planItems: !dietDay ? [] : dietDay.meals.map((m) => ({
         id: m.id,
         label: m.label,
-        eaten: eaten.has(m.id),
         items: m.items.map((it) => ({
           name: it.name,
           quantity: it.quantity,
@@ -414,20 +499,36 @@ const DIET_TOOL = {
           proteinG: it.proteinG,
           carbsG: it.carbsG,
           fatG: it.fatG,
+          // Provenance, not decoration: true means this item's figures came
+          // from an AI estimate at import time, never from a measurement or
+          // the plan document itself.
+          estimated: it.estimated === true,
         })),
       })),
     };
   },
 };
 
-const SEARCH_NOTES_TOOL = {
-  name: "search_notes",
+const RESOLVE_FOOD_TOOL = {
+  name: "resolve_food",
   description:
-    "Case-insensitive substring search over the user's note bodies (not " +
-    "full-text). Returns matching snippets.",
+    "Identify a food in ZIVO's nutrition catalog (a USDA subset, plus any " +
+    "foods the user defined themselves) so you can price or log it. Returns " +
+    "ONE of three outcomes: 'resolved' (a single food, with its `foodId`, " +
+    "per-100g nutrition and the measures it supports), 'ambiguous' (several " +
+    "foods that differ materially in calories — e.g. raw vs cooked rice — " +
+    "each with a `foodId`; pick one with the user before logging), or " +
+    "'notFound' (nothing matched — the catalog is US-shaped, so say so and " +
+    "offer to log a custom food rather than guessing a number). Pass the " +
+    "`foodId` from a resolved/chosen result to calculate_meal_nutrition or " +
+    "log_food. query: the food, e.g. 'chicken breast'. preparation (optional): " +
+    "'raw', 'cooked' or 'dry' to disambiguate.",
   inputSchema: {
     type: "object",
-    properties: {query: {type: "string"}},
+    properties: {
+      query: {type: "string", description: "the food to look up"},
+      preparation: {type: "string", enum: ["raw", "cooked", "dry"]},
+    },
     required: ["query"],
   },
   /**
@@ -437,15 +538,133 @@ const SEARCH_NOTES_TOOL = {
    * @return {!Promise<!Object>}
    */
   async execute(store, uid, input) {
-    const query = (input.query || "").trim();
-    if (!query) return {matches: []};
-    const matches = await store.searchNotes(uid, query);
+    const query = typeof input.query === "string" ? input.query.trim() : "";
+    if (!query) {
+      return {outcome: "notFound", query: "", note: "No food named to look up."};
+    }
+    const preparation = ["raw", "cooked", "dry"].includes(input.preparation) ?
+      input.preparation : null;
+    const customFoods = await store.listCustomFoods(uid);
+    const match = resolveComposite({query, preparation}, customFoods);
+
+    if (match.kind === "notFound") {
+      return {
+        outcome: "notFound",
+        query,
+        note:
+          "Not in the catalog. It's US-shaped, so plenty of foods genuinely " +
+          "aren't. Tell the user, and offer to define it as a custom food " +
+          "rather than estimating.",
+      };
+    }
+    if (match.kind === "ambiguous") {
+      return {
+        outcome: "ambiguous",
+        query,
+        candidates: match.candidates.map(summariseFood),
+        note:
+          "These differ materially in calories, so choosing for the user " +
+          "would be a guess. Ask which they mean, then pass that foodId.",
+      };
+    }
+    const food = match.food;
     return {
-      matches: matches.map((n) => ({
-        title: n.title || null,
-        snippet: snippetAround(n.body || "", query),
-        updatedAt: iso(n.updatedAt),
-      })),
+      outcome: "resolved",
+      food: {
+        ...summariseFood(food),
+        per100g: {
+          kcal: Math.round(food.kcalPer100g),
+          proteinG: food.proteinPer100g,
+          carbsG: food.carbsPer100g,
+          fatG: food.fatPer100g,
+        },
+        measures: food.portions.map((p) => p.label),
+      },
+      alternatives: (match.alternatives || []).map(summariseFood),
+    };
+  },
+};
+
+const CALCULATE_MEAL_TOOL = {
+  name: "calculate_meal_nutrition",
+  description:
+    "Compute the calories and macros of one or more foods at given amounts — " +
+    "the ONLY way to turn a food and a quantity into a number. Never do this " +
+    "arithmetic yourself. Each item takes a `foodId` (from resolve_food, " +
+    "preferred) OR a `query`, plus `quantity` and `unit` (g, kg, oz, lb, or a " +
+    "measure the food supports like 'piece'). Returns each item's computed " +
+    "nutrition and a combined total. An item that is ambiguous, not found, or " +
+    "whose unit can't be converted is flagged instead of guessed, and the " +
+    "total is withheld until every item resolves. Use this to answer 'how " +
+    "many calories in …' and to preview before logging.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            foodId: {type: "string", description: "from resolve_food, preferred"},
+            query: {type: "string", description: "the food, if no foodId"},
+            preparation: {type: "string", enum: ["raw", "cooked", "dry"]},
+            quantity: {type: "number"},
+            unit: {type: "string", description: "g, oz, piece, …"},
+          },
+        },
+      },
+    },
+    required: ["items"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input) {
+    const raw = Array.isArray(input.items) ? input.items : [];
+    if (raw.length === 0) return {items: [], total: null, allResolved: false};
+    const customFoods = await store.listCustomFoods(uid);
+
+    const items = [];
+    let allResolved = true;
+    let kcal = 0;
+    let proteinG = 0;
+    let carbsG = 0;
+    let fatG = 0;
+    for (const rawItem of raw) {
+      let normalized;
+      try {
+        normalized = normalizeItem(rawItem);
+      } catch (err) {
+        allResolved = false;
+        items.push({outcome: "invalid", reason: err.message});
+        continue;
+      }
+      const result = resolveAndCompute(normalized, customFoods);
+      items.push(result);
+      if (result.outcome === "computed") {
+        kcal += result.kcal;
+        proteinG += result.proteinG;
+        carbsG += result.carbsG;
+        fatG += result.fatG;
+      } else {
+        allResolved = false;
+      }
+    }
+
+    return {
+      items,
+      // Only a total everything actually resolved to — a partial sum would be
+      // a number that looks whole but isn't.
+      total: allResolved ? {
+        kcal: Math.round(kcal),
+        proteinG: Math.round(proteinG * 10) / 10,
+        carbsG: Math.round(carbsG * 10) / 10,
+        fatG: Math.round(fatG * 10) / 10,
+      } : null,
+      allResolved,
     };
   },
 };
@@ -453,38 +672,24 @@ const SEARCH_NOTES_TOOL = {
 const SUMMARIZE_WEEK_TOOL = {
   name: "summarize_week",
   description:
-    "A composed digest of the current week across schedule, tasks, " +
-    "university, expenses, workouts, and diet.",
+    "A composed digest of the current week (in the user's own timezone) " +
+    "across workouts, expenses, and the active diet plan.",
   inputSchema: {type: "object", properties: {}},
   /**
    * @param {!Object} store
    * @param {string} uid
    * @param {!Object} input
    * @param {Date} now
+   * @param {number=} offsetMinutes
    * @return {!Promise<!Object>}
    */
-  async execute(store, uid, input, now) {
-    const week = weekRangeMs(now);
-    const [schedule, tasks, university, expenses, workouts, plan] =
-      await Promise.all([
-        store.listSchedule(uid, week),
-        store.listTasks(uid),
-        store.listUniversity(uid),
-        store.listExpenses(uid, week),
-        store.listWorkouts(uid, week),
-        store.getActiveDietPlan(uid),
-      ]);
-
-    const openTasksDueThisWeek = tasks.filter(
-        (t) =>
-          !t.done && t.due && t.due.getTime() >= week.fromMs &&
-          t.due.getTime() < week.toMs,
-    );
-    const universityDueThisWeek = university.filter(
-        (u) =>
-          !u.done && u.due && u.due.getTime() >= week.fromMs &&
-          u.due.getTime() < week.toMs,
-    );
+  async execute(store, uid, input, now, offsetMinutes) {
+    const week = weekRangeMs(now, offsetMinutes);
+    const [expenses, workouts, plan] = await Promise.all([
+      store.listExpenses(uid, week),
+      store.listWorkouts(uid, week),
+      store.getActiveDietPlan(uid),
+    ]);
 
     let totalMinor = 0;
     const totalByCategory = {};
@@ -497,38 +702,34 @@ const SUMMARIZE_WEEK_TOOL = {
     }
 
     return {
-      schedule: schedule.map((e) => ({title: e.title, start: iso(e.start)})),
-      openTasksDueThisWeek: openTasksDueThisWeek.map((t) => ({
-        title: t.title,
-        due: iso(t.due),
-      })),
-      universityDueThisWeek: universityDueThisWeek.map((u) => ({
-        title: u.title,
-        type: u.type,
-        due: iso(u.due),
-      })),
-      expenses: {currency, totalMinor, totalByCategory},
+      today: dayKeyFor(now, offsetMinutes),
+      weekStart: dayKeyFor(new Date(week.fromMs), offsetMinutes),
       workouts: workouts.map((w) => ({
         title: w.title,
         performedAt: iso(w.performedAt),
       })),
+      expenses: {currency, totalMinor, totalByCategory},
       dietPlan: plan ? plan.name : null,
     };
   },
 };
 
+// Read tools, in the order the model sees them. `get_tasks`, `get_schedule`,
+// `get_university` and `search_notes` were removed in 2026-08 together with
+// the Schedule/Tasks/University/Notes features themselves (ADR-004): they
+// read collections the app no longer writes, so they could only ever return
+// empty — while still costing a schema in every cached prefix and, in
+// `get_today`'s case, four awaited reads per call.
 const tools = [
   TODAY_TOOL,
-  TASKS_TOOL,
-  SCHEDULE_TOOL,
   EXPENSES_TOOL,
-  UNIVERSITY_TOOL,
   WORKOUTS_TOOL,
   DIET_TOOL,
-  SEARCH_NOTES_TOOL,
+  RESOLVE_FOOD_TOOL,
+  CALCULATE_MEAL_TOOL,
   SUMMARIZE_WEEK_TOOL,
 ];
 
 const toolsByName = new Map(tools.map((t) => [t.name, t]));
 
-module.exports = {tools, toolsByName, dayNutrition};
+module.exports = {tools, toolsByName, dayNutrition, anyEstimated};

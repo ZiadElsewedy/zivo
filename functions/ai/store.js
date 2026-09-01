@@ -48,48 +48,6 @@ class FirestoreStore {
 
   /**
    * @param {string} uid
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listTasks(uid) {
-    const snap = await this._user(uid).collection("tasks").get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        done: !!d.done,
-        priority: !!d.priority,
-        due: toDate(d.due),
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
-   * @param {{fromMs: number, toMs: number}} range
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listSchedule(uid, range) {
-    const snap = await this._user(uid)
-        .collection("schedule")
-        .where("start", ">=", Timestamp.fromMillis(range.fromMs))
-        .where("start", "<", Timestamp.fromMillis(range.toMs))
-        .get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        start: toDate(d.start),
-        end: toDate(d.end),
-        location: d.location || null,
-        label: d.label || null,
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
    * @param {{fromMs: number, toMs: number}} range
    * @return {!Promise<!Array<Object>>}
    */
@@ -108,25 +66,6 @@ class FirestoreStore {
         category: d.category || "other",
         note: d.note || null,
         spentAt: toDate(d.spentAt),
-      };
-    });
-  }
-
-  /**
-   * @param {string} uid
-   * @return {!Promise<!Array<Object>>}
-   */
-  async listUniversity(uid) {
-    const snap = await this._user(uid).collection("universityItems").get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        title: d.title || "",
-        type: d.type || "assignment",
-        due: toDate(d.due),
-        courseName: d.courseName || null,
-        done: !!d.done,
       };
     });
   }
@@ -155,30 +94,6 @@ class FirestoreStore {
   }
 
   /**
-   * Case-insensitive substring match over note bodies — Firestore has no
-   * native substring query, so this fetches the (personal-scale) note set
-   * and filters in memory, mirroring `search_notes`'s "naive search" scope.
-   * @param {string} uid
-   * @param {string} query
-   * @return {!Promise<!Array<Object>>}
-   */
-  async searchNotes(uid, query) {
-    const snap = await this._user(uid).collection("notes").get();
-    const lowerQuery = query.toLowerCase();
-    return snap.docs
-        .map((doc) => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            title: d.title || null,
-            body: d.body || "",
-            updatedAt: toDate(d.updatedAt),
-          };
-        })
-        .filter((n) => n.body.toLowerCase().includes(lowerQuery));
-  }
-
-  /**
    * The active `dietPlans` doc for `uid` (mirroring the client's "most
    * recently created plan with status active" resolution), or null.
    * @param {string} uid
@@ -201,6 +116,177 @@ class FirestoreStore {
       }
     }
     return null;
+  }
+
+  /**
+   * The user's nutrition targets (`dietTargets/current`), or null when they
+   * haven't set any.
+   *
+   * Null is a real answer, not a failure: ZIVO never invents a target, so the
+   * coach has to be able to say "you haven't set one" rather than quietly
+   * treating the plan's own total as a goal the user chose. A document that
+   * can't be read as a real target (no goal, no usable calorie figure) is
+   * reported the same way, for the same reason.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getDietTargets(uid) {
+    const snap = await this._user(uid)
+        .collection("dietTargets")
+        .doc("current")
+        .get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    const calories = typeof d.calories === "number" && d.calories > 0 ?
+      Math.round(d.calories) : null;
+    if (!d.goal || calories === null) return null;
+    const num = (v) =>
+      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+    return {
+      goal: String(d.goal),
+      calories,
+      proteinG: num(d.proteinG),
+      carbsG: num(d.carbsG),
+      fatG: num(d.fatG),
+      source: typeof d.source === "string" ? d.source : "manual",
+    };
+  }
+
+  /**
+   * The user's stored body data, or null when they haven't given it.
+   *
+   * Height, sex and activity are all required: two out of three cannot
+   * produce a maintenance figure, and a profile that silently defaulted the
+   * third would put a number nobody chose underneath every piece of coaching.
+   * Weight is deliberately NOT here — it lives in `bodyWeights`, which is
+   * where the user actually keeps it.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getBodyProfile(uid) {
+    const snap = await this._user(uid)
+        .collection("bodyProfile")
+        .doc("current")
+        .get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    const heightCm = typeof d.heightCm === "number" ? d.heightCm : null;
+    if (heightCm === null || heightCm < 100 || heightCm > 250) return null;
+    if (d.sex !== "male" && d.sex !== "female") return null;
+    const activity = typeof d.activity === "string" ? d.activity : null;
+    if (!activity) return null;
+    const stated = typeof d.statedMaintenanceKcal === "number" ?
+      Math.round(d.statedMaintenanceKcal) : null;
+    return {
+      heightCm,
+      sex: d.sex,
+      activity,
+      statedMaintenanceKcal:
+        stated !== null && stated >= 800 && stated <= 10000 ? stated : null,
+    };
+  }
+
+  /**
+   * Every logged weigh-in, oldest first. The calibration needs the span, not
+   * just the latest reading.
+   * @param {string} uid
+   * @return {!Promise<!Array<{weightKg: number, loggedAtMs: number}>>}
+   */
+  async listBodyWeights(uid) {
+    const snap = await this._user(uid).collection("bodyWeights").get();
+    return snap.docs
+        .map((doc) => {
+          const d = doc.data() || {};
+          const weightKg = typeof d.weightKg === "number" ? d.weightKg : null;
+          const at = d.loggedAt;
+          const loggedAtMs = at && typeof at.toMillis === "function" ?
+            at.toMillis() : null;
+          if (weightKg === null || loggedAtMs === null) return null;
+          return {weightKg, loggedAtMs};
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.loggedAtMs - b.loggedAtMs);
+  }
+
+  /**
+   * The account profile's date of birth in ms, or null. Age is derived from
+   * it at the moment of use — a stored integer age is wrong within a year of
+   * being written.
+   * @param {string} uid
+   * @return {!Promise<?number>}
+   */
+  async getDateOfBirthMs(uid) {
+    const snap = await this._user(uid).get();
+    if (!snap.exists) return null;
+    const dob = (snap.data() || {}).dateOfBirth;
+    return dob && typeof dob.toMillis === "function" ? dob.toMillis() : null;
+  }
+
+  /**
+   * The user's food log for one day — what they actually recorded eating.
+   *
+   * This is the consumption ledger. An entry is either something the user
+   * logged (`origin: 'logged'`) or something materialised from a planned meal
+   * they ticked (`origin: 'plannedMeal'`), and the difference matters: "you
+   * ate 1,850 kcal" and "the plan values what you ticked at 1,850" are
+   * different claims. An EMPTY log means nothing was recorded that day, not
+   * that nothing was eaten.
+   * @param {string} uid
+   * @param {string} dayKey
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listFoodLogs(uid, dayKey) {
+    const snap = await this._user(uid)
+        .collection("foodLogs")
+        .where("dayKey", "==", dayKey)
+        .get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      return {
+        id: doc.id,
+        foodId: d.foodId || "",
+        foodName: d.foodName || "",
+        quantity: num(d.quantity),
+        unit: d.unit || "g",
+        grams: num(d.grams),
+        kcal: Math.round(num(d.kcal)),
+        proteinG: num(d.proteinG),
+        carbsG: num(d.carbsG),
+        fatG: num(d.fatG),
+        source: d.source || "dietPlan",
+        sourceRef: d.sourceRef || "",
+        origin: d.origin === "logged" ? "logged" : "plannedMeal",
+        estimated: d.estimated === true,
+        mealId: d.mealId || null,
+        loggedAt: toDate(d.loggedAt),
+      };
+    });
+  }
+
+  /**
+   * Food-log entries across a range of days, inclusive.
+   *
+   * `dayKey` is a sortable 'yyyy-MM-dd' string, so this is a single-field
+   * range query — one read for a whole week, and no composite index.
+   * @param {string} uid
+   * @param {string} fromDayKey
+   * @param {string} toDayKey
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listFoodLogRange(uid, fromDayKey, toDayKey) {
+    const snap = await this._user(uid)
+        .collection("foodLogs")
+        .where("dayKey", ">=", fromDayKey)
+        .where("dayKey", "<=", toDayKey)
+        .get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        dayKey: d.dayKey || "",
+        kcal: Math.round(typeof d.kcal === "number" ? d.kcal : 0),
+      };
+    });
   }
 
   /**
@@ -624,6 +710,86 @@ class FirestoreStore {
    */
   async deleteExpense(uid, id) {
     await this._user(uid).collection("expenses").doc(id).delete();
+  }
+
+  /**
+   * The user's own foods (`customFoods`) — everything the bundled USDA catalog
+   * doesn't cover. Layered OVER the catalog when the coach resolves a food, so
+   * the coach and the app agree on what the user's "Koshari" is worth. Field
+   * names mirror `FirestoreDietRepository.saveCustomFood` /
+   * `_customFoodFromDoc` exactly.
+   * @param {string} uid
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listCustomFoods(uid) {
+    const snap = await this._user(uid).collection("customFoods").get();
+    return snap.docs
+        .map((doc) => {
+          const d = doc.data();
+          const num = (v) =>
+            (typeof v === "number" && Number.isFinite(v) ? v : 0);
+          if (!d.name || typeof d.kcalPer100g !== "number") return null;
+          return {
+            id: doc.id,
+            name: String(d.name),
+            kcalPer100g: num(d.kcalPer100g),
+            proteinPer100g: num(d.proteinPer100g),
+            carbsPer100g: num(d.carbsPer100g),
+            fatPer100g: num(d.fatPer100g),
+            preparation: typeof d.preparation === "string" ?
+              d.preparation : "unknown",
+            portions: (Array.isArray(d.portions) ? d.portions : [])
+                .filter((p) => p && typeof p.label === "string" &&
+                  typeof p.grams === "number")
+                .map((p) => ({label: p.label, grams: p.grams})),
+            createdAt: toDate(d.createdAt),
+          };
+        })
+        .filter((f) => f !== null);
+  }
+
+  /**
+   * Writes food-log entries the coach logged on the user's behalf (`log_food`),
+   * one batch so "two eggs and 100 g rice" lands whole or not at all. Mirrors
+   * `FirestoreDietRepository.logFood` / `_entryToMap` field-for-field, so an
+   * entry the coach wrote is indistinguishable in Firestore from one the app
+   * wrote — and satisfies the tight `foodLogs` rule (the nutrition is stored,
+   * not recomputed on read).
+   *
+   * Each entry's doc id is `${actionId}__${i}`, so re-confirming the same
+   * pending action overwrites rather than duplicating.
+   * @param {string} uid
+   * @param {!Array<Object>} entries
+   * @return {!Promise<void>}
+   */
+  async writeFoodLog(uid, entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return;
+    const now = FieldValue.serverTimestamp();
+    const collection = this._user(uid).collection("foodLogs");
+    const batch = this.db.batch();
+    for (const e of entries) {
+      batch.set(collection.doc(e.id), {
+        dayKey: e.dayKey,
+        date: Timestamp.fromDate(startOfDayFor(e.dayKey)),
+        loggedAt: now,
+        foodId: e.foodId,
+        foodName: e.foodName,
+        quantity: e.quantity,
+        unit: e.unit,
+        grams: e.grams,
+        kcal: Math.round(e.kcal),
+        proteinG: e.proteinG,
+        carbsG: e.carbsG,
+        fatG: e.fatG,
+        source: e.source,
+        sourceRef: e.sourceRef,
+        origin: e.origin,
+        estimated: e.estimated === true,
+        mealId: e.mealId || null,
+        schemaVersion: 1,
+      });
+    }
+    await batch.commit();
   }
 }
 

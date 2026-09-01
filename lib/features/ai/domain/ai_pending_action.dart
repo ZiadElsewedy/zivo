@@ -19,8 +19,9 @@ class AiPendingAction {
   /// The server pending-action id; the key used to confirm or cancel.
   final String actionId;
 
-  /// The server pending-action kind — 'create_expense' or 'mark_meal_eaten'
-  /// today; the assistant's proposable changes grow here.
+  /// The server pending-action kind — 'create_expense', 'edit_expense',
+  /// 'delete_expense', 'mark_meal_eaten' or 'log_food' today; the assistant's
+  /// proposable changes grow here.
   final String kind;
 
   /// A human one-line description (fallback text).

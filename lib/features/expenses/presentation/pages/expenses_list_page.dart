@@ -14,6 +14,8 @@ import '../../domain/expense_repository.dart';
 import '../../domain/wallet.dart';
 import '../widgets/wallet_balance_sheet.dart';
 import 'expense_capture_page.dart';
+import '../../../../l10n/l10n.dart';
+import '../widgets/category_label.dart';
 
 /// The Expenses history, built to the design handoff's **Expenses** screen
 /// (4c): the amber screen wash, a wallet card up top (deducted automatically
@@ -93,9 +95,18 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                   final weekMinor = weekTotalMinor(items, now);
                   final byCategory = _byCategory(items, now, categories);
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      12,
+                      22,
+                      TrainBottomInset.of(context),
+                    ),
                     children: [
-                      const RiseIn(child: TrainPageHeader(title: 'Expenses')),
+                      RiseIn(
+                        child: TrainPageHeader(
+                          title: l(context).expensesTitle,
+                        ),
+                      ),
                       const SizedBox(height: 18),
                       RiseIn(
                         delay: const Duration(milliseconds: 50),
@@ -117,11 +128,9 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                         ),
                       ],
                       if (items.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 40),
-                          child: EmptyStateView(
-                            'Nothing spent yet — a calm start.',
-                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: EmptyStateView(l(context).expensesEmpty),
                         )
                       else
                         RiseIn(
@@ -325,7 +334,7 @@ class _WalletCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'WALLET',
+                      l(context).walletCaps,
                       style: TrainType.caption(
                         size: 9,
                         tracking: 0.2,
@@ -420,7 +429,7 @@ class _WalletSetupPrompt extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'SET UP YOUR WALLET',
+          l(context).walletSetUp,
           style: TrainType.caption(
             size: 9,
             tracking: 0.2,
@@ -430,7 +439,7 @@ class _WalletSetupPrompt extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          'How much do you have right now?',
+          l(context).walletHowMuchNow,
           style: TrainType.ui(
             size: 20,
             weight: FontWeight.w800,
@@ -441,7 +450,7 @@ class _WalletSetupPrompt extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'Every expense you log deducts from it automatically.',
+          l(context).walletDeductNote,
           style: TrainType.ui(
             size: 12.5,
             weight: FontWeight.w400,
@@ -467,7 +476,7 @@ class _WalletSetupPrompt extends StatelessWidget {
                 width: double.infinity,
                 child: Center(
                   child: Text(
-                    'Set starting balance',
+                    l(context).walletSetStarting,
                     style: TrainType.ui(
                       size: 15,
                       weight: FontWeight.w800,
@@ -537,7 +546,7 @@ class _TopUpButton extends StatelessWidget {
             const Icon(AppIcons.add, size: 12, color: TrainColors.inkPlain),
             const SizedBox(width: 5),
             Text(
-              'Top up',
+              l(context).walletTopUp,
               style: TrainType.ui(
                 size: 11.5,
                 weight: FontWeight.w700,
@@ -581,7 +590,7 @@ class _CategoryBreakdown extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
-              'THIS WEEK',
+              l(context).expensesThisWeek,
               style: TrainType.caption(
                 size: 9.5,
                 tracking: 0.2,
@@ -618,7 +627,7 @@ class _CategoryBreakdown extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.only(top: i == 0 ? 0 : 13),
                   child: TrainBarRow(
-                    label: rows[i].category.label,
+                    label: categoryLabel(context, rows[i].category),
                     value: formatAmount(rows[i].minor),
                     progress: rows[i].minor / maxMinor,
                     // Amber, not the category's own hue: this is the money
@@ -735,7 +744,7 @@ class _ExpenseRow extends StatelessWidget {
                           // category is the bucket. Lead with whichever is
                           // more informative, and let the other demote.
                           Text(
-                            hasNote ? note : category.label,
+                            hasNote ? note : categoryLabel(context, category),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TrainType.ui(
@@ -747,7 +756,7 @@ class _ExpenseRow extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            _rowCaption(expense, category, hasNote: hasNote),
+                            _rowCaption(context, expense, category, hasNote: hasNote),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TrainType.mono(
@@ -788,6 +797,7 @@ class _ExpenseRow extends StatelessWidget {
 /// category; when the title is already the category, the caption is just the
 /// time. Never a caption that restates the line above it.
 String _rowCaption(
+  BuildContext context,
   Expense expense,
   ExpenseCategory category, {
   required bool hasNote,
@@ -796,5 +806,7 @@ String _rowCaption(
   final time =
       '${at.hour.toString().padLeft(2, '0')}:'
       '${at.minute.toString().padLeft(2, '0')}';
-  return hasNote ? '$time · ${category.label.toUpperCase()}' : time;
+  return hasNote
+      ? '$time · ${categoryLabel(context, category).toUpperCase()}'
+      : time;
 }

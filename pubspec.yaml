@@ -31,6 +31,13 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Arabic + English. `flutter_localizations` supplies Material/Cupertino's own
+  # translations and the RTL machinery; `intl` is what the generated
+  # `AppLocalizations` is built on (see l10n.yaml + lib/l10n/).
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -129,6 +136,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Generates AppLocalizations from lib/l10n/*.arb on every build/test.
+  # Configured by l10n.yaml at the repo root.
+  generate: true
+
   # The branded loading animation, shown wherever a reactive surface is
   # waiting on its first stream value (see LoadingStateView).
   #
@@ -137,6 +148,9 @@ flutter:
   assets:
     - assets/loading.json
     - assets/ai-generate.json
+    # The bundled USDA nutrition catalog. Built by
+    # scripts/nutrition/build_food_db.js — see docs/DIET_COACH_AUDIT.md.
+    - assets/nutrition/foods.json
     - assets/transparent/
     - assets/spotify/
     - assets/google/

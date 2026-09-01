@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/train_tokens.dart';
+import '../../../core/widgets/zivo_sheet.dart';
+import '../../../l10n/l10n.dart';
 
 /// What the user chose to capture.
 enum CaptureChoice { expense, moment, workout }
@@ -10,10 +12,8 @@ enum CaptureChoice { expense, moment, workout }
 /// Opens the Quick Capture bottom sheet and resolves to the chosen kind.
 /// Capture is a verb, not five destinations: one sheet, one pick.
 Future<CaptureChoice?> showQuickCaptureSheet(BuildContext context) {
-  return showModalBottomSheet<CaptureChoice>(
+  return showZivoSheet<CaptureChoice>(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
     builder: (_) => const _QuickCaptureSheet(),
   );
 }
@@ -40,44 +40,35 @@ class _QuickCaptureSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 6),
-            child: Text('Capture', style: AppText.cardTitle),
+            child: Text(l(context).captureTitle, style: AppText.cardTitle),
           ),
           _Option(
             choice: CaptureChoice.expense,
             icon: Icons.payments_rounded,
             iconBg: TrainColors.amberWash,
             iconColor: TrainColors.amber,
-            label: 'Expense',
-            hint: 'Amount, category — in seconds',
+            label: l(context).captureExpense,
+            hint: l(context).captureExpenseDetail,
           ),
           _Option(
             choice: CaptureChoice.moment,
             icon: Icons.photo_camera_rounded,
             iconBg: _neutralTile,
             iconColor: TrainColors.ink,
-            label: 'Moment',
-            hint: 'Photo + a line',
+            label: l(context).captureMoment,
+            hint: l(context).captureMomentDetail,
           ),
           _Option(
             choice: CaptureChoice.workout,
             icon: Icons.fitness_center_rounded,
             iconBg: TrainColors.greenWash,
             iconColor: TrainColors.green,
-            label: 'Workout',
-            hint: 'Log a training session',
+            label: l(context).captureWorkout,
+            hint: l(context).captureWorkoutDetail,
             last: true,
           ),
         ],

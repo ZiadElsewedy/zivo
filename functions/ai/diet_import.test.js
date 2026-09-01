@@ -12,6 +12,7 @@ const {
   TOOL_NAME,
   REJECT_TOOL_NAME,
   DEFAULT_REJECTION_REASON,
+  MAX_TEXT_CHARS,
 } = require("./diet_import");
 const {GatewayError} = require("./gateway");
 
@@ -411,4 +412,103 @@ test("extractDietPlan: rejects an unsupported media type before calling the mode
       },
   );
   assert.equal(callModel.lastRequest, undefined);
+});
+
+// --- a dictated or typed description ---------------------------------------
+//
+// The same extractor, different material: a transcript of someone describing
+// their own meals. One schema and one review screen serve every capture
+// route — four prompts producing four shapes is how they drift apart.
+
+test("extractDietPlan: sends a description as text, with no document block", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My plan", days: [VALID_DAY]}));
+
+  const result = await extractDietPlan({
+    callModel,
+    text: "Breakfast is three eggs and 60 grams of oats.",
+  });
+
+  assert.equal(result.ok, true);
+  const content = callModel.lastRequest.messages[0].content;
+  assert.equal(content.length, 1);
+  assert.equal(content[0].type, "text");
+  assert.match(content[0].text, /three eggs and 60 grams of oats/);
+  // The user's words are fenced, so the model can tell them from the
+  // instruction wrapping them.
+  assert.match(content[0].text, /---BEGIN DESCRIPTION---/);
+  assert.equal(
+      content.some((b) => b.type === "document" || b.type === "image"), false);
+});
+
+test("extractDietPlan: a description gets the description prompt, not the document one", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My plan", days: [VALID_DAY]}));
+
+  await extractDietPlan({callModel, text: "Lunch is rice and chicken."});
+  const spoken = callModel.lastRequest.system[0].text;
+  assert.match(spoken, /spoken aloud and\ntranscribed, or typed out/);
+  // The rules that matter are shared, not duplicated per input kind.
+  assert.match(spoken, /NEVER leave\s+calories/);
+  assert.match(spoken, /labeled exactly "Supplements"/);
+
+  await extractDietPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.match(callModel.lastRequest.system[0].text, /Read every page/);
+});
+
+test("extractDietPlan: a description still rejects when it isn't about food", async () => {
+  const callModel = scriptedModel(rejectResponse("This is a shopping list."));
+
+  const result = await extractDietPlan({
+    callModel,
+    text: "Remember to call the plumber and pick up a parcel.",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "This is a shopping list.");
+});
+
+test("extractDietPlan: refuses both a file and a description in one call", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractDietPlan({
+        callModel, pdfBase64: "ZmFrZS1wZGY=", text: "Breakfast is eggs.",
+      }),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractDietPlan: refuses neither, and treats a blank description as neither", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractDietPlan({callModel}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+  await assert.rejects(
+      () => extractDietPlan({callModel, text: "   \n  "}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractDietPlan: refuses a description past the length bound", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractDietPlan({callModel, text: "a".repeat(MAX_TEXT_CHARS + 1)}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractDietPlan: a description does not need a media type", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "Cut", days: [VALID_DAY]}));
+
+  // mediaType is meaningless for text; supplying a bogus one must not be
+  // validated against the file vocabulary and reject a perfectly good
+  // description.
+  const result = await extractDietPlan({
+    callModel, text: "Dinner is 200g salmon.", mediaType: "text/plain",
+  });
+  assert.equal(result.ok, true);
 });

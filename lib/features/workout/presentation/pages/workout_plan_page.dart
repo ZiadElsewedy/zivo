@@ -16,11 +16,13 @@ import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../widgets/staggered_reveal.dart';
+import '../../../../core/widgets/train_surfaces.dart';
 import 'live_session_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
 import 'workout_plan_edit_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Workout Plan page — the rotating-cycle template ("what I SHOULD do").
 /// Shows the day that's up next (the cycle cursor) prominently, then the whole
@@ -55,13 +57,13 @@ class WorkoutPlanPage extends StatelessWidget {
             leadingWidth: 56,
             leading: const BackChip(),
             title: Text(
-              'Workout',
+              l(context).workoutTitle,
               style: AppText.cardTitle.copyWith(color: TrainColors.ink),
             ),
             actions: [
               PressableScale(
                 child: IconButton(
-                  tooltip: 'Splits',
+                  tooltip: l(context).workoutSplits,
                   icon: const Icon(
                     Icons.layers_rounded,
                     color: TrainColors.ink2,
@@ -78,7 +80,7 @@ class WorkoutPlanPage extends StatelessWidget {
               ),
               PressableScale(
                 child: IconButton(
-                  tooltip: 'Analysis',
+                  tooltip: l(context).workoutAnalysis,
                   icon: const Icon(
                     Icons.trending_up_rounded,
                     color: TrainColors.ink2,
@@ -95,7 +97,7 @@ class WorkoutPlanPage extends StatelessWidget {
               ),
               PressableScale(
                 child: IconButton(
-                  tooltip: 'History',
+                  tooltip: l(context).workoutHistory,
                   icon: const Icon(
                     Icons.history_rounded,
                     color: TrainColors.ink2,
@@ -117,7 +119,9 @@ class WorkoutPlanPage extends StatelessWidget {
               : FloatingActionButton(
                   backgroundColor: TrainColors.green,
                   elevation: 2,
-                  tooltip: plan == null ? 'Create plan' : 'Edit plan',
+                  tooltip: plan == null
+                      ? l(context).workoutCreatePlan
+                      : l(context).workoutEditPlan,
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => WorkoutPlanEditPage(initialPlan: plan),
@@ -209,7 +213,7 @@ class _PlanErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Check your connection and try again in a moment.',
+              l(context).errorCheckConnection,
               style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
@@ -238,7 +242,7 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No workout plan yet.',
+            l(context).workoutNoPlanYet,
             style: AppText.aside.copyWith(color: TrainColors.ink2),
           ),
         ],
@@ -268,7 +272,12 @@ class _PlanBody extends StatelessWidget {
         final selection = resolveUpNext(plan, sessionSnapshot.data);
         final today = selection.day;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 110),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            8,
+            22,
+            TrainBottomInset.forScaffold(context, hasFab: true),
+          ),
           children: [
             Text(
               plan.name,
@@ -277,7 +286,7 @@ class _PlanBody extends StatelessWidget {
             const SizedBox(height: 18),
             if (today == null)
               Text(
-                'No day up next.',
+                l(context).workoutNoDayUpNext,
                 style: AppText.aside.copyWith(color: TrainColors.ink2),
               )
             else
@@ -288,7 +297,7 @@ class _PlanBody extends StatelessWidget {
               ),
             const SizedBox(height: 30),
             Text(
-              'Full cycle',
+              l(context).workoutFullCycle,
               style: AppText.meta.copyWith(
                 color: TrainColors.green,
                 fontWeight: FontWeight.w600,
@@ -296,7 +305,7 @@ class _PlanBody extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Today\'s pick is marked — but any day is fair game. Life doesn\'t always follow the rotation.',
+              l(context).workoutAnyDayNote,
               style: AppText.meta.copyWith(
                 color: TrainColors.ink4,
                 fontSize: 12,
@@ -380,7 +389,7 @@ class _TodaySection extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'UP NEXT',
+                  l(context).workoutUpNext,
                   style: AppText.meta.copyWith(
                     color: TrainColors.green,
                     fontWeight: FontWeight.w700,
@@ -391,7 +400,7 @@ class _TodaySection extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              _dayTitle(day),
+              _dayTitle(context, day),
               style: AppText.heroNumber.copyWith(
                 fontSize: 30,
                 color: TrainColors.ink,
@@ -405,7 +414,9 @@ class _TodaySection extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             PillButton(
-              label: resumable == null ? 'Start workout' : 'Resume workout',
+              label: resumable == null
+                  ? l(context).workoutStart
+                  : l(context).workoutResume,
               icon: Icons.play_arrow_rounded,
               color: TrainColors.green,
               enabled: true,
@@ -596,7 +607,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                   children: [
                     Expanded(
                       child: Text(
-                        _dayTitle(day),
+                        _dayTitle(context, day),
                         style: AppText.rowTitle.copyWith(
                           fontWeight: FontWeight.w600,
                           color: TrainColors.ink,
@@ -670,8 +681,8 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                 // card's language.
                                 PillButton(
                                   label: widget.resumable == null
-                                      ? 'Start this day'
-                                      : 'Resume workout',
+                                      ? l(context).workoutStartThisDay
+                                      : l(context).workoutResume,
                                   icon: Icons.play_arrow_rounded,
                                   color: TrainColors.green,
                                   enabled: true,
@@ -703,7 +714,7 @@ class _NextUpBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        'Next up',
+        l(context).workoutNextUp,
         style: AppText.meta.copyWith(
           color: TrainColors.green,
           fontSize: 11,
@@ -714,5 +725,8 @@ class _NextUpBadge extends StatelessWidget {
   }
 }
 
-/// "Day A · Push" — the slot and label composed into one title.
-String _dayTitle(WorkoutDay day) => 'Day ${day.slot} · ${day.label}';
+/// "Day A · Push" — the slot and label composed into one title. Takes a
+/// context because the separator and word order are the translator's, not
+/// this function's.
+String _dayTitle(BuildContext context, WorkoutDay day) =>
+    l(context).workoutDayLabel(day.slot, day.label);

@@ -10,6 +10,7 @@ import '../../domain/expense_category.dart';
 import '../widgets/add_category_sheet.dart';
 import '../widgets/amount_keypad.dart';
 import '../widgets/category_chips.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Expense capture — the sub-5-second flow. Amount first, keypad up, one tap
 /// to categorise, Save. A Solar screen throughout. Pass [initial] to edit an
@@ -49,7 +50,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
 
   String get _dateLabel {
     final initial = widget.initial;
-    if (initial == null) return 'Today';
+    if (initial == null) return l(context).dateToday;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(
@@ -57,8 +58,8 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
       initial.spentAt.month,
       initial.spentAt.day,
     );
-    if (day == today) return 'Today';
-    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    if (day == today) return l(context).dateToday;
+    if (day == today.subtract(const Duration(days: 1))) return l(context).dateYesterday;
     const months = [
       'Jan',
       'Feb',
@@ -112,25 +113,25 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: TrainColors.raised,
-        title: Text('Note', style: AppText.cardTitle),
+        title: Text(l(context).expenseNote, style: AppText.cardTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: AppText.rowTitle,
-          decoration: const InputDecoration(hintText: 'What was it for?'),
+          decoration: InputDecoration(hintText: l(context).expenseNoteHint),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              l(context).actionCancel,
               style: AppText.button.copyWith(color: TrainColors.ink3),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: Text(
-              'Done',
+              l(context).actionDone,
               style: AppText.button.copyWith(color: TrainColors.ember),
             ),
           ),
@@ -183,14 +184,14 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
         child: Column(
           children: [
             CaptureTopBar(
-              title: _editing ? 'Edit expense' : 'New expense',
+              title: _editing ? l(context).expenseEdit : l(context).expenseNew,
               onClose: () => Navigator.of(context).maybePop(),
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('expense-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete expense',
+                      semanticLabel: l(context).expenseDelete,
                       iconColor: TrainColors.ember,
                     )
                   : null,
@@ -235,8 +236,8 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
               child: _SaveButton(
                 enabled: _canSave,
                 label: _canSave
-                    ? 'Save · ${formatAmount(_amountMinor)} $_currency'
-                    : 'Save',
+                    ? l(context).expenseSaveAmount('${formatAmount(_amountMinor)} $_currency')
+                    : l(context).actionSave,
                 onTap: _save,
               ),
             ),
@@ -307,7 +308,7 @@ class _MetaRow extends StatelessWidget {
       children: [
         _MetaChip(
           icon: Icons.sticky_note_2_outlined,
-          label: note ?? 'Add note',
+          label: note ?? l(context).expenseAddNote,
           active: note != null,
           onTap: onEditNote,
         ),

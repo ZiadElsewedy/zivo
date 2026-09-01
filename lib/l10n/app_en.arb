@@ -1,0 +1,1711 @@
+{
+  "@@locale": "en",
+  "appTitle": "ZIVO",
+  "@appTitle": {
+    "description": "The app name. Not translated."
+  },
+  "actionSave": "Save",
+  "@actionSave": {
+    "description": "Confirms and stores an edit."
+  },
+  "actionCancel": "Cancel",
+  "@actionCancel": {
+    "description": "Dismisses without saving."
+  },
+  "actionDone": "Done",
+  "@actionDone": {
+    "description": "Closes a finished flow."
+  },
+  "actionDelete": "Delete",
+  "@actionDelete": {
+    "description": "Removes something permanently."
+  },
+  "actionEdit": "Edit",
+  "@actionEdit": {
+    "description": "Opens something for editing."
+  },
+  "actionAdd": "Add",
+  "@actionAdd": {
+    "description": "Creates a new item."
+  },
+  "actionRemove": "Remove",
+  "@actionRemove": {
+    "description": "Takes one item off a list."
+  },
+  "actionNext": "Next",
+  "@actionNext": {
+    "description": "Advances a step in a flow."
+  },
+  "actionRetry": "Try again",
+  "@actionRetry": {
+    "description": "Re-runs an action that failed."
+  },
+  "tabToday": "Today",
+  "@tabToday": {
+    "description": "Bottom bar: the Today surface."
+  },
+  "tabHub": "Hub",
+  "@tabHub": {
+    "description": "Bottom bar: the module launcher."
+  },
+  "tabAsk": "Ask",
+  "@tabAsk": {
+    "description": "Bottom bar: the AI coach."
+  },
+  "tabYou": "You",
+  "@tabYou": {
+    "description": "Bottom bar: profile and settings."
+  },
+  "dietTitle": "Diet",
+  "@dietTitle": {
+    "description": "Title of the Diet screen."
+  },
+  "dietMealNumber": "Meal {number}",
+  "@dietMealNumber": {
+    "description": "A meal in today's plan, numbered in order. The primary label on the Diet screen — the plan's own meal name is shown quietly beneath it.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "dietKcalLeft": "{kcal} kcal left",
+  "@dietKcalLeft": {
+    "description": "The single number on the Diet screen: calories remaining today.",
+    "placeholders": {
+      "kcal": {
+        "type": "int",
+        "example": "1240"
+      }
+    }
+  },
+  "dietKcalOver": "{kcal} kcal over",
+  "@dietKcalOver": {
+    "description": "Shown instead of dietKcalLeft once the day's allowance is exceeded.",
+    "placeholders": {
+      "kcal": {
+        "type": "int",
+        "example": "180"
+      }
+    }
+  },
+  "dietEatenToday": "Eaten today",
+  "@dietEatenToday": {
+    "description": "Section heading for the food log — anything eaten outside the plan."
+  },
+  "dietLogSomething": "Add something you ate",
+  "@dietLogSomething": {
+    "description": "Button that opens the food log sheet."
+  },
+  "dietSupplements": "Supplements",
+  "@dietSupplements": {
+    "description": "Section heading for supplement items."
+  },
+  "dietNoPlanToday": "No meals planned today",
+  "@dietNoPlanToday": {
+    "description": "Shown when the active plan has no day for today."
+  },
+  "dietNoPlan": "No diet yet",
+  "@dietNoPlan": {
+    "description": "Empty state when the user has no diet plan at all."
+  },
+  "dietAddPlan": "Add a diet",
+  "@dietAddPlan": {
+    "description": "Opens the sheet with every way to create a plan."
+  },
+  "dietYourPlans": "Your diets",
+  "@dietYourPlans": {
+    "description": "Opens the plan library."
+  },
+  "dietPlanDetails": "Plan details",
+  "@dietPlanDetails": {
+    "description": "Opens the screen holding the target, verdict and full plan."
+  },
+  "bodyTitle": "About you",
+  "@bodyTitle": {
+    "description": "Title of the one screen that collects height, weight, sex and activity."
+  },
+  "bodyHeightQuestion": "How tall are you?",
+  "@bodyHeightQuestion": {
+    "description": "Height prompt. Deliberately a plain question, not a labelled field."
+  },
+  "bodyWeightQuestion": "What do you weigh?",
+  "@bodyWeightQuestion": {
+    "description": "Weight prompt."
+  },
+  "bodySexQuestion": "Sex",
+  "@bodySexQuestion": {
+    "description": "Sex prompt, used by the energy equation."
+  },
+  "bodyActivityQuestion": "How active are you?",
+  "@bodyActivityQuestion": {
+    "description": "Activity level prompt."
+  },
+  "bodySexMale": "Male",
+  "@bodySexMale": {
+    "description": "Sex option."
+  },
+  "bodySexFemale": "Female",
+  "@bodySexFemale": {
+    "description": "Sex option."
+  },
+  "unitCm": "cm",
+  "@unitCm": {
+    "description": "Centimetres, the height unit."
+  },
+  "unitKg": "kg",
+  "@unitKg": {
+    "description": "Kilograms, the weight unit."
+  },
+  "unitKcal": "kcal",
+  "@unitKcal": {
+    "description": "Kilocalories."
+  },
+  "unitGrams": "g",
+  "@unitGrams": {
+    "description": "Grams, the macro unit."
+  },
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Settings row that opens the language picker."
+  },
+  "settingsLanguageEnglish": "English",
+  "@settingsLanguageEnglish": {
+    "description": "Language option. Written in its own language on purpose."
+  },
+  "settingsLanguageArabic": "العربية",
+  "@settingsLanguageArabic": {
+    "description": "Language option. Written in its own language on purpose."
+  },
+  "settingsLanguageSystem": "Match my phone",
+  "@settingsLanguageSystem": {
+    "description": "Language option: follow the device locale."
+  },
+  "prefsLikes": "Foods you like",
+  "@prefsLikes": {
+    "description": "Heading for the chips of foods to build the plan around."
+  },
+  "prefsLikesNote": "ZIVO builds around these.",
+  "@prefsLikesNote": {
+    "description": "One-line note under the likes chips."
+  },
+  "prefsAvoid": "Foods you won't eat",
+  "@prefsAvoid": {
+    "description": "Heading for the chips of foods to leave out."
+  },
+  "prefsAvoidNote": "Left out of the plan.",
+  "@prefsAvoidNote": {
+    "description": "One-line note under the avoid chips."
+  },
+  "prefsAllergies": "Allergies",
+  "@prefsAllergies": {
+    "description": "Heading for the allergen chips."
+  },
+  "prefsAllergiesNote": "ZIVO refuses a plan that contains these. Still read it yourself.",
+  "@prefsAllergiesNote": {
+    "description": "Note under the allergen chips. Deliberately says the check is not a guarantee."
+  },
+  "prefsNotes": "Anything else",
+  "@prefsNotes": {
+    "description": "Heading for the one free-text field on the preferences screen."
+  },
+  "prefsNotesHint": "I train at 6am and eat straight after",
+  "@prefsNotesHint": {
+    "description": "Placeholder for the free-text notes field."
+  },
+  "prefsOther": "Other…",
+  "@prefsOther": {
+    "description": "Chip that opens a text field for something not in the list."
+  },
+  "prefsAddYourOwn": "Add your own",
+  "@prefsAddYourOwn": {
+    "description": "Title of the sheet opened by the Other chip."
+  },
+  "foodChicken": "Chicken",
+  "@foodChicken": {
+    "description": "Food chip."
+  },
+  "foodBeef": "Beef",
+  "@foodBeef": {
+    "description": "Food chip."
+  },
+  "foodFish": "Fish",
+  "@foodFish": {
+    "description": "Food chip."
+  },
+  "foodTuna": "Tuna",
+  "@foodTuna": {
+    "description": "Food chip."
+  },
+  "foodEggs": "Eggs",
+  "@foodEggs": {
+    "description": "Food chip."
+  },
+  "foodRice": "Rice",
+  "@foodRice": {
+    "description": "Food chip."
+  },
+  "foodPasta": "Pasta",
+  "@foodPasta": {
+    "description": "Food chip."
+  },
+  "foodBread": "Bread",
+  "@foodBread": {
+    "description": "Food chip."
+  },
+  "foodPotato": "Potatoes",
+  "@foodPotato": {
+    "description": "Food chip."
+  },
+  "foodOats": "Oats",
+  "@foodOats": {
+    "description": "Food chip."
+  },
+  "foodYoghurt": "Yoghurt",
+  "@foodYoghurt": {
+    "description": "Food chip."
+  },
+  "foodCheese": "Cheese",
+  "@foodCheese": {
+    "description": "Food chip."
+  },
+  "foodBeans": "Beans and lentils",
+  "@foodBeans": {
+    "description": "Food chip."
+  },
+  "foodVegetables": "Vegetables",
+  "@foodVegetables": {
+    "description": "Food chip."
+  },
+  "foodFruit": "Fruit",
+  "@foodFruit": {
+    "description": "Food chip."
+  },
+  "foodNuts": "Nuts",
+  "@foodNuts": {
+    "description": "Food chip."
+  },
+  "allergenPeanuts": "Peanuts",
+  "@allergenPeanuts": {
+    "description": "Allergen chip."
+  },
+  "allergenTreeNuts": "Tree nuts",
+  "@allergenTreeNuts": {
+    "description": "Allergen chip."
+  },
+  "allergenMilk": "Milk",
+  "@allergenMilk": {
+    "description": "Allergen chip."
+  },
+  "allergenEggs": "Eggs",
+  "@allergenEggs": {
+    "description": "Allergen chip."
+  },
+  "allergenFish": "Fish",
+  "@allergenFish": {
+    "description": "Allergen chip."
+  },
+  "allergenShellfish": "Shellfish",
+  "@allergenShellfish": {
+    "description": "Allergen chip."
+  },
+  "allergenSoy": "Soy",
+  "@allergenSoy": {
+    "description": "Allergen chip."
+  },
+  "allergenGluten": "Gluten",
+  "@allergenGluten": {
+    "description": "Allergen chip."
+  },
+  "allergenSesame": "Sesame",
+  "@allergenSesame": {
+    "description": "Allergen chip."
+  },
+  "bodyIntro": "ZIVO needs these to work out what your plan does to your weight.",
+  "@bodyIntro": {
+    "description": "One-line reason the body-data screen exists. Replaced four sentences of explanation."
+  },
+  "bodyWeighInNote": "Saved to your weigh-in log.",
+  "@bodyWeighInNote": {
+    "description": "Note under the weight field: says where the number goes, in one line."
+  },
+  "bodyLastWeighIn": "Last weigh-in {ago}. Change the number to log a new one.",
+  "@bodyLastWeighIn": {
+    "description": "Note under the weight field once a weigh-in exists.",
+    "placeholders": {
+      "ago": {
+        "type": "String",
+        "example": "3 days ago"
+      }
+    }
+  },
+  "bodyHeightRange": "Heights go in centimetres, not metres.",
+  "@bodyHeightRange": {
+    "description": "Shown when the entered height is outside the plausible range."
+  },
+  "bodyKnowMaintenance": "I already know my daily calories",
+  "@bodyKnowMaintenance": {
+    "description": "Quiet row that reveals the optional known-maintenance field. Phrased as something the user knows about themselves, not as an engine input."
+  },
+  "bodyMaintenanceNote": "From a test, a coach, or your own tracking. ZIVO will use it instead of its own estimate.",
+  "@bodyMaintenanceNote": {
+    "description": "Note under the known-maintenance field, shown only once revealed."
+  },
+  "bodyMaintenanceRange": "That looks like a typo.",
+  "@bodyMaintenanceRange": {
+    "description": "Shown when the known-maintenance figure is implausible."
+  },
+  "bodySaved": "Saved",
+  "@bodySaved": {
+    "description": "Confirmation after saving body data."
+  },
+  "greetingMorningNamed": "Morning, {name}",
+  "@greetingMorningNamed": {
+    "description": "Home greeting before noon, when the name is known.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ziad"
+      }
+    }
+  },
+  "greetingAfternoonNamed": "Afternoon, {name}",
+  "@greetingAfternoonNamed": {
+    "description": "Home greeting between noon and 6pm.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ziad"
+      }
+    }
+  },
+  "greetingEveningNamed": "Evening, {name}",
+  "@greetingEveningNamed": {
+    "description": "Home greeting after 6pm.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ziad"
+      }
+    }
+  },
+  "greetingMorning": "Good morning",
+  "@greetingMorning": {
+    "description": "Home greeting before noon with no name on file."
+  },
+  "greetingAfternoon": "Good afternoon",
+  "@greetingAfternoon": {
+    "description": "Home greeting between noon and 6pm with no name on file."
+  },
+  "greetingEvening": "Good evening",
+  "@greetingEvening": {
+    "description": "Home greeting after 6pm with no name on file."
+  },
+  "hubWorkout": "Workout",
+  "@hubWorkout": {
+    "description": "Hub module tile."
+  },
+  "hubDiet": "Diet",
+  "@hubDiet": {
+    "description": "Hub module tile."
+  },
+  "hubExpenses": "Expenses",
+  "@hubExpenses": {
+    "description": "Hub module tile."
+  },
+  "hubMoments": "Moments",
+  "@hubMoments": {
+    "description": "Hub module tile."
+  },
+  "hubRecent": "Recent",
+  "@hubRecent": {
+    "description": "Heading above the Hub's recent-activity rows."
+  },
+  "hubNoPlanYet": "No plan yet",
+  "@hubNoPlanYet": {
+    "description": "Hub tile subtitle when no plan exists."
+  },
+  "hubNoMomentsYet": "No moments yet",
+  "@hubNoMomentsYet": {
+    "description": "Hub tile subtitle when no moments exist."
+  },
+  "comingNext": "Coming next.",
+  "@comingNext": {
+    "description": "Placeholder on a module that isn't built yet."
+  },
+  "errorCheckConnection": "Check your connection and try again in a moment.",
+  "@errorCheckConnection": {
+    "description": "Body of the shared error state."
+  },
+  "actionBack": "Back",
+  "@actionBack": {
+    "description": "The shared back chip's label."
+  },
+  "todayQuickLogVoice": "Quick log by voice",
+  "@todayQuickLogVoice": {
+    "description": "Accessibility label for Today's mic button."
+  },
+  "todayDaytime": "Daytime",
+  "@todayDaytime": {
+    "description": "Accessibility label for Today's time-of-day glyph."
+  },
+  "todayEvening": "Evening",
+  "@todayEvening": {
+    "description": "Accessibility label for Today's time-of-day glyph."
+  },
+  "todayNight": "Night",
+  "@todayNight": {
+    "description": "Accessibility label for Today's time-of-day glyph."
+  },
+  "todayNextSession": "NEXT SESSION",
+  "@todayNextSession": {
+    "description": "Caption above the next training session on Today. All-caps mono."
+  },
+  "todayPlanPosition": "WEEK {week} · DAY {day}",
+  "@todayPlanPosition": {
+    "description": "Where the next session sits in the plan's rotation.",
+    "placeholders": {
+      "week": {
+        "type": "int",
+        "example": "2"
+      },
+      "day": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "todayNoPlanTitle": "No training plan yet",
+  "@todayNoPlanTitle": {
+    "description": "Title of Today's empty training card."
+  },
+  "todayNoPlanBody": "Import your split from a PDF or photo and ZIVO turns it into a real rotating plan — or build one by hand.",
+  "@todayNoPlanBody": {
+    "description": "Body of Today's empty training card."
+  },
+  "todayImportPlan": "Import a plan",
+  "@todayImportPlan": {
+    "description": "Primary action on Today's empty training card."
+  },
+  "todayBuildManually": "Build manually instead",
+  "@todayBuildManually": {
+    "description": "Secondary action on Today's empty training card."
+  },
+  "todayEmptySplitBody": "Add training days and exercises to this split and it will show up here, ready to start.",
+  "@todayEmptySplitBody": {
+    "description": "Shown when a plan exists but has no days yet."
+  },
+  "todayEditSplit": "Edit split",
+  "@todayEditSplit": {
+    "description": "Action that opens the plan editor."
+  },
+  "todayGetStarted": "Get started",
+  "@todayGetStarted": {
+    "description": "Heading above Today's first-run shortcuts."
+  },
+  "todayImportWorkoutPlan": "Import a\nworkout plan",
+  "@todayImportWorkoutPlan": {
+    "description": "First-run shortcut. The line break is deliberate — it sits in a narrow tile."
+  },
+  "todayAddExpense": "Add an\nexpense",
+  "@todayAddExpense": {
+    "description": "First-run shortcut. The line break is deliberate — it sits in a narrow tile."
+  },
+  "pulseToday": "TODAY",
+  "@pulseToday": {
+    "description": "Caption on the Today pulse card."
+  },
+  "pulseNotYetToday": "NOT YET TODAY",
+  "@pulseNotYetToday": {
+    "description": "Shown on the pulse card's training ring before the first session."
+  },
+  "pulseTrained": "Trained",
+  "@pulseTrained": {
+    "description": "Label of the pulse card's training stat."
+  },
+  "pulseSteps": "Steps",
+  "@pulseSteps": {
+    "description": "Label of the pulse card's step stat."
+  },
+  "pulseOfGoal": "OF {goal}",
+  "@pulseOfGoal": {
+    "description": "Caption under the step count, naming the daily goal.",
+    "placeholders": {
+      "goal": {
+        "type": "String",
+        "example": "8K"
+      }
+    }
+  },
+  "pulseNoSensor": "NO SENSOR",
+  "@pulseNoSensor": {
+    "description": "Shown where a step count would be on a device with no step sensor."
+  },
+  "pulseVolume": "Volume",
+  "@pulseVolume": {
+    "description": "Label of the pulse card's training-volume stat."
+  },
+  "pulseNoSetsYet": "NO SETS YET",
+  "@pulseNoSetsYet": {
+    "description": "Shown before any sets are logged."
+  },
+  "pulseFirstWeek": "FIRST WEEK",
+  "@pulseFirstWeek": {
+    "description": "Shown where a week-over-week comparison would be, in the first week."
+  },
+  "pulseMomentum": "Momentum",
+  "@pulseMomentum": {
+    "description": "Heading of the pulse card's streak/trend section."
+  },
+  "pulseNoStreakYet": "NO STREAK YET",
+  "@pulseNoStreakYet": {
+    "description": "Shown before a training streak exists."
+  },
+  "pulseNoSessionsYet": "NO SESSIONS YET",
+  "@pulseNoSessionsYet": {
+    "description": "Shown before any session is logged."
+  },
+  "pulseWorthKnowing": "Worth knowing",
+  "@pulseWorthKnowing": {
+    "description": "Heading above the insight nudges."
+  },
+  "insightStreakTitle": "{days}-day training streak",
+  "@insightStreakTitle": {
+    "description": "Insight headline when a training streak is running.",
+    "placeholders": {
+      "days": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "insightStreakBody": "Momentum is real right now — protect it with today's session.",
+  "@insightStreakBody": {
+    "description": "Body of the streak insight."
+  },
+  "insightRestTitle": "Rest has stretched to {days} days",
+  "@insightRestTitle": {
+    "description": "Insight headline after a long gap between sessions.",
+    "placeholders": {
+      "days": {
+        "type": "int",
+        "example": "4"
+      }
+    }
+  },
+  "insightRestBody": "No guilt — just the next small session whenever you're ready.",
+  "@insightRestBody": {
+    "description": "Body of the rest-gap insight. Deliberately not scolding."
+  },
+  "insightEveningTitle": "Evening check-in",
+  "@insightEveningTitle": {
+    "description": "Insight headline when meals are still unticked in the evening."
+  },
+  "insightMealsLeftOne": "One meal still open today — worth closing it out.",
+  "@insightMealsLeftOne": {
+    "description": "Body when exactly one planned meal is unticked and no calorie figure is available."
+  },
+  "insightMealsLeftOneKcal": "One meal still open today (~{kcal} kcal) — worth closing it out.",
+  "@insightMealsLeftOneKcal": {
+    "description": "Body when exactly one planned meal is unticked. The ~ marks an estimated figure.",
+    "placeholders": {
+      "kcal": {
+        "type": "int",
+        "example": "520"
+      }
+    }
+  },
+  "insightMealsLeftMany": "{count} meals still open today.",
+  "@insightMealsLeftMany": {
+    "description": "Body when several planned meals are unticked and no calorie figure is available.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "insightMealsLeftManyKcal": "{count} meals still open today (~{kcal} kcal left).",
+  "@insightMealsLeftManyKcal": {
+    "description": "Body when several planned meals are unticked.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "2"
+      },
+      "kcal": {
+        "type": "int",
+        "example": "900"
+      }
+    }
+  },
+  "insightSpendTitle": "Spending is running ~{percent}% hot",
+  "@insightSpendTitle": {
+    "description": "Insight headline when this week outspends the same stretch last week.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "30"
+      }
+    }
+  },
+  "insightSpendBody": "This week vs the same stretch last week — worth a glance.",
+  "@insightSpendBody": {
+    "description": "Body of the spending insight."
+  },
+  "insightStepsTitle": "Steps are behind today",
+  "@insightStepsTitle": {
+    "description": "Insight headline when the step goal is at risk."
+  },
+  "insightStepsClose": "Only {steps} steps from the goal — an easy walk closes it.",
+  "@insightStepsClose": {
+    "description": "Body when the step goal is within easy reach.",
+    "placeholders": {
+      "steps": {
+        "type": "int",
+        "example": "1400"
+      }
+    }
+  },
+  "insightStepsFar": "{steps} steps to go — even ten minutes helps.",
+  "@insightStepsFar": {
+    "description": "Body when the step goal is further off.",
+    "placeholders": {
+      "steps": {
+        "type": "int",
+        "example": "5200"
+      }
+    }
+  },
+  "insightWeightDownTitle": "Weight down {kg} kg over {days} days",
+  "@insightWeightDownTitle": {
+    "description": "Insight headline for a downward weight trend.",
+    "placeholders": {
+      "kg": {
+        "type": "String",
+        "example": "1.2"
+      },
+      "days": {
+        "type": "int",
+        "example": "30"
+      }
+    }
+  },
+  "insightWeightUpTitle": "Weight up {kg} kg over {days} days",
+  "@insightWeightUpTitle": {
+    "description": "Insight headline for an upward weight trend.",
+    "placeholders": {
+      "kg": {
+        "type": "String",
+        "example": "1.2"
+      },
+      "days": {
+        "type": "int",
+        "example": "30"
+      }
+    }
+  },
+  "insightWeightDownBody": "Steady progress — keep eating enough to train hard.",
+  "@insightWeightDownBody": {
+    "description": "Body for a downward weight trend."
+  },
+  "insightWeightUpBody": "Nothing dramatic — watch the trend, not any single day.",
+  "@insightWeightUpBody": {
+    "description": "Body for an upward weight trend."
+  },
+  "workoutTitle": "Workout",
+  "@workoutTitle": {
+    "description": "Title of the Workout hub."
+  },
+  "workoutProgress": "Progress",
+  "@workoutProgress": {
+    "description": "Workout hub: opens the progress screen."
+  },
+  "workoutTraining": "Training",
+  "@workoutTraining": {
+    "description": "Workout hub section heading."
+  },
+  "workoutBodyweight": "Bodyweight",
+  "@workoutBodyweight": {
+    "description": "Workout hub section heading for the weigh-in log."
+  },
+  "workoutSplits": "Splits",
+  "@workoutSplits": {
+    "description": "Opens the split library."
+  },
+  "workoutAnalysis": "Analysis",
+  "@workoutAnalysis": {
+    "description": "Opens week-over-week analysis."
+  },
+  "workoutHistory": "History",
+  "@workoutHistory": {
+    "description": "Opens the session history."
+  },
+  "workoutCreatePlan": "Create plan",
+  "@workoutCreatePlan": {
+    "description": "Action when no plan exists."
+  },
+  "workoutEditPlan": "Edit plan",
+  "@workoutEditPlan": {
+    "description": "Action when a plan exists."
+  },
+  "workoutNoPlanYet": "No workout plan yet",
+  "@workoutNoPlanYet": {
+    "description": "Empty state on the workout surfaces."
+  },
+  "workoutNoDayUpNext": "No day up next.",
+  "@workoutNoDayUpNext": {
+    "description": "Shown when the rotation has nothing queued."
+  },
+  "workoutFullCycle": "Full cycle",
+  "@workoutFullCycle": {
+    "description": "Heading above the whole rotation."
+  },
+  "workoutAnyDayNote": "Today's pick is marked — but any day is fair game. Life doesn't always follow the rotation.",
+  "@workoutAnyDayNote": {
+    "description": "Note under the rotation, telling the user they aren't locked to the suggested day."
+  },
+  "workoutUpNext": "UP NEXT",
+  "@workoutUpNext": {
+    "description": "All-caps caption above the next session."
+  },
+  "workoutNextUp": "Next up",
+  "@workoutNextUp": {
+    "description": "Sentence-case heading above the next session."
+  },
+  "workoutInProgress": "In progress",
+  "@workoutInProgress": {
+    "description": "State of a session already started."
+  },
+  "workoutInProgressCaps": "IN PROGRESS",
+  "@workoutInProgressCaps": {
+    "description": "All-caps badge on a session already started."
+  },
+  "workoutStart": "Start workout",
+  "@workoutStart": {
+    "description": "Begins a session."
+  },
+  "workoutResume": "Resume workout",
+  "@workoutResume": {
+    "description": "Returns to a session already started."
+  },
+  "workoutPause": "Pause workout",
+  "@workoutPause": {
+    "description": "Pauses the running session."
+  },
+  "workoutStartThisDay": "Start this day",
+  "@workoutStartThisDay": {
+    "description": "Begins the session for a specific rotation day."
+  },
+  "workoutChange": "Change",
+  "@workoutChange": {
+    "description": "Opens the sheet for picking a different day."
+  },
+  "workoutChangeWorkout": "Change workout",
+  "@workoutChangeWorkout": {
+    "description": "Title of the day-picker sheet."
+  },
+  "workoutDayLabel": "Day {slot} · {label}",
+  "@workoutDayLabel": {
+    "description": "A rotation day: its slot and its name.",
+    "placeholders": {
+      "slot": {
+        "type": "String",
+        "example": "A"
+      },
+      "label": {
+        "type": "String",
+        "example": "Push"
+      }
+    }
+  },
+  "workoutDaySlot": "DAY {slot}",
+  "@workoutDaySlot": {
+    "description": "All-caps rotation-day badge.",
+    "placeholders": {
+      "slot": {
+        "type": "String",
+        "example": "A"
+      }
+    }
+  },
+  "workoutExercises": "EXERCISES",
+  "@workoutExercises": {
+    "description": "Caption on the up-next card's exercise count."
+  },
+  "workoutSets": "SETS",
+  "@workoutSets": {
+    "description": "Caption on the up-next card's set count."
+  },
+  "workoutMinutes": "MINUTES",
+  "@workoutMinutes": {
+    "description": "Caption on the up-next card's duration estimate."
+  },
+  "workoutReadyToStart": "Ready to start {day}?",
+  "@workoutReadyToStart": {
+    "description": "Confirmation before starting a session.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Push"
+      }
+    }
+  },
+  "workoutReadyToResume": "Ready to jump back in?",
+  "@workoutReadyToResume": {
+    "description": "Confirmation before resuming a session."
+  },
+  "actionResume": "Resume",
+  "@actionResume": {
+    "description": "Short confirm label on the start sheet."
+  },
+  "actionStart": "Start",
+  "@actionStart": {
+    "description": "Short confirm label on the start sheet."
+  },
+  "weighInLast": "Last weigh-in: {kg} kg",
+  "@weighInLast": {
+    "description": "The most recent logged bodyweight.",
+    "placeholders": {
+      "kg": {
+        "type": "String",
+        "example": "82.4"
+      }
+    }
+  },
+  "weighInLog": "Log weigh-in",
+  "@weighInLog": {
+    "description": "Records a new bodyweight entry."
+  },
+  "weighInNone": "NO WEIGH-INS YET",
+  "@weighInNone": {
+    "description": "Shown before any bodyweight is logged."
+  },
+  "weighInStartTrend": "Log one to start the trend.",
+  "@weighInStartTrend": {
+    "description": "Prompt under the empty bodyweight chart."
+  },
+  "weighInLoggedAgo": "Logged {ago} ago",
+  "@weighInLoggedAgo": {
+    "description": "How long ago the latest weigh-in was.",
+    "placeholders": {
+      "ago": {
+        "type": "String",
+        "example": "3 days"
+      }
+    }
+  },
+  "statTotal": "TOTAL",
+  "@statTotal": {
+    "description": "Caption on a stat tile."
+  },
+  "statSessions": "Sessions",
+  "@statSessions": {
+    "description": "Label of the sessions stat tile."
+  },
+  "statDays": "DAYS",
+  "@statDays": {
+    "description": "Caption on the streak tile."
+  },
+  "statStreak": "Streak",
+  "@statStreak": {
+    "description": "Label of the streak stat tile."
+  },
+  "statMinAvg": "MIN AVG",
+  "@statMinAvg": {
+    "description": "Caption on the duration tile — average minutes."
+  },
+  "statDuration": "Duration",
+  "@statDuration": {
+    "description": "Label of the duration stat tile."
+  },
+  "statUsualStart": "Usual start",
+  "@statUsualStart": {
+    "description": "Label of the usual-start-time stat tile."
+  },
+  "commonToday": "TODAY",
+  "@commonToday": {
+    "description": "All-caps caption marking today."
+  },
+  "weighInOneMore": "Logged {ago} ago · one more reading draws the trend.",
+  "@weighInOneMore": {
+    "description": "Shown with exactly one weigh-in on file.",
+    "placeholders": {
+      "ago": {
+        "type": "String",
+        "example": "3 days"
+      }
+    }
+  },
+  "liveDiscardTitle": "Discard this workout?",
+  "@liveDiscardTitle": {
+    "description": "Title of the discard-session dialog."
+  },
+  "liveDiscardBody": "You'll lose this session's progress and the plan won't advance.",
+  "@liveDiscardBody": {
+    "description": "Body of the discard-session dialog. Names both consequences."
+  },
+  "liveKeepGoing": "Keep going",
+  "@liveKeepGoing": {
+    "description": "Dismisses the discard dialog."
+  },
+  "liveDiscard": "Discard",
+  "@liveDiscard": {
+    "description": "Confirms discarding the session."
+  },
+  "liveDiscardWorkout": "Discard workout",
+  "@liveDiscardWorkout": {
+    "description": "Menu action that opens the discard dialog."
+  },
+  "liveNoExercises": "NO EXERCISES",
+  "@liveNoExercises": {
+    "description": "Shown when the day has no exercises."
+  },
+  "liveNothingToDo": "Nothing to do.",
+  "@liveNothingToDo": {
+    "description": "Shown when there is no current exercise or set."
+  },
+  "liveSetLogged": "SET LOGGED",
+  "@liveSetLogged": {
+    "description": "Confirmation caption after a set is recorded."
+  },
+  "liveSetLoggedDetail": "SET LOGGED · {detail}",
+  "@liveSetLoggedDetail": {
+    "description": "Confirmation caption with the reps and load just recorded.",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "8 × 60"
+      }
+    }
+  },
+  "liveSetsLogged": "{count} SETS LOGGED",
+  "@liveSetsLogged": {
+    "description": "How many sets are done so far. Count is zero-padded by the caller.",
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "03"
+      }
+    }
+  },
+  "liveReps": "REPS",
+  "@liveReps": {
+    "description": "All-caps caption on the reps field."
+  },
+  "liveWeightKg": "WEIGHT · KG",
+  "@liveWeightKg": {
+    "description": "All-caps caption on the weight field."
+  },
+  "liveRepsField": "Reps",
+  "@liveRepsField": {
+    "description": "Sentence-case label on the reps correction field."
+  },
+  "liveWeightField": "Weight (kg)",
+  "@liveWeightField": {
+    "description": "Sentence-case label on the weight correction field."
+  },
+  "liveNow": "NOW",
+  "@liveNow": {
+    "description": "Marks the set currently in progress."
+  },
+  "livePaused": "Paused",
+  "@livePaused": {
+    "description": "The session's paused state."
+  },
+  "livePausedCaps": "PAUSED",
+  "@livePausedCaps": {
+    "description": "All-caps paused badge."
+  },
+  "livePausedTapResume": "PAUSED · TAP TO RESUME",
+  "@livePausedTapResume": {
+    "description": "Caption on the dimmed paused screen."
+  },
+  "livePreWorkout": "Pre-workout",
+  "@livePreWorkout": {
+    "description": "The warm-up phase before the first set."
+  },
+  "liveFirstUp": "FIRST UP",
+  "@liveFirstUp": {
+    "description": "Caption above the first exercise during warm-up."
+  },
+  "liveSkipWarmUp": "Skip warm-up",
+  "@liveSkipWarmUp": {
+    "description": "Skips straight to the first set."
+  },
+  "liveRest": "REST",
+  "@liveRest": {
+    "description": "The rest phase between sets."
+  },
+  "liveSkipRest": "Skip rest",
+  "@liveSkipRest": {
+    "description": "Ends the rest timer early."
+  },
+  "liveRestPlanned": "OF {total} PLANNED",
+  "@liveRestPlanned": {
+    "description": "How long the rest was meant to be.",
+    "placeholders": {
+      "total": {
+        "type": "String",
+        "example": "2:00"
+      }
+    }
+  },
+  "liveWorkoutComplete": "Workout complete",
+  "@liveWorkoutComplete": {
+    "description": "Heading of the finished-session screen."
+  },
+  "liveFinish": "Finish",
+  "@liveFinish": {
+    "description": "Ends the session and writes it to history."
+  },
+  "liveMatchingPrevious": "Matching your previous set",
+  "@liveMatchingPrevious": {
+    "description": "Explains the prefilled goal."
+  },
+  "liveFirstTime": "First time",
+  "@liveFirstTime": {
+    "description": "Shown when there is no previous performance to match."
+  },
+  "liveMatchingLast": "MATCHING LAST",
+  "@liveMatchingLast": {
+    "description": "Caption when the goal equals last session's."
+  },
+  "liveSetNumber": "Set {position}",
+  "@liveSetNumber": {
+    "description": "One set in the list, by position.",
+    "placeholders": {
+      "position": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "liveSetNumberCaps": "SET {number}",
+  "@liveSetNumberCaps": {
+    "description": "All-caps set badge.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "liveSetNumberKg": "SET {number} · KG",
+  "@liveSetNumberKg": {
+    "description": "All-caps set badge when a weight is shown alongside.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "liveSkipped": "Skipped",
+  "@liveSkipped": {
+    "description": "State of a set the user skipped."
+  },
+  "liveSkippedCaps": "SKIPPED",
+  "@liveSkippedCaps": {
+    "description": "All-caps badge on a skipped set."
+  },
+  "liveSkip": "Skip",
+  "@liveSkip": {
+    "description": "Skips the current set."
+  },
+  "liveLogSet": "Log set",
+  "@liveLogSet": {
+    "description": "Records the current set."
+  },
+  "liveMarkDone": "Mark done",
+  "@liveMarkDone": {
+    "description": "Confirms a previously-skipped set as done."
+  },
+  "liveCorrectSkipped": "Enter what you actually did to mark this done.",
+  "@liveCorrectSkipped": {
+    "description": "Prompt when correcting a skipped set."
+  },
+  "liveCorrectLogged": "Correct the reps or weight actually logged.",
+  "@liveCorrectLogged": {
+    "description": "Prompt when correcting a logged set."
+  },
+  "liveGoal": "GOAL",
+  "@liveGoal": {
+    "description": "Caption above the set's target."
+  },
+  "liveLastTime": "LAST TIME",
+  "@liveLastTime": {
+    "description": "Caption above what was done last session."
+  },
+  "liveTargetRange": "TARGET RANGE",
+  "@liveTargetRange": {
+    "description": "Caption above the rep range."
+  },
+  "liveWeightUp": "Weight up — you hit your reps last time",
+  "@liveWeightUp": {
+    "description": "Progression note: the load went up."
+  },
+  "liveWeightEased": "Weight eased — rebuild with clean reps",
+  "@liveWeightEased": {
+    "description": "Progression note: the load came down."
+  },
+  "liveSameLoadMoreRep": "Same load, one more rep",
+  "@liveSameLoadMoreRep": {
+    "description": "Progression note: add a rep rather than weight."
+  },
+  "liveSameWeight": "Same · {kg}kg",
+  "@liveSameWeight": {
+    "description": "Quick-pick chip that repeats the previous weight.",
+    "placeholders": {
+      "kg": {
+        "type": "String",
+        "example": "60"
+      }
+    }
+  },
+  "liveConnectMusic": "CONNECT MUSIC",
+  "@liveConnectMusic": {
+    "description": "Prompt to link Spotify from the rest screen."
+  },
+  "actionClose": "Close",
+  "@actionClose": {
+    "description": "Dismisses a sheet."
+  },
+  "actionBackCaps": "BACK",
+  "@actionBackCaps": {
+    "description": "All-caps back affordance on the live session screen."
+  },
+  "liveDeltaWeight": "{delta}kg from your previous set",
+  "@liveDeltaWeight": {
+    "description": "How the load compares to the previous set today.",
+    "placeholders": {
+      "delta": {
+        "type": "String",
+        "example": "+2.5"
+      }
+    }
+  },
+  "liveDeltaReps": "{delta} reps from your previous set",
+  "@liveDeltaReps": {
+    "description": "How the reps compare to the previous set today.",
+    "placeholders": {
+      "delta": {
+        "type": "String",
+        "example": "+2"
+      }
+    }
+  },
+  "liveRepsValue": "{reps} reps",
+  "@liveRepsValue": {
+    "description": "A rep count on its own, when no load was recorded.",
+    "placeholders": {
+      "reps": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "liveWeightValue": "{kg} kg",
+  "@liveWeightValue": {
+    "description": "A load on its own, when no rep count was recorded.",
+    "placeholders": {
+      "kg": {
+        "type": "String",
+        "example": "60"
+      }
+    }
+  },
+  "liveRepsByWeight": "{reps} × {kg} kg",
+  "@liveRepsByWeight": {
+    "description": "Reps and load together — the usual case.",
+    "placeholders": {
+      "reps": {
+        "type": "int",
+        "example": "8"
+      },
+      "kg": {
+        "type": "String",
+        "example": "60"
+      }
+    }
+  },
+  "categoryFood": "Food",
+  "@categoryFood": {
+    "description": "Built-in expense category."
+  },
+  "categoryCoffee": "Coffee",
+  "@categoryCoffee": {
+    "description": "Built-in expense category."
+  },
+  "categoryTransport": "Transport",
+  "@categoryTransport": {
+    "description": "Built-in expense category."
+  },
+  "categoryGroceries": "Groceries",
+  "@categoryGroceries": {
+    "description": "Built-in expense category — the weekly shop. Unrelated to the diet feature."
+  },
+  "categoryShopping": "Shopping",
+  "@categoryShopping": {
+    "description": "Built-in expense category."
+  },
+  "categoryOther": "Other",
+  "@categoryOther": {
+    "description": "Built-in expense category, and the fallback for an unknown id."
+  },
+  "expensesTitle": "Expenses",
+  "@expensesTitle": {
+    "description": "Title of the Expenses screen."
+  },
+  "expensesEmpty": "Nothing spent yet — a calm start.",
+  "@expensesEmpty": {
+    "description": "Empty state on the Expenses list."
+  },
+  "expenseNew": "New expense",
+  "@expenseNew": {
+    "description": "Title when logging a new expense."
+  },
+  "expenseEdit": "Edit expense",
+  "@expenseEdit": {
+    "description": "Title when editing an existing expense."
+  },
+  "expenseDelete": "Delete expense",
+  "@expenseDelete": {
+    "description": "Removes an expense."
+  },
+  "expenseNote": "Note",
+  "@expenseNote": {
+    "description": "Label of the note field."
+  },
+  "expenseNoteHint": "What was it for?",
+  "@expenseNoteHint": {
+    "description": "Placeholder in the note field."
+  },
+  "expenseAddNote": "Add note",
+  "@expenseAddNote": {
+    "description": "Opens the note field."
+  },
+  "expenseSaveAmount": "Save · {amount}",
+  "@expenseSaveAmount": {
+    "description": "Save button carrying the amount about to be recorded.",
+    "placeholders": {
+      "amount": {
+        "type": "String",
+        "example": "120 EGP"
+      }
+    }
+  },
+  "walletCaps": "WALLET",
+  "@walletCaps": {
+    "description": "Caption above the wallet balance."
+  },
+  "walletSetUp": "SET UP YOUR WALLET",
+  "@walletSetUp": {
+    "description": "Caption on the wallet empty state."
+  },
+  "walletHowMuchNow": "How much do you have right now?",
+  "@walletHowMuchNow": {
+    "description": "Prompt when setting the starting balance."
+  },
+  "walletDeductNote": "Every expense you log deducts from it automatically.",
+  "@walletDeductNote": {
+    "description": "Explains that the wallet updates itself."
+  },
+  "walletSetStarting": "Set starting balance",
+  "@walletSetStarting": {
+    "description": "Action on the wallet empty state."
+  },
+  "walletTopUp": "Top up",
+  "@walletTopUp": {
+    "description": "Adds funds to the wallet."
+  },
+  "walletTopUpTitle": "Top up wallet",
+  "@walletTopUpTitle": {
+    "description": "Title of the top-up sheet."
+  },
+  "walletSetBalanceTitle": "Set wallet balance",
+  "@walletSetBalanceTitle": {
+    "description": "Title of the set-balance sheet."
+  },
+  "walletHowMuchAdding": "How much are you adding?",
+  "@walletHowMuchAdding": {
+    "description": "Prompt in the top-up sheet."
+  },
+  "walletSaveBalance": "Save balance",
+  "@walletSaveBalance": {
+    "description": "Confirms a new balance."
+  },
+  "walletAddFunds": "Add funds",
+  "@walletAddFunds": {
+    "description": "Confirms a top-up."
+  },
+  "expensesThisWeek": "THIS WEEK",
+  "@expensesThisWeek": {
+    "description": "Caption above the week's spend bars."
+  },
+  "categoryNew": "New category",
+  "@categoryNew": {
+    "description": "Title of the add-category sheet."
+  },
+  "categoryNewHint": "e.g. Subscriptions",
+  "@categoryNewHint": {
+    "description": "Placeholder for a new category's name."
+  },
+  "categoryIconCaps": "ICON",
+  "@categoryIconCaps": {
+    "description": "Caption above the icon picker."
+  },
+  "categoryAdd": "Add category",
+  "@categoryAdd": {
+    "description": "Confirms creating a category."
+  },
+  "captureTitle": "Capture",
+  "@captureTitle": {
+    "description": "Title of the quick-capture sheet."
+  },
+  "captureExpense": "Expense",
+  "@captureExpense": {
+    "description": "Quick-capture route."
+  },
+  "captureExpenseDetail": "Amount, category — in seconds",
+  "@captureExpenseDetail": {
+    "description": "Quick-capture route subtitle."
+  },
+  "captureMoment": "Moment",
+  "@captureMoment": {
+    "description": "Quick-capture route."
+  },
+  "captureMomentDetail": "Photo + a line",
+  "@captureMomentDetail": {
+    "description": "Quick-capture route subtitle."
+  },
+  "captureWorkout": "Workout",
+  "@captureWorkout": {
+    "description": "Quick-capture route."
+  },
+  "captureWorkoutDetail": "Log a training session",
+  "@captureWorkoutDetail": {
+    "description": "Quick-capture route subtitle."
+  },
+  "dateToday": "Today",
+  "@dateToday": {
+    "description": "A date chip meaning the current day."
+  },
+  "dateYesterday": "Yesterday",
+  "@dateYesterday": {
+    "description": "A date chip meaning the previous day."
+  },
+  "nutritionCalories": "Calories",
+  "@nutritionCalories": {
+    "description": "Label of the calories field."
+  },
+  "nutritionProtein": "Protein (g)",
+  "@nutritionProtein": {
+    "description": "Label of the protein field."
+  },
+  "nutritionCarbs": "Carbs (g)",
+  "@nutritionCarbs": {
+    "description": "Label of the carbs field."
+  },
+  "nutritionFat": "Fat (g)",
+  "@nutritionFat": {
+    "description": "Label of the fat field."
+  },
+  "nutritionCaloriesPer100g": "Calories / 100g",
+  "@nutritionCaloriesPer100g": {
+    "description": "Label of the per-100g calories field when defining a custom food."
+  },
+  "targetsSave": "Save target",
+  "@targetsSave": {
+    "description": "Saves the daily target."
+  },
+  "targetsNoneSet": "No daily target set",
+  "@targetsNoneSet": {
+    "description": "Shown wherever a target is missing."
+  },
+  "targetsZivoWillUse": "ZIVO will use",
+  "@targetsZivoWillUse": {
+    "description": "Heading of the sheet listing the stored body data the calculator will run on."
+  },
+  "targetsFillFields": "Fill the fields",
+  "@targetsFillFields": {
+    "description": "Applies the calculated proposal to the target form."
+  },
+  "targetsChangeBodyData": "Change my body data",
+  "@targetsChangeBodyData": {
+    "description": "Opens the body-data screen from the calculator sheet."
+  },
+  "targetsFromBodyData": "Work it out from my body data",
+  "@targetsFromBodyData": {
+    "description": "Opens the calculator."
+  },
+  "bodyWeightLabel": "Weight",
+  "@bodyWeightLabel": {
+    "description": "Label in the stored-body-data list."
+  },
+  "bodyHeightLabel": "Height",
+  "@bodyHeightLabel": {
+    "description": "Label in the stored-body-data list."
+  },
+  "bodyAgeLabel": "Age",
+  "@bodyAgeLabel": {
+    "description": "Label in the stored-body-data list."
+  },
+  "bodyActivityLabel": "Activity",
+  "@bodyActivityLabel": {
+    "description": "Label in the stored-body-data list."
+  },
+  "planDeleteTitle": "Delete this plan?",
+  "@planDeleteTitle": {
+    "description": "Title of the delete-plan dialog."
+  },
+  "planEditTitle": "Edit diet plan",
+  "@planEditTitle": {
+    "description": "Title of the plan editor."
+  },
+  "planDelete": "Delete plan",
+  "@planDelete": {
+    "description": "Removes a plan."
+  },
+  "planNameHint": "Plan name",
+  "@planNameHint": {
+    "description": "Placeholder for the plan's name."
+  },
+  "planSave": "Save plan",
+  "@planSave": {
+    "description": "Saves the edited plan."
+  },
+  "planNoDays": "No days yet.",
+  "@planNoDays": {
+    "description": "Empty state in the plan editor."
+  },
+  "planAddDay": "Add day",
+  "@planAddDay": {
+    "description": "Adds a day to the plan."
+  },
+  "planAddMeal": "Add meal",
+  "@planAddMeal": {
+    "description": "Adds a meal to a day."
+  },
+  "planAddItem": "Add item",
+  "@planAddItem": {
+    "description": "Adds a food item to a meal."
+  },
+  "planAddFoodItem": "Add food item",
+  "@planAddFoodItem": {
+    "description": "Title of the add-item sheet."
+  },
+  "planEveryDay": "Every day",
+  "@planEveryDay": {
+    "description": "The default day label — a plan with one day that repeats."
+  },
+  "planDayLabelHint": "Day label (optional)",
+  "@planDayLabelHint": {
+    "description": "Placeholder for a day's name."
+  },
+  "planMealNameHint": "Meal name",
+  "@planMealNameHint": {
+    "description": "Placeholder for a meal's name."
+  },
+  "planFoodNameHint": "Food name",
+  "@planFoodNameHint": {
+    "description": "Placeholder for a food's name."
+  },
+  "planQty": "Qty",
+  "@planQty": {
+    "description": "Short label for a quantity field."
+  },
+  "plansTitle": "Your plans",
+  "@plansTitle": {
+    "description": "Title of the plan library."
+  },
+  "plansFollow": "Follow this plan",
+  "@plansFollow": {
+    "description": "Makes a plan the active one."
+  },
+  "plansStopFollowing": "Stop following",
+  "@plansStopFollowing": {
+    "description": "Archives the active plan."
+  },
+  "prefsBuildTitle": "Build me a plan",
+  "@prefsBuildTitle": {
+    "description": "Title of the plan-generation preferences screen."
+  },
+  "prefsBuild": "Build my plan",
+  "@prefsBuild": {
+    "description": "Starts plan generation."
+  },
+  "dictateHint": "Breakfast is…",
+  "@dictateHint": {
+    "description": "Placeholder in the typed/dictated description field."
+  },
+  "dictateTurnIntoPlan": "Turn this into a plan",
+  "@dictateTurnIntoPlan": {
+    "description": "Sends the description to the extractor."
+  },
+  "dictateDoneTalking": "Done talking",
+  "@dictateDoneTalking": {
+    "description": "Stops the recording."
+  },
+  "logWhatDidYouEat": "What did you eat?",
+  "@logWhatDidYouEat": {
+    "description": "Prompt at the top of the food-log sheet."
+  },
+  "logBackToSearch": "Back to search",
+  "@logBackToSearch": {
+    "description": "Returns from a food's detail to the search list."
+  },
+  "logIt": "Log it",
+  "@logIt": {
+    "description": "Records the chosen food."
+  },
+  "logAddOwnFood": "Add \"{query}\" as my own food",
+  "@logAddOwnFood": {
+    "description": "Offers to define a food the catalog doesn't have.",
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "example": "koshari"
+      }
+    }
+  },
+  "logYourOwnFood": "Your own food",
+  "@logYourOwnFood": {
+    "description": "Title of the custom-food form."
+  },
+  "logFoodName": "Name",
+  "@logFoodName": {
+    "description": "Label of the custom food's name field."
+  },
+  "logSaveFood": "Save food",
+  "@logSaveFood": {
+    "description": "Saves a custom food."
+  },
+  "dietEaten": "Eaten",
+  "@dietEaten": {
+    "description": "Marks a meal as eaten."
+  },
+  "adoptSaveAsTarget": "Save as my target",
+  "@adoptSaveAsTarget": {
+    "description": "Accepts the plan's own daily figure as the target."
+  },
+  "addDietPdfOrPhoto": "PDF or photo",
+  "@addDietPdfOrPhoto": {
+    "description": "Capture route: a document or a picture of one."
+  },
+  "addDietPdfOrPhotoDetail": "Your nutritionist's plan, or a picture of one.",
+  "@addDietPdfOrPhotoDetail": {
+    "description": "Subtitle of the document capture route."
+  },
+  "addDietDictate": "Say it out loud",
+  "@addDietDictate": {
+    "description": "Capture route: dictation."
+  },
+  "addDietDictateDetail": "Describe your meals; ZIVO writes them down.",
+  "@addDietDictateDetail": {
+    "description": "Subtitle of the dictation route."
+  },
+  "addDietType": "Type it out",
+  "@addDietType": {
+    "description": "Capture route: typing a description."
+  },
+  "addDietTypeDetail": "Write your meals in your own words.",
+  "@addDietTypeDetail": {
+    "description": "Subtitle of the typing route."
+  },
+  "addDietGenerate": "Build one for me",
+  "@addDietGenerate": {
+    "description": "Capture route: ZIVO generates the plan."
+  },
+  "addDietGenerateDetail": "Tell ZIVO what you eat; it designs the plan.",
+  "@addDietGenerateDetail": {
+    "description": "Subtitle of the generation route."
+  },
+  "addDietManual": "Build it meal by meal",
+  "@addDietManual": {
+    "description": "Capture route: the full editor."
+  },
+  "addDietManualDetail": "The full editor, nothing extracted for you.",
+  "@addDietManualDetail": {
+    "description": "Subtitle of the manual route."
+  },
+  "addDietIntro": "However it reaches ZIVO, you review every meal and every figure before it is saved.",
+  "@addDietIntro": {
+    "description": "Note under the add-a-diet sheet's title."
+  },
+  "momentDeleteTitle": "Delete moment?",
+  "@momentDeleteTitle": {
+    "description": "Title of the delete-moment confirmation."
+  },
+  "momentDeleteBody": "This removes it from your moments. The photo on your device is also removed.",
+  "@momentDeleteBody": {
+    "description": "Body of the delete-moment confirmation. Names both consequences."
+  },
+  "dietPlanDeleteBody": "This removes \"{name}\" and all its days and meals. This can't be undone.",
+  "@dietPlanDeleteBody": {
+    "description": "Body of the delete-diet-plan confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Cutting Plan"
+      }
+    }
+  },
+  "dietPlanArchiveHint": "This removes {name} for good. Archiving keeps it and takes it off the Diet screen just the same.",
+  "@dietPlanArchiveHint": {
+    "description": "Body of the delete-diet-plan confirmation shown where archiving is the gentler alternative.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Cutting Plan"
+      }
+    }
+  },
+  "sessionDeleteTitle": "Delete this session?",
+  "@sessionDeleteTitle": {
+    "description": "Title of the delete-logged-session confirmation."
+  },
+  "sessionDeleteBody": "This permanently removes your \"{day}\" session and everything logged in it. This can't be undone.",
+  "@sessionDeleteBody": {
+    "description": "Body of the delete-logged-session confirmation.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Push"
+      }
+    }
+  },
+  "splitDeleteTitle": "Delete \"{name}\"?",
+  "@splitDeleteTitle": {
+    "description": "Title of the delete-split confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Push Pull Legs"
+      }
+    }
+  },
+  "splitDeleteBody": "This removes the split and all its days and exercises. Logged history for it is kept, just no longer editable here. This can't be undone.",
+  "@splitDeleteBody": {
+    "description": "Body of the delete-split confirmation. Says explicitly that history survives."
+  },
+  "workoutPlanDeleteTitle": "Delete this plan?",
+  "@workoutPlanDeleteTitle": {
+    "description": "Title of the delete-workout-plan confirmation."
+  },
+  "workoutPlanDeleteBody": "This removes \"{name}\" and all its days and exercises. This can't be undone.",
+  "@workoutPlanDeleteBody": {
+    "description": "Body of the delete-workout-plan confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Push Pull Legs"
+      }
+    }
+  },
+  "splitDeleteTitlePlain": "Delete this split?",
+  "@splitDeleteTitlePlain": {
+    "description": "Title of the delete confirmation inside the split editor, where which split is being edited is already obvious."
+  }
+}

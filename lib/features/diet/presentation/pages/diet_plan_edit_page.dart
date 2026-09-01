@@ -11,7 +11,13 @@ import '../../domain/diet_plan_status.dart';
 import '../../domain/diet_source.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
+import '../../domain/nutrition/plausibility.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/widgets/zivo_field.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
+import '../../../../l10n/l10n.dart';
 
 const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 String _weekdayLabel(int? weekday) =>
@@ -105,10 +111,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addDay() async {
-    final result = await showModalBottomSheet<_DayDraft>(
+    final result = await showZivoSheet<_DayDraft>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _DaySheet(),
     );
     if (result == null) return;
@@ -122,10 +126,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addMeal(int dayIndex) async {
-    final label = await showModalBottomSheet<String>(
+    final label = await showZivoSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _MealSheet(),
     );
     if (label == null) return;
@@ -146,10 +148,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
   }
 
   Future<void> _addItem(int dayIndex, int mealIndex) async {
-    final item = await showModalBottomSheet<FoodItem>(
+    final item = await showZivoSheet<FoodItem>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _FoodItemSheet(),
     );
     if (item == null) return;
@@ -197,34 +197,12 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     final plan = widget.initialPlan;
     if (plan == null) return;
     final diet = AppScope.of(context).diet;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TrainColors.raised,
-        title: Text('Delete this plan?', style: AppText.cardTitle),
-        content: Text(
-          'This removes "${plan.name}" and all its days and meals. This can\'t be undone.',
-          style: AppText.body,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: AppText.button.copyWith(color: TrainColors.ink3),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Delete',
-              style: AppText.button.copyWith(color: TrainColors.ember),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).planDeleteTitle,
+      body: l(context).dietPlanDeleteBody(plan.name),
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await diet.deletePlan(plan.id);
     if (mounted) Navigator.of(context).pop();
   }
@@ -238,14 +216,14 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: 'Edit diet plan',
+              title: l(context).planEditTitle,
               onClose: () => Navigator.of(context).maybePop(),
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('diet-plan-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete plan',
+                      semanticLabel: l(context).planDelete,
                       iconColor: TrainColors.ember,
                     )
                   : null,
@@ -260,7 +238,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Plan name',
+                  hintText: l(context).planNameHint,
                   hintStyle: AppText.cardTitle.copyWith(
                     fontSize: 24,
                     color: TrainColors.ink3,
@@ -277,7 +255,10 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         if (i == _days.length) {
-                          return _AddButton(label: 'Add day', onTap: _addDay);
+                          return _AddButton(
+                            label: l(context).planAddDay,
+                            onTap: _addDay,
+                          );
                         }
                         return _DayCard(
                           day: _days[i],
@@ -298,7 +279,7 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
               child: PillButton(
-                label: 'Save plan',
+                label: l(context).planSave,
                 icon: Icons.check_rounded,
                 color: TrainColors.green,
                 enabled: _canSave,
@@ -329,9 +310,9 @@ class _EmptyDays extends StatelessWidget {
             color: TrainColors.ink3,
           ),
           const SizedBox(height: 12),
-          Text('No days yet.', style: AppText.aside),
+          Text(l(context).planNoDays, style: AppText.aside),
           const SizedBox(height: 14),
-          _AddButton(label: 'Add day', onTap: onAdd),
+          _AddButton(label: l(context).planAddDay, onTap: onAdd),
         ],
       ),
     );
@@ -446,12 +427,21 @@ class _DayCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 10),
-          _AddButton(label: 'Add meal', onTap: onAddMeal, compact: true),
+          _AddButton(
+            label: l(context).planAddMeal,
+            onTap: onAddMeal,
+            compact: true,
+          ),
         ],
       ),
     );
   }
 }
+
+/// The item's stated calories measured against its own macros, as a line to
+/// print — null when there is nothing to say (which is most items).
+String? _crossCheckNote(FoodItem item) =>
+    nutritionCrossCheckNote(crossCheckItem(item));
 
 class _MealBlock extends StatelessWidget {
   const _MealBlock({
@@ -506,11 +496,36 @@ class _MealBlock extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      '${meal.items[ii].name} · ${foodQtyLabel(meal.items[ii])}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.meta.copyWith(color: TrainColors.ink2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${meal.items[ii].name} · '
+                          '${foodQtyLabel(meal.items[ii])}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.meta.copyWith(color: TrainColors.ink2),
+                        ),
+                        // The editor is the review gate for an imported plan,
+                        // so it is where a figure that contradicts its own
+                        // macros has to be visible. It states both numbers
+                        // rather than a verdict, and it does not block Save:
+                        // the user may know something the arithmetic doesn't,
+                        // and refusing their plan over a guess the app made
+                        // would be the wrong party paying for it.
+                        if (_crossCheckNote(meal.items[ii]) case final note?)
+                          Padding(
+                            key: Key('item-crosscheck-${meal.id}-$ii'),
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              note,
+                              maxLines: 2,
+                              style: AppText.meta.copyWith(
+                                color: TrainColors.ember,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -527,7 +542,11 @@ class _MealBlock extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 6),
-          _AddButton(label: 'Add item', onTap: onAddItem, compact: true),
+          _AddButton(
+            label: l(context).planAddItem,
+            onTap: onAddItem,
+            compact: true,
+          ),
         ],
       ),
     );
@@ -576,20 +595,11 @@ class _DaySheetState extends State<_DaySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add day', style: AppText.cardTitle),
+            child: Text(l(context).planAddDay, style: AppText.cardTitle),
           ),
           Wrap(
             spacing: 8,
@@ -602,7 +612,7 @@ class _DaySheetState extends State<_DaySheet> {
                   onTap: () => setState(() => _weekday = wd),
                 ),
               SelectChip(
-                label: 'Every day',
+                label: l(context).planEveryDay,
                 selected: _weekday == null,
                 onTap: () => setState(() => _weekday = null),
               ),
@@ -627,13 +637,13 @@ class _DaySheetState extends State<_DaySheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Day label (optional)',
+              hintText: l(context).planDayLabelHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add day',
+            label: l(context).planAddDay,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: true,
@@ -694,20 +704,11 @@ class _MealSheetState extends State<_MealSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add meal', style: AppText.cardTitle),
+            child: Text(l(context).planAddMeal, style: AppText.cardTitle),
           ),
           TextField(
             controller: _label,
@@ -728,13 +729,13 @@ class _MealSheetState extends State<_MealSheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Meal name',
+              hintText: l(context).planMealNameHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add meal',
+            label: l(context).planAddMeal,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: _canAdd,
@@ -787,12 +788,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
 
   void _submit() {
     if (!_canAdd) return;
-    final quantity =
-        double.tryParse(_quantity.text.trim().replaceAll(',', '.')) ?? 0;
-    final calories = int.tryParse(_calories.text.trim());
-    final protein = double.tryParse(_protein.text.trim().replaceAll(',', '.'));
-    final carbs = double.tryParse(_carbs.text.trim().replaceAll(',', '.'));
-    final fat = double.tryParse(_fat.text.trim().replaceAll(',', '.'));
+    final quantity = parseDecimal(_quantity.text) ?? 0;
+    final calories = parseWhole(_calories.text);
+    final protein = parseDecimal(_protein.text);
+    final carbs = parseDecimal(_carbs.text);
+    final fat = parseDecimal(_fat.text);
     Navigator.of(context).pop(
       FoodItem(
         name: _name.text.trim(),
@@ -823,20 +823,11 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Add food item', style: AppText.cardTitle),
+            child: Text(l(context).planAddFoodItem, style: AppText.cardTitle),
           ),
           TextField(
             controller: _name,
@@ -856,7 +847,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Food name',
+              hintText: l(context).planFoodNameHint,
               hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
             ),
           ),
@@ -864,7 +855,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _NumberField(label: 'Qty', controller: _quantity),
+              _NumberField(label: l(context).planQty, controller: _quantity),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -897,10 +888,14 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 14),
           Row(
             children: [
-              _NumberField(label: 'Calories', controller: _calories, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionCalories,
+                controller: _calories,
+                hint: '—',
+              ),
               const SizedBox(width: 12),
               _NumberField(
-                label: 'Protein (g)',
+                label: l(context).nutritionProtein,
                 controller: _protein,
                 hint: '—',
               ),
@@ -909,14 +904,22 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _NumberField(label: 'Carbs (g)', controller: _carbs, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionCarbs,
+                controller: _carbs,
+                hint: '—',
+              ),
               const SizedBox(width: 12),
-              _NumberField(label: 'Fat (g)', controller: _fat, hint: '—'),
+              _NumberField(
+                label: l(context).nutritionFat,
+                controller: _fat,
+                hint: '—',
+              ),
             ],
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add item',
+            label: l(context).planAddItem,
             icon: Icons.add_rounded,
             color: TrainColors.green,
             enabled: _canAdd,
@@ -961,28 +964,7 @@ class _NumberField extends StatelessWidget {
             ],
             cursorColor: TrainColors.green,
             style: AppText.rowTitle,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hint,
-              hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: 12,
-              ),
-              filled: true,
-              fillColor: TrainColors.base,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: TrainColors.green,
-                  width: 1.4,
-                ),
-              ),
-            ),
+            decoration: zivoFieldDecoration(isDense: true, hintText: hint),
           ),
         ],
       ),

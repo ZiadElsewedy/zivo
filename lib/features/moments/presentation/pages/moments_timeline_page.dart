@@ -196,11 +196,11 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                       child: filtered.isEmpty
                           ? _MomentsEmptyState(title: _emptyLabel())
                           : GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(
+                              padding: EdgeInsets.fromLTRB(
                                 14,
                                 6,
                                 14,
-                                100,
+                                TrainBottomInset.of(context),
                               ),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(

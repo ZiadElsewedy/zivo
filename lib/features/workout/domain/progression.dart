@@ -2,6 +2,15 @@ import 'logged_set.dart';
 import 'muscle_group.dart';
 import 'rep_target.dart';
 
+/// The sentinel [ProgressionGoal.repsLabel] carries for a to-failure set.
+///
+/// A **value**, not display copy: the live-session screen compares against it
+/// to decide whether to prefill the reps field, so it has to be the same
+/// string in every language. AMRAP is the training term itself — it is left
+/// untranslated on screen too, in Arabic as in English.
+const String kAmrapLabel = 'AMRAP';
+
+
 /// The computed progressive-overload goal for a set the user is about to
 /// perform — what to aim for, given the plan's prescription and (if
 /// available) what was actually done the last time this exact set (by
@@ -29,7 +38,7 @@ String _trimWeight(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 
 double _incrementKg(String? muscleGroup) => isSmallMuscleGroup(muscleGroup) ? 1.25 : 2.5;
 
 String _label(double? weightKg, String repsLabel) {
-  final repsPart = repsLabel == 'AMRAP' ? 'AMRAP' : '× $repsLabel';
+  final repsPart = repsLabel == kAmrapLabel ? kAmrapLabel : '× $repsLabel';
   return weightKg == null ? repsPart : '${_trimWeight(weightKg)}kg $repsPart';
 }
 
@@ -62,7 +71,7 @@ ProgressionGoal computeGoal({
     final repsLabel = switch (target.kind) {
       RepTargetKind.fixed => '${target.min}',
       RepTargetKind.range => '${target.min}',
-      RepTargetKind.toFailure => 'AMRAP',
+      RepTargetKind.toFailure => kAmrapLabel,
     };
     return ProgressionGoal(
       weightKg: targetWeightKg,

@@ -6,8 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../core/firebase/uid_source.dart';
+import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/diet_import_result.dart';
+import '../../diet/domain/nutrition_targets.dart';
+import '../../diet/domain/plan_preferences.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
@@ -37,6 +40,24 @@ import '../domain/stt_outcome.dart';
 /// no `uid` of its own — it resolves the signed-in user from an injected
 /// [UidSource] instead, which re-scopes [watchMessages] whenever the uid
 /// changes (including to/from signed-out).
+/// The device's own clock, as the `aiChat` gateway needs it: the UTC offset in
+/// whole minutes plus the short zone name ("EEST") for the coach to quote.
+///
+/// Cloud Functions run in UTC, but this app writes `dietEntries.dayKey` from
+/// the **device's** calendar date. Without this the server resolved a
+/// different "today" from the one on screen for every user east or west of
+/// UTC — a UTC+3 user asking anything between local midnight and 03:00 got
+/// yesterday's diet entries and yesterday's weekday plan slot. Sent per turn
+/// rather than stored, so it follows the user across timezones and DST with
+/// no dependency on a timezone package.
+Map<String, Object?> clientClockFields([DateTime? now]) {
+  final at = now ?? DateTime.now();
+  return {
+    'utcOffsetMinutes': at.timeZoneOffset.inMinutes,
+    'timeZoneName': at.timeZoneName,
+  };
+}
+
 class FirebaseAiRepository implements AiRepository {
   FirebaseAiRepository({
     FirebaseFirestore? firestore,
@@ -61,8 +82,12 @@ class FirebaseAiRepository implements AiRepository {
     invokeAction,
     Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     invokeImport,
-    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
-    invokeDietImport,
+    Future<DietImportOutcome> Function(DietImportInput input)? invokeDietImport,
+    Future<DietImportOutcome> Function(
+      PlanPreferences preferences,
+      NutritionTargets? targets,
+    )?
+    invokeDietGenerate,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -78,6 +103,8 @@ class FirebaseAiRepository implements AiRepository {
        _invokeImport = invokeImport ?? _defaultInvokeImport(functions),
        _invokeDietImport =
            invokeDietImport ?? _defaultInvokeDietImport(functions),
+       _invokeDietGenerate =
+           invokeDietGenerate ?? _defaultInvokeDietGenerate(functions),
        _invokeTranscribe =
            invokeTranscribe ?? _defaultInvokeTranscribe(functions),
        _invokeDelete = invokeDelete ?? _defaultInvokeDelete(functions);
@@ -110,11 +137,13 @@ class FirebaseAiRepository implements AiRepository {
     String mimeType,
   )
   _invokeImport;
-  final Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  final Future<DietImportOutcome> Function(DietImportInput input)
   _invokeDietImport;
+  final Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _invokeDietGenerate;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
     String mimeType,
@@ -143,6 +172,7 @@ class FirebaseAiRepository implements AiRepository {
         'message': message,
         'responseStyle': responseStyle,
         'clientTurnId': ?clientTurnId,
+        ...clientClockFields(),
       });
     };
   }
@@ -165,7 +195,13 @@ class FirebaseAiRepository implements AiRepository {
     void Function(AiTurnEvent event) onEvent,
   )
   _defaultInvokeChatStream(FirebaseFunctions? functions) {
-    return (conversationId, message, responseStyle, clientTurnId, onEvent) async {
+    return (
+      conversationId,
+      message,
+      responseStyle,
+      clientTurnId,
+      onEvent,
+    ) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
       final stream = f.httpsCallable('aiChat').stream({
@@ -174,6 +210,7 @@ class FirebaseAiRepository implements AiRepository {
         'responseStyle': responseStyle,
         'acceptsStreaming': true,
         'clientTurnId': ?clientTurnId,
+        ...clientClockFields(),
       });
       await for (final response in stream) {
         if (response is Chunk) {
@@ -239,18 +276,48 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
-  /// the file base64-encoded. Mirrors [_defaultInvokeImport] exactly.
-  static Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  /// either the file base64-encoded or the user's description as text.
+  /// Mirrors [_defaultInvokeImport] otherwise.
+  ///
+  /// The payload carries exactly one kind of material; the server refuses
+  /// both-at-once, and the sealed [DietImportInput] makes it unrepresentable
+  /// here in the first place.
+  static Future<DietImportOutcome> Function(DietImportInput input)
   _defaultInvokeDietImport(FirebaseFunctions? functions) {
-    return (fileBytes, mimeType) async {
+    return (input) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final result = await f.httpsCallable('aiImportDietPlan').call({
-        'fileBase64': base64Encode(fileBytes),
-        'mimeType': mimeType,
+      final payload = switch (input) {
+        DietImportDocument(:final bytes, :final mimeType) => {
+          'fileBase64': base64Encode(bytes),
+          'mimeType': mimeType,
+        },
+        DietImportDescription(:final text) => {'text': text},
+      };
+      final result = await f.httpsCallable('aiImportDietPlan').call(payload);
+      return _dietImportOutcomeFromJson(result.data);
+    };
+  }
+
+  /// The default `generateDietPlan` invoker — calls `aiGenerateDietPlan` with
+  /// the preferences and, when the user has one, their target. The response
+  /// shape is identical to the importer's, so it reuses the same parser.
+  static Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _defaultInvokeDietGenerate(FirebaseFunctions? functions) {
+    return (preferences, targets) async {
+      final f =
+          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+      final result = await f.httpsCallable('aiGenerateDietPlan').call({
+        'preferences': preferences.toPayload(),
+        if (targets != null)
+          'targets': {
+            'calories': targets.calories,
+            'proteinG': targets.proteinG,
+            'goal': targets.goal.name,
+          },
       });
       return _dietImportOutcomeFromJson(result.data);
     };
@@ -473,10 +540,14 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeImport(fileBytes, mimeType);
 
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) => _invokeDietImport(fileBytes, mimeType);
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      _invokeDietImport(input);
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _invokeDietGenerate(preferences, targets);
 
   @override
   Future<SttOutcome> transcribe({

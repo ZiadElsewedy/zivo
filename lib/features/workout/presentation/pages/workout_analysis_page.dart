@@ -112,7 +112,12 @@ class _WorkoutAnalysisPageState extends State<WorkoutAnalysisPage> {
                   // anywhere: the day chips wrap onto as many lines
                   // as they need.
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 48),
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      12,
+                      22,
+                      TrainBottomInset.of(context),
+                    ),
                     children: [
                       RiseIn(child: const TrainPageHeader(title: 'Analysis')),
                       const SizedBox(height: 24),

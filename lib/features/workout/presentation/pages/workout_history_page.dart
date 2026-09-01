@@ -83,7 +83,12 @@ class WorkoutHistoryPage extends StatelessWidget {
         final weekStarts = byWeek.keys.toList()..sort((a, b) => b.compareTo(a));
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 100),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            12,
+            22,
+            TrainBottomInset.of(context),
+          ),
           children: [
             RiseIn(
               delay: const Duration(milliseconds: 50),

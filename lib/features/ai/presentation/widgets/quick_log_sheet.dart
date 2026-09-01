@@ -8,6 +8,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../data/audio_recorder.dart';
 import '../../domain/stt_error.dart';
 import '../../domain/stt_outcome.dart';
@@ -22,10 +23,8 @@ import '../../domain/stt_outcome.dart';
 /// elapsed timer, transcription shows progress with a discard hatch, and a
 /// failure lands back on a retryable error line inside the sheet.
 Future<String?> showQuickLogSheet(BuildContext context) {
-  return showModalBottomSheet<String>(
+  return showZivoSheet<String>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => const QuickLogSheet(),
   );
 }

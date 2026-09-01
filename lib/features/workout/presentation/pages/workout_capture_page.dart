@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/widgets/zivo_field.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/exercise.dart';
 import '../../domain/workout.dart';
@@ -52,10 +55,8 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
   }
 
   Future<void> _addExercise() async {
-    final result = await showModalBottomSheet<Exercise>(
+    final result = await showZivoSheet<Exercise>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => const _ExerciseSheet(),
     );
     if (result == null) return;
@@ -353,9 +354,9 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
 
   void _submit() {
     if (!_canAdd) return;
-    final sets = int.tryParse(_sets.text.trim()) ?? 1;
-    final reps = int.tryParse(_reps.text.trim()) ?? 1;
-    final weight = double.tryParse(_weight.text.trim().replaceAll(',', '.'));
+    final sets = parseWhole(_sets.text) ?? 1;
+    final reps = parseWhole(_reps.text) ?? 1;
+    final weight = parseDecimal(_weight.text);
     Navigator.of(context).pop(
       Exercise(
         name: _name.text.trim(),
@@ -502,7 +503,7 @@ class _NumberField extends StatelessWidget {
               color: TrainColors.inkPlain,
               height: 1.1,
             ),
-            decoration: InputDecoration(
+            decoration: zivoFieldDecoration(
               isDense: true,
               hintText: hint,
               hintStyle: TrainType.ui(
@@ -510,23 +511,6 @@ class _NumberField extends StatelessWidget {
                 weight: FontWeight.w700,
                 height: 1.1,
                 color: TrainColors.ink4,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: 12,
-              ),
-              filled: true,
-              fillColor: TrainColors.base,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: TrainColors.green,
-                  width: 1.4,
-                ),
               ),
             ),
           ),

@@ -9,7 +9,8 @@ import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/diet/domain/diet_import_result.dart';
 import 'package:zivo/features/diet/domain/diet_source.dart';
-import 'package:zivo/features/diet/presentation/pages/diet_pdf_import_page.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
+import 'package:zivo/features/diet/presentation/pages/diet_import_page.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
@@ -29,7 +30,7 @@ class _FailingImportAi extends FakeAiRepository {
   final Object error;
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) {
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) {
     throw error is String ? StateError(error as String) : error;
   }
 }
@@ -42,7 +43,7 @@ class _Home extends StatelessWidget {
       const Scaffold(body: Center(child: Text('open')));
 }
 
-/// Pumps a Home page under [ai]/[diet] and pushes [DietPdfImportPage] (with
+/// Pumps a Home page under [ai]/[diet] and pushes [DietImportPage] (with
 /// [pickPdfBytes] as its file-picker override) via a real `Navigator`, so
 /// `Navigator.pop()` inside the page is observable as Home reappearing.
 Future<InMemoryDietRepository> _pumpImportPage(
@@ -69,7 +70,7 @@ Future<InMemoryDietRepository> _pumpImportPage(
   );
   navigatorKey.currentState!.push(
     MaterialPageRoute(
-      builder: (_) => DietPdfImportPage(
+      builder: (_) => DietImportPage(
         // Adapt the old bytes-only stub to the page's current pickFile seam.
         pickFile: () async {
           final bytes = await pickPdfBytes();
@@ -181,7 +182,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_, _) async => const DietImportRejected(
+          importDietPlanImpl: (_) async => const DietImportRejected(
             'This looks like a workout plan, not a diet plan.',
           ),
         ),
@@ -206,7 +207,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_, _) async =>
+          importDietPlanImpl: (_) async =>
               const DietImportRejected('Not a diet plan.'),
         ),
       );
@@ -230,7 +231,7 @@ void main() {
             return Uint8List.fromList([1, 2, 3]);
           },
           ai: FakeAiRepository(
-            importDietPlanImpl: (_, _) async =>
+            importDietPlanImpl: (_) async =>
                 const DietImportRejected('Not a diet plan.'),
           ),
         );
@@ -252,7 +253,7 @@ void main() {
           tester,
           pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
           ai: FakeAiRepository(
-            importDietPlanImpl: (_, _) async => const DietImportAccepted(
+            importDietPlanImpl: (_) async => const DietImportAccepted(
               DietImportResult(
                 planName: 'Partial Plan',
                 days: [
@@ -299,7 +300,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importDietPlanImpl: (_, _) async => const DietImportRejected(
+          importDietPlanImpl: (_) async => const DietImportRejected(
             "This file doesn't contain enough valid diet data to create a plan.",
           ),
         ),

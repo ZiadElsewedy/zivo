@@ -136,7 +136,7 @@ void main() {
 
     // The up-next card for the rotation's first day.
     expect(find.text('Push'), findsOneWidget); // the up-next card's title
-    expect(find.text('Start Workout'), findsOneWidget);
+    expect(find.text('Start workout'), findsOneWidget);
 
     // Stats are all placeholders with nothing logged yet.
     expect(find.text('0'), findsNWidgets(2)); // sessions + day streak
@@ -200,7 +200,7 @@ void main() {
       await tester.pump();
 
       // Kept.
-      expect(find.text('Start Workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsOneWidget);
       expect(find.text('TRAINING'), findsWidgets); // section label + the up-next card's own tag
       expect(find.text('BODYWEIGHT'), findsOneWidget);
 

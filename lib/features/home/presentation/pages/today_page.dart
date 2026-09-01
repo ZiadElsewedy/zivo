@@ -16,6 +16,9 @@ import '../../../auth/domain/user_profile.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
+import '../../../diet/domain/diet_state_builder.dart';
+import '../../../diet/domain/nutrition/food_log_entry.dart';
+import '../../../diet/domain/nutrition_targets.dart';
 import '../../../diet/presentation/today_diet.dart';
 import '../../../expenses/domain/expense.dart';
 import '../../../expenses/presentation/pages/expense_capture_page.dart';
@@ -26,6 +29,7 @@ import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
 import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
+import '../../../../l10n/l10n.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
@@ -36,7 +40,18 @@ import '../../../shell/presentation/widgets/bottom_chrome.dart';
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
 class TodayPage extends StatefulWidget {
-  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog});
+  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog, this.now});
+
+  /// The clock the **insights strip** is judged against — real wall time in
+  /// production, injected in tests.
+  ///
+  /// Deliberately scoped to that one section rather than to the whole page:
+  /// it is the only part of Today whose *output* changes with the hour (two
+  /// of [buildInsights]'s rules only speak after 16:00 and 19:00), which is
+  /// what made this page's widget tests pass or fail depending on the time
+  /// of day they were run. Everything else here reads the clock for a date
+  /// or an elapsed figure, which no test asserts to the hour.
+  final DateTime Function()? now;
 
   /// Opens the Ask tab — Today can't switch tabs itself (HomeShell owns the
   /// tab index), so this is how the pull/tap gesture below reaches it.
@@ -98,69 +113,71 @@ class _TodayPageState extends State<TodayPage> {
             right: -70,
             child: _AuraBlob(color: TrainColors.green, size: 280),
           ),
-          Column(
-            children: [
-              // 62px from the top of the safe area to the date caption, per
-              // the handoff's screen padding.
-              SizedBox(height: media.padding.top + 14),
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _handleScroll,
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.screen,
-                      0,
-                      AppSpacing.screen,
-                      // The shell runs `extendBody: true`, so the list scrolls
-                      // UNDER the whole bottom object — nav island plus the
-                      // fused now-playing strip. [BottomChrome] is that
-                      // object's live measured height, so this tracks music
-                      // appearing and leaving instead of reserving a fixed
-                      // allowance that was right in only one of the two states.
-                      // The FAB floats over this same corner, so its disc
-                      // clears too: without that, "Start Workout" ended up
-                      // underneath it.
-                      BottomChrome.of(context) +
-                          _kCaptureFabAllowance +
-                          AppSpacing.base,
-                    ),
-                    children: [
-                      RiseIn(
-                        delay: Duration.zero,
-                        child: _Header(onQuickLog: widget.onQuickLog),
-                      ),
-                      // Primary tier — the day at a glance: train / fuel /
-                      // move rings answering "what have I done today?"
-                      const RiseIn(
-                        delay: Duration(milliseconds: 70),
-                        child: TodayPulseSection(),
-                      ),
-                      // The day's training, full-weight card.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 140),
-                        child: _TrainingSection(),
-                      ),
-                      // Momentum — "how am I doing?" streak, week bars,
-                      // weight trend.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 210),
-                        child: MomentumSection(),
-                      ),
-                      // Worth knowing — computed right-now nudges.
-                      const RiseIn(
-                        delay: Duration(milliseconds: 280),
-                        child: InsightsSection(),
-                      ),
-                      // Tertiary tier — quiet glances, muted ink tones (no bright hues).
-                      const RiseIn(
-                        delay: Duration(milliseconds: 350),
-                        child: _DietSection(),
-                      ),
-                    ],
-                  ),
+          // The status-bar inset belongs to the LIST's padding, not to a
+          // SizedBox above it: as a fixed band outside the viewport it shrank
+          // the scrollable area by the inset on every device and pinned a
+          // strip of dead ground to the top of the screen. Inside the padding
+          // the viewport is the full height of the page, the first card still
+          // starts 62px down, and the inset scrolls away with the content the
+          // way it does everywhere else in iOS.
+          Positioned.fill(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  // 62px from the top of the safe area to the date caption,
+                  // per the handoff's screen padding.
+                  media.padding.top + 14,
+                  AppSpacing.screen,
+                  // The shell runs `extendBody: true`, so the list scrolls
+                  // UNDER the whole bottom object — nav island plus the
+                  // fused now-playing strip. [BottomChrome] is that
+                  // object's live measured height, so this tracks music
+                  // appearing and leaving instead of reserving a fixed
+                  // allowance that was right in only one of the two states.
+                  // The FAB floats over this same corner, so its disc
+                  // clears too: without that, "Start Workout" ended up
+                  // underneath it.
+                  BottomChrome.of(context) +
+                      _kCaptureFabAllowance +
+                      AppSpacing.base,
                 ),
+                children: [
+                  RiseIn(
+                    delay: Duration.zero,
+                    child: _Header(onQuickLog: widget.onQuickLog),
+                  ),
+                  // Primary tier — the day at a glance: train / fuel /
+                  // move rings answering "what have I done today?"
+                  const RiseIn(
+                    delay: Duration(milliseconds: 70),
+                    child: TodayPulseSection(),
+                  ),
+                  // The day's training, full-weight card.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 140),
+                    child: _TrainingSection(),
+                  ),
+                  // Momentum — "how am I doing?" streak, week bars,
+                  // weight trend.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 210),
+                    child: MomentumSection(),
+                  ),
+                  // Worth knowing — computed right-now nudges.
+                  RiseIn(
+                    delay: const Duration(milliseconds: 280),
+                    child: InsightsSection(now: widget.now),
+                  ),
+                  // Tertiary tier — quiet glances, muted ink tones (no bright hues).
+                  const RiseIn(
+                    delay: Duration(milliseconds: 350),
+                    child: _DietSection(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -216,7 +233,10 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                formatTodayShort(now),
+                formatTodayShort(
+                  now,
+                  Localizations.localeOf(context).toLanguageTag(),
+                ),
                 style: TrainType.mono(
                   size: 10,
                   weight: FontWeight.w500,
@@ -266,7 +286,7 @@ class _QuickLogButton extends StatelessWidget {
       size: 40,
       fill: const Color(0x0AFFFFFF),
       border: const Color(0x1AFFFFFF),
-      semanticLabel: 'Quick log by voice',
+      semanticLabel: l(context).todayQuickLogVoice,
       onTap: onTap,
       child: const Icon(AppIcons.mic, size: 16, color: TrainColors.violet),
     );
@@ -368,13 +388,21 @@ class _TimeOfDayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final h = now.hour;
     final (IconData icon, Color color, String label) = switch (h) {
-      >= 6 && < 18 => (Icons.wb_sunny_rounded, TrainColors.ember, 'Daytime'),
+      >= 6 && < 18 => (
+        Icons.wb_sunny_rounded,
+        TrainColors.ember,
+        l(context).todayDaytime,
+      ),
       >= 18 && < 22 => (
         Icons.wb_twilight_rounded,
         TrainColors.amber,
-        'Evening',
+        l(context).todayEvening,
       ),
-      _ => (Icons.nightlight_round, TrainColors.violetGlyph, 'Night'),
+      _ => (
+        Icons.nightlight_round,
+        TrainColors.violetGlyph,
+        l(context).todayNight,
+      ),
     };
     return Semantics(
       label: label,
@@ -406,7 +434,7 @@ class _GreetingRow extends StatelessWidget {
       stream: uid == null ? null : scope.profiles.watchProfile(uid),
       builder: (context, snapshot) {
         return Text(
-          greetingFor(now, snapshot.data?.name),
+          greetingFor(now, snapshot.data?.name, l(context)),
           style: TrainType.ui(
             size: 27,
             weight: FontWeight.w800,
@@ -450,15 +478,17 @@ class _NextSessionCaption extends StatelessWidget {
   Widget build(BuildContext context) {
     final position = plan == null || day == null
         ? null
-        : 'WEEK ${planWeekNumber(plan!, DateTime.now())} '
-              '· DAY ${planDayNumber(day!)}';
+        : l(context).todayPlanPosition(
+            planWeekNumber(plan!, DateTime.now()),
+            planDayNumber(day!),
+          );
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.section, bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const TrainCaption('NEXT SESSION'),
+          TrainCaption(l(context).todayNextSession),
           if (position != null) TrainCaption(position, tracking: 0.08),
         ],
       ),
@@ -599,7 +629,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'No training plan yet',
+                    l(context).todayNoPlanTitle,
                     style: AppText.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
                       color: TrainColors.ink,
@@ -610,8 +640,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Import your split from a PDF or photo and Zivo turns it into '
-              'a real rotating plan — or build one by hand.',
+              l(context).todayNoPlanBody,
               style: AppText.body.copyWith(
                 color: TrainColors.ink2,
                 fontSize: 14,
@@ -622,7 +651,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: PillButton(
-                label: 'Import a plan',
+                label: l(context).todayImportPlan,
                 icon: Icons.upload_file_rounded,
                 color: TrainColors.green,
                 enabled: true,
@@ -649,7 +678,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                     );
                   },
                   child: Text(
-                    'Build manually instead',
+                    l(context).todayBuildManually,
                     style: AppText.meta.copyWith(color: TrainColors.ink2),
                   ),
                 ),
@@ -712,8 +741,7 @@ class _EmptySplitCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Add training days and exercises to this split and it will '
-              'show up here, ready to start.',
+              l(context).todayEmptySplitBody,
               style: AppText.body.copyWith(
                 color: TrainColors.ink2,
                 fontSize: 14,
@@ -724,7 +752,7 @@ class _EmptySplitCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: PillButton(
-                label: 'Edit split',
+                label: l(context).todayEditSplit,
                 icon: Icons.edit_rounded,
                 color: TrainColors.amber,
                 enabled: true,
@@ -770,7 +798,7 @@ class _GetStartedCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Get started',
+              l(context).todayGetStarted,
               style: AppText.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
                 color: TrainColors.ink,
@@ -790,7 +818,7 @@ class _GetStartedCard extends StatelessWidget {
                 Expanded(
                   child: _GetStartedAction(
                     icon: Icons.upload_file_rounded,
-                    label: 'Import a\nworkout plan',
+                    label: l(context).todayImportWorkoutPlan,
                     color: TrainColors.green,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -803,7 +831,7 @@ class _GetStartedCard extends StatelessWidget {
                 Expanded(
                   child: _GetStartedAction(
                     icon: Icons.receipt_long_rounded,
-                    label: 'Add an\nexpense',
+                    label: l(context).todayAddExpense,
                     color: TrainColors.amber,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -885,24 +913,53 @@ class _DietSection extends StatelessWidget {
         final day = dayForDate(plan, now);
         // Tertiary tier: silently hides when empty, same rule as Focus above.
         if (day == null) return const SizedBox.shrink();
-        return StreamBuilder<Set<String>>(
-          stream: diet.watchConsumed(now),
-          initialData: const <String>{},
-          builder: (context, consumedSnapshot) {
-            final summary = dietDaySummary(
-              day,
-              consumedSnapshot.data ?? const <String>{},
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader('Diet'),
-                DietGlanceRow(
-                  eaten: summary.eaten,
-                  total: summary.total,
-                  kcalLeft: summary.kcalLeft,
-                ),
-              ],
+        return StreamBuilder<NutritionTargets?>(
+          stream: diet.watchTargets(),
+          initialData: diet.currentTargets,
+          builder: (context, targetsSnapshot) {
+            final targets = targetsSnapshot.data;
+            return StreamBuilder<List<FoodLogEntry>>(
+              stream: diet.watchFoodLog(now),
+              initialData: const <FoodLogEntry>[],
+              builder: (context, logSnapshot) => StreamBuilder<Set<String>>(
+                stream: diet.watchConsumed(now),
+                initialData: const <String>{},
+                builder: (context, consumedSnapshot) {
+                  final consumed = consumedSnapshot.data ?? const <String>{};
+                  final summary = dietDaySummary(day, consumed);
+                  // Measure against the user's own target when they have one,
+                  // through the SAME `buildDietState` the Diet screen and the
+                  // coach use. Falling back to the plan total is fine;
+                  // silently swapping between the two under the same words
+                  // would not be.
+                  final state = targets == null
+                      ? null
+                      : buildDietState(
+                          dayKey: '',
+                          weekday: now.weekday,
+                          targets: targets,
+                          planName: null,
+                          day: day,
+                          consumedMealIds: consumed,
+                          log: logSnapshot.data ?? const <FoodLogEntry>[],
+                        );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeader('Diet'),
+                      DietGlanceRow(
+                        eaten: summary.eaten,
+                        total: summary.total,
+                        kcalLeft: state?.remainingKcal ?? summary.kcalLeft,
+                        kcalEstimated:
+                            state?.consumed.estimated ??
+                            summary.kcalLeftEstimated,
+                        againstTarget: state != null,
+                      ),
+                    ],
+                  );
+                },
+              ),
             );
           },
         );

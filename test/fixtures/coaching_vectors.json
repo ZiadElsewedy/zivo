@@ -1,0 +1,1618 @@
+{
+  "schemaVersion": 1,
+  "note": "Golden vectors for the coaching rules engine. Run by BOTH flutter test and node --test; regenerate with scripts/nutrition/build_coaching_vectors.js. Cases deliberately include the negatives: a rules engine is defined as much by what it stays quiet about.",
+  "planDay": {
+    "label": "Every day",
+    "meals": [
+      {
+        "id": "m1-breakfast",
+        "label": "Breakfast",
+        "items": [
+          {
+            "name": "Oats",
+            "quantity": 60,
+            "unit": "g",
+            "calories": 220,
+            "proteinG": 8,
+            "carbsG": 38,
+            "fatG": 4,
+            "estimated": true
+          }
+        ]
+      },
+      {
+        "id": "m2-lunch",
+        "label": "Lunch",
+        "items": [
+          {
+            "name": "Chicken",
+            "quantity": 200,
+            "unit": "g",
+            "calories": 330,
+            "proteinG": 62,
+            "carbsG": 0,
+            "fatG": 7
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "a low target outranks everything else",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 900,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "target_below_safety_floor",
+          "kind": "warning",
+          "severity": "urgent",
+          "text": "The daily target is set to 900 kcal, below the 1200 kcal floor ZIVO will coach to. Eating this low is worth talking through with a doctor or a registered dietitian first.",
+          "evidence": [
+            "targets.calories"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 900 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "400 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "no targets: the blocker is the coaching",
+      "localHour": 12,
+      "input": {
+        "targets": null,
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "targets_unset",
+          "kind": "clarification",
+          "severity": "important",
+          "text": "No daily target is set, so there's nothing to measure today against. Setting a goal and a calorie target is what turns this from a food diary into coaching.",
+          "evidence": [
+            "quality.targetsUnset"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nothing logged in the morning is unremarkable",
+      "localHour": 9,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": []
+      },
+      "expected": [
+        {
+          "code": "nothing_logged",
+          "kind": "clarification",
+          "severity": "info",
+          "text": "Nothing's logged yet today, so there's nothing to read into the zero.",
+          "evidence": [
+            "quality.nothingLogged",
+            "consumed.basis"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nothing logged in the evening is worth a nudge",
+      "localHour": 21,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": []
+      },
+      "expected": [
+        {
+          "code": "nothing_logged",
+          "kind": "clarification",
+          "severity": "notable",
+          "text": "Nothing's been logged today. Anything recorded now still counts — and without it there are no numbers to work from.",
+          "evidence": [
+            "quality.nothingLogged",
+            "consumed.basis"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the worked example: protein short with the budget running out",
+      "localHour": 19,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 1850,
+            "proteinG": 125,
+            "carbsG": 200,
+            "fatG": 60,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "protein_shortfall",
+          "kind": "recommendation",
+          "severity": "important",
+          "text": "35g short of the 160g protein target, with 350 kcal left. A lean protein source closes most of that gap without using much of what's left.",
+          "evidence": [
+            "remaining.proteinG",
+            "targets.proteinG",
+            "remaining.kcal",
+            "targets.calories"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "1850 of 2200 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "350 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the same protein gap early in the day stays quiet",
+      "localHour": 9,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 400,
+            "proteinG": 25,
+            "carbsG": 40,
+            "fatG": 12,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "400 of 2200 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "1800 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "protein met produces encouragement and NO shortfall",
+      "localHour": 19,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 1900,
+            "proteinG": 175,
+            "carbsG": 200,
+            "fatG": 60,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "protein_met",
+          "kind": "encouragement",
+          "severity": "notable",
+          "text": "Protein is already at 175g against a 160g target — that part of the day is done.",
+          "evidence": [
+            "consumed.proteinG",
+            "targets.proteinG"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "1900 of 2200 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "300 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "over target is named, never clamped away",
+      "localHour": 20,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 2500,
+            "proteinG": 170,
+            "carbsG": 260,
+            "fatG": 90,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "calories_over_target",
+          "kind": "analysis",
+          "severity": "important",
+          "text": "That's 300 kcal past the fat loss target of 2200.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.calories",
+            "targets.goal"
+          ]
+        },
+        {
+          "code": "protein_met",
+          "kind": "encouragement",
+          "severity": "notable",
+          "text": "Protein is already at 170g against a 160g target — that part of the day is done.",
+          "evidence": [
+            "consumed.proteinG",
+            "targets.proteinG"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "2500 of 2200 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a day of ticked meals is flagged as assumed, not measured",
+      "localHour": 14,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [
+          "m1-breakfast"
+        ],
+        "log": []
+      },
+      "expected": [
+        {
+          "code": "consumption_assumed",
+          "kind": "clarification",
+          "severity": "notable",
+          "text": "Today's totals come from the meals ticked off the plan, not from food that was weighed — so they say what the plan expected, not what was actually eaten.",
+          "evidence": [
+            "consumed.basis",
+            "quality.consumedIsAssumed"
+          ]
+        },
+        {
+          "code": "estimated_values",
+          "kind": "clarification",
+          "severity": "notable",
+          "text": "Some of today's figures were estimated when the plan was imported rather than measured, so treat them as approximate.",
+          "evidence": [
+            "quality.hasEstimatedValues",
+            "consumed.estimated"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "220 of 2200 kcal so far (from the meals you ticked, not weighed).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "untracked macros are named so nobody is told they're over on them",
+      "localHour": 14,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": null,
+          "fatG": null,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 2200 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "1700 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        },
+        {
+          "code": "untracked_macros",
+          "kind": "clarification",
+          "severity": "info",
+          "text": "No target set for carbs, fat — there is nothing to be over or under on there.",
+          "evidence": [
+            "quality.untrackedMacros"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an unknown hour: time-dependent rules stay quiet",
+      "localHour": null,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2200,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": []
+      },
+      "expected": [
+        {
+          "code": "nothing_logged",
+          "kind": "clarification",
+          "severity": "info",
+          "text": "Nothing's logged yet today, so there's nothing to read into the zero.",
+          "evidence": [
+            "quality.nothingLogged",
+            "consumed.basis"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a fat-loss target ABOVE maintenance is called out",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 3000,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2500,
+          "source": "estimated"
+        }
+      },
+      "expected": [
+        {
+          "code": "target_does_not_serve_goal",
+          "kind": "warning",
+          "severity": "important",
+          "text": "The 3000 kcal target is 500 kcal above the 2500 kcal you burn in a day, which puts weight on — but the goal is set to fat loss. Worth changing one or the other. Maintenance here comes from an estimate from your body data.",
+          "evidence": [
+            "targets.calories",
+            "targets.goal",
+            "energy.maintenanceKcal",
+            "energy.source"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 3000 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "2500 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a muscle-gain target BELOW maintenance is called out too",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "muscleGain",
+          "calories": 2100,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2800,
+          "source": "measured"
+        }
+      },
+      "expected": [
+        {
+          "code": "target_does_not_serve_goal",
+          "kind": "warning",
+          "severity": "important",
+          "text": "The 2100 kcal target is 700 kcal below the 2800 kcal you burn in a day, which takes weight off — but the goal is set to muscle gain. Worth changing one or the other. Maintenance here comes from your own weigh-ins and food log.",
+          "evidence": [
+            "targets.calories",
+            "targets.goal",
+            "energy.maintenanceKcal",
+            "energy.source"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 2100 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "1600 kcal left against the muscle gain target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a target that serves its goal draws no objection",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2100,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2800,
+          "source": "measured"
+        }
+      },
+      "expected": [
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 2100 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "1600 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a target sitting ON maintenance disagrees with a fat-loss goal",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 2520,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2500,
+          "source": "stated"
+        }
+      },
+      "expected": [
+        {
+          "code": "target_does_not_serve_goal",
+          "kind": "warning",
+          "severity": "important",
+          "text": "The 2520 kcal target is 20 kcal above the 2500 kcal you burn in a day, which holds you steady — but the goal is set to fat loss. Worth changing one or the other. Maintenance here comes from the maintenance figure you gave.",
+          "evidence": [
+            "targets.calories",
+            "targets.goal",
+            "energy.maintenanceKcal",
+            "energy.source"
+          ]
+        },
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 2520 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "2020 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a maintain goal at maintenance is exactly right, and stays quiet",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "maintain",
+          "calories": 2520,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ],
+        "energy": {
+          "maintenanceKcal": 2500,
+          "source": "stated"
+        }
+      },
+      "expected": [
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 2520 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "2020 kcal left against the maintain target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "with no body data the objection cannot be made, so it isn't",
+      "localHour": 12,
+      "input": {
+        "targets": {
+          "goal": "fatLoss",
+          "calories": 3000,
+          "proteinG": 160,
+          "carbsG": 250,
+          "fatG": 73,
+          "source": "manual"
+        },
+        "day": {
+          "label": "Every day",
+          "meals": [
+            {
+              "id": "m1-breakfast",
+              "label": "Breakfast",
+              "items": [
+                {
+                  "name": "Oats",
+                  "quantity": 60,
+                  "unit": "g",
+                  "calories": 220,
+                  "proteinG": 8,
+                  "carbsG": 38,
+                  "fatG": 4,
+                  "estimated": true
+                }
+              ]
+            },
+            {
+              "id": "m2-lunch",
+              "label": "Lunch",
+              "items": [
+                {
+                  "name": "Chicken",
+                  "quantity": 200,
+                  "unit": "g",
+                  "calories": 330,
+                  "proteinG": 62,
+                  "carbsG": 0,
+                  "fatG": 7
+                }
+              ]
+            }
+          ]
+        },
+        "consumedMealIds": [],
+        "log": [
+          {
+            "id": "e1",
+            "foodId": "usda:1",
+            "foodName": "Food",
+            "quantity": 100,
+            "unit": "g",
+            "grams": 100,
+            "kcal": 500,
+            "proteinG": 20,
+            "carbsG": 40,
+            "fatG": 15,
+            "source": "usdaFdc",
+            "sourceRef": "1",
+            "origin": "logged",
+            "estimated": false,
+            "mealId": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "code": "calories_consumed",
+          "kind": "observation",
+          "severity": "info",
+          "text": "500 of 3000 kcal so far (logged by you).",
+          "evidence": [
+            "consumed.kcal",
+            "targets.calories",
+            "consumed.basis"
+          ]
+        },
+        {
+          "code": "calories_remaining",
+          "kind": "analysis",
+          "severity": "info",
+          "text": "2500 kcal left against the fat loss target.",
+          "evidence": [
+            "remaining.kcal",
+            "targets.goal"
+          ]
+        }
+      ]
+    }
+  ]
+}

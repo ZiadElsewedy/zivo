@@ -5,6 +5,8 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../domain/expense_category.dart';
 import 'category_icons.dart';
+import '../../../../l10n/l10n.dart';
+import 'category_label.dart';
 
 /// Category chips — frequent-first, one tap. Selected chip fills amber (the
 /// money hue; categories differentiate by their stroked glyph, not colour). A
@@ -87,7 +89,7 @@ class _Chip extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              category.label,
+              categoryLabel(context, category),
               style: AppText.button.copyWith(
                 fontSize: 13.5,
                 color: selected ? const Color(0xFF2A2205) : TrainColors.ink2,
@@ -127,7 +129,7 @@ class _AddChip extends StatelessWidget {
             const Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
             const SizedBox(width: 5),
             Text(
-              'Add',
+              l(context).actionAdd,
               style: AppText.button.copyWith(
                 fontSize: 13.5,
                 color: TrainColors.ink3,

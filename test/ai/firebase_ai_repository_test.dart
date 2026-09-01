@@ -618,4 +618,35 @@ void main() {
   // `FirebaseFunctions.instanceFor(region: 'us-central1')`) are exercised
   // on-device only — they need a live Cloud Functions deployment and cannot
   // be unit-tested here.
+
+  // The device's clock travels with every turn. Cloud Functions run in UTC
+  // but this app writes `dietEntries.dayKey` from the DEVICE's calendar date,
+  // so without this the server resolved a different "today" from the one on
+  // screen — a UTC+3 user asking anything between local midnight and 03:00
+  // got yesterday's diet entries.
+  group('clientClockFields', () {
+    test('reports the offset in whole minutes and the zone name', () {
+      final fields = clientClockFields(DateTime.now());
+      expect(fields['utcOffsetMinutes'], isA<int>());
+      expect(
+        fields['utcOffsetMinutes'],
+        DateTime.now().timeZoneOffset.inMinutes,
+      );
+      expect(fields['timeZoneName'], isA<String>());
+    });
+
+    test('follows the instant it is given, not the ambient clock', () {
+      // A UTC instant reports a zero offset wherever the test host is.
+      final fields = clientClockFields(DateTime.utc(2026, 8, 30, 12));
+      expect(fields['utcOffsetMinutes'], 0);
+    });
+
+    test('is a plain JSON-safe map — it goes over the callable wire', () {
+      final fields = clientClockFields(DateTime.now());
+      expect(fields.keys.toSet(), {'utcOffsetMinutes', 'timeZoneName'});
+      for (final value in fields.values) {
+        expect(value, anyOf(isA<int>(), isA<String>()));
+      }
+    });
+  });
 }

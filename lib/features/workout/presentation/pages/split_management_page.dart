@@ -10,11 +10,13 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../core/widgets/zivo_confirm.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../widgets/staggered_reveal.dart';
 import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Split management (WORKOUT_SYSTEM.md Phase 4) — list every saved split,
 /// see which one is active, switch, edit (reusing [WorkoutPlanEditPage] in
@@ -342,41 +344,12 @@ class _SplitTile extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0x08FFFFFF),
-        title: Text(
-          'Delete "${split.name}"?',
-          style: AppText.cardTitle.copyWith(color: TrainColors.ink),
-        ),
-        content: Text(
-          'This removes the split and all its days and exercises. Logged '
-          "history for it is kept, just no longer editable here. This can't be undone.",
-          style: AppText.body.copyWith(color: TrainColors.ink2),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: AppText.button.copyWith(color: TrainColors.ink4),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              Navigator.pop(context, true);
-            },
-            child: Text(
-              'Delete',
-              style: AppText.button.copyWith(color: TrainColors.ember),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).splitDeleteTitle(split.name),
+      body: l(context).splitDeleteBody,
     );
-    if (confirmed == true) await plans.deleteSplit(split.id);
+    if (confirmed) await plans.deleteSplit(split.id);
   }
 }
 

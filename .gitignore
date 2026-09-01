@@ -52,3 +52,7 @@ ui-debug.log
 pubsub-debug.log
 *-debug.log
 .firebase/
+
+# Written by `flutter gen-l10n` — the keys not yet in app_ar.arb.
+# A build artifact, not a source file; test/core/l10n_test.dart is the gate.
+l10n-untranslated.txt

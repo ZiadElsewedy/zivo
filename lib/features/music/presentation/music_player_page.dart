@@ -290,6 +290,11 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
     // screens / large text.
     final scroll = SingleChildScrollView(
       controller: _scroll,
+      // The one scroll view that states its physics on purpose. Everything
+      // else inherits `ZivoScrollBehavior`; this screen's pull-down-to-dismiss
+      // is *built on* overscroll, so it must not be at the mercy of whatever
+      // host it is mounted in — under Material's clamping default the list
+      // simply stops at zero and the gesture silently stops existing.
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),

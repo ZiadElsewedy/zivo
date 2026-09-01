@@ -34,6 +34,65 @@ import 'train_chrome.dart';
 // Page scaffolding
 // ---------------------------------------------------------------------------
 
+/// Breathing room under the last row of a pushed page that has no FAB — the
+/// gap between the final pixel of content and the home indicator.
+const double _kPageBottomBreathingRoom = 24;
+
+/// What a [TrainFab] occupies measured up from the safe area: the 58px disc,
+/// the Scaffold's own 16px margin under it, and a little air above.
+const double _kFabAllowance = 58 + 16 + 20;
+
+/// The bottom inset a scrolling page must reserve so its last row clears the
+/// home indicator — and the floating action button, on the screens that have
+/// one.
+///
+/// **The bottom of a pushed page is one object and its height has one owner**,
+/// exactly as [BottomChrome] owns it for the shell's tabs. Before this, every
+/// page guessed: 6 on the diet plan editor, 8 on the auth flows, 40 on session
+/// details, 44 on Settings, 100 on Expenses, 110 on Progress, 120 on Diet —
+/// and not one of them included `viewPadding.bottom`, so on a device with a
+/// home indicator the last row of every list sat under it. The small guesses
+/// clipped content; the large ones left a dead band of empty scroll extent
+/// below the content on screens with no FAB to clear.
+///
+/// [TrainScreen] provides it and derives it from the two things that actually
+/// decide it — the device's bottom inset and whether the screen has a FAB — so
+/// a page can't be out of date about a height it doesn't own.
+class TrainBottomInset extends InheritedWidget {
+  const TrainBottomInset({
+    required this.height,
+    required super.child,
+    super.key,
+  });
+
+  /// Total clearance to reserve, measured up from the bottom of the screen,
+  /// safe-area inset included.
+  final double height;
+
+  /// The inset for [context]. Falls back to the bare safe-area clearance for
+  /// callers outside a [TrainScreen] — a sheet, or a page pumped directly in
+  /// a widget test.
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<TrainBottomInset>()?.height ??
+      MediaQuery.of(context).viewPadding.bottom + _kPageBottomBreathingRoom;
+
+  /// The same clearance for a page that isn't built on [TrainScreen] — one of
+  /// the few left on a plain `Scaffold` + `AppBar`, whose body also runs to
+  /// the bottom edge of the screen. Pass [hasFab] when the screen carries a
+  /// floating action button the last row has to clear.
+  ///
+  /// A page that docks its own action bar *below* the list (the plan and
+  /// capture editors) needs neither — its footer already holds the bottom,
+  /// and the list's padding above it is breathing room, not clearance.
+  static double forScaffold(BuildContext context, {bool hasFab = false}) =>
+      MediaQuery.of(context).viewPadding.bottom +
+      (hasFab ? _kFabAllowance : _kPageBottomBreathingRoom);
+
+  @override
+  bool updateShouldNotify(TrainBottomInset oldWidget) =>
+      oldWidget.height != height;
+}
+
 /// A handoff screen's ground: the near-black base under the one soft radial
 /// glow that screen is allowed (identity §2, "screen glows"), with the whole
 /// page laid over it.
@@ -41,6 +100,12 @@ import 'train_chrome.dart';
 /// Every screen gets exactly one glow, tinted toward that screen's meaning —
 /// green for training, violet for the assistant, amber for money. Pass the
 /// matching `TrainColors.*Tint`.
+///
+/// The page keeps its own top safe area (there is no app bar to hold it) but
+/// **not** the bottom one: content is meant to scroll under the home
+/// indicator. The clearance its scroll views owe the bottom is published as
+/// [TrainBottomInset] — read it with `TrainBottomInset.of(context)` rather
+/// than hard-coding a number.
 class TrainScreen extends StatelessWidget {
   const TrainScreen({
     required this.tint,
@@ -57,13 +122,24 @@ class TrainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `viewPadding`, not `padding`: the latter is zeroed out while the
+    // keyboard covers the inset, which would shrink every list's bottom
+    // padding by the home-indicator height the moment a field is focused.
+    final bottomInset =
+        MediaQuery.of(context).viewPadding.bottom +
+        (floatingActionButton != null
+            ? _kFabAllowance
+            : _kPageBottomBreathingRoom);
     return Scaffold(
       backgroundColor: TrainColors.base,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       floatingActionButton: floatingActionButton,
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: tint),
-        child: SafeArea(bottom: false, child: child),
+        child: SafeArea(
+          bottom: false,
+          child: TrainBottomInset(height: bottomInset, child: child),
+        ),
       ),
     );
   }

@@ -180,6 +180,16 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       extendBody: true,
+      // The shell does NOT eat the keyboard inset — each tab owns it.
+      // Resizing here shrank the body to the keyboard's top edge AND stripped
+      // `viewInsets` out of the body's MediaQuery (Scaffold passes
+      // `removeBottomInset: resizeToAvoidBottomInset`), so Ask — which lifts
+      // its composer itself, on an eased curve — saw a zero inset and fell
+      // back to reserving the bottom chrome, leaving the composer floating a
+      // nav-island's height above the keyboard. With this false, the inset
+      // reaches the tabs intact: Ask animates its own lift, and the other
+      // tabs resize through their own `TrainScreen` scaffold.
+      resizeToAvoidBottomInset: false,
       body: BottomChrome(
         height: chromeHeight,
         child: _TabSwitcher(index: _index, children: tabs),

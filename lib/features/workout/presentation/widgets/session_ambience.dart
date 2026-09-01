@@ -13,9 +13,12 @@ import '../../../../core/theme/train_tokens.dart';
 /// screen should feel the music, not just the Spotify card".
 ///
 /// It listens to the [MusicController]'s connection + now-playing streams and,
-/// whenever a track with artwork is live, extracts that artwork's accent
-/// color (vibrant swatch, falling back to dominant) once per track. The
-/// accent is published down the tree via [SessionAmbience.of] so every layer
+/// whenever a track with artwork is live, derives two chroma-disciplined
+/// colours from the cover once per track: a deep, near-neutral [_ambientWash]
+/// for the whole-screen tint (calmest swatch, saturation hard-capped) and a
+/// clamped-legible foreground accent (vibrant swatch, held to a tasteful
+/// ceiling). The pair is published down the tree via [SessionAmbience.of] so
+/// every layer
 /// of the session — background wash, progress bar, rest ring, card glows —
 /// can pick it up and the whole surface reads as one cohesive, reactive
 /// visual instead of a single tinted widget floating over a static screen.
@@ -38,11 +41,12 @@ class SessionAmbience extends StatefulWidget {
   /// above [context], or null when there is none (no music / no artwork yet).
   /// Subscribing: an accent change (track change, artwork resolved) rebuilds.
   ///
-  /// This is the **ambient** accent — pulled most of the way toward the
-  /// session's ground tone, so it can wash a whole background without
-  /// glare. For anything drawn ON that ground (a ring sweep, a transport
-  /// glyph, a label) use [vividOf] instead: this one is deliberately too
-  /// close to the background to read as a foreground mark.
+  /// This is the **ambient** accent — a chroma-capped deep tint (see
+  /// [_ambientWash]), so it can wash a whole background without glare and can
+  /// never go garish however loud the cover is. For anything drawn ON that
+  /// ground (a ring sweep, a transport glyph, a label) use [vividOf] instead:
+  /// this one is deliberately too close to the background to read as a
+  /// foreground mark.
   static Color? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_AmbienceScope>()?.data.accent;
 
@@ -108,18 +112,29 @@ class _SessionAmbienceState extends State<SessionAmbience> {
         MemoryImage(bytes),
         size: const Size(96, 96),
       );
-      Color? chosen =
-          palette.vibrantColor?.color ?? palette.dominantColor?.color;
-      chosen ??= palette.colors.isEmpty ? null : palette.colors.first;
-      if (chosen == null || !mounted) return;
-      // Two derivations of the same swatch, for the two jobs it has to do.
-      // Ambient: pulled most of the way toward the session's own ground tone
-      // so it reads as light in the room, never glare. Vivid: clamped into a
-      // legible band (see [SessionAmbience.vividOf]) for marks drawn on top
-      // of that ground.
+      final fallback = palette.colors.isEmpty ? null : palette.colors.first;
+      // The two jobs pull from DIFFERENT swatches on purpose. The whole-screen
+      // ambient wash starts from the cover's *calmest* swatch (muted before
+      // vibrant), so the background is grounded in the quiet hue rather than
+      // the neon one. The small foreground mark starts from the *vibrant*
+      // swatch — once it's clamped legible it can afford to carry the cover's
+      // actual colour.
+      final ambientRaw = palette.darkMutedColor?.color ??
+          palette.mutedColor?.color ??
+          palette.dominantColor?.color ??
+          palette.vibrantColor?.color ??
+          fallback;
+      final vividRaw = palette.vibrantColor?.color ??
+          palette.lightVibrantColor?.color ??
+          palette.dominantColor?.color ??
+          ambientRaw;
+      if (ambientRaw == null || !mounted) return;
+      // Ambient: chroma-disciplined deep tint (see [_ambientWash]). Vivid:
+      // clamped into a legible band (see [SessionAmbience.vividOf]) for marks
+      // drawn on top of that ground.
       final accent = (
-        ambient: Color.lerp(chosen, TrainColors.base, 0.55)!,
-        vivid: _legible(chosen),
+        ambient: _ambientWash(ambientRaw),
+        vivid: _legible(vividRaw ?? ambientRaw),
       );
       _accentCache[key] = accent;
       _apply(accent);
@@ -138,14 +153,34 @@ class _SessionAmbienceState extends State<SessionAmbience> {
     });
   }
 
-  /// Clamps an arbitrary album-art swatch into the saturation/lightness band
-  /// that stays readable as a foreground on [TrainColors.base]. Hue — the
-  /// part that actually carries the track's identity — is left untouched.
+  /// The whole-screen ambient wash. Reduces an album swatch to a deep,
+  /// near-neutral tint: the cover's hue survives as a *hint*, but saturation
+  /// is hard-capped (≤0.16) and lightness pulled into a narrow dark band. A
+  /// neon-pink cover lands as a warm charcoal, a blue one as deep slate — the
+  /// wash reads as premium ambient light in the room, never a sampled
+  /// billboard.
+  ///
+  /// This replaced a straight lerp toward the ground tone, which darkened the
+  /// swatch but *kept* its chroma, so loud covers still washed the whole
+  /// screen pink/purple.
+  static Color _ambientWash(Color raw) {
+    final hsl = HSLColor.fromColor(raw);
+    return hsl
+        .withSaturation(hsl.saturation.clamp(0.0, 0.16))
+        .withLightness(hsl.lightness.clamp(0.10, 0.14))
+        .toColor();
+  }
+
+  /// Clamps an album swatch into the saturation/lightness band that stays a
+  /// tasteful foreground on [TrainColors.base]. The ceiling is deliberately
+  /// low (0.55, not near-1.0) so the rest-ring sweep and transport controls
+  /// read as a refined accent, never neon. Hue — the part that actually
+  /// carries the track's identity — is left untouched.
   static Color _legible(Color raw) {
     final hsl = HSLColor.fromColor(raw);
     return hsl
-        .withSaturation(hsl.saturation.clamp(0.42, 0.95))
-        .withLightness(hsl.lightness.clamp(0.58, 0.76))
+        .withSaturation(hsl.saturation.clamp(0.30, 0.55))
+        .withLightness(hsl.lightness.clamp(0.60, 0.70))
         .toColor();
   }
 

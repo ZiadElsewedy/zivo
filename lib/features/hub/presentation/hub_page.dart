@@ -13,6 +13,7 @@ import '../../../core/media/media_service.dart';
 import '../../../core/media/presentation/storage_sync_page.dart';
 import '../../../core/widgets/google_drive_mark.dart';
 import '../../../core/widgets/train_surfaces.dart';
+import '../../diet/domain/diet_format.dart';
 import '../../diet/domain/diet_plan.dart';
 import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
@@ -36,6 +37,7 @@ import '../../workout/domain/up_next_selection.dart';
 import '../../workout/domain/workout_plan.dart';
 import '../../auth/presentation/pages/settings_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
+import '../../../l10n/l10n.dart';
 
 /// The Hub — a light dashboard into each module's depth. A two-column grid
 /// of premium module cards, each with a glowing gradient icon chip in its
@@ -138,7 +140,10 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            formatTodayShort(DateTime.now()),
+            formatTodayShort(
+              DateTime.now(),
+              Localizations.localeOf(context).toLanguageTag(),
+            ),
             style: TrainType.caption(
               size: 9.5,
               tracking: 0.2,
@@ -180,7 +185,7 @@ class _WorkoutTile extends StatelessWidget {
         initialData: scope.workoutPlans.activePlan,
         builder: (context, planSnapshot) {
           final plan = planSnapshot.data;
-          if (plan == null) return _shell(context, stat: 'No plan yet');
+          if (plan == null) return _shell(context, stat: l(context).hubNoPlanYet);
           return StreamBuilder<LiveSession?>(
             stream: scope.workoutSessions.watchActiveSession(),
             initialData: scope.workoutSessions.activeSession,
@@ -188,7 +193,7 @@ class _WorkoutTile extends StatelessWidget {
               final selection = resolveUpNext(plan, sessionSnapshot.data);
               final day = selection.day;
               final stat = day == null
-                  ? 'No plan yet'
+                  ? l(context).hubNoPlanYet
                   : selection.resumable != null
                   ? '${day.label} · resume'
                   : '${day.label} · up next';
@@ -204,7 +209,7 @@ class _WorkoutTile extends StatelessWidget {
     return _ModuleTileShell(
       icon: AppIcons.workout,
       color: TrainColors.neutralMark,
-      label: 'Workout',
+      label: l(context).hubWorkout,
       stat: stat,
       onTap: () => Navigator.of(
         context,
@@ -229,7 +234,7 @@ class _DietTile extends StatelessWidget {
         builder: (context, planSnapshot) {
           final now = DateTime.now();
           final day = dayForDate(planSnapshot.data, now);
-          if (day == null) return _shell(context, stat: 'No plan yet');
+          if (day == null) return _shell(context, stat: l(context).hubNoPlanYet);
           return StreamBuilder<Set<String>>(
             stream: scope.diet.watchConsumed(now),
             initialData: const <String>{},
@@ -248,7 +253,8 @@ class _DietTile extends StatelessWidget {
                     // (measured in hub_page_test.dart) — "of 3" vs "3/3"
                     // barely moved the needle, "left" alone was the
                     // difference between fitting in 2 lines and not.
-                    '${summary.eaten} of ${summary.total} · ${summary.kcalLeft} kcal',
+                    '${summary.eaten} of ${summary.total} · '
+                    '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft} kcal',
               );
             },
           );
@@ -261,7 +267,7 @@ class _DietTile extends StatelessWidget {
     return _ModuleTileShell(
       icon: AppIcons.diet,
       color: TrainColors.neutralMark,
-      label: 'Diet',
+      label: l(context).hubDiet,
       stat: stat,
       onTap: () => Navigator.of(
         context,
@@ -317,7 +323,7 @@ class _ExpensesTile extends StatelessWidget {
     return _ModuleTileShell(
       icon: AppIcons.expenses,
       color: TrainColors.neutralMark,
-      label: 'Expenses',
+      label: l(context).hubExpenses,
       stat: stat,
       onTap: () => Navigator.of(
         context,
@@ -342,12 +348,12 @@ class _MomentsTile extends StatelessWidget {
         builder: (context, snapshot) {
           final count = (snapshot.data ?? const <Moment>[]).length;
           final stat = count == 0
-              ? 'No moments yet'
+              ? l(context).hubNoMomentsYet
               : '$count moment${count == 1 ? '' : 's'}';
           return _ModuleTileShell(
             icon: AppIcons.moments,
             color: TrainColors.neutralMark,
-            label: 'Moments',
+            label: l(context).hubMoments,
             stat: stat,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const MomentsTimelinePage()),
@@ -531,9 +537,9 @@ class _RecentSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 32),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 11),
-                        child: TrainSectionLabel('Recent'),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 11),
+                        child: TrainSectionLabel(l(context).hubRecent),
                       ),
                       Material(
                         // The rows' own InkWell needs a Material ancestor —

@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "note": "Golden vectors for the nutrition resolver + calculator. Run by BOTH flutter test and node --test; regenerate with scripts/nutrition/build_vectors.js. If one implementation changes, the other's test fails until they agree again.",
+  "catalogSha256": "fa7804ecfd0ac02938eabb4c8dd947108a10ebddaa4cc98471d6745fdd937df1",
+  "catalogFoodCount": 7308,
+  "lookups": [
+    {
+      "query": "chicken broilers fryers breast meat only cooked roasted",
+      "expected": {
+        "kind": "resolved",
+        "foodId": "usda:171477",
+        "kcalPer100g": 165,
+        "preparation": "cooked"
+      }
+    },
+    {
+      "query": "rice white long-grain regular",
+      "label": "raw/cooked fork",
+      "expected": {
+        "kind": "ambiguous",
+        "candidateIds": [
+          "usda:168877",
+          "usda:168878",
+          "usda:169756",
+          "usda:168935",
+          "usda:169753"
+        ],
+        "preparations": [
+          "cooked",
+          "raw"
+        ]
+      }
+    },
+    {
+      "query": "rice white long-grain regular",
+      "preparation": "cooked",
+      "expected": {
+        "kind": "resolved",
+        "foodId": "usda:168878",
+        "kcalPer100g": 130,
+        "preparation": "cooked"
+      }
+    },
+    {
+      "query": "egg whole raw fresh",
+      "expected": {
+        "kind": "resolved",
+        "foodId": "usda:171287",
+        "kcalPer100g": 143,
+        "preparation": "raw"
+      }
+    },
+    {
+      "query": "oil olive salad or cooking",
+      "expected": {
+        "kind": "resolved",
+        "foodId": "usda:171413",
+        "kcalPer100g": 884,
+        "preparation": "unknown"
+      }
+    },
+    {
+      "query": "broccoli raw",
+      "expected": {
+        "kind": "resolved",
+        "foodId": "usda:170379",
+        "kcalPer100g": 34,
+        "preparation": "raw"
+      }
+    },
+    {
+      "query": "koshari",
+      "label": "not in a USDA catalog",
+      "expected": {
+        "kind": "notFound"
+      }
+    },
+    {
+      "query": "",
+      "label": "empty query",
+      "expected": {
+        "kind": "notFound"
+      }
+    }
+  ],
+  "computations": [
+    {
+      "foodId": "usda:171477",
+      "quantity": 200,
+      "unit": "g",
+      "expected": {
+        "grams": 200,
+        "kcal": 330,
+        "proteinG": 62,
+        "carbsG": 0,
+        "fatG": 7.2,
+        "sourceRef": "171477"
+      }
+    },
+    {
+      "foodId": "usda:171477",
+      "quantity": 4,
+      "unit": "oz",
+      "expected": {
+        "grams": 113.4,
+        "kcal": 187,
+        "proteinG": 35.2,
+        "carbsG": 0,
+        "fatG": 4.1,
+        "sourceRef": "171477"
+      }
+    },
+    {
+      "foodId": "usda:171477",
+      "quantity": 0.5,
+      "unit": "kg",
+      "expected": {
+        "grams": 500,
+        "kcal": 825,
+        "proteinG": 155,
+        "carbsG": 0,
+        "fatG": 18,
+        "sourceRef": "171477"
+      }
+    },
+    {
+      "foodId": "usda:168878",
+      "quantity": 150,
+      "unit": "g",
+      "expected": {
+        "grams": 150,
+        "kcal": 195,
+        "proteinG": 4.1,
+        "carbsG": 42.3,
+        "fatG": 0.5,
+        "sourceRef": "168878"
+      }
+    },
+    {
+      "foodId": "usda:168877",
+      "quantity": 150,
+      "unit": "g",
+      "expected": {
+        "grams": 150,
+        "kcal": 548,
+        "proteinG": 10.6,
+        "carbsG": 120,
+        "fatG": 1,
+        "sourceRef": "168877"
+      }
+    },
+    {
+      "foodId": "usda:171413",
+      "quantity": 10,
+      "unit": "g",
+      "expected": {
+        "grams": 10,
+        "kcal": 88,
+        "proteinG": 0,
+        "carbsG": 0,
+        "fatG": 10,
+        "sourceRef": "171413"
+      }
+    },
+    {
+      "foodId": "usda:171413",
+      "quantity": 100,
+      "unit": "ml",
+      "label": "no density",
+      "expected": {
+        "unresolved": "unknownMeasure"
+      }
+    },
+    {
+      "foodId": "usda:171287",
+      "quantity": 2,
+      "unit": "pcs",
+      "expected": {
+        "grams": 88,
+        "kcal": 126,
+        "proteinG": 11.1,
+        "carbsG": 0.6,
+        "fatG": 8.4,
+        "sourceRef": "171287"
+      }
+    },
+    {
+      "foodId": "usda:171477",
+      "quantity": 0,
+      "unit": "g",
+      "label": "zero",
+      "expected": {
+        "unresolved": "invalidQuantity"
+      }
+    },
+    {
+      "foodId": "usda:171477",
+      "quantity": -5,
+      "unit": "g",
+      "label": "negative",
+      "expected": {
+        "unresolved": "invalidQuantity"
+      }
+    }
+  ]
+}

@@ -6,6 +6,9 @@ import 'package:zivo/features/home/presentation/widgets/today_pulse_card.dart'
     show formatSteps;
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
+import 'package:zivo/l10n/app_localizations_en.dart';
+import 'package:zivo/l10n/app_localizations_ar.dart';
+import 'package:zivo/l10n/app_localizations.dart';
 
 /// A minimal day [LiveSession.start] needs — no exercises, it only reads
 /// id/label.
@@ -155,6 +158,7 @@ void main() {
       int? stepsToday,
     }) =>
         buildInsights(
+          strings: AppLocalizationsEn(),
           sessions: sessions,
           expenses: expenses,
           kcalLeft: kcalLeft,
@@ -189,6 +193,7 @@ void main() {
       );
 
       final morningInsights = buildInsights(
+        strings: AppLocalizationsEn(),
         sessions: const [],
         expenses: const [],
         kcalLeft: 640,
@@ -240,6 +245,33 @@ void main() {
 
     test('a quiet life stays quiet', () {
       expect(build(), isEmpty);
+    });
+  });
+
+  group('buildInsights speaks the app\'s language', () {
+    test('the same signals produce Arabic copy under the Arabic strings', () {
+      List<PulseInsight> build(AppLocalizations strings) => buildInsights(
+        strings: strings,
+        sessions: [
+          for (var i = 0; i < 4; i++) _done(now.subtract(Duration(days: i))),
+        ],
+        expenses: const [],
+        kcalLeft: null,
+        mealsLeft: null,
+        stepsToday: null,
+        weight: null,
+        now: now,
+      );
+
+      final english = build(AppLocalizationsEn());
+      final arabic = build(AppLocalizationsAr());
+
+      // Same nudge, same hue, same order — only the words differ.
+      expect(english.length, arabic.length);
+      expect(english.first.hue, arabic.first.hue);
+      expect(english.first.title, '4-day training streak');
+      expect(arabic.first.title, 'سلسلة تمرين 4 أيام');
+      expect(arabic.first.body, isNot(english.first.body));
     });
   });
 }

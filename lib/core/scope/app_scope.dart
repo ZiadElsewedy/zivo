@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../l10n/locale_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
@@ -7,6 +8,7 @@ import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/auth/domain/profile_repository.dart';
 import '../../features/diet/domain/diet_repository.dart';
+import '../../features/diet/domain/nutrition/food_resolver.dart';
 import '../../features/device/steps/step_counter.dart';
 import '../../features/expenses/domain/category_repository.dart';
 import '../../features/expenses/domain/expense_repository.dart';
@@ -37,11 +39,13 @@ class AppScope extends InheritedWidget {
     required this.workoutSessions,
     this.bodyWeight,
     required this.diet,
+    this.foods,
     required this.ai,
     this.recorder,
     this.stepCounter,
     this.media,
     this.music,
+    this.locale,
     required super.child,
     super.key,
   });
@@ -80,6 +84,15 @@ class AppScope extends InheritedWidget {
   /// always provide one. Read it through [requireBodyWeight].
   final BodyWeightRepository? bodyWeight;
   final DietRepository diet;
+
+  /// The nutrition catalog — the ONLY way a calorie or macro figure may enter
+  /// ZIVO (see `docs/DIET_COACH_AUDIT.md`). Backed by the bundled USDA subset
+  /// in production.
+  ///
+  /// Optional for the same reason [bodyWeight] is: most widget tests never
+  /// touch food lookup, and forcing every scope to parse a 1 MB catalog would
+  /// be a real cost for no benefit. Read it through [requireFoods].
+  final FoodResolver? foods;
 
   /// The AI assistant ("Ask") seam. Today's default is a pure in-memory
   /// `FakeAiRepository`; the real Firestore + `aiChat` gateway impl arrives
@@ -146,6 +159,20 @@ class AppScope extends InheritedWidget {
     return music!;
   }
 
+  /// The app language (Arabic · English · match the phone). Optional for the
+  /// same reason [media] is: a widget test pumping one page reads its strings
+  /// through `l(context)`'s English fallback and never needs a controller.
+  /// Production always wires one. Read it through [requireLocale] from the
+  /// language picker.
+  final LocaleController? locale;
+
+  /// The language controller, asserting it was provided. Use from Settings'
+  /// language picker — production always wires it.
+  LocaleController get requireLocale {
+    assert(locale != null, 'AppScope.locale was not provided to this scope');
+    return locale!;
+  }
+
   WalletRepository get requireWallet {
     assert(wallet != null, 'AppScope.wallet was not provided to this scope');
     return wallet!;
@@ -177,6 +204,13 @@ class AppScope extends InheritedWidget {
     return bodyWeight!;
   }
 
+  /// The nutrition catalog, asserting it was provided. Any surface that turns
+  /// a food into calories goes through this — production always wires it.
+  FoodResolver get requireFoods {
+    assert(foods != null, 'AppScope.foods was not provided to this scope');
+    return foods!;
+  }
+
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
     assert(scope != null, 'AppScope not found in the widget tree');
@@ -197,9 +231,11 @@ class AppScope extends InheritedWidget {
       workoutSessions != oldWidget.workoutSessions ||
       bodyWeight != oldWidget.bodyWeight ||
       diet != oldWidget.diet ||
+      foods != oldWidget.foods ||
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
       stepCounter != oldWidget.stepCounter ||
       media != oldWidget.media ||
-      music != oldWidget.music;
+      music != oldWidget.music ||
+      locale != oldWidget.locale;
 }

@@ -8,6 +8,7 @@ import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/device/steps/step_counter.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
+import 'package:zivo/features/diet/domain/diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/home/presentation/pages/today_page.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
@@ -50,10 +51,24 @@ LiveSession _done(DateTime at, String id) => LiveSession.start(
   now: at,
 ).complete(now: at.add(const Duration(minutes: 40)));
 
+/// Today at [hour] — a fixed instant for the insights strip.
+///
+/// Two of the nudge rules are hour-of-day rules (steps from 16:00, diet from
+/// 19:00), so a test that lets the strip read the real clock asserts a
+/// different screen depending on when it runs. Today's *date* is kept so
+/// sessions and weigh-ins seeded relative to `DateTime.now()` still land in
+/// the windows the other rules measure.
+DateTime _todayAt(int hour) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day, hour);
+}
+
 Widget _wrap({
   StepCounterService? stepCounter,
   InMemoryBodyWeightRepository? bodyWeight,
   WorkoutSessionRepository? workoutSessions,
+  DietRepository? diet,
+  DateTime Function()? now,
 }) {
   return AppScope(
     auth: FakeAuthRepository(
@@ -66,11 +81,11 @@ Widget _wrap({
     workoutPlans: InMemoryWorkoutPlanRepository(),
     workoutSessions: workoutSessions ?? InMemoryWorkoutSessionRepository(),
     bodyWeight: bodyWeight,
-    diet: InMemoryDietRepository(),
+    diet: diet ?? InMemoryDietRepository(),
     ai: FakeAiRepository(),
     music: InertMusicController(),
     stepCounter: stepCounter,
-    child: const MaterialApp(home: TodayPage()),
+    child: MaterialApp(home: TodayPage(now: now)),
   );
 }
 
@@ -183,7 +198,16 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(_wrap());
+    // A genuinely empty account, judged at 20:00 — the hour at which every
+    // nudge rule that has one is open for business. Nothing may still speak.
+    // The diet repo is the `.empty()` one on purpose: the default seeds a
+    // demo plan, and "3 meals left today" is a true statement about that
+    // fixture rather than about the user, so the evening nudge used to fire
+    // here on a user who had entered nothing. This test failed after 19:00
+    // and passed before it.
+    await tester.pumpWidget(
+      _wrap(diet: InMemoryDietRepository.empty(), now: () => _todayAt(20)),
+    );
     await _settle(tester);
 
     expect(find.text('MOMENTUM'), findsNothing);
@@ -198,19 +222,32 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    // The insight only speaks late in the day; freeze "now" behavior by
-    // relying on the rule itself — if this test runs in the morning the
-    // section stays hidden, which is also correct. To keep it deterministic
-    // we assert on the ring instead when before 16:00.
-    final hour = DateTime.now().hour;
-    await tester.pumpWidget(_wrap(stepCounter: _FakeStepCounter(6500)));
+    // The nudge only speaks from 16:00, so the clock is pinned rather than
+    // read: this assertion used to be wrapped in `if (DateTime.now().hour >=
+    // 16)`, which meant that for most of the day the test proved the nudge
+    // was ABSENT and never once checked the thing it is named after.
+    await tester.pumpWidget(
+      _wrap(stepCounter: _FakeStepCounter(6500), now: () => _todayAt(18)),
+    );
     await _settle(tester);
 
-    if (hour >= 16) {
-      expect(find.textContaining('Steps are behind today'), findsOneWidget);
-    } else {
-      expect(find.textContaining('Steps are behind today'), findsNothing);
-    }
+    expect(find.textContaining('Steps are behind today'), findsOneWidget);
+  });
+
+  testWidgets('...and stays quiet before 16:00, with the same 6.5k steps', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _wrap(stepCounter: _FakeStepCounter(6500), now: () => _todayAt(9)),
+    );
+    await _settle(tester);
+
+    expect(find.textContaining('Steps are behind today'), findsNothing);
   });
 
   testWidgets('weight trend renders from logged weigh-ins', (tester) async {

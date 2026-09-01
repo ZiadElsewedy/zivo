@@ -26,7 +26,10 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 
 import '../support/fake_auth_repository.dart';
@@ -169,8 +172,14 @@ class DemoAi implements AiRepository {
   }) => throw UnimplementedError('not exercised by this manual demo');
 
   @override
-  Future<DietImportOutcome> importDietPlan({required Uint8List fileBytes, required String mimeType}) =>
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
       throw UnimplementedError('not exercised by this manual demo');
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => throw UnimplementedError();
 
   @override
   Future<SttOutcome> transcribe({

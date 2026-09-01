@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The chrome every capture and edit flow shares — the close/title top bar,
 /// its icon chips, the commit pill, and the selectable chip.
@@ -42,7 +43,7 @@ class CaptureTopBar extends StatelessWidget {
           CaptureIconButton(
             icon: Icons.close_rounded,
             onTap: onClose,
-            semanticLabel: 'Close',
+            semanticLabel: l(context).actionClose,
             iconColor: iconColor,
             chipColor: chipColor,
           ),

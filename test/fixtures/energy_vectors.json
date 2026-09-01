@@ -1,0 +1,1070 @@
+{
+  "schemaVersion": 1,
+  "note": "Golden vectors for the maintenance calculation and its calibration. Run by BOTH flutter test and node --test; regenerate with scripts/nutrition/build_energy_vectors.js. The coach and the Diet screen must reach the same figure for the same person.",
+  "anchorMs": 1788134400000,
+  "calibration": [
+    {
+      "name": "gaining: maintenance is below what they ate",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1785715200000
+          },
+          {
+            "weightKg": 82.8,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-15",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-16",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-17",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-18",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-19",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-20",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": {
+          "maintenanceKcal": 2380,
+          "averageIntakeKcal": 2600,
+          "weightChangeKg": 0.8,
+          "days": 28,
+          "loggedDays": 28
+        },
+        "gap": null
+      }
+    },
+    {
+      "name": "losing: maintenance is above what they ate",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1785715200000
+          },
+          {
+            "weightKg": 81,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-15",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-16",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-17",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-18",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-19",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-20",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2000
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2000
+          }
+        ]
+      },
+      "expected": {
+        "measured": {
+          "maintenanceKcal": 2275,
+          "averageIntakeKcal": 2000,
+          "weightChangeKg": -1,
+          "days": 28,
+          "loggedDays": 28
+        },
+        "gap": null
+      }
+    },
+    {
+      "name": "steady: maintenance is what they ate",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1785715200000
+          },
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-15",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-16",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-17",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-18",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-19",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-20",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2450
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2450
+          }
+        ]
+      },
+      "expected": {
+        "measured": {
+          "maintenanceKcal": 2450,
+          "averageIntakeKcal": 2450,
+          "weightChangeKg": 0,
+          "days": 28,
+          "loggedDays": 28
+        },
+        "gap": null
+      }
+    },
+    {
+      "name": "one weigh-in measures nothing",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-15",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-16",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-17",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-18",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-19",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-20",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": null,
+        "gap": "needsWeighIns"
+      }
+    },
+    {
+      "name": "a fortnight is the floor; ten days is water weight",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1787270400000
+          },
+          {
+            "weightKg": 81.2,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-31",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": null,
+        "gap": "needsLongerWindow"
+      }
+    },
+    {
+      "name": "a half-logged window is refused",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1785715200000
+          },
+          {
+            "weightKg": 82.8,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": null,
+        "gap": "needsMoreLoggedDays"
+      }
+    },
+    {
+      "name": "logging outside the window doesn't count toward it",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1786406400000
+          },
+          {
+            "weightKg": 82.5,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-07-02",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-03",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-04",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-05",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-06",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-07",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-08",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-09",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-10",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-11",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-12",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-13",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-14",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-15",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-16",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-17",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-18",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-19",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-20",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-21",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-22",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-23",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-24",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-25",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-26",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-27",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-28",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-29",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-30",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-07-31",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": null,
+        "gap": "needsMoreLoggedDays"
+      }
+    },
+    {
+      "name": "the widest pair of weigh-ins defines the window",
+      "input": {
+        "weighIns": [
+          {
+            "weightKg": 82,
+            "loggedAtMs": 1785715200000
+          },
+          {
+            "weightKg": 82.5,
+            "loggedAtMs": 1786924800000
+          },
+          {
+            "weightKg": 82.8,
+            "loggedAtMs": 1788134400000
+          }
+        ],
+        "intake": [
+          {
+            "dayKey": "2026-08-03",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-04",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-05",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-06",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-07",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-08",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-09",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-10",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-11",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-12",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-13",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-14",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-15",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-16",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-17",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-18",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-19",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-20",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-21",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-22",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-23",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-24",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-25",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-26",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-27",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-28",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-29",
+            "kcal": 2600
+          },
+          {
+            "dayKey": "2026-08-30",
+            "kcal": 2600
+          }
+        ]
+      },
+      "expected": {
+        "measured": {
+          "maintenanceKcal": 2380,
+          "averageIntakeKcal": 2600,
+          "weightChangeKg": 0.8,
+          "days": 28,
+          "loggedDays": 28
+        },
+        "gap": null
+      }
+    }
+  ],
+  "energy": [
+    {
+      "name": "the equation, when there is nothing better",
+      "input": {
+        "profile": {
+          "heightCm": 178,
+          "sex": "male",
+          "activity": "moderate",
+          "statedMaintenanceKcal": null
+        },
+        "weightKg": 82,
+        "age": 30,
+        "measuredMaintenanceKcal": null
+      },
+      "expected": {
+        "maintenanceKcal": 2771,
+        "source": "estimated"
+      }
+    },
+    {
+      "name": "a measurement replaces the equation",
+      "input": {
+        "profile": {
+          "heightCm": 178,
+          "sex": "male",
+          "activity": "moderate",
+          "statedMaintenanceKcal": null
+        },
+        "weightKg": 82,
+        "age": 30,
+        "measuredMaintenanceKcal": 2950
+      },
+      "expected": {
+        "maintenanceKcal": 2950,
+        "source": "measured"
+      }
+    },
+    {
+      "name": "what the user stated outranks the measurement",
+      "input": {
+        "profile": {
+          "heightCm": 178,
+          "sex": "male",
+          "activity": "moderate",
+          "statedMaintenanceKcal": 2700
+        },
+        "weightKg": 82,
+        "age": 30,
+        "measuredMaintenanceKcal": 2950
+      },
+      "expected": {
+        "maintenanceKcal": 2700,
+        "source": "stated"
+      }
+    },
+    {
+      "name": "no body profile: no maintenance, and no guess",
+      "input": {
+        "profile": null,
+        "weightKg": 82,
+        "age": 30,
+        "measuredMaintenanceKcal": null
+      },
+      "expected": null
+    },
+    {
+      "name": "a profile with no weigh-in cannot run the equation",
+      "input": {
+        "profile": {
+          "heightCm": 178,
+          "sex": "male",
+          "activity": "moderate",
+          "statedMaintenanceKcal": null
+        },
+        "weightKg": null,
+        "age": 30,
+        "measuredMaintenanceKcal": null
+      },
+      "expected": null
+    },
+    {
+      "name": "activity level moves the figure",
+      "input": {
+        "profile": {
+          "heightCm": 178,
+          "sex": "male",
+          "activity": "athlete",
+          "statedMaintenanceKcal": null
+        },
+        "weightKg": 82,
+        "age": 30,
+        "measuredMaintenanceKcal": null
+      },
+      "expected": {
+        "maintenanceKcal": 3397,
+        "source": "estimated"
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 import '../../../music/presentation/now_playing_lozenge.dart'
     show kNowPlayingLozengeHeight;
 
@@ -83,11 +84,19 @@ class ZivoBottomBar extends StatefulWidget {
 
 class _ZivoBottomBarState extends State<ZivoBottomBar>
     with SingleTickerProviderStateMixin {
-  static const _tabs = <_TabSpec>[
-    _TabSpec('Today', AppIcons.today),
-    _TabSpec('Hub', AppIcons.hub),
-    _TabSpec('Ask', AppIcons.ask),
-    _TabSpec('You', AppIcons.you),
+  /// Four, fixed. Kept as a constant separate from the list below because the
+  /// capsule's geometry needs the count on every frame and shouldn't rebuild a
+  /// list of strings to get it.
+  static const _kTabCount = 4;
+
+  /// Built per-frame rather than held as a `const` list: the labels are
+  /// localized, so they change with the app's language and cannot be baked in
+  /// at compile time. The icons and their order are still fixed.
+  List<_TabSpec> _tabsFor(BuildContext context) => <_TabSpec>[
+    _TabSpec(l(context).tabToday, AppIcons.today),
+    _TabSpec(l(context).tabHub, AppIcons.hub),
+    _TabSpec(l(context).tabAsk, AppIcons.ask),
+    _TabSpec(l(context).tabYou, AppIcons.you),
   ];
 
   /// The live, fractional position of the ember capsule along the tab row
@@ -166,23 +175,24 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final slot = constraints.maxWidth / _tabs.length;
+                          final tabs = _tabsFor(context);
+                          final slot = constraints.maxWidth / _kTabCount;
                           return AnimatedBuilder(
                             animation: _pos,
                             builder: (context, _) {
                               final pos = _pos.value.clamp(
                                 0.0,
-                                _tabs.length - 1.0,
+                                _kTabCount - 1.0,
                               );
                               return Stack(
                                 children: [
                                   _Capsule(left: pos * slot, width: slot),
                                   Row(
                                     children: [
-                                      for (var i = 0; i < _tabs.length; i++)
+                                      for (var i = 0; i < _kTabCount; i++)
                                         Expanded(
                                           child: _Tab(
-                                            spec: _tabs[i],
+                                            spec: tabs[i],
                                             // Warmth falls off with distance from the
                                             // capsule: 1 at its centre, 0 a slot away.
                                             t: (1 - (pos - i).abs()).clamp(

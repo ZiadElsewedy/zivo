@@ -3,6 +3,7 @@ import 'package:lottie/lottie.dart';
 
 import '../theme/app_typography.dart';
 import '../theme/train_tokens.dart';
+import '../../l10n/l10n.dart';
 
 /// The three non-content states a reactive (stream-backed) surface can be in,
 /// as one small shared vocabulary so every list/feed page renders them
@@ -74,7 +75,7 @@ class ErrorStateView extends StatelessWidget {
             Text(message, style: AppText.aside, textAlign: TextAlign.center),
             const SizedBox(height: 4),
             Text(
-              'Check your connection and try again in a moment.',
+              l(context).errorCheckConnection,
               style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),

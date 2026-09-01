@@ -14,6 +14,8 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/body_weight_repository.dart';
 import '../../domain/live_session.dart';
@@ -28,6 +30,8 @@ import 'workout_pdf_import_page.dart';
 import 'workout_plan_edit_page.dart';
 import 'workout_progress_page.dart';
 import 'workout_stats_pages.dart';
+import '../../../../l10n/l10n.dart';
+import 'package:intl/intl.dart';
 
 /// The Workout tab's landing page — a real training dashboard, not just a
 /// session log. Reads [LiveSession]s directly (the record of what actually
@@ -119,7 +123,7 @@ class WorkoutDashboardPage extends StatelessWidget {
                       22,
                       12,
                       22,
-                      MediaQuery.of(context).padding.bottom + 24,
+                      TrainBottomInset.of(context),
                     ),
                     // Each block staggers in as its own step (see
                     // RiseIn) rather than the page popping in all at
@@ -128,10 +132,10 @@ class WorkoutDashboardPage extends StatelessWidget {
                     children: [
                       RiseIn(
                         child: TrainPageHeader(
-                          title: 'Workout',
+                          title: l(context).workoutTitle,
                           action: TrainHeaderAction(
                             icon: AppIcons.analysis,
-                            semanticLabel: 'Progress',
+                            semanticLabel: l(context).workoutProgress,
                             onTap: () {
                               HapticFeedback.selectionClick();
                               Navigator.of(context).push(
@@ -169,7 +173,7 @@ class WorkoutDashboardPage extends StatelessWidget {
                             // caption instead, where it scopes only
                             // itself.
                             TrainSectionLabel(
-                              'Training',
+                              l(context).workoutTraining,
                               trailing: '${stats.sessionsThisWeek} THIS WEEK',
                             ),
                             const SizedBox(height: 11),
@@ -184,7 +188,7 @@ class WorkoutDashboardPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             TrainSectionLabel(
-                              'Bodyweight',
+                              l(context).workoutBodyweight,
                               trailing: _weightDeltaCaption(weightTrend),
                               trailingColor: _weightDeltaColor(weightTrend),
                             ),
@@ -233,140 +237,137 @@ Future<void> _showLogWeightSheet(
   final controller = TextEditingController(
     text: lastWeight == null ? '' : _trimNumber(lastWeight),
   );
-  return showModalBottomSheet<void>(
+  return showZivoSheet<void>(
     context: context,
-    backgroundColor: TrainColors.raised,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-    ),
     builder: (sheetContext) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          22,
-          20,
-          22,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 22,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Log today's weight",
-              style: AppText.cardTitle.copyWith(color: TrainColors.ink),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                _WeightStepper(
-                  icon: AppIcons.minus,
-                  onTap: () {
-                    final v =
-                        double.tryParse(controller.text) ?? lastWeight ?? 0;
-                    if (v <= 0.1) return;
-                    controller.text = _trimNumber(v - 0.1);
-                  },
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,1}$'),
-                      ),
-                    ],
-                    style: AppText.heroNumber.copyWith(
-                      fontSize: 40,
-                      color: TrainColors.ink,
-                    ),
-                    cursorColor: TrainColors.green,
-                    decoration: InputDecoration(
-                      suffixText: 'kg',
-                      suffixStyle: AppText.meta.copyWith(
-                        color: TrainColors.ink3,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                _WeightStepper(
-                  icon: AppIcons.add,
-                  onTap: () {
-                    final v =
-                        double.tryParse(controller.text) ?? lastWeight ?? 0;
-                    controller.text = _trimNumber(v + 0.1);
-                  },
-                ),
-              ],
-            ),
-            if (lastWeight != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Center(
-                  child: Text(
-                    'Last weigh-in: ${_trimNumber(lastWeight)} kg',
-                    style: AppText.meta.copyWith(
-                      color: TrainColors.ink3,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+      return ZivoSheetSurface(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            22,
+            20,
+            22,
+            MediaQuery.of(sheetContext).viewInsets.bottom + 22,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Log today's weight",
+                style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               ),
-            const SizedBox(height: 20),
-            PillButton(
-              label: 'Save',
-              icon: Icons.check_rounded,
-              color: TrainColors.green,
-              enabled: true,
-              onTap: () {
-                final value = double.tryParse(controller.text);
-                if (value == null || value <= 0) return;
-                HapticFeedback.lightImpact();
-                final entry = BodyWeightEntry(
-                  id: DateTime.now().microsecondsSinceEpoch.toString(),
-                  weightKg: value,
-                  loggedAt: DateTime.now(),
-                );
-                Navigator.of(sheetContext).pop();
-                // Fire-and-forget like every other write in the app —
-                // Firestore commits cache-first, so awaiting would hang the
-                // button offline (see live_session_page's _onFinish note) —
-                // but never SILENTLY: a rejected save (rules, signed-out)
-                // used to vanish without a trace, reading as "weight doesn't
-                // save". Surface it on the page beneath the sheet.
-                // Future.sync also catches save()'s synchronous signed-out
-                // StateError, which a bare catchError would miss.
-                unawaited(
-                  Future.sync(() => bodyWeight.save(entry)).catchError((
-                    Object error,
-                  ) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: TrainColors.raised,
-                        content: Text(
-                          "Couldn't save that weigh-in — check your "
-                          'connection and try again.',
-                          style: AppText.body.copyWith(
-                            color: TrainColors.ink,
-                            fontSize: 13.5,
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  _WeightStepper(
+                    icon: AppIcons.minus,
+                    onTap: () {
+                      final v =
+                          parseDecimal(controller.text) ?? lastWeight ?? 0;
+                      if (v <= 0.1) return;
+                      controller.text = _trimNumber(v - 0.1);
+                    },
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      textAlign: TextAlign.center,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,1}$'),
+                        ),
+                      ],
+                      style: AppText.heroNumber.copyWith(
+                        fontSize: 40,
+                        color: TrainColors.ink,
+                      ),
+                      cursorColor: TrainColors.green,
+                      decoration: InputDecoration(
+                        suffixText: 'kg',
+                        suffixStyle: AppText.meta.copyWith(
+                          color: TrainColors.ink3,
+                          fontSize: 16,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  _WeightStepper(
+                    icon: AppIcons.add,
+                    onTap: () {
+                      final v =
+                          parseDecimal(controller.text) ?? lastWeight ?? 0;
+                      controller.text = _trimNumber(v + 0.1);
+                    },
+                  ),
+                ],
+              ),
+              if (lastWeight != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Center(
+                    child: Text(
+                      l(context).weighInLast(_trimNumber(lastWeight)),
+                      style: AppText.meta.copyWith(
+                        color: TrainColors.ink3,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              PillButton(
+                label: l(context).actionSave,
+                icon: Icons.check_rounded,
+                color: TrainColors.green,
+                enabled: true,
+                onTap: () {
+                  final value = parsePositiveDecimal(controller.text);
+                  if (value == null) return;
+                  HapticFeedback.lightImpact();
+                  final entry = BodyWeightEntry(
+                    id: DateTime.now().microsecondsSinceEpoch.toString(),
+                    weightKg: value,
+                    loggedAt: DateTime.now(),
+                  );
+                  Navigator.of(sheetContext).pop();
+                  // Fire-and-forget like every other write in the app —
+                  // Firestore commits cache-first, so awaiting would hang the
+                  // button offline (see live_session_page's _onFinish note) —
+                  // but never SILENTLY: a rejected save (rules, signed-out)
+                  // used to vanish without a trace, reading as "weight doesn't
+                  // save". Surface it on the page beneath the sheet.
+                  // Future.sync also catches save()'s synchronous signed-out
+                  // StateError, which a bare catchError would miss.
+                  unawaited(
+                    Future.sync(() => bodyWeight.save(entry)).catchError((
+                      Object error,
+                    ) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: TrainColors.raised,
+                          content: Text(
+                            "Couldn't save that weigh-in — check your "
+                            'connection and try again.',
+                            style: AppText.body.copyWith(
+                              color: TrainColors.ink,
+                              fontSize: 13.5,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
-                );
-              },
-            ),
-          ],
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       );
     },
@@ -445,8 +446,8 @@ class _StatsGrid extends StatelessWidget {
                   // tile said one number and its destination another (the
                   // "17 completed workouts but 2 sessions" report).
                   value: '${stats.totalCompletedSessions}',
-                  unit: 'TOTAL',
-                  label: 'Sessions',
+                  unit: l(context).statTotal,
+                  label: l(context).statSessions,
                   chart: weekly.any((v) => v > 0)
                       ? TrainSparkline(
                           values: weekly,
@@ -466,8 +467,8 @@ class _StatsGrid extends StatelessWidget {
                   icon: AppIcons.streak,
                   accent: TrainColors.green,
                   value: '${stats.currentStreakDays}',
-                  unit: 'DAYS',
-                  label: 'Streak',
+                  unit: l(context).statDays,
+                  label: l(context).statStreak,
                   // A count of days reads as discrete bars, never a line.
                   chart: daily.any((v) => v > 0)
                       ? TrainBarCluster(values: daily, color: TrainColors.ember)
@@ -497,8 +498,10 @@ class _StatsGrid extends StatelessWidget {
                   value: stats.averageSessionDuration == null
                       ? '—'
                       : '${stats.averageSessionDuration!.inMinutes}',
-                  unit: stats.averageSessionDuration == null ? null : 'MIN AVG',
-                  label: 'Duration',
+                  unit: stats.averageSessionDuration == null
+                      ? null
+                      : l(context).statMinAvg,
+                  label: l(context).statDuration,
                   chart: durations.length >= 2
                       ? TrainSparkline(
                           values: durations,
@@ -521,7 +524,7 @@ class _StatsGrid extends StatelessWidget {
                   value: stats.averageStartMinutesSinceMidnight == null
                       ? '—'
                       : _clock24(stats.averageStartMinutesSinceMidnight!),
-                  label: 'Usual start',
+                  label: l(context).statUsualStart,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const WorkoutStartTimesPage(),
@@ -588,7 +591,7 @@ class _WeightCard extends StatelessWidget {
                       ? Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Text(
-                            'NO WEIGH-INS YET',
+                            l(context).weighInNone,
                             style: TrainType.mono(
                               size: 11,
                               weight: FontWeight.w500,
@@ -644,7 +647,10 @@ class _WeightCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _shortDate(trend.series.first.loggedAt),
+                    _shortDate(
+                      trend.series.first.loggedAt,
+                      Localizations.localeOf(context).toLanguageTag(),
+                    ),
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
@@ -652,7 +658,7 @@ class _WeightCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'TODAY',
+                    l(context).commonToday,
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
@@ -667,9 +673,10 @@ class _WeightCard extends StatelessWidget {
               // an empty frame (identity §7).
               Text(
                 latest == null
-                    ? 'Log one to start the trend.'
-                    : 'Logged ${timeAgo(latest.loggedAt, DateTime.now())} ago '
-                          '· one more reading draws the trend.',
+                    ? l(context).weighInStartTrend
+                    : l(context).weighInOneMore(
+                        timeAgo(latest.loggedAt, DateTime.now()),
+                      ),
                 style: TrainType.ui(
                   size: 12.5,
                   weight: FontWeight.w400,
@@ -715,7 +722,7 @@ class _LogWeighInPill extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Text(
-                'Log weigh-in',
+                l(context).weighInLog,
                 style: TrainType.ui(
                   size: 11.5,
                   weight: FontWeight.w700,
@@ -781,7 +788,7 @@ class _DashboardErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Check your connection and try again in a moment.',
+              l(context).errorCheckConnection,
               style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -809,7 +816,7 @@ class _NoPlanState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'No workout plan yet',
+              l(context).workoutNoPlanYet,
               style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               textAlign: TextAlign.center,
             ),
@@ -826,7 +833,7 @@ class _NoPlanState extends StatelessWidget {
               // committing action, and the hub's ember slot (Start Workout)
               // is empty until there's a split to start (identity §3).
               child: PillButton(
-                label: 'Import a plan',
+                label: l(context).todayImportPlan,
                 icon: Icons.upload_file_rounded,
                 color: TrainColors.ember,
                 enabled: true,
@@ -853,7 +860,7 @@ class _NoPlanState extends StatelessWidget {
                   );
                 },
                 child: Text(
-                  'Build manually instead',
+                  l(context).todayBuildManually,
                   style: AppText.meta.copyWith(color: TrainColors.ink2),
                 ),
               ),
@@ -938,22 +945,17 @@ String _clock24(double minutesSinceMidnight) {
 }
 
 /// `JUL 1` — the trend window's opening reading.
-String _shortDate(DateTime d) {
-  const months = [
-    'JAN',
-    'FEB',
-    'MAR',
-    'APR',
-    'MAY',
-    'JUN',
-    'JUL',
-    'AUG',
-    'SEP',
-    'OCT',
-    'NOV',
-    'DEC',
-  ];
-  return '${months[d.month - 1]} ${d.day}';
+///
+/// Month names come from `intl`, not from ZIVO's ARB files: they are calendar
+/// data every locale already has (see `header_builder.dart`'s note). Falls
+/// back to the default locale when the requested one's symbols aren't loaded,
+/// which is the case in a widget test with no localization delegates.
+String _shortDate(DateTime d, [String? localeName]) {
+  try {
+    return DateFormat('MMM d', localeName).format(d).toUpperCase();
+  } on Exception {
+    return DateFormat('MMM d').format(d).toUpperCase();
+  }
 }
 
 /// The BODYWEIGHT section's trailing caption — a delta always states its own

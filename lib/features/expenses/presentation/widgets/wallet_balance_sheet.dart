@@ -5,6 +5,8 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/util/money.dart';
 import 'amount_keypad.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../l10n/l10n.dart';
 
 enum WalletSheetMode { setBalance, topUp }
 
@@ -29,17 +31,14 @@ class WalletBalanceSheet extends StatefulWidget {
     int? prefillMinor,
     String currency = 'EGP',
   }) {
-    return showModalBottomSheet<void>(
+    return showZivoSheet<void>(
       context: context,
-      backgroundColor: TrainColors.raised,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => WalletBalanceSheet(
-        mode: mode,
-        prefillMinor: prefillMinor,
-        currency: currency,
+      builder: (_) => ZivoSheetSurface(
+        child: WalletBalanceSheet(
+          mode: mode,
+          prefillMinor: prefillMinor,
+          currency: currency,
+        ),
       ),
     );
   }
@@ -114,14 +113,16 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
           ),
           const SizedBox(height: 18),
           Text(
-            isSet ? 'Set wallet balance' : 'Top up wallet',
+            isSet
+                ? l(context).walletSetBalanceTitle
+                : l(context).walletTopUpTitle,
             style: AppText.cardTitle.copyWith(fontSize: 19),
           ),
           const SizedBox(height: 4),
           Text(
             isSet
-                ? 'How much do you currently have?'
-                : 'How much are you adding?',
+                ? l(context).walletHowMuchNow
+                : l(context).walletHowMuchAdding,
             style: AppText.body.copyWith(fontSize: 13.5),
           ),
           const SizedBox(height: 18),
@@ -156,7 +157,9 @@ class _WalletBalanceSheetState extends State<WalletBalanceSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 18),
             child: _SaveButton(
               enabled: _canSave,
-              label: isSet ? 'Save balance' : 'Add funds',
+              label: isSet
+                  ? l(context).walletSaveBalance
+                  : l(context).walletAddFunds,
               onTap: _save,
             ),
           ),

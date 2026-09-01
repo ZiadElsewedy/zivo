@@ -26,6 +26,8 @@ import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
+import 'package:zivo/features/music/data/fake_music_controller.dart';
+import 'package:zivo/features/music/domain/music_controller.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -241,6 +243,7 @@ Widget _wrap({
   required WorkoutPlan plan,
   LiveSession? resume,
   DateTime Function()? now,
+  MusicController? music,
 }) {
   return AppScope(
     auth: FakeAuthRepository(),
@@ -252,7 +255,7 @@ Widget _wrap({
     workoutSessions: workoutSessions,
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
-    music: InertMusicController(),
+    music: music ?? InertMusicController(),
     child: MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -411,16 +414,11 @@ void main() {
         isTrue,
       );
 
-      // Type a heavier weight than last time (reps unchanged at the
-      // prefilled 5). The redesign folded the old separate "Progressing
-      // +17%" verdict badge into ONE caption under the weight, in which
-      // **load leads whenever it moved** — that's the decision you just
-      // made — and the percentage verdict is the fallback for when it
-      // didn't. 30kg → 35kg, so the caption is the load delta.
+      // Type a heavier weight than the prefilled goal (reps unchanged at 5),
+      // so set 1 logs the 35kg we typed (asserted below).
       // Reps is the first TextField (index 0), Weight the second (index 1).
       await tester.enterText(find.byType(TextField).at(1), '35');
       await tester.pump();
-      expect(find.text('↑ 5 KG VS LAST'), findsOneWidget);
 
       // Complete set 1 → the session counts down the exercise's own plan
       // rest (90s, "1:30") — the plan Ziad set in Edit Workout, not a
@@ -777,11 +775,10 @@ void main() {
       await _tap(tester, find.text('Skip rest'));
 
       // Set 2. Nothing the steppers can do may change this card's height.
-      // Two separate things used to: the comparison chip appeared only once
-      // you'd moved the weight, and the volume line appeared only once a
-      // weight parsed at all — so the card gained a row (shoving the
-      // steppers, the music strip and the commit row down with it) the moment
-      // you tapped +2.5 or typed a load.
+      // The intra-session chip is always reserved (present for every set
+      // after the first, changed or not), so typing a load can't gain the
+      // card a row that shoves the steppers and commit row down under your
+      // thumb the moment you tap +2.5.
       expect(find.byKey(const Key('intra-session-delta')), findsOneWidget);
       final before = tester.getSize(find.byKey(const Key('goal-card'))).height;
 
@@ -791,6 +788,73 @@ void main() {
 
       expect(find.text('+5kg from your previous set'), findsOneWidget);
       expect(tester.getSize(find.byKey(const Key('goal-card'))).height, before);
+    },
+  );
+
+  testWidgets(
+    'the music companion is docked in EVERY phase — warm-up, logging, and '
+    'rest — with full prev/play-pause/next, so a track is skippable without '
+    'ever leaving for Spotify',
+    (tester) async {
+      final workouts = _RecordingWorkoutRepository();
+      final plans = _RecordingWorkoutPlanRepository();
+      final sessions = InMemoryWorkoutSessionRepository();
+      final plan = _plan();
+      // The inert default stays disconnected and renders nothing; this one is
+      // connected with a fixture track, so the docked bar actually mounts.
+      final music = FakeMusicController();
+      // Dispose in a finally (not addTearDown): FakeMusicController owns a
+      // real periodic ticker, and the pending-timer invariant runs before
+      // tearDowns do.
+      try {
+        await tester.pumpWidget(
+          _wrap(
+            workouts: workouts,
+            workoutPlans: plans,
+            workoutSessions: sessions,
+            day: plan.days.first,
+            plan: plan,
+            music: music,
+          ),
+        );
+
+        // Prev AND next come only from the persistent bar's `bar` density (the
+        // fuller transport the old logging strip lacked), so finding both in a
+        // phase proves the docked companion — not some phase-local strip — is
+        // present there.
+        void expectDockedTransport() {
+          expect(find.byKey(const Key('session-music-bar')), findsOneWidget);
+          expect(find.bySemanticsLabel('Previous track'), findsOneWidget);
+          expect(find.bySemanticsLabel('Next track'), findsOneWidget);
+        }
+
+        // Warm-up (a fresh session opens here).
+        await tester.tap(find.text('go'));
+        await _settle(tester);
+        expect(find.text('Skip warm-up'), findsOneWidget);
+        expectDockedTransport();
+
+        // Logging.
+        await _tap(tester, find.text('Skip warm-up'));
+        expect(find.byKey(const Key('log-set')), findsOneWidget);
+        expectDockedTransport();
+
+        // Rest.
+        await tester.enterText(find.byType(TextField).at(0), '8');
+        await tester.enterText(find.byType(TextField).at(1), '60');
+        await tester.pump();
+        await _tap(tester, find.byKey(const Key('log-set')));
+        expect(find.text('Skip rest'), findsOneWidget);
+        expectDockedTransport();
+
+        // And "change the song" is wired straight to the controller — a tap on
+        // next advances the track in-app, no Spotify round-trip.
+        final before = music.currentNowPlaying!.trackId;
+        await _tap(tester, find.bySemanticsLabel('Next track'));
+        expect(music.currentNowPlaying!.trackId, isNot(before));
+      } finally {
+        music.dispose();
+      }
     },
   );
 

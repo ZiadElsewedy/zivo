@@ -12,9 +12,18 @@ enum AiPhase { understanding, working, preparingChange, done, unknown }
 
 /// The turn crossed into [phase].
 class AiPhaseEvent extends AiTurnEvent {
-  const AiPhaseEvent(this.phase);
+  const AiPhaseEvent(this.phase, {this.replaced = false});
 
   final AiPhase phase;
+
+  /// Set on the `done` event when the gateway's advice validator rejected the
+  /// model's reply and persisted deterministic text in its place.
+  ///
+  /// It matters because the rejected draft has already streamed to the screen:
+  /// the client must drop what it is showing rather than leave the user
+  /// reading figures the server has already determined were wrong. Absent on
+  /// every other event, and false whenever the turn wasn't validated at all.
+  final bool replaced;
 }
 
 /// A chunk of the assistant's reply text as it streams in.
@@ -40,7 +49,10 @@ AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
   if (chunk is! Map) return null;
   switch (chunk['type']) {
     case 'phase':
-      return AiPhaseEvent(aiPhaseFromName(chunk['phase'] as String?));
+      return AiPhaseEvent(
+        aiPhaseFromName(chunk['phase'] as String?),
+        replaced: chunk['replaced'] == true,
+      );
     case 'delta':
       final text = chunk['text'];
       return text is String ? AiDeltaEvent(text) : null;

@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../diet/domain/diet_import_input.dart';
 import '../../diet/domain/diet_import_outcome.dart';
+import '../../diet/domain/nutrition_targets.dart';
+import '../../diet/domain/plan_preferences.dart';
 import '../../diet/domain/diet_import_result.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
@@ -50,8 +53,13 @@ class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
     importWorkoutPlanImpl,
-    Future<DietImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    Future<DietImportOutcome> Function(DietImportInput input)?
     importDietPlanImpl,
+    Future<DietImportOutcome> Function(
+      PlanPreferences preferences,
+      NutritionTargets? targets,
+    )?
+    generateDietPlanImpl,
     Future<SttOutcome> Function(
       Uint8List audioBytes,
       String mimeType,
@@ -59,8 +67,9 @@ class FakeAiRepository implements AiRepository {
     )?
     transcribeImpl,
   }) : _importWorkoutPlanImpl =
-            importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
+           importWorkoutPlanImpl ?? _defaultImportWorkoutPlan,
        _importDietPlanImpl = importDietPlanImpl ?? _defaultImportDietPlan,
+       _generateDietPlanImpl = generateDietPlanImpl ?? _defaultGenerateDietPlan,
        _transcribeImpl = transcribeImpl ?? _defaultTranscribe;
 
   final Future<WorkoutImportOutcome> Function(
@@ -68,11 +77,13 @@ class FakeAiRepository implements AiRepository {
     String mimeType,
   )
   _importWorkoutPlanImpl;
-  final Future<DietImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  final Future<DietImportOutcome> Function(DietImportInput input)
   _importDietPlanImpl;
+  final Future<DietImportOutcome> Function(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  )
+  _generateDietPlanImpl;
   final Future<SttOutcome> Function(
     Uint8List audioBytes,
     String mimeType,
@@ -143,11 +154,12 @@ class FakeAiRepository implements AiRepository {
   }
 
   @override
-  Future<String> createConversation({String? title}) async => _createConversation(
-    title: title == null || title.trim().isEmpty
-        ? 'New chat'
-        : title.trim(),
-  ).id;
+  Future<String> createConversation({String? title}) async =>
+      _createConversation(
+        title: title == null || title.trim().isEmpty
+            ? 'New chat'
+            : title.trim(),
+      ).id;
 
   @override
   Future<void> renameConversation(String id, String title) async {
@@ -392,10 +404,51 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) => _importDietPlanImpl(fileBytes, mimeType);
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+      _importDietPlanImpl(input);
+
+  /// Offline-testable stand-in for the real `aiGenerateDietPlan` callable —
+  /// same seam as [importDietPlan], scripted the same way.
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => _generateDietPlanImpl(preferences, targets);
+
+  /// A canned generated plan, ignoring the preferences entirely (this fake
+  /// designs nothing). Marked estimated, like a real generation's unresolved
+  /// items, so the "~" path is exercisable offline.
+  static Future<DietImportOutcome> _defaultGenerateDietPlan(
+    PlanPreferences preferences,
+    NutritionTargets? targets,
+  ) async => const DietImportAccepted(
+    DietImportResult(
+      planName: 'Your plan',
+      days: [
+        ImportedDietDay(
+          weekday: null,
+          label: 'Every day',
+          meals: [
+            ImportedMeal(
+              label: 'Breakfast',
+              items: [
+                ImportedFoodItem(
+                  name: 'Oats',
+                  quantity: 80,
+                  unit: 'g',
+                  calories: 303,
+                  proteinG: 10.6,
+                  carbsG: 54.4,
+                  fatG: 5.4,
+                  estimated: false,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   /// Offline-testable stand-in for the real `aiTranscribe` callable —
   /// delegates to [_transcribeImpl], which defaults to
@@ -471,8 +524,7 @@ class FakeAiRepository implements AiRepository {
   /// without Firebase. One item is marked `estimated: true` so the "~" UI
   /// path is exercisable offline too.
   static Future<DietImportOutcome> _defaultImportDietPlan(
-    Uint8List fileBytes,
-    String mimeType,
+    DietImportInput input,
   ) async {
     return const DietImportAccepted(
       DietImportResult(
@@ -545,6 +597,13 @@ class FakeAiRepository implements AiRepository {
         return 'Deleted expense${f['target'] != null ? ' · ${f['target']}' : ''}';
       case 'mark_meal_eaten':
         return 'Marked ${f['meal']} ${f['state']}.';
+      case 'log_food':
+        final count = f['count'];
+        final total = f['totalKcal'];
+        final foods = count is int
+            ? '$count food${count == 1 ? '' : 's'}'
+            : 'food';
+        return 'Logged $foods${total != null ? ' · $total kcal' : ''}';
       default:
         return 'Done.';
     }

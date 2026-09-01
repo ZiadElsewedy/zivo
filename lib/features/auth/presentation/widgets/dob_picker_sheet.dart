@@ -4,16 +4,15 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/zivo_sheet.dart';
 
 /// Opens the shared ZIVO date-of-birth wheel and resolves to the picked date
 /// (or null if dismissed). Used by both first-run onboarding and profile-edit
 /// so the two surfaces present the identical warm picker — no stock Material
 /// calendar anywhere.
 Future<DateTime?> showDobPicker(BuildContext context, {DateTime? initial}) {
-  return showModalBottomSheet<DateTime>(
+  return showZivoSheet<DateTime>(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
     builder: (_) => DobPickerSheet(initial: initial),
   );
 }
@@ -106,16 +105,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: TrainColors.hairlineStrong,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
+          Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),

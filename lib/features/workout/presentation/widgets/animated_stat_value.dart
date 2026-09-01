@@ -9,7 +9,11 @@ import '../../../../core/motion/springs.dart';
 /// a state color, the color) just snapping. Shared by the dashboard and
 /// progress pages rather than forked per file.
 class AnimatedStatValue extends StatelessWidget {
-  const AnimatedStatValue({required this.value, required this.style, super.key});
+  const AnimatedStatValue({
+    required this.value,
+    required this.style,
+    super.key,
+  });
 
   final String value;
   final TextStyle style;
@@ -17,15 +21,19 @@ class AnimatedStatValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: reducedMotion(context) ? Duration.zero : const Duration(milliseconds: 240),
+      duration: reducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeOut,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: AnimatedBuilder(
           animation: animation,
-          builder: (context, child) =>
-              Transform.translate(offset: Offset(0, (1 - animation.value) * 6), child: child),
+          builder: (context, child) => Transform.translate(
+            offset: Offset(0, (1 - animation.value) * 6),
+            child: child,
+          ),
           child: child,
         ),
       ),

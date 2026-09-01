@@ -21,6 +21,9 @@
  * the user's Confirm before any write happens.
  */
 
+const {dayKeyFor, resolveDietDay} = require("./dates");
+const {normalizeItem, resolveAndCompute} = require("../nutrition/resolve");
+
 const EXPENSE_CATEGORIES = ["food", "coffee", "transport", "groceries", "other"];
 const DEFAULT_CURRENCY = "EGP";
 const MAX_NOTE_CHARS = 500;
@@ -211,6 +214,61 @@ const MARK_MEAL_EATEN = {
       dateIso: optionalIso(input.date, "date"),
     };
   },
+  /**
+   * Checks the proposed `mealId` against the user's ACTUAL active plan before
+   * the proposal is ever shown, and returns the facts the write should use
+   * rather than the ones the model claimed.
+   *
+   * `validate` can only prove the id is a non-empty string — and a string is
+   * exactly what a model can invent. Without this, a hallucinated or stale id
+   * survived Confirm and wrote a `dietEntries` doc referencing a meal that
+   * doesn't exist: an orphan that counts toward nothing, shows up nowhere in
+   * the app, and silently makes "2 of 4 meals eaten" wrong. The Firestore
+   * rules can't catch it either (they type-check fields, they can't join
+   * against the plan), so this is the only place the check can live.
+   *
+   * Two things are taken from the plan rather than the model: the resolved
+   * `dayKey` (so the write can't drift to another day between propose and
+   * confirm) and the meal's real `label` (so the confirmation card names the
+   * meal the plan names, not the one the model remembered).
+   *
+   * @param {!Object} args
+   * @param {!Object} args.store
+   * @param {string} args.uid
+   * @param {!Object} args.validated
+   * @param {!Date} args.now
+   * @param {number=} args.offsetMinutes
+   * @return {!Promise<!Object>} A patch merged into the validated payload.
+   */
+  async verify({store, uid, validated, now, offsetMinutes}) {
+    const date = validated.dateIso ? new Date(validated.dateIso) : now;
+    const dayKey = dayKeyFor(date, offsetMinutes);
+
+    const plan = await store.getActiveDietPlan(uid);
+    if (!plan) {
+      throw new ValidationError(
+          "There's no active diet plan, so there's no meal to mark. Tell " +
+          "the user that instead of guessing a meal.");
+    }
+    const day = resolveDietDay(plan.days || [], date, offsetMinutes);
+    if (!day) {
+      throw new ValidationError(
+          `The plan "${plan.name}" has no meals for ${dayKey}. Say so ` +
+          "instead of picking a meal from another day.");
+    }
+    const meals = Array.isArray(day.meals) ? day.meals : [];
+    const meal = meals.find((m) => m && m.id === validated.mealId);
+    if (!meal) {
+      const available = meals
+          .map((m) => `${m.label} (id ${m.id})`)
+          .join("; ") || "none";
+      throw new ValidationError(
+          `No meal with id "${validated.mealId}" exists in the plan for ` +
+          `${dayKey}. Call get_diet and use an exact id from it. Meals ` +
+          `that day: ${available}.`);
+    }
+    return {dayKey, label: meal.label};
+  },
   fields(v) {
     return {
       meal: v.label || v.mealId,
@@ -394,11 +452,202 @@ const DELETE_EXPENSE = {
   },
 };
 
+const MAX_LOG_ITEMS = 20;
+
+/**
+ * A short "3 foods · 720 kcal" / "chicken breast (200 g) · 330 kcal" clause for
+ * a validated (verified) log_food payload, shared by summary and result.
+ * @param {!Object} v
+ * @return {string}
+ */
+function logClause(v) {
+  const entries = Array.isArray(v.entries) ? v.entries : [];
+  const kcal = v.totals ? v.totals.kcal : null;
+  if (entries.length === 1) {
+    const e = entries[0];
+    const qty = Number.isInteger(e.quantity) ? e.quantity : e.quantity;
+    return `${e.foodName} (${qty} ${e.unit})` +
+      (kcal != null ? ` · ${kcal} kcal` : "");
+  }
+  const count = entries.length || (Array.isArray(v.items) ? v.items.length : 0);
+  return `${count} food${count === 1 ? "" : "s"}` +
+    (kcal != null ? ` · ${kcal} kcal` : "");
+}
+
+const LOG_FOOD = {
+  name: "log_food",
+  mutating: true,
+  kind: "log_food",
+  description:
+    "Propose logging food the user actually ate to their food log — does not " +
+    "save until the user confirms. Use this for 'I ate two eggs and 100g of " +
+    "rice'. Each item takes a `foodId` (from resolve_food, preferred) OR a " +
+    "`query`, plus `quantity` and `unit`. You do NOT provide calories or " +
+    "macros — ZIVO computes them from the catalog; a food it can't resolve " +
+    "(ambiguous, not found, or an unconvertible unit) comes back as an error " +
+    "for you to fix (resolve_food and pass a foodId), never a guess. Optional: " +
+    "date (ISO 8601, default today). Log only what the user says they ate — " +
+    "to tick a meal off their plan, use mark_meal_eaten instead.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            foodId: {type: "string", description: "from resolve_food, preferred"},
+            query: {type: "string", description: "the food, if no foodId"},
+            preparation: {type: "string", enum: ["raw", "cooked", "dry"]},
+            quantity: {type: "number"},
+            unit: {type: "string", description: "g, oz, piece, …"},
+          },
+        },
+      },
+      date: {type: "string", description: "ISO 8601 day, optional, default today"},
+    },
+    required: ["items"],
+  },
+  /**
+   * @param {!Object} input
+   * @return {!Object} Validated payload — the normalized items plus the day.
+   */
+  validate(input) {
+    const raw = Array.isArray(input.items) ? input.items : [];
+    if (raw.length === 0) {
+      throw new ValidationError("Tell me what food to log.");
+    }
+    if (raw.length > MAX_LOG_ITEMS) {
+      throw new ValidationError(
+          `That's a lot at once — log at most ${MAX_LOG_ITEMS} items.`);
+    }
+    let items;
+    try {
+      items = raw.map(normalizeItem);
+    } catch (err) {
+      // normalizeItem throws a plain Error; surface it as a validation error so
+      // the gateway feeds it back to the model to correct.
+      throw new ValidationError(err.message);
+    }
+    return {items, dateIso: optionalIso(input.date, "date")};
+  },
+  /**
+   * Resolves and prices every item against the REAL catalog (plus the user's
+   * custom foods) before the proposal is ever shown, and returns the fully
+   * computed entries the write will use.
+   *
+   * This is where the trust boundary is enforced: the model names foods and
+   * amounts, and the server — never the model — turns them into calories, the
+   * same way the app's log sheet does. An item that is ambiguous, absent, or
+   * whose unit can't be converted is refused with a message the model can act
+   * on, so a guessed number can never reach the confirm button. The nutrition
+   * is snapshotted into the entries here, so it's frozen at log time and can't
+   * drift if the catalog is rebuilt later.
+   *
+   * @param {!Object} args
+   * @param {!Object} args.store
+   * @param {string} args.uid
+   * @param {!Object} args.validated
+   * @param {!Date} args.now
+   * @param {number=} args.offsetMinutes
+   * @return {!Promise<!Object>} A patch merged into the validated payload.
+   */
+  async verify({store, uid, validated, now, offsetMinutes}) {
+    const date = validated.dateIso ? new Date(validated.dateIso) : now;
+    const dayKey = dayKeyFor(date, offsetMinutes);
+    const customFoods = await store.listCustomFoods(uid);
+
+    const entries = [];
+    let kcal = 0;
+    let proteinG = 0;
+    let carbsG = 0;
+    let fatG = 0;
+    for (const item of validated.items) {
+      const result = resolveAndCompute(item, customFoods);
+      const named = item.query || item.foodId;
+      if (result.outcome === "notFound") {
+        throw new ValidationError(
+            `"${named}" isn't in the nutrition catalog. Tell the user and ` +
+            "offer to log it as a custom food — don't guess its calories.");
+      }
+      if (result.outcome === "ambiguous") {
+        const options = result.candidates
+            .map((c) => `${c.name} (${c.per100gKcal} kcal/100g, id ${c.foodId})`)
+            .join("; ");
+        throw new ValidationError(
+            `"${named}" matches several foods that differ in calories: ` +
+            `${options}. Ask the user which they mean, then pass that foodId.`);
+      }
+      if (result.outcome === "unresolvedMeasure") {
+        const measures = result.availableMeasures.length ?
+          result.availableMeasures.join(", ") : "grams (g) or ounces (oz)";
+        throw new ValidationError(
+            `Can't measure "${named}" in ${result.unit}. Measures that work: ` +
+            `${measures}. Ask the user to give the amount in one of those.`);
+      }
+      entries.push({
+        dayKey,
+        foodId: result.foodId,
+        foodName: result.name,
+        quantity: result.quantity,
+        unit: result.unit,
+        grams: result.grams,
+        kcal: result.kcal,
+        proteinG: result.proteinG,
+        carbsG: result.carbsG,
+        fatG: result.fatG,
+        source: result.source,
+        sourceRef: result.sourceRef,
+        // The user told us they ate this — the most trustworthy kind of entry,
+        // and not an AI estimate: the figures are the catalog's, not a guess.
+        origin: "logged",
+        estimated: false,
+        mealId: null,
+      });
+      kcal += result.kcal;
+      proteinG += result.proteinG;
+      carbsG += result.carbsG;
+      fatG += result.fatG;
+    }
+
+    return {
+      dayKey,
+      entries,
+      totals: {
+        kcal: Math.round(kcal),
+        proteinG: Math.round(proteinG * 10) / 10,
+        carbsG: Math.round(carbsG * 10) / 10,
+        fatG: Math.round(fatG * 10) / 10,
+      },
+    };
+  },
+  fields(v) {
+    const entries = Array.isArray(v.entries) ? v.entries : [];
+    return {
+      items: entries.map((e) => ({
+        name: e.foodName,
+        quantity: e.quantity,
+        unit: e.unit,
+        kcal: e.kcal,
+      })),
+      totalKcal: v.totals ? v.totals.kcal : null,
+      count: entries.length,
+    };
+  },
+  summarize(v) {
+    return `Log ${logClause(v)}`;
+  },
+  result(v) {
+    return `Logged ${logClause(v)}`;
+  },
+};
+
 const mutatingTools = [
   CREATE_EXPENSE,
   EDIT_EXPENSE,
   DELETE_EXPENSE,
   MARK_MEAL_EATEN,
+  LOG_FOOD,
 ];
 const mutatingToolsByName = new Map(mutatingTools.map((t) => [t.name, t]));
 

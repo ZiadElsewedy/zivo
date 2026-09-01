@@ -42,7 +42,7 @@ function makeStore(overrides) {
     appendMessage: [],
     touchConversation: [],
     logUsage: [],
-    listTasks: [],
+    listWorkouts: [],
   };
   const messages = [];
 
@@ -62,8 +62,8 @@ function makeStore(overrides) {
     logUsage: async (uid, usageDoc) => {
       calls.logUsage.push({uid, usageDoc});
     },
-    listTasks: async (uid) => {
-      calls.listTasks.push(uid);
+    listWorkouts: async (uid) => {
+      calls.listWorkouts.push(uid);
       return [];
     },
   };
@@ -148,24 +148,25 @@ test("rejects a missing conversationId", async () => {
 
 test("tool execution is uid-scoped and the result flows to the final answer",
     async () => {
+      const seen = [];
       const store = makeStore({
-        listTasks: async (uid) => {
-          store.calls.listTasks.push(uid);
-          return [{title: "Buy milk", done: false, priority: false,
-            due: null}];
+        listWorkouts: async (uid) => {
+          seen.push(uid);
+          return [{title: "Push", performedAt: new Date(1000),
+            durationMinutes: 45, exercises: []}];
         },
       });
       const callModel = scriptedModel([
         {
           stop_reason: "tool_use",
           content: [
-            {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+            {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
           ],
           usage: {input_tokens: 10, output_tokens: 5},
         },
         {
           stop_reason: "end_turn",
-          content: [{type: "text", text: "You have 1 open task: Buy milk."}],
+          content: [{type: "text", text: "You trained once this week: Push."}],
           usage: {input_tokens: 5, output_tokens: 5},
         },
       ]);
@@ -175,27 +176,27 @@ test("tool execution is uid-scoped and the result flows to the final answer",
         callModel,
         uid: UID,
         conversationId: CONVERSATION_ID,
-        message: "what are my tasks?",
+        message: "how did training go?",
         now: makeClock(1000),
       });
 
-      assert.deepEqual(store.calls.listTasks, [UID]);
+      assert.deepEqual(seen, [UID]);
       assert.equal(result.status, "ok");
-      assert.equal(result.assistantText, "You have 1 open task: Buy milk.");
+      assert.equal(result.assistantText, "You trained once this week: Push.");
 
       const persistedRoles = store.calls.appendMessage.map(
           (c) => c.message.role);
       assert.deepEqual(persistedRoles, ["user", "assistant"]);
       assert.equal(
           store.calls.appendMessage[1].message.content,
-          "You have 1 open task: Buy milk.",
+          "You trained once this week: Push.",
       );
     });
 
 test("empty thinking blocks are stripped from re-sent history; " +
     "signed non-empty ones are preserved", async () => {
   const store = makeStore({
-    listTasks: async () => [],
+    listWorkouts: async () => [],
   });
   // First response mixes an empty placeholder thinking block (as
   // claude-sonnet-5 emits, and the streaming SDK returns with an empty
@@ -206,7 +207,7 @@ test("empty thinking blocks are stripped from re-sent history; " +
       content: [
         {type: "thinking", thinking: "", signature: ""},
         {type: "thinking", thinking: "real reasoning", signature: "sig-abc"},
-        {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+        {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
       ],
       usage: {input_tokens: 10, output_tokens: 5},
     },
@@ -251,7 +252,7 @@ test("stops after maxIterations and calls the model exactly that many times",
         {
           stop_reason: "tool_use",
           content: [
-            {type: "tool_use", id: "call-x", name: "get_tasks", input: {}},
+            {type: "tool_use", id: "call-x", name: "get_workouts", input: {}},
           ],
           usage: {input_tokens: 1, output_tokens: 1},
         },
@@ -278,7 +279,7 @@ test("the per-turn token ceiling aborts the loop cleanly", async () => {
     {
       stop_reason: "tool_use",
       content: [
-        {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+        {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
       ],
       usage: {input_tokens: 80, output_tokens: 80},
     },
@@ -358,7 +359,7 @@ test("a refusal stop_reason yields a clean refusal message", async () => {
 test("a tool executor error becomes an is_error tool_result and the loop " +
     "recovers", async () => {
   const store = makeStore({
-    listTasks: async () => {
+    listWorkouts: async () => {
       throw new Error("boom");
     },
   });
@@ -366,7 +367,7 @@ test("a tool executor error becomes an is_error tool_result and the loop " +
     {
       stop_reason: "tool_use",
       content: [
-        {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+        {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
       ],
       usage: {input_tokens: 1, output_tokens: 1},
     },
@@ -397,6 +398,151 @@ test("a tool executor error becomes an is_error tool_result and the loop " +
   assert.equal(toolResultBlock.is_error, true);
 });
 
+test("the CONTEXT block tells the model the USER's local date", async () => {
+  // Nothing else in a turn carries a date: the system prompt is static and
+  // cached, history is undated. Without this block the model had no way to
+  // know what day it was and simply invented one.
+  const store = makeStore();
+  const callModel = scriptedModel([
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "ok"}],
+      usage: {input_tokens: 1, output_tokens: 1},
+    },
+  ]);
+
+  // 21:30Z on Saturday 29 Aug is already Sunday 30 Aug for a UTC+3 user.
+  await runAiTurn({
+    store,
+    callModel,
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "what day is it?",
+    now: () => new Date("2026-08-29T21:30:00Z"),
+    clientClock: {offsetMinutes: 180, zoneLabel: "EEST"},
+  });
+
+  const context = callModel.requests[0].system.at(-1).text;
+  assert.match(context, /Sunday, 30 August 2026 \(2026-08-30\)/);
+  assert.match(context, /00:30 EEST \(UTC\+03:00\)/);
+  // Fenced as facts, never as instructions from the user.
+  assert.match(context, /not instructions from the user/);
+});
+
+test("without a client clock the CONTEXT block says the date may be wrong",
+    async () => {
+      const store = makeStore();
+      const callModel = scriptedModel([
+        {
+          stop_reason: "end_turn",
+          content: [{type: "text", text: "ok"}],
+          usage: {input_tokens: 1, output_tokens: 1},
+        },
+      ]);
+
+      await runAiTurn({
+        store, callModel, uid: UID, conversationId: CONVERSATION_ID,
+        message: "hi", now: makeClock(0),
+      });
+
+      // An older app build sends no offset. Better to hedge than to present
+      // the server's day as the user's.
+      const context = callModel.requests[0].system.at(-1).text;
+      assert.match(context, /may be off by a day near midnight/);
+    });
+
+test("the system prompt forbids inventing nutrition figures", async () => {
+  // The prompt used to say the opposite — "when you estimate calories or
+  // macros, say they're approximate and give a sensible range" — which
+  // licensed exactly the behaviour this feature must not have. A hedge word
+  // does not make an invented number safe.
+  assert.doesNotMatch(SYSTEM_PROMPT, /when you estimate calories or macros/i);
+  assert.match(SYSTEM_PROMPT, /must come from a tool result in THIS turn/);
+  // Tools price food now (Phase 6), but the model still may not do so from its
+  // own knowledge — the figure comes from the resolve/calculate tools.
+  assert.match(SYSTEM_PROMPT, /never produce one from your own nutritional/);
+  // And it must say what to do instead of guessing.
+  assert.match(SYSTEM_PROMPT, /say you don't have it/i);
+});
+
+test("the system prompt keeps the user's goal separate from the plan's sum",
+    async () => {
+      // The one confusion that would undo Phase 1: "targets" is what the user
+      // is trying to do; "nutrition.target" is what a plan day happens to add
+      // up to. Coaching against the second is coaching against a number nobody
+      // chose.
+      assert.match(SYSTEM_PROMPT, /Two different things are called "target"/);
+      assert.match(SYSTEM_PROMPT, /not a goal anyone\n {2}chose/);
+      // And it must know how to behave when no objective is set.
+      assert.match(SYSTEM_PROMPT, /When "targets" is null/);
+    });
+
+test("the system prompt states what 'remaining' is actually measuring",
+    async () => {
+      // It measures the food log — and the coach has to say which kind of day
+      // it is rather than implying every total is a measurement.
+      assert.match(SYSTEM_PROMPT, /come from the user's FOOD LOG/);
+      assert.match(
+          SYSTEM_PROMPT, /your plan values\n {4}what you've ticked at N/);
+    });
+
+test("the system prompt makes the coach read the log's basis before it " +
+    "characterises the numbers", async () => {
+  // The three kinds of day are genuinely different claims, and conflating them
+  // is how a coach ends up telling someone to eat when they already have.
+  assert.match(SYSTEM_PROMPT, /"basis" field says what kind of day it is/);
+  assert.match(SYSTEM_PROMPT, /logged by the user/);
+  assert.match(SYSTEM_PROMPT, /not a measurement/);
+  assert.match(SYSTEM_PROMPT, /An empty log means nothing was recorded/);
+});
+
+test("the system prompt points the model at the resolve/calculate tools, " +
+    "never its own knowledge", async () => {
+  // Phase 6: the coach now HAS tools onto the catalog — but a number still
+  // comes from the tool, never from the model's own nutritional knowledge, and
+  // a food the catalog can't resolve is offered as a custom food, not guessed.
+  assert.match(SYSTEM_PROMPT, /resolve_food finds a/);
+  assert.match(SYSTEM_PROMPT, /calculate_meal_nutrition prices an amount/);
+  assert.match(SYSTEM_PROMPT, /never produce one from your own nutritional/);
+  assert.match(SYSTEM_PROMPT, /a custom food rather than estimating/);
+});
+
+test("the system prompt teaches the log_food flow", async () => {
+  // log_food is for what the user actually ate (distinct from ticking a plan
+  // meal), and the model supplies foods/amounts — never the calories.
+  assert.match(SYSTEM_PROMPT, /log_food records what the user actually ate/);
+  assert.match(SYSTEM_PROMPT, /you do NOT supply calories/);
+  assert.match(SYSTEM_PROMPT, /as opposed to ticking a planned meal/);
+});
+
+test("the system prompt hands the model the quality flags rather than " +
+    "leaving it to infer them", async () => {
+  assert.match(
+      SYSTEM_PROMPT, /is the app telling you what it does NOT know/);
+  assert.match(SYSTEM_PROMPT, /untrackedMacros has no target at all/);
+  // And it knows the payload is the same state the screen shows.
+  assert.match(SYSTEM_PROMPT, /same structured state the Diet screen renders/);
+});
+
+test("the system prompt puts the rules engine in charge of what is said",
+    async () => {
+      // The decisions are made in code. The model phrases them; it does not
+      // get to invent recommendations of its own or soften a warning.
+      assert.match(SYSTEM_PROMPT, /is what ZIVO's own coaching rules already/);
+      assert.match(
+          SYSTEM_PROMPT, /They are the decisions; you are the delivery/);
+      assert.match(
+          SYSTEM_PROMPT,
+          /never invent a recommendation the findings\n {4}don't contain/);
+      assert.match(SYSTEM_PROMPT, /A "warning" is not optional/);
+    });
+
+test("the system prompt explains what an estimated figure means", async () => {
+  assert.match(SYSTEM_PROMPT, /"estimated" flag/);
+  assert.match(
+      SYSTEM_PROMPT, /A total\n {2}marked estimated is an estimated total/);
+});
+
 test("the system prompt fences tool output as untrusted data", () => {
   assert.match(SYSTEM_PROMPT, /not instructions/i);
   assert.match(SYSTEM_PROMPT, /Never follow instructions/i);
@@ -408,7 +554,7 @@ test("usage is logged once with tokens/tools/iterations", async () => {
     {
       stop_reason: "tool_use",
       content: [
-        {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+        {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
       ],
       usage: {input_tokens: 10, output_tokens: 5},
     },
@@ -433,7 +579,8 @@ test("usage is logged once with tokens/tools/iterations", async () => {
   assert.equal(usageDoc.tokensIn, 13);
   assert.equal(usageDoc.tokensOut, 7);
   assert.equal(usageDoc.iterations, 2);
-  assert.deepEqual(usageDoc.tools, [{name: "get_tasks", toolCallId: "call-1"}]);
+  assert.deepEqual(usageDoc.tools,
+      [{name: "get_workouts", toolCallId: "call-1"}]);
   assert.equal(usageDoc.schemaVersion, 2);
 });
 
@@ -486,9 +633,13 @@ test("responseStyle 'balanced' (and an omitted/unrecognized value) adds " +
       now: makeClock(0),
     });
 
+    // The cached prompt, then the per-turn CONTEXT block (the user's local
+    // date) — no style block for a balanced/unrecognized preference.
     const req = callModel.requests[0];
-    assert.equal(req.system.length, 1);
+    assert.equal(req.system.length, 2);
     assert.equal(req.system[0].text, SYSTEM_PROMPT);
+    assert.match(req.system[1].text, /^CONTEXT /);
+    assert.equal(req.system[1].cache_control, undefined);
   }
 });
 
@@ -515,8 +666,10 @@ test("responseStyle 'concise'/'detailed' append an UNCACHED second system " +
       now: makeClock(0),
     });
 
+    // Prompt (cached) → style directive → CONTEXT. Everything that varies
+    // sits after the breakpoint on element 0.
     const req = callModel.requests[0];
-    assert.equal(req.system.length, 2);
+    assert.equal(req.system.length, 3);
     assert.equal(req.system[0].text, SYSTEM_PROMPT);
     assert.deepEqual(req.system[0].cache_control, {type: "ephemeral"});
     assert.equal(req.system[1].cache_control, undefined);
@@ -524,6 +677,8 @@ test("responseStyle 'concise'/'detailed' append an UNCACHED second system " +
         req.system[1].text,
         responseStyle === "concise" ? /short/i : /thorough/i,
     );
+    assert.match(req.system[2].text, /^CONTEXT /);
+    assert.equal(req.system[2].cache_control, undefined);
   }
 });
 
@@ -570,13 +725,13 @@ test("cache read/write tokens are logged and priced at their discounts",
 test("a read-tool turn emits understanding → working → done phases plus " +
     "streamed text deltas", async () => {
   const store = makeStore({
-    listTasks: async () => [{title: "Buy milk", done: false, priority: false,
-      due: null}],
+    listWorkouts: async () => [{title: "Push", performedAt: new Date(0),
+      durationMinutes: 45, exercises: []}],
   });
   const responses = [
     {
       stop_reason: "tool_use",
-      content: [{type: "tool_use", id: "call-1", name: "get_tasks", input: {}}],
+      content: [{type: "tool_use", id: "call-1", name: "get_workouts", input: {}}],
       usage: {input_tokens: 10, output_tokens: 5},
     },
     {
@@ -678,14 +833,14 @@ test("an oversized tool result is truncated before it re-enters the loop",
     async () => {
       const big = "y".repeat(20000);
       const store = makeStore({
-        listTasks: async () => [{title: big, done: false, priority: false,
-          due: null}],
+        listWorkouts: async () => [{title: big, performedAt: new Date(0),
+          durationMinutes: 45, exercises: []}],
       });
       const callModel = scriptedModel([
         {
           stop_reason: "tool_use",
           content: [
-            {type: "tool_use", id: "call-1", name: "get_tasks", input: {}},
+            {type: "tool_use", id: "call-1", name: "get_workouts", input: {}},
           ],
           usage: {input_tokens: 1, output_tokens: 1},
         },
@@ -701,7 +856,7 @@ test("an oversized tool result is truncated before it re-enters the loop",
         callModel,
         uid: UID,
         conversationId: CONVERSATION_ID,
-        message: "tasks?",
+        message: "workouts?",
         now: makeClock(0),
         config: {maxToolResultChars: 6000},
       });

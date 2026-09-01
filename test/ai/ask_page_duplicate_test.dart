@@ -10,7 +10,10 @@ import 'package:zivo/features/ai/domain/ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
+import 'package:zivo/features/diet/domain/diet_import_input.dart';
 import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
+import 'package:zivo/features/diet/domain/nutrition_targets.dart';
+import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/ai/presentation/pages/ask_page.dart';
@@ -23,6 +26,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
+import 'package:zivo/features/ai/presentation/widgets/ask/ask_effects.dart';
 
 /// A scripted repository whose message stream is driven BY HAND, so tests
 /// can reproduce the exact snapshot sequences real Firestore produces —
@@ -40,7 +44,8 @@ class _ScriptedAi implements AiRepository {
   void emit(List<AiMessage> messages) => _messages.add(messages);
 
   @override
-  Stream<List<AiMessage>> watchMessages(String conversationId) => _messages.stream;
+  Stream<List<AiMessage>> watchMessages(String conversationId) =>
+      _messages.stream;
 
   @override
   Future<void> send({
@@ -103,10 +108,14 @@ class _ScriptedAi implements AiRepository {
   }) async => const WorkoutImportRejected('unused');
 
   @override
-  Future<DietImportOutcome> importDietPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  }) async => DietImportRejected('unused');
+  Future<DietImportOutcome> importDietPlan(DietImportInput input) async =>
+      DietImportRejected('unused');
+
+  @override
+  Future<DietImportOutcome> generateDietPlan({
+    required PlanPreferences preferences,
+    NutritionTargets? targets,
+  }) => throw UnimplementedError();
 
   @override
   Future<SttOutcome> transcribe({
@@ -116,12 +125,7 @@ class _ScriptedAi implements AiRepository {
   }) async => const SttTranscribed(text: '');
 }
 
-AiMessage _msg(
-  int id,
-  AiRole role,
-  String text, [
-  String? turnId,
-]) => AiMessage(
+AiMessage _msg(int id, AiRole role, String text, [String? turnId]) => AiMessage(
   id: 'm$id',
   role: role,
   content: text,
@@ -281,13 +285,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    Element riseElement() => tester.element(
-          find
-              .byWidgetPredicate(
-                (w) => w.runtimeType.toString() == '_RiseOnce',
-              )
-              .last,
-        );
+    // `RiseOnce` used to be private to the page, so this could only be found
+    // by matching its runtime type's *name*. It is a real exported widget
+    // now, so the finder can name the type.
+    Element riseElement() => tester.element(find.byType(RiseOnce).last);
     final before = riseElement();
 
     final turnId = ai.sentTurnIds.single;
@@ -295,10 +296,14 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(riseElement(), same(before),
-        reason: 'The bubble must be the SAME live element before and after '
-            'the optimistic→durable swap; a remount would replay its '
-            'entrance and read as the message appearing twice.');
+    expect(
+      riseElement(),
+      same(before),
+      reason:
+          'The bubble must be the SAME live element before and after '
+          'the optimistic→durable swap; a remount would replay its '
+          'entrance and read as the message appearing twice.',
+    );
     expect(find.text('hello'), findsOneWidget);
   });
 
