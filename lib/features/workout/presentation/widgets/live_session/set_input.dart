@@ -8,6 +8,15 @@ import '../../../../../core/widgets/train_chrome.dart';
 import '../../../../../core/util/parse.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
+import 'phases/phase_scaffold.dart';
+
+/// Every tappable thing that belongs to the reps/weight cluster shares this
+/// tap-region group: the two fields, their four ± buttons and the quick-load
+/// chips. A tap **anywhere else** on the screen therefore counts as "outside
+/// the input" and puts the keyboard away, while nudging a value or picking a
+/// preset leaves it up. Without the shared id each field would treat the
+/// other's stepper buttons as outside itself.
+const Object kSetInputGroup = #zivoSetInput;
 
 class ActionCluster extends StatelessWidget {
   const ActionCluster({required this.onSkip, required this.onDone, super.key});
@@ -23,13 +32,13 @@ class ActionCluster extends StatelessWidget {
         // exception path, logging is the expected one, and an accidental tap
         // should default toward the common case.
         SizedBox(
-          width: 112,
-          height: 60,
+          width: 104,
+          height: kCommitRowHeight,
           child: TrainGhostButton(
             key: const Key('skip-set'),
             label: l(context).liveSkip,
             mono: false,
-            height: 60,
+            height: kCommitRowHeight,
             icon: const TrainPlayGlyph(
               color: Color(0x99F4F4F0),
               size: 11,
@@ -38,14 +47,15 @@ class ActionCluster extends StatelessWidget {
             onTap: onSkip,
           ),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 10),
         Expanded(
           child: TrainPrimaryButton(
             key: const Key('log-set'),
             label: l(context).liveLogSet,
+            height: kCommitRowHeight,
             icon: const Icon(
               Icons.check_rounded,
-              size: 19,
+              size: 18,
               color: Colors.white,
             ),
             onTap: onDone,
@@ -140,63 +150,90 @@ class _StepperFieldState extends State<StepperField>
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: TrainColors.glassSoft,
-              borderRadius: radius,
-              border: Border.all(color: const Color(0x14FFFFFF)),
-            ),
-            child: ClipRRect(
-              borderRadius: radius,
-              child: Row(
-                children: [
-                  StepButton(
-                    icon: Icons.remove_rounded,
-                    onTap: () => _step(-widget.step),
-                  ),
-                  Container(width: 1, color: TrainColors.hairlineStrong),
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: _punch,
-                      builder: (context, child) =>
-                          Transform.scale(scale: _punch.value, child: child),
-                      child: TextField(
-                        controller: widget.controller,
-                        textAlign: TextAlign.center,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                        ],
-                        cursorColor: TrainColors.ember,
-                        style: TrainType.mono(size: 20, color: TrainColors.ink),
-                        onChanged: (_) => widget.onChanged(),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          hintText: widget.hint,
-                          hintStyle: TrainType.mono(
+          // The whole pill is one tap region, so the ± buttons never read as
+          // "outside the field" and dismiss the keyboard mid-adjustment.
+          TapRegion(
+            groupId: kSetInputGroup,
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                color: TrainColors.glassSoft,
+                borderRadius: radius,
+                border: Border.all(color: const Color(0x14FFFFFF)),
+              ),
+              child: ClipRRect(
+                borderRadius: radius,
+                child: Row(
+                  children: [
+                    StepButton(
+                      icon: Icons.remove_rounded,
+                      onTap: () => _step(-widget.step),
+                    ),
+                    Container(width: 1, color: TrainColors.hairlineStrong),
+                    Expanded(
+                      child: AnimatedBuilder(
+                        animation: _punch,
+                        builder: (context, child) =>
+                            Transform.scale(scale: _punch.value, child: child),
+                        child: TextField(
+                          controller: widget.controller,
+                          textAlign: TextAlign.center,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          groupId: kSetInputGroup,
+                          // A decimal pad has no Return key on iOS, so the
+                          // field cannot close its own keyboard. A tap on
+                          // anything that isn't part of the input cluster does
+                          // it instead — the goal card, the header, the
+                          // background — alongside the drag-to-dismiss on the
+                          // phase scroll and the explicit Done pill above the
+                          // commit row.
+                          onTapOutside: (_) =>
+                              FocusManager.instance.primaryFocus?.unfocus(),
+                          // Keep the focused field clear of the PINNED commit
+                          // row when the keyboard scrolls it into view; the
+                          // default 20 only clears the viewport edge, which the
+                          // buttons float over.
+                          scrollPadding: const EdgeInsets.only(
+                            bottom: kCommitRowSpace + 20,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.,]'),
+                            ),
+                          ],
+                          cursorColor: TrainColors.ember,
+                          style: TrainType.mono(
                             size: 20,
-                            color: const Color(0x59F4F4F0),
+                            color: TrainColors.ink,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 4,
+                          onChanged: (_) => widget.onChanged(),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: widget.hint,
+                            hintStyle: TrainType.mono(
+                              size: 20,
+                              color: const Color(0x59F4F4F0),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 4,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                           ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
                         ),
                       ),
                     ),
-                  ),
-                  Container(width: 1, color: TrainColors.hairlineStrong),
-                  StepButton(
-                    icon: Icons.add_rounded,
-                    onTap: () => _step(widget.step),
-                  ),
-                ],
+                    Container(width: 1, color: TrainColors.hairlineStrong),
+                    StepButton(
+                      icon: Icons.add_rounded,
+                      onTap: () => _step(widget.step),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -224,24 +261,29 @@ class QuickWeightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        QuickWeightChip(
-          label: l(context).liveSameWeight(trimWeight(baseWeight)),
-          onTap: () => onPick(baseWeight),
-          primary: true,
-        ),
-        const SizedBox(width: AppSpacing.s),
-        QuickWeightChip(
-          label: '+${trimWeight(stepKg)}',
-          onTap: () => onPick(baseWeight + stepKg),
-        ),
-        const SizedBox(width: AppSpacing.s),
-        QuickWeightChip(
-          label: '−${trimWeight(stepKg)}',
-          onTap: () => onPick(baseWeight - stepKg),
-        ),
-      ],
+    // Part of the input cluster, not "outside" it — picking a preset while
+    // typing shouldn't yank the keyboard away mid-decision.
+    return TapRegion(
+      groupId: kSetInputGroup,
+      child: Row(
+        children: [
+          QuickWeightChip(
+            label: l(context).liveSameWeight(trimWeight(baseWeight)),
+            onTap: () => onPick(baseWeight),
+            primary: true,
+          ),
+          const SizedBox(width: AppSpacing.s),
+          QuickWeightChip(
+            label: '+${trimWeight(stepKg)}',
+            onTap: () => onPick(baseWeight + stepKg),
+          ),
+          const SizedBox(width: AppSpacing.s),
+          QuickWeightChip(
+            label: '−${trimWeight(stepKg)}',
+            onTap: () => onPick(baseWeight - stepKg),
+          ),
+        ],
+      ),
     );
   }
 }

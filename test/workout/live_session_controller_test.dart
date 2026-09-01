@@ -3,8 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
+import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
+import 'package:zivo/features/workout/domain/session_exercise.dart';
+import 'package:zivo/features/workout/domain/session_status.dart';
+import 'package:zivo/features/workout/domain/set_outcome.dart';
 import 'package:zivo/features/workout/domain/set_type.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
@@ -29,14 +33,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  _carryForwardTests();
+
   test('a day with no sets settles straight into completed', () {
-    final c = _controller(day: const WorkoutDay(
-      id: 'a',
-      slot: 'A',
-      label: 'Push',
-      order: 0,
-      exercises: [],
-    ));
+    final c = _controller(
+      day: const WorkoutDay(
+        id: 'a',
+        slot: 'A',
+        label: 'Push',
+        order: 0,
+        exercises: [],
+      ),
+    );
     addTearDown(c.dispose);
 
     c.start();
@@ -46,21 +54,24 @@ void main() {
     expect(c.warmupRemaining, isNull);
   });
 
-  test('a fresh session opens on the warm-up phase; a resumed one does not', () {
-    final fresh = _controller();
-    addTearDown(fresh.dispose);
-    fresh.start();
-    expect(fresh.warmupRemaining, isNotNull);
+  test(
+    'a fresh session opens on the warm-up phase; a resumed one does not',
+    () {
+      final fresh = _controller();
+      addTearDown(fresh.dispose);
+      fresh.start();
+      expect(fresh.warmupRemaining, isNotNull);
 
-    final resumed = _controller(resume: _startedSession());
-    addTearDown(resumed.dispose);
-    resumed.start();
-    expect(
-      resumed.warmupRemaining,
-      isNull,
-      reason: 'resuming is not "before your first set"',
-    );
-  });
+      final resumed = _controller(resume: _startedSession());
+      addTearDown(resumed.dispose);
+      resumed.start();
+      expect(
+        resumed.warmupRemaining,
+        isNull,
+        reason: 'resuming is not "before your first set"',
+      );
+    },
+  );
 
   test('marking a set done logs the typed actuals and starts rest', () async {
     final clock = _Clock(DateTime(2026, 3, 1, 10));
@@ -71,7 +82,9 @@ void main() {
 
     c.reps.text = '8';
     c.weight.text = '62.5';
-    c.setDone(reducedMotion: true); // no completion-beat hold under reduced motion
+    c.setDone(
+      reducedMotion: true,
+    ); // no completion-beat hold under reduced motion
 
     final logged = c.session.exercises.first.sets.first;
     expect(logged.done, isTrue);
@@ -92,26 +105,29 @@ void main() {
     expect(c.session.exercises.first.sets.first.actualWeightKg, 62.5);
   });
 
-  test('back() reverses the last resolved set, including a completing one', () async {
-    final c = _controller(day: _oneSetDay());
-    addTearDown(c.dispose);
-    c.start();
-    c.endWarmup();
+  test(
+    'back() reverses the last resolved set, including a completing one',
+    () async {
+      final c = _controller(day: _oneSetDay());
+      addTearDown(c.dispose);
+      c.start();
+      c.endWarmup();
 
-    c.reps.text = '5';
-    c.setDone(reducedMotion: true);
-    await Future<void>.delayed(Duration.zero);
-    expect(c.session.isComplete, isTrue);
+      c.reps.text = '5';
+      c.setDone(reducedMotion: true);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.session.isComplete, isTrue);
 
-    c.back();
+      c.back();
 
-    expect(
-      c.session.isComplete,
-      isFalse,
-      reason: 'undo must be able to reverse the very last set of a workout',
-    );
-    expect(c.session.exercises.first.sets.first.done, isFalse);
-  });
+      expect(
+        c.session.isComplete,
+        isFalse,
+        reason: 'undo must be able to reverse the very last set of a workout',
+      );
+      expect(c.session.exercises.first.sets.first.done, isFalse);
+    },
+  );
 
   test('pause freezes the rest countdown and resume restores it', () async {
     final clock = _Clock(DateTime(2026, 3, 1, 10));
@@ -166,7 +182,8 @@ void main() {
     expect(
       sessions.current.where((s) => s.id == c.session.id),
       isEmpty,
-      reason: 'an untouched session is indistinguishable from never starting one',
+      reason:
+          'an untouched session is indistinguishable from never starting one',
     );
   });
 
@@ -215,6 +232,144 @@ class _NoopTickerProvider implements TickerProvider {
   @override
   Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
 }
+
+// ---- The load carry-forward -------------------------------------------------
+//
+// `computeGoal` only suggests a weight when it has an index-aligned set from
+// the last time the exercise was trained, or a `targetWeightKg` on the plan.
+// A split written without loads has neither, so before this the weight field
+// was empty on every single set, forever — which is both pure re-typing and
+// the reason sets ended up logged with no load at all.
+
+void _carryForwardTests() {
+  test('the weight typed on one set carries to the next set of the same '
+      'exercise', () async {
+    final c = _controller();
+    addTearDown(c.dispose);
+    c.start();
+    c.endWarmup();
+
+    expect(
+      c.weight.text,
+      isEmpty,
+      reason: 'the very first set has genuinely nothing to go on',
+    );
+
+    c.reps.text = '5';
+    c.weight.text = '20';
+    c.setDone(reducedMotion: true);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.weight.text, '20', reason: 'you type a load once, not per set');
+  });
+
+  test('the last load is carried in when the progression engine cannot price '
+      'the set (a load logged without a rep count)', () async {
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [_historyWithA(alignedReps: null, alignedWeight: 40)],
+    );
+    final c = _controller(sessions: sessions);
+    addTearDown(c.dispose);
+    c.start();
+    // The history subscription lands asynchronously and re-runs the prefill.
+    await Future<void>.delayed(Duration.zero);
+    c.endWarmup();
+
+    expect(
+      c.weight.text,
+      '40',
+      reason: 'no reps to progress from, but the load is not a mystery',
+    );
+  });
+
+  test('a carried load is a suggestion, not a draft — nothing is persisted '
+      'until the set is committed', () async {
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [_historyWithA(alignedReps: null, alignedWeight: 40)],
+    );
+    final c = _controller(sessions: sessions);
+    addTearDown(c.dispose);
+    c.start();
+    await Future<void>.delayed(Duration.zero);
+    c.endWarmup();
+
+    expect(c.weight.text, '40');
+    expect(
+      c.session.exercises.first.sets.first.actualWeightKg,
+      isNull,
+      reason: 'a prefilled suggestion must not read back as logged data',
+    );
+  });
+
+  test('index alignment failing does not lose the load: any set of that '
+      'history still counts', () async {
+    // Last time, set 0 was done at 40kg and set 1 was done unweighted — so
+    // today's set 1 aligns with a set that carries no load at all. Index
+    // alignment breaks like this the moment a set is added or dropped, and
+    // last week's 40kg is still the honest answer when it does.
+    final sessions = InMemoryWorkoutSessionRepository(
+      seed: [
+        _historyWithA(alignedReps: 5, alignedWeight: 40, secondWeight: null),
+      ],
+    );
+    final c = _controller(sessions: sessions);
+    addTearDown(c.dispose);
+    c.start();
+    await Future<void>.delayed(Duration.zero);
+
+    final exercise = c.session.exercises.first;
+    expect(c.carriedWeightFor(exercise, exercise.sets[1]), 40);
+  });
+
+  test('nothing is invented for a movement that has never carried a load', () {
+    final c = _controller();
+    addTearDown(c.dispose);
+    c.start();
+    c.endWarmup();
+
+    expect(c.weight.text, isEmpty);
+  });
+}
+
+/// A completed session for the same exercise ('ex1'), shaped per test: what
+/// today's index-aligned set will line up against, plus a second set.
+LiveSession _historyWithA({
+  required int? alignedReps,
+  required double? alignedWeight,
+  double? secondWeight,
+}) => LiveSession(
+  id: 'prev1',
+  planId: 'p1',
+  dayId: 'a',
+  dayLabel: 'Push',
+  startedAt: DateTime(2026, 1, 1, 9),
+  completedAt: DateTime(2026, 1, 1, 10),
+  status: SessionStatus.completed,
+  exercises: [
+    SessionExercise(
+      id: 'ex1',
+      exerciseId: 'ex1',
+      name: 'Bench',
+      restSeconds: 90,
+      sets: [
+        LoggedSet(
+          id: 's0',
+          target: const RepTarget.fixed(5),
+          outcome: SetOutcome.completed,
+          actualReps: alignedReps,
+          actualWeightKg: alignedWeight,
+        ),
+        LoggedSet(
+          id: 's1',
+          target: const RepTarget.fixed(5),
+          outcome: SetOutcome.completed,
+          actualReps: 5,
+          actualWeightKg: secondWeight,
+        ),
+      ],
+    ),
+  ],
+);
 
 LiveSessionController _controller({
   WorkoutDay? day,

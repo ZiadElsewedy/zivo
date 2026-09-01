@@ -332,13 +332,34 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                       // collapses to nothing when there's no track to control.
                       // The paused overlay dims the phase above it, not this:
                       // playback is independent of the workout being on hold.
+                      //
+                      // Its arrival and departure are ANIMATED, because it
+                      // takes its height out of the phase above it: a track
+                      // starting or Spotify dropping mid-set otherwise
+                      // re-laid-out the whole logging screen in a single
+                      // frame, which reads as the screen glitching rather
+                      // than as a bar appearing.
                       if (musicController != null)
-                        SessionNowPlaying(
-                          key: const Key('session-music-bar'),
-                          controller: musicController,
-                          density: SpotifyStripDensity.bar,
-                          padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
-                          accent: vivid,
+                        SizedBox(
+                          // Tight width, so the transition is HEIGHT only —
+                          // the column aligns start, and an unconstrained
+                          // AnimatedSize would grow the bar out of the left
+                          // edge as well as down.
+                          width: double.infinity,
+                          child: AnimatedSize(
+                            duration: reducedMotion(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 260),
+                            curve: Curves.easeOut,
+                            alignment: Alignment.topCenter,
+                            child: SessionNowPlaying(
+                              key: const Key('session-music-bar'),
+                              controller: musicController,
+                              density: SpotifyStripDensity.bar,
+                              padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
+                              accent: vivid,
+                            ),
+                          ),
                         ),
                     ],
                   ),

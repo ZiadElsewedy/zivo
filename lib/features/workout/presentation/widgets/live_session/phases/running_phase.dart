@@ -59,6 +59,7 @@ class RunningPhase extends StatelessWidget {
     );
     final liveReps = controller.reps.text.trim();
     final liveWeight = controller.weight.text.trim();
+    final carriedWeight = controller.carriedWeightFor(exercise, set);
 
     return RunningScaffold(
       top: [
@@ -122,12 +123,16 @@ class RunningPhase extends StatelessWidget {
               // One-tap load decisions — the last weight as "same", or nudge
               // it by the stepper's own 2.5kg increment — so the common cases
               // ("same again", "go up") never need typing or stepping.
-              if ((previousSet?.actualWeightKg ?? set.targetWeightKg) !=
-                  null) ...[
+              //
+              // Reads the same carry-forward the prefill does, rather than
+              // only the index-aligned previous set: on a plan written without
+              // loads that alignment is null for every set, so this row — the
+              // whole point of which is "don't type the weight" — used to
+              // vanish precisely when it was needed most.
+              if (carriedWeight != null) ...[
                 const SizedBox(height: AppSpacing.m),
                 QuickWeightRow(
-                  baseWeight:
-                      previousSet?.actualWeightKg ?? set.targetWeightKg!,
+                  baseWeight: carriedWeight,
                   stepKg: 2.5,
                   onPick: (weight) {
                     HapticFeedback.selectionClick();

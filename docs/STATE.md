@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-01 · **Active branch:** `claude/code-refactor-structure-716ef8`
-(off `version-1`, which is 51 commits ahead of `main` — worth a merge).
+**Last updated:** 2026-09-01 · **Active branch:** `version-1`
+(51 commits ahead of `main` — worth a merge).
 
 ---
 
@@ -55,6 +55,55 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Live session — the logging screen, on the owner's own report from a real session.**
+  Five complaints, five causes, all in `widgets/live_session/`:
+  - **"I don't want to log the weight every time."** The weight field now **carries the
+    last load forward** (`LiveSessionController.carriedWeightFor`): this session's earlier
+    sets → the index-aligned set from last time → any set of that history that carried a
+    load → the plan's target, all scoped to the same exercise. `computeGoal` only ever
+    priced a set from an *index-aligned* history set or a plan `targetWeightKg`, so on a
+    split written without loads the field was blank on every set forever — which is both
+    pure re-typing and why sets were getting logged with no weight at all. The quick-load
+    chips ("Same 100 · +2.5 · −2.5") read the same fallback, so they stop vanishing exactly
+    when they're most useful. It stays a **suggestion, not a draft** — nothing is persisted
+    until the set is committed.
+  - **"The reps and weight are jammed at the bottom."** `RunningScaffold` had **one**
+    flexible gap, above the hero, so all the spare height piled up between the set chips
+    and the goal card and the steppers welded to the commit row — even though the class
+    doc had described two gaps for months. Now two equal gaps. The commit row also shrank
+    to `kCommitRowHeight` (52, from 60) and its reserved space to 80 (from 100); it is
+    pinned *over* the content, so its height is height the steppers don't get. On a 402×874
+    screen the goal card moved up ~57pt and the steppers gained ~121pt of clearance.
+  - **"It's different when there's no music."** Same single-gap cause: the companion dock
+    takes a bar's height out of the phase, and every point of it came off that one gap.
+    Split across two, a track starting shifts things half as far — and the dock is now
+    wrapped in an `AnimatedSize` (outside the phase, so the `IntrinsicHeight` gotcha
+    doesn't apply), so it slides in instead of re-flowing the screen in one frame.
+  - **"The keyboard is hard to close."** It genuinely was: the fields open a **decimal
+    pad, which ships no Return key on iOS**, so the only exits were committing the set or
+    leaving the screen. Three ways out now — a tap anywhere outside the input cluster
+    (`kSetInputGroup`, a shared `TapRegion` so the ± steppers and quick-load chips *don't*
+    count as outside), a downward drag (`keyboardDismissBehavior: onDrag`), and a **Done
+    pill** over the commit row while a field has focus. Focus is detected with an inert
+    `Focus` node, **not** `MediaQuery.viewInsets` — a resizing `Scaffold` strips that from
+    its own body. The same decimal-pad trap had a twin on **Profile → About**, where the
+    multi-line field's Return key makes a newline: it now dismisses on tap-outside and on
+    drag, and `Scrollable.ensureVisible(alignment: 1)` lifts the whole card — Cancel/Save
+    included — clear of the keyboard instead of just the caret.
+  - **"Sometimes the screen is buggy and doesn't scroll."** `PhaseScroll`'s doc claimed
+    always-scrollable physics ("a surface that ignores a drag reads as broken scrolling")
+    and never set any. It does now.
+  - **+9 tests**, in three files: the carry-forward rule
+    (`live_session_controller_test.dart`), keyboard dismissal
+    (`live_session_keyboard_overflow_test.dart`) and the geometry that was complained
+    about — commit-row height, air above it, and the gap absorbing the music dock — in a
+    new `live_session_layout_test.dart`.
+  - **Known, pre-existing, NOT from this pass:** `test/home/today_dashboard_widget_test.dart`
+    → "a brand-new user sees neither momentum nor insights — nothing bluffs" fails on
+    `version-1` with these changes stashed too. A brand-new user is being shown MOMENTUM
+    or WORTH KNOWING when the rule says nothing should bluff. **Owner call:** worth its own
+    look on the Today surface.
 
 - **Structural refactor — a controller layer, and one way to do the common things.**
   Nothing about what the app *does* changed: the 992 pre-existing tests all pass

@@ -91,6 +91,30 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   hundredths hang off its right edge at zero layout width. Both type sizes are set against
   the *circle*, not against each other — at the original 74/26 the readout crossed the
   stroke. Covered by a geometry test; don't restore a mirrored spacer or bump the sizes.
+- **The logging screen's spare height is split into TWO equal gaps** — one above the
+  hero (goal card + steppers), one below it — in `RunningScaffold`. It used to be a single
+  `Spacer` above, which dumped all the slack between the set chips and the goal card and
+  left the reps/weight steppers welded to the commit row. The split also halves how far
+  the screen moves when the music dock appears or disappears under it. Don't collapse it
+  back to one gap.
+- **The commit row is `kCommitRowHeight` (52), not the app's usual 60**, and
+  `kCommitRowSpace` is what the scroll reserves for it. It is pinned over the content, so
+  its height is height the steppers don't get — that's the whole reason it's smaller here.
+- **The reps/weight cluster is one `TapRegion` group (`kSetInputGroup`).** iOS's decimal
+  pad ships no Return key, so the fields cannot dismiss their own keyboard: a tap anywhere
+  *outside* that group does it (`onTapOutside`), a downward drag on `PhaseScroll` does it
+  (`keyboardDismissBehavior: onDrag`), and a `Done` pill (`dismiss-keyboard`) appears over
+  the commit row while a field holds focus. The ± steppers and the quick-load chips are
+  deliberately *inside* the group so adjusting a value doesn't yank the keyboard away.
+  `RunningScaffold` detects focus with an inert `Focus` node, **not** `MediaQuery.viewInsets`
+  — a resizing `Scaffold` strips that out of its own body.
+- **The weight field carries the last load forward** (`LiveSessionController.carriedWeightFor`).
+  `computeGoal` only prices a set when it has an index-aligned set from that exercise's
+  history or a plan `targetWeightKg`; a split written without loads has neither, so the
+  field was empty on every set forever. The fallback searches nearest-first — this session,
+  the aligned set, any load in that history, the plan — and is scoped to the **same
+  exercise**. It is a suggestion, not a draft: `_actualsTouched` stays false, so nothing is
+  persisted until the set is committed.
 - **`AnimatedSize` cannot be used inside a phase.** `PhaseScroll` wraps its column in
   `IntrinsicHeight` so the `Spacer`s can distribute slack; `AnimatedSize` reports its
   child's intrinsic height while laying out an animated one, so the column gets pinned

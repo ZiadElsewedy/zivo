@@ -225,6 +225,51 @@ class LiveSessionController extends ChangeNotifier {
     return prev;
   }
 
+  /// **The load you are already lifting** — what this exercise was last
+  /// actually done at, so the weight field arrives filled in instead of empty.
+  ///
+  /// [computeGoal] only suggests a weight when it has an *index-aligned* set
+  /// from the last time this exercise was trained, or a `targetWeightKg` on
+  /// the plan. Neither holds for the common case of a plan written without
+  /// loads: set 1 gets typed, and then set 2 — and every set after it, and the
+  /// same exercise next week — asks for the number again from scratch. The
+  /// weight barely changes between sets, so re-typing it is pure toil, and an
+  /// empty field is the reason sets end up logged with no load at all.
+  ///
+  /// Searched nearest-first, because nearer evidence is better evidence:
+  ///
+  /// 1. an earlier set of this exercise **in this session** (a typed draft
+  ///    counts — it's what you're lifting right now),
+  /// 2. the index-aligned set from the last time it was trained,
+  /// 3. the last set of that session that carried a load at all — index
+  ///    alignment fails as soon as a set is added or dropped, and last week's
+  ///    load is still the right guess when it does,
+  /// 4. whatever the plan prescribed.
+  ///
+  /// Scoped to the SAME exercise throughout: carrying a curl's load onto a
+  /// press would be worse than leaving the field blank. Null means there is
+  /// genuinely nothing to go on (a bodyweight movement never logged with a
+  /// load), and the field stays empty — as it should.
+  double? carriedWeightFor(SessionExercise exercise, LoggedSet set) {
+    double? inSession;
+    for (final s in exercise.sets) {
+      if (s.id == set.id) break;
+      if (s.actualWeightKg != null) inSession = s.actualWeightKg;
+    }
+    if (inSession != null) return inSession;
+
+    final aligned = previousSetFor(exercise, set)?.actualWeightKg;
+    if (aligned != null) return aligned;
+
+    final history = historyFor(exercise);
+    if (history != null) {
+      for (final s in history.sets.reversed) {
+        if (s.actualWeightKg != null) return s.actualWeightKg;
+      }
+    }
+    return set.targetWeightKg;
+  }
+
   // ---- Lifecycle -----------------------------------------------------------
 
   /// Starts the session: settles an empty day straight into "completed",
@@ -337,7 +382,14 @@ class LiveSessionController extends ChangeNotifier {
     // `computeGoal` returns the literal 'AMRAP' for a to-failure target, so
     // localizing this comparison would break it in every language but English.
     reps.text = goal.repsLabel == kAmrapLabel ? '' : goal.repsLabel;
-    weight.text = goal.weightKg != null ? trimWeight(goal.weightKg!) : '';
+    // The engine's suggestion first — it's a *decision* (progress the load,
+    // hold it, ease it). Only when it has nothing to decide from does the
+    // field fall back to carrying the last known load forward, which is a
+    // guess, but a far better one than an empty box. Either way this is still
+    // a suggestion, not a draft: `_actualsTouched` stays false, so nothing is
+    // persisted until the user commits or edits the set.
+    final suggested = goal.weightKg ?? carriedWeightFor(exercise, set);
+    weight.text = suggested != null ? trimWeight(suggested) : '';
   }
 
   /// Wired to both actual-value fields: keeps the live progression delta

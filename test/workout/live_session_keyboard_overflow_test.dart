@@ -40,7 +40,14 @@ WorkoutDay _day() => const WorkoutDay(
       order: 0,
       muscleGroup: 'Chest',
       defaultRestSeconds: 90,
-      sets: [PlannedSet(order: 0, repTarget: RepTarget.fixed(5), restSeconds: 90, type: SetType.working)],
+      sets: [
+        PlannedSet(
+          order: 0,
+          repTarget: RepTarget.fixed(5),
+          restSeconds: 90,
+          type: SetType.working,
+        ),
+      ],
     ),
   ],
 );
@@ -56,7 +63,12 @@ WorkoutPlan _plan() => WorkoutPlan(
   days: [_day()],
 );
 
-Future<void> _runAt(WidgetTester tester, {required Size size, required double keyboardHeight}) async {
+Future<void> _runAt(
+  WidgetTester tester, {
+  required Size size,
+  required double keyboardHeight,
+  bool focusField = true,
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   tester.view.viewInsets = FakeViewPadding(bottom: keyboardHeight);
@@ -107,14 +119,87 @@ Future<void> _runAt(WidgetTester tester, {required Size size, required double ke
   // is already simulated above; this exercises the actual input path, not
   // just a static layout). Scroll it into view first — on the extreme
   // viewport it can be below the fold, by design.
+  if (!focusField) return;
   await tester.ensureVisible(find.byType(TextField).last);
   await tester.pump();
   await tester.tap(find.byType(TextField).last);
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 350)); // let the punch-scale animation settle
+  await tester.pump(
+    const Duration(milliseconds: 350),
+  ); // let the punch-scale animation settle
 }
 
 void main() {
+  testWidgets(
+    'a focused reps/weight field gets a Done pill, and it puts the keyboard '
+    'away — iOS decimal pads ship no Return key, so without it the only exits '
+    'were committing the set or leaving the screen',
+    (tester) async {
+      await _runAt(
+        tester,
+        size: const Size(750, 1334),
+        keyboardHeight: 0,
+        focusField: false,
+      );
+
+      expect(
+        find.byKey(const Key('dismiss-keyboard')),
+        findsNothing,
+        reason: 'nothing is being edited yet',
+      );
+
+      await tester.tap(find.byType(TextField).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byKey(const Key('dismiss-keyboard')), findsOneWidget);
+      expect(tester.testTextInput.isVisible, isTrue);
+
+      await tester.tap(find.byKey(const Key('dismiss-keyboard')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(find.byKey(const Key('dismiss-keyboard')), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a tap outside the reps/weight cluster puts the keyboard away; the '
+    'cluster\'s own +/- buttons do not',
+    (tester) async {
+      await _runAt(
+        tester,
+        size: const Size(750, 1334),
+        keyboardHeight: 0,
+        focusField: false,
+      );
+
+      await tester.tap(find.byType(TextField).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byKey(const Key('dismiss-keyboard')), findsOneWidget);
+
+      // Nudging the value is part of editing it.
+      await tester.tap(find.byIcon(Icons.add_rounded).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(
+        find.byKey(const Key('dismiss-keyboard')),
+        findsOneWidget,
+        reason: 'the steppers share the field\'s tap region',
+      );
+
+      // The goal card is not.
+      await tester.tap(find.byKey(const Key('goal-card')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byKey(const Key('dismiss-keyboard')), findsNothing);
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'the running-set screen does not overflow on an iPhone-SE-class device with the keyboard open',
     (tester) async {
