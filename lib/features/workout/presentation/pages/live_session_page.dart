@@ -28,6 +28,8 @@ import '../widgets/live_session/phases/running_phase.dart';
 import '../widgets/live_session/live_session_format.dart';
 import '../widgets/live_session/session_header.dart';
 import '../widgets/live_session/session_review.dart';
+import '../../../music/presentation/spotify_strip.dart';
+import '../widgets/live_session/up_next_card.dart';
 
 /// The premium guided workout player (M1b) — walks the user set-by-set through
 /// the day's exercises around the editable [LiveSession] model (M1a),
@@ -324,6 +326,20 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                           ],
                         ),
                       ),
+                      // The persistent music companion — docked BELOW the
+                      // phase for the whole session, OUTSIDE the phase switcher
+                      // so it never fades or reflows on a phase change. It
+                      // collapses to nothing when there's no track to control.
+                      // The paused overlay dims the phase above it, not this:
+                      // playback is independent of the workout being on hold.
+                      if (musicController != null)
+                        SessionNowPlaying(
+                          key: const Key('session-music-bar'),
+                          controller: musicController,
+                          density: SpotifyStripDensity.bar,
+                          padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
+                          accent: vivid,
+                        ),
                     ],
                   ),
                 ),

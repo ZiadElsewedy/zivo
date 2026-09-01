@@ -119,7 +119,9 @@ class WorkoutPlanPage extends StatelessWidget {
               : FloatingActionButton(
                   backgroundColor: TrainColors.green,
                   elevation: 2,
-                  tooltip: plan == null ? l(context).workoutCreatePlan : l(context).workoutEditPlan,
+                  tooltip: plan == null
+                      ? l(context).workoutCreatePlan
+                      : l(context).workoutEditPlan,
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => WorkoutPlanEditPage(initialPlan: plan),
@@ -412,7 +414,9 @@ class _TodaySection extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             PillButton(
-              label: resumable == null ? l(context).workoutStart : l(context).workoutResume,
+              label: resumable == null
+                  ? l(context).workoutStart
+                  : l(context).workoutResume,
               icon: Icons.play_arrow_rounded,
               color: TrainColors.green,
               enabled: true,

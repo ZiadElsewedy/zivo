@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/train_tokens.dart';
-import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/train_chrome.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/rest_policy.dart';
@@ -131,13 +128,12 @@ class UpNextCard extends StatelessWidget {
   }
 }
 
-/// The workout's now-playing companion.
-///
-/// Renders the handoff's text-first [SpotifyStrip] at the density the host
-/// phase asks for — one line while logging, a two-line one with full
-/// transport during rest. When nothing is playable it degrades to
-/// [ConnectMusicChip] (logging) or to nothing at all (rest, which is
-/// Spacer-balanced around the ring and shouldn't nag).
+/// The workout's persistent now-playing companion — one [SpotifyStrip] at
+/// [SpotifyStripDensity.bar], docked below the phase content for the WHOLE
+/// session so a track is skippable/pausable from warm-up, logging, and rest
+/// alike without leaving for Spotify or scrolling to find a strip. When
+/// nothing is playable it collapses to nothing (a [SizedBox.shrink]); it never
+/// nags to connect, since that belongs on Today / the full player.
 ///
 /// "Change the song" here is next/previous only (`MusicController.next`/
 /// `previous`, wired to App Remote's `skipNext`/`skipPrevious`) — there's no
@@ -148,7 +144,7 @@ class SessionNowPlaying extends StatelessWidget {
   const SessionNowPlaying({
     required this.controller,
     required this.density,
-    this.connectFallback = true,
+    this.padding = EdgeInsets.zero,
     this.accent,
     super.key,
   });
@@ -156,17 +152,19 @@ class SessionNowPlaying extends StatelessWidget {
   final MusicController controller;
   final SpotifyStripDensity density;
 
-  /// False during rest, where an empty slot beats a connect prompt.
-  final bool connectFallback;
+  /// Inset applied around the strip ONLY — the empty state stays a zero-size
+  /// box, so the persistent bar collapses to nothing (no dangling padding)
+  /// whenever there's no connected track to control.
+  final EdgeInsets padding;
 
   /// The current track's foreground colour (`SessionAmbience.vividOf`) —
   /// what makes the strip's own play/pause and skip controls follow the song
   /// along with the rest of the screen.
   final Color? accent;
 
-  Widget get _empty => connectFallback
-      ? ConnectMusicChip(controller: controller)
-      : const SizedBox.shrink();
+  /// Nothing to control → nothing on screen. Connecting music is a job for
+  /// Today / the full player, not a prompt docked through every set.
+  static const Widget _empty = SizedBox.shrink();
 
   @override
   Widget build(BuildContext context) {
@@ -181,75 +179,24 @@ class SessionNowPlaying extends StatelessWidget {
           builder: (context, nowSnap) {
             final playing = nowSnap.data;
             if (playing == null) return _empty;
-            return SpotifyStrip(
-              controller: controller,
-              playing: playing,
-              density: density,
-              accent: accent,
-              onOpen: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MusicPlayerPage(controller: controller),
-                  fullscreenDialog: true,
+            return Padding(
+              padding: padding,
+              child: SpotifyStrip(
+                controller: controller,
+                playing: playing,
+                density: density,
+                accent: accent,
+                onOpen: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MusicPlayerPage(controller: controller),
+                    fullscreenDialog: true,
+                  ),
                 ),
               ),
             );
           },
         );
       },
-    );
-  }
-}
-
-/// The logging slot's fallback when there's no track to show (disconnected,
-/// connecting, or connected with nothing loaded) — a small always-reachable
-/// way into [MusicPlayerPage]'s connect flow, so the slot never goes fully
-/// blank the way rest's does. Generic glyph, no brand mark: the Spotify logo
-/// marks a track that is genuinely playing FROM Spotify (the strips' artwork
-/// tile, the player's source badge), and stamping it on a dead slot would
-/// claim a connection that isn't there.
-class ConnectMusicChip extends StatelessWidget {
-  const ConnectMusicChip({required this.controller, super.key});
-
-  final MusicController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MusicPlayerPage(controller: controller),
-              fullscreenDialog: true,
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: const Color(0x08FFFFFF),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x0FFFFFFF)),
-          ),
-          child: Row(
-            children: [
-              const Icon(AppIcons.music, size: 14, color: Color(0x66F4F4F0)),
-              const SizedBox(width: 10),
-              Text(
-                l(context).liveConnectMusic,
-                style: TrainType.mono(
-                  size: 9,
-                  weight: FontWeight.w500,
-                  tracking: 0.16,
-                  color: const Color(0x66F4F4F0),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../core/scope/app_scope.dart';
 import '../../../../../../core/widgets/train_chrome.dart';
 import '../../../../../../l10n/l10n.dart';
-import '../../../../../music/music_config.dart';
-import '../../../../../music/presentation/spotify_strip.dart';
 import '../../../../domain/logged_set.dart';
 import '../../../../domain/session_exercise.dart';
 import '../rest_ring.dart';
@@ -118,22 +115,12 @@ class CountdownPhase extends StatelessWidget {
         const SizedBox(height: 26),
         UpNextCard(label: upNextLabel, exercise: exercise, set: set),
         // A hard minimum gap, not just the Spacer below it: on a short screen
-        // the Spacer collapses to zero and the card ends up welded to the
-        // music strip, reading as one two-storey slab.
+        // the Spacer collapses to zero and the card would otherwise weld to
+        // the ±15s controls, reading as one two-storey slab. (Music now lives
+        // in the persistent session bar below the phase — see the page's
+        // top-level build.)
         const SizedBox(height: 18),
         const Spacer(),
-        if (kMusicEnabled) ...[
-          // Degrades to nothing when there's no music — unlike the logging
-          // slot, this screen is Spacer-balanced and a "connect" chip would
-          // just nag mid-rest.
-          SessionNowPlaying(
-            controller: AppScope.of(context).requireMusic,
-            density: SpotifyStripDensity.rest,
-            connectFallback: false,
-            accent: accent,
-          ),
-          const SizedBox(height: 12),
-        ],
         Row(
           children: [
             Expanded(

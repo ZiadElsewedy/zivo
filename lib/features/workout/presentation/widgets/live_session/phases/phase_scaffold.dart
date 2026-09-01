@@ -81,14 +81,12 @@ class RunningScaffold extends StatelessWidget {
     required this.top,
     required this.hero,
     required this.done,
-    this.musicSlot,
     super.key,
   });
 
   final List<Widget> top;
   final List<Widget> hero;
   final Widget done;
-  final Widget? musicSlot;
 
   @override
   Widget build(BuildContext context) {
@@ -118,10 +116,6 @@ class RunningScaffold extends StatelessWidget {
           const SizedBox(height: AppSpacing.l),
           const Spacer(),
           ...hero,
-          if (musicSlot != null) ...[
-            const SizedBox(height: AppSpacing.m),
-            musicSlot!,
-          ],
         ];
         if (constraints.maxHeight < minPinnableHeight) {
           return PhaseScroll(

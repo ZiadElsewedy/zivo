@@ -681,7 +681,7 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
   previous set" rather than vanishing; the volume line is a reserved 14px). The commit row
   **floats over** the scroll instead of splitting the space with it, so "Log set" is never
   below the fold and content dissolves into it (`_FadeOutBottom`) rather than being sliced
-  at a hard seam; all three phases share one scroll shell (`_phaseScroll`) with
+  at a hard seam; all three phases share one scroll shell (`PhaseScroll`) with
   always-scrollable physics and the header's own 22pt inset. Note `AnimatedSize` is
   **unusable** in these phases — it reports one intrinsic height and lays out another,
   which pins the `IntrinsicHeight` column short and overflows it. The rest numeral was

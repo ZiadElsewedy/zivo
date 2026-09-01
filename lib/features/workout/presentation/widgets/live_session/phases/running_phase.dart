@@ -17,9 +17,10 @@ import 'phase_scaffold.dart';
 
 /// The logging screen — the one you spend the workout on.
 ///
-/// No music slot on purpose: mid-set, the only thing that should compete for
-/// attention is what you're about to lift. The companion strip rides the rest
-/// and warm-up phases instead — dead time where changing a track is natural.
+/// Carries no music slot of its own: the companion is docked below the phase
+/// for the whole session (see the page's top-level build), so a track stays
+/// controllable from warm-up, logging and rest alike without any phase having
+/// to host it.
 class RunningPhase extends StatelessWidget {
   const RunningPhase({
     required this.controller,

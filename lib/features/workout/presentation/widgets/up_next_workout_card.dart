@@ -161,7 +161,9 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
                         child: Text(
                           isResume
                               ? l(context).workoutInProgressCaps
-                              : l(context).workoutDaySlot(day.slot.toUpperCase()),
+                              : l(
+                                  context,
+                                ).workoutDaySlot(day.slot.toUpperCase()),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TrainType.mono(
@@ -200,7 +202,9 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
                     key: isResume
                         ? const Key('training-resume')
                         : const Key('training-start'),
-                    label: isResume ? l(context).workoutResume : l(context).workoutStart,
+                    label: isResume
+                        ? l(context).workoutResume
+                        : l(context).workoutStart,
                     height: 56,
                     glowAlpha: 0.35,
                     icon: const TrainPlayGlyph(color: Colors.white, size: 15),
