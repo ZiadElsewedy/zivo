@@ -40,7 +40,18 @@ import '../../../shell/presentation/widgets/bottom_chrome.dart';
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
 class TodayPage extends StatefulWidget {
-  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog});
+  const TodayPage({super.key, this.onOpenAsk, this.onQuickLog, this.now});
+
+  /// The clock the **insights strip** is judged against — real wall time in
+  /// production, injected in tests.
+  ///
+  /// Deliberately scoped to that one section rather than to the whole page:
+  /// it is the only part of Today whose *output* changes with the hour (two
+  /// of [buildInsights]'s rules only speak after 16:00 and 19:00), which is
+  /// what made this page's widget tests pass or fail depending on the time
+  /// of day they were run. Everything else here reads the clock for a date
+  /// or an elapsed figure, which no test asserts to the hour.
+  final DateTime Function()? now;
 
   /// Opens the Ask tab — Today can't switch tabs itself (HomeShell owns the
   /// tab index), so this is how the pull/tap gesture below reaches it.
@@ -155,9 +166,9 @@ class _TodayPageState extends State<TodayPage> {
                     child: MomentumSection(),
                   ),
                   // Worth knowing — computed right-now nudges.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 280),
-                    child: InsightsSection(),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 280),
+                    child: InsightsSection(now: widget.now),
                   ),
                   // Tertiary tier — quiet glances, muted ink tones (no bright hues).
                   const RiseIn(
@@ -222,7 +233,10 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                formatTodayShort(now, Localizations.localeOf(context).toLanguageTag()),
+                formatTodayShort(
+                  now,
+                  Localizations.localeOf(context).toLanguageTag(),
+                ),
                 style: TrainType.mono(
                   size: 10,
                   weight: FontWeight.w500,
@@ -374,13 +388,21 @@ class _TimeOfDayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final h = now.hour;
     final (IconData icon, Color color, String label) = switch (h) {
-      >= 6 && < 18 => (Icons.wb_sunny_rounded, TrainColors.ember, l(context).todayDaytime),
+      >= 6 && < 18 => (
+        Icons.wb_sunny_rounded,
+        TrainColors.ember,
+        l(context).todayDaytime,
+      ),
       >= 18 && < 22 => (
         Icons.wb_twilight_rounded,
         TrainColors.amber,
         l(context).todayEvening,
       ),
-      _ => (Icons.nightlight_round, TrainColors.violetGlyph, l(context).todayNight),
+      _ => (
+        Icons.nightlight_round,
+        TrainColors.violetGlyph,
+        l(context).todayNight,
+      ),
     };
     return Semantics(
       label: label,
@@ -929,7 +951,8 @@ class _DietSection extends StatelessWidget {
                         eaten: summary.eaten,
                         total: summary.total,
                         kcalLeft: state?.remainingKcal ?? summary.kcalLeft,
-                        kcalEstimated: state?.consumed.estimated ??
+                        kcalEstimated:
+                            state?.consumed.estimated ??
                             summary.kcalLeftEstimated,
                         againstTarget: state != null,
                       ),

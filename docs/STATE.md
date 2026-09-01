@@ -99,11 +99,25 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     (`live_session_keyboard_overflow_test.dart`) and the geometry that was complained
     about — commit-row height, air above it, and the gap absorbing the music dock — in a
     new `live_session_layout_test.dart`.
-  - **Known, pre-existing, NOT from this pass:** `test/home/today_dashboard_widget_test.dart`
-    → "a brand-new user sees neither momentum nor insights — nothing bluffs" fails on
-    `version-1` with these changes stashed too. A brand-new user is being shown MOMENTUM
-    or WORTH KNOWING when the rule says nothing should bluff. **Owner call:** worth its own
-    look on the Today surface.
+
+- **Today's insights strip stopped depending on what time you run the tests.**
+  `test/home/today_dashboard_widget_test.dart` was failing on `version-1` — and it was a
+  *test* defect, not a Today bug. Two of `buildInsights`'s rules are hour-of-day rules (the
+  steps nudge speaks from 16:00, the diet nudge from 19:00) and `InsightsSection` read the
+  real wall clock, so the file was only green between 16:00 and 19:00. One test had already
+  grown an `if (DateTime.now().hour >= 16)` branch to survive, which meant that for most of
+  the day it asserted the nudge was *absent* and never once checked the thing it is named
+  after.
+  - `InsightsSection` (and `TodayPage`) now take an injectable `now`, the same
+    `DateTime Function()?` pattern `LiveSessionPage` already uses. **Deliberately scoped to
+    that one section:** it is the only part of Today whose output changes with the hour.
+  - The "nothing bluffs" test also needed a genuinely empty account. `InMemoryDietRepository`
+    seeds a demo plan, so "3 meals left today" was a true statement about the *fixture* and
+    the evening nudge duly fired on a user who had entered nothing — new
+    `InMemoryDietRepository.empty()` for tests whose subject is a new account.
+  - The hour-gated branch is gone, split into a pair that pins 18:00 (nudge shows) and
+    09:00 (nudge stays quiet). Verified green at six times of day from 00:54 to 19:54.
+  - **Suite is fully green: 1,037 passing, no known failures.**
 
 - **Structural refactor — a controller layer, and one way to do the common things.**
   Nothing about what the app *does* changed: the 992 pre-existing tests all pass

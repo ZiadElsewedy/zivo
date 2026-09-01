@@ -27,6 +27,15 @@ class InMemoryDietRepository implements DietRepository {
     _plans.add(_seedPlan());
   }
 
+  /// A repository holding **no plan at all** — a genuinely new account.
+  ///
+  /// The default constructor seeds a demo plan so a page has something to
+  /// render, which is the right default for most tests and the wrong one for
+  /// any test whose subject is what a brand-new user sees: the seeded plan
+  /// makes "3 meals left today" a true statement, and Today's evening nudge
+  /// duly fires on a user who has entered nothing.
+  InMemoryDietRepository.empty();
+
   /// Newest first, matching the Firestore repository's ordering so a test
   /// against one behaves like the app against the other.
   final List<DietPlan> _plans = [];

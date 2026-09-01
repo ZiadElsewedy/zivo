@@ -589,7 +589,19 @@ class _SparklinePainter extends CustomPainter {
 /// banners: each names the situation and points at the next small step.
 /// Hides itself when nothing has enough signal to say anything honest.
 class InsightsSection extends StatelessWidget {
-  const InsightsSection({super.key});
+  const InsightsSection({DateTime Function()? now, super.key})
+    : now = now ?? DateTime.now;
+
+  /// The clock the nudges are judged against.
+  ///
+  /// Injectable because two of [buildInsights]'s rules are **hour-of-day**
+  /// rules — the diet nudge only speaks from 19:00, the steps nudge from
+  /// 16:00 — so a widget test that reads the real wall clock asserts a
+  /// different screen depending on when it runs. That is not hypothetical:
+  /// this file's tests passed only between 16:00 and 19:00, and one of them
+  /// had grown an `if (DateTime.now().hour >= 16)` branch to cope. Real time
+  /// in production, a fixed instant in a test.
+  final DateTime Function() now;
 
   @override
   Widget build(BuildContext context) {
@@ -605,6 +617,7 @@ class InsightsSection extends StatelessWidget {
             return _InsightsInputs(
               sessions: sessionsSnapshot.data ?? const [],
               expenses: expensesSnapshot.data ?? const [],
+              now: now,
             );
           },
         );
@@ -616,10 +629,15 @@ class InsightsSection extends StatelessWidget {
 /// Collects the remaining async inputs (diet summary, device steps) and then
 /// renders whatever [buildInsights] has to say.
 class _InsightsInputs extends StatefulWidget {
-  const _InsightsInputs({required this.sessions, required this.expenses});
+  const _InsightsInputs({
+    required this.sessions,
+    required this.expenses,
+    required this.now,
+  });
 
   final List<LiveSession> sessions;
   final List<Expense> expenses;
+  final DateTime Function() now;
 
   @override
   State<_InsightsInputs> createState() => _InsightsInputsState();
@@ -653,7 +671,7 @@ class _InsightsInputsState extends State<_InsightsInputs> {
       initialData: scope.diet.activePlan,
       builder: (context, planSnapshot) {
         final plan = planSnapshot.data;
-        final now = DateTime.now();
+        final now = widget.now();
         final day = plan == null ? null : dayForDate(plan, now);
         if (day == null) return _render(kcalLeft: null, mealsLeft: null);
         return StreamBuilder<Set<String>>(
@@ -689,7 +707,7 @@ class _InsightsInputsState extends State<_InsightsInputs> {
       mealsLeft: mealsLeft,
       stepsToday: _steps,
       weight: weightTrend(weightEntries),
-      now: DateTime.now(),
+      now: widget.now(),
     );
     if (insights.isEmpty) return const SizedBox.shrink();
     return Column(
