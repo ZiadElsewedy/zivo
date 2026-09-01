@@ -395,9 +395,14 @@ function capToolResult(content, maxChars) {
  *   meaningful together with `provider`; with the legacy seam, streaming is
  *   requested by passing `streamModel` instead.
  * @param {(function(!Object): void)=} args.onEvent Optional sink for live turn
- *   events — `{type:'phase', phase}` and `{type:'delta', text}`. Phases are
- *   derived from the loop's real state (never the model's reasoning). When
- *   absent, nothing is emitted and the turn is byte-identical to before.
+ *   events — `{type:'phase', phase}`, `{type:'step', tool, status}` and
+ *   `{type:'delta', text}`. Phases and steps are derived from the loop's real
+ *   state (never the model's reasoning): a step is emitted as each READ tool
+ *   starts (`running`) and finishes (`ok`|`error`). Mutating tools emit none —
+ *   they don't execute here, they become a proposal, which the
+ *   `preparing_change` phase and the confirmation card already cover. Only the
+ *   tool name crosses the wire, never its input or result. When absent,
+ *   nothing is emitted and the turn is byte-identical to before.
  * @param {string} args.uid
  * @param {string} args.conversationId
  * @param {string} args.message
@@ -444,6 +449,12 @@ async function runAiTurn({
   // A no-op sink keeps the streaming path off the hot path when unused.
   const emit = typeof onEvent === "function" ? onEvent : () => {};
   const emitPhase = (phase) => emit({type: "phase", phase});
+  // One event per read tool, so the client's rail can name the work instead of
+  // sitting on a single "working" label for the whole tool loop. Only the tool
+  // NAME and its outcome cross the wire — never the input or the result. The
+  // human label is the client's job: it keeps the wording localizable (the app
+  // ships en + ar) and lets copy change without a functions deploy.
+  const emitStep = (name, status) => emit({type: "step", tool: name, status});
   const cfg = Object.assign({}, DEFAULT_CONFIG, config || {});
   const clock = now || (() => new Date());
   // The user's UTC offset in minutes, or undefined when the app didn't send a
@@ -653,6 +664,7 @@ async function runAiTurn({
         emitPhase("working");
         workingEmitted = true;
       }
+      emitStep(block.name, "running");
 
       let resultPayload;
       let isError = false;
@@ -674,6 +686,7 @@ async function runAiTurn({
           isError = true;
         }
       }
+      emitStep(block.name, isError ? "error" : "ok");
       const toolResult = {
         type: "tool_result",
         toolUseId: block.id,

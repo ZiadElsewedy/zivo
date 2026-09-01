@@ -774,6 +774,153 @@ test("a read-tool turn emits understanding → working → done phases plus " +
   assert.equal(deltas.join(""), "You have 1 open task.");
 });
 
+test("each read tool emits a running→ok step pair, naming the tool only", async () => {
+  const store = makeStore({
+    listWorkouts: async () => [{title: "Push", performedAt: new Date(0),
+      durationMinutes: 45, exercises: []}],
+    listExpenses: async () => [],
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [
+        {type: "tool_use", id: "c1", name: "get_workouts", input: {}},
+        {type: "tool_use", id: "c2", name: "get_expenses", input: {}},
+      ],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "Two sessions this week."}],
+      usage: {input_tokens: 5, output_tokens: 5},
+    },
+  ]);
+
+  const events = [];
+  await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "how is my week?",
+    now: makeClock(0),
+  });
+
+  const steps = events.filter((e) => e.type === "step");
+  assert.deepEqual(steps, [
+    {type: "step", tool: "get_workouts", status: "running"},
+    {type: "step", tool: "get_workouts", status: "ok"},
+    {type: "step", tool: "get_expenses", status: "running"},
+    {type: "step", tool: "get_expenses", status: "ok"},
+  ]);
+  // The wire carries the tool NAME and nothing else: no input echo, no result.
+  for (const s of steps) {
+    assert.deepEqual(Object.keys(s).sort(), ["status", "tool", "type"]);
+  }
+});
+
+test("a failing read tool still closes its step, with status error", async () => {
+  const store = makeStore({
+    listWorkouts: async () => {
+      throw new Error("firestore unavailable");
+    },
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{type: "tool_use", id: "c1", name: "get_workouts", input: {}}],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "I could not read that."}],
+      usage: {input_tokens: 5, output_tokens: 5},
+    },
+  ]);
+
+  const events = [];
+  await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "how is my week?",
+    now: makeClock(0),
+  });
+
+  const steps = events.filter((e) => e.type === "step");
+  assert.deepEqual(steps.map((s) => s.status), ["running", "error"]);
+});
+
+test("an unknown tool name emits a step pair rather than going silent", async () => {
+  const store = makeStore();
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{type: "tool_use", id: "c1", name: "get_horoscope", input: {}}],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+    {
+      stop_reason: "end_turn",
+      content: [{type: "text", text: "I cannot do that."}],
+      usage: {input_tokens: 5, output_tokens: 5},
+    },
+  ]);
+
+  const events = [];
+  await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "what is my horoscope?",
+    now: makeClock(0),
+  });
+
+  const steps = events.filter((e) => e.type === "step");
+  assert.deepEqual(steps, [
+    {type: "step", tool: "get_horoscope", status: "running"},
+    {type: "step", tool: "get_horoscope", status: "error"},
+  ]);
+});
+
+test("a mutating tool emits no step — it proposes, it does not execute", async () => {
+  const store = makeStore({
+    createPendingAction: async () => {},
+    getActivePendingAction: async () => null,
+  });
+  const callModel = scriptedModel([
+    {
+      stop_reason: "tool_use",
+      content: [{
+        type: "tool_use",
+        id: "c1",
+        name: "create_expense",
+        input: {amountMinor: 5000, category: "food"},
+      }],
+      usage: {input_tokens: 10, output_tokens: 5},
+    },
+  ]);
+
+  const events = [];
+  await runAiTurn({
+    store,
+    callModel,
+    onEvent: (e) => events.push(e),
+    uid: UID,
+    conversationId: CONVERSATION_ID,
+    message: "log 50 on food",
+    now: makeClock(0),
+  });
+
+  assert.deepEqual(events.filter((e) => e.type === "step"), []);
+  const phases = events.filter((e) => e.type === "phase").map((e) => e.phase);
+  assert.ok(phases.includes("preparing_change"));
+});
+
 test("a turn with no tools emits no working phase", async () => {
   const store = makeStore();
   const callModel = scriptedModel([

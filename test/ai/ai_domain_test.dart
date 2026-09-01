@@ -118,6 +118,59 @@ void main() {
       expect(event.replaced, isFalse);
     });
 
+    test('parses a step chunk, keeping the tool name verbatim', () {
+      final event =
+          aiTurnEventFromChunk({
+                'type': 'step',
+                'tool': 'get_diet',
+                'status': 'running',
+              })
+              as AiStepEvent;
+      expect(event.tool, 'get_diet');
+      expect(event.status, AiStepStatus.running);
+    });
+
+    test(
+      'a step with an unrecognised status reads as running, not finished',
+      () {
+        // A step that silently "finished" would drop the rail back to the phase
+        // while work is still going; looking busy is the safer wrong answer, and
+        // the turn's `done` phase clears the rail regardless.
+        final event =
+            aiTurnEventFromChunk({
+                  'type': 'step',
+                  'tool': 'get_diet',
+                  'status': 'sideways',
+                })
+                as AiStepEvent;
+        expect(event.status, AiStepStatus.running);
+      },
+    );
+
+    test('a step keeps an unknown tool name — a newer server must not silence '
+        'an older client', () {
+      final event =
+          aiTurnEventFromChunk({
+                'type': 'step',
+                'tool': 'get_body_composition',
+                'status': 'ok',
+              })
+              as AiStepEvent;
+      expect(event.tool, 'get_body_composition');
+      expect(event.status, AiStepStatus.ok);
+    });
+
+    test('a step with no usable tool name is dropped', () {
+      expect(
+        aiTurnEventFromChunk({'type': 'step', 'status': 'running'}),
+        isNull,
+      );
+      expect(
+        aiTurnEventFromChunk({'type': 'step', 'tool': '', 'status': 'running'}),
+        isNull,
+      );
+    });
+
     test('tolerates an unknown phase and a malformed chunk', () {
       expect(
         (aiTurnEventFromChunk({'type': 'phase', 'phase': 'nonsense'})

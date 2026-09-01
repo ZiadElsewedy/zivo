@@ -146,6 +146,7 @@ class AskController extends ChangeNotifier {
     _sendFailed = false;
     _sending = false;
     _phase = null;
+    _stepTool = null;
     _liveText = '';
     _liveTargetChars.clear();
     _liveShownChars = 0;
@@ -248,6 +249,7 @@ class AskController extends ChangeNotifier {
   bool _canSend = false;
   bool _sending = false;
   AiPhase? _phase;
+  String? _stepTool;
   bool _turnSlow = false;
   Timer? _slowTurnTimer;
   Timer? _landingWatchdog;
@@ -280,13 +282,46 @@ class AskController extends ChangeNotifier {
   /// Client-generated idempotency key for the in-flight turn.
   String? get activeTurnId => _activeTurnId;
 
-  /// The rail label for the current authoritative phase; a calm "Thinking…"
-  /// before any phase arrives or for a non-streaming turn.
-  String get railLabel => switch (_phase) {
-    AiPhase.understanding => 'Understanding…',
-    AiPhase.working => 'Working…',
-    AiPhase.preparingChange => 'Preparing your change…',
-    _ => 'Thinking…',
+  /// The tool the gateway is running right now, or null between steps. Exposed
+  /// mainly so tests can assert the rail follows the real loop.
+  String? get stepTool => _stepTool;
+
+  /// The rail label. A running step wins over the phase, because "Reading
+  /// today's diet" says more than "Working…" — the phase is the fallback when
+  /// no step is active (before the first tool, between tools, and for a
+  /// non-streaming turn).
+  ///
+  /// These strings are English-only, like the phase labels they replace: the
+  /// controller has no `BuildContext` by design (ADR-008), so it cannot reach
+  /// `AppLocalizations`. The app ships Arabic too, so this is real l10n debt —
+  /// pre-existing, and this widens it. Mapping lives here rather than on the
+  /// server so the wording can change without a functions deploy, and so a
+  /// future move to l10n is one file.
+  String get railLabel {
+    final step = _stepTool;
+    if (step != null) return _stepLabel(step);
+    return switch (_phase) {
+      AiPhase.understanding => 'Understanding…',
+      AiPhase.working => 'Working…',
+      AiPhase.preparingChange => 'Preparing your change…',
+      _ => 'Thinking…',
+    };
+  }
+
+  /// A read tool's name → what it is actually doing, in the user's terms.
+  ///
+  /// An unknown name falls back to the generic line rather than showing a raw
+  /// identifier: a tool added server-side must degrade to "Working…" on an
+  /// older build, never leak `get_body_composition` onto the screen.
+  static String _stepLabel(String tool) => switch (tool) {
+    'get_today' => 'Reading your day…',
+    'get_diet' => "Reading today's diet…",
+    'get_workouts' => 'Reading your training…',
+    'get_expenses' => 'Reading your spending…',
+    'summarize_week' => 'Summarising your week…',
+    'resolve_food' => 'Looking that food up…',
+    'calculate_meal_nutrition' => 'Working out the numbers…',
+    _ => 'Working…',
   };
 
   /// Drops text into the composer as editable content — never auto-sent.
@@ -393,6 +428,7 @@ class AskController extends ChangeNotifier {
     _sending = true;
     _expectReveal = true;
     _phase = null;
+    _stepTool = null;
     _liveText = '';
     _liveTargetChars.clear();
     _liveShownChars = 0;
@@ -428,6 +464,7 @@ class AskController extends ChangeNotifier {
         _sendFailed = true;
         _turnSlow = false;
         _phase = null;
+        _stepTool = null;
         _liveText = '';
         _liveTargetChars.clear();
         _liveShownChars = 0;
@@ -442,6 +479,7 @@ class AskController extends ChangeNotifier {
     // durable message; only a buffered (non-streaming) turn falls back to it.
     if (_streamed) _expectReveal = false;
     _phase = null;
+    _stepTool = null;
     _turnSlow = false;
     _notify();
     // [liveText] is deliberately NOT cleared here: the durable reply may not
@@ -517,6 +555,10 @@ class AskController extends ChangeNotifier {
         _slowTurnTimer?.cancel();
         if (_turnSlow) _turnSlow = false;
         _phase = phase;
+        // A phase boundary outlives any step inside it — notably `done`, which
+        // must not leave a step label behind if a tool's closing event was
+        // dropped.
+        _stepTool = null;
         _notify();
         // The server's validator threw this reply away. The draft is still on
         // screen — so drop it now rather than let the user go on reading
@@ -528,6 +570,14 @@ class AskController extends ChangeNotifier {
           _streamed = false;
           retireLiveReply();
         }
+      case AiStepEvent(:final tool, :final status):
+        _slowTurnTimer?.cancel();
+        if (_turnSlow) _turnSlow = false;
+        // Only a RUNNING step names the rail. On ok/error the step is cleared
+        // so the label falls back to the phase, rather than leaving a finished
+        // step's line on screen claiming work that has already stopped.
+        _stepTool = status == AiStepStatus.running ? tool : null;
+        _notify();
       case AiDeltaEvent(:final text):
         _slowTurnTimer?.cancel();
         if (_turnSlow) _turnSlow = false;

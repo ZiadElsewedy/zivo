@@ -26,6 +26,29 @@ class AiPhaseEvent extends AiTurnEvent {
   final bool replaced;
 }
 
+/// A single read tool starting or finishing inside the turn's tool loop.
+///
+/// The gateway sends the tool's **name only** — never its input, never its
+/// result — and the human label is resolved on this side ([AiStepEvent.label])
+/// so the wording stays localizable and can change without a functions deploy.
+/// Mutating tools produce no step: they don't execute during the turn, they
+/// become a proposal, which the `preparingChange` phase and the confirmation
+/// card already describe.
+class AiStepEvent extends AiTurnEvent {
+  const AiStepEvent(this.tool, this.status);
+
+  /// The gateway's tool identifier, e.g. `get_diet`. Unknown names are kept
+  /// rather than dropped — a tool added server-side must not make the rail go
+  /// silent on an older build.
+  final String tool;
+
+  final AiStepStatus status;
+}
+
+/// Where a step is in its life. There is no "pending": a step is only
+/// announced once it actually starts.
+enum AiStepStatus { running, ok, error }
+
 /// A chunk of the assistant's reply text as it streams in.
 class AiDeltaEvent extends AiTurnEvent {
   const AiDeltaEvent(this.text);
@@ -43,7 +66,17 @@ AiPhase aiPhaseFromName(String? name) => switch (name) {
   _ => AiPhase.unknown,
 };
 
-/// Parses one streamed chunk (`{type: 'phase'|'delta', ...}`) into an
+/// Maps the gateway's wire status to an [AiStepStatus]. An unrecognised value
+/// is treated as `running` — a step that never resolves is a worse lie than a
+/// step that looks busy, because the rail only ever shows the LATEST step and
+/// the turn's `done` phase tears the whole rail down regardless.
+AiStepStatus aiStepStatusFromName(String? name) => switch (name) {
+  'ok' => AiStepStatus.ok,
+  'error' => AiStepStatus.error,
+  _ => AiStepStatus.running,
+};
+
+/// Parses one streamed chunk (`{type: 'phase'|'step'|'delta', ...}`) into an
 /// [AiTurnEvent], or null if the chunk is malformed / unrecognised.
 AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
   if (chunk is! Map) return null;
@@ -52,6 +85,13 @@ AiTurnEvent? aiTurnEventFromChunk(Object? chunk) {
       return AiPhaseEvent(
         aiPhaseFromName(chunk['phase'] as String?),
         replaced: chunk['replaced'] == true,
+      );
+    case 'step':
+      final tool = chunk['tool'];
+      if (tool is! String || tool.isEmpty) return null;
+      return AiStepEvent(
+        tool,
+        aiStepStatusFromName(chunk['status'] as String?),
       );
     case 'delta':
       final text = chunk['text'];
