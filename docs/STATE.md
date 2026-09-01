@@ -73,6 +73,26 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The Today dashboard reads one injected clock, and its tests no longer break at night**
+  (2026-09-01). Two momentum tests failed on any run after **23:20 local**: `_done(at, id)`
+  completes its session at `at + 40 min`, the tests seeded off the real clock, and
+  `weekActivity`/`trainingStreakDays` bucket by **calendar day** — so past 23:20 the
+  completion landed in tomorrow's bucket and the streak collapsed. Commit `2e24991` had
+  pinned the insights strip's clock but never covered momentum, which read `DateTime.now()`
+  directly in four places.
+  - **Production:** `TodayPulseSection` and `MomentumSection` now take `DateTime Function()?
+    now` (defaulting to the real clock, so nothing changes at runtime), threaded from
+    `TodayPage.now` down through `_TrainedRing`, `_VolumeRing`, `_StreakRow` and
+    `WeekActivityBars` — the same seam `InsightsSection` already had. The whole dashboard
+    answers "today"/"this week" from **one** clock.
+  - **Tests:** every seeded test pins to `_middayToday()` and passes that same instant to
+    the page, so nothing derives from the hour the suite runs at. Midday is deliberate: far
+    enough from both midnight boundaries that a +40min completion stays on its day.
+  - A **fixture-invariant test** locks it — it asserts a seeded session and its completion
+    share a calendar day, and fails the moment the pinned hour moves back into the danger
+    zone. Verified by simulation: pinning to 23:30 reproduces exactly the two original
+    failures plus the guard; midday passes.
+
 - **The app now streams what it is actually doing — Ask and PDF import** (2026-09-01, on
   `core-edits`). **Deployed to `zivo-63f15` 2026-09-01** — `aiChat` rev `aichat-00023-jiw`,
   `aiImportWorkoutPlan` rev `aiimportworkoutplan-00018-jag`, `aiImportDietPlan` rev
@@ -123,13 +143,8 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   — which blocks the repository write on a `Completer` **on purpose**: with the plain
   in-memory repos the first tap resolves and pops before a second can land, so a test
   written the obvious way passes against the unguarded code.
-  - **Known unrelated failure:** two `today_dashboard_widget_test.dart` momentum tests fail
-    when the suite runs after **23:20 local**. `_done(at, id)` completes its session at
-    `at + 40 min`, and the tests seed off the real clock, so the completion crosses midnight
-    into the next day's bucket and the streak collapses. `_StreakRow` (`today_pulse_card.dart:332`)
-    also still reads `DateTime.now()` directly, where the insights strip beside it takes an
-    injected clock (that was commit `2e24991`; momentum was never covered). Pre-existing —
-    reproduces on a clean tree.
+  - The two `today_dashboard_widget_test.dart` momentum failures noted here are **fixed**
+    (see the entry below). The suite is green: **1050 passing.**
 
 - **Live session — the logging screen, on the owner's own report from a real session.**
   Five complaints, five causes, all in `widgets/live_session/`:

@@ -44,6 +44,15 @@ const WorkoutDay _day = WorkoutDay(
   exercises: [],
 );
 
+/// A completed session starting at [at].
+///
+/// **It completes 40 minutes later**, which is the whole reason this file
+/// pins its clock. Seeded from the real `DateTime.now()`, any run after
+/// **23:20** pushed that completion past midnight into the *next* calendar
+/// day — and `weekActivity`/`trainingStreakDays` bucket by calendar day, so
+/// the streak silently collapsed and the momentum assertions failed for
+/// anyone running the suite late in the evening. Seed from [_todayAt] or
+/// [_middayToday], never from the wall clock.
 LiveSession _done(DateTime at, String id) => LiveSession.start(
   _day,
   id: id,
@@ -51,17 +60,28 @@ LiveSession _done(DateTime at, String id) => LiveSession.start(
   now: at,
 ).complete(now: at.add(const Duration(minutes: 40)));
 
-/// Today at [hour] — a fixed instant for the insights strip.
+/// Today at [hour] — the fixed instant every test in this file runs at.
 ///
 /// Two of the nudge rules are hour-of-day rules (steps from 16:00, diet from
 /// 19:00), so a test that lets the strip read the real clock asserts a
 /// different screen depending on when it runs. Today's *date* is kept so
-/// sessions and weigh-ins seeded relative to `DateTime.now()` still land in
-/// the windows the other rules measure.
+/// sessions and weigh-ins seeded against it still land in the windows the
+/// other rules measure.
+///
+/// This originally pinned only the insights strip. The momentum section read
+/// `DateTime.now()` directly, so it stayed time-dependent and broke nightly —
+/// it now takes the same injected clock, and **every** test here passes one.
 DateTime _todayAt(int hour) {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day, hour);
 }
+
+/// The default instant for tests with no hour-of-day rule of their own.
+///
+/// Midday: far enough from both midnight boundaries that a seeded session's
+/// +40min completion, and the day arithmetic around it, stay on the intended
+/// calendar day no matter when the suite runs.
+DateTime _middayToday() => _todayAt(12);
 
 Widget _wrap({
   StepCounterService? stepCounter,
@@ -96,6 +116,21 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
+  // Guards the fixture itself, not the widgets. The momentum tests failed
+  // nightly because a session seeded at the wall clock finished 40 minutes
+  // later — past midnight, in the next day's bucket — after 23:20. Nothing in
+  // the assertions below would catch that regressing; this does, and it fails
+  // the moment someone moves the pinned hour back into the danger zone.
+  test('the pinned instant keeps a session and its completion on one day', () {
+    final start = _middayToday();
+    final finish = start.add(const Duration(minutes: 40));
+    expect(
+      DateTime(finish.year, finish.month, finish.day),
+      DateTime(start.year, start.month, start.day),
+      reason: 'a seeded session must not complete on the following day',
+    );
+  });
+
   testWidgets('the pulse card answers all three rings with real data', (
     tester,
   ) async {
@@ -104,7 +139,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final now = DateTime.now();
+    final now = _middayToday();
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         _done(now.subtract(const Duration(days: 1)), 'y'),
@@ -113,7 +148,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      _wrap(stepCounter: _FakeStepCounter(6500), workoutSessions: sessions),
+      _wrap(
+        stepCounter: _FakeStepCounter(6500),
+        workoutSessions: sessions,
+        now: () => now,
+      ),
     );
     await _settle(tester);
 
@@ -144,7 +183,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final now = DateTime.now();
+    final now = _middayToday();
     final sessions = InMemoryWorkoutSessionRepository(
       seed: [
         for (var i = 0; i < 3; i++)
@@ -152,7 +191,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(_wrap(workoutSessions: sessions));
+    await tester.pumpWidget(_wrap(workoutSessions: sessions, now: () => now));
     await _settle(tester);
 
     expect(find.text('MOMENTUM'), findsOneWidget);
@@ -174,7 +213,7 @@ void main() {
 
       // Two sessions, but not on consecutive days → no streak, so the left
       // slot shows its low-data caption beside the busiest right-hand one.
-      final now = DateTime.now();
+      final now = _middayToday();
       final sessions = InMemoryWorkoutSessionRepository(
         seed: [
           _done(now, 'a'),
@@ -182,7 +221,7 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(_wrap(workoutSessions: sessions));
+      await tester.pumpWidget(_wrap(workoutSessions: sessions, now: () => now));
       await _settle(tester);
 
       expect(find.text('NO STREAK YET'), findsOneWidget);
@@ -256,7 +295,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final now = DateTime.now();
+    final now = _middayToday();
     final bodyWeight = InMemoryBodyWeightRepository();
     await bodyWeight.save(
       BodyWeightEntry(
@@ -269,7 +308,7 @@ void main() {
       BodyWeightEntry(id: 'w2', weightKg: 81.6, loggedAt: now),
     );
 
-    await tester.pumpWidget(_wrap(bodyWeight: bodyWeight));
+    await tester.pumpWidget(_wrap(bodyWeight: bodyWeight, now: () => now));
     await _settle(tester);
 
     // The figure and its unit are separate elements now — the unit stays

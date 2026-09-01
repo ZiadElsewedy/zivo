@@ -150,9 +150,9 @@ class _TodayPageState extends State<TodayPage> {
                   ),
                   // Primary tier — the day at a glance: train / fuel /
                   // move rings answering "what have I done today?"
-                  const RiseIn(
-                    delay: Duration(milliseconds: 70),
-                    child: TodayPulseSection(),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 70),
+                    child: TodayPulseSection(now: widget.now),
                   ),
                   // The day's training, full-weight card.
                   const RiseIn(
@@ -161,9 +161,9 @@ class _TodayPageState extends State<TodayPage> {
                   ),
                   // Momentum — "how am I doing?" streak, week bars,
                   // weight trend.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 210),
-                    child: MomentumSection(),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 210),
+                    child: MomentumSection(now: widget.now),
                   ),
                   // Worth knowing — computed right-now nudges.
                   RiseIn(
