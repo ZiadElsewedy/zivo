@@ -11,11 +11,14 @@ import 'equalizer_glyph.dart';
 
 /// The Spotify strips used across the workout-tracking screens.
 ///
-/// Three densities:
+/// Densities:
 ///
 /// * [SpotifyStrip.full] — Today: two rows, with the scrub line and timecodes.
 /// * [SpotifyStrip.inline] — Active Set: artwork + title/artist + remaining.
 /// * [SpotifyStrip.rest] — Rest: the same, with full prev/play-pause/next.
+/// * [SpotifyStrip.bar] — the persistent live-session control: a slim
+///   artwork + title/artist + full prev/play-pause/next, docked through every
+///   phase so a track is skippable without leaving for Spotify or scrolling.
 ///
 /// **On the artwork tile.** The original design handoff was explicit that
 /// there was to be *no* album art here — the music was to read as
@@ -31,7 +34,7 @@ import 'equalizer_glyph.dart';
 /// current track's artwork when a host provides one (the live session passes
 /// `SessionAmbience.vividOf`). With no accent it all falls back to
 /// [TrainColors.green], pixel-identical to before.
-enum SpotifyStripDensity { full, inline, rest }
+enum SpotifyStripDensity { full, inline, rest, bar }
 
 class SpotifyStrip extends StatelessWidget {
   const SpotifyStrip({
@@ -83,6 +86,21 @@ class SpotifyStrip extends StatelessWidget {
          controller: controller,
          playing: playing,
          density: SpotifyStripDensity.rest,
+         onOpen: onOpen,
+         accent: accent,
+         key: key,
+       );
+
+  const SpotifyStrip.bar({
+    required MusicController controller,
+    required NowPlaying playing,
+    VoidCallback? onOpen,
+    Color? accent,
+    Key? key,
+  }) : this(
+         controller: controller,
+         playing: playing,
+         density: SpotifyStripDensity.bar,
          onOpen: onOpen,
          accent: accent,
          key: key,
@@ -156,20 +174,33 @@ class SpotifyStrip extends StatelessWidget {
                           ),
                         ],
                 ),
-                child: TickingPlayhead(
-                  position: playing.position,
-                  duration: playing.duration,
-                  isPaused: playing.isPaused,
-                  builder: (context, position, fraction) => switch (density) {
-                    SpotifyStripDensity.full => _full(
-                      context,
-                      position,
-                      fraction,
-                    ),
-                    SpotifyStripDensity.inline => _inline(context, position),
-                    SpotifyStripDensity.rest => _rest(context, position),
-                  },
-                ),
+                // The persistent bar carries no timecode, so it skips the
+                // playhead ticker entirely — it's on screen for the whole
+                // workout, and there's no reason to rebuild it every frame.
+                child: density == SpotifyStripDensity.bar
+                    ? _bar(context)
+                    : TickingPlayhead(
+                        position: playing.position,
+                        duration: playing.duration,
+                        isPaused: playing.isPaused,
+                        builder: (context, position, fraction) =>
+                            switch (density) {
+                              SpotifyStripDensity.full => _full(
+                                context,
+                                position,
+                                fraction,
+                              ),
+                              SpotifyStripDensity.inline => _inline(
+                                context,
+                                position,
+                              ),
+                              SpotifyStripDensity.rest => _rest(
+                                context,
+                                position,
+                              ),
+                              SpotifyStripDensity.bar => _bar(context),
+                            },
+                      ),
               ),
             ),
           ),
@@ -380,6 +411,76 @@ class SpotifyStrip extends StatelessWidget {
           enabled: playing.hasControl,
           semanticLabel: 'Next track',
           size: 38,
+          onTap: controller.next,
+          child: const TrainPlayGlyph(
+            color: Color(0xBFF4F4F0),
+            size: 11,
+            bar: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---- Persistent session bar ----------------------------------------------
+
+  /// The always-on control docked through the whole live session. Every phase
+  /// shows this same slim row, so a track is skippable/pausable without
+  /// leaving for Spotify and without scrolling to find a strip. Deliberately
+  /// spare — artwork, title/artist, and the full prev/play-pause/next
+  /// transport, nothing else — so it rides under the hero without competing
+  /// with the goal card or the ring. No timecode: the position is the full
+  /// player's job, and dropping it is what keeps the ticker off a control
+  /// that is on screen for the entire workout.
+  Widget _bar(BuildContext context) {
+    return Row(
+      children: [
+        _artwork(34),
+        const SizedBox(width: 11),
+        Expanded(
+          child: _SwapOnTrack(
+            trackId: playing.trackId,
+            child: Column(
+              key: ValueKey(playing.trackId),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Title(playing.title, size: 12),
+                const SizedBox(height: 3),
+                _Artist(playing.artist, size: 9.5),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        _TransportButton(
+          enabled: playing.hasControl,
+          semanticLabel: 'Previous track',
+          size: 36,
+          onTap: controller.previous,
+          child: Transform.rotate(
+            angle: 3.14159,
+            child: const TrainPlayGlyph(
+              color: Color(0xBFF4F4F0),
+              size: 11,
+              bar: true,
+            ),
+          ),
+        ),
+        _TransportButton(
+          enabled: playing.hasControl,
+          semanticLabel: playing.isPaused ? 'Play' : 'Pause',
+          size: 36,
+          onTap: () =>
+              playing.isPaused ? controller.play() : controller.pause(),
+          child: playing.isPaused
+              ? TrainPlayGlyph(color: _tint, size: 12)
+              : TrainPauseGlyph(color: _tint, size: 12),
+        ),
+        _TransportButton(
+          enabled: playing.hasControl,
+          semanticLabel: 'Next track',
+          size: 36,
           onTap: controller.next,
           child: const TrainPlayGlyph(
             color: Color(0xBFF4F4F0),

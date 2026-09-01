@@ -50,8 +50,9 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
 - Import DTOs live under `workout/domain/` (moved off `ai/domain/`) — keep them here.
 - **Warm-up and rest are deliberately the SAME screen** in `live_session_page.dart`
-  (`_buildWarmup` / `_buildResting`): eyebrow → ring → what's-coming card → music strip →
-  ±15s → skip. Only the hue differs (ember vs green). Don't re-specialise one of them.
+  (`_buildWarmup` / `_buildResting`): eyebrow → ring → what's-coming card → ±15s → skip.
+  Only the hue differs (ember vs green). Don't re-specialise one of them. (Music is NOT in
+  this stack any more — see the persistent-session-bar bullet below.)
 - **Both countdown phases pause from three places** — the eyebrow pill, the ring itself,
   and the header toggle — and while paused the whole phase is `IgnorePointer`'d, so the
   dimmed area doubles as the resume target (`paused-resume-overlay`). The pill used to
@@ -65,12 +66,23 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `IntrinsicHeight` so the `Spacer`s can distribute slack; `AnimatedSize` reports its
   child's intrinsic height while laying out an animated one, so the column gets pinned
   short and overflows. Animate the *contents*, or hold the height fixed instead.
-- The goal card is a **fixed height for a given set**, on purpose: the comparison chip and
-  the volume line are always rendered (the chip says "matching your previous set"; the
-  volume line is a reserved 14px). They used to appear only once you moved the weight,
-  which resized the card under your thumb. Regression-tested via `Key('goal-card')`.
+- The goal card is a **fixed height for a given set**, on purpose: the intra-session chip
+  ("matching your previous set") is always rendered for every set after the first, changed
+  or not. It used to appear only once you moved the weight, which resized the card under
+  your thumb. Regression-tested via `Key('goal-card')`. (The card no longer carries a
+  per-set volume line or a "% vs last" delta — those were dropped as redundant with the
+  plain-language hint + the LAST TIME cell; keep it to one comparison voice.)
 - The logging screen's commit row **floats over** the scroll area rather than splitting the
   height with it, so it is never below the fold; the scroll reserves `_commitRowSpace` and
   fades into it. Below `minPinnableHeight` (a keyboard on a very short device) it falls
   back to scrolling everything — that fallback is what keeps the keyboard-overflow stress
   test green.
+- **Music rides a single persistent bar for the whole session**, not a per-phase strip.
+  `_SessionNowPlaying` (density `SpotifyStripDensity.bar`) is docked as the last child of
+  the top-level `Column` in `build` — OUTSIDE the phase `AnimatedSwitcher` — so it stays
+  put (no fade/reflow) across warm-up, logging, and rest, and carries the full
+  prev/play-pause/next transport in every phase. The point is to change a track without
+  leaving for Spotify or scrolling to find a strip. It collapses to nothing when no track
+  is connected (no connect-nag; connecting lives on Today / the full player). Don't re-add
+  the old per-phase strips (the `inline`/`rest` densities inside the phase scrolls).
+  Regression-tested by "the music companion is docked in EVERY phase".

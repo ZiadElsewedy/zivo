@@ -1118,6 +1118,20 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                           ],
                         ),
                       ),
+                      // The persistent music companion — docked BELOW the
+                      // phase for the whole session, OUTSIDE the phase switcher
+                      // so it never fades or reflows on a phase change. It
+                      // collapses to nothing when there's no track to control.
+                      // The paused overlay dims the phase above it, not this:
+                      // playback is independent of the workout being on hold.
+                      if (musicController != null)
+                        _SessionNowPlaying(
+                          key: const Key('session-music-bar'),
+                          controller: musicController,
+                          density: SpotifyStripDensity.bar,
+                          padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
+                          accent: vivid,
+                        ),
                     ],
                   ),
                 ),
@@ -1311,10 +1325,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           ),
         ),
       ],
-      // No music on the logging screen: mid-set, the only thing that should
-      // compete for attention is what you're about to lift. The companion
-      // strip still rides the rest and warm-up phases — dead time where
-      // changing a track is natural — see `_buildResting` / `_buildWarmup`.
       done: StaggeredReveal(
         index: 4,
         child: _ActionCluster(onSkip: _onSetSkip, onDone: _onSetDone),
@@ -1335,7 +1345,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
     required List<Widget> top,
     required List<Widget> hero,
     required Widget done,
-    Widget? musicSlot,
   }) {
     // The commit row is PINNED, not scrolled with everything else.
     //
@@ -1363,10 +1372,6 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           const SizedBox(height: AppSpacing.l),
           const Spacer(),
           ...hero,
-          if (musicSlot != null) ...[
-            const SizedBox(height: AppSpacing.m),
-            musicSlot,
-          ],
         ];
         if (constraints.maxHeight < minPinnableHeight) {
           return _phaseScroll(
@@ -1548,21 +1553,13 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           exercise: _session.currentExercise,
           set: _session.currentSet,
         ),
-        // A hard minimum gap, not just the Spacer below it: on a
-        // short screen the Spacer collapses to zero and the card
-        // ends up welded to the music strip, reading as one
-        // two-storey slab.
+        // A hard minimum gap, not just the Spacer below it: on a short
+        // screen the Spacer collapses to zero and the card would otherwise
+        // weld to the ±15s controls, reading as one two-storey slab.
+        // (Music now lives in the persistent session bar below the phase,
+        // not in this scroll — see the top-level build.)
         const SizedBox(height: 18),
         const Spacer(),
-        if (kMusicEnabled) ...[
-          _SessionNowPlaying(
-            controller: AppScope.of(context).requireMusic,
-            density: SpotifyStripDensity.rest,
-            connectFallback: false,
-            accent: vivid,
-          ),
-          const SizedBox(height: 12),
-        ],
         Row(
           children: [
             Expanded(
@@ -1645,22 +1642,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
           exercise: _session.currentExercise,
           set: _session.currentSet,
         ),
-        // See the warm-up's copy of this: the Spacer alone lets the
-        // card and the music strip fuse on a short screen.
+        // See the warm-up's copy of this: the Spacer alone lets the card
+        // and the ±15s controls fuse on a short screen. (Music now lives in
+        // the persistent session bar below the phase — see the top-level
+        // build.)
         const SizedBox(height: 18),
         const Spacer(),
-        if (kMusicEnabled) ...[
-          // Degrades to nothing when there's no music — unlike the
-          // logging slot, this screen is Spacer-balanced and a
-          // "connect" chip would just nag mid-rest.
-          _SessionNowPlaying(
-            controller: AppScope.of(context).requireMusic,
-            density: SpotifyStripDensity.rest,
-            connectFallback: false,
-            accent: vivid,
-          ),
-          const SizedBox(height: 12),
-        ],
         Row(
           children: [
             Expanded(
@@ -3013,13 +3000,12 @@ class _UpNextCard extends StatelessWidget {
   }
 }
 
-/// The workout's now-playing companion.
-///
-/// Renders the handoff's text-first [SpotifyStrip] at the density the host
-/// phase asks for — one line while logging, a two-line one with full
-/// transport during rest. When nothing is playable it degrades to
-/// [_ConnectMusicChip] (logging) or to nothing at all (rest, which is
-/// Spacer-balanced around the ring and shouldn't nag).
+/// The workout's persistent now-playing companion — one [SpotifyStrip] at
+/// [SpotifyStripDensity.bar], docked below the phase content for the WHOLE
+/// session so a track is skippable/pausable from warm-up, logging, and rest
+/// alike without leaving for Spotify or scrolling to find a strip. When
+/// nothing is playable it collapses to nothing (a [SizedBox.shrink]); it never
+/// nags to connect, since that belongs on Today / the full player.
 ///
 /// "Change the song" here is next/previous only (`MusicController.next`/
 /// `previous`, wired to App Remote's `skipNext`/`skipPrevious`) — there's no
@@ -3030,24 +3016,27 @@ class _SessionNowPlaying extends StatelessWidget {
   const _SessionNowPlaying({
     required this.controller,
     required this.density,
-    this.connectFallback = true,
+    this.padding = EdgeInsets.zero,
     this.accent,
+    super.key,
   });
 
   final MusicController controller;
   final SpotifyStripDensity density;
 
-  /// False during rest, where an empty slot beats a connect prompt.
-  final bool connectFallback;
+  /// Inset applied around the strip ONLY — the empty state stays a
+  /// zero-size box, so the persistent bar collapses to nothing (no dangling
+  /// padding) whenever there's no connected track to control.
+  final EdgeInsets padding;
 
   /// The current track's foreground colour (`SessionAmbience.vividOf`) —
   /// what makes the strip's own play/pause and skip controls follow the song
   /// along with the rest of the screen.
   final Color? accent;
 
-  Widget get _empty => connectFallback
-      ? _ConnectMusicChip(controller: controller)
-      : const SizedBox.shrink();
+  /// Nothing to control → nothing on screen. Connecting music is a job for
+  /// Today / the full player, not a prompt docked through every set.
+  static const Widget _empty = SizedBox.shrink();
 
   @override
   Widget build(BuildContext context) {
@@ -3062,75 +3051,24 @@ class _SessionNowPlaying extends StatelessWidget {
           builder: (context, nowSnap) {
             final playing = nowSnap.data;
             if (playing == null) return _empty;
-            return SpotifyStrip(
-              controller: controller,
-              playing: playing,
-              density: density,
-              accent: accent,
-              onOpen: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MusicPlayerPage(controller: controller),
-                  fullscreenDialog: true,
+            return Padding(
+              padding: padding,
+              child: SpotifyStrip(
+                controller: controller,
+                playing: playing,
+                density: density,
+                accent: accent,
+                onOpen: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MusicPlayerPage(controller: controller),
+                    fullscreenDialog: true,
+                  ),
                 ),
               ),
             );
           },
         );
       },
-    );
-  }
-}
-
-/// The logging slot's fallback when there's no track to show (disconnected,
-/// connecting, or connected with nothing loaded) — a small always-reachable
-/// way into [MusicPlayerPage]'s connect flow, so the slot never goes fully
-/// blank the way rest's does. Generic glyph, no brand mark: the Spotify logo
-/// marks a track that is genuinely playing FROM Spotify (the strips' artwork
-/// tile, the player's source badge), and stamping it on a dead slot would
-/// claim a connection that isn't there.
-class _ConnectMusicChip extends StatelessWidget {
-  const _ConnectMusicChip({required this.controller});
-
-  final MusicController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MusicPlayerPage(controller: controller),
-              fullscreenDialog: true,
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: const Color(0x08FFFFFF),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x0FFFFFFF)),
-          ),
-          child: Row(
-            children: [
-              const Icon(AppIcons.music, size: 14, color: Color(0x66F4F4F0)),
-              const SizedBox(width: 10),
-              Text(
-                l(context).liveConnectMusic,
-                style: TrainType.mono(
-                  size: 9,
-                  weight: FontWeight.w500,
-                  tracking: 0.16,
-                  color: const Color(0x66F4F4F0),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
