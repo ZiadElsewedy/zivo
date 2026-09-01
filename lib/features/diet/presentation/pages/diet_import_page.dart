@@ -8,6 +8,7 @@ import 'package:lottie/lottie.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../../ai/domain/import_progress.dart';
 import '../../domain/diet_import_input.dart';
 import '../../domain/plan_preferences.dart';
 import '../../domain/diet_import_outcome.dart';
@@ -107,17 +108,21 @@ class DietImportPage extends StatefulWidget {
 
 enum _ImportPhase { selecting, analyzing, rejected, error }
 
-/// Cycled while [_ImportPhase.analyzing] is showing — an honest sense of
-/// progress on a single opaque model call, not a fake percentage.
-const _analyzingStatusLines = [
-  'Reading the document…',
-  'Identifying meals…',
-  'Estimating calories and macros…',
-];
+/// Shown while IMPORTING, until the model has extracted anything at all.
+///
+/// Import used to cycle three of these on a 1.6s timer regardless of what the
+/// backend was doing. It now streams what it is actually extracting
+/// ([ImportProgress]), so this is the only written line left on that path —
+/// and it is true: before the first meal arrives, reading is all that happens.
+const _openingStatusLine = 'Reading the document…';
 
-/// Generation's own lines. Different work, said differently — and deliberately
-/// naming the catalog step, because "looking up real calories" is the part
-/// that makes this trustworthy rather than a guess.
+/// Generation's own lines, still cycled on a timer — and honestly so.
+///
+/// **`aiGenerateDietPlan` was not converted to streaming**, so unlike import
+/// there is genuinely no live extraction to report here; these three lines
+/// describe the work but do not track it. Deliberately naming the catalog
+/// step, because "looking up real calories" is the part that makes this
+/// trustworthy rather than a guess.
 const _generatingStatusLines = [
   'Choosing foods you like…',
   'Looking up real calories for each one…',
@@ -136,6 +141,9 @@ class _DietImportPageState extends State<DietImportPage> {
   Timer? _analyzingTimer;
   int _analyzingStatusIndex = 0;
 
+  /// The newest extraction snapshot — import only; generation never sets it.
+  ImportProgress? _progress;
+
   @override
   void initState() {
     super.initState();
@@ -148,18 +156,39 @@ class _DietImportPageState extends State<DietImportPage> {
     super.dispose();
   }
 
-  List<String> get _statusLines => widget.generateFrom == null
-      ? _analyzingStatusLines
-      : _generatingStatusLines;
+  /// What the analysing screen says right now.
+  ///
+  /// Import reports real extraction; generation still cycles its written
+  /// lines, because that callable does not stream.
+  ///
+  /// Never claims a total — the model doesn't know how many meals a document
+  /// holds until it has read them, so "Meal 2 of 6" would be a number nobody
+  /// has. A rising count is the honest shape.
+  String get _statusLine {
+    if (widget.generateFrom != null) {
+      return _generatingStatusLines[_analyzingStatusIndex %
+          _generatingStatusLines.length];
+    }
+    final p = _progress;
+    if (p == null || p.isEmpty) return _openingStatusLine;
+    final section = p.latestSection;
+    if (section == null) {
+      return p.planName != null ? 'Found "${p.planName}"…' : _openingStatusLine;
+    }
+    final items = p.items == 1 ? '1 item' : '${p.items} items';
+    return '$section · $items';
+  }
 
+  /// Only generation cycles now. Import's line moves when the model does.
   void _startAnalyzingCycle() {
     _analyzingStatusIndex = 0;
     _analyzingTimer?.cancel();
+    if (widget.generateFrom == null) return;
     _analyzingTimer = Timer.periodic(const Duration(milliseconds: 1600), (_) {
       if (!mounted) return;
       setState(
         () => _analyzingStatusIndex =
-            (_analyzingStatusIndex + 1) % _statusLines.length,
+            (_analyzingStatusIndex + 1) % _generatingStatusLines.length,
       );
     });
   }
@@ -226,7 +255,13 @@ class _DietImportPageState extends State<DietImportPage> {
     }
 
     await _propose(
-      () => AppScope.of(context).ai.importDietPlan(input!),
+      () => AppScope.of(context).ai.importDietPlan(
+        input!,
+        onProgress: (progress) {
+          if (!mounted) return;
+          setState(() => _progress = progress);
+        },
+      ),
       // The plan remembers which route it arrived by, so the library can say
       // so months later.
       source: _sourceFor(input),
@@ -242,7 +277,10 @@ class _DietImportPageState extends State<DietImportPage> {
     required DietSource source,
   }) async {
     if (!mounted) return;
-    setState(() => _phase = _ImportPhase.analyzing);
+    setState(() {
+      _phase = _ImportPhase.analyzing;
+      _progress = null;
+    });
     _startAnalyzingCycle();
 
     try {
@@ -352,7 +390,7 @@ class _DietImportPageState extends State<DietImportPage> {
       case _ImportPhase.selecting:
         return const _SelectingState();
       case _ImportPhase.analyzing:
-        return _AnalyzingState(statusLine: _statusLines[_analyzingStatusIndex]);
+        return _AnalyzingState(statusLine: _statusLine);
       case _ImportPhase.rejected:
         return _RejectedState(
           reason: _rejectionReason!,

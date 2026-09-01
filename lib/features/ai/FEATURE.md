@@ -61,6 +61,29 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 
 Each has a `*.test.js` (`node --test`, offline — canned fake model, no live API).
 
+## Live progress (what the rail and the import screens show)
+
+Both surfaces report **real backend state**, never a timer.
+
+- **Ask.** `gateway.js` emits `{type:'phase'}` for the loop's coarse boundaries and
+  `{type:'step', tool, status}` as each **read** tool starts and finishes. Only the tool
+  *name* crosses the wire — never its input or result — and `AskController._stepLabel`
+  maps it to human copy ("Reading today's diet…"). A running step outranks the phase; an
+  unknown tool falls back to "Working…" so a newer server can't leak a raw identifier onto
+  an older client. Mutating tools emit no step: they propose rather than execute, which
+  `preparing_change` and the confirmation card already describe.
+- **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` stream. These turns emit
+  **no assistant text** (`toolChoice: "any"` forces a tool call), so the only thing moving
+  is the structured output being written — `ai/import_progress.js` scans that partially
+  streamed tool input for *complete* `"key": "value"` pairs and reports days/meals and item
+  counts as they land. Progress only ever grows, and a half-written label is never shown.
+  The screens previously cycled three hardcoded lines on a 1.6s timer, which moved whether
+  or not the backend did; **a stalled import now visibly stalls.**
+- Both are **opt-in**: without `acceptsStreaming` (chat) or `onProgress` (import) the call
+  is buffered and byte-identical to before.
+- **`aiGenerateDietPlan` was NOT converted** — it still cycles written lines, and
+  `diet_import_page` says so in a comment. That asymmetry is deliberate, not an oversight.
+
 ## Gotchas
 
 - **Offline tests can't catch model-wire bugs.** Streaming vs buffered paths differ (e.g.

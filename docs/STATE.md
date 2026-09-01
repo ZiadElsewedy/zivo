@@ -73,6 +73,38 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The app now streams what it is actually doing — Ask and PDF import** (2026-09-01, on
+  `core-edits`). **Owner action: needs a `functions` deploy** before any of the live
+  progress appears on device; without it both surfaces fall back to their buffered paths
+  and behave exactly as before (no breakage, just no progress).
+  - **Ask.** The rail sat on one `working` label for the whole tool loop. `gateway.js` now
+    emits `{type:'step', tool, status}` as each **read** tool starts/finishes, and
+    `AskController` maps the name to copy ("Reading today's diet…", "Looking that food
+    up…"). Tool name only on the wire — no inputs, no results. Unknown tool → "Working…",
+    so a newer server can't leak `get_body_composition` onto an older client. Mutating
+    tools emit nothing (they propose, they don't execute). Ephemeral by choice: **no
+    Firestore schema change, no rules change, no extra writes per turn.**
+  - **PDF/photo import.** Was a plain `.call()` with three hardcoded lines cycling on a
+    **1.6s timer that had no connection to the backend**. Both import callables now stream:
+    an import emits no assistant text, so `ai/import_progress.js` scans the model's
+    partially-written tool input for *complete* `"key": "value"` pairs and reports real
+    days/meals and item counts ("Pull · 7 exercises"). Progress only grows; a half-written
+    label is never shown; **a stalled import now visibly stalls** instead of animating
+    reassuringly. Deliberately never claims a total — the model doesn't know how many days
+    a document holds until it reads them, so "Day 2 of 5" would be a number nobody has.
+  - **`aiGenerateDietPlan` was NOT converted** and still cycles written lines. Deliberate,
+    documented in `diet_import_page.dart` and `ai/FEATURE.md` — not an oversight to
+    "finish" without deciding it's worth it.
+  - Both paths are **opt-in** (`acceptsStreaming` / `onProgress`); omit them and the call
+    is buffered and byte-identical to before.
+  - **l10n debt:** the rail's step labels are English-only, like the phase labels they join.
+    `AskController` has no `BuildContext` by design (ADR-008) so it can't reach
+    `AppLocalizations`. Pre-existing; this widens it. Mapping is client-side in one file, so
+    copy changes need no deploy and a future move to l10n is one edit.
+  - Cover: 244 backend (`node --test`, incl. a scanner test asserting progress never goes
+    backwards across *every prefix* of the JSON) + Dart domain/controller/widget tests.
+    Backend lint clean.
+
 - **Capture save is re-entrancy-guarded — a double-tap used to write twice** (owner report,
   2026-09-01, on `core-edits`). `_save` is async and the button stayed live across the
   await, so a second tap ran the whole handler again before the first one's write and pop

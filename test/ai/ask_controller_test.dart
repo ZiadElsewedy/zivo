@@ -17,6 +17,7 @@ import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
+import 'package:zivo/features/ai/domain/import_progress.dart';
 
 /// The Ask turn machinery, asserted directly.
 ///
@@ -459,10 +460,14 @@ class _FakeAi implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List fileBytes,
     required String mimeType,
+  void Function(ImportProgress progress)? onProgress,
   }) => throw UnimplementedError();
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) =>
       throw UnimplementedError();
 
   @override

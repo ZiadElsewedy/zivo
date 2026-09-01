@@ -12,6 +12,7 @@ import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
@@ -392,9 +393,14 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
+  /// [onProgress] is accepted and ignored: the fake resolves immediately, so
+  /// there is no extraction to report. Reporting a fabricated snapshot here
+  /// would put the offline path back in the business of inventing progress —
+  /// the exact thing the real one stopped doing.
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List fileBytes,
     required String mimeType,
+    void Function(ImportProgress progress)? onProgress,
   }) => _importWorkoutPlanImpl(fileBytes, mimeType);
 
   /// Offline-testable stand-in for the real `aiImportDietPlan` callable —
@@ -404,8 +410,11 @@ class FakeAiRepository implements AiRepository {
   /// (accepted, rejected, or a thrown technical error) for tests that need
   /// to exercise those paths without a live backend.
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
-      _importDietPlanImpl(input);
+  /// [onProgress] is accepted and ignored — see [importWorkoutPlan].
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) => _importDietPlanImpl(input);
 
   /// Offline-testable stand-in for the real `aiGenerateDietPlan` callable —
   /// same seam as [importDietPlan], scripted the same way.

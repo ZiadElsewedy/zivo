@@ -800,7 +800,7 @@ exports.aiImportWorkoutPlan = onCall(
       // here to keep each round-trip small.
       timeoutSeconds: 180,
     },
-    async (request) => {
+    async (request, response) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to import a plan.");
@@ -820,12 +820,25 @@ exports.aiImportWorkoutPlan = onCall(
       // "why did this reject" patterns (e.g. a suspiciously tiny upload).
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
+      // Same opt-in contract as aiChat: the client asks for streaming
+      // explicitly, and a plain `.call()` runs exactly as before — buffered,
+      // no progress events, no per-token work.
+      const streaming =
+        request.acceptsStreaming === true ||
+        data.acceptsStreaming === true && !!response;
+
       try {
         const result = await extractWorkoutPlan({
           provider: providerForCapability(registry, "workout_import"),
           model: router.resolve("workout_import").model,
           fileBase64: pdfBase64,
           mediaType: mimeType,
+          onProgress: streaming ? (p) => response.sendChunk({
+            type: "progress",
+            planName: p.planName,
+            days: p.days,
+            exercises: p.exercises,
+          }) : undefined,
           logEvent: (event) => logger.info("aiImportWorkoutPlan", {
             approxPdfBytes,
             ...event,
@@ -865,7 +878,7 @@ exports.aiImportDietPlan = onCall(
       // run well past the platform's 60s default.
       timeoutSeconds: 180,
     },
-    async (request) => {
+    async (request, response) => {
       const auth = request.auth;
       if (!auth) {
         throw new HttpsError("unauthenticated", "Sign in to import a plan.");
@@ -888,6 +901,10 @@ exports.aiImportDietPlan = onCall(
       const registry = buildProviderRegistry(anthropic);
       const approxPdfBytes = Math.round(pdfBase64.length * 3 / 4);
 
+      const streaming =
+        request.acceptsStreaming === true ||
+        data.acceptsStreaming === true && !!response;
+
       try {
         const result = await extractDietPlan({
           provider: providerForCapability(registry, "diet_import"),
@@ -895,6 +912,14 @@ exports.aiImportDietPlan = onCall(
           fileBase64: pdfBase64,
           mediaType: mimeType,
           text,
+          onProgress: streaming ? (p) => response.sendChunk({
+            type: "progress",
+            planName: p.planName,
+            // Days and meals share the `label` key in the diet schema, so
+            // these arrive as one ordered list — the client shows the latest.
+            labels: p.labels,
+            items: p.items,
+          }) : undefined,
           logEvent: (event) => logger.info("aiImportDietPlan", {
             approxPdfBytes,
             inputKind: text ? "description" : "document",

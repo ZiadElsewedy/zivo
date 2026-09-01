@@ -22,6 +22,7 @@
 
 const {GatewayError} = require("./gateway");
 const {AnthropicProvider} = require("./providers/anthropic_provider");
+const {scanWorkoutProgress} = require("./import_progress");
 const {legacyAnthropicClient} = require("./providers/legacy_client");
 
 const MODEL = "claude-sonnet-5";
@@ -239,12 +240,20 @@ const DEFAULT_REJECTION_REASON =
  *   tool fired, reject reason if any). Injected rather than importing
  *   `firebase-functions/logger` directly, so this stays dependency-free for
  *   `node --test`. Defaults to a no-op.
+ * @param {function(!Object): void} [args.onProgress] Optional **live** sink,
+ *   called as the model writes its tool input with
+ *   `{planName, days: [...labels], exercises: n}` — see `./import_progress.js`.
+ *   This is the only real progress an import has: the call emits no assistant
+ *   text, so the extraction itself is the only thing moving. Passing it opts
+ *   the call into streaming; omitting it leaves the request buffered and
+ *   byte-identical to before. Fires only when the numbers actually change, so
+ *   a caller can forward each event straight to the client.
  * @return {!Promise<{ok: true, planName: string, days: !Array<!Object>}|
  *   {ok: false, reason: string}>}
  */
 async function extractWorkoutPlan({
   provider, model, callModel, pdfBase64, fileBase64, mediaType,
-  logEvent = () => {},
+  logEvent = () => {}, onProgress,
 }) {
   const base64 = fileBase64 || pdfBase64;
   if (typeof base64 !== "string" || base64.trim() === "") {
@@ -283,9 +292,26 @@ async function extractWorkoutPlan({
     ],
   };
 
+  // Only re-emit when the visible numbers move: `inputJson` fires per token,
+  // and forwarding every one of those to a client would be hundreds of chunks
+  // saying the same thing.
+  let lastSignature = "";
+  const opts = typeof onProgress === "function" ? {
+    onInputJson: (_delta, snapshot) => {
+      const p = scanWorkoutProgress(snapshot);
+      // Nothing has been extracted yet — the model is still opening the
+      // object. An event here would say literally nothing.
+      if (!p.planName && !p.days.length && !p.exercises) return;
+      const signature = `${p.planName || ""}|${p.days.length}|${p.exercises}`;
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      onProgress(p);
+    },
+  } : {};
+
   let response;
   try {
-    response = await activeProvider.generate(normalizedRequest);
+    response = await activeProvider.generate(normalizedRequest, opts);
   } catch (err) {
     throw new GatewayError(
         "internal", err.message || "Couldn't read that PDF. Please try again.");

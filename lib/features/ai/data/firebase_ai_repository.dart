@@ -17,6 +17,7 @@ import '../domain/ai_conversation.dart';
 import '../domain/ai_message.dart';
 import '../domain/ai_pending_action.dart';
 import '../domain/ai_repository.dart';
+import '../domain/import_progress.dart';
 import '../domain/ai_response_style.dart';
 import '../domain/ai_role.dart';
 import '../domain/ai_turn_event.dart';
@@ -80,9 +81,17 @@ class FirebaseAiRepository implements AiRepository {
     invokeChatStream,
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
-    Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    Future<WorkoutImportOutcome> Function(
+      Uint8List fileBytes,
+      String mimeType,
+      void Function(ImportProgress)? onProgress,
+    )?
     invokeImport,
-    Future<DietImportOutcome> Function(DietImportInput input)? invokeDietImport,
+    Future<DietImportOutcome> Function(
+      DietImportInput input,
+      void Function(ImportProgress)? onProgress,
+    )?
+    invokeDietImport,
     Future<DietImportOutcome> Function(
       PlanPreferences preferences,
       NutritionTargets? targets,
@@ -135,9 +144,13 @@ class FirebaseAiRepository implements AiRepository {
   final Future<WorkoutImportOutcome> Function(
     Uint8List fileBytes,
     String mimeType,
+    void Function(ImportProgress)? onProgress,
   )
   _invokeImport;
-  final Future<DietImportOutcome> Function(DietImportInput input)
+  final Future<DietImportOutcome> Function(
+    DietImportInput input,
+    void Function(ImportProgress)? onProgress,
+  )
   _invokeDietImport;
   final Future<DietImportOutcome> Function(
     PlanPreferences preferences,
@@ -262,17 +275,53 @@ class FirebaseAiRepository implements AiRepository {
   static Future<WorkoutImportOutcome> Function(
     Uint8List fileBytes,
     String mimeType,
+    void Function(ImportProgress)? onProgress,
   )
   _defaultInvokeImport(FirebaseFunctions? functions) {
-    return (fileBytes, mimeType) async {
+    return (fileBytes, mimeType, onProgress) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final result = await f.httpsCallable('aiImportWorkoutPlan').call({
+      final payload = {
         'fileBase64': base64Encode(fileBytes),
         'mimeType': mimeType,
-      });
-      return _importOutcomeFromJson(result.data);
+        if (onProgress != null) 'acceptsStreaming': true,
+      };
+      final callable = f.httpsCallable('aiImportWorkoutPlan');
+      if (onProgress == null) {
+        return _importOutcomeFromJson((await callable.call(payload)).data);
+      }
+      return _streamImport(
+        callable.stream(payload),
+        onProgress,
+        _importOutcomeFromJson,
+      );
     };
+  }
+
+  /// Drives a streaming import callable: forwards each `progress` chunk and
+  /// resolves from the terminating result.
+  ///
+  /// The result must come from the stream's own `Result`, not from a second
+  /// buffered call — an import is an expensive whole-document model call, and
+  /// calling twice would pay for it twice.
+  static Future<T> _streamImport<T>(
+    Stream<StreamResponse> stream,
+    void Function(ImportProgress) onProgress,
+    T Function(Object?) parse,
+  ) async {
+    Object? data;
+    await for (final response in stream) {
+      // `is Chunk` rather than a switch on the sealed type: the terminating
+      // variant's name collides with other `Result` types in scope, and the
+      // chat stream above already reads the stream this way.
+      if (response is Chunk) {
+        final progress = ImportProgress.fromChunk(response.partialData);
+        if (progress != null && !progress.isEmpty) onProgress(progress);
+      } else {
+        data = (response as dynamic).data;
+      }
+    }
+    return parse(data);
   }
 
   /// The default `importDietPlan` invoker — calls `aiImportDietPlan` with
@@ -282,20 +331,33 @@ class FirebaseAiRepository implements AiRepository {
   /// The payload carries exactly one kind of material; the server refuses
   /// both-at-once, and the sealed [DietImportInput] makes it unrepresentable
   /// here in the first place.
-  static Future<DietImportOutcome> Function(DietImportInput input)
+  static Future<DietImportOutcome> Function(
+    DietImportInput input,
+    void Function(ImportProgress)? onProgress,
+  )
   _defaultInvokeDietImport(FirebaseFunctions? functions) {
-    return (input) async {
+    return (input, onProgress) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final payload = switch (input) {
-        DietImportDocument(:final bytes, :final mimeType) => {
-          'fileBase64': base64Encode(bytes),
-          'mimeType': mimeType,
+      final payload = <String, dynamic>{
+        ...switch (input) {
+          DietImportDocument(:final bytes, :final mimeType) => {
+            'fileBase64': base64Encode(bytes),
+            'mimeType': mimeType,
+          },
+          DietImportDescription(:final text) => {'text': text},
         },
-        DietImportDescription(:final text) => {'text': text},
+        if (onProgress != null) 'acceptsStreaming': true,
       };
-      final result = await f.httpsCallable('aiImportDietPlan').call(payload);
-      return _dietImportOutcomeFromJson(result.data);
+      final callable = f.httpsCallable('aiImportDietPlan');
+      if (onProgress == null) {
+        return _dietImportOutcomeFromJson((await callable.call(payload)).data);
+      }
+      return _streamImport(
+        callable.stream(payload),
+        onProgress,
+        _dietImportOutcomeFromJson,
+      );
     };
   }
 
@@ -537,11 +599,14 @@ class FirebaseAiRepository implements AiRepository {
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List fileBytes,
     required String mimeType,
-  }) => _invokeImport(fileBytes, mimeType);
+    void Function(ImportProgress progress)? onProgress,
+  }) => _invokeImport(fileBytes, mimeType, onProgress);
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
-      _invokeDietImport(input);
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) => _invokeDietImport(input, onProgress);
 
   @override
   Future<DietImportOutcome> generateDietPlan({

@@ -16,6 +16,7 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/ai/domain/import_progress.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -30,7 +31,10 @@ class _FailingImportAi extends FakeAiRepository {
   final Object error;
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) {
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) {
     throw error is String ? StateError(error as String) : error;
   }
 }

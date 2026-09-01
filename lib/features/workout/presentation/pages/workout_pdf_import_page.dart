@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
+import '../../../ai/domain/import_progress.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
@@ -87,13 +86,13 @@ class WorkoutPdfImportPage extends StatefulWidget {
 
 enum _ImportPhase { selecting, analyzing, preview, done, rejected, error }
 
-/// Cycled while [_ImportPhase.analyzing] is showing — an honest sense of
-/// progress on a single opaque model call, not a fake percentage.
-const _analyzingStatusLines = [
-  'Reading the document…',
-  'Identifying training days…',
-  'Mapping exercises and sets…',
-];
+/// Shown until the model has extracted anything at all.
+///
+/// This used to be three lines cycled on a 1.6s timer, which moved whether or
+/// not the backend did. The import now streams what it is actually extracting
+/// ([ImportProgress]), so the only written line left is this one — and it is
+/// true: before the first day arrives, reading is all that is happening.
+const _openingStatusLine = 'Reading the document…';
 
 class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
@@ -106,8 +105,9 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   WorkoutPlan? _draft;
   bool _saving = false;
 
-  Timer? _analyzingTimer;
-  int _analyzingStatusIndex = 0;
+  /// The newest extraction snapshot from the model, or null before the first
+  /// one lands.
+  ImportProgress? _progress;
 
   @override
   void initState() {
@@ -115,26 +115,24 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _pickAndImport());
   }
 
-  @override
-  void dispose() {
-    _analyzingTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startAnalyzingCycle() {
-    _analyzingStatusIndex = 0;
-    _analyzingTimer?.cancel();
-    _analyzingTimer = Timer.periodic(const Duration(milliseconds: 1600), (_) {
-      if (!mounted) return;
-      setState(
-        () => _analyzingStatusIndex =
-            (_analyzingStatusIndex + 1) % _analyzingStatusLines.length,
-      );
-    });
+  /// What the analysing screen says right now: the live extraction if one has
+  /// arrived, else the opening line.
+  ///
+  /// Deliberately never claims a total — the model doesn't know how many days
+  /// a document holds until it has read them, so "Day 2 of 5" would be a
+  /// number nobody has. A rising count is the honest shape.
+  String get _statusLine {
+    final p = _progress;
+    if (p == null || p.isEmpty) return _openingStatusLine;
+    final section = p.latestSection;
+    if (section == null) {
+      return p.planName != null ? 'Found "${p.planName}"…' : _openingStatusLine;
+    }
+    final exercises = p.items == 1 ? '1 exercise' : '${p.items} exercises';
+    return '$section · $exercises';
   }
 
   Future<void> _pickAndImport() async {
-    _analyzingTimer?.cancel();
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
@@ -142,6 +140,7 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       _rejectionReason = null;
       _draft = null;
       _saving = false;
+      _progress = null;
     });
 
     ({Uint8List bytes, String mimeType})? file;
@@ -179,14 +178,20 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
     }
 
     if (!mounted) return;
-    setState(() => _phase = _ImportPhase.analyzing);
-    _startAnalyzingCycle();
+    setState(() {
+      _phase = _ImportPhase.analyzing;
+      _progress = null;
+    });
 
     try {
-      final outcome = await AppScope.of(
-        context,
-      ).ai.importWorkoutPlan(fileBytes: file.bytes, mimeType: file.mimeType);
-      _analyzingTimer?.cancel();
+      final outcome = await AppScope.of(context).ai.importWorkoutPlan(
+        fileBytes: file.bytes,
+        mimeType: file.mimeType,
+        onProgress: (progress) {
+          if (!mounted) return;
+          setState(() => _progress = progress);
+        },
+      );
       if (!mounted) return;
       switch (outcome) {
         case WorkoutImportAccepted(:final plan):
@@ -208,7 +213,6 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       // Surface the real failure instead of swallowing it. The old blanket
       // "couldn't read that plan" hid App Check / network rejections and
       // sent people deleting data to chase a backend problem.
-      _analyzingTimer?.cancel();
       debugPrint('WorkoutPdfImport: aiImportWorkoutPlan failed: $error');
       debugPrintStack(stackTrace: stack);
       if (!mounted) return;
@@ -328,9 +332,7 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       case _ImportPhase.selecting:
         return const _SelectingState();
       case _ImportPhase.analyzing:
-        return _AnalyzingState(
-          statusLine: _analyzingStatusLines[_analyzingStatusIndex],
-        );
+        return _AnalyzingState(statusLine: _statusLine);
       case _ImportPhase.preview:
         return _PreviewState(
           plan: _draft!,

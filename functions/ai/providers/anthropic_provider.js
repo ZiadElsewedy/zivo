@@ -190,16 +190,31 @@ class AnthropicProvider extends AiProvider {
   }
 
   /**
+   * `opts.onText` streams assistant TEXT deltas — the chat path.
+   * `opts.onInputJson` streams a tool call's accumulating INPUT, which is
+   * where a structured-output turn (the PDF importers) does all its work:
+   * those turns emit no text at all, so `onText` never fires for them. It is
+   * called with `(partialJson, snapshot)` — the delta and the cumulative JSON
+   * so far, the latter being what a progress scanner actually wants.
    * @param {!Object} normalizedRequest
-   * @param {{onText: (function(string): void)}=} opts
+   * @param {{onText: (function(string): void),
+   *   onInputJson: (function(string, string): void)}=} opts
    * @return {!Promise<!Object>}
    * @override
    */
   async generate(normalizedRequest, opts = {}) {
     const anthropicReq = toAnthropicRequest(normalizedRequest);
-    if (typeof opts.onText === "function") {
+    const wantsText = typeof opts.onText === "function";
+    const wantsInputJson = typeof opts.onInputJson === "function";
+    // A client with no `stream` (the legacy `callModel`-only seam, and every
+    // buffered test fake) degrades to a buffered call rather than throwing.
+    // Callers get the same final response either way — only the live progress
+    // is lost, which is the correct thing to trade for not failing the import.
+    const canStream = typeof this._client.messages.stream === "function";
+    if ((wantsText || wantsInputJson) && canStream) {
       const stream = this._client.messages.stream(anthropicReq);
-      stream.on("text", opts.onText);
+      if (wantsText) stream.on("text", opts.onText);
+      if (wantsInputJson) stream.on("inputJson", opts.onInputJson);
       const raw = await stream.finalMessage();
       return toNormalizedResponse(raw);
     }

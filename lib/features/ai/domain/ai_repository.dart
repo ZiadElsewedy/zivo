@@ -9,6 +9,7 @@ import 'ai_conversation.dart';
 import 'ai_message.dart';
 import 'ai_response_style.dart';
 import 'ai_turn_event.dart';
+import 'import_progress.dart';
 import 'stt_outcome.dart';
 
 /// The seam between the app and the AI assistant ("Ask"). Storage-agnostic
@@ -112,9 +113,14 @@ abstract interface class AiRepository {
   /// Resolves to [WorkoutImportRejected] (never throws) when the document
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
+  /// [onProgress] receives live extraction snapshots while the model writes
+  /// its answer (see [ImportProgress]). Passing it opts the call into
+  /// streaming; omitting it leaves the call buffered exactly as before, so a
+  /// caller that doesn't render progress pays nothing for it.
   Future<WorkoutImportOutcome> importWorkoutPlan({
     required Uint8List fileBytes,
     required String mimeType,
+    void Function(ImportProgress progress)? onProgress,
   });
 
   /// Extracts a proposed diet plan from [input] via the `aiImportDietPlan`
@@ -130,7 +136,11 @@ abstract interface class AiRepository {
   /// Resolves to [DietImportRejected] (never throws) when the material
   /// genuinely isn't/doesn't contain a usable plan — throwing stays reserved
   /// for real technical failures (network, auth/App Check, server error).
-  Future<DietImportOutcome> importDietPlan(DietImportInput input);
+  /// [onProgress] behaves exactly as in [importWorkoutPlan].
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  });
 
   /// Builds a proposed diet plan from [preferences] via the
   /// `aiGenerateDietPlan` callable — no Firestore write, and the caller
