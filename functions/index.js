@@ -813,6 +813,11 @@ exports.aiImportWorkoutPlan = onCall(
             "invalid-argument", "That file is too large to import.");
       }
       const mimeType = (data.mimeType || "application/pdf").toString();
+      // The same extraction, from the user's own words instead of a file —
+      // a dictated split (transcribed by `aiTranscribe` first) or one typed
+      // out. `extractWorkoutPlan` enforces exactly-one-kind and the length
+      // bound; passing it through undefined keeps the file path unchanged.
+      const text = typeof data.text === "string" ? data.text : undefined;
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -833,6 +838,7 @@ exports.aiImportWorkoutPlan = onCall(
           model: router.resolve("workout_import").model,
           fileBase64: pdfBase64,
           mediaType: mimeType,
+          text,
           onProgress: streaming ? (p) => response.sendChunk({
             type: "progress",
             planName: p.planName,
@@ -841,6 +847,7 @@ exports.aiImportWorkoutPlan = onCall(
           }) : undefined,
           logEvent: (event) => logger.info("aiImportWorkoutPlan", {
             approxPdfBytes,
+            inputKind: text ? "description" : "document",
             ...event,
           }),
         });

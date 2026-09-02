@@ -26,7 +26,7 @@ import '../../domain/weight_trend.dart';
 import '../../domain/workout_plan.dart';
 import '../widgets/up_next_workout_card.dart';
 import 'bodyweight_history_page.dart';
-import 'workout_pdf_import_page.dart';
+import '../widgets/add_workout_sheet.dart';
 import 'workout_plan_edit_page.dart';
 import 'workout_progress_page.dart';
 import 'workout_stats_pages.dart';
@@ -839,11 +839,7 @@ class _NoPlanState extends StatelessWidget {
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WorkoutPdfImportPage(),
-                    ),
-                  );
+                  showAddWorkoutSheet(context);
                 },
               ),
             ),
@@ -872,8 +868,8 @@ class _NoPlanState extends StatelessWidget {
   }
 }
 
-/// The same tinted icon-chip language `workout_pdf_import_page.dart` uses for
-/// its own phase states — reused here so the empty state that leads INTO
+/// The same tinted icon-chip language the shared import phase states use for
+/// their own screens — reused here so the empty state that leads INTO
 /// that flow already looks like part of the same product.
 class _PhaseIconLike extends StatelessWidget {
   const _PhaseIconLike({required this.icon, required this.color});

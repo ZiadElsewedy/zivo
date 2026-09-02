@@ -13,9 +13,10 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_result.dart';
-import 'package:zivo/features/workout/presentation/pages/workout_pdf_import_page.dart';
+import 'package:zivo/features/workout/presentation/pages/workout_import_page.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -30,9 +31,8 @@ class _FailingImportAi extends FakeAiRepository {
   final Object error;
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
   }) {
     throw error is String ? StateError(error as String) : error;
@@ -47,7 +47,7 @@ class _Home extends StatelessWidget {
       const Scaffold(body: Center(child: Text('open')));
 }
 
-/// Pumps a Home page under [ai]/[plans] and pushes [WorkoutPdfImportPage]
+/// Pumps a Home page under [ai]/[plans] and pushes [WorkoutImportPage]
 /// (with [pickPdfBytes] as its file-picker override) via a real `Navigator`,
 /// so `Navigator.pop()` inside the page is observable as Home reappearing.
 Future<InMemoryWorkoutPlanRepository> _pumpImportPage(
@@ -78,7 +78,7 @@ Future<InMemoryWorkoutPlanRepository> _pumpImportPage(
   );
   navigatorKey.currentState!.push(
     MaterialPageRoute(
-      builder: (_) => WorkoutPdfImportPage(
+      builder: (_) => WorkoutImportPage(
         // Adapt the old bytes-only stub to the page's current pickFile seam.
         pickFile: () async {
           final bytes = await pickPdfBytes();
@@ -111,9 +111,8 @@ class _StreamingImportAi extends FakeAiRepository {
   void finish() => _gate.complete();
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
   }) async {
     emit = onProgress!;
@@ -248,7 +247,7 @@ void main() {
           tester,
           pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
           ai: FakeAiRepository(
-            importWorkoutPlanImpl: (_, _) async => const WorkoutImportRejected(
+            importWorkoutPlanImpl: (_) async => const WorkoutImportRejected(
               'This looks like a grocery receipt, not a workout plan.',
             ),
           ),
@@ -277,7 +276,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_, _) async =>
+          importWorkoutPlanImpl: (_) async =>
               const WorkoutImportRejected('Not a workout plan.'),
         ),
       );
@@ -302,7 +301,7 @@ void main() {
             return Uint8List.fromList([1, 2, 3]);
           },
           ai: FakeAiRepository(
-            importWorkoutPlanImpl: (_, _) async =>
+            importWorkoutPlanImpl: (_) async =>
                 const WorkoutImportRejected('Not a workout plan.'),
           ),
         );
@@ -324,7 +323,7 @@ void main() {
           tester,
           pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
           ai: FakeAiRepository(
-            importWorkoutPlanImpl: (_, _) async => const WorkoutImportAccepted(
+            importWorkoutPlanImpl: (_) async => const WorkoutImportAccepted(
               WorkoutImportResult(
                 planName: 'Partial Split',
                 days: [
@@ -362,7 +361,7 @@ void main() {
         tester,
         pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
         ai: FakeAiRepository(
-          importWorkoutPlanImpl: (_, _) async => const WorkoutImportRejected(
+          importWorkoutPlanImpl: (_) async => const WorkoutImportRejected(
             "This file doesn't contain enough valid workout data to create a training plan.",
           ),
         ),
@@ -389,7 +388,7 @@ void main() {
           tester,
           pickPdfBytes: () async => Uint8List.fromList([1, 2, 3]),
           ai: FakeAiRepository(
-            importWorkoutPlanImpl: (_, _) async => const WorkoutImportAccepted(
+            importWorkoutPlanImpl: (_) async => const WorkoutImportAccepted(
               WorkoutImportResult(
                 planName: 'Handwritten Plan',
                 days: [

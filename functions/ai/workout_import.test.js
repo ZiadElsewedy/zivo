@@ -12,6 +12,7 @@ const {
   TOOL_NAME,
   REJECT_TOOL_NAME,
   DEFAULT_REJECTION_REASON,
+  MAX_TEXT_CHARS,
 } = require("./workout_import");
 const {GatewayError} = require("./gateway");
 
@@ -534,4 +535,101 @@ test("omitting onProgress leaves the call buffered", async () => {
 
   assert.equal(result.ok, true);
   assert.equal(streamed, false, "no onProgress must mean no streaming call");
+});
+
+// --- a dictated or typed description ---------------------------------------
+//
+// The same extractor, different material: a transcript of someone describing
+// their own split. One schema and one review screen serve every capture
+// route — mirrors `diet_import.test.js`'s description block.
+
+test("extractWorkoutPlan: sends a description as text, with no document block", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My split", days: [VALID_DAY]}));
+
+  const result = await extractWorkoutPlan({
+    callModel,
+    text: "Day A is push — bench press 4 by 8, incline press 3 by 10.",
+  });
+
+  assert.equal(result.ok, true);
+  const content = callModel.lastRequest.messages[0].content;
+  assert.equal(content.length, 1);
+  assert.equal(content[0].type, "text");
+  assert.match(content[0].text, /bench press 4 by 8/);
+  // The user's words are fenced, so the model can tell them from the
+  // instruction wrapping them.
+  assert.match(content[0].text, /---BEGIN DESCRIPTION---/);
+  assert.equal(
+      content.some((b) => b.type === "document" || b.type === "image"), false);
+});
+
+test("extractWorkoutPlan: a description gets the description prompt, not the document one", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My split", days: [VALID_DAY]}));
+
+  await extractWorkoutPlan({callModel, text: "Day A is push, day B is pull."});
+  const spoken = callModel.lastRequest.system[0].text;
+  assert.match(spoken, /dictated and transcribed, or typed/);
+  // The rules that matter are shared, not duplicated per input kind.
+  assert.match(spoken, new RegExp(`Your default action is ${TOOL_NAME}`));
+
+  await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.match(callModel.lastRequest.system[0].text, /Read every page/);
+});
+
+test("extractWorkoutPlan: a description still rejects when it isn't a plan", async () => {
+  const callModel = scriptedModel(rejectResponse("This is a to-do list."));
+
+  const result = await extractWorkoutPlan({
+    callModel,
+    text: "Remember to call the plumber and pick up a parcel.",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "This is a to-do list.");
+});
+
+test("extractWorkoutPlan: refuses both a file and a description in one call", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({
+        callModel, pdfBase64: "ZmFrZS1wZGY=", text: "Day A is push.",
+      }),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: refuses neither, and treats a blank description as neither", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel, text: "   \n  "}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: refuses a description past the length bound", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel, text: "a".repeat(MAX_TEXT_CHARS + 1)}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: a description does not need a media type", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  // mediaType is meaningless for text; supplying a bogus one must not be
+  // validated against the file vocabulary and reject a good description.
+  const result = await extractWorkoutPlan({
+    callModel, text: "Day A: squats 5 by 5.", mediaType: "text/plain",
+  });
+  assert.equal(result.ok, true);
 });

@@ -268,7 +268,7 @@ void main() {
 
     await tester.tap(find.byTooltip('New split'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Create Manually'));
+    await tester.tap(find.text('Build by hand'));
     await tester.pumpAndSettle();
     expect(find.text('New split'), findsOneWidget); // the editor's own title
 
@@ -290,7 +290,7 @@ void main() {
     expect(plans.activeSplitId, 'a'); // the pre-existing active split is untouched
   });
 
-  testWidgets('the FAB opens a sheet with exactly Create Manually and Import with AI (no AppBar PDF icon)', (tester) async {
+  testWidgets('the FAB opens the add-plan sheet with every capture route (no AppBar PDF icon)', (tester) async {
     final plans = _FakeSplitsRepository([_split('a', 'Push Pull Legs')]);
     addTearDown(plans.dispose);
     await tester.pumpWidget(_wrap(plans: plans));
@@ -301,11 +301,14 @@ void main() {
     await tester.tap(find.byTooltip('New split'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Create Manually'), findsOneWidget);
-    expect(find.text('Import with AI'), findsOneWidget);
+    // The unified sheet — document, typed, and build-by-hand routes (dictation
+    // shows only where a recorder is wired, which this host has not).
+    expect(find.text('PDF or photo'), findsOneWidget);
+    expect(find.text('Type it out'), findsOneWidget);
+    expect(find.text('Build by hand'), findsOneWidget);
   });
 
-  testWidgets('Import with AI from the FAB sheet opens the PDF import flow', (tester) async {
+  testWidgets('the PDF-or-photo route from the FAB sheet opens the import flow', (tester) async {
     final plans = _FakeSplitsRepository([_split('a', 'Push Pull Legs')]);
     addTearDown(plans.dispose);
     await tester.pumpWidget(_wrap(plans: plans));
@@ -313,12 +316,12 @@ void main() {
 
     await tester.tap(find.byTooltip('New split'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import with AI'));
+    await tester.tap(find.text('PDF or photo'));
     await tester.pumpAndSettle();
 
-    // The PDF-import flow opened. (Its file-picker call can't run under the
-    // test binding, so the page lands in its own in-flow error state — which
-    // still proves the route, header, and retry affordance are live.)
+    // The import flow opened. (Its file-picker call can't run under the test
+    // binding, so the page lands in its own in-flow error state — which still
+    // proves the route, header, and retry affordance are live.)
     expect(find.text('Import Plan'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
   });

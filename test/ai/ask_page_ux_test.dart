@@ -8,6 +8,7 @@ import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/stt_outcome.dart';
@@ -114,11 +115,10 @@ class _FlakyAi implements AiRepository {
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  void Function(ImportProgress progress)? onProgress,
-  }) => _inner.importWorkoutPlan(fileBytes: fileBytes, mimeType: mimeType);
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) => _inner.importWorkoutPlan(input, onProgress: onProgress);
 
   @override
   Future<DietImportOutcome> importDietPlan(
@@ -198,10 +198,9 @@ class _SilentDropAi implements AiRepository {
   }) async {}
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  void Function(ImportProgress progress)? onProgress,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
   }) => throw UnimplementedError();
 
   @override
@@ -397,11 +396,10 @@ class _HeldAi implements AiRepository {
   }) => _inner.cancelAction(conversationId: conversationId, actionId: actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
-  void Function(ImportProgress progress)? onProgress,
-  }) => _inner.importWorkoutPlan(fileBytes: fileBytes, mimeType: mimeType);
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) => _inner.importWorkoutPlan(input, onProgress: onProgress);
 
   @override
   Future<DietImportOutcome> importDietPlan(

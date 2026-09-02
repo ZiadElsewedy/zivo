@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-01 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-02 · **Active branch:** `core-edits`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,54 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Bring-your-own-plan reaches parity: workout import now takes text and voice,
+  not just a document — and the two importers stopped being copy-paste twins**
+  (2026-09-02, on `claude/refactor-and-feature-review-e5b2ed`). Two parts, done in
+  sequence.
+  - **Refactor — one import flow, shared by workout and diet.** `workout_pdf_import_page.dart`
+    (965 lines) and `diet_import_page.dart` (698) were near-identical: same file
+    picker, same `_maxFileBytes`/`_allowedExtensions`, same `_importErrorMessage`
+    (the diet file's own comment said it "mirrors `workout_pdf_import_page.dart`
+    exactly"), same five phase widgets — and they had already drifted (workout on
+    raw `TrainType.ui(...)` literals, diet on the named `AppText` ladder). Now one
+    module under [`capture/presentation/import/`](../lib/features/capture/presentation/import):
+    `plan_import_file.dart` (`pickImportFile`, `kMaxImportFileBytes`,
+    `kImportAllowedExtensions`, `importErrorMessage` with the one differing clause as
+    a param) and `import_flow_states.dart` (`ImportSelectingState`/`ImportAnalyzingState`/
+    `ImportRejectedState`/`ImportErrorState` + `importProgressLine`). The workout
+    preview/done screens stay in the page (only it reviews in place). **Deliberate
+    visual settle** (like the sheet-radius/field-decoration passes before it): the
+    workout import's select/analyze/reject/error screens now render on the named
+    ladder, matching diet — copy is byte-identical, so tests were untouched. The
+    describe (dictate/type) screen was extracted the same way to
+    `plan_describe_page.dart` (diet's `DietDictatePage` is now a thin wrapper;
+    `keyPrefix` keeps its `dictate-*` test keys), and the add-plan sheet's route row
+    became the shared `AddPlanRouteTile`.
+  - **Feature — every capture route for a split.** Image import already worked (the
+    "PDF" name was stale); the missing routes were **type it out** and **say it out
+    loud**, both of which diet already had. `importWorkoutPlan` now takes a sealed
+    `WorkoutImportInput` (`Document | Description`) mirroring `DietImportInput`;
+    `WorkoutPlanSource` gained `photo`/`dictated`/`typed`, threaded through
+    `workoutPlanFromImport` for honest provenance. New `showAddWorkoutSheet` (document
+    · say it · type it · build by hand) replaces the four bare pushes of the old
+    `WorkoutPdfImportPage` **and** the split editor's two-option Cupertino chooser
+    (which hard-coded an English "Cancel" — one of the debts STATE flagged).
+    `WorkoutPdfImportPage` → `WorkoutImportPage`, file renamed. Voice reuses the
+    app-wide recorder + `aiTranscribe`, so it was nearly free.
+  - **Backend (owner deploy — see action items).** `functions/ai/workout_import.js`
+    gained the `text` branch `diet_import.js` already had (fenced description prompt,
+    `MAX_TEXT_CHARS`, exactly-one-kind validation), and `index.js`'s
+    `aiImportWorkoutPlan` passes `data.text` through. **Until deployed, the typed/
+    dictated workout routes hit the old file-only extractor and fail with
+    invalid-argument** — the document/photo route is unaffected.
+  - Cover: Flutter **1050 → 1053** (new `workout_capture_routes_test.dart` for the
+    type/dictate→`WorkoutImportDescription` paths; import + split-management +
+    diet-capture tests migrated to the shared flow, all green). Backend
+    `workout_import.test.js` **24 → 31** (mirrors diet's description block); full
+    functions suite **386** green. `flutter analyze` clean. Functions **lint not run
+    locally** — `eslint` isn't installed in this worktree; the JS mirrors
+    `diet_import.js`'s style exactly.
 
 - **The Today dashboard reads one injected clock, and its tests no longer break at night**
   (2026-09-01). Two momentum tests failed on any run after **23:20 local**: `_done(at, id)`
@@ -491,6 +539,11 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
+  - **Pending now (workout multi-format import):** `ai/workout_import.js` + `index.js`
+    now accept a dictated/typed **description** (the `text` branch, mirroring
+    `diet_import.js`). Until deployed, the workout **"Say it out loud" / "Type it out"**
+    routes reach the old file-only extractor and fail with invalid-argument; the
+    PDF/photo route is unaffected. Command: `firebase deploy --only functions`.
   - **Pending now:** the **Diet Coach Phases 0–7** work (`gateway.js`, `tools.js`,
     `dates.js`, `mutations.js`, `store.js`, `validator.js`, `index.js`, `functions/diet/*`,
     `functions/nutrition/*` **+ `firestore.rules`**) — see
