@@ -1406,6 +1406,12 @@ abstract class AppLocalizations {
   /// **'Finish'**
   String get liveFinish;
 
+  /// Heading of the personal-records celebration on the finished-session screen, shown when this session set one or more PRs.
+  ///
+  /// In en, this message translates to:
+  /// **'New personal records'**
+  String get livePrsTitle;
+
   /// Explains the prefilled goal.
   ///
   /// In en, this message translates to:

@@ -73,6 +73,34 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Workout analytics engine + the AI training pipeline fixed** (2026-09-02, on
+  `core-edits`). A focused, correct progress layer — not a deep analytics platform.
+  - **One centralized engine** —
+    [`workout/domain/analytics/workout_analytics.dart`](../lib/features/workout/domain/analytics/workout_analytics.dart),
+    consumed by BOTH the UI and the AI, mirrored server-side by
+    [`functions/ai/workout_analytics.js`](../functions/ai/workout_analytics.js) and
+    pinned by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`,
+    run by both suites). Estimated 1RM (Epley, ≤12 reps), PRs **derived from
+    history** (no stored ledger; `detectNewPrs` diffs prior-vs-with-session),
+    per-exercise status with a **min-3-appearance gate + a meaningful-change
+    threshold + best-of-window smoothing** (kills the old n=2 verdict's daily-noise
+    false alarms), a per-muscle rollup, working-volume trend, an overall summary,
+    typed `fact`/`interpretation` findings, and a `computeGoal`-based next step.
+    **Warm-ups excluded everywhere.**
+  - **The AI no longer sees the lossy flat log.** `store.listWorkoutSessions` reads
+    the real per-set `workoutSessions`; `get_workouts` now returns real per-set
+    actuals (warm-ups flagged, skipped/pending dropped); new **`get_training_analysis`**
+    hands the model the deterministic analysis + findings; the system prompt gained a
+    workout numbers/findings/confidence block. (Audit fix: the coach used to be fed a
+    fabricated single rep/weight per exercise.)
+  - **UI:** `workout_analysis_page.dart` rebuilt as a 6-section engine-driven view
+    (overall · recent PRs · exercise progress · working volume · needs-attention ·
+    next step); the Progress landing's summary card shares the same engine; a
+    post-workout **PR celebration** on the completed phase (`detectNewPrs`).
+  - Gates green: `flutter analyze` clean, 1085 Flutter tests + 409 functions tests +
+    functions lint all pass. **Owner action: `firebase deploy --only functions`** to
+    ship the AI-pipeline changes (backend deploys need owner credentials).
+
 - **Local-first saves, one-shot commit buttons, and Spotify that stays connected**
   (2026-09-02, on `core-edits`). Four owner-reported problems, one pass.
   - **Saving no longer waits for the database.** Every repository is Firestore-backed,
@@ -732,6 +760,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-02 — **Workout analytics engine + AI training pipeline.** New centralized
+  `workout/domain/analytics/workout_analytics.dart` (e1RM, history-derived PRs,
+  thresholded per-exercise status, muscle rollup, working-volume trend, typed findings,
+  `computeGoal` next step; warm-ups excluded) with a Node mirror (`functions/ai/workout_analytics.js`)
+  pinned by shared golden vectors. AI now reads real per-set sessions (`store.listWorkoutSessions`,
+  real `get_workouts`, new `get_training_analysis`) + a workout system-prompt block instead of the
+  lossy flat log. `workout_analysis_page.dart` rebuilt as a 6-section engine view; Progress landing
+  card + post-workout PR celebration share the engine. All gates green; **owner: deploy functions.**
 - 2026-09-02 — **Save flow, button guards, Spotify auto-connect, Live Session polish.**
   Local-first persistence (`deferWrite` + `DeferredWriteReporter`) so Save never waits on
   a Firestore round trip; a shared `AsyncAction` guard with a `once` mode for

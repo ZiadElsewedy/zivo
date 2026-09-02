@@ -1060,6 +1060,10 @@
   "@liveFinish": {
     "description": "Ends the session and writes it to history."
   },
+  "livePrsTitle": "New personal records",
+  "@livePrsTitle": {
+    "description": "Heading of the personal-records celebration on the finished-session screen, shown when this session set one or more PRs."
+  },
   "liveMatchingPrevious": "Matching your previous set",
   "@liveMatchingPrevious": {
     "description": "Explains the prefilled goal."

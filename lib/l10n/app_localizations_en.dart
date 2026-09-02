@@ -733,6 +733,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveFinish => 'Finish';
 
   @override
+  String get livePrsTitle => 'New personal records';
+
+  @override
   String get liveMatchingPrevious => 'Matching your previous set';
 
   @override

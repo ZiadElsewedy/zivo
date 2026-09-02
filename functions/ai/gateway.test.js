@@ -43,6 +43,7 @@ function makeStore(overrides) {
     touchConversation: [],
     logUsage: [],
     listWorkouts: [],
+    listWorkoutSessions: [],
   };
   const messages = [];
 
@@ -64,6 +65,10 @@ function makeStore(overrides) {
     },
     listWorkouts: async (uid) => {
       calls.listWorkouts.push(uid);
+      return [];
+    },
+    listWorkoutSessions: async (uid) => {
+      calls.listWorkoutSessions.push(uid);
       return [];
     },
   };
@@ -150,10 +155,12 @@ test("tool execution is uid-scoped and the result flows to the final answer",
     async () => {
       const seen = [];
       const store = makeStore({
-        listWorkouts: async (uid) => {
+        listWorkoutSessions: async (uid) => {
           seen.push(uid);
-          return [{title: "Push", performedAt: new Date(1000),
-            durationMinutes: 45, exercises: []}];
+          return [{
+            dayLabel: "Push", status: "completed",
+            startedAt: new Date(0), completedAt: new Date(1000), exercises: [],
+          }];
         },
       });
       const callModel = scriptedModel([
@@ -359,7 +366,7 @@ test("a refusal stop_reason yields a clean refusal message", async () => {
 test("a tool executor error becomes an is_error tool_result and the loop " +
     "recovers", async () => {
   const store = makeStore({
-    listWorkouts: async () => {
+    listWorkoutSessions: async () => {
       throw new Error("boom");
     },
   });
@@ -725,8 +732,8 @@ test("cache read/write tokens are logged and priced at their discounts",
 test("a read-tool turn emits understanding → working → done phases plus " +
     "streamed text deltas", async () => {
   const store = makeStore({
-    listWorkouts: async () => [{title: "Push", performedAt: new Date(0),
-      durationMinutes: 45, exercises: []}],
+    listWorkoutSessions: async () => [{dayLabel: "Push", status: "completed",
+      startedAt: new Date(0), completedAt: new Date(0), exercises: []}],
   });
   const responses = [
     {
@@ -776,8 +783,8 @@ test("a read-tool turn emits understanding → working → done phases plus " +
 
 test("each read tool emits a running→ok step pair, naming the tool only", async () => {
   const store = makeStore({
-    listWorkouts: async () => [{title: "Push", performedAt: new Date(0),
-      durationMinutes: 45, exercises: []}],
+    listWorkoutSessions: async () => [{dayLabel: "Push", status: "completed",
+      startedAt: new Date(0), completedAt: new Date(0), exercises: []}],
     listExpenses: async () => [],
   });
   const callModel = scriptedModel([
@@ -822,7 +829,7 @@ test("each read tool emits a running→ok step pair, naming the tool only", asyn
 
 test("a failing read tool still closes its step, with status error", async () => {
   const store = makeStore({
-    listWorkouts: async () => {
+    listWorkoutSessions: async () => {
       throw new Error("firestore unavailable");
     },
   });
@@ -980,8 +987,8 @@ test("an oversized tool result is truncated before it re-enters the loop",
     async () => {
       const big = "y".repeat(20000);
       const store = makeStore({
-        listWorkouts: async () => [{title: big, performedAt: new Date(0),
-          durationMinutes: 45, exercises: []}],
+        listWorkoutSessions: async () => [{dayLabel: big, status: "completed",
+          startedAt: new Date(0), completedAt: new Date(0), exercises: []}],
       });
       const callModel = scriptedModel([
         {

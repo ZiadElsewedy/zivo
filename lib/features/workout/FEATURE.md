@@ -13,7 +13,7 @@
 | `split_management_page.dart` | Create / switch / edit / delete splits (multi-split) |
 | `live_session_page.dart` | The guided live workout session — **renders only**; its logic is `presentation/controllers/live_session_controller.dart` (see below) |
 | `session_details_page.dart`, `workout_history_page.dart` | Past sessions + history |
-| `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progressive-overload analysis, scoped to the active split |
+| `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progress/analysis — `workout_analysis_page.dart` is the engine-driven 6-section view (overall verdict · recent PRs · exercise progress · working volume · needs-attention · next step) reading `analytics/workout_analytics.dart`; `workout_progress_page.dart` is the landing whose summary card shares that engine |
 | `workout_import_page.dart` | AI import → review UI, for a document (PDF/photo) **or** a dictated/typed description via `WorkoutImportInput` (pairs with `functions/ai/workout_import.js`). Was `workout_pdf_import_page.dart`. |
 | `workout_describe_page.dart` | Say-it / type-it route — a thin wrapper over the shared `capture/presentation/import/plan_describe_page.dart` |
 | `widgets/add_workout_sheet.dart` | `showAddWorkoutSheet` — the one doorway (document · say it · type it · build by hand); every entry point (hub, Today, split editor) opens it |
@@ -66,6 +66,19 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 - Progression/analysis: `progression.dart`, `day_progress_analysis.dart`,
   `progress_comparison.dart`, `weight_trend.dart`, `up_next_selection.dart`,
   `training_dashboard_stats.dart`.
+- **Analytics engine: `analytics/workout_analytics.dart`** — the ONE centralized
+  "how am I progressing" engine, consumed by BOTH the progress UI
+  (`workout_analysis_page.dart`, `workout_progress_page.dart`'s summary card) and
+  the AI coach (mirrored in `functions/ai/workout_analytics.js`, pinned by shared
+  golden vectors). Pure over `List<LiveSession>`: `estimatedOneRepMax` (Epley,
+  capped at 12 reps), `personalRecords`/`detectNewPrs` (derived from history — no
+  stored ledger), per-exercise `ProgressStatus` (min-3-appearance gate + a
+  meaningful-change threshold + best-of-window smoothing, so one off day can't
+  flip a verdict), a per-muscle rollup (`normalizeMuscleGroup` folds free-text
+  labels into six buckets), working-volume trend, an overall summary, typed
+  `TrainingFinding`s (fact vs interpretation), and a `computeGoal`-based next
+  step. **Warm-up sets are excluded everywhere.** Prefer this over the older
+  per-day `analyzeDayProgress` (n=2) for progress questions.
 - Import: `workout_import_input.dart` (the sealed `WorkoutImportInput` =
   `Document | Description`, mirroring diet), `workout_import_result.dart` (+
   `ImportedDay`/`ImportedExercise`), `workout_plan_from_import.dart` (takes a

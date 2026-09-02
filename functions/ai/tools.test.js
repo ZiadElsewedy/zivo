@@ -223,6 +223,77 @@ test("get_today serializes diet BEFORE workouts so truncation can't eat it",
       assert.equal(keys.at(-1), "workouts");
     });
 
+test("get_workouts surfaces REAL per-set actuals, warm-ups marked, "+
+    "skipped/pending sets dropped", async () => {
+  const tool = toolsByName.get("get_workouts");
+  const store = {
+    listWorkoutSessions: async (uid, range) => {
+      assert.equal(uid, UID);
+      assert.equal(typeof range.fromMs, "number");
+      return [{
+        dayLabel: "Push",
+        status: "completed",
+        startedAt: new Date("2026-08-17T10:00:00"),
+        completedAt: new Date("2026-08-17T11:00:00"),
+        pausedAccumMs: 0,
+        exercises: [{
+          name: "Bench Press",
+          muscleGroup: "Chest",
+          sets: [
+            {actualReps: 10, actualWeightKg: 40, type: "warmup", outcome: "completed"},
+            {actualReps: 8, actualWeightKg: 100, type: "working", outcome: "completed"},
+            {actualReps: 5, actualWeightKg: 110, type: "working", outcome: "completed"},
+            {actualReps: null, actualWeightKg: null, type: "working", outcome: "pending"},
+            {actualReps: 6, actualWeightKg: 100, type: "working", outcome: "skipped"},
+          ],
+        }],
+      }];
+    },
+  };
+
+  const result = await tool.execute(store, UID, {}, NOW);
+  const sets = result.workouts[0].exercises[0].sets;
+  // Only the three COMPLETED sets survive; pending/skipped are dropped.
+  assert.equal(sets.length, 3);
+  // The warm-up is present but explicitly typed so the model won't count it.
+  assert.deepEqual(sets[0], {set: 1, weightKg: 40, reps: 10, type: "warmup"});
+  assert.deepEqual(sets[1], {set: 2, weightKg: 100, reps: 8, type: "working"});
+  assert.deepEqual(sets[2], {set: 3, weightKg: 110, reps: 5, type: "working"});
+  assert.equal(result.workouts[0].durationMinutes, 60);
+});
+
+test("get_training_analysis returns deterministic findings, never raw math",
+    async () => {
+      const tool = toolsByName.get("get_training_analysis");
+      // Four progressing bench sessions → 'progressing', with a fact finding.
+      const at = (d) => new Date(NOW.getTime() - d * 24 * 60 * 60 * 1000);
+      const mk = (id, day, weight) => ({
+        id, dayLabel: "Push", status: "completed",
+        startedAt: at(day), completedAt: at(day),
+        exercises: [{
+          name: "Bench Press", exerciseId: "bench", muscleGroup: "Chest",
+          sets: [{actualReps: 5, actualWeightKg: weight, type: "working",
+            outcome: "completed"}],
+        }],
+      });
+      // Spans >12 weeks so the recent-6wk vs prior-6wk strength window has
+      // data on both sides (prior ~104kg, recent 110kg → up ~6%).
+      const store = {
+        listWorkoutSessions: async () => [
+          mk("s1", 75, 100), mk("s2", 65, 102), mk("s3", 50, 104),
+          mk("s4", 7, 108), mk("s5", 1, 110),
+        ],
+      };
+
+      const result = await tool.execute(store, UID, {}, NOW);
+      assert.equal(result.overallStatus, "progressing");
+      const bench = result.exercises.find((e) => e.exerciseId === "bench");
+      assert.equal(bench.status, "progressing");
+      // Findings carry a confidence so the model keeps fact vs interpretation.
+      assert.ok(result.findings.length > 0);
+      assert.ok(result.findings.every((f) => ["fact", "interpretation"].includes(f.confidence)));
+    });
+
 test("the registry carries no tools for deleted features", async () => {
   // get_tasks/get_schedule/get_university/search_notes read collections the
   // app stopped writing when those features were removed (ADR-004): they could

@@ -8,16 +8,13 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
-import '../../domain/day_progress_analysis.dart';
+import '../../domain/analytics/workout_analytics.dart';
 import '../../domain/live_session.dart';
-import '../../domain/progress_comparison.dart';
 import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
-import '../../domain/up_next_selection.dart';
 import '../../domain/workout_plan.dart';
 import '../widgets/animated_stat_value.dart';
 import '../widgets/staggered_reveal.dart';
-import '../widgets/verdict_style.dart';
 import '../widgets/workout_section_label.dart';
 import 'session_details_page.dart';
 import 'split_management_page.dart';
@@ -63,16 +60,7 @@ class WorkoutProgressPage extends StatelessWidget {
                 sessions: sessions,
                 now: now,
               );
-              final selection = plan == null
-                  ? null
-                  : resolveUpNext(plan, _firstActive(sessions));
-              final analysis = (plan == null || selection?.day == null)
-                  ? null
-                  : analyzeDayProgress(
-                      day: selection!.day!,
-                      planId: plan.id,
-                      allSessions: sessions,
-                    );
+              final analysis = analyzeTraining(sessions: sessions, now: now);
 
               return ListView(
                 padding: EdgeInsets.fromLTRB(
@@ -94,7 +82,7 @@ class WorkoutProgressPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
                   // ---- HOW WELL ---------------------------------
-                  if (analysis != null) ...[
+                  if (analysis.completedSessionCount > 0) ...[
                     StaggeredReveal(
                       index: 1,
                       child: Column(
@@ -360,31 +348,21 @@ class _OverviewTile extends StatelessWidget {
   }
 }
 
-LiveSession? _firstActive(List<LiveSession> sessions) {
-  for (final s in sessions) {
-    if (s.status == SessionStatus.active) return s;
-  }
-  return null;
-}
-
-/// The active up-next day's overall verdict. Tapping anywhere opens the full
-/// [WorkoutAnalysisPage] for the day-by-day, exercise-by-exercise breakdown.
+/// The overall training verdict from the centralized [analyzeTraining] engine
+/// — the SAME summary the full analysis page and the AI coach use, so all
+/// three agree. Tapping opens the full [WorkoutAnalysisPage].
 class ProgressSummaryCard extends StatelessWidget {
   const ProgressSummaryCard({required this.analysis, super.key});
 
-  final DayProgressAnalysis analysis;
+  final TrainingAnalysis analysis;
 
   @override
   Widget build(BuildContext context) {
-    final overall = analysis.overallVerdict;
-    final (headline, color) = switch (overall) {
-      null => (
-        analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
-        TrainColors.ink2,
-      ),
-      ProgressVerdict.progressing => ('Progressing', TrainColors.green),
-      ProgressVerdict.matched => ('Holding steady', TrainColors.ink2),
-      ProgressVerdict.down => ('Slipping', TrainColors.ember),
+    final (color, icon) = switch (analysis.overallStatus) {
+      ProgressStatus.progressing => (TrainColors.green, AppIcons.trendUp),
+      ProgressStatus.regressing => (TrainColors.ember, AppIcons.trendDown),
+      ProgressStatus.plateauing => (TrainColors.amber, AppIcons.minus),
+      _ => (TrainColors.ink2, AppIcons.analysis),
     };
     return PressableScale(
       child: Material(
@@ -432,39 +410,16 @@ class ProgressSummaryCard extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(9),
                       ),
-                      child: Icon(
-                        overall == null
-                            ? AppIcons.analysis
-                            : switch (overall) {
-                                ProgressVerdict.progressing => AppIcons.trendUp,
-                                ProgressVerdict.matched => AppIcons.minus,
-                                ProgressVerdict.down => AppIcons.trendDown,
-                              },
-                        size: 16,
-                        color: color,
-                      ),
+                      child: Icon(icon, size: 16, color: color),
                     ),
                     const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        analysis.day.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TrainType.ui(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          color: TrainColors.inkPlain,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                    if (overall != null)
-                      _AnalysisVerdictBadge(verdict: overall),
+                    if (analysis.recentPrs.isNotEmpty)
+                      _PrCountBadge(count: analysis.recentPrs.length),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  headline,
+                  analysis.summaryHeadline,
                   style: TrainType.ui(
                     size: 24,
                     weight: FontWeight.w800,
@@ -475,16 +430,12 @@ class ProgressSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  overall == null
-                      ? (analysis.sessionCount == 0
-                            ? 'Log ${analysis.day.label} to start tracking progress.'
-                            : "Log ${analysis.day.label} once more to see how you're trending.")
-                      : '${analysis.improvedCount} improved · ${analysis.matchedCount} matched · '
-                            '${analysis.regressedCount} regressed',
-                  style: TrainType.mono(
-                    size: 10.5,
-                    tracking: 0.06,
-                    color: TrainColors.ink4,
+                  analysis.summaryDetail,
+                  style: TrainType.ui(
+                    size: 13.5,
+                    weight: FontWeight.w400,
+                    height: 1.4,
+                    color: TrainColors.ink2,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -516,31 +467,28 @@ class ProgressSummaryCard extends StatelessWidget {
   }
 }
 
-class _AnalysisVerdictBadge extends StatelessWidget {
-  const _AnalysisVerdictBadge({required this.verdict});
+class _PrCountBadge extends StatelessWidget {
+  const _PrCountBadge({required this.count});
 
-  final ProgressVerdict verdict;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, label) = verdictStyle(verdict);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: TrainColors.amber.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
+          const Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
           const SizedBox(width: 4),
-          // Verdict color is the state, not decoration — animate it with
-          // the label rather than snapping when a new session re-verdicts.
           AnimatedStatValue(
-            value: label,
+            value: '$count PR${count == 1 ? '' : 's'}',
             style: TrainType.mono(
-              color: color,
+              color: TrainColors.amber,
               weight: FontWeight.w600,
               tracking: 0.12,
               size: 9.5,

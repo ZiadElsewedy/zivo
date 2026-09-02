@@ -94,6 +94,60 @@ class FirestoreStore {
   }
 
   /**
+   * The user's live/completed workout SESSIONS — the rich, per-set record in
+   * `users/{uid}/workoutSessions` (not the lossy flat `workouts` log). This is
+   * what the workout analytics engine (`./workout_analytics.js`) reasons over,
+   * so the AI sees the real sets the user performed rather than a single
+   * collapsed reps/weight per exercise. Ranged by `startedAt`; pass no range
+   * to read the whole history (the analytics windows filter internally).
+   *
+   * Field names mirror `FirestoreWorkoutSessionRepository` exactly.
+   * @param {string} uid
+   * @param {{fromMs: number, toMs: number}=} range
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listWorkoutSessions(uid, range) {
+    let query = this._user(uid).collection("workoutSessions");
+    if (range) {
+      query = query
+          .where("startedAt", ">=", Timestamp.fromMillis(range.fromMs))
+          .where("startedAt", "<", Timestamp.fromMillis(range.toMs));
+    }
+    const snap = await query.get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        planId: d.planId || "",
+        dayId: d.dayId || "",
+        dayLabel: d.dayLabel || "",
+        status: d.status || "active",
+        startedAt: toDate(d.startedAt),
+        completedAt: toDate(d.completedAt),
+        pausedAccumMs: typeof d.pausedAccumMs === "number" ? d.pausedAccumMs : 0,
+        exercises: (d.exercises || []).map((e) => ({
+          id: e.id || "",
+          exerciseId: e.exerciseId || "",
+          name: e.name || "",
+          muscleGroup: e.muscleGroup || null,
+          restSeconds: e.restSeconds || 0,
+          sets: (e.sets || []).map((s) => ({
+            id: s.id || "",
+            actualReps: typeof s.actualReps === "number" ? s.actualReps : null,
+            actualWeightKg:
+              typeof s.actualWeightKg === "number" ? s.actualWeightKg : null,
+            rpe: typeof s.rpe === "number" ? s.rpe : null,
+            type: s.type || "working",
+            // Migrate a pre-outcome doc's legacy `done` bool, matching the
+            // client repo's `_outcomeFromMap`.
+            outcome: s.outcome || (s.done === true ? "completed" : "pending"),
+          })),
+        })),
+      };
+    });
+  }
+
+  /**
    * The active `dietPlans` doc for `uid` (mirroring the client's "most
    * recently created plan with status active" resolution), or null.
    * @param {string} uid

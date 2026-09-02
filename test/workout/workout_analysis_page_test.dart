@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zivo/core/theme/train_tokens.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
@@ -11,34 +10,29 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
-import 'package:zivo/features/workout/domain/body_weight_entry.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
-import 'package:zivo/features/workout/domain/planned_exercise.dart';
 import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/session_exercise.dart';
 import 'package:zivo/features/workout/domain/session_status.dart';
 import 'package:zivo/features/workout/domain/set_outcome.dart';
-import 'package:zivo/features/workout/domain/set_type.dart';
-import 'package:zivo/features/workout/domain/workout_day.dart';
 import 'package:zivo/features/workout/domain/workout_plan.dart';
 import 'package:zivo/features/workout/domain/workout_plan_repository.dart';
 import 'package:zivo/features/workout/domain/workout_plan_source.dart';
 import 'package:zivo/features/workout/domain/workout_plan_status.dart';
-import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_analysis_page.dart';
-import 'package:zivo/features/workout/presentation/widgets/trend_chart.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
-/// A fixed active plan, no async round-trip needed — the analysis page only
-/// ever reads it.
+/// The engine-driven Progress page reads ONLY the session stream — the plan is
+/// wired purely to satisfy [AppScope].
 class _FixedWorkoutPlanRepository implements WorkoutPlanRepository {
   _FixedWorkoutPlanRepository(this._plan);
 
   WorkoutPlan? _plan;
-  final StreamController<WorkoutPlan?> _controller = StreamController<WorkoutPlan?>.broadcast();
+  final StreamController<WorkoutPlan?> _controller =
+      StreamController<WorkoutPlan?>.broadcast();
 
   @override
   WorkoutPlan? get activePlan => _plan;
@@ -78,254 +72,141 @@ class _FixedWorkoutPlanRepository implements WorkoutPlanRepository {
   Future<void> deleteSplit(String id) => deletePlan(id);
 }
 
-Widget _wrap({
-  required WorkoutPlan plan,
-  required InMemoryWorkoutSessionRepository sessions,
-  InMemoryBodyWeightRepository? bodyWeight,
-}) {
+Widget _wrap(InMemoryWorkoutSessionRepository sessions) {
   return AppScope(
     auth: FakeAuthRepository(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
     moments: InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
-    workoutPlans: _FixedWorkoutPlanRepository(plan),
+    workoutPlans: _FixedWorkoutPlanRepository(_plan()),
     workoutSessions: sessions,
-    bodyWeight: bodyWeight,
+    bodyWeight: InMemoryBodyWeightRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     child: const MaterialApp(home: WorkoutAnalysisPage()),
   );
 }
 
-/// Two days: A (Push, cursor's next) with one exercise, B (Pull) with one
-/// exercise — small enough to fit the test viewport, enough to exercise the
-/// day picker.
 WorkoutPlan _plan() => WorkoutPlan(
-  id: 'p1',
-  name: 'Test Split',
-  status: WorkoutPlanStatus.active,
-  source: WorkoutPlanSource.manual,
-  createdAt: DateTime(2026, 1, 1),
-  updatedAt: DateTime(2026, 1, 1),
-  cycleCursor: 0,
-  days: const [
-    WorkoutDay(
-      id: 'day-a',
-      slot: 'A',
-      label: 'Push',
-      order: 0,
-      exercises: [
-        PlannedExercise(
-          id: 'e1',
-          name: 'Bench Press',
-          order: 0,
-          defaultRestSeconds: 90,
-          sets: [PlannedSet(order: 0, repTarget: RepTarget.range(8, 10), restSeconds: 90, type: SetType.working)],
-        ),
-      ],
-    ),
-    WorkoutDay(
-      id: 'day-b',
-      slot: 'B',
-      label: 'Pull',
-      order: 1,
-      exercises: [
-        PlannedExercise(
-          id: 'e2',
-          name: 'Lat Pulldown',
-          order: 0,
-          defaultRestSeconds: 90,
-          sets: [PlannedSet(order: 0, repTarget: RepTarget.range(8, 10), restSeconds: 90, type: SetType.working)],
-        ),
-      ],
-    ),
-  ],
-);
+      id: 'p1',
+      name: 'Test Split',
+      status: WorkoutPlanStatus.active,
+      source: WorkoutPlanSource.manual,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      cycleCursor: 0,
+      days: const [],
+    );
 
-/// The analysis page is a tall multi-section ListView (day chips, hero, basis
-/// note, consistency row, weight snapshot, exercise list) — same trick
-/// `workout_dashboard_page_test.dart` uses: a tall viewport so every section
-/// actually gets built and is findable instead of staying off-screen.
+/// A tall viewport so every section of the ListView actually builds and is
+/// findable (same trick as the dashboard page test).
 void _useTallViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1200, 3200);
+  tester.view.physicalSize = const Size(1200, 3600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-LiveSession _completedDayASession({required String id, required DateTime completedAt, required double weight}) =>
-    LiveSession(
-      id: id,
-      planId: 'p1',
-      dayId: 'day-a',
-      dayLabel: 'Push',
-      startedAt: completedAt.subtract(const Duration(minutes: 40)),
-      completedAt: completedAt,
-      status: SessionStatus.completed,
-      exercises: [
-        SessionExercise(
-          id: 'e1',
-          exerciseId: 'e1',
-          name: 'Bench Press',
-          restSeconds: 90,
-          sets: [
-            LoggedSet(
-              id: 'e1-s0',
-              target: RepTarget.range(8, 10),
-              actualReps: 8,
-              actualWeightKg: weight,
-              outcome: SetOutcome.completed,
-            ),
-          ],
-        ),
-      ],
-    );
+/// A completed Bench Press session [daysAgo] before now, one working set.
+LiveSession _bench({
+  required String id,
+  required int daysAgo,
+  required double weight,
+  int reps = 8,
+}) {
+  final at = DateTime.now().subtract(Duration(days: daysAgo));
+  return LiveSession(
+    id: id,
+    planId: 'p1',
+    dayId: 'day-a',
+    dayLabel: 'Push',
+    startedAt: at.subtract(const Duration(minutes: 40)),
+    completedAt: at,
+    status: SessionStatus.completed,
+    exercises: [
+      SessionExercise(
+        id: 'bench',
+        exerciseId: 'bench',
+        name: 'Bench Press',
+        muscleGroup: 'Chest',
+        restSeconds: 90,
+        sets: [
+          LoggedSet(
+            id: '$id-s0',
+            target: const RepTarget.range(6, 8),
+            actualReps: reps,
+            actualWeightKg: weight,
+            outcome: SetOutcome.completed,
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
 void main() {
-  testWidgets('no completed sessions → the day-empty state', (tester) async {
+  testWidgets('no completed sessions → the empty hint, no fake verdict',
+      (tester) async {
     _useTallViewport(tester);
-    await tester.pumpWidget(
-      _wrap(plan: _plan(), sessions: InMemoryWorkoutSessionRepository()),
-    );
+    await tester.pumpWidget(_wrap(InMemoryWorkoutSessionRepository()));
     await tester.pump();
 
-    expect(find.text("You haven't logged Push yet."), findsOneWidget);
+    expect(find.text("Let's get started"), findsOneWidget);
+    expect(
+      find.text('Complete a few sessions to start tracking progress.'),
+      findsOneWidget,
+    );
+    expect(find.text('RECENT PRS'), findsNothing);
   });
 
-  testWidgets('exactly one completed session → first-time nudge, no verdict yet', (tester) async {
+  testWidgets('two sessions → Building, never a direction from thin data',
+      (tester) async {
     _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [_completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40)],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    final sessions = InMemoryWorkoutSessionRepository(seed: [
+      _bench(id: 's1', daysAgo: 10, weight: 100),
+      _bench(id: 's2', daysAgo: 3, weight: 105),
+    ]);
+    await tester.pumpWidget(_wrap(sessions));
     await tester.pump();
 
-    expect(find.textContaining('Log Push once more'), findsOneWidget);
-    expect(find.text('First time'), findsOneWidget);
-    expect(find.text('Progressing'), findsNothing);
+    expect(find.text('EXERCISE PROGRESS'), findsOneWidget);
+    expect(find.textContaining('Building'), findsOneWidget);
+    expect(find.textContaining('Progressing'), findsNothing);
   });
 
-  testWidgets('two completed sessions with weight increase → Progressing verdict shown', (tester) async {
+  testWidgets('four progressing sessions → PRs surface and the lift reads '
+      'Progressing', (tester) async {
     _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [
-        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
-        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 45),
-      ],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    final sessions = InMemoryWorkoutSessionRepository(seed: [
+      _bench(id: 's1', daysAgo: 28, weight: 100),
+      _bench(id: 's2', daysAgo: 21, weight: 102),
+      _bench(id: 's3', daysAgo: 7, weight: 108),
+      _bench(id: 's4', daysAgo: 1, weight: 110),
+    ]);
+    await tester.pumpWidget(_wrap(sessions));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 700)); // let the trend chart's reveal animation settle
+    await tester.pump(const Duration(milliseconds: 700));
 
-    // Day-level header + the exercise card both read "Progressing".
-    expect(find.text('Progressing'), findsNWidgets(2));
-    expect(find.textContaining('improved'), findsOneWidget);
+    expect(find.text('RECENT PRS'), findsOneWidget);
+    expect(find.textContaining('Bench Press'), findsWidgets);
+    expect(find.textContaining('Progressing'), findsWidgets);
+    expect(find.text('NEXT STEP'), findsOneWidget);
   });
 
-  testWidgets('switching the day picker re-scopes the analysis', (tester) async {
+  testWidgets('a sustained decline reads as Trending down', (tester) async {
     _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [
-        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
-        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 45),
-      ],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
+    final sessions = InMemoryWorkoutSessionRepository(seed: [
+      _bench(id: 's1', daysAgo: 28, weight: 110),
+      _bench(id: 's2', daysAgo: 21, weight: 108),
+      _bench(id: 's3', daysAgo: 7, weight: 100),
+      _bench(id: 's4', daysAgo: 1, weight: 98),
+    ]);
+    await tester.pumpWidget(_wrap(sessions));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
 
-    // Starts on Day A (the cursor's next day) with real progression data.
-    expect(find.textContaining('improved'), findsOneWidget);
-
-    await tester.tap(find.text('B · Pull'));
-    await tester.pump();
-
-    // Day B has no logged sessions at all.
-    expect(find.text("You haven't logged Pull yet."), findsOneWidget);
-  });
-
-  testWidgets('a Down verdict tints the trend chart with the verdict-style red, not the default green', (
-    tester,
-  ) async {
-    _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [
-        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 45),
-        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 40),
-      ],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
-    await tester.pump();
-
-    // The day header reads "Slipping" (day-level wording); the exercise
-    // badge reads "Down" (the shared verdictStyle word).
-    expect(find.text('Down'), findsOneWidget);
-    expect(find.text('Slipping'), findsOneWidget);
-    final chart = tester.widget<TrendChart>(find.byType(TrendChart));
-    expect(chart.color, TrainColors.ember);
-  });
-
-  testWidgets('the consistency row reflects real training-dashboard stats, not placeholders', (tester) async {
-    _useTallViewport(tester);
-    final today = DateTime.now();
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [_completedDayASession(id: 's1', completedAt: today.subtract(const Duration(hours: 1)), weight: 40)],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
-    await tester.pump();
-
-    // Sessions this week AND the day streak both read 1 — trained today.
-    expect(find.text('1'), findsNWidgets(2));
-    expect(find.text('This week'), findsOneWidget);
-    expect(find.text('Day streak'), findsOneWidget);
-    expect(find.text('Avg length'), findsOneWidget);
-  });
-
-  testWidgets('the bodyweight snapshot shows the latest entry and is omitted with nothing logged', (tester) async {
-    _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository();
-
-    // No bodyWeight repository at all — the snapshot row doesn't render.
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
-    await tester.pump();
-    expect(find.textContaining('kg'), findsNothing);
-
-    // A repository with one entry — the snapshot shows the latest weight.
-    final bodyWeight = InMemoryBodyWeightRepository(
-      seed: [BodyWeightEntry(id: 'w1', weightKg: 82.5, loggedAt: DateTime.now())],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions, bodyWeight: bodyWeight));
-    await tester.pump();
-    expect(find.text('82.5 kg'), findsOneWidget);
-  });
-
-  testWidgets('the hero headline states the day verdict in plain language, backed by the counts', (tester) async {
-    _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [
-        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
-        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 45),
-      ],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
-    await tester.pump();
-
-    expect(find.text('PUSH'), findsOneWidget); // uppercase day label above the headline
-    expect(find.textContaining('1 improved · 0 matched · 0 regressed'), findsOneWidget);
-  });
-
-  testWidgets('a Progressing verdict keeps the trend chart green', (tester) async {
-    _useTallViewport(tester);
-    final sessions = InMemoryWorkoutSessionRepository(
-      seed: [
-        _completedDayASession(id: 's1', completedAt: DateTime(2026, 2, 1), weight: 40),
-        _completedDayASession(id: 's2', completedAt: DateTime(2026, 2, 8), weight: 45),
-      ],
-    );
-    await tester.pumpWidget(_wrap(plan: _plan(), sessions: sessions));
-    await tester.pump();
-
-    final chart = tester.widget<TrendChart>(find.byType(TrendChart));
-    expect(chart.color, TrainColors.green);
+    expect(find.textContaining('Trending down'), findsWidgets);
+    expect(find.text('NEEDS ATTENTION'), findsOneWidget);
   });
 }

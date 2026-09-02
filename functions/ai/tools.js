@@ -52,6 +52,7 @@ const {
 const {buildDietState, summariseHistory} = require("../diet/state");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
 const {coachingFindings} = require("../diet/rules");
+const {analyzeTraining} = require("./workout_analytics");
 const {
   resolveComposite,
   resolveAndCompute,
@@ -374,11 +375,28 @@ const EXPENSES_TOOL = {
   },
 };
 
+/**
+ * A session's actual duration in minutes (active time, pauses excluded).
+ * @param {!Object} s
+ * @return {?number}
+ */
+function sessionDurationMinutes(s) {
+  if (!s.completedAt || !s.startedAt) return null;
+  const ms = s.completedAt.getTime() - s.startedAt.getTime() -
+    (s.pausedAccumMs || 0);
+  return ms > 0 ? Math.round(ms / 60000) : 0;
+}
+
 const WORKOUTS_TOOL = {
   name: "get_workouts",
   description:
-    "List workout sessions with exercise summaries. range: 'week' " +
-    "(default) or 'month'.",
+    "List the user's workout SESSIONS with their REAL per-set actuals — every " +
+    "set's weight, reps, type (working/warmup/dropset/failure) and outcome. " +
+    "range: 'week' (default) or 'month'. Reason only from these real sets: a " +
+    "'top set' is the heaviest WORKING set, and warm-ups are marked so you " +
+    "don't treat them as working volume. Never collapse an exercise to one " +
+    "rep/weight, and never invent a set that isn't listed. For strength " +
+    "trends, PRs and whether a lift is progressing, prefer get_training_analysis.",
   inputSchema: {
     type: "object",
     properties: {range: {type: "string", enum: ["week", "month"]}},
@@ -394,20 +412,77 @@ const WORKOUTS_TOOL = {
   async execute(store, uid, input, now, offsetMinutes) {
     const range = input.range === "month" ?
       monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
-    const workouts = await store.listWorkouts(uid, range);
+    const sessions = await store.listWorkoutSessions(uid, range);
+    sessions.sort((a, b) =>
+      (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
     return {
       range: input.range === "month" ? "month" : "week",
       today: dayKeyFor(now, offsetMinutes),
-      workouts: workouts.map((w) => ({
-        title: w.title,
-        performedAt: iso(w.performedAt),
-        durationMinutes: w.durationMinutes,
-        exercises: (w.exercises || []).map((e) => ({
+      note:
+        "Each set below is what the user actually performed. A warm-up set " +
+        "(type='warmup') is not working volume; the top set is the heaviest " +
+        "set with type!='warmup'.",
+      workouts: sessions.map((s) => ({
+        day: s.dayLabel,
+        status: s.status,
+        performedAt: iso(s.completedAt || s.startedAt),
+        durationMinutes: sessionDurationMinutes(s),
+        exercises: (s.exercises || []).map((e) => ({
           name: e.name,
-          sets: e.sets,
-          reps: e.reps,
-          weightKg: e.weightKg,
+          muscleGroup: e.muscleGroup,
+          // Real per-set actuals — done sets only (a skipped/pending set was
+          // not performed), numbered in order so "set 3" means set 3.
+          sets: (e.sets || [])
+              .filter((set) => set.outcome === "completed")
+              .map((set, i) => ({
+                set: i + 1,
+                weightKg: set.actualWeightKg,
+                reps: set.actualReps,
+                type: set.type,
+              })),
         })),
+      })),
+    };
+  },
+};
+
+const TRAINING_ANALYSIS_TOOL = {
+  name: "get_training_analysis",
+  description:
+    "ZIVO's deterministic workout analysis over the user's whole session " +
+    "history — the SAME numbers the Progress screen shows, so you never have " +
+    "to compute strength, PRs or trends yourself (and must not contradict " +
+    "them). Returns: overallStatus + a plain summary; overallStrengthChangePercent " +
+    "(estimated 1RM change over ~6 weeks); per-exercise status " +
+    "(progressing/maintaining/plateauing/regressing/building) with " +
+    "strengthChangePercent and currentE1RM; a simple per-muscle weekly rollup; " +
+    "weekly working volume vs last week; recentPrs (last 30 days); improving / " +
+    "needsAttention lists; a nextStep; and `findings` — typed, ranked coaching " +
+    "conclusions each marked confidence 'fact' (measured) or 'interpretation'. " +
+    "**Lead with findings**, keep facts and interpretations distinct, and if " +
+    "there is no data say so. Estimated strength is e1RM — call it 'estimated " +
+    "strength', never expose the formula.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now) {
+    const sessions = await store.listWorkoutSessions(uid);
+    const analysis = analyzeTraining({sessions, now});
+    return {
+      ...analysis,
+      // ISO the PR dates for the model.
+      recentPrs: analysis.recentPrs.map((p) => ({
+        ...p,
+        achievedAt: iso(p.achievedAt),
+      })),
+      exercises: analysis.exercises.map((e) => ({
+        ...e,
+        lastPerformedAt: iso(e.lastPerformedAt),
       })),
     };
   },
@@ -724,6 +799,7 @@ const tools = [
   TODAY_TOOL,
   EXPENSES_TOOL,
   WORKOUTS_TOOL,
+  TRAINING_ANALYSIS_TOOL,
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,

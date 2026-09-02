@@ -1,0 +1,34 @@
+{
+  "_comment": "Shared golden vectors pinning the workout analytics primitives across the Dart engine (lib/features/workout/domain/analytics/workout_analytics.dart) and its Node mirror (functions/ai/workout_analytics.js). BOTH test suites assert against this file; change one engine and the other fails until they agree. Keep e1RM values to 4-decimal tolerance.",
+  "e1rm": [
+    {"weightKg": 100, "reps": 1, "expected": 100.0},
+    {"weightKg": 100, "reps": 5, "expected": 116.6667},
+    {"weightKg": 100, "reps": 8, "expected": 126.6667},
+    {"weightKg": 100, "reps": 10, "expected": 133.3333},
+    {"weightKg": 60, "reps": 12, "expected": 84.0},
+    {"weightKg": 100, "reps": 13, "expected": null},
+    {"weightKg": 0, "reps": 5, "expected": null},
+    {"weightKg": 100, "reps": 0, "expected": null},
+    {"weightKg": null, "reps": 5, "expected": null},
+    {"weightKg": 100, "reps": null, "expected": null}
+  ],
+  "muscle": [
+    {"raw": "Chest", "expected": "Chest"},
+    {"raw": "Pecs", "expected": "Chest"},
+    {"raw": "upper chest", "expected": "Chest"},
+    {"raw": "Lats", "expected": "Back"},
+    {"raw": "Barbell Row", "expected": "Back"},
+    {"raw": "Quads", "expected": "Legs"},
+    {"raw": "Hamstrings", "expected": "Legs"},
+    {"raw": "Calves", "expected": "Legs"},
+    {"raw": "rear delts", "expected": "Shoulders"},
+    {"raw": "Shoulders", "expected": "Shoulders"},
+    {"raw": "Biceps", "expected": "Arms"},
+    {"raw": "Triceps", "expected": "Arms"},
+    {"raw": "abs", "expected": "Core"},
+    {"raw": "core", "expected": "Core"},
+    {"raw": "gibberish", "expected": null},
+    {"raw": "", "expected": null},
+    {"raw": null, "expected": null}
+  ]
+}

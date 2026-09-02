@@ -29,6 +29,7 @@ class AppIcons {
   static const analysis = LucideIcons.chartNoAxesCombined;
   static const trendUp = LucideIcons.trendingUp;
   static const trendDown = LucideIcons.trendingDown;
+  static const trophy = LucideIcons.trophy;
   static const history = LucideIcons.history;
   static const splits = LucideIcons.layers2;
   static const streak = LucideIcons.flame;

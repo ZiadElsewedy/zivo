@@ -729,6 +729,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveFinish => 'إنهاء';
 
   @override
+  String get livePrsTitle => 'أرقام شخصية جديدة';
+
+  @override
   String get liveMatchingPrevious => 'مطابق لمجموعتك السابقة';
 
   @override
