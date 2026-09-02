@@ -5,6 +5,7 @@ import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/deferred_write.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_surfaces.dart';
@@ -131,10 +132,20 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
   /// exists). Deleting only the Firestore doc would orphan the bytes on
   /// every device and in the cloud, and leave a ghost tile for any moment
   /// whose caption was empty.
+  /// Local-first: the grid drops the tile now (the Firestore delete reaches
+  /// its own listeners off the cache), and the durable removal — the row, the
+  /// local file, the registry entry, any Drive copy — finishes behind it.
   Future<void> _deleteMomentCompletely(Moment moment) async {
     final scope = AppScope.of(context);
-    await scope.moments.remove(moment.id);
-    await scope.requireMedia.deleteMedia(id: moment.id, ref: moment.imagePath);
+    final media = scope.requireMedia;
+    final moments = scope.moments;
+    deferWrite(
+      () async {
+        await moments.remove(moment.id);
+        await media.deleteMedia(id: moment.id, ref: moment.imagePath);
+      }(),
+      failureMessage: "Couldn't delete that moment.",
+    );
     await _loadMedia();
   }
 

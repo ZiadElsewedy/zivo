@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/deferred_write.dart';
 import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_field.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
@@ -24,7 +26,8 @@ class WorkoutCapturePage extends StatefulWidget {
   State<WorkoutCapturePage> createState() => _WorkoutCapturePageState();
 }
 
-class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
+class _WorkoutCapturePageState extends State<WorkoutCapturePage>
+    with AsyncAction<WorkoutCapturePage> {
   final TextEditingController _title = TextEditingController();
   final List<Exercise> _exercises = [];
   bool _canSave = false;
@@ -69,31 +72,40 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
     _recompute();
   }
 
-  Future<void> _save() async {
+  void _save() {
     if (!_canSave) return;
-    final initial = widget.initial;
-    final workout = Workout(
-      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _title.text.trim(),
-      performedAt: initial?.performedAt ?? DateTime.now(),
-      durationMinutes: initial?.durationMinutes,
-      exercises: List.unmodifiable(_exercises),
-    );
-    final workouts = AppScope.of(context).workouts;
-    if (initial == null) {
-      await workouts.add(workout);
-    } else {
-      await workouts.update(workout);
-    }
-    if (mounted) Navigator.of(context).pop(workout);
+    runAction(#save, once: true, () async {
+      final initial = widget.initial;
+      final workout = Workout(
+        id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: _title.text.trim(),
+        performedAt: initial?.performedAt ?? DateTime.now(),
+        durationMinutes: initial?.durationMinutes,
+        exercises: List.unmodifiable(_exercises),
+      );
+      final workouts = AppScope.of(context).workouts;
+      // Local-first: the history behind this screen already has the workout
+      // (Firestore notifies its listeners off the cached write), so there is
+      // nothing to wait for before popping.
+      deferWrite(
+        initial == null ? workouts.add(workout) : workouts.update(workout),
+        failureMessage: "Couldn't save that workout.",
+      );
+      Navigator.of(context).pop(workout);
+    });
   }
 
-  Future<void> _delete() async {
+  void _delete() {
     final initial = widget.initial;
     if (initial == null) return;
-    final workouts = AppScope.of(context).workouts;
-    await workouts.remove(initial.id);
-    if (mounted) Navigator.of(context).pop();
+    runAction(#delete, once: true, () async {
+      final workouts = AppScope.of(context).workouts;
+      deferWrite(
+        workouts.remove(initial.id),
+        failureMessage: "Couldn't delete that workout.",
+      );
+      Navigator.of(context).pop();
+    });
   }
 
   @override
@@ -177,7 +189,8 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage> {
                   label: 'Save workout',
                   icon: Icons.check_rounded,
                   color: TrainColors.ember,
-                  enabled: _canSave,
+                  enabled: _canSave && !actionInFlight,
+                  busy: isRunning(#save),
                   onTap: _save,
                 ),
               ),

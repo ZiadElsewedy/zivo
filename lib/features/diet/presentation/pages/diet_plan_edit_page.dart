@@ -14,6 +14,7 @@ import '../../domain/meal.dart';
 import '../../domain/nutrition/plausibility.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/parse.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_field.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
@@ -59,7 +60,8 @@ class DietPlanEditPage extends StatefulWidget {
   State<DietPlanEditPage> createState() => _DietPlanEditPageState();
 }
 
-class _DietPlanEditPageState extends State<DietPlanEditPage> {
+class _DietPlanEditPageState extends State<DietPlanEditPage>
+    with AsyncAction<DietPlanEditPage> {
   late final TextEditingController _name;
   late final String _planId;
   late final DateTime _createdAt;
@@ -160,8 +162,15 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     setState(() => _days[dayIndex].meals[mealIndex].items.removeAt(itemIndex));
   }
 
-  Future<void> _save() async {
+  /// Guarded, and awaited: a diet plan is a whole document of days and meals,
+  /// so this one shows its wait rather than deferring it — but only once,
+  /// however many times the pill is tapped.
+  void _save() {
     if (!_canSave) return;
+    runAction(#save, _commitSave);
+  }
+
+  Future<void> _commitSave() async {
     final now = DateTime.now();
     final plan = DietPlan(
       id: _planId,
@@ -193,18 +202,20 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
     if (mounted) Navigator.of(context).pop(plan);
   }
 
-  Future<void> _delete() async {
+  void _delete() {
     final plan = widget.initialPlan;
     if (plan == null) return;
-    final diet = AppScope.of(context).diet;
-    final confirmed = await confirmDestructive(
-      context,
-      title: l(context).planDeleteTitle,
-      body: l(context).dietPlanDeleteBody(plan.name),
-    );
-    if (!confirmed) return;
-    await diet.deletePlan(plan.id);
-    if (mounted) Navigator.of(context).pop();
+    runAction(#delete, () async {
+      final diet = AppScope.of(context).diet;
+      final confirmed = await confirmDestructive(
+        context,
+        title: l(context).planDeleteTitle,
+        body: l(context).dietPlanDeleteBody(plan.name),
+      );
+      if (!confirmed) return;
+      await diet.deletePlan(plan.id);
+      if (mounted) Navigator.of(context).pop();
+    });
   }
 
   @override
@@ -282,7 +293,8 @@ class _DietPlanEditPageState extends State<DietPlanEditPage> {
                 label: l(context).planSave,
                 icon: Icons.check_rounded,
                 color: TrainColors.green,
-                enabled: _canSave,
+                enabled: _canSave && !actionInFlight,
+                busy: isRunning(#save),
                 onTap: _save,
               ),
             ),

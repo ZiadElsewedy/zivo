@@ -21,6 +21,7 @@ import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
+import '../core/widgets/deferred_write_reporter.dart';
 import '../l10n/app_localizations.dart';
 import '../features/ai/data/audio_recorder.dart';
 import '../features/ai/data/fake_ai_repository.dart';
@@ -143,7 +144,7 @@ class ZivoApp extends StatefulWidget {
   State<ZivoApp> createState() => _ZivoAppState();
 }
 
-class _ZivoAppState extends State<ZivoApp> {
+class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final AuthRepository _auth =
       widget.auth ?? FirebaseAuthRepository(activityRepository: _activity);
   late final ProfileRepository _profiles =
@@ -223,6 +224,7 @@ class _ZivoAppState extends State<ZivoApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.locale == null) _locale.load();
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
@@ -233,8 +235,26 @@ class _ZivoAppState extends State<ZivoApp> {
     });
   }
 
+  /// Reattach to the music player every time the app comes forward.
+  ///
+  /// Spotify's App Remote connection routinely dies while ZIVO is in the
+  /// background — the OS suspends us, the Spotify app is swapped out, the
+  /// phone sleeps — so "connected at launch" is not a state that survives
+  /// normal use. Without this the user came back to a dead strip and had to
+  /// find a Connect button, which is precisely the friction this removes.
+  /// The call is a no-op on a device that has never linked, so it can never
+  /// raise an authorization prompt nobody asked for (see
+  /// [MusicController.reconnectIfLinked]).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_music.reconnectIfLinked());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     // Only when we own it (the default) — a caller-supplied controller
     // (a test passing its own fake) stays theirs to dispose.
@@ -358,7 +378,12 @@ class _ZivoAppState extends State<ZivoApp> {
           supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
             value: SystemUiOverlayStyle.light,
-            child: child ?? const SizedBox.shrink(),
+            // Local-first saves pop before their durable write lands, so the
+            // one place that can report a write that *didn't* land is above
+            // every screen — here. See core/util/deferred_write.dart.
+            child: DeferredWriteReporter(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
           home: const AuthGate(),
         ),

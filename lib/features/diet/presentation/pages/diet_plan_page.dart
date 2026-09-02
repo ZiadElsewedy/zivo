@@ -7,6 +7,7 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/deferred_write.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
@@ -296,9 +297,15 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
   /// entries, and persisting them is this page's job.
   Future<void> _logFood() async {
     final diet = AppScope.of(context).diet;
+    // Read before the sheet: `l(context)` after an await is a context across
+    // an async gap, and the copy is the same either way.
+    final failure = l(context).dietLogFailed;
     final entries = await showLogFoodSheet(context, day: widget.now);
     if (entries == null || entries.isEmpty) return;
-    await diet.logFood(entries);
+    // Local-first: the ledger above already shows the entries (the Firestore
+    // write reaches its own listeners off the cache), so there is nothing for
+    // the sheet's dismissal to wait on.
+    deferWrite(diet.logFood(entries), failureMessage: failure);
   }
 
   @override

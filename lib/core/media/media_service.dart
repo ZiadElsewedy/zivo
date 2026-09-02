@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'domain/media_backup_provider.dart';
@@ -84,9 +85,22 @@ class MediaService {
     return true;
   }
 
-  /// Imports a just-captured/picked file into durable local storage, registers
-  /// it, and — if "Save to Photos" is on — copies it to the system gallery.
-  /// Never touches the cloud provider. Returns the store-relative reference.
+  /// Imports a just-captured/picked file into durable local storage and
+  /// returns the store-relative reference to embed in the owning entity.
+  ///
+  /// **Local-first**: this awaits the on-device copy and nothing else. The
+  /// registry write, the optional "Save to Photos" copy and the cloud push
+  /// all happen on a background tail ([_captureTail]) once the bytes are
+  /// safe. That ordering is the point — the copy is a few milliseconds of
+  /// disk, while the tail is two Firestore round trips and possibly a Drive
+  /// upload, and a capture screen that awaited the lot read as the app
+  /// freezing on Save. Nothing is lost by not waiting: the bytes are on disk,
+  /// the ref is final, and the tail is best-effort by construction (a failed
+  /// registry write leaves the photo intact and the next "Back up now"
+  /// catches it).
+  ///
+  /// Tests that assert on the registry/gallery/backup must await
+  /// [settleCaptures].
   ///
   /// Re-importing over an existing id (an EDITED photo — same entity, new
   /// bytes) deliberately carries the previous record's [MediaObject.remoteId]
@@ -102,6 +116,72 @@ class MediaService {
     CaptureSource source = CaptureSource.unknown,
     DateTime? capturedAt,
   }) async {
+    // The ONLY thing on the caller's path: the durable local copy. Once this
+    // returns, the photo is safe on disk and the ref is real — which is all
+    // the capture screen needs to write its entity and pop.
+    final stored = await store.importFile(sourcePath: sourcePath, kind: kind, id: id);
+    _scheduleCaptureTail(
+      id: id,
+      ownerUid: ownerUid,
+      kind: kind,
+      stored: stored,
+      source: source,
+      capturedAt: capturedAt,
+    );
+    return stored.relativePath;
+  }
+
+  /// Per-id serialization of [_captureTail]. A capture → edit → save in
+  /// quick succession issues two tails for the same id, and they must not
+  /// interleave: two `registry.put`s racing on one record, or the second
+  /// tail's "previous" read landing before the first tail's write, would
+  /// leave the record describing bytes that aren't there. Chaining also gives
+  /// [deleteMedia] something to wait on, so a delete can't be undone by a
+  /// tail still in flight behind it.
+  final Map<String, Future<void>> _captureTails = {};
+
+  void _scheduleCaptureTail({
+    required String id,
+    required String ownerUid,
+    required MediaKind kind,
+    required StoredMedia stored,
+    required CaptureSource source,
+    required DateTime? capturedAt,
+  }) {
+    final queued = (_captureTails[id] ?? Future<void>.value()).then(
+      (_) => _captureTail(
+        id: id,
+        ownerUid: ownerUid,
+        kind: kind,
+        stored: stored,
+        source: source,
+        capturedAt: capturedAt,
+      ),
+      // Never let one tail's failure poison the next capture of this id.
+      onError: (Object _) {},
+    );
+    _captureTails[id] = queued;
+    unawaited(
+      queued.whenComplete(() {
+        if (identical(_captureTails[id], queued)) _captureTails.remove(id);
+      }),
+    );
+  }
+
+  /// Everything after the bytes are safe: reconcile with any previous record
+  /// for this id, clean an orphaned old path, copy to Photos if asked,
+  /// register the metadata, and push to the cloud. All of it is bookkeeping
+  /// the user is not waiting on — and two thirds of it is Firestore round
+  /// trips, which is exactly what used to make Save on a photo feel like the
+  /// app had frozen.
+  Future<void> _captureTail({
+    required String id,
+    required String ownerUid,
+    required MediaKind kind,
+    required StoredMedia stored,
+    required CaptureSource source,
+    required DateTime? capturedAt,
+  }) async {
     // Carry forward what a previous capture of THIS id already established
     // (its remote file identity, its gallery outcome) so editing a photo
     // never orphans or duplicates its backed-up copy. Best-effort: a registry
@@ -112,8 +192,6 @@ class MediaService {
     } catch (_) {
       previous = null;
     }
-
-    final stored = await store.importFile(sourcePath: sourcePath, kind: kind, id: id);
 
     // A re-import that landed on a DIFFERENT path (the picked file's
     // extension differs from the stored one, e.g. .jpg → .png) would orphan
@@ -128,8 +206,7 @@ class MediaService {
       }
     }
 
-    // Local copy done — everything below is best-effort and must never lose the
-    // photo or block the owning feature from saving.
+    // Everything below is best-effort and must never lose the photo.
     MediaStoragePreferences prefs;
     try {
       prefs = await preferences.read();
@@ -174,7 +251,18 @@ class MediaService {
     // blocking the save or surfacing errors here (manual backup remains the
     // fallback that catches anything this misses).
     if (prefs.autoUploadToDrive) _scheduleAutoUpload(object);
-    return stored.relativePath;
+  }
+
+  /// Completes once every capture's background tail has settled.
+  ///
+  /// For **tests** (and nothing else): [capture] now returns at the local
+  /// copy, so a test that asserts on the registry, the gallery target, or the
+  /// backup provider has to wait for the tail that writes them.
+  @visibleForTesting
+  Future<void> settleCaptures() async {
+    while (_captureTails.isNotEmpty) {
+      await Future.wait(_captureTails.values.toList());
+    }
   }
 
   /// Resolves a stored reference to an absolute [File] for display, or null.
@@ -442,6 +530,14 @@ class MediaService {
   /// delete always happens; cloud deletion is best-effort (a failure leaves
   /// the remote copy for a later cleanup rather than blocking anything).
   Future<void> deleteMedia({required String id, required String? ref, String? remoteId}) async {
+    // A capture's background tail may still be on its way to registering
+    // this id. Let it land first, or its `registry.put` would resurrect the
+    // record we are about to remove.
+    try {
+      await _captureTails[id];
+    } catch (_) {
+      // A failed tail is not a reason to refuse the delete.
+    }
     var idToDelete = remoteId;
     if (idToDelete == null && backup?.hasLiveSession == true) {
       try {

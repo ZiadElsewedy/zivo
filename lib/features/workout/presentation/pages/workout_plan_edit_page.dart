@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
@@ -40,7 +41,8 @@ class WorkoutPlanEditPage extends StatefulWidget {
   State<WorkoutPlanEditPage> createState() => _WorkoutPlanEditPageState();
 }
 
-class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
+class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
+    with AsyncAction<WorkoutPlanEditPage> {
   /// The document being edited — days, the name, the rotation-cursor rule,
   /// and save/delete. See [PlanEditController]; this State owns the sheets it
   /// opens, the remove animations, and `build`.
@@ -155,30 +157,38 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
 
   // ---- Exits ---------------------------------------------------------------
 
-  Future<void> _save() async {
+  /// A plan write is a whole document of days and exercises, so unlike the
+  /// small captures this one still waits for the repository — but behind the
+  /// guard, with the button disabled and spinning, so the wait is visible and
+  /// a second tap can't write the plan twice.
+  void _save() {
     if (!_c.canSave) return;
-    HapticFeedback.lightImpact();
-    final navigator = Navigator.of(context);
-    final plan = await _c.save(AppScope.of(context).workoutPlans);
-    if (plan != null && mounted) navigator.pop(plan);
+    runAction(#save, () async {
+      HapticFeedback.lightImpact();
+      final navigator = Navigator.of(context);
+      final plan = await _c.save(AppScope.of(context).workoutPlans);
+      if (plan != null && mounted) navigator.pop(plan);
+    });
   }
 
-  Future<void> _delete() async {
+  void _delete() {
     final plan = widget.initialPlan;
     if (plan == null) return;
-    final confirmed = await confirmDestructive(
-      context,
-      title: widget.asSplit
-          ? l(context).splitDeleteTitlePlain
-          : l(context).workoutPlanDeleteTitle,
-      body: widget.asSplit
-          ? l(context).splitDeleteBody
-          : l(context).workoutPlanDeleteBody(plan.name),
-    );
-    if (!confirmed || !mounted) return;
-    final navigator = Navigator.of(context);
-    await _c.delete(AppScope.of(context).workoutPlans);
-    if (mounted) navigator.pop();
+    runAction(#delete, () async {
+      final confirmed = await confirmDestructive(
+        context,
+        title: widget.asSplit
+            ? l(context).splitDeleteTitlePlain
+            : l(context).workoutPlanDeleteTitle,
+        body: widget.asSplit
+            ? l(context).splitDeleteBody
+            : l(context).workoutPlanDeleteBody(plan.name),
+      );
+      if (!confirmed || !mounted) return;
+      final navigator = Navigator.of(context);
+      await _c.delete(AppScope.of(context).workoutPlans);
+      if (mounted) navigator.pop();
+    });
   }
 
   @override
@@ -359,7 +369,8 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage> {
                   label: 'Save plan',
                   icon: Icons.check_rounded,
                   color: TrainColors.ember,
-                  enabled: _c.canSave,
+                  enabled: _c.canSave && !actionInFlight,
+                  busy: isRunning(#save),
                   onTap: _save,
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/theme/train_tokens.dart';
+import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/train_chrome.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/rest_policy.dart';
@@ -140,6 +141,15 @@ class UpNextCard extends StatelessWidget {
 /// browse/search picker. Spotify's App Remote doesn't expose one either
 /// without building real Web API search UI, which is a materially bigger
 /// feature than this pass.
+///
+/// **Disconnected is not the same as absent.** On a device that has linked to
+/// Spotify (see [MusicController.isLinked]) a dropped connection keeps a slim
+/// reconnect row here instead of collapsing: App Remote drops for ordinary
+/// reasons, and the moment it happened to matter most — mid-workout, phone on
+/// a bench — the bar simply vanished and the only way back was to abandon the
+/// session, find Settings, and open the player. A device that has never
+/// linked still gets nothing, since connecting Spotify is not a thing to
+/// prompt for in the middle of a set.
 class SessionNowPlaying extends StatelessWidget {
   const SessionNowPlaying({
     required this.controller,
@@ -162,8 +172,7 @@ class SessionNowPlaying extends StatelessWidget {
   /// along with the rest of the screen.
   final Color? accent;
 
-  /// Nothing to control → nothing on screen. Connecting music is a job for
-  /// Today / the full player, not a prompt docked through every set.
+  /// Nothing to control and nothing to reconnect → nothing on screen.
   static const Widget _empty = SizedBox.shrink();
 
   @override
@@ -172,7 +181,22 @@ class SessionNowPlaying extends StatelessWidget {
       stream: controller.connection,
       initialData: controller.currentConnection,
       builder: (context, connSnap) {
-        if (connSnap.data != MusicConnection.connected) return _empty;
+        final state = connSnap.data ?? MusicConnection.disconnected;
+        if (state != MusicConnection.connected) {
+          return StreamBuilder<bool>(
+            stream: controller.linked,
+            initialData: controller.isLinked,
+            builder: (context, linkedSnap) => (linkedSnap.data ?? false)
+                ? Padding(
+                    padding: padding,
+                    child: _SessionMusicStatus(
+                      controller: controller,
+                      state: state,
+                    ),
+                  )
+                : _empty,
+          );
+        }
         return StreamBuilder<NowPlaying?>(
           stream: controller.nowPlaying,
           initialData: controller.currentNowPlaying,
@@ -197,6 +221,85 @@ class SessionNowPlaying extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// The reconnect row: same slab as the strip it stands in for, so the bar
+/// doesn't change shape when the connection comes and goes mid-session — only
+/// its contents.
+class _SessionMusicStatus extends StatelessWidget {
+  const _SessionMusicStatus({required this.controller, required this.state});
+
+  final MusicController controller;
+  final MusicConnection state;
+
+  @override
+  Widget build(BuildContext context) {
+    final connecting = state == MusicConnection.connecting;
+    // No Spotify app on the device is the one state a tap cannot fix, so it
+    // states the fact and stays inert rather than pretending to be a button.
+    final actionable = state != MusicConnection.noSpotifyApp && !connecting;
+    final label = switch (state) {
+      MusicConnection.connecting => l(context).musicConnecting,
+      MusicConnection.noSpotifyApp => l(context).musicInstallSpotify,
+      _ => l(context).musicReconnect,
+    };
+    return PressableScale(
+      enabled: actionable,
+      scale: 0.99,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: actionable ? () => controller.connect() : null,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+            decoration: BoxDecoration(
+              color: const Color(0x08FFFFFF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0x0FFFFFFF)),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: connecting
+                      ? const CircularProgressIndicator(
+                          strokeWidth: 1.8,
+                          color: TrainColors.green,
+                        )
+                      : Image.asset(
+                          'assets/spotify/spotify-icon.png',
+                          opacity: const AlwaysStoppedAnimation(0.55),
+                          filterQuality: FilterQuality.medium,
+                        ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TrainType.ui(
+                      size: 12,
+                      weight: FontWeight.w700,
+                      color: const Color(0xB3F4F4F0),
+                    ),
+                  ),
+                ),
+                if (actionable)
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 17,
+                    color: TrainColors.green.withValues(alpha: 0.75),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -12,6 +12,8 @@ import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/util/deferred_write.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/moment.dart';
@@ -31,7 +33,8 @@ class MomentCapturePage extends StatefulWidget {
   State<MomentCapturePage> createState() => _MomentCapturePageState();
 }
 
-class _MomentCapturePageState extends State<MomentCapturePage> {
+class _MomentCapturePageState extends State<MomentCapturePage>
+    with AsyncAction<MomentCapturePage> {
   late final TextEditingController _caption;
 
   /// The stored media reference persisted on the moment (relative store path).
@@ -47,13 +50,6 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
   CaptureSource _pickedSource = CaptureSource.unknown;
 
   bool _canSave = false;
-
-  /// Guards [_save] against re-entrancy. It is async — it awaits a media
-  /// import before writing the moment — and a second tap during that await
-  /// minted a fresh `microsecondsSinceEpoch` id, so it wrote a *second*
-  /// moment and ran a *second* media capture racing the first on the store
-  /// path, then popped the route underneath.
-  bool _busy = false;
 
   bool get _editing => widget.initial != null;
 
@@ -192,40 +188,42 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
     });
   }
 
-  Future<void> _save() async {
-    if (_busy || !_canSave) return;
-    setState(() => _busy = true);
+  void _save() {
+    if (!_canSave) return;
+    runAction(#save, _commit, once: true);
+  }
+
+  /// Local-first. The only thing awaited here is the media store's copy of
+  /// the picked file — a few milliseconds of disk, and the one step whose
+  /// *result* the moment needs (the durable ref). The Firestore write is
+  /// handed to [deferWrite] and the screen pops immediately: the timeline
+  /// behind it already has the moment, because the Firestore SDK applies a
+  /// write to its cache and notifies listeners before the server ever hears
+  /// about it.
+  Future<void> _commit() async {
     final scope = AppScope.of(context);
+    final navigator = Navigator.of(context);
     final moments = scope.moments;
+    final media = scope.requireMedia;
     final initial = widget.initial;
     final id = initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
     // Preserve the original capture time on edit; only stamp `now` when new.
     final takenAt = initial?.takenAt ?? DateTime.now();
 
     // If a new photo was picked, import it into the durable media store now
-    // (this also fans out to enabled backup targets, e.g. Save to Photos) and
-    // persist the returned store reference instead of the ephemeral temp path.
+    // and persist the returned store reference instead of the ephemeral temp
+    // path. See [MediaService.capture]: it returns at the local copy and does
+    // its own registry/gallery/cloud work in the background.
     var imageRef = _imageRef;
     final tempPath = _pickedTempPath;
     if (tempPath != null) {
-      imageRef = await scope.requireMedia.capture(
+      imageRef = await media.capture(
         sourcePath: tempPath,
         kind: MediaKind.moment,
         id: id,
         ownerUid: scope.auth.currentUser?.uid ?? 'local',
         source: _pickedSource,
         capturedAt: takenAt,
-      );
-    }
-
-    // An edit that REMOVED the photo must remove its bytes too — the local
-    // file, the registry record, and any Drive copy would otherwise outlive
-    // the moment as orphans. (A REPLACED photo is handled inside capture():
-    // same id → same store path overwritten in place.)
-    if (initial != null && initial.imagePath != null && imageRef == null) {
-      await scope.requireMedia.deleteMedia(
-        id: initial.id,
-        ref: initial.imagePath,
       );
     }
 
@@ -237,29 +235,52 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
       // Location has no capture UI yet; carry it through untouched on edit.
       location: initial?.location,
     );
-    if (initial == null) {
-      await moments.add(moment);
-    } else {
-      await moments.update(moment);
-    }
-    if (mounted) Navigator.of(context).pop(moment);
+
+    // An edit that REMOVED the photo must remove its bytes too — the local
+    // file, the registry record, and any Drive copy would otherwise outlive
+    // the moment as orphans. (A REPLACED photo is handled inside capture():
+    // same id → same store path overwritten in place.) Ordered after the
+    // moment write so the record never points at bytes that are already gone.
+    final droppedPhoto =
+        initial != null && initial.imagePath != null && imageRef == null;
+
+    deferWrite(
+      () async {
+        if (initial == null) {
+          await moments.add(moment);
+        } else {
+          await moments.update(moment);
+        }
+        if (droppedPhoto) {
+          await media.deleteMedia(id: initial.id, ref: initial.imagePath);
+        }
+      }(),
+      failureMessage: 'Couldn\'t save that moment.',
+    );
+
+    navigator.pop(moment);
   }
 
-  Future<void> _delete() async {
+  void _delete() => runAction(#delete, once: true, () async {
     final initial = widget.initial;
     if (initial == null) return;
     final scope = AppScope.of(context);
-    await scope.moments.remove(initial.id);
-    // The moment's photo dies with it — everywhere it lives (see
-    // [MediaService.deleteMedia]).
-    if (initial.imagePath != null) {
-      await scope.requireMedia.deleteMedia(
-        id: initial.id,
-        ref: initial.imagePath,
-      );
-    }
-    if (mounted) Navigator.of(context).pop();
-  }
+    final media = scope.requireMedia;
+    final moments = scope.moments;
+    // Same bargain as save: the timeline drops the moment now, the durable
+    // delete (and the photo's bytes everywhere they live — see
+    // [MediaService.deleteMedia]) finishes behind it.
+    deferWrite(
+      () async {
+        await moments.remove(initial.id);
+        if (initial.imagePath != null) {
+          await media.deleteMedia(id: initial.id, ref: initial.imagePath);
+        }
+      }(),
+      failureMessage: 'Couldn\'t delete that moment.',
+    );
+    Navigator.of(context).pop();
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +346,8 @@ class _MomentCapturePageState extends State<MomentCapturePage> {
               child: PillButton(
                 label: _editing ? 'Save moment' : 'Add moment',
                 icon: _editing ? Icons.check_rounded : Icons.add_rounded,
-                enabled: _canSave && !_busy,
+                enabled: _canSave && !actionInFlight,
+                busy: isRunning(#save),
                 onTap: _save,
               ),
             ),

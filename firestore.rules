@@ -22,6 +22,16 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Whether this token carries a real email address at all. Written the long
+    // way because an absent claim does not reliably read as `null` — the token
+    // is normalised before rules see it, so a missing address can arrive as an
+    // empty string. Testing for a non-empty string covers every shape.
+    function hasEmail() {
+      return 'email' in request.auth.token
+          && request.auth.token.email is string
+          && request.auth.token.email.size() > 0;
+    }
+
     // The caller's email address is trusted: either verified, or the account
     // genuinely has no email claim (a provider that withholds one). Written
     // as "not unverified" rather than "verified" on purpose — an account with
@@ -39,16 +49,6 @@ service cloud.firestore {
     // The claim rides in the ID token, so it lags a server-side flip by up to
     // an hour — which is why `verifyEmailOtp` force-refreshes the token on the
     // client the moment the code lands (`getIdToken(true)`).
-    // Whether this token carries a real email address at all. Written the long
-    // way because an absent claim does not reliably read as `null` — the token
-    // is normalised before rules see it, so a missing address can arrive as an
-    // empty string. Testing for a non-empty string covers every shape.
-    function hasEmail() {
-      return 'email' in request.auth.token
-          && request.auth.token.email is string
-          && request.auth.token.email.size() > 0;
-    }
-
     function emailTrusted() {
       return !hasEmail() || request.auth.token.email_verified == true;
     }
@@ -435,8 +435,8 @@ service cloud.firestore {
     // doing to me", and every figure in that answer rests on these three
     // required fields — so a doc missing one, or carrying an implausible
     // height, is rejected rather than stored and silently defaulted later.
-    // Weight is deliberately NOT here: it lives in `bodyWeights`, which is
-    // where the user actually keeps it.
+    // Weight is deliberately NOT here: it lives in `bodyWeightEntries`, which
+    // is where the user actually keeps it.
     match /users/{userId}/bodyProfile/{docId} {
       allow read: if isOwner(userId);
       allow write: if canWrite(userId)

@@ -53,8 +53,10 @@ class _HomeShellState extends State<HomeShell> {
 
   MusicConnection _connection = MusicConnection.disconnected;
   NowPlaying? _track;
+  bool _linked = false;
   StreamSubscription<MusicConnection>? _connectionSub;
   StreamSubscription<NowPlaying?>? _trackSub;
+  StreamSubscription<bool>? _linkedSub;
   bool _musicWired = false;
 
   @override
@@ -68,6 +70,7 @@ class _HomeShellState extends State<HomeShell> {
     _musicWired = true;
     _connection = music.currentConnection;
     _track = music.currentNowPlaying;
+    _linked = music.isLinked;
     _musicVisible = _resolveVisible();
     _connectionSub = music.connection.listen((value) {
       _connection = value;
@@ -77,12 +80,27 @@ class _HomeShellState extends State<HomeShell> {
       _track = value;
       _syncMusicVisibility();
     });
+    _linkedSub = music.linked.listen((value) {
+      _linked = value;
+      _syncMusicVisibility();
+    });
   }
 
-  /// The same predicate `NowPlayingResolver` renders on — connected AND a
-  /// track loaded — so the reserved height and the strip agree by definition.
+  /// The same predicate `NowPlayingLozenge` renders on, so the reserved
+  /// height and the strip agree by definition.
+  ///
+  /// It is deliberately WIDER than "a track is playing": once this device is
+  /// linked (the user connected here at least once — see
+  /// [MusicController.isLinked]) the strip stays on screen through the
+  /// disconnects that are a normal part of App Remote's life, showing what
+  /// state music is in and offering the one tap that fixes it. The strip
+  /// vanishing on every drop is what sent the user hunting for a Connect
+  /// button buried elsewhere in the app.
+  ///
+  /// A device that has never linked still gets nothing at all — no bar, no
+  /// nag, no reserved height.
   bool _resolveVisible() =>
-      _connection == MusicConnection.connected && _track != null;
+      _linked || (_connection == MusicConnection.connected && _track != null);
 
   /// Rebuilds only on the visibility *edge*: the strip appearing or leaving is
   /// what moves every page's bottom clearance. A track change or an advancing
@@ -98,6 +116,7 @@ class _HomeShellState extends State<HomeShell> {
   void dispose() {
     _connectionSub?.cancel();
     _trackSub?.cancel();
+    _linkedSub?.cancel();
     super.dispose();
   }
 

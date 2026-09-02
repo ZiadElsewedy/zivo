@@ -7,6 +7,7 @@ import '../../../../core/media/media_service.dart';
 import '../../../../core/media/presentation/media_image.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../domain/moment.dart';
 import '../moment_metadata.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
@@ -40,7 +41,8 @@ class PhotoViewerPage extends StatefulWidget {
   State<PhotoViewerPage> createState() => _PhotoViewerPageState();
 }
 
-class _PhotoViewerPageState extends State<PhotoViewerPage> {
+class _PhotoViewerPageState extends State<PhotoViewerPage>
+    with AsyncAction<PhotoViewerPage> {
   late final PageController _pageController;
   late List<Moment> _photos;
   late int _index;
@@ -82,7 +84,9 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
   Moment get _current => _photos[_index];
 
-  Future<void> _confirmDelete() async {
+  void _confirmDelete() => runAction(#delete, _deleteCurrent);
+
+  Future<void> _deleteCurrent() async {
     final moment = _current;
     final confirmed = await confirmDestructive(
       context,

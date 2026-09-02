@@ -1183,4 +1183,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splitDeleteTitlePlain => 'Delete this split?';
+
+  @override
+  String get expenseSaveFailed => 'Couldn\'t save that expense.';
+
+  @override
+  String get expenseDeleteFailed => 'Couldn\'t delete that expense.';
+
+  @override
+  String get dietLogFailed => 'Couldn\'t log that food.';
+
+  @override
+  String get musicConnect => 'Connect Spotify';
+
+  @override
+  String get musicReconnect => 'Reconnect Spotify';
+
+  @override
+  String get musicConnecting => 'Connecting…';
+
+  @override
+  String get musicInstallSpotify => 'Install Spotify to play';
+
+  @override
+  String get musicNothingPlaying => 'Nothing playing';
+
+  @override
+  String get musicPrevious => 'Previous track';
+
+  @override
+  String get musicNext => 'Next track';
+
+  @override
+  String get musicPlay => 'Play';
+
+  @override
+  String get musicPause => 'Pause';
+
+  @override
+  String get musicDisconnect => 'Disconnect Spotify';
 }

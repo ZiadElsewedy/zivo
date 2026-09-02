@@ -158,8 +158,8 @@ class FirestoreStore {
    * Height, sex and activity are all required: two out of three cannot
    * produce a maintenance figure, and a profile that silently defaulted the
    * third would put a number nobody chose underneath every piece of coaching.
-   * Weight is deliberately NOT here — it lives in `bodyWeights`, which is
-   * where the user actually keeps it.
+   * Weight is deliberately NOT here — it lives in `bodyWeightEntries`, which
+   * is where the user actually keeps it.
    * @param {string} uid
    * @return {!Promise<?Object>}
    */
@@ -189,11 +189,19 @@ class FirestoreStore {
   /**
    * Every logged weigh-in, oldest first. The calibration needs the span, not
    * just the latest reading.
+   *
+   * The collection is `bodyWeightEntries` — the name the client writes
+   * (`FirestoreBodyWeightRepository`) and the one the rules declare. This read
+   * used to say `bodyWeights`, which is a collection nothing has ever written:
+   * it returned an empty array forever, and because every consumer downstream
+   * treats "no weigh-ins" as a legitimate state, it failed SILENTLY. The coach
+   * lost its measured-maintenance calibration and its current weight, and fell
+   * back to estimates without anything looking wrong.
    * @param {string} uid
    * @return {!Promise<!Array<{weightKg: number, loggedAtMs: number}>>}
    */
   async listBodyWeights(uid) {
-    const snap = await this._user(uid).collection("bodyWeights").get();
+    const snap = await this._user(uid).collection("bodyWeightEntries").get();
     return snap.docs
         .map((doc) => {
           const d = doc.data() || {};

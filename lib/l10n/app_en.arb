@@ -1707,5 +1707,57 @@
   "splitDeleteTitlePlain": "Delete this split?",
   "@splitDeleteTitlePlain": {
     "description": "Title of the delete confirmation inside the split editor, where which split is being edited is already obvious."
+  },
+  "expenseSaveFailed": "Couldn't save that expense.",
+  "@expenseSaveFailed": {
+    "description": "Toast: a spend row that was recorded locally didn't reach the server."
+  },
+  "expenseDeleteFailed": "Couldn't delete that expense.",
+  "@expenseDeleteFailed": {
+    "description": "Toast: a spend row removed locally didn't reach the server."
+  },
+  "dietLogFailed": "Couldn't log that food.",
+  "@dietLogFailed": {
+    "description": "Toast: a food-log entry recorded locally didn't reach the server."
+  },
+  "musicConnect": "Connect Spotify",
+  "@musicConnect": {
+    "description": "Bottom-bar action: authorize and attach to the Spotify app."
+  },
+  "musicReconnect": "Reconnect Spotify",
+  "@musicReconnect": {
+    "description": "Bottom-bar action: re-attach after the Spotify connection dropped."
+  },
+  "musicConnecting": "Connecting\u2026",
+  "@musicConnecting": {
+    "description": "Bottom-bar state while the Spotify handshake is in flight."
+  },
+  "musicInstallSpotify": "Install Spotify to play",
+  "@musicInstallSpotify": {
+    "description": "Bottom-bar state when the Spotify app isn't on this device."
+  },
+  "musicNothingPlaying": "Nothing playing",
+  "@musicNothingPlaying": {
+    "description": "Bottom-bar state: connected to Spotify, but no track is loaded."
+  },
+  "musicPrevious": "Previous track",
+  "@musicPrevious": {
+    "description": "Accessibility label for the bottom bar's skip-back control."
+  },
+  "musicNext": "Next track",
+  "@musicNext": {
+    "description": "Accessibility label for the bottom bar's skip-forward control."
+  },
+  "musicPlay": "Play",
+  "@musicPlay": {
+    "description": "Accessibility label for the bottom bar's play control."
+  },
+  "musicPause": "Pause",
+  "@musicPause": {
+    "description": "Accessibility label for the bottom bar's pause control."
+  },
+  "musicDisconnect": "Disconnect Spotify",
+  "@musicDisconnect": {
+    "description": "Settings action: unlink this device so the app stops reconnecting to Spotify on its own."
   }
 }

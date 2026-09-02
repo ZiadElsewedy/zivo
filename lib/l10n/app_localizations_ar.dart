@@ -1173,4 +1173,43 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get splitDeleteTitlePlain => 'حذف هذه التقسيمة؟';
+
+  @override
+  String get expenseSaveFailed => 'تعذّر حفظ هذا المصروف.';
+
+  @override
+  String get expenseDeleteFailed => 'تعذّر حذف هذا المصروف.';
+
+  @override
+  String get dietLogFailed => 'تعذّر تسجيل هذا الطعام.';
+
+  @override
+  String get musicConnect => 'ربط Spotify';
+
+  @override
+  String get musicReconnect => 'إعادة ربط Spotify';
+
+  @override
+  String get musicConnecting => 'جارٍ الربط…';
+
+  @override
+  String get musicInstallSpotify => 'ثبّت Spotify للتشغيل';
+
+  @override
+  String get musicNothingPlaying => 'لا يوجد تشغيل';
+
+  @override
+  String get musicPrevious => 'المقطع السابق';
+
+  @override
+  String get musicNext => 'المقطع التالي';
+
+  @override
+  String get musicPlay => 'تشغيل';
+
+  @override
+  String get musicPause => 'إيقاف مؤقت';
+
+  @override
+  String get musicDisconnect => 'فصل Spotify';
 }

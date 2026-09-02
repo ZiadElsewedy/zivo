@@ -134,12 +134,20 @@ class CaptureIconButton extends StatelessWidget {
 }
 
 /// A full-width pill action button used to commit a capture.
+///
+/// [busy] is the "this button's own action is running" state: the glyph
+/// becomes a spinner and the label stays put, so the press has visible
+/// consequences even when the commit takes a beat. It does not disable on its
+/// own — hosts pass `enabled: ... && !actionInFlight` (see
+/// `core/widgets/async_action.dart`), which is what actually stops a second
+/// tap from committing a second copy.
 class PillButton extends StatelessWidget {
   const PillButton({
     required this.label,
     required this.icon,
     required this.enabled,
     required this.onTap,
+    this.busy = false,
     this.color = TrainColors.ember,
     this.textColor = Colors.white,
     super.key,
@@ -149,6 +157,10 @@ class PillButton extends StatelessWidget {
   final IconData icon;
   final bool enabled;
   final VoidCallback onTap;
+
+  /// Whether this button's action is currently in flight.
+  final bool busy;
+
   final Color color;
   final Color textColor;
 
@@ -181,7 +193,21 @@ class PillButton extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 18, color: textColor),
+                    // Same 18pt box either way, so the label never shifts as
+                    // the button flips into its committing state.
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: busy
+                          ? Padding(
+                              padding: const EdgeInsets.all(1.5),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: textColor,
+                              ),
+                            )
+                          : Icon(icon, size: 18, color: textColor),
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(

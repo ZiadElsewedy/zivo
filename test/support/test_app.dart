@@ -12,6 +12,7 @@ import 'package:zivo/features/profile/domain/profile_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
 import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
+import 'package:zivo/features/moments/domain/moment_repository.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -40,13 +41,14 @@ Widget wrapWithScope(
   ProfileRepository? profiles,
   MediaService? media,
   MusicController? music,
+  MomentRepository? moments,
 }) {
   return AppScope(
     media: media ?? testMediaService(),
     auth: auth ?? FakeAuthRepository(),
     profiles: profiles ?? FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
-    moments: InMemoryMomentRepository(),
+    moments: moments ?? InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
     workoutSessions: InMemoryWorkoutSessionRepository(),

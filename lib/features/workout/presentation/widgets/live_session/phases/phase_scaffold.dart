@@ -298,8 +298,14 @@ class ExerciseHeader extends StatelessWidget {
       children: [
         TrainCaption(l(context).liveNow, color: const Color(0xCCFF5C1A)),
         const SizedBox(height: 11),
+        // Capped at two lines. Real movement names run long ("Seated
+        // Dumbbell Incline Rear Delt Fly"), and at 34pt with no cap a third
+        // line pushed the goal card — the thing this screen exists for —
+        // under the fold on a phone.
         Text(
           exercise.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: TrainType.ui(
             size: 34,
             weight: FontWeight.w800,

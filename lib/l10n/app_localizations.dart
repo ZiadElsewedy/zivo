@@ -2227,6 +2227,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete this split?'**
   String get splitDeleteTitlePlain;
+
+  /// Toast: a spend row that was recorded locally didn't reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that expense.'**
+  String get expenseSaveFailed;
+
+  /// Toast: a spend row removed locally didn't reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that expense.'**
+  String get expenseDeleteFailed;
+
+  /// Toast: a food-log entry recorded locally didn't reach the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t log that food.'**
+  String get dietLogFailed;
+
+  /// Bottom-bar action: authorize and attach to the Spotify app.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Spotify'**
+  String get musicConnect;
+
+  /// Bottom-bar action: re-attach after the Spotify connection dropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect Spotify'**
+  String get musicReconnect;
+
+  /// Bottom-bar state while the Spotify handshake is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get musicConnecting;
+
+  /// Bottom-bar state when the Spotify app isn't on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Spotify to play'**
+  String get musicInstallSpotify;
+
+  /// Bottom-bar state: connected to Spotify, but no track is loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing playing'**
+  String get musicNothingPlaying;
+
+  /// Accessibility label for the bottom bar's skip-back control.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous track'**
+  String get musicPrevious;
+
+  /// Accessibility label for the bottom bar's skip-forward control.
+  ///
+  /// In en, this message translates to:
+  /// **'Next track'**
+  String get musicNext;
+
+  /// Accessibility label for the bottom bar's play control.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get musicPlay;
+
+  /// Accessibility label for the bottom bar's pause control.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get musicPause;
+
+  /// Settings action: unlink this device so the app stops reconnecting to Spotify on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect Spotify'**
+  String get musicDisconnect;
 }
 
 class _AppLocalizationsDelegate
