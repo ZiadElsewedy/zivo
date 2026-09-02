@@ -21,6 +21,11 @@
 
 - Navigation is a **simple `IndexedStack`**, deliberately — see the constraint in
   [`AGENTS.md`](../../../AGENTS.md) against introducing `go_router` without an ADR.
+- **The music strip is not only for a playing track.** `HomeShell._resolveVisible()` is
+  `linked || (connected && track)` — once the device has linked to Spotify the strip
+  stays on screen through the disconnects that are normal for App Remote, carrying the
+  reconnect. It must stay in lockstep with what `NowPlayingLozenge` actually renders,
+  or the reserved height and the strip disagree.
 - **The bottom is one object, and its height has one owner.** `HomeShell` watches the
   music streams and rebuilds only on the visibility *edge*, so the tab bodies don't
   rebuild per playback emission. Pages must not reserve their own music allowance: three

@@ -23,6 +23,24 @@
   - `add_plan_route_tile.dart` — one row for the "Add a plan" sheets (`showAddDietSheet`,
     `showAddWorkoutSheet`).
 
+## The save contract (every capture screen)
+
+Two rules, both enforced by shared code rather than by remembering:
+
+1. **Local-first.** Never `await` a repository before `pop()`. Firestore resolves a
+   write on the *server's* ack, not on the cache the UI already shows, so awaiting froze
+   Save for a round trip (indefinitely, offline). Hand the write to `deferWrite`
+   ([`core/util/deferred_write.dart`](../../core/util/deferred_write.dart)) and pop; a
+   write that genuinely fails toasts over whatever screen the user is on by then. Only
+   await what the screen *needs the result of* — e.g. `MediaService.capture`, for the
+   durable ref.
+2. **Exactly once.** Commit buttons go through the `AsyncAction` mixin
+   ([`core/widgets/async_action.dart`](../../core/widgets/async_action.dart)) with
+   `once: true`, and render `PillButton(enabled: … && !actionInFlight, busy:
+   isRunning(#save))`. `once` is not optional dressing: a local-first save finishes
+   within a frame, so "in flight" alone no longer separates a double-tap from a
+   duplicate row.
+
 ## Gotchas
 
 - Feature capture pages (e.g. `expenses/.../expense_capture_page.dart`,

@@ -73,6 +73,48 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Local-first saves, one-shot commit buttons, and Spotify that stays connected**
+  (2026-09-02, on `core-edits`). Four owner-reported problems, one pass.
+  - **Saving no longer waits for the database.** Every repository is Firestore-backed,
+    and a Firestore write resolves on the **server's** acknowledgement — not on the
+    local cache the UI already reflects — so `await repo.add(x)` before `pop()` froze
+    Save for a round trip, and indefinitely offline (expenses worst of all: the wallet
+    adjustment is a `runTransaction`, which bypasses the offline cache entirely). New
+    [`core/util/deferred_write.dart`](../lib/core/util/deferred_write.dart): the screen
+    commits to the local truth and pops, the durable write finishes on its own, and a
+    write that genuinely fails surfaces as a toast over whatever screen the user is on
+    by then (`DeferredWriteReporter`, mounted in `app.dart`'s `MaterialApp.builder`).
+    Applied to moments, expenses, workout capture, the food log, and moment deletion.
+    `MediaService.capture` is local-first the same way: it returns at the durable
+    on-device copy and does the registry write, the Photos copy and the Drive push on a
+    background tail (per-id serialized; `settleCaptures()` for tests).
+  - **A commit button can't fire twice.** New
+    [`core/widgets/async_action.dart`](../lib/core/widgets/async_action.dart) — the
+    `bool _busy` five screens had each grown, written once, plus `once: true` for
+    commit-and-leave actions. That flag matters *because* saves are now local-first: the
+    flight is over within a frame, so "in flight" alone stopped being a guard and the
+    only thing standing between a double-tap and a duplicate row was pop-animation
+    timing. `PillButton` gained a `busy` spinner. Guards added where there were none:
+    workout capture, both plan editors, the photo viewer's delete, and Start on the
+    Up-Next card (which was pushing two live sessions).
+  - **Spotify reconnects itself.** `MusicController` gained `linked` / `isLinked` /
+    `reconnectIfLinked`: connecting once **links the device** (persisted per-device in
+    `SpotifyLinkStore`), and from then on the app reattaches at launch, on every app
+    resume (`ZivoApp` is now a `WidgetsBindingObserver`), and on a dropped connection
+    via a bounded backoff — never on `authFailed`/`noSpotifyApp`, which can raise an
+    auth sheet or can't succeed. `disconnect()` now means *unlink*, and Settings'
+    Music card carries it.
+  - **The bottom bar is the music surface.** `NowPlayingLozenge` renders every
+    connection state instead of only a live track, so a linked device keeps the strip —
+    with Reconnect *on* it — through the drops that are normal for App Remote; the
+    Connect affordance is no longer buried. With a track it carries the full transport
+    (**previous · play/pause · next**) and a hairline playhead in place of the
+    unreadable 9pt timecode. The live session's docked bar does the same.
+  - **Live Session legibility.** The session clock 13→18pt, the segment captions
+    9→10.5pt (both read from arm's length mid-set), the exercise name capped at two
+    lines so a long movement can't push the goal card under the fold, and a real gap
+    above the music dock, which was welded to the button over it.
+
 - **Auth security pass + the auth module became a reference implementation**
   (2026-09-02, on `core-edits`). Two parts: close the real holes, then draw the
   boundary that keeps them closed. Full architecture writeup: [`AUTH.md`](AUTH.md).
@@ -570,6 +612,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
 
+- **Live Session screen-wake — a dependency decision, not a bug.** The phone still
+  sleeps mid-set during a guided session: the app never asks the OS to keep the screen
+  on, and there is no way to do that from Flutter without a plugin (`wakelock_plus` is
+  the maintained one). "Every dependency pays rent" makes that the owner's call, so it
+  was **not** added as a side effect of the Live Session polish pass. If yes: one dep,
+  enable on entering `LiveSessionPage` and release in its `dispose` (and on Finish /
+  Leave / Discard, which all pop through it).
+
 - **Spotify on Android:** real playback fails with `authFailed` until the owner registers,
   in the Spotify Developer Dashboard, the Android package `com.ziadelsewedy.zivo` + the
   signing **SHA-1** (release currently signs with the *debug* keystore) **and** adds the
@@ -682,6 +732,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-02 — **Save flow, button guards, Spotify auto-connect, Live Session polish.**
+  Local-first persistence (`deferWrite` + `DeferredWriteReporter`) so Save never waits on
+  a Firestore round trip; a shared `AsyncAction` guard with a `once` mode for
+  commit-and-leave buttons; `MusicController.linked`/`reconnectIfLinked` with per-device
+  consent so Spotify reattaches at launch, on resume and after a drop; the nav-island
+  strip now shows every connection state and carries prev/play-pause/next; live-session
+  header and captions sized for arm's length. Owner action: consider a screen-wake
+  package for the live session (see Owner action items).
 - 2026-08-30 — **Diet Coach Phase 8.1: the nutrition cross-check, and T12 closed by
   re-audit.** The audit's last open finding (T14) is done and the table is now clean:
   T1–T15 all closed. `domain/nutrition/plausibility.dart` reads a plan item against

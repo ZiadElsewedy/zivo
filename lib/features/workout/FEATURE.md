@@ -74,6 +74,16 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 
 ## Gotchas / invariants (don't re-litigate — see `docs/STATE.md` + git history)
 
+- **The live session is read at arm's length, mid-set.** The session clock is 18pt and
+  the segment captions 10.5pt for that reason (they were 13 and 9, which is decoration
+  at a metre). The exercise name is capped at two lines so a long movement name can't
+  push the goal card — the point of the screen — under the fold. Keep that bias when
+  adding anything: if it can't be read without picking the phone up, it doesn't belong
+  on this screen.
+- **The docked music bar shows a reconnect, not nothing.** `SessionNowPlaying` collapses
+  only on a device that has never linked to Spotify; a *linked* device that dropped mid-
+  workout keeps a slim reconnect row, because the alternative was abandoning the session
+  to go find Settings. See [`music/FEATURE.md`](../music/FEATURE.md).
 - **Exercise-identity invariant** and the `splitId` alias are intentional; analysis/history
   are deliberately scoped to the **active** split.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches
