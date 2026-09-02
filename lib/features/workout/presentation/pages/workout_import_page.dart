@@ -1,100 +1,68 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../ai/domain/import_progress.dart';
 import '../../../../core/widgets/zivo_toast.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../capture/presentation/import/import_flow_states.dart';
+import '../../../capture/presentation/import/plan_import_file.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/workout_day.dart';
+import '../../domain/workout_import_input.dart';
 import '../../domain/workout_import_outcome.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_format.dart';
 import '../../domain/workout_plan_from_import.dart';
+import '../../domain/workout_plan_source.dart';
 import 'workout_plan_edit_page.dart';
 
-/// The largest file the import flow will upload. Cloud Functions callables
-/// reject requests past ~10 MiB at the transport layer — before the server's
-/// own size check ever runs — and base64 inflates bytes by ~4/3, so anything
-/// bigger than this dies with a cryptic platform error instead of a clear
-/// one.
-const _maxFileBytes = 7 * 1024 * 1024;
-
-/// The file types the import flow accepts, mapped to the media type sent to
-/// the backend — PDFs are read natively; photos ride as image blocks.
-const _allowedExtensions = <String, String>{
-  'pdf': 'application/pdf',
-  'png': 'image/png',
-  'jpg': 'image/jpeg',
-  'jpeg': 'image/jpeg',
-  'webp': 'image/webp',
-};
-
-/// Picks a plan document (PDF or photo) and returns its bytes plus media type
-/// — null means the user backed out of the picker (not an error); a picked
-/// file with no readable bytes throws, same as any other read failure, so
-/// callers only need two branches.
-Future<({Uint8List bytes, String mimeType})?> _defaultPickFile() async {
-  final picked = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: List.unmodifiable(_allowedExtensions.keys),
-    withData: true,
-  );
-  if (picked == null || picked.files.isEmpty) return null;
-  final file = picked.files.single;
-  final mimeType = _allowedExtensions[file.extension?.toLowerCase()];
-  if (mimeType == null) {
-    throw StateError('Unsupported file type: ${file.extension}');
-  }
-  final bytes = file.bytes;
-  if (bytes == null || bytes.isEmpty) {
-    throw StateError("Couldn't read that file.");
-  }
-  return (bytes: bytes, mimeType: mimeType);
-}
-
-/// The PDF-import flow (WORKOUT_SYSTEM.md §3.4, Phase 6), as a deliberate
-/// sequence rather than a spinner bolted onto an upload button: Select File →
-/// AI Analyzing → Review/Preview → Confirm Import → Done. The AI never
-/// hallucinates a plan to have something to show — a document that isn't a
+/// The workout-import flow (WORKOUT_SYSTEM.md §3.4, Phase 6), as a deliberate
+/// sequence rather than a spinner bolted onto an upload button: get the
+/// material → AI Analyzing → Review/Preview → Confirm Import → Done. The AI
+/// never hallucinates a plan to have something to show — material that isn't a
 /// usable workout plan surfaces a distinct, explained decline (see
 /// [WorkoutImportRejected]) instead of an empty or fabricated split.
+///
+/// **Every capture route lands here** — a PDF, a photo, and (via [input]) a
+/// dictated or typed description — the same shape diet's importer takes. With
+/// no [input] it opens straight into the file picker (no idle "tap to start"
+/// screen), since the entry action that pushed it already expressed that
+/// intent; with an [input] the material was gathered before the push and the
+/// work starts immediately.
+///
+/// The file picker, the backend-error copy and the select/analyze/reject/error
+/// screens are shared with the diet importer (`capture/presentation/import/`);
+/// the preview + done screens below are workout-only, because only this flow
+/// reviews in place rather than dropping into the plan editor.
 ///
 /// The preview IS the review gate (ADR-002's "human confirms before it
 /// becomes real"): "Import this split" saves directly from what's shown,
 /// with the full manual editor available as an optional deeper-edit step,
 /// not a mandatory detour.
-///
-/// Opens straight into the file picker (no idle "tap to start" screen) since
-/// the entry action that pushed this page already expressed that intent —
-/// the [_ImportPhase.selecting] screen behind it is what a cancel or a retry
-/// lands back on.
-class WorkoutPdfImportPage extends StatefulWidget {
-  const WorkoutPdfImportPage({
+class WorkoutImportPage extends StatefulWidget {
+  const WorkoutImportPage({
     super.key,
-    Future<({Uint8List bytes, String mimeType})?> Function()? pickFile,
-  }) : pickFile = pickFile ?? _defaultPickFile;
+    this.input,
+    Future<PickedImportFile?> Function()? pickFile,
+  }) : pickFile = pickFile ?? pickImportFile;
+
+  /// Material gathered before this page was pushed — a dictated or typed
+  /// description. Null means "pick a file", the only route that can be
+  /// restarted from inside this screen; with an [input] a retry goes back to
+  /// the screen that produced it (mirrors `DietImportPage`).
+  final WorkoutImportInput? input;
 
   /// Overridable for tests — defaults to the real file picker.
-  final Future<({Uint8List bytes, String mimeType})?> Function() pickFile;
+  final Future<PickedImportFile?> Function() pickFile;
 
   @override
-  State<WorkoutPdfImportPage> createState() => _WorkoutPdfImportPageState();
+  State<WorkoutImportPage> createState() => _WorkoutImportPageState();
 }
 
 enum _ImportPhase { selecting, analyzing, preview, done, rejected, error }
 
-/// Shown until the model has extracted anything at all.
-///
-/// This used to be three lines cycled on a 1.6s timer, which moved whether or
-/// not the backend did. The import now streams what it is actually extracting
-/// ([ImportProgress]), so the only written line left is this one — and it is
-/// true: before the first day arrives, reading is all that is happening.
-const _openingStatusLine = 'Reading the document…';
-
-class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
+class _WorkoutImportPageState extends State<WorkoutImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
   String? _errorMessage;
   // The raw failure text, shown only in debug builds so a real backend cause
@@ -112,27 +80,17 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pickAndImport());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
   }
 
   /// What the analysing screen says right now: the live extraction if one has
   /// arrived, else the opening line.
-  ///
-  /// Deliberately never claims a total — the model doesn't know how many days
-  /// a document holds until it has read them, so "Day 2 of 5" would be a
-  /// number nobody has. A rising count is the honest shape.
-  String get _statusLine {
-    final p = _progress;
-    if (p == null || p.isEmpty) return _openingStatusLine;
-    final section = p.latestSection;
-    if (section == null) {
-      return p.planName != null ? 'Found "${p.planName}"…' : _openingStatusLine;
-    }
-    final exercises = p.items == 1 ? '1 exercise' : '${p.items} exercises';
-    return '$section · $exercises';
-  }
+  String get _statusLine =>
+      importProgressLine(_progress, itemNoun: 'exercise');
 
-  Future<void> _pickAndImport() async {
+  /// The entry point for both routes: an [input] gathered before the push goes
+  /// straight to extraction; otherwise a file is picked first.
+  Future<void> _run() async {
     setState(() {
       _phase = _ImportPhase.selecting;
       _errorMessage = null;
@@ -143,11 +101,17 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       _progress = null;
     });
 
-    ({Uint8List bytes, String mimeType})? file;
+    final passed = widget.input;
+    if (passed != null) {
+      await _extract(passed);
+      return;
+    }
+
+    PickedImportFile? file;
     try {
       file = await widget.pickFile();
     } catch (error, stack) {
-      debugPrint('WorkoutPdfImport: could not read the picked file: $error');
+      debugPrint('WorkoutImport: could not read the picked file: $error');
       debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
@@ -166,7 +130,7 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
 
     // Fail fast on oversized files — the callable's transport rejects them
     // anyway, but with an error this screen can't explain.
-    if (file.bytes.length > _maxFileBytes) {
+    if (file.bytes.length > kMaxImportFileBytes) {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
@@ -177,6 +141,15 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       return;
     }
 
+    await _extract(
+      WorkoutImportDocument(bytes: file.bytes, mimeType: file.mimeType),
+    );
+  }
+
+  /// Runs the extraction for [input] and takes its outcome to the review
+  /// preview, the honest decline, or a real error — the same three places
+  /// whatever route the material arrived by.
+  Future<void> _extract(WorkoutImportInput input) async {
     if (!mounted) return;
     setState(() {
       _phase = _ImportPhase.analyzing;
@@ -185,8 +158,7 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
 
     try {
       final outcome = await AppScope.of(context).ai.importWorkoutPlan(
-        fileBytes: file.bytes,
-        mimeType: file.mimeType,
+        input,
         onProgress: (progress) {
           if (!mounted) return;
           setState(() => _progress = progress);
@@ -200,6 +172,8 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
               plan,
               id: DateTime.now().microsecondsSinceEpoch.toString(),
               now: DateTime.now(),
+              // The saved split remembers which route it arrived by.
+              source: _sourceFor(input),
             );
             _phase = _ImportPhase.preview;
           });
@@ -213,16 +187,44 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
       // Surface the real failure instead of swallowing it. The old blanket
       // "couldn't read that plan" hid App Check / network rejections and
       // sent people deleting data to chase a backend problem.
-      debugPrint('WorkoutPdfImport: aiImportWorkoutPlan failed: $error');
+      debugPrint('WorkoutImport: aiImportWorkoutPlan failed: $error');
       debugPrintStack(stackTrace: stack);
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage = _importErrorMessage(error);
+        _errorMessage = importErrorMessage(
+          error,
+          manualFallback: 'build the split manually.',
+        );
         _errorDetail = kDebugMode ? error.toString() : null;
       });
     }
   }
+
+  /// What "try again" means depends on where the material came from: a picked
+  /// file can be re-picked right here, but a description lives on the screen
+  /// behind this one — retrying it in place would just re-run the identical
+  /// text, so it goes back instead (mirrors `DietImportPage._retry`).
+  void _restart() {
+    if (widget.input == null) {
+      _run();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  /// The provenance the saved split records for each capture route.
+  static WorkoutPlanSource _sourceFor(WorkoutImportInput input) =>
+      switch (input) {
+        WorkoutImportDocument(:final mimeType) =>
+          mimeType == 'application/pdf'
+              ? WorkoutPlanSource.pdf
+              : WorkoutPlanSource.photo,
+        // Typed text is the user's own words too, but they wrote them: that is
+        // a hand-structured plan, not a transcript — same reasoning as diet.
+        WorkoutImportDescription(:final dictated) =>
+          dictated ? WorkoutPlanSource.dictated : WorkoutPlanSource.typed,
+      };
 
   Future<void> _confirmImport() async {
     final draft = _draft;
@@ -330,16 +332,24 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
   Widget _body() {
     switch (_phase) {
       case _ImportPhase.selecting:
-        return const _SelectingState();
+        return const ImportSelectingState(
+          title: 'Select your training plan',
+          subtitle:
+              "Choose a PDF or a photo of your plan and I'll map it into a "
+              'real, editable split.',
+        );
       case _ImportPhase.analyzing:
-        return _AnalyzingState(statusLine: _statusLine);
+        return ImportAnalyzingState(statusLine: _statusLine);
       case _ImportPhase.preview:
         return _PreviewState(
           plan: _draft!,
           saving: _saving,
           onImport: _confirmImport,
           onEdit: _editBeforeImporting,
-          onChooseDifferentFile: _pickAndImport,
+          onRestart: _restart,
+          restartLabel: widget.input == null
+              ? 'Choose a different file'
+              : 'Start over',
         );
       case _ImportPhase.done:
         return _DoneState(
@@ -347,192 +357,22 @@ class _WorkoutPdfImportPageState extends State<WorkoutPdfImportPage> {
           onDone: () => Navigator.of(context).pop(),
         );
       case _ImportPhase.rejected:
-        return _RejectedState(
+        return ImportRejectedState(
+          title: "This doesn't look like a workout plan",
           reason: _rejectionReason!,
-          onChooseDifferentFile: _pickAndImport,
+          retryLabel: widget.input == null
+              ? 'Choose a different file'
+              : 'Go back and edit',
+          onRetry: _restart,
           onBuildManually: _buildManually,
         );
       case _ImportPhase.error:
-        return _ErrorMessage(
+        return ImportErrorState(
           message: _errorMessage!,
           detail: _errorDetail,
-          onRetry: _pickAndImport,
+          onRetry: _restart,
         );
     }
-  }
-}
-
-/// Maps a raw import failure to a user-facing line, recognising the common
-/// backend rejections so the message points at the real cause instead of
-/// blaming the PDF. Classifies from the error's string form deliberately —
-/// this presentation layer must not import the `cloud_functions` SDK (its
-/// exception types are confined to the data layer), and callable failures
-/// render their code/message into `toString()` (e.g.
-/// `[firebase_functions/unauthenticated]`).
-///
-/// `aiImportWorkoutPlan` deliberately never requires sign-in (it reads and
-/// extracts a PDF, nothing more — see the callable's own doc comment in
-/// `functions/index.js`), so an `unauthenticated`/`permission-denied`
-/// rejection from THIS call can only be Firebase App Check declining the
-/// request, never a real "you need to sign in" case — Firebase's own App
-/// Check enforcement message doesn't reliably say "app check" at all, so
-/// treating those codes as a separate, lower-priority branch (as this used
-/// to) left the real cause misreported as a sign-in problem.
-String _importErrorMessage(Object error) {
-  final text = error.toString().toLowerCase();
-  if (text.contains('app-check') ||
-      text.contains('app check') ||
-      text.contains('appcheck') ||
-      text.contains('unauthenticated') ||
-      text.contains('permission-denied') ||
-      text.contains('permission denied')) {
-    return kDebugMode
-        ? "The app couldn't verify itself (App Check). Register this "
-              "build's debug token in the Firebase console, then try again."
-        : "Couldn't verify this app install. Please try again in a moment.";
-  }
-  if (text.contains('not-found')) {
-    // The callable itself is missing — an undeployed or renamed backend
-    // function. Nothing about the picked file is wrong; blaming it sends
-    // people re-scanning a perfectly good plan.
-    return "The import service isn't available right now — please try "
-        'again later.';
-  }
-  if (text.contains('deadline') ||
-      text.contains('timeout') ||
-      text.contains('unavailable') ||
-      text.contains('network')) {
-    return 'Network problem reaching the import service — check your '
-        'connection and try again.';
-  }
-  return "Couldn't read that plan — try a clearer photo or PDF, or build the split manually.";
-}
-
-/// The icon-chip look shared by every non-preview phase of this flow — a
-/// large tinted rounded-square icon above a headline/subcopy pair, the same
-/// "premium empty/status state" language the rest of the Workout feature
-/// already uses (see `workout_plan_page.dart`'s own empty/error states).
-class _PhaseIcon extends StatelessWidget {
-  const _PhaseIcon({required this.icon, required this.color});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Icon(icon, size: 32, color: color),
-    );
-  }
-}
-
-class _SelectingState extends StatelessWidget {
-  const _SelectingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _PhaseIcon(
-              icon: Icons.upload_file_rounded,
-              color: TrainColors.green,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Select your training plan',
-              style: TrainType.ui(
-                size: 20,
-                weight: FontWeight.w800,
-                tracking: -0.025,
-                height: 1.15,
-                color: TrainColors.ink,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              "Choose a PDF or a photo of your plan and I'll map it into a "
-              'real, editable split.',
-              style: TrainType.ui(
-                size: 13.5,
-                weight: FontWeight.w400,
-                height: 1.5,
-                color: TrainColors.ink4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AnalyzingState extends StatelessWidget {
-  const _AnalyzingState({required this.statusLine});
-
-  final String statusLine;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: const BoxDecoration(
-              color: TrainColors.glassStrong,
-              shape: BoxShape.circle,
-            ),
-            padding: const EdgeInsets.all(10),
-            child: ColorFiltered(
-              colorFilter: const ColorFilter.mode(
-                TrainColors.green,
-                BlendMode.srcIn,
-              ),
-              child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Analyzing your plan',
-            style: TrainType.ui(
-              size: 20,
-              weight: FontWeight.w800,
-              tracking: -0.025,
-              height: 1.15,
-              color: TrainColors.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: Text(
-              statusLine,
-              key: ValueKey(statusLine),
-              style: TrainType.ui(
-                size: 13.5,
-                weight: FontWeight.w400,
-                height: 1.5,
-                color: TrainColors.ink4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -542,14 +382,19 @@ class _PreviewState extends StatelessWidget {
     required this.saving,
     required this.onImport,
     required this.onEdit,
-    required this.onChooseDifferentFile,
+    required this.onRestart,
+    required this.restartLabel,
   });
 
   final WorkoutPlan plan;
   final bool saving;
   final VoidCallback onImport;
   final VoidCallback onEdit;
-  final VoidCallback onChooseDifferentFile;
+
+  /// Re-pick a file (file route) or go back to the description (typed/dictated
+  /// route); [restartLabel] names which.
+  final VoidCallback onRestart;
+  final String restartLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -650,9 +495,9 @@ class _PreviewState extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: saving ? null : onChooseDifferentFile,
+                    onPressed: saving ? null : onRestart,
                     child: Text(
-                      'Choose a different file',
+                      restartLabel,
                       style: TrainType.mono(
                         size: 10.5,
                         tracking: 0.06,
@@ -775,7 +620,7 @@ class _DoneState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIcon(
+            const ImportPhaseIcon(
               icon: Icons.check_rounded,
               color: TrainColors.green,
             ),
@@ -811,150 +656,6 @@ class _DoneState extends StatelessWidget {
                 color: TrainColors.ember,
                 enabled: true,
                 onTap: onDone,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RejectedState extends StatelessWidget {
-  const _RejectedState({
-    required this.reason,
-    required this.onChooseDifferentFile,
-    required this.onBuildManually,
-  });
-
-  final String reason;
-  final VoidCallback onChooseDifferentFile;
-  final VoidCallback onBuildManually;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _PhaseIcon(
-              icon: Icons.description_outlined,
-              color: TrainColors.ember,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              "This doesn't look like a workout plan",
-              style: TrainType.ui(
-                size: 20,
-                weight: FontWeight.w800,
-                tracking: -0.025,
-                height: 1.15,
-                color: TrainColors.ink,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              reason,
-              style: TrainType.ui(
-                size: 13.5,
-                weight: FontWeight.w400,
-                height: 1.5,
-                color: TrainColors.ink4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: 220,
-              child: PillButton(
-                label: 'Choose a different file',
-                icon: Icons.upload_file_rounded,
-                color: TrainColors.ember,
-                enabled: true,
-                onTap: onChooseDifferentFile,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: onBuildManually,
-              child: Text(
-                'Build manually instead',
-                style: TrainType.mono(
-                  size: 10.5,
-                  tracking: 0.06,
-                  color: TrainColors.ink2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({
-    required this.message,
-    required this.onRetry,
-    this.detail,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  /// Raw failure text (debug builds only) — the real backend cause, shown
-  /// small and dim under the friendly line.
-  final String? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _PhaseIcon(
-              icon: Icons.cloud_off_rounded,
-              color: TrainColors.ink4,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              message,
-              style: TrainType.ui(
-                size: 14,
-                weight: FontWeight.w400,
-                height: 1.5,
-                color: TrainColors.ink2,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (detail != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                detail!,
-                style: TrainType.ui(
-                  size: 11,
-                  weight: FontWeight.w400,
-                  height: 1.5,
-                  color: TrainColors.ink4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            const SizedBox(height: 18),
-            SizedBox(
-              width: 180,
-              child: PillButton(
-                label: 'Try again',
-                icon: Icons.refresh_rounded,
-                color: TrainColors.ember,
-                enabled: true,
-                onTap: onRetry,
               ),
             ),
           ],

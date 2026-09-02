@@ -6,6 +6,7 @@ import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/nutrition_targets.dart';
 import '../../diet/domain/plan_preferences.dart';
 import '../../diet/domain/diet_import_result.dart';
+import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
@@ -52,7 +53,7 @@ class _FakeConversation {
 /// (new chat / switch / sessions list) is testable without a backend.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
-    Future<WorkoutImportOutcome> Function(Uint8List fileBytes, String mimeType)?
+    Future<WorkoutImportOutcome> Function(WorkoutImportInput input)?
     importWorkoutPlanImpl,
     Future<DietImportOutcome> Function(DietImportInput input)?
     importDietPlanImpl,
@@ -73,10 +74,7 @@ class FakeAiRepository implements AiRepository {
        _generateDietPlanImpl = generateDietPlanImpl ?? _defaultGenerateDietPlan,
        _transcribeImpl = transcribeImpl ?? _defaultTranscribe;
 
-  final Future<WorkoutImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
-  )
+  final Future<WorkoutImportOutcome> Function(WorkoutImportInput input)
   _importWorkoutPlanImpl;
   final Future<DietImportOutcome> Function(DietImportInput input)
   _importDietPlanImpl;
@@ -397,11 +395,10 @@ class FakeAiRepository implements AiRepository {
   /// there is no extraction to report. Reporting a fabricated snapshot here
   /// would put the offline path back in the business of inventing progress —
   /// the exact thing the real one stopped doing.
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
-  }) => _importWorkoutPlanImpl(fileBytes, mimeType);
+  }) => _importWorkoutPlanImpl(input);
 
   /// Offline-testable stand-in for the real `aiImportDietPlan` callable —
   /// delegates to [_importDietPlanImpl], which defaults to
@@ -487,8 +484,7 @@ class FakeAiRepository implements AiRepository {
   /// same small two-day sample so the review screen is buildable/testable
   /// without Firebase.
   static Future<WorkoutImportOutcome> _defaultImportWorkoutPlan(
-    Uint8List fileBytes,
-    String mimeType,
+    WorkoutImportInput input,
   ) async {
     return const WorkoutImportAccepted(
       WorkoutImportResult(

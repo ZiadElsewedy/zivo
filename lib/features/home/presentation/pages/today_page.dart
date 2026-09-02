@@ -28,7 +28,7 @@ import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
-import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
+import '../../../workout/presentation/widgets/add_workout_sheet.dart';
 import '../../../../l10n/l10n.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
@@ -657,11 +657,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WorkoutPdfImportPage(),
-                    ),
-                  );
+                  showAddWorkoutSheet(context);
                 },
               ),
             ),
@@ -820,11 +816,7 @@ class _GetStartedCard extends StatelessWidget {
                     icon: Icons.upload_file_rounded,
                     label: l(context).todayImportWorkoutPlan,
                     color: TrainColors.green,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WorkoutPdfImportPage(),
-                      ),
-                    ),
+                    onTap: () => showAddWorkoutSheet(context),
                   ),
                 ),
                 const SizedBox(width: 10),

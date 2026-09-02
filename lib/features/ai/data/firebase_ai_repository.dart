@@ -11,6 +11,7 @@ import '../../diet/domain/diet_import_outcome.dart';
 import '../../diet/domain/diet_import_result.dart';
 import '../../diet/domain/nutrition_targets.dart';
 import '../../diet/domain/plan_preferences.dart';
+import '../../workout/domain/workout_import_input.dart';
 import '../../workout/domain/workout_import_outcome.dart';
 import '../../workout/domain/workout_import_result.dart';
 import '../domain/ai_conversation.dart';
@@ -82,8 +83,7 @@ class FirebaseAiRepository implements AiRepository {
     Future<void> Function(String name, String conversationId, String actionId)?
     invokeAction,
     Future<WorkoutImportOutcome> Function(
-      Uint8List fileBytes,
-      String mimeType,
+      WorkoutImportInput input,
       void Function(ImportProgress)? onProgress,
     )?
     invokeImport,
@@ -142,8 +142,7 @@ class FirebaseAiRepository implements AiRepository {
   )
   _invokeAction;
   final Future<WorkoutImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
+    WorkoutImportInput input,
     void Function(ImportProgress)? onProgress,
   )
   _invokeImport;
@@ -269,21 +268,28 @@ class FirebaseAiRepository implements AiRepository {
   }
 
   /// The default `importWorkoutPlan` invoker — calls `aiImportWorkoutPlan`
-  /// with the file base64-encoded. Like [_defaultInvokeChat], resolves
-  /// [FirebaseFunctions] lazily so the repo builds without a live Firebase
-  /// app.
+  /// with either the file base64-encoded or the user's description as text.
+  /// Like [_defaultInvokeChat], resolves [FirebaseFunctions] lazily so the
+  /// repo builds without a live Firebase app. The payload carries exactly one
+  /// kind of material; the sealed [WorkoutImportInput] makes both-at-once
+  /// unrepresentable here, and the server refuses it too. Mirrors
+  /// [_defaultInvokeDietImport].
   static Future<WorkoutImportOutcome> Function(
-    Uint8List fileBytes,
-    String mimeType,
+    WorkoutImportInput input,
     void Function(ImportProgress)? onProgress,
   )
   _defaultInvokeImport(FirebaseFunctions? functions) {
-    return (fileBytes, mimeType, onProgress) async {
+    return (input, onProgress) async {
       final f =
           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
-      final payload = {
-        'fileBase64': base64Encode(fileBytes),
-        'mimeType': mimeType,
+      final payload = <String, dynamic>{
+        ...switch (input) {
+          WorkoutImportDocument(:final bytes, :final mimeType) => {
+            'fileBase64': base64Encode(bytes),
+            'mimeType': mimeType,
+          },
+          WorkoutImportDescription(:final text) => {'text': text},
+        },
         if (onProgress != null) 'acceptsStreaming': true,
       };
       final callable = f.httpsCallable('aiImportWorkoutPlan');
@@ -596,11 +602,10 @@ class FirebaseAiRepository implements AiRepository {
   }) => _invokeAction('aiCancelAction', conversationId, actionId);
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
     void Function(ImportProgress progress)? onProgress,
-  }) => _invokeImport(fileBytes, mimeType, onProgress);
+  }) => _invokeImport(input, onProgress);
 
   @override
   Future<DietImportOutcome> importDietPlan(

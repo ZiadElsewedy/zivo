@@ -14,7 +14,9 @@
 | `live_session_page.dart` | The guided live workout session — **renders only**; its logic is `presentation/controllers/live_session_controller.dart` (see below) |
 | `session_details_page.dart`, `workout_history_page.dart` | Past sessions + history |
 | `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progressive-overload analysis, scoped to the active split |
-| `workout_pdf_import_page.dart` | AI PDF import → review UI (pairs with `functions/ai/workout_import.js`) |
+| `workout_import_page.dart` | AI import → review UI, for a document (PDF/photo) **or** a dictated/typed description via `WorkoutImportInput` (pairs with `functions/ai/workout_import.js`). Was `workout_pdf_import_page.dart`. |
+| `workout_describe_page.dart` | Say-it / type-it route — a thin wrapper over the shared `capture/presentation/import/plan_describe_page.dart` |
+| `widgets/add_workout_sheet.dart` | `showAddWorkoutSheet` — the one doorway (document · say it · type it · build by hand); every entry point (hub, Today, split editor) opens it |
 | `bodyweight_history_page.dart` | Body-weight log + trend |
 | `workout_capture_page.dart`, `workout_day_details_page.dart` | Quick capture + day drill-in |
 
@@ -64,8 +66,11 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 - Progression/analysis: `progression.dart`, `day_progress_analysis.dart`,
   `progress_comparison.dart`, `weight_trend.dart`, `up_next_selection.dart`,
   `training_dashboard_stats.dart`.
-- Import: `workout_import_result.dart` (+ `ImportedDay`/`ImportedExercise`),
-  `workout_plan_from_import.dart`, `workout_plan_normalize.dart`, `workout_plan_source.dart`.
+- Import: `workout_import_input.dart` (the sealed `WorkoutImportInput` =
+  `Document | Description`, mirroring diet), `workout_import_result.dart` (+
+  `ImportedDay`/`ImportedExercise`), `workout_plan_from_import.dart` (takes a
+  `source`), `workout_plan_normalize.dart`, `workout_plan_source.dart`
+  (`manual`/`pdf`/`photo`/`dictated`/`typed`).
 
 ## Gotchas / invariants (don't re-litigate — see `docs/STATE.md` + git history)
 
