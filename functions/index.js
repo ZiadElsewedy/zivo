@@ -32,6 +32,9 @@ const logger = require("firebase-functions/logger");
 const {Resend} = require("resend");
 const Anthropic = require("@anthropic-ai/sdk");
 const otp = require("./auth/otp");
+const quota = require("./shared/quota");
+const {isDocumentId} = require("./shared/ids");
+const {dayKeyFor} = require("./ai/dates");
 const {
   markEmailSent,
   markEmailVerified,
@@ -329,6 +332,121 @@ const runOtpVerify = async ({ref, code, onOk}) => {
   await onOk();
 };
 
+// --- shared request guards --------------------------------------------------
+
+/**
+ * How recently the caller must have proven their credential for an operation
+ * that is irreversible. Firebase mints `auth_time` when the user actually
+ * authenticated (or reauthenticated) — it does NOT advance on a token
+ * refresh, which is exactly what makes it usable as a freshness proof.
+ */
+const REAUTH_MAX_AGE_SECONDS = 5 * 60;
+
+/**
+ * Asserts the caller reauthenticated within [REAUTH_MAX_AGE_SECONDS].
+ *
+ * The client already re-runs the password / provider flow before calling
+ * `deleteAccount` — but a client-side gate on a server-side destructive
+ * operation is decoration, not security: anything holding a valid ID token
+ * (a modified build, an exfiltrated token, a token minted hours ago) could
+ * previously reach the delete path directly. This is the server half of that
+ * gate, and the reason it can exist at all is that reauthenticating mints a
+ * fresh `auth_time` in the very token the callable receives.
+ *
+ * @param {!Object} auth `request.auth`, already checked non-null.
+ * @param {string} action Human phrase for the error message ("delete…").
+ */
+const requireRecentAuth = (auth, action) => {
+  const authTimeSeconds = auth.token && auth.token.auth_time;
+  if (typeof authTimeSeconds !== "number") {
+    throw new HttpsError(
+        "failed-precondition",
+        `Please sign in again before you ${action}.`,
+        {reason: "reauthRequired"});
+  }
+  const ageSeconds = Date.now() / 1000 - authTimeSeconds;
+  if (ageSeconds > REAUTH_MAX_AGE_SECONDS) {
+    throw new HttpsError(
+        "failed-precondition",
+        `Please confirm your password before you ${action}.`,
+        {reason: "reauthRequired"});
+  }
+};
+
+// Per-user, per-day ceilings for the MODEL-BACKED callables. `aiChat` is not
+// here: it carries its own richer accounting inside the gateway (turns AND
+// tokens, derived from the aiUsage log). These four had only a size cap on
+// their input and no ceiling at all on call COUNT, which left a signed-in
+// account free to loop 180s whole-PDF extractions against the Anthropic bill.
+// The numbers are deliberately generous for a real person — importing ten
+// plans in one day is already an unusual day — and ruinous for a loop.
+const DAILY_QUOTAS = {
+  workoutImport: 10,
+  dietImport: 10,
+  dietGenerate: 10,
+  transcribe: 120,
+};
+
+/**
+ * Consumes one unit of [bucket]'s daily allowance for [uid], throwing
+ * `resource-exhausted` when the ceiling is reached.
+ *
+ * The counter lives at `users/{uid}/quotas/{bucket}` — Admin-SDK-only, denied
+ * to clients by the rules — and is a single document with an O(1) read/write,
+ * rather than a total derived by scanning a log (which would cost a read per
+ * prior call, growing more expensive exactly as an abuser makes it more
+ * necessary). The decision itself is the pure, unit-tested `decideConsume`.
+ *
+ * `dayKey` is the CALLER's calendar day, so the allowance resets at the
+ * user's midnight rather than UTC's — someone in Cairo importing a plan at
+ * 01:00 should be spending tomorrow's budget, not yesterday's last slot.
+ *
+ * @param {string} uid
+ * @param {string} bucket Key in [DAILY_QUOTAS].
+ * @param {number} offsetMinutes The client's UTC offset, already range-checked.
+ * @param {number=} cost Units this call spends (default 1).
+ * @return {!Promise<void>}
+ */
+const enforceDailyQuota = async (uid, bucket, offsetMinutes, cost = 1) => {
+  const limit = DAILY_QUOTAS[bucket];
+  const nowMs = Date.now();
+  const dayKey = dayKeyFor(new Date(nowMs), offsetMinutes);
+  const ref = db.collection("users").doc(uid)
+      .collection("quotas").doc(bucket);
+
+  const decision = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const d = quota.decideConsume({
+      existing: snap.exists ? snap.data() : null,
+      dayKey,
+      nowMs,
+      limit,
+      cost,
+    });
+    // Only a permitted call advances the counter — see quota.test.js.
+    if (d.allowed) tx.set(ref, d.next, {merge: true});
+    return d;
+  });
+
+  if (!decision.allowed) {
+    throw new HttpsError(
+        "resource-exhausted",
+        "You've reached today's limit for this. It resets tomorrow.",
+        {limit: decision.limit, used: decision.used});
+  }
+};
+
+/**
+ * The client's UTC offset, range-checked, for day-key computation. Untrusted
+ * like every other field on the request — `./ai/dates` clamps it and falls
+ * back to server-local when it's nonsense.
+ * @param {!Object} data `request.data`
+ * @return {(number|undefined)}
+ */
+const offsetFromData = (data) =>
+  Number.isFinite(data.utcOffsetMinutes) ?
+    Math.trunc(data.utcOffsetMinutes) : undefined;
+
 /**
  * Resolves the uid of a PASSWORD account for [email], or null when there is no
  * such account — WITHOUT revealing which. Used by the signed-out reset flow so
@@ -503,6 +621,20 @@ exports.resetPasswordWithOtp = onCall(
             password: newPassword,
             emailVerified: true,
           });
+          // Evict every existing session. A forgotten-password reset is the
+          // exact move someone makes when they think an account is
+          // compromised, so leaving other refresh tokens alive would defeat
+          // the point. Note this is only needed on the ADMIN SDK path: the
+          // client SDK's own `updatePassword` (the signed-in change flow)
+          // already revokes sessions itself, whereas `updateUser` does not.
+          // Non-fatal — the password IS changed by this point, and failing the
+          // callable here would tell the user their reset didn't work.
+          try {
+            await getAuth().revokeRefreshTokens(uid);
+          } catch (err) {
+            console.error(
+                "resetPasswordWithOtp: token revocation failed", err.message);
+          }
           // Audit trail: when the password actually changed. Non-fatal.
           try {
             await markPasswordChanged(db, uid);
@@ -534,6 +666,11 @@ exports.deleteAccount = onCall(
         throw new HttpsError(
             "unauthenticated", "Sign in before deleting your account.");
       }
+      // The client re-runs the password / provider flow before calling this,
+      // which mints a fresh `auth_time`. Checking it here is what turns that
+      // client-side prompt into an actual gate — this is the app's only
+      // irreversible operation, so it must not be reachable by a token alone.
+      requireRecentAuth(auth, "delete your account");
       const uid = auth.uid;
       try {
         await db.recursiveDelete(db.collection("users").doc(uid));
@@ -749,7 +886,10 @@ exports.aiDeleteConversation = onCall(
       const conversationId = (
         (request.data && request.data.conversationId) || ""
       ).toString();
-      if (!conversationId) {
+      // Must be a single path segment, not a path: this id is about to be
+      // handed to `recursiveDelete` on the Admin SDK, which bypasses the
+      // security rules. See ./shared/ids.js.
+      if (!isDocumentId(conversationId)) {
         throw new HttpsError(
             "invalid-argument", "conversationId is required.",
         );
@@ -812,6 +952,12 @@ exports.aiImportWorkoutPlan = onCall(
         throw new HttpsError(
             "invalid-argument", "That file is too large to import.");
       }
+      // Spend the day's allowance BEFORE calling the model, never after: a
+      // ceiling charged on success would leave a loop of *failing* calls
+      // unbounded, which is the same unbounded bill. The size check above
+      // runs first so a rejected oversized upload costs the user nothing.
+      await enforceDailyQuota(
+          auth.uid, "workoutImport", offsetFromData(data));
       const mimeType = (data.mimeType || "application/pdf").toString();
       // The same extraction, from the user's own words instead of a file —
       // a dictated split (transcribed by `aiTranscribe` first) or one typed
@@ -897,6 +1043,9 @@ exports.aiImportDietPlan = onCall(
         throw new HttpsError(
             "invalid-argument", "That file is too large to import.");
       }
+      // See aiImportWorkoutPlan: charged before the model call, after the
+      // size check, so a loop is bounded but a rejected upload is free.
+      await enforceDailyQuota(auth.uid, "dietImport", offsetFromData(data));
       const mimeType = (data.mimeType || "application/pdf").toString();
       // The same extraction, from the user's own words instead of a file —
       // a dictated plan (transcribed by `aiTranscribe` first) or one typed
@@ -979,6 +1128,9 @@ exports.aiGenerateDietPlan = onCall(
             "invalid-argument",
             "Tell ZIVO what you eat before it builds a plan.");
       }
+      // Two model calls per invocation — the most expensive endpoint here per
+      // call, and the one with no file to make a caller think twice.
+      await enforceDailyQuota(auth.uid, "dietGenerate", offsetFromData(data));
 
       const anthropic = new Anthropic({apiKey: ANTHROPIC_API_KEY.value()});
       const registry = buildProviderRegistry(anthropic);
@@ -1150,6 +1302,11 @@ exports.aiTranscribe = onCall(
       const mimeType = (data.mimeType || "").toString();
       const languageHint = typeof data.languageHint === "string" ?
         data.languageHint : undefined;
+      // A far higher ceiling than the import endpoints: one transcription is
+      // a short voice note, and dictating is a normal way to use the composer.
+      // It is still a ceiling — the mic button must not become a free,
+      // unmetered pipe to a paid speech provider.
+      await enforceDailyQuota(auth.uid, "transcribe", offsetFromData(data));
 
       const genai = new GoogleGenAI({apiKey: GEMINI_API_KEY.value()});
       // OpenAI fallback is wired only when its key is bound at runtime — i.e.

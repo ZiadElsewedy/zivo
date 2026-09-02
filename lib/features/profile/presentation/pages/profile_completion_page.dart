@@ -4,8 +4,8 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
-import '../../domain/auth_user.dart';
-import '../widgets/auth_action_button.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/widgets/auth_action_button.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
 

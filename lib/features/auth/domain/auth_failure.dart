@@ -23,6 +23,16 @@ enum AuthFailureKind {
   /// distinctly because during setup this is the most likely failure.
   providerConfig,
 
+  /// The server refused an irreversible operation because the session's
+  /// credential proof is too old.
+  ///
+  /// Distinct from [wrongPassword] on purpose: nothing the user typed was
+  /// wrong, so the copy must say "confirm again", not "that was incorrect".
+  /// Reaching this from the app means the client-side reauth prompt was
+  /// skipped or its `auth_time` went stale between the prompt and the call —
+  /// which is exactly the case the server-side check exists to catch.
+  reauthRequired,
+
   unknown,
 }
 

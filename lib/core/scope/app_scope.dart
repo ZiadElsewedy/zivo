@@ -6,7 +6,7 @@ import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
-import '../../features/auth/domain/profile_repository.dart';
+import '../../features/profile/domain/profile_repository.dart';
 import '../../features/diet/domain/diet_repository.dart';
 import '../../features/diet/domain/nutrition/food_resolver.dart';
 import '../../features/device/steps/step_counter.dart';

@@ -20,13 +20,13 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../../workout/domain/live_session.dart';
 import '../../../workout/domain/session_status.dart';
 import '../../../workout/domain/training_volume.dart';
-import '../../domain/auth_user.dart';
+import '../../../auth/domain/auth_user.dart';
 import '../../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../domain/user_profile.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
-import 'settings_page.dart';
+import '../../../auth/presentation/pages/settings_page.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account
 /// section, and a way into [SettingsPage]. Reads the live [UserProfile]

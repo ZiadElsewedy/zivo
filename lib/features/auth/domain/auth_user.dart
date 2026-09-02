@@ -1,7 +1,19 @@
-/// A signed-in user, expressed purely in domain terms.
+/// A signed-in **identity** — deliberately not "the user".
 ///
-/// This is the app's canonical identity. In particular [uid] is the stable
-/// Firebase Auth user id that later becomes the Firestore ownership key
+/// This carries what the authentication provider knows and guarantees, and
+/// nothing else: who they are ([uid]), how to reach them ([email]), whether
+/// that address is proven ([isEmailVerified]), how they signed in
+/// ([providerIds]), and when ([createdAt], [lastSignInAt]).
+///
+/// Who the person *is* to this application — their name, date of birth,
+/// preferences, anything the product cares about — lives in `UserProfile`
+/// (`features/profile/`), joined to this by [uid] alone. That separation is
+/// the module's central design decision; `docs/AUTH.md` gives the full
+/// reasoning, but the short version is that the auth record cannot be queried,
+/// validated, bounded, extended, or written transactionally with your data, so
+/// anything you need to do those things to must not live on it.
+///
+/// [uid] is the stable Firebase Auth user id and the Firestore ownership key
 /// (`users/{uid}`). Nothing above the data layer should ever see a Firebase
 /// SDK `User` — only this.
 class AuthUser {
@@ -22,7 +34,23 @@ class AuthUser {
   /// user who hid their email through Sign in with Apple).
   final String? email;
 
-  /// Human-facing name, when known.
+  /// The provider's idea of a human-facing name — **a hint, never app state.**
+  ///
+  /// Google and Apple hand one over at sign-in for free, and it makes a good
+  /// prefill for the profile form the user is about to see. That is its entire
+  /// job. The app's actual name for a person is `UserProfile.name`, and there
+  /// is exactly one consumer of this field — `resolveSessionState`, seeding
+  /// `SessionNeedsProfile.suggestedName`.
+  ///
+  /// Treating it as state instead is the mistake worth naming, because it
+  /// looks like a harmless convenience: two fields then hold "the user's
+  /// name", they drift the first time someone edits their profile, and every
+  /// screen quietly picks a different one. It is also unqueryable,
+  /// unvalidatable, and updated outside any transaction with your own data.
+  ///
+  /// Apple is the reason it is written at all: it discloses the name **only on
+  /// the very first authorization** and returns nulls forever after, so the
+  /// one chance to capture it is at sign-in.
   final String? displayName;
 
   /// Whether the email has been verified (email/password users may be false).

@@ -1,80 +1,104 @@
 # auth — feature map
 
-> Sign-in, email verification, **password reset + change**, **account deletion**, profile,
-> settings, privacy. Backed by Firebase Auth + Firestore (profiles + an append-only
-> auth-event log). The OTP codes are minted server-side: the shared, unit-tested OTP core is
-> [`functions/auth/otp.js`](../../../functions/auth/otp.js), the callables live in
-> [`functions/index.js`](../../../functions/index.js), and event/summary bookkeeping in
-> [`functions/auth/activity.js`](../../../functions/auth/activity.js).
+> **Identity, credentials, and session — and nothing else.** Sign-in, email
+> verification, password reset + change, account deletion, plus the auth-activity
+> audit trail. Backed by Firebase Auth + Cloud Functions.
+>
+> This module is deliberately **portable**: it contains no ZIVO concept at all. The
+> app's own record of the person lives in [`../profile/`](../profile/FEATURE.md),
+> keyed by `AuthUser.uid`. **Read [`docs/AUTH.md`](../../../docs/AUTH.md) before
+> changing the shape of anything here** — it explains why the boundary is where it is.
 
 ## Start here
 
+- **[`auth.dart`](auth.dart)** — the barrel. One import for the whole public surface.
 - `presentation/auth_gate.dart` — **`AuthGate`**: the app's root gate (`app.dart` sets
-  `home: AuthGate`). Routes splash → auth → verify → profile-completion → the shell.
-- `presentation/pages/`: `splash_screen.dart`, `auth_page.dart` (sign in / up, with the
-  **Forgot password?** link), `verify_email_page.dart` (OTP), `forgot_password_page.dart`
-  (signed-out reset: email → code + new password), `change_password_page.dart` (signed-in
-  reauth + new password), `profile_completion_page.dart`, `profile_page.dart` (the "You"
-  tab), `settings_page.dart` (**ACCOUNT** section: change password + delete account),
+  `home: AuthGate`). Subscribes to the auth stream and, beneath it, the profile
+  stream; resolves both into one `SessionState` and renders the screen for it. It
+  decides nothing itself — `resolveAuthState` and `resolveSessionState` are pure
+  functions tested without widgets.
+- `presentation/pages/`: `splash_screen.dart`, `auth_page.dart` (sign in / up, with
+  **Forgot password?**), `verify_email_page.dart` (OTP),
+  `forgot_password_page.dart` (signed-out reset: email → code + new password),
+  `change_password_page.dart` (signed-in reauth + new password),
+  `settings_page.dart` (**ACCOUNT**: change password + delete account),
   `privacy_page.dart`.
 - Widgets: `email_auth_form.dart`, `social_auth_buttons.dart` (Apple/Google),
-  `otp_code_input.dart`, `dob_picker_sheet.dart` (shared DOB wheel — onboarding + edit),
-  `auth_action_button.dart`, `auth_text_field.dart` + `password_checklist.dart` (shared auth
-  inputs, used by sign-up / reset / change), `delete_account_sheet.dart` (reauth-gated
-  deletion), `media_backup_section.dart` (the Media & Backup settings block).
+  `otp_code_input.dart`, `auth_action_button.dart`, `auth_text_field.dart` +
+  `password_checklist.dart`, `delete_account_sheet.dart` (reauth-gated deletion),
+  `media_backup_section.dart`.
 - Shared auth chrome — use these on any new auth surface so the flow stays one system:
-  `auth_backdrop.dart` (the warm hue bloom over the ground), `auth_header.dart`
-  (`AuthHeader` title + italic-serif aside, `AuthSectionLabel` for a field group), and
-  `auth_footer_bar.dart` (`AuthFooterBar`: bottom-anchored primary action with a scroll-edge
-  fade). `AuthTextField` owns the floating label, focus glow, and password reveal —
-  don't hand-roll an `InputDecoration` field alongside it.
+  `auth_backdrop.dart` (warm hue bloom), `auth_header.dart` (`AuthHeader` +
+  `AuthSectionLabel`), `auth_footer_bar.dart` (`AuthFooterBar`). `AuthTextField` owns
+  the floating label, focus glow, and password reveal — don't hand-roll an
+  `InputDecoration` field alongside it.
 
-## Repositories
+## Domain — four responsibilities, four interfaces
 
-- **`AuthRepository`** (`AppScope.auth`) — `firebase_auth_repository.dart`; email-OTP +
-  Apple/Google/password, plus `sendPasswordResetOtp` / `resetPasswordWithOtp` (signed-out),
-  `changePassword` (reauth), and `deleteAccount` (reauth → server-side wipe). Config in
-  `data/auth_config.dart`, policy in `domain/password_policy.dart`.
-- **`ProfileRepository`** (`AppScope.profiles`) — `firestore_profile_repository.dart`;
-  `domain/user_profile.dart`.
-- **`AuthActivityRepository`** (`AppScope.activity`, nullable) — append-only event log;
-  `firestore_auth_activity_repository.dart` (real) vs `noop_auth_activity_repository.dart`
-  (offline). Events: `domain/auth_event.dart`, `auth_event_type.dart`.
+`AuthRepository` (`AppScope.auth`) is the **union** of four facets, so a screen can
+depend on only what it uses while DI still passes one object:
 
-## Domain highlights
+| Facet | Covers |
+|---|---|
+| `SessionAuthentication` | watch/current user, sign in (email · Google · Apple), sign up, sign out |
+| `EmailVerification` | `sendEmailOtp` / `verifyEmailOtp` |
+| `PasswordManagement` | `sendPasswordResetOtp` / `resetPasswordWithOtp` (signed out), `changePassword` (reauth) |
+| `AccountLifecycle` | `deleteAccount` (reauth → server-side wipe) |
 
-`auth_state.dart`, `auth_user.dart`, `auth_result.dart`, `auth_failure.dart`,
-`otp_result.dart`, `account_auth_metadata.dart`.
+Also: `AuthUser` (identity only), `AuthState` + `resolveAuthState` (the verification
+policy — **no profile knowledge**), `AuthResult`/`AuthFailure`, `OtpSendResult`/
+`OtpVerifyResult`, `PasswordPolicy`, and the activity models (`AuthEvent`,
+`AuthEventType`, `AccountAuthMetadata`).
+
+**`AuthActivityRepository`** (`AppScope.activity`, nullable) is separate on purpose:
+bookkeeping must never be able to fail a sign-in, which is a different contract.
+`firestore_auth_activity_repository.dart` (real) vs `noop_auth_activity_repository.dart`
+(offline).
+
+## Data — a composition root and its sources
+
+`firebase_auth_repository.dart` orchestrates; every mechanism sits beside it:
+
+| File | Owns |
+|---|---|
+| `sources/email_password_source.dart` | Email+password credentials: create, present, re-present, replace |
+| `sources/federated_auth_source.dart` | Google + Apple flows, the Apple nonce, and reauth credentials |
+| `sources/auth_callables_source.dart` | Every backend call — both OTP flows share one send/verify path |
+| `mappers/firebase_user_mapper.dart` | `fb.User` → `AuthUser` (+ `AuthProviderIds`) |
+| `mappers/otp_error_mapper.dart` | Server rejection → domain result |
+| `auth_activity_recorder.dart` | Fire-and-forget audit writes (void, error-swallowing by signature) |
 
 ## Gotchas
 
-- The auth-event log is **append-only** and verified by the Firestore rules suite — don't
-  add mutating writes to it.
-- `AuthGate`'s initial session restore is treated as *not* an account change (so a valid
-  media-backup connection survives launch); the account-switch reset lives in
+- **Client checks have server halves.** `resolveAuthState` ↔ `emailTrusted()` in
+  `firestore.rules`; `PasswordPolicy` ↔ `isStrongPassword`; the reauth prompt ↔
+  `requireRecentAuth`. Change one, change the other — the table is in `docs/AUTH.md` §4.
+- **`verifyEmailOtp` must force a token refresh.** `getIdToken(true)` is not cosmetic:
+  the `email_verified` claim in that token is what the Firestore rules gate writes on,
+  so the refresh is what actually grants write access.
+- The auth-event log is **append-only** and now `hasOnly`-pinned; the summary doc's
+  `emailVerifiedAt`/`emailLastSentAt` are server-authored and rejected from client
+  writes. Both are verified by the rules suite — don't add mutating writes.
+- `AuthGate`'s initial session restore is treated as *not* an account change (so a
+  valid media-backup connection survives launch); the account-switch reset lives in
   [`app.dart`](../../app/app.dart)'s `_authSub`.
 - Both OTP flows use **hashed** codes (HMAC + salt + `OTP_PEPPER`) from the shared
-  `functions/auth/otp.js` decision core. **Throttle accounting (`windowStartAt`/`sendCount`/
-  `lastSentAt`) is stored alongside the code but is NEVER cleared when the code is consumed,
-  expires, or is locked out** — clearing it would let the hourly send cap be bypassed by
-  exhausting attempts. If you touch `otp.js`, keep `clearCodePatch()` code-only and keep the
+  `functions/auth/otp.js` core. **Throttle accounting is NEVER cleared** when a code
+  is consumed, expires, or locks out — clearing it would let the hourly cap be
+  bypassed by exhausting attempts. Keep `clearCodePatch()` code-only and keep the
   regression test in `otp.test.js`.
-- Two Admin-SDK-only collections are locked to clients by the rules (with rule tests):
-  `emailOtps/{uid}` and `passwordResetOtps/{uid}`.
-- The signed-out reset endpoints are **enumeration-safe**: they resolve the account
-  server-side and return the same shape whether or not it exists (missing/social-only →
-  generic "sent"; a bad reset code → the same "no active code" as an expired one). Only
-  accounts with a `password` provider are eligible.
-- A successful password **reset** also flips `emailVerified` (receiving the code proves
-  ownership), so an unverified user isn't re-bounced through verification after resetting.
-- A reset **does not sign the user in**. `resetPasswordWithOtp` sets the credential and
-  leaves the session signed out; `ForgotPasswordPage` pops with the address it reset, and
-  `AuthPage` pre-fills the email so the user authenticates normally with the password they
-  just chose. Owning the mailbox is a weaker claim than knowing the password — don't
-  re-add the convenience sign-in.
-- **Account deletion** is server-side (`deleteAccount` callable: `recursiveDelete` of
-  `users/{uid}` + both OTP docs + `deleteUser`), gated by a client-side **reauthentication**
-  (password typed, or the provider flow re-run for Google/Apple).
-- **Firebase App Check is not yet wired** (deferred by owner request) — the callables and
-  Auth endpoints are otherwise reachable by anything holding the app config. See STATE.md's
-  owner action items.
+- `emailOtps/{uid}` and `passwordResetOtps/{uid}` are Admin-SDK-only, locked to
+  clients by the rules (with tests).
+- The signed-out reset endpoints are **enumeration-safe** — same shape whether or not
+  the account exists. The client must always advance to the code step; branching on
+  existence would rebuild the oracle client-side.
+- A successful **reset** also flips `emailVerified` (receiving the code proves
+  ownership) and **revokes all refresh tokens** (a reset is what someone does when
+  they think they're compromised). It does **not** sign the user in — owning the
+  mailbox is a weaker claim than knowing the password.
+- **Account deletion** is server-side (`recursiveDelete` of `users/{uid}` + both OTP
+  docs + `deleteUser`) and gated by reauthentication on **both** sides: the client
+  re-runs the credential flow, and the server checks the resulting token's
+  `auth_time`.
+- **Firebase App Check is not yet wired** (deferred by owner request) — see
+  `docs/AUTH.md` §6 and STATE.md's owner action items.

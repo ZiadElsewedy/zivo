@@ -73,6 +73,51 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Auth security pass + the auth module became a reference implementation**
+  (2026-09-02, on `core-edits`). Two parts: close the real holes, then draw the
+  boundary that keeps them closed. Full architecture writeup: [`AUTH.md`](AUTH.md).
+  - **Security (server-side, needs a deploy — see owner actions).**
+    (1) `deleteAccount` now verifies reauthentication **server-side** via the ID
+    token's `auth_time` (`requireRecentAuth`, 5-minute window). It was gated only by
+    the client prompt, so any valid token could reach the app's one irreversible
+    operation. (2) The four model-backed callables that had **no call ceiling at all**
+    — `aiImportWorkoutPlan`, `aiImportDietPlan`, `aiGenerateDietPlan`, `aiTranscribe` —
+    are now bounded by a per-user daily quota (`functions/shared/quota.js`, pure +
+    8 unit tests, counters at `users/{uid}/quotas/{bucket}`, Admin-only). Only a size
+    cap existed before, so one account could loop 14 MB PDF extractions against the
+    Anthropic bill. (3) `resetPasswordWithOtp` now calls `revokeRefreshTokens` — the
+    Admin SDK path does not revoke sessions on its own, so an attacker's session
+    survived the very reset made to evict it. (4) Client-supplied ids are validated as
+    single path segments before reaching `.doc()` (`functions/shared/ids.js`) — Firestore
+    reads a slash-bearing id as a *path*, which let a client steer Admin-SDK writes
+    (and `aiDeleteConversation`'s `recursiveDelete`) inside its own subtree.
+  - **Rules.** Ownership collapsed onto three helpers (`isOwner` / `emailTrusted` /
+    `canWrite`) instead of the same predicate repeated 56×. Email verification is now a
+    **boundary, not just a screen**: `canWrite` refuses writes from an unverified
+    address, while reads stay on plain ownership (a stranded account must still be able
+    to read and export). `users/{uid}` — the only PII document, previously a bare
+    `allow read, write` — is pinned with `hasOnly` + bounds and denies client deletes.
+    `authEvents` and the auth summary are `hasOnly`-pinned, and the summary's
+    server-authored `emailVerifiedAt`/`emailLastSentAt` are now immutable to clients.
+    Rules suite **111 → 129 green**.
+  - **Architecture — identity is not the user.** `features/profile/` split out of
+    `features/auth/`: `UserProfile`, its repository, the profile pages, and the new
+    `SessionState`. `AuthState` is now free of every ZIVO concept (it used to carry
+    `ProfileCompletionRequired`, which made the portable module import ZIVO's
+    date-of-birth field), and the app-specific "is this session ready?" question is
+    composed on top in `profile/domain/session_state.dart`. Dependency runs
+    profile → auth, never back.
+  - **Structure.** `FirebaseAuthRepository` 696 → 387 lines, now a composition root over
+    `sources/` (email-password · federated · callables) and `mappers/` (user · OTP
+    errors), plus `AuthActivityRecorder` whose signatures enforce "bookkeeping can never
+    fail a sign-in". `AuthRepository` split into four named facets
+    (`SessionAuthentication` · `EmailVerification` · `PasswordManagement` ·
+    `AccountLifecycle`) unioned into one injectable object. Barrels at
+    `features/auth/auth.dart` and `features/profile/profile.dart`.
+  - **Tests:** Flutter 1055 green (+ new `auth_state_test.dart` — the verification
+    policy was untested — and a rewritten `session_state_test.dart`), functions 394,
+    rules 129. `flutter analyze` clean.
+
 - **Bring-your-own-plan reaches parity: workout import now takes text and voice,
   not just a document — and the two importers stopped being copy-paste twins**
   (2026-09-02, on `claude/refactor-and-feature-review-e5b2ed`). Two parts, done in
@@ -588,7 +633,22 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Firebase App Check (still recommended, deferred by request):** the callables + Auth
   endpoints remain reachable by anything with the app config. Adding `firebase_app_check`
   + `enforceAppCheck: true` is the outstanding hardening layer that caps scripted abuse of
-  the (now unauthenticated) reset endpoint and account creation.
+  the (now unauthenticated) reset endpoint and account creation. **Needs a real release
+  keystore first** — Android release still signs with the debug key
+  (`android/app/build.gradle.kts`), which also blocks Play Integrity.
+- **Auth security pass deploy (2026-09-02):** `firebase deploy --only functions,firestore:rules`
+  (owner creds). Both halves must ship together — the rules now require a verified email
+  for writes, and the functions carry the reauth check, the daily quotas, and the token
+  revocation. No new secrets.
+- **⚠️ Migration caveat for the verified-email rule:** any EXISTING account with
+  `emailVerified == false` loses **write** access the moment the rules deploy (reads are
+  unaffected, by design). Password accounts recover by completing the OTP screen they are
+  already routed to; social accounts arrive verified so are unaffected. Worth a glance at
+  the Firebase Auth console for unverified accounts before deploying.
+- **Firebase Auth password policy:** sign-up strength is still client-side only
+  (`signUpWithEmail` goes straight to Firebase, whose floor is 6 characters); the *reset*
+  path is validated server-side. Enable the server-side policy in the Auth console — zero
+  code.
 
 ## How work happens here (workflow)
 

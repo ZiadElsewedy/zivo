@@ -18,6 +18,7 @@ const {dayKeyFor, localNowFacts, isUsableOffset, resolveDietDay} =
 const {tools} = require("./tools");
 const {mutatingTools, mutatingToolsByName} = require("./mutations");
 const {validateAdvice} = require("./validator");
+const {isDocumentId} = require("../shared/ids");
 const {AnthropicProvider} = require("./providers/anthropic_provider");
 const {legacyAnthropicClient} = require("./providers/legacy_client");
 
@@ -308,6 +309,21 @@ class GatewayError extends Error {
 }
 
 /**
+ * Asserts [value] is usable as a single Firestore document id, so a
+ * client-supplied id can never be read as a deeper path by `.doc()`. See
+ * ../shared/ids.js for why that matters on the Admin-SDK side.
+ * @param {*} value
+ * @param {string} field Field name for the error message.
+ * @return {string} The validated id.
+ */
+function assertDocumentId(value, field) {
+  if (!isDocumentId(value)) {
+    throw new GatewayError("invalid-argument", `${field} is required.`);
+  }
+  return value;
+}
+
+/**
  * The text of the first text content blocks in `content`, joined and
  * trimmed. Empty string if there are none.
  * @param {?Array<Object>} content
@@ -465,10 +481,7 @@ async function runAiTurn({
   const offsetMinutes = isUsableOffset(rawOffset) ? rawOffset : undefined;
   const zoneLabel = clientClock && clientClock.zoneLabel;
 
-  if (typeof conversationId !== "string" || conversationId.trim() === "") {
-    throw new GatewayError(
-        "invalid-argument", "conversationId is required.");
-  }
+  assertDocumentId(conversationId, "conversationId");
   if (typeof message !== "string" || message.trim() === "") {
     throw new GatewayError("invalid-argument", "message is required.");
   }
@@ -1018,12 +1031,8 @@ function resultLineFor(action) {
  */
 async function confirmAction({store, uid, conversationId, actionId, now}) {
   const clock = now || (() => new Date());
-  if (typeof conversationId !== "string" || conversationId.trim() === "") {
-    throw new GatewayError("invalid-argument", "conversationId is required.");
-  }
-  if (typeof actionId !== "string" || actionId.trim() === "") {
-    throw new GatewayError("invalid-argument", "actionId is required.");
-  }
+  assertDocumentId(conversationId, "conversationId");
+  assertDocumentId(actionId, "actionId");
 
   const action = await store.getPendingAction(uid, conversationId, actionId);
   if (!action) {
@@ -1074,12 +1083,8 @@ async function confirmAction({store, uid, conversationId, actionId, now}) {
  */
 async function cancelAction({store, uid, conversationId, actionId, now}) {
   const clock = now || (() => new Date());
-  if (typeof conversationId !== "string" || conversationId.trim() === "") {
-    throw new GatewayError("invalid-argument", "conversationId is required.");
-  }
-  if (typeof actionId !== "string" || actionId.trim() === "") {
-    throw new GatewayError("invalid-argument", "actionId is required.");
-  }
+  assertDocumentId(conversationId, "conversationId");
+  assertDocumentId(actionId, "actionId");
 
   const action = await store.getPendingAction(uid, conversationId, actionId);
   if (!action) {

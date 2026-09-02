@@ -69,7 +69,14 @@ spirit. Owner: Ziad.
 - **Security is deny-by-default, owner-scoped.** All persistence goes through Firestore
   with per-collection field validation in [`firestore.rules`](firestore.rules), covered by
   the emulator suite in [`firestore-tests/`](firestore-tests). A new collection needs a
-  rule **and** a rule test.
+  rule **and** a rule test. Several policies are stated on **both** sides of the wire
+  (email verification, password strength, reauth-before-delete, paid-endpoint quotas) —
+  the client half picks the screen, the server half is the boundary. Change one, change
+  the other: the table is in [`docs/AUTH.md`](docs/AUTH.md) §4.
+- **Identity is not the user.** `features/auth/` holds credentials and session and stays
+  free of every ZIVO concept so it can be lifted into another project; the app's own
+  record of a person lives in `features/profile/`, keyed by uid. Never add a product
+  field to `AuthUser` or to the Firebase Auth record — see [`docs/AUTH.md`](docs/AUTH.md).
 - **Don't present demo/in-memory data as persistent.** In-memory repos are the offline/test
   fallback; the real app runs on Firestore (`USE_FIRESTORE` defaults true).
 - **Reference docs are not current state.** `docs/PLAN.md` is aspirational; the big docs are
@@ -91,7 +98,8 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | **ai** | "Ask": streaming chat + tool-mediated read/confirm-write over your data + voice — **the coach** | [`lib/features/ai/`](lib/features/ai/FEATURE.md) | [ADR-001](docs/DECISIONS/ADR-001-ai-assistant.md), [ADR-003](docs/DECISIONS/ADR-003-ai-mutations-v2.md) |
 | **diet** | Meal plans, daily ledger, PDF import, AI kcal — training fuel | [`lib/features/diet/`](lib/features/diet/FEATURE.md) | — |
 | **music** | Training-anchored Spotify now-playing + color-adaptive Now Playing screen | [`lib/features/music/`](lib/features/music/FEATURE.md) | — |
-| **auth** | Email-OTP + Apple/Google/password, verify, profile, settings, privacy | [`lib/features/auth/`](lib/features/auth/FEATURE.md) | — |
+| **auth** | Email-OTP + Apple/Google/password, verify, session, account lifecycle — **portable module** | [`lib/features/auth/`](lib/features/auth/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
+| **profile** | The app's own user record (name · DOB · photo · bio) + `SessionState` — app-specific half of auth | [`lib/features/profile/`](lib/features/profile/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
 | **expenses** | Append-only spend log, wallet balance, categories | [`lib/features/expenses/`](lib/features/expenses/FEATURE.md) | — |
 | **moments** | Local-first photo memories, timeline, viewer | [`lib/features/moments/`](lib/features/moments/FEATURE.md) | — |
 | **home** | Today surface (reactive glances: training, diet, spend, move ring) | [`lib/features/home/`](lib/features/home/FEATURE.md) | [UX_BLUEPRINT.md](docs/UX_BLUEPRINT.md) |

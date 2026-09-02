@@ -3,6 +3,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- ownership + trust helpers -----------------------------------------
+    // Every rule below is expressed through these three functions rather than
+    // repeating the predicate ~40 times. That repetition was not just noise:
+    // it meant the ownership policy had ~40 places to drift, and it made the
+    // ONE deliberate exception (the audit log, below) invisible.
+
+    // A real, signed-in caller.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The caller owns the `users/{userId}` subtree this document lives in.
+    // The uid IS the ownership key — no membership lookups, no roles, no
+    // `get()` on another document. That keeps every rule O(1) and impossible
+    // to get subtly wrong.
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // The caller's email address is trusted: either verified, or the account
+    // genuinely has no email claim (a provider that withholds one). Written
+    // as "not unverified" rather than "verified" on purpose — an account with
+    // no email must not be locked out of its own data by a check aimed at
+    // unverified ones.
+    //
+    // WHY THIS EXISTS. `resolveAuthState` (lib/features/auth/) routes an
+    // unverified password account to the OTP screen, but that is a SCREEN, not
+    // a boundary: anything talking to the API directly skipped it entirely. So
+    // someone could sign up with an address they don't own, never verify it,
+    // and still accumulate data under it — squatting the address against its
+    // real owner, who then can't register. The client gate and this rule are
+    // the same policy stated on both sides of the wire.
+    //
+    // The claim rides in the ID token, so it lags a server-side flip by up to
+    // an hour — which is why `verifyEmailOtp` force-refreshes the token on the
+    // client the moment the code lands (`getIdToken(true)`).
+    // Whether this token carries a real email address at all. Written the long
+    // way because an absent claim does not reliably read as `null` — the token
+    // is normalised before rules see it, so a missing address can arrive as an
+    // empty string. Testing for a non-empty string covers every shape.
+    function hasEmail() {
+      return 'email' in request.auth.token
+          && request.auth.token.email is string
+          && request.auth.token.email.size() > 0;
+    }
+
+    function emailTrusted() {
+      return !hasEmail() || request.auth.token.email_verified == true;
+    }
+
+    // The predicate for MUTATING a user's own data. Reads deliberately use the
+    // weaker `isOwner`: an account that somehow ends up stranded (unverified,
+    // no way forward) must still be able to see and export what it already
+    // has. Losing write access is a gate; losing read access is data loss.
+    function canWrite(userId) {
+      return isOwner(userId) && emailTrusted();
+    }
+
     // Email OTP records are written and read ONLY by the Cloud Functions
     // Admin SDK (which bypasses these rules). No client may ever read the
     // hashes, salts, or attempt counters — deny everything here.
@@ -17,11 +75,49 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // User profiles: each signed-in user may read and write ONLY their own
-    // document. Name + date of birth captured at profile completion; the uid
-    // is the doc id, so ownership is `request.auth.uid == userId`.
+    // The user's PROFILE — the application's own record of the person, keyed
+    // by the auth uid so the two are joined by identity alone.
+    //
+    // WHAT LIVES HERE AND WHY. Firebase Auth owns the credential and the
+    // identity (uid, email, verified flag, providers, password). It does NOT
+    // own the person: it can't be queried, can't be validated, can't be
+    // extended, isn't transactional with the rest of the data, and isn't
+    // readable from rules except through token claims that lag by up to an
+    // hour. So everything the APP knows about the user lives here instead,
+    // and `displayName` on the auth record is treated as a provider-supplied
+    // HINT that seeds this document — never as state. See docs/AUTH.md.
+    //
+    // This document's FIELDS are the profile; its SUBCOLLECTIONS are every
+    // feature's data. Those are independent in Firestore, which is why the
+    // `hasOnly` below can pin the profile shape without affecting anything
+    // nested beneath it.
+    //
+    // It used to be a bare `allow read, write` — the least-validated rule in
+    // this file, guarding the only PII in it, while `customFoods` two hundred
+    // lines down checked that fat-per-100g was between 0 and 100. Pinned now.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
+        && request.resource.data.keys().hasOnly(
+             ['name', 'dateOfBirth', 'photoPath', 'bio', 'updatedAt',
+              'schemaVersion'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.dateOfBirth is timestamp
+        && (!('photoPath' in request.resource.data)
+            || request.resource.data.photoPath == null
+            || (request.resource.data.photoPath is string
+                && request.resource.data.photoPath.size() <= 500))
+        && (!('bio' in request.resource.data)
+            || request.resource.data.bio == null
+            || (request.resource.data.bio is string
+                && request.resource.data.bio.size() <= 500));
+      // Deleting the profile is the account-deletion path's job, and that runs
+      // server-side through `recursiveDelete` (Admin SDK, rules bypassed). A
+      // client deleting it directly would strand every subcollection under a
+      // document that no longer describes anyone.
+      allow delete: if false;
     }
 
     // Account auth metadata: the always-current summary doc
@@ -30,14 +126,61 @@ service cloud.firestore {
     // but never delete it (history survives even a hostile client), and
     // counters/timestamps must stay sane. The Cloud Functions' Admin-SDK
     // writes (emailVerifiedAt/emailLastSentAt) bypass these rules entirely.
+    // NOTE the deliberate use of `isOwner`, not `canWrite`: an UNVERIFIED
+    // account still signs in, and its sign-ins are exactly the ones worth
+    // recording. Gating the audit trail on email verification would blind the
+    // log precisely where it is most useful. Same reasoning in `authEvents`.
+    //
+    // `hasOnly` pins the vocabulary: without it a client could decorate its
+    // own summary with unbounded extra fields, and — worse — write the
+    // `emailVerifiedAt` / `emailLastSentAt` fields that are supposed to be
+    // server-authored, forging its own audit record. Firebase Auth remains
+    // canonical for the actual verified flag, so that was cosmetic rather than
+    // dangerous, but an audit trail the subject can decorate is a weak one.
     match /users/{userId}/auth/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.schemaVersion == 1
-        && (!('signInCount' in request.resource.data.keys())
-            || request.resource.data.signInCount is int)
-        && (!('registeredVia' in request.resource.data.keys())
-            || request.resource.data.registeredVia is string);
+      // The document's whole vocabulary — client-written AND server-written.
+      // `hasOnly` must list BOTH: on a merge write, `request.resource.data` is
+      // the resulting document, not the delta, so omitting a server-authored
+      // field here would break every client update once the server had ever
+      // written one.
+      function summaryShapeOk() {
+        return request.resource.data.keys().hasOnly(
+                 ['schemaVersion', 'createdAt', 'registeredVia',
+                  'registeredPlatform', 'lastSignInAt', 'lastSignInVia',
+                  'lastSignInPlatform', 'previousSignInAt', 'signInCount',
+                  'emailVerifiedAt', 'emailLastSentAt', 'lastPasswordChangeAt',
+                  'updatedAt'])
+            && request.resource.data.schemaVersion == 1
+            && (!('signInCount' in request.resource.data.keys())
+                || (request.resource.data.signInCount is int
+                    && request.resource.data.signInCount >= 0))
+            && (!('registeredVia' in request.resource.data.keys())
+                || request.resource.data.registeredVia is string);
+      }
+
+      // Which fields only the Admin SDK may author. Because `hasOnly` has to
+      // ALLOW these (see above), it cannot by itself stop a client writing
+      // them — so immutability is stated separately: absent on create,
+      // unchanged on update. Without this a client could stamp its own
+      // `emailVerifiedAt` and forge the record of when its address became
+      // trusted. Firebase Auth stays canonical for the actual flag, so this
+      // was never an authz bypass — but an audit trail its subject can edit
+      // is not an audit trail.
+      function serverFieldsUntouched() {
+        return request.resource.data.get('emailVerifiedAt', null)
+                 == resource.data.get('emailVerifiedAt', null)
+            && request.resource.data.get('emailLastSentAt', null)
+                 == resource.data.get('emailLastSentAt', null);
+      }
+
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && summaryShapeOk()
+        && !('emailVerifiedAt' in request.resource.data)
+        && !('emailLastSentAt' in request.resource.data);
+      allow update: if isOwner(userId)
+        && summaryShapeOk()
+        && serverFieldsUntouched();
       allow delete: if false;
     }
 
@@ -48,8 +191,14 @@ service cloud.firestore {
     // the server's own clock (`== request.time` pins the server timestamp);
     // updates and deletes are denied forever — history cannot be rewritten.
     match /users/{userId}/authEvents/{eventId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        // Pinning the vocabulary matters more here than anywhere else in this
+        // file: an append-only log whose entries can carry arbitrary extra
+        // payload is an unbounded, client-controlled write channel wearing an
+        // audit trail's clothes.
+        && request.resource.data.keys().hasOnly(
+             ['schemaVersion', 'type', 'occurredAt', 'provider', 'platform'])
         && request.resource.data.schemaVersion == 1
         && request.resource.data.type in [
              'accountCreated', 'signIn', 'signOut',
@@ -73,21 +222,21 @@ service cloud.firestore {
     // removed the row optimistically, so the row just reappeared on the next
     // snapshot). See the same split used by workouts/moments/etc. below.
     match /users/{userId}/expenses/{expenseId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.amountMinor is int
         && request.resource.data.amountMinor >= 0
         && request.resource.data.currency is string
         && request.resource.data.category is string
         && request.resource.data.spentAt is timestamp
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Wallet: a single running-balance doc per user (users/{userId}/wallet/main).
     match /users/{userId}/wallet/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.balanceMinor is int
         && request.resource.data.currency is string;
     }
@@ -95,23 +244,23 @@ service cloud.firestore {
     // Expense categories: the user's custom categories on top of the app's
     // built-ins (which aren't stored — see kBuiltInCategories client-side).
     match /users/{userId}/expenseCategories/{categoryId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.label is string
         && request.resource.data.iconId is string;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Workouts: each user reads/writes only their own logged sessions
     // (exercises embedded). Rules do not cascade from /users/{userId}, so explicit.
     match /users/{userId}/workouts/{workoutId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.title is string
         && request.resource.data.performedAt is timestamp
         && request.resource.data.exercises is list
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Workout plans: each user reads/writes only their own plan(s) — the
@@ -119,15 +268,15 @@ service cloud.firestore {
     // log above ("what I did"). Days/exercises/sets are embedded as an array,
     // like Diet's meals/items. Rules do not cascade from /users/{userId}, so explicit.
     match /users/{userId}/workoutPlans/{planId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.name is string
         && request.resource.data.status in ['active', 'archived']
         && request.resource.data.source in ['manual', 'pdf']
         && request.resource.data.schemaVersion == 1
         && request.resource.data.days is list
         && request.resource.data.cycleCursor is number;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Active-split pointer: users/{uid}/workoutMeta/active = { activeSplitId }.
@@ -142,8 +291,8 @@ service cloud.firestore {
     // activeSplitId is a plan id (string) or null (pointer cleared); the doc
     // carries nothing else.
     match /users/{userId}/workoutMeta/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && (request.resource.data.activeSplitId == null
             || request.resource.data.activeSplitId is string);
     }
@@ -154,14 +303,14 @@ service cloud.firestore {
     // embedded as an array, like workoutPlans' days/exercises/sets. Rules do
     // not cascade from /users/{userId}, so explicit.
     match /users/{userId}/workoutSessions/{sessionId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.dayLabel is string
         && request.resource.data.status in ['active', 'completed', 'abandoned']
         && request.resource.data.startedAt is timestamp
         && request.resource.data.exercises is list
         && request.resource.data.schemaVersion == 1;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Body weight entries: each user reads/writes only their own weigh-in log
@@ -173,40 +322,58 @@ service cloud.firestore {
     // create/update because request.resource.data is null on delete (see the
     // expenses comment above for the full rationale).
     match /users/{userId}/bodyWeightEntries/{entryId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.weightKg is number
         && request.resource.data.weightKg > 0
         && request.resource.data.loggedAt is timestamp
         && request.resource.data.schemaVersion == 1;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Moments: each user reads/writes only their own moments. imagePath is a
     // media-store reference (relative local path), not a Firebase Storage URL.
     match /users/{userId}/moments/{momentId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.caption is string
         && request.resource.data.takenAt is timestamp
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Media registry: metadata for each app-captured media file (never the
     // bytes — those live locally / in the user's chosen backup target). Owner
     // only. Rules do not cascade from /users/{userId}, so this is explicit.
     match /users/{userId}/media/{mediaId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.relativePath is string
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
-    // Per-account settings (media/storage preferences live at settings/media).
+    // Per-account settings (media/storage preferences at settings/media, the
+    // Ask reply-style preference at settings/ai). Deliberately NOT pinned to a
+    // field vocabulary: this is the one place whose shape is meant to grow with
+    // whatever a feature needs to remember, and enumerating it here would mean
+    // a rules deploy for every new preference. The bound that matters is the
+    // one Firestore enforces anyway — a document is at most 1 MiB — and the
+    // blast radius is the user's own settings.
     match /users/{userId}/settings/{settingId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId);
+    }
+
+    // Per-user daily quota counters for the paid, model-backed callables
+    // (users/{uid}/quotas/{bucket} — see functions/shared/quota.js). Written
+    // ONLY by the Admin SDK, like aiUsage: a client that could write its own
+    // counter could reset it, which is the entire ceiling gone. The owner may
+    // READ theirs, so a "you've used 8 of 10 imports today" affordance stays
+    // possible without another endpoint.
+    match /users/{userId}/quotas/{bucketId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
     }
 
     // Diet plans: each user reads/writes only their own plan(s) (days/meals/items
@@ -223,8 +390,8 @@ service cloud.firestore {
     // which every imported plan passes through before it can be saved. Read the
     // absence here as "not expressible in rules", not as "unchecked".
     match /users/{userId}/dietPlans/{planId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 500
@@ -233,7 +400,7 @@ service cloud.firestore {
         && request.resource.data.days.size() <= 31
         && request.resource.data.schemaVersion is int
         && request.resource.data.schemaVersion >= 1;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Diet entries: the "did I eat this meal today" consumption log, one doc per
@@ -246,8 +413,8 @@ service cloud.firestore {
     // `goal` and a positive `calories` are the minimum that makes a target a
     // target; macros stay optional (absent means untracked, never zero).
     match /users/{userId}/dietTargets/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
              ['goal', 'calories', 'proteinG', 'carbsG', 'fatG', 'source',
               'basis', 'schemaVersion', 'updatedAt'])
@@ -259,7 +426,7 @@ service cloud.firestore {
         && request.resource.data.source in
              ['manual', 'calculated', 'planDerived']
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Body data: height, the BMR formula's sex variable, activity level and
@@ -271,8 +438,8 @@ service cloud.firestore {
     // Weight is deliberately NOT here: it lives in `bodyWeights`, which is
     // where the user actually keeps it.
     match /users/{userId}/bodyProfile/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
              ['heightCm', 'sex', 'activity', 'statedMaintenanceKcal',
               'schemaVersion', 'updatedAt'])
@@ -288,7 +455,7 @@ service cloud.firestore {
                  && request.resource.data.statedMaintenanceKcal >= 800
                  && request.resource.data.statedMaintenanceKcal <= 10000))
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // The food log: what the user actually ate, one doc per entry. This is the
@@ -299,8 +466,8 @@ service cloud.firestore {
     // it from a ticked meal). A figure that can't say where it came from is
     // exactly what this whole design exists to prevent.
     match /users/{userId}/foodLogs/{entryId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
              ['dayKey', 'date', 'loggedAt', 'foodId', 'foodName', 'quantity',
               'unit', 'grams', 'kcal', 'proteinG', 'carbsG', 'fatG', 'source',
@@ -328,7 +495,7 @@ service cloud.firestore {
         && request.resource.data.origin in ['logged', 'plannedMeal']
         && request.resource.data.estimated is bool
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Foods the user defined themselves, for everything the bundled USDA
@@ -336,8 +503,8 @@ service cloud.firestore {
     // shape and plausibility, never for "correctness": it is not the app's
     // place to tell someone their own recipe is wrong.
     match /users/{userId}/customFoods/{foodId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
              ['name', 'kcalPer100g', 'proteinPer100g', 'carbsPer100g',
               'fatPer100g', 'preparation', 'portions', 'schemaVersion',
@@ -359,7 +526,7 @@ service cloud.firestore {
         && request.resource.data.fatPer100g <= 100
         && request.resource.data.portions is list
         && request.resource.data.schemaVersion is int;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if canWrite(userId);
     }
 
     // Shape is validated tightly here because this log is what every "meals
@@ -370,8 +537,8 @@ service cloud.firestore {
     // in the AI write path (`functions/ai/mutations.js` verify +
     // `gateway.js` requireMealInPlan). This is the shape half of it.
     match /users/{userId}/dietEntries/{entryId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.keys().hasOnly(
              ['dayKey', 'date', 'mealId', 'eaten', 'schemaVersion',
               'createdAt', 'updatedAt'])
@@ -388,8 +555,8 @@ service cloud.firestore {
     // AI conversations: the user owns their chat threads. Client-writable
     // (create/rename); messages under them are server-written only (below).
     match /users/{userId}/aiConversations/{conversationId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
         && request.resource.data.title is string
         && request.resource.data.schemaVersion is int;
     }
@@ -398,7 +565,7 @@ service cloud.firestore {
     // rules), so clients may READ their own thread but never write — a client
     // must not be able to forge an assistant/tool message.
     match /users/{userId}/aiConversations/{conversationId}/messages/{messageId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
       allow write: if false;
     }
 
@@ -408,13 +575,13 @@ service cloud.firestore {
     // confirmation card) but never write one — a forged pending action must not
     // be confirmable into a real write.
     match /users/{userId}/aiConversations/{conversationId}/pendingActions/{actionId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
       allow write: if false;
     }
 
     // AI usage/audit log: Functions-only, like emailOtps. Owner may read.
     match /users/{userId}/aiUsage/{usageId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
       allow write: if false;
     }
 

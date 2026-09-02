@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zivo/features/auth/domain/user_profile.dart';
+import 'package:zivo/features/profile/domain/user_profile.dart';
 
 void main() {
   group('isProfileComplete', () {

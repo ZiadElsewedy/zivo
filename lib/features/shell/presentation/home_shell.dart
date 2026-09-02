@@ -9,7 +9,7 @@ import '../../../core/util/money.dart';
 import '../../../core/scope/app_scope.dart';
 import '../../ai/presentation/pages/ask_page.dart';
 import '../../ai/presentation/widgets/quick_log_sheet.dart';
-import '../../auth/presentation/pages/profile_page.dart';
+import '../../profile/presentation/pages/profile_page.dart';
 import '../../capture/presentation/quick_capture_sheet.dart';
 import '../../expenses/domain/expense.dart';
 import '../../expenses/presentation/pages/expense_capture_page.dart';
