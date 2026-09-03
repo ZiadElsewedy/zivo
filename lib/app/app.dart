@@ -77,7 +77,7 @@ import '../features/workout/domain/workout_session_repository.dart';
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
 /// The flag itself lives in [AppEnvironment]; aliased here for the repository
 /// wiring below.
-const bool _useFirestore = AppEnvironment.useFirestore;
+final bool _useFirestore = AppEnvironment.useFirestore;
 
 /// The ZIVO application root. Owns shared repositories and exposes them via
 /// [AppScope]. [auth] and [profiles] are backed by Firebase Auth/Firestore,

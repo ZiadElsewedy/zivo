@@ -34,6 +34,21 @@ nothing reads `kDebugMode` or `fromEnvironment` ad-hoc anymore:
 
 - `AppEnvironment.config` — the active `AppConfig` (from the build mode).
 - `AppEnvironment.useFirestore` — Firestore vs in-memory (`USE_FIRESTORE`).
+  **Release always uses Firestore:** the guard in `AppEnvironment.useFirestore`
+  ignores a `USE_FIRESTORE=false` override in release mode, so the in-memory
+  **demo** repositories (the hardcoded `ziadWorkoutPlan`, fake AI/music) can
+  never ship. Demo mode stays available in debug/profile for offline work.
+
+> ⚠️ **Building the IPA: use `make build-ipa`, not a bare Xcode Archive.**
+> Xcode's *Product → Archive* does **not** read `config/release.json`; it reuses
+> the dart-defines baked into `ios/Flutter/Generated.xcconfig` by the **last**
+> `flutter build`/`flutter run`. Archive right after an offline run
+> (`USE_FIRESTORE=false`) and — before the release guard existed — you shipped
+> demo mode to TestFlight (this actually happened). `make build-ipa` runs
+> `flutter build ipa --dart-define-from-file=config/release.json`, which
+> regenerates that config with the right defines and produces the archive in one
+> step. If you must archive from Xcode, run a `flutter build ... --dart-define-from-file=config/release.json`
+> (or `flutter build ios --config-only ...`) first.
 - `AppEnvironment.appCheckMode` — debug providers vs real attestation.
 - `AppEnvironment.googleServerClientId` — public OAuth client id.
 - `AppEnvironment.showBadge` — drives the corner badge (off in Release).
