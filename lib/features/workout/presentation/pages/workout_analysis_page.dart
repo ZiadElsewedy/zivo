@@ -1,32 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
+import '../../domain/analytics/plan_adherence.dart';
 import '../../domain/analytics/workout_analytics.dart';
 import '../../domain/live_session.dart';
 import '../../domain/training_volume.dart';
+import '../../domain/workout_plan.dart';
+import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
+import 'exercise_analysis_page.dart';
 
-/// The progress/analysis surface, driven entirely by the centralized
-/// [analyzeTraining] engine — the SAME numbers the AI coach reasons over, so
-/// screen and coach can never disagree.
+/// The Analysis hub — a coaching dashboard, not one AI text block.
 ///
-/// It answers five questions, top to bottom, and stops (per the product
-/// brief — not a deep analytics dashboard):
-///   1. Am I progressing?      → the overall summary
-///   2. Any new PRs?           → Recent PRs
-///   3. What am I improving at? / stuck on? → Exercise progress
-///   4. Is my volume right?    → Training volume
-///   5. What should I do next? → Needs attention + Next step
-///
-/// Everything reads from real completed sessions; nothing is a placeholder,
-/// and a verdict is only shown once there's enough history to mean it.
+/// Driven entirely by the centralized [analyzeTraining] engine (plus
+/// [analyzePlanAdherence] for what's being skipped) — the SAME numbers the AI
+/// coach reasons over, so screen and coach can never disagree. It is organised
+/// the way a coach reads a client's block (product brief §3): the verdict, then
+/// what's going well, what's getting worse, what's stalled, what's being
+/// skipped, and — reachable from every exercise row — the full per-exercise
+/// drill-down. Everything reads from real completed sessions; a verdict is only
+/// shown once there's enough history to mean it.
 class WorkoutAnalysisPage extends StatelessWidget {
   const WorkoutAnalysisPage({super.key});
 
@@ -35,78 +37,109 @@ class WorkoutAnalysisPage extends StatelessWidget {
     final scope = AppScope.of(context);
     return TrainScreen(
       tint: TrainColors.hubTint,
-      child: StreamBuilder<List<LiveSession>>(
-        stream: scope.workoutSessions.watchAll(),
-        initialData: scope.workoutSessions.current,
-        builder: (context, snap) {
-          if (snap.hasError) return const _ErrorState();
-          if (!snap.hasData &&
-              snap.connectionState == ConnectionState.waiting) {
-            return const _LoadingState();
-          }
-          final analysis = analyzeTraining(
-            sessions: snap.data ?? const <LiveSession>[],
-            now: DateTime.now(),
-          );
+      child: StreamBuilder<WorkoutPlan?>(
+        stream: scope.workoutPlans.watchActivePlan(),
+        initialData: scope.workoutPlans.activePlan,
+        builder: (context, planSnap) {
+          return StreamBuilder<List<LiveSession>>(
+            stream: scope.workoutSessions.watchAll(),
+            initialData: scope.workoutSessions.current,
+            builder: (context, snap) {
+              if (snap.hasError) return const _ErrorState();
+              if (!snap.hasData &&
+                  snap.connectionState == ConnectionState.waiting) {
+                return const _LoadingState();
+              }
+              final sessions = snap.data ?? const <LiveSession>[];
+              final now = DateTime.now();
+              final analysis = analyzeTraining(sessions: sessions, now: now);
+              final adherence = analyzePlanAdherence(
+                plan: planSnap.data,
+                sessions: sessions,
+                now: now,
+              );
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(22, 12, 22, TrainBottomInset.of(context)),
-            children: [
-              RiseIn(child: const TrainPageHeader(title: 'Analysis')),
-              const SizedBox(height: 20),
-              RiseIn(
-                delay: const Duration(milliseconds: 40),
-                child: _OverallCard(analysis: analysis),
-              ),
-              if (analysis.isEmpty) ...[
-                const SizedBox(height: 16),
-                const _EmptyHint(),
-              ] else ...[
-                if (analysis.recentPrs.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  const _SectionLabel('Recent PRs'),
-                  const SizedBox(height: 10),
+              final declining = analysis.exercises
+                  .where((e) => e.status == ProgressStatus.regressing)
+                  .toList(growable: false);
+              final stalled = analysis.exercises
+                  .where((e) => e.status == ProgressStatus.plateauing)
+                  .toList(growable: false);
+
+              var step = 60;
+              Duration delay() => Duration(milliseconds: (step += 20));
+
+              return ListView(
+                padding: EdgeInsets.fromLTRB(
+                    22, 12, 22, TrainBottomInset.of(context)),
+                children: [
+                  RiseIn(child: const TrainPageHeader(title: 'Analysis')),
+                  const SizedBox(height: 20),
                   RiseIn(
-                    delay: const Duration(milliseconds: 80),
-                    child: _RecentPrsCard(prs: analysis.recentPrs),
+                    delay: const Duration(milliseconds: 40),
+                    child: _OverallCard(analysis: analysis),
                   ),
+                  if (analysis.isEmpty) ...[
+                    const SizedBox(height: 16),
+                    const _EmptyHint(),
+                  ] else ...[
+                    if (analysis.recentPrs.isNotEmpty)
+                      _Section(
+                        label: 'Recent PRs',
+                        delay: delay(),
+                        child: _RecentPrsCard(prs: analysis.recentPrs),
+                      ),
+                    if (analysis.improving.isNotEmpty)
+                      _Section(
+                        label: "What's going well",
+                        trailing: '${analysis.improving.length} improving',
+                        delay: delay(),
+                        child: _ExerciseCard(exercises: analysis.improving),
+                      ),
+                    if (declining.isNotEmpty)
+                      _Section(
+                        label: "What's getting worse",
+                        trailing: '${declining.length} declining',
+                        delay: delay(),
+                        child: _ExerciseCard(exercises: declining),
+                      ),
+                    if (stalled.isNotEmpty)
+                      _Section(
+                        label: 'Stalled — needs a change',
+                        trailing: '${stalled.length} flat',
+                        delay: delay(),
+                        child: _ExerciseCard(exercises: stalled),
+                      ),
+                    if (adherence.neglected.isNotEmpty)
+                      _Section(
+                        label: "What's being skipped",
+                        trailing:
+                            '${adherence.neglected.length} of ${adherence.plannedExerciseCount}',
+                        delay: delay(),
+                        child: _SkippedCard(neglected: adherence.neglected),
+                      ),
+                    if (analysis.nextStep != null)
+                      _Section(
+                        label: 'Focus next',
+                        delay: delay(),
+                        child: _NextStepCard(step: analysis.nextStep!),
+                      ),
+                    _Section(
+                      label: 'Training volume',
+                      delay: delay(),
+                      child: _VolumeCard(volume: analysis.volume),
+                    ),
+                    if (analysis.exercises.isNotEmpty)
+                      _Section(
+                        label: 'All exercises',
+                        trailing: 'tap to drill in',
+                        delay: delay(),
+                        child: _ExerciseCard(exercises: analysis.exercises),
+                      ),
+                  ],
                 ],
-                if (analysis.exercises.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  const _SectionLabel('Exercise progress'),
-                  const SizedBox(height: 10),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 100),
-                    child: _ExerciseListCard(exercises: analysis.exercises),
-                  ),
-                ],
-                const SizedBox(height: 28),
-                const _SectionLabel('Training volume'),
-                const SizedBox(height: 10),
-                RiseIn(
-                  delay: const Duration(milliseconds: 120),
-                  child: _VolumeCard(volume: analysis.volume),
-                ),
-                if (analysis.needsAttention.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  const _SectionLabel('Needs attention'),
-                  const SizedBox(height: 10),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 140),
-                    child: _AttentionCard(exercises: analysis.needsAttention),
-                  ),
-                ],
-                if (analysis.nextStep != null) ...[
-                  const SizedBox(height: 28),
-                  const _SectionLabel('Next step'),
-                  const SizedBox(height: 10),
-                  RiseIn(
-                    delay: const Duration(milliseconds: 160),
-                    child: _NextStepCard(step: analysis.nextStep!),
-                  ),
-                ],
-              ],
-            ],
+              );
+            },
           );
         },
       ),
@@ -114,32 +147,54 @@ class WorkoutAnalysisPage extends StatelessWidget {
   }
 }
 
-// ---- Status vocabulary ----------------------------------------------------
-
-/// A status → (label, color, icon) — the one place the five directions get
-/// their visual language, so every section reads them the same way.
-({String label, Color color, IconData icon}) _statusStyle(ProgressStatus s) =>
-    switch (s) {
-      ProgressStatus.progressing =>
-        (label: 'Progressing', color: TrainColors.green, icon: AppIcons.trendUp),
-      ProgressStatus.maintaining =>
-        (label: 'Maintaining', color: TrainColors.ink2, icon: AppIcons.minus),
-      ProgressStatus.plateauing =>
-        (label: 'Plateauing', color: TrainColors.amber, icon: AppIcons.minus),
-      ProgressStatus.regressing =>
-        (label: 'Trending down', color: TrainColors.ember, icon: AppIcons.trendDown),
-      ProgressStatus.building =>
-        (label: 'Building', color: TrainColors.ink4, icon: AppIcons.analysis),
-    };
-
 String _signedPct(double v) => '${v > 0 ? '+' : ''}${v.round()}%';
 
 String _trim(double v) =>
     v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
-/// "100kg × 8" (or "8 reps" when unloaded) — a record/anchor set in one line.
+/// "100kg × 8" (or "8 reps" when unloaded) — a record set in one line.
 String _setLine(double? weightKg, int reps) =>
     weightKg == null ? '$reps reps' : '${_trim(weightKg)}kg × $reps';
+
+void _openExercise(BuildContext context, String id, String name) {
+  HapticFeedback.selectionClick();
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ExerciseAnalysisPage(exerciseId: id, exerciseName: name),
+    ),
+  );
+}
+
+// ---- Section chrome -------------------------------------------------------
+
+/// A labelled, animated section — the one place the hub's rhythm (28px gap,
+/// mono label, staggered rise) is defined, so every block reads the same.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.label,
+    required this.child,
+    required this.delay,
+    this.trailing,
+  });
+
+  final String label;
+  final String? trailing;
+  final Widget child;
+  final Duration delay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 28),
+        TrainSectionLabel(label.toUpperCase(), trailing: trailing?.toUpperCase()),
+        const SizedBox(height: 10),
+        RiseIn(delay: delay, child: child),
+      ],
+    );
+  }
+}
 
 // ---- Overall --------------------------------------------------------------
 
@@ -152,7 +207,7 @@ class _OverallCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _statusStyle(analysis.overallStatus);
+    final style = progressStatusStyle(analysis.overallStatus);
     final color = analysis.isEmpty ? TrainColors.ink2 : style.color;
     return Container(
       width: double.infinity,
@@ -187,10 +242,7 @@ class _OverallCard extends StatelessWidget {
                 child: Icon(style.icon, size: 16, color: color),
               ),
               const SizedBox(width: 9),
-              Text(
-                'OVERALL',
-                style: AppText.sectionLabel.copyWith(color: color),
-              ),
+              Text('OVERALL', style: AppText.sectionLabel.copyWith(color: color)),
             ],
           ),
           const SizedBox(height: 12),
@@ -225,7 +277,10 @@ class _RecentPrsCard extends StatelessWidget {
         children: [
           for (final (i, pr) in shown.indexed) ...[
             if (i > 0) const _RowDivider(),
-            StaggeredReveal(index: i, child: _PrRow(pr: pr)),
+            StaggeredReveal(
+              index: i,
+              child: _PrRow(pr: pr),
+            ),
           ],
         ],
       ),
@@ -245,43 +300,50 @@ class _PrRow extends StatelessWidget {
       PrKind.mostReps => 'Most reps',
       PrKind.bestEstimatedStrength => 'Best strength',
     };
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          const Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  pr.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: TrainColors.ink,
+    return InkWell(
+      onTap: () => _openExercise(context, pr.exerciseId, pr.name),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const Icon(AppIcons.trophy, size: 18, color: TrainColors.amber),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    pr.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: TrainColors.ink,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$kind · ${_setLine(pr.weightKg, pr.reps)}',
-                  style: AppText.meta.copyWith(color: TrainColors.ink4),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    '$kind · ${_setLine(pr.weightKg, pr.reps)}',
+                    style: AppText.meta.copyWith(color: TrainColors.ink4),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ---- Exercise progress ----------------------------------------------------
+// ---- Exercise rows (shared across the coaching sections) ------------------
 
-class _ExerciseListCard extends StatelessWidget {
-  const _ExerciseListCard({required this.exercises});
+/// One card of hairline-separated, tappable exercise rows. Reused by every
+/// exercise-list section (improving, declining, stalled, all) so they read
+/// identically — the only difference between sections is which subset feeds it.
+class _ExerciseCard extends StatelessWidget {
+  const _ExerciseCard({required this.exercises});
 
   final List<ExercisePerformance> exercises;
 
@@ -307,61 +369,137 @@ class _ExerciseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _statusStyle(ex.status);
+    final style = progressStatusStyle(ex.status);
     final change = ex.strengthChangePercent;
     final showChart = ex.e1rmSeries.length >= 2;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ex.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: TrainColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(style.icon, size: 13, color: style.color),
-                    const SizedBox(width: 5),
-                    Text(
-                      // A concrete number when we have one, else the plain
-                      // status word — never a fake percentage.
-                      change != null
-                          ? '${style.label} · ${_signedPct(change)} strength'
-                          : style.label,
-                      style: AppText.meta.copyWith(
-                        color: style.color,
-                        fontWeight: FontWeight.w600,
-                      ),
+    return InkWell(
+      onTap: () => _openExercise(context, ex.exerciseId, ex.name),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ex.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: TrainColors.ink,
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (showChart) ...[
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 60,
-              child: TrendChart(
-                values: [for (final v in ex.e1rmSeries) v],
-                height: 30,
-                color: ex.status == ProgressStatus.regressing
-                    ? TrainColors.ember
-                    : TrainColors.green,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(style.icon, size: 13, color: style.color),
+                      const SizedBox(width: 5),
+                      Text(
+                        // A concrete number when we have one, else the plain
+                        // status word — never a fake percentage.
+                        change != null
+                            ? '${style.label} · ${_signedPct(change)} strength'
+                            : style.label,
+                        style: AppText.meta.copyWith(
+                          color: style.color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            if (showChart) ...[
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 56,
+                child: TrendChart(
+                  values: [for (final v in ex.e1rmSeries) v],
+                  height: 30,
+                  color: ex.status == ProgressStatus.regressing
+                      ? TrainColors.ember
+                      : TrainColors.green,
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---- Skipped --------------------------------------------------------------
+
+class _SkippedCard extends StatelessWidget {
+  const _SkippedCard({required this.neglected});
+
+  final List<NeglectedExercise> neglected;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = neglected.take(6).toList();
+    return _Card(
+      child: Column(
+        children: [
+          for (final (i, n) in shown.indexed) ...[
+            if (i > 0) const _RowDivider(),
+            StaggeredReveal(index: i, child: _SkippedRow(item: n)),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _SkippedRow extends StatelessWidget {
+  const _SkippedRow({required this.item});
+
+  final NeglectedExercise item;
+
+  @override
+  Widget build(BuildContext context) {
+    final (line, color) = switch (item.reason) {
+      AdherenceReason.neverTrained => ('Planned but never trained', TrainColors.ember),
+      AdherenceReason.stale => (
+          '${item.daysSinceLast} days since last — on ${item.dayLabel}',
+          TrainColors.amber,
+        ),
+    };
+    return InkWell(
+      onTap: () => _openExercise(context, item.exerciseId, item.name),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(AppIcons.calendarClock, size: 16, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: TrainColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(line, style: AppText.meta.copyWith(color: color)),
+                ],
+              ),
+            ),
+            const Icon(AppIcons.chevron, size: 16, color: TrainColors.ink4),
+          ],
+        ),
       ),
     );
   }
@@ -410,7 +548,7 @@ class _VolumeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Working sets only — warm-ups excluded.',
+                    'This week · working sets only',
                     style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11.5),
                   ),
                   const SizedBox(height: 3),
@@ -446,71 +584,6 @@ class _VolumeCard extends StatelessWidget {
   }
 }
 
-// ---- Needs attention ------------------------------------------------------
-
-class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({required this.exercises});
-
-  final List<ExercisePerformance> exercises;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        children: [
-          for (final (i, ex) in exercises.indexed) ...[
-            if (i > 0) const _RowDivider(),
-            _AttentionRow(ex: ex),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _AttentionRow extends StatelessWidget {
-  const _AttentionRow({required this.ex});
-
-  final ExercisePerformance ex;
-
-  @override
-  Widget build(BuildContext context) {
-    // Plain, non-clinical language — describe what happened, claim nothing
-    // about the body (per the brief).
-    final line = ex.status == ProgressStatus.regressing
-        ? "${ex.name} has been trending down recently."
-        : "${ex.name} hasn't moved much across your last few sessions.";
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            ex.status == ProgressStatus.regressing
-                ? AppIcons.trendDown
-                : AppIcons.minus,
-            size: 16,
-            color: ex.status == ProgressStatus.regressing
-                ? TrainColors.ember
-                : TrainColors.amber,
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              line,
-              style: AppText.body.copyWith(
-                fontSize: 13.5,
-                height: 1.4,
-                color: TrainColors.ink2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ---- Next step ------------------------------------------------------------
 
 class _NextStepCard extends StatelessWidget {
@@ -520,58 +593,53 @@ class _NextStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            TrainColors.green.withValues(alpha: 0.12),
-            TrainColors.green.withValues(alpha: 0.03),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: TrainColors.green.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(AppIcons.bolt, size: 18, color: TrainColors.green),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              step.text,
-              style: AppText.body.copyWith(
-                fontSize: 15,
-                height: 1.45,
-                color: TrainColors.ink,
+    return PressableScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _openExercise(context, step.exerciseId, step.name),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  TrainColors.green.withValues(alpha: 0.12),
+                  TrainColors.green.withValues(alpha: 0.03),
+                ],
               ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: TrainColors.green.withValues(alpha: 0.16)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(AppIcons.bolt, size: 18, color: TrainColors.green),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    step.text,
+                    style: AppText.body.copyWith(
+                      fontSize: 15,
+                      height: 1.45,
+                      color: TrainColors.ink,
+                    ),
+                  ),
+                ),
+                const Icon(AppIcons.chevron, size: 16, color: TrainColors.green),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 // ---- Shared chrome --------------------------------------------------------
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        label.toUpperCase(),
-        style: AppText.sectionLabel.copyWith(
-          color: TrainColors.ink4,
-          letterSpacing: 0.8,
-        ),
-      );
-}
 
 class _Card extends StatelessWidget {
   const _Card({required this.child});
@@ -580,6 +648,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: const Color(0x08FFFFFF),
           borderRadius: BorderRadius.circular(20),

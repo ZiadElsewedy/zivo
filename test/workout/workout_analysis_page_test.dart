@@ -170,7 +170,9 @@ void main() {
     await tester.pumpWidget(_wrap(sessions));
     await tester.pump();
 
-    expect(find.text('EXERCISE PROGRESS'), findsOneWidget);
+    // A thin-data lift isn't sorted into a coaching bucket — it's reachable in
+    // the full, drill-in-able "All exercises" index, marked Building.
+    expect(find.text('ALL EXERCISES'), findsOneWidget);
     expect(find.textContaining('Building'), findsOneWidget);
     expect(find.textContaining('Progressing'), findsNothing);
   });
@@ -191,7 +193,9 @@ void main() {
     expect(find.text('RECENT PRS'), findsOneWidget);
     expect(find.textContaining('Bench Press'), findsWidgets);
     expect(find.textContaining('Progressing'), findsWidgets);
-    expect(find.text('NEXT STEP'), findsOneWidget);
+    // The improving lift is pulled into its own coaching section, too.
+    expect(find.text("WHAT'S GOING WELL"), findsOneWidget);
+    expect(find.text('FOCUS NEXT'), findsOneWidget);
   });
 
   testWidgets('a sustained decline reads as Trending down', (tester) async {
@@ -207,6 +211,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.textContaining('Trending down'), findsWidgets);
-    expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+    expect(find.text("WHAT'S GETTING WORSE"), findsOneWidget);
   });
 }

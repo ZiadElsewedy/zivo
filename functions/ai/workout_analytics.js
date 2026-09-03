@@ -742,4 +742,9 @@ module.exports = {
   estimatedOneRepMax,
   normalizeMuscleGroup,
   isWorkingSet,
+  // Exposed for the per-exercise drill-down mirror (`exercise_analytics.js`),
+  // so it reads a session's timestamp the exact same way the hub engine does.
+  completedAtOf,
+  MEANINGFUL_CHANGE_PCT,
+  EPS,
 };

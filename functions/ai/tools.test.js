@@ -294,6 +294,123 @@ test("get_training_analysis returns deterministic findings, never raw math",
       assert.ok(result.findings.every((f) => ["fact", "interpretation"].includes(f.confidence)));
     });
 
+// ---- Per-exercise drill-down + adherence for the coach --------------------
+
+const DAY = 24 * 60 * 60 * 1000;
+const ago = (d) => new Date(NOW.getTime() - d * DAY);
+const inclineSession = (id, day, sets) => ({
+  id, dayLabel: "Push", status: "completed",
+  startedAt: ago(day), completedAt: ago(day),
+  exercises: [{
+    name: "Incline DB Press", exerciseId: "incline", muscleGroup: "Chest",
+    sets: sets.map((s, i) => ({
+      id: `${id}-${i}`, actualReps: s.reps, actualWeightKg: s.weight,
+      type: "working", outcome: "completed",
+    })),
+  }],
+});
+
+test("get_exercise_analysis: the deterministic verdict + deltas reach the coach",
+    async () => {
+      const tool = toolsByName.get("get_exercise_analysis");
+      // The headline case: 35kg×10 last time → 40kg×7 this time.
+      const store = {
+        listWorkoutSessions: async () => [
+          inclineSession("last", 7, [{reps: 8, weight: 35}, {reps: 10, weight: 35}]),
+          inclineSession("this", 1,
+              [{reps: 7, weight: 40}, {reps: 7, weight: 40},
+                {reps: 6, weight: 37}]),
+        ],
+      };
+      const result = await tool.execute(store, UID, {exercise: "incline"}, NOW);
+
+      assert.equal(result.matched, true);
+      assert.equal(result.exercise, "Incline DB Press");
+      // Sessions newest-first, each carrying its own session-to-session deltas.
+      assert.equal(result.sessions.length, 2);
+      const latest = result.sessions[0];
+      assert.equal(latest.isPersonalBest, true);
+      assert.equal(latest.topSet, "40kg × 7");
+      const vs = latest.vsPreviousSession;
+      // The engine already concluded this is an improvement — it reaches the
+      // model unchanged, so the coach can't independently call it a regression.
+      assert.equal(vs.tone, "improved");
+      assert.equal(vs.loadChangeKg, 5);
+      assert.equal(vs.topRepsChange, -3);
+      assert.ok(vs.estimatedOneRepMaxChangePercent > 0);
+      assert.ok(vs.changes.includes("strengthUp"));
+      assert.ok(vs.changes.includes("newPr"));
+      // The verdict + coaching insight ride along for the model to explain.
+      assert.equal(result.verdict, result.status);
+      assert.ok(result.insight.whatHappened);
+      assert.ok(result.insight.whyItMatters);
+      assert.ok(result.insight.whatToDo);
+      // The oldest session is a baseline — no prior comparison.
+      assert.equal(result.sessions[1].vsPreviousSession, null);
+    });
+
+test("get_exercise_analysis: an unknown lift returns candidates, not a guess",
+    async () => {
+      const tool = toolsByName.get("get_exercise_analysis");
+      const store = {
+        listWorkoutSessions: async () => [
+          inclineSession("s1", 3, [{reps: 8, weight: 35}]),
+        ],
+      };
+      const result = await tool.execute(store, UID, {exercise: "deadlift"}, NOW);
+      assert.equal(result.matched, false);
+      assert.ok(result.candidates.includes("Incline DB Press"));
+    });
+
+test("get_training_analysis surfaces plan adherence (what's being skipped)",
+    async () => {
+      const tool = toolsByName.get("get_training_analysis");
+      const store = {
+        listWorkoutSessions: async () => [
+          inclineSession("s1", 2, [{reps: 8, weight: 35}]),
+        ],
+        // The plan prescribes a movement the user has never trained.
+        getActiveWorkoutPlan: async () => ({
+          days: [{label: "Push", exercises: [
+            {id: "incline", name: "Incline DB Press"},
+            {id: "flye", name: "Cable Flye"},
+          ]}],
+        }),
+      };
+      const result = await tool.execute(store, UID, {}, NOW);
+      assert.ok(result.planAdherence);
+      assert.equal(result.planAdherence.plannedExerciseCount, 2);
+      const skipped = result.planAdherence.neglected.find(
+          (n) => n.exerciseId === "flye");
+      assert.ok(skipped, "never-trained planned movement is surfaced");
+      assert.equal(skipped.reason, "neverTrained");
+    });
+
+test("context stays bounded: the whole-training summary is not per-set history",
+    async () => {
+      // get_training_analysis returns per-exercise SUMMARIES (status/e1RM/…),
+      // never each session's sets; the full session-by-session history lives
+      // only behind get_exercise_analysis, pulled per lift on demand.
+      const store = {
+        listWorkoutSessions: async () => [
+          inclineSession("s1", 14, [{reps: 8, weight: 35}]),
+          inclineSession("s2", 7, [{reps: 8, weight: 37}]),
+          inclineSession("s3", 1, [{reps: 8, weight: 40}]),
+        ],
+      };
+      const summary = await toolsByName.get("get_training_analysis")
+          .execute(store, UID, {}, NOW);
+      const bench = summary.exercises.find((e) => e.exerciseId === "incline");
+      assert.ok(bench, "exercise present in the summary");
+      assert.equal("sets" in bench, false, "summary carries no per-set sets");
+      assert.equal("sessions" in bench, false, "summary carries no session list");
+
+      const detail = await toolsByName.get("get_exercise_analysis")
+          .execute(store, UID, {exercise: "Incline DB Press"}, NOW);
+      assert.ok(Array.isArray(detail.sessions[0].sets),
+          "the drill-down DOES carry per-set detail");
+    });
+
 test("the registry carries no tools for deleted features", async () => {
   // get_tasks/get_schedule/get_university/search_notes read collections the
   // app stopped writing when those features were removed (ADR-004): they could

@@ -148,6 +148,68 @@ class FirestoreStore {
   }
 
   /**
+   * The active `workoutPlans` doc for `uid`, resolved EXACTLY the way the app's
+   * `FirestoreWorkoutPlanRepository._resolveActive` does — so the coach's
+   * plan-adherence read and the Analysis screen agree on which split is active:
+   *   1. the split named by the `workoutMeta/active` pointer (`activeSplitId`),
+   *   2. else the first split with status 'active',
+   *   3. else the oldest split (splits are ordered createdAt-ascending).
+   * Returns only the fields adherence needs (days → exercises → id/name),
+   * or null when there is no plan.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getActiveWorkoutPlan(uid) {
+    const snap = await this._user(uid)
+        .collection("workoutPlans")
+        .orderBy("createdAt")
+        .get();
+    if (snap.empty) return null;
+
+    const plans = snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.name || "",
+        status: d.status || "active",
+        days: (d.days || []).map((day) => ({
+          id: day.id || "",
+          slot: day.slot || "",
+          label: day.label || "",
+          order: typeof day.order === "number" ? day.order : 0,
+          exercises: (day.exercises || []).map((e) => ({
+            id: e.id || "",
+            name: e.name || "",
+            muscleGroup: e.muscleGroup || null,
+            order: typeof e.order === "number" ? e.order : 0,
+          })),
+        })),
+      };
+    });
+
+    let pointerId = null;
+    try {
+      const pointerSnap = await this._user(uid)
+          .collection("workoutMeta")
+          .doc("active")
+          .get();
+      const raw = pointerSnap.exists ? pointerSnap.data().activeSplitId : null;
+      pointerId = typeof raw === "string" && raw.length > 0 ? raw : null;
+    } catch (_) {
+      // The pointer is optional (same as the client): a read failure just
+      // falls through to the active-status / oldest resolution below.
+      pointerId = null;
+    }
+
+    if (pointerId) {
+      const byPointer = plans.find((p) => p.id === pointerId);
+      if (byPointer) return byPointer;
+    }
+    const active = plans.find((p) => p.status === "active");
+    return active || plans[0];
+  }
+
+  /**
    * The active `dietPlans` doc for `uid` (mirroring the client's "most
    * recently created plan with status active" resolution), or null.
    * @param {string} uid

@@ -335,7 +335,12 @@ double? estimatedOneRepMax(double? weightKg, int? reps) {
 /// A set that counts as training: performed ([LoggedSet.done]) and not a
 /// warm-up. Dropsets and to-failure sets are working sets; only [SetType.warmup]
 /// is excluded.
-bool _isWorkingSet(LoggedSet s) => s.done && s.type != SetType.warmup;
+///
+/// Exposed publicly ([isWorkingSet]) so the deeper per-exercise engine
+/// (`exercise_analysis.dart`) applies the EXACT same rule — a warm-up must
+/// never leak into a session's tonnage or intensity there either.
+bool isWorkingSet(LoggedSet s) => s.done && s.type != SetType.warmup;
+bool _isWorkingSet(LoggedSet s) => isWorkingSet(s);
 
 /// Folds a free-text `muscleGroup` into one of ZIVO's six major buckets so a
 /// simple per-area rollup is reliable despite inconsistent labels ("Pecs",

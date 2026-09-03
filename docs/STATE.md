@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-02 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-03 · **Active branch:** `core-edits`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,74 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **The AI coach now sees the per-exercise drill-down + plan adherence**
+  (2026-09-03, on `core-edits`). Closes the loop the previous entry left open:
+  the deterministic exercise analysis and adherence engines are wired into the
+  "Ask" coach through the existing tool pipeline — **the coach explains the same
+  numbers the Analysis UI shows, and never recomputes or overturns them.**
+  - **Node parity, not a second pipeline.** New
+    [`functions/ai/exercise_analytics.js`](../functions/ai/exercise_analytics.js)
+    mirrors the two Dart engines (`analyzeExercise` + `analyzePlanAdherence`),
+    reusing `workout_analytics.js`'s primitives. Pinned to Dart by NEW shared
+    golden vectors (`exerciseAnalysis` + `planAdherence` in
+    `test/fixtures/workout_analytics_vectors.json`) that BOTH suites run — the
+    numeric facts, the verdict/tone, the change tags, and the adherence reasons
+    are guaranteed identical across engines (the human-readable insight prose is
+    generated per side and intentionally not pinned, same as the hub's findings).
+  - **Tools (the bounded context strategy).** New **`get_exercise_analysis`**
+    (`tools.js`) resolves a lift by name and returns ITS full session-by-session
+    history + deltas + verdict + insight + PRs — the "how is my bench / why did
+    incline improve / did I progress with fewer reps" tool. **`get_training_analysis`**
+    now also carries **`planAdherence`** (skipped / never-trained / stale planned
+    movements). Whole-training questions get the summary; a specific lift pulls
+    its own detail — context stays bounded, asserted by a test. Server plan read:
+    new `store.getActiveWorkoutPlan` mirrors the client's active-split resolution
+    (pointer → active-status → oldest).
+  - **Prompt (`gateway.js`) TRAINING section** now points at the new tool, tells
+    the coach the deterministic verdict/tone LEADS (a heavier-fewer-reps session
+    can be a gain — don't call it a regression because reps fell), and treats a
+    repeatedly-missing planned lift as an adherence issue, not a decline.
+  - Gates green: `functions` **420 node tests + ESLint clean**; Dart golden-vector
+    parity groups added to `exercise_analysis_test.dart` / `plan_adherence_test.dart`
+    (Dart == Node on the shared vectors). New `exercise_analytics.test.js` +
+    tool tests in `tools.test.js` (verdict/deltas reach the coach unchanged;
+    the 35×10→40×7 case stays "improved"; adherence surfaces; context bounded).
+    **Owner action: `firebase deploy --only functions`** to ship it (any prompt/
+    tool change needs a deploy; owner credentials).
+
+- **Analysis rebuilt as a coaching drill-down** (2026-09-03, on `core-edits`). The
+  progress surface was a flat, read-only scroll with no way into a single lift. It's
+  now a real coaching dashboard with a per-exercise detail page underneath it. **All
+  deterministic — the pinned `analyzeTraining`/`estimatedOneRepMax` numbers are
+  untouched; the new engine is purely additive and reuses the hub's primitives, so
+  hub and detail can't disagree.**
+  - **New per-exercise engine** —
+    [`workout/domain/analytics/exercise_analysis.dart`](../lib/features/workout/domain/analytics/exercise_analysis.dart)
+    (`analyzeExercise`): full session-by-session history (per session: sets, reps,
+    load, volume, e1RM, avg load, rep range), **session-to-session comparisons** with
+    typed deltas (`SessionChange`: load/reps/volume/strength up-down, new PB, no
+    change), an **intensity-first verdict** (`ExerciseTrendTone`) — e1RM decides,
+    volume is secondary, so 40×7 can beat 35×10 — PR-along-the-timeline flags,
+    frequency/days-since-last, and a `CoachingInsight` (what happened → why → do)
+    templated FROM the numbers so the AI can re-voice without inventing facts.
+  - **New plan-adherence engine** —
+    [`workout/domain/analytics/plan_adherence.dart`](../lib/features/workout/domain/analytics/plan_adherence.dart)
+    (`analyzePlanAdherence`): joins the active plan against history to surface what's
+    **skipped** (planned-but-never-trained) or **stale** (>14d) — the "what's being
+    skipped?" the hub couldn't answer.
+  - **UI:** new [`exercise_analysis_page.dart`](../lib/features/workout/presentation/pages/exercise_analysis_page.dart)
+    (status + insight → strength/volume trend → at-a-glance metrics → PRs → session
+    timeline with per-session deltas). `workout_analysis_page.dart` re-composed into
+    coaching sections (overall · recent PRs · what's going well · what's getting worse ·
+    stalled · what's being skipped · focus next · volume · **all exercises**), every
+    exercise/PR/skip row **tappable into the detail page**. Shared
+    `progress_status_style.dart` keeps the five directions' word/colour/icon in one place.
+  - Gates green: `flutter analyze` clean, full `test/workout/` suite (427) passes,
+    including new `exercise_analysis_test.dart`, `plan_adherence_test.dart`,
+    `exercise_analysis_page_test.dart`. **Now wired to the AI coach** — see the entry
+    above (Node mirror + `get_exercise_analysis` + adherence). Analysis strings stay
+    hardcoded English, matching the existing progress surfaces (l10n debt, pre-existing).
 
 - **Workout analytics engine + the AI training pipeline fixed** (2026-09-02, on
   `core-edits`). A focused, correct progress layer — not a deep analytics platform.
@@ -760,6 +828,23 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-03 — **AI coach wired to the drill-down + adherence.** Node mirror
+  `functions/ai/exercise_analytics.js` (`analyzeExercise` + `analyzePlanAdherence`),
+  pinned to Dart by new shared golden vectors both suites run. New
+  `get_exercise_analysis` tool (one lift's full history/deltas/verdict/insight);
+  `get_training_analysis` now carries `planAdherence`; `store.getActiveWorkoutPlan`
+  mirrors the client's active-split resolution; TRAINING prompt says the deterministic
+  verdict leads (don't recompute/overturn). 420 node tests + ESLint green; Dart parity
+  groups green. **Owner: deploy functions.**
+- 2026-09-03 — **Analysis → coaching drill-down.** New per-exercise engine
+  `workout/domain/analytics/exercise_analysis.dart` (`analyzeExercise`: session history,
+  session-to-session typed deltas, intensity-first verdict so 40×7 can beat 35×10, PR
+  timeline, what-happened/why/do insight) + `plan_adherence.dart` (`analyzePlanAdherence`:
+  skipped/stale planned movements) — both pure, additive, reusing the pinned hub
+  primitives (its numbers untouched). New `exercise_analysis_page.dart` drill-down;
+  `workout_analysis_page.dart` re-composed into tappable coaching sections; shared
+  `progress_status_style.dart`. `test/workout/` green (427). Not yet fed to the AI coach
+  (Dart-only for now) — clean follow-up.
 - 2026-09-02 — **Workout analytics engine + AI training pipeline.** New centralized
   `workout/domain/analytics/workout_analytics.dart` (e1RM, history-derived PRs,
   thresholded per-exercise status, muscle rollup, working-volume trend, typed findings,

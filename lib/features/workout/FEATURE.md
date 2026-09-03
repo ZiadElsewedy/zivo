@@ -13,7 +13,7 @@
 | `split_management_page.dart` | Create / switch / edit / delete splits (multi-split) |
 | `live_session_page.dart` | The guided live workout session — **renders only**; its logic is `presentation/controllers/live_session_controller.dart` (see below) |
 | `session_details_page.dart`, `workout_history_page.dart` | Past sessions + history |
-| `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progress/analysis — `workout_analysis_page.dart` is the engine-driven 6-section view (overall verdict · recent PRs · exercise progress · working volume · needs-attention · next step) reading `analytics/workout_analytics.dart`; `workout_progress_page.dart` is the landing whose summary card shares that engine |
+| `workout_analysis_page.dart`, `exercise_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progress/analysis. `workout_analysis_page.dart` is the **coaching hub** — engine-driven sections (overall · recent PRs · what's going well · getting worse · stalled · **what's being skipped** · focus next · volume · all exercises) reading `analytics/workout_analytics.dart` + `analytics/plan_adherence.dart`; **every exercise/PR/skip row taps into `exercise_analysis_page.dart`**, the per-exercise drill-down (status + what-happened/why/do insight · strength/volume trend · at-a-glance metrics · PRs · **session-by-session history with per-session deltas**) reading `analytics/exercise_analysis.dart`. `workout_progress_page.dart` is the landing whose summary card shares the hub engine. Direction word/colour/icon come from the shared `widgets/progress_status_style.dart` |
 | `workout_import_page.dart` | AI import → review UI, for a document (PDF/photo) **or** a dictated/typed description via `WorkoutImportInput` (pairs with `functions/ai/workout_import.js`). Was `workout_pdf_import_page.dart`. |
 | `workout_describe_page.dart` | Say-it / type-it route — a thin wrapper over the shared `capture/presentation/import/plan_describe_page.dart` |
 | `widgets/add_workout_sheet.dart` | `showAddWorkoutSheet` — the one doorway (document · say it · type it · build by hand); every entry point (hub, Today, split editor) opens it |
@@ -79,6 +79,23 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `TrainingFinding`s (fact vs interpretation), and a `computeGoal`-based next
   step. **Warm-up sets are excluded everywhere.** Prefer this over the older
   per-day `analyzeDayProgress` (n=2) for progress questions.
+- **Drill-down engine: `analytics/exercise_analysis.dart`** (`analyzeExercise`) — the
+  per-exercise layer BENEATH the hub. Pure over `List<LiveSession>`; **reuses** the hub's
+  primitives (`analyzeTraining` for the direction, `estimatedOneRepMax`, `isWorkingSet`,
+  `computeGoal`) so hub and detail can't disagree, and adds what the hub can't show: full
+  session-by-session records (sets/reps/load/volume/e1RM/avg-load/rep-range), consecutive
+  `SessionComparison`s with typed `SessionChange` deltas, an **intensity-first**
+  `ExerciseTrendTone` (e1RM leads, volume is secondary — a heavier-for-fewer-reps session
+  can still be a win), PR-along-the-timeline flags, and a `CoachingInsight` (what
+  happened → why → do) templated from the numbers. The pinned engine's numbers are
+  untouched — this is purely additive (only new public export on `workout_analytics.dart`
+  is `isWorkingSet`). **Mirrored in Node** (`functions/ai/exercise_analytics.js`) and fed
+  to the AI coach via `get_exercise_analysis` + `get_training_analysis`'s `planAdherence`,
+  pinned to the Dart engines by shared golden vectors (both suites run them).
+- **Adherence engine: `analytics/plan_adherence.dart`** (`analyzePlanAdherence`) — joins
+  the active plan against completed history (join key `PlannedExercise.id` ==
+  `SessionExercise.exerciseId`) to flag **skipped** (planned, never trained) and **stale**
+  (>14d) movements — the hub's "what's being skipped?" section.
 - Import: `workout_import_input.dart` (the sealed `WorkoutImportInput` =
   `Document | Description`, mirroring diet), `workout_import_result.dart` (+
   `ImportedDay`/`ImportedExercise`), `workout_plan_from_import.dart` (takes a
