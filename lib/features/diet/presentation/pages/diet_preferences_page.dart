@@ -101,10 +101,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
               children: [
                 Text(
-                  'ZIVO picks the foods and looks up what they actually '
-                  "weigh in calories — it doesn't guess them. Tell it what "
-                  'you eat and it will build a day you can review before '
-                  'anything is saved.',
+                  l(context).dietPreferencesIntro,
                   style: AppText.body.copyWith(
                     color: TrainColors.ink2,
                     height: 1.45,
@@ -116,7 +113,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                   onSetTarget: () => _openTargets(targets),
                 ),
                 const SizedBox(height: 26),
-                const TrainSectionLabel('Meals a day'),
+                TrainSectionLabel(l(context).dietMealsADay),
                 const SizedBox(height: 11),
                 Wrap(
                   spacing: 7,
@@ -133,12 +130,14 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'The single biggest reason a plan survives a working week, '
-                  'or does not.',
+                  l(context).dietMealsADayNote,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
                 const SizedBox(height: 26),
-                const TrainSectionLabel('Kitchen', trailing: 'OPTIONAL'),
+                TrainSectionLabel(
+                  l(context).dietKitchen,
+                  trailing: l(context).dietOptionalCaps,
+                ),
                 const SizedBox(height: 11),
                 Wrap(
                   spacing: 7,
@@ -147,7 +146,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                     for (final cuisine in _kCuisines)
                       SelectChip(
                         key: Key('cuisine-${cuisine.toLowerCase()}'),
-                        label: cuisine,
+                        label: _cuisineText(context, cuisine),
                         selected: _cuisine == cuisine,
                         // Tapping the selected one clears it — a steer you
                         // can't take back is a trap.
@@ -208,7 +207,7 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Nothing is saved until you review the plan and tap Save.',
+                  l(context).dietNothingSavedUntilReview,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                   textAlign: TextAlign.center,
                 ),
@@ -224,6 +223,20 @@ class _DietPreferencesPageState extends State<DietPreferencesPage> {
 /// The kitchens worth offering as one tap. Not exhaustive — "Anything else"
 /// takes the rest — but a generator with no steer produces the same
 /// chicken-and-broccoli plan for everybody, so the common ones are here.
+/// The cuisine chip's word. The [_kCuisines] entry itself is the *value* —
+/// it is stored on [PlanPreferences] and sent to the generator, so it stays
+/// the stable English id; only the label is translated. Same split as the
+/// allergen chips just below (`commonAllergenLabel`).
+String _cuisineText(BuildContext context, String cuisine) => switch (cuisine) {
+  'Egyptian' => l(context).dietCuisineEgyptian,
+  'Mediterranean' => l(context).dietCuisineMediterranean,
+  'Levantine' => l(context).dietCuisineLevantine,
+  'Indian' => l(context).dietCuisineIndian,
+  'Asian' => l(context).dietCuisineAsian,
+  'Western' => l(context).dietCuisineWestern,
+  _ => cuisine,
+};
+
 const _kCuisines = [
   'Egyptian',
   'Mediterranean',
@@ -251,7 +264,7 @@ class _TargetNote extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Sized to your target — ${targets!.calories} kcal a day.',
+              l(context).dietSizedToTarget(targets!.calories),
               key: const Key('prefs-target-note'),
               style: AppText.meta.copyWith(color: TrainColors.ink2),
             ),
@@ -273,9 +286,7 @@ class _TargetNote extends StatelessWidget {
                 Text(l(context).targetsNoneSet, style: AppText.rowTitle),
                 const SizedBox(height: 3),
                 Text(
-                  'ZIVO will still build the plan, but it has no figure to '
-                  'size the portions to. Set one first and the day comes out '
-                  'fitted to it.',
+                  l(context).dietNoTargetToSizeTo,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
               ],

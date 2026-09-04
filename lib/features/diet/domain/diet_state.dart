@@ -40,14 +40,31 @@ String consumedBasisShortLabel(ConsumedBasis basis) => switch (basis) {
 };
 
 /// One macro's target-versus-consumed reading, for a progress row.
+/// Which of the three macros a [MacroProgress] is about.
+///
+/// The stable identity, separate from [MacroProgress.label]'s English word.
+/// The label used to be the only handle, so the plan-details page picked each
+/// bar's colour with `switch (label) { 'Protein' => green, … }` — a comparison
+/// against **copy**, which would have silently sent every bar to the fallback
+/// colour the moment that copy was translated. Presentation switches on this
+/// instead, and reads its word from the `.arb`.
+enum MacroKind { protein, carbs, fat }
+
 class MacroProgress {
   const MacroProgress({
+    required this.kind,
     required this.label,
     required this.target,
     required this.consumed,
     required this.estimated,
   });
 
+  /// Which macro this is — the value to switch on.
+  final MacroKind kind;
+
+  /// The macro's name in the **coaching engine's** English vocabulary, spliced
+  /// into generated prose. Not what the UI renders: see `macroText` in
+  /// `presentation/diet_labels.dart`.
   final String label;
 
   /// Grams targeted, or null when the user set no target for this macro —
@@ -311,9 +328,11 @@ class DietState {
   int get mealsTotal => meals.where((m) => !m.isSupplement).length;
 
   MacroProgress get protein =>
-      _macro('Protein', targets?.proteinG, consumed.proteinG);
-  MacroProgress get carbs => _macro('Carbs', targets?.carbsG, consumed.carbsG);
-  MacroProgress get fat => _macro('Fat', targets?.fatG, consumed.fatG);
+      _macro(MacroKind.protein, 'Protein', targets?.proteinG, consumed.proteinG);
+  MacroProgress get carbs =>
+      _macro(MacroKind.carbs, 'Carbs', targets?.carbsG, consumed.carbsG);
+  MacroProgress get fat =>
+      _macro(MacroKind.fat, 'Fat', targets?.fatG, consumed.fatG);
 
   /// The macros the user actually set a target for, in display order. A macro
   /// with no target gets no row at all — better a missing row than one
@@ -321,8 +340,13 @@ class DietState {
   List<MacroProgress> get trackedMacros =>
       [protein, carbs, fat].where((m) => m.target != null).toList();
 
-  MacroProgress _macro(String label, double? target, double consumedG) =>
-      MacroProgress(
+  MacroProgress _macro(
+    MacroKind kind,
+    String label,
+    double? target,
+    double consumedG,
+  ) => MacroProgress(
+        kind: kind,
         label: label,
         target: target,
         consumed: consumedG,

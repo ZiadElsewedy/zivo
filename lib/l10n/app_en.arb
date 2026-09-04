@@ -2940,5 +2940,1087 @@
   "profileEditPhoto": "Edit Photo",
   "@profileEditPhoto": {
       "description": "Title of the Android photo cropper."
+  },
+  "dietGoalFatLoss": "Fat loss",
+  "@dietGoalFatLoss": {
+      "description": "A diet goal: eat below maintenance to lose fat."
+  },
+  "dietGoalMaintain": "Maintain",
+  "@dietGoalMaintain": {
+      "description": "A diet goal: hold weight steady."
+  },
+  "dietGoalMuscleGain": "Muscle gain",
+  "@dietGoalMuscleGain": {
+      "description": "A diet goal: eat above maintenance to build muscle."
+  },
+  "dietGoalRecomp": "Recomposition",
+  "@dietGoalRecomp": {
+      "description": "A diet goal: build muscle while losing fat at once."
+  },
+  "dietGoalFatLossDetail": "Eat below maintenance to lose fat, keeping protein high.",
+  "@dietGoalFatLossDetail": {
+      "description": "What choosing the fat-loss goal means for the numbers."
+  },
+  "dietGoalMaintainDetail": "Hold weight steady at roughly maintenance calories.",
+  "@dietGoalMaintainDetail": {
+      "description": "What choosing the maintain goal means for the numbers."
+  },
+  "dietGoalMuscleGainDetail": "Eat above maintenance to support building muscle.",
+  "@dietGoalMuscleGainDetail": {
+      "description": "What choosing the muscle-gain goal means for the numbers."
+  },
+  "dietGoalRecompDetail": "Hold calories near maintenance with protein high enough to build while leaning out.",
+  "@dietGoalRecompDetail": {
+      "description": "What choosing the recomposition goal means for the numbers."
+  },
+  "dietTargetSourceManual": "You set this",
+  "@dietTargetSourceManual": {
+      "description": "Where a calorie target came from: the user entered it."
+  },
+  "dietTargetSourceCalculated": "Calculated from your body data",
+  "@dietTargetSourceCalculated": {
+      "description": "Where a calorie target came from: derived from height, weight, age and activity."
+  },
+  "dietTargetSourcePlan": "Adopted from your plan's daily total",
+  "@dietTargetSourcePlan": {
+      "description": "Where a calorie target came from: the active plan's own total."
+  },
+  "dietCalibrationNeedsWeighIns": "two weigh-ins",
+  "@dietCalibrationNeedsWeighIns": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories."
+  },
+  "dietCalibrationNeedsLongerWindow": "weigh-ins at least {days} days apart",
+  "@dietCalibrationNeedsLongerWindow": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalibrationNeedsMoreDays": "more days of food logged",
+  "@dietCalibrationNeedsMoreDays": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories."
+  },
+  "dietMacroProtein": "Protein",
+  "@dietMacroProtein": {
+      "description": "The protein macronutrient."
+  },
+  "dietMacroCarbs": "Carbs",
+  "@dietMacroCarbs": {
+      "description": "The carbohydrate macronutrient."
+  },
+  "dietMacroFat": "Fat",
+  "@dietMacroFat": {
+      "description": "The fat macronutrient."
+  },
+  "dietTodaySoFar": "Today so far",
+  "@dietTodaySoFar": {
+      "description": "Section label over what has been eaten today."
+  },
+  "dietKcalEaten": "{kcal} kcal eaten",
+  "@dietKcalEaten": {
+      "description": "How many calories have been eaten today. {kcal} may carry a \"~\" prefix when estimated.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietYourTarget": "Your target",
+  "@dietYourTarget": {
+      "description": "Section label over the calorie/macro target."
+  },
+  "dietMacrosToday": "Macros today",
+  "@dietMacrosToday": {
+      "description": "Section label over today's macro progress bars."
+  },
+  "dietWhatPlanDoes": "What this plan does",
+  "@dietWhatPlanDoes": {
+      "description": "Section label over the verdict on whether the plan gains or loses weight."
+  },
+  "dietTodaysRead": "Today's read",
+  "@dietTodaysRead": {
+      "description": "Section label over the coach's read on today."
+  },
+  "dietFullPlan": "Full plan",
+  "@dietFullPlan": {
+      "description": "Section label over every day of the plan."
+  },
+  "dietDayCountCaps": "{count, plural, =1{1 DAY} other{{count} DAYS}}",
+  "@dietDayCountCaps": {
+      "description": "How many days a plan covers, as a caps micro-label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoTargetBody": "Set one and the numbers above become progress toward a goal — and your coach can tell you where you stand.",
+  "@dietNoTargetBody": {
+      "description": "Explains why setting a calorie target is worth doing."
+  },
+  "dietUseThisPlanKcal": "Use this plan's {kcal} kcal",
+  "@dietUseThisPlanKcal": {
+      "description": "Adopts the plan's own daily total as the calorie target. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietGoalKcalPerDayCaps": "{goal} · {kcal} KCAL/DAY",
+  "@dietGoalKcalPerDayCaps": {
+      "description": "A target summarised as its goal and daily calories.",
+      "placeholders": {
+          "goal": {
+              "type": "String"
+          },
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietBelowSafeFloor": "{source} · below {kcal} kcal — worth checking with a professional",
+  "@dietBelowSafeFloor": {
+      "description": "Warning under a calorie target set below the safe floor.",
+      "placeholders": {
+          "source": {
+              "type": "String"
+          },
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietGainOrLose": "Is this plan making you gain or lose?",
+  "@dietGainOrLose": {
+      "description": "Prompt to add the body data needed to judge the plan."
+  },
+  "dietNeedsToWorkOut": "ZIVO needs {missing} to work it out.",
+  "@dietNeedsToWorkOut": {
+      "description": "What body data is still missing, e.g. \"your height and your current weight\".",
+      "placeholders": {
+          "missing": {
+              "type": "String"
+          }
+      }
+  },
+  "dietListTwo": "{first} and {second}",
+  "@dietListTwo": {
+      "description": "Joins two items into a phrase.",
+      "placeholders": {
+          "first": {
+              "type": "String"
+          },
+          "second": {
+              "type": "String"
+          }
+      }
+  },
+  "dietListMany": "{leading} and {last}",
+  "@dietListMany": {
+      "description": "Joins three or more items; {leading} is already comma-separated.",
+      "placeholders": {
+          "leading": {
+              "type": "String"
+          },
+          "last": {
+              "type": "String"
+          }
+      }
+  },
+  "dietThisPlanCaps": "THIS PLAN",
+  "@dietThisPlanCaps": {
+      "description": "Caps label on the plan verdict card. Set in caps in English."
+  },
+  "dietBodyDataCaps": "BODY DATA",
+  "@dietBodyDataCaps": {
+      "description": "Caps link to edit height, weight and activity. Set in caps in English."
+  },
+  "dietAveragedOver": "Averaged over {counted, plural, =1{1 day} other{{counted} days}}; {missing, plural, =1{1 day has} other{{missing} days have}} no calorie figures.",
+  "@dietAveragedOver": {
+      "description": "Says how many days the plan average rests on, and how many had no calorie data.",
+      "placeholders": {
+          "counted": {
+              "type": "int"
+          },
+          "missing": {
+              "type": "int"
+          }
+      }
+  },
+  "dietProteinPerKg": "Protein {grams} g per kg of bodyweight.",
+  "@dietProteinPerKg": {
+      "description": "How much protein the plan provides relative to bodyweight.",
+      "placeholders": {
+          "grams": {
+              "type": "String"
+          }
+      }
+  },
+  "dietStaleWeighIn": "Your last weigh-in is {days} days old — weight drives this figure, so it is worth updating.",
+  "@dietStaleWeighIn": {
+      "description": "Nudge to log a fresh weigh-in.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietUnderSafeFloor": "This plan is under {kcal} kcal a day. Sustained intake down here belongs with a doctor, not an app.",
+  "@dietUnderSafeFloor": {
+      "description": "Safety warning on a plan below the minimum safe calories.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalibrationPrompt": "Log {missing} and ZIVO can measure what you actually burn, instead of estimating it.",
+  "@dietCalibrationPrompt": {
+      "description": "What is still needed before real maintenance calories can be measured.",
+      "placeholders": {
+          "missing": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMeasuredDisagrees": "Your last {days} days say you actually burn about {measured} — not the {used} above. Worth updating.",
+  "@dietMeasuredDisagrees": {
+      "description": "The measured maintenance differs from the one currently in use.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "measured": {
+              "type": "int"
+          },
+          "used": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMeasuredFrom": "Measured from your last {days} days: {intake} kcal a day eaten, {change}.",
+  "@dietMeasuredFrom": {
+      "description": "Summarises the measured maintenance window.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "intake": {
+              "type": "int"
+          },
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightSteady": "weight steady",
+  "@dietWeightSteady": {
+      "description": "Weight did not meaningfully change over the measured window."
+  },
+  "dietWeightUp": "weight up {kg} kg",
+  "@dietWeightUp": {
+      "description": "Weight rose over the measured window.",
+      "placeholders": {
+          "kg": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightDown": "weight down {kg} kg",
+  "@dietWeightDown": {
+      "description": "Weight fell over the measured window.",
+      "placeholders": {
+          "kg": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMacroProgress": "{eaten}/{target}g",
+  "@dietMacroProgress": {
+      "description": "Grams eaten out of the target for one macro. {target} may carry a \"~\" prefix.",
+      "placeholders": {
+          "eaten": {
+              "type": "String"
+          },
+          "target": {
+              "type": "String"
+          }
+      }
+  },
+  "dietDayKcal": "{kcal} kcal",
+  "@dietDayKcal": {
+      "description": "A plan day's calorie total. {kcal} may carry a \"~\" prefix when estimated.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMissingWeight": "your current weight",
+  "@dietMissingWeight": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingHeight": "your height",
+  "@dietMissingHeight": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingSex": "the BMR formula ZIVO should use",
+  "@dietMissingSex": {
+      "description": "Body data still missing: which Mifflin-St Jeor form to use. Phrased to drop into a sentence."
+  },
+  "dietMissingActivity": "how active your week is",
+  "@dietMissingActivity": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingDateOfBirth": "your date of birth",
+  "@dietMissingDateOfBirth": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietSourceUsda": "USDA FoodData Central",
+  "@dietSourceUsda": {
+      "description": "A nutrition reference database. A proper name — keep it untranslated."
+  },
+  "dietSourceUserCustom": "Your own food",
+  "@dietSourceUserCustom": {
+      "description": "A food the user entered themselves."
+  },
+  "dietSourcePlan": "Your diet plan",
+  "@dietSourcePlan": {
+      "description": "Nutrition figures taken from the user's own plan."
+  },
+  "dietNoPlanYetHeadline": "No diet plan yet.",
+  "@dietNoPlanYetHeadline": {
+      "description": "Empty state headline when the user has never had a plan."
+  },
+  "dietNotFollowingHeadline": "You're not following a plan.",
+  "@dietNotFollowingHeadline": {
+      "description": "Empty state headline when every plan is archived."
+  },
+  "dietNoPlanYetBody": "Import a document or a photo, say it out loud, type it out, or build one by hand — I'll fill in the calories and macros.",
+  "@dietNoPlanYetBody": {
+      "description": "Empty state body listing the ways to add a diet plan."
+  },
+  "dietArchivedPlans": "{count, plural, =1{1 plan is archived — pick one back up, or add another.} other{{count} plans are archived — pick one back up, or add another.}}",
+  "@dietArchivedPlans": {
+      "description": "Empty state body when plans exist but none is active.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSeeYourPlans": "See your plans",
+  "@dietSeeYourPlans": {
+      "description": "Opens the list of saved diet plans."
+  },
+  "dietFromYourPlan": "from your plan",
+  "@dietFromYourPlan": {
+      "description": "Where a logged food's figures came from."
+  },
+  "dietQuantityUnit": "{quantity} {unit}",
+  "@dietQuantityUnit": {
+      "description": "A logged amount and its unit, e.g. \"150 g\".",
+      "placeholders": {
+          "quantity": {
+              "type": "String"
+          },
+          "unit": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMealsEaten": "{eaten} of {total} meals eaten",
+  "@dietMealsEaten": {
+      "description": "How many of today's planned meals have been ticked.",
+      "placeholders": {
+          "eaten": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoCalorieDataCaps": "NO CALORIE DATA YET",
+  "@dietNoCalorieDataCaps": {
+      "description": "Caps note when a plan carries no calorie figures. Set in caps in English."
+  },
+  "dietKcalOverCaps": "KCAL OVER",
+  "@dietKcalOverCaps": {
+      "description": "Caps label under the hero figure when the target is exceeded. Set in caps in English."
+  },
+  "dietKcalLeftCaps": "KCAL LEFT",
+  "@dietKcalLeftCaps": {
+      "description": "Caps label under the hero figure. Set in caps in English."
+  },
+  "dietKcalLeftOfPlanCaps": "KCAL LEFT OF PLAN",
+  "@dietKcalLeftOfPlanCaps": {
+      "description": "Caps label under the hero figure when measured against the plan rather than a target."
+  },
+  "dietEstPrefixCaps": "EST. ",
+  "@dietEstPrefixCaps": {
+      "description": "Caps prefix marking a figure that rests on estimated values. Trailing space is intentional."
+  },
+  "dietItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@dietItemCount": {
+      "description": "How many food items a meal contains.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietViewDetails": "View details",
+  "@dietViewDetails": {
+      "description": "Opens a meal's full breakdown."
+  },
+  "dietActivitySedentary": "Sedentary",
+  "@dietActivitySedentary": {
+      "description": "An activity level."
+  },
+  "dietActivityLight": "Light",
+  "@dietActivityLight": {
+      "description": "An activity level."
+  },
+  "dietActivityModerate": "Moderate",
+  "@dietActivityModerate": {
+      "description": "An activity level."
+  },
+  "dietActivityHigh": "High",
+  "@dietActivityHigh": {
+      "description": "An activity level."
+  },
+  "dietActivityAthlete": "Very high",
+  "@dietActivityAthlete": {
+      "description": "An activity level."
+  },
+  "dietActivitySedentaryDetail": "Desk job, little deliberate exercise",
+  "@dietActivitySedentaryDetail": {
+      "description": "What the sedentary activity level describes."
+  },
+  "dietActivityLightDetail": "Training 1–3 days a week",
+  "@dietActivityLightDetail": {
+      "description": "What the light activity level describes."
+  },
+  "dietActivityModerateDetail": "Training 3–5 days a week",
+  "@dietActivityModerateDetail": {
+      "description": "What the moderate activity level describes."
+  },
+  "dietActivityHighDetail": "Training 6–7 days a week",
+  "@dietActivityHighDetail": {
+      "description": "What the high activity level describes."
+  },
+  "dietActivityAthleteDetail": "Hard training daily, or a physical job on top",
+  "@dietActivityAthleteDetail": {
+      "description": "What the very-high activity level describes."
+  },
+  "dietTargetBasisSummary": "{weight} kg · {activity} · {maintenance} kcal maintenance",
+  "@dietTargetBasisSummary": {
+      "description": "The body data a calculated target was derived from.",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "activity": {
+              "type": "String"
+          },
+          "maintenance": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSetYourTarget": "Set your target",
+  "@dietSetYourTarget": {
+      "description": "Title when no target exists yet."
+  },
+  "dietDailyTarget": "Daily target",
+  "@dietDailyTarget": {
+      "description": "Title when editing an existing target."
+  },
+  "dietTargetsIntro": "Your coach uses these numbers for everything it tells you. Until they're set, it can describe your plan but not how you're doing against it.",
+  "@dietTargetsIntro": {
+      "description": "Explains why the calorie and macro targets matter."
+  },
+  "dietGoal": "Goal",
+  "@dietGoal": {
+      "description": "Section label over the diet goal picker."
+  },
+  "dietDailyNumbers": "Daily numbers",
+  "@dietDailyNumbers": {
+      "description": "Section label over the calorie and macro fields."
+  },
+  "dietCalculatedCaps": "CALCULATED",
+  "@dietCalculatedCaps": {
+      "description": "Badge marking figures derived from body data. Set in caps in English."
+  },
+  "dietOnlyCaloriesRequired": "Only calories are required. Leave a macro blank if you aren't tracking it — blank means untracked, not zero.",
+  "@dietOnlyCaloriesRequired": {
+      "description": "Explains that macro fields are optional."
+  },
+  "dietFillFieldsHint": "Fills the fields with a starting point you can edit. Nothing is saved until you tap Save.",
+  "@dietFillFieldsHint": {
+      "description": "Explains what the calculate button does."
+  },
+  "dietBelowSafeWarning": "{calories} kcal is below {floor}, which is under what ZIVO should be coaching. You can still save it, but eating this low is worth talking through with a doctor or a registered dietitian first.",
+  "@dietBelowSafeWarning": {
+      "description": "Warning before saving a calorie target below the safe floor.",
+      "placeholders": {
+          "calories": {
+              "type": "int"
+          },
+          "floor": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalculatedFrom": "From {weight}kg at {activity} activity: {bmr} kcal at rest, {maintenance} kcal to maintain, adjusted for {goal}. These are population estimates — adjust them from what the scale actually does.",
+  "@dietCalculatedFrom": {
+      "description": "Explains how a calculated target was derived.",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "activity": {
+              "type": "String"
+          },
+          "bmr": {
+              "type": "int"
+          },
+          "maintenance": {
+              "type": "int"
+          },
+          "goal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietSexMale": "Male",
+  "@dietSexMale": {
+      "description": "The BMR formula variable, not a profile field."
+  },
+  "dietSexFemale": "Female",
+  "@dietSexFemale": {
+      "description": "The BMR formula variable, not a profile field."
+  },
+  "dietStaleWeighInPrompt": "Your last weigh-in was {days} days ago. Worth logging a new one first.",
+  "@dietStaleWeighInPrompt": {
+      "description": "Nudge before calculating a target from an old weight.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKgValue": "{value} kg",
+  "@dietKgValue": {
+      "description": "A weight in kilograms.",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCmValue": "{value} cm",
+  "@dietCmValue": {
+      "description": "A height in centimetres.",
+      "placeholders": {
+          "value": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSearching": "Searching {source}.",
+  "@dietSearching": {
+      "description": "Which catalog a food search is running against.",
+      "placeholders": {
+          "source": {
+              "type": "String"
+          }
+      }
+  },
+  "dietFoodSearchHint": "chicken breast, rice, olive oil…",
+  "@dietFoodSearchHint": {
+      "description": "Placeholder in the food search field. Keep the ellipsis."
+  },
+  "dietEnterAmount": "Enter an amount.",
+  "@dietEnterAmount": {
+      "description": "Validation when the amount field is empty."
+  },
+  "dietEnterAmountAboveZero": "Enter an amount above zero.",
+  "@dietEnterAmountAboveZero": {
+      "description": "Validation when the amount is zero or negative."
+  },
+  "dietKcalPer100g": "{kcal} kcal / 100g",
+  "@dietKcalPer100g": {
+      "description": "A food's energy density.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKcalPer100gTight": "{kcal} kcal/100g",
+  "@dietKcalPer100gTight": {
+      "description": "A food's energy density, tighter spacing for a compact row.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietTypeToSearch": "Type a food to search.",
+  "@dietTypeToSearch": {
+      "description": "Prompt before any search term is entered."
+  },
+  "dietNoCatalogMatch": "Nothing in the catalog matches \"{query}\".",
+  "@dietNoCatalogMatch": {
+      "description": "Shown when a food search returns nothing.",
+      "placeholders": {
+          "query": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCatalogThinBody": "It's a USDA catalog, so it's thin on regional and home cooking. Rather than guess, tell ZIVO what this food is once and it'll remember.",
+  "@dietCatalogThinBody": {
+      "description": "Explains why a food may be missing, and offers to add it."
+  },
+  "dietKcalValue": "{kcal} kcal",
+  "@dietKcalValue": {
+      "description": "An energy figure in kilocalories.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMacroLine": "P {protein}g · C {carbs}g · F {fat}g · {grams}g",
+  "@dietMacroLine": {
+      "description": "A compact macro breakdown. P/C/F abbreviate protein, carbs and fat.",
+      "placeholders": {
+          "protein": {
+              "type": "String"
+          },
+          "carbs": {
+              "type": "String"
+          },
+          "fat": {
+              "type": "String"
+          },
+          "grams": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightOnlyFood": "ZIVO only has this food by weight — enter it in grams. Converting {unit} would mean guessing a density.",
+  "@dietWeightOnlyFood": {
+      "description": "Why a non-weight unit was rejected for this food.",
+      "placeholders": {
+          "unit": {
+              "type": "String"
+          }
+      }
+  },
+  "dietNoSuchUnit": "ZIVO doesn't have {unit} for this food. Use grams, or: {alternatives}",
+  "@dietNoSuchUnit": {
+      "description": "Which units this food does support.",
+      "placeholders": {
+          "unit": {
+              "type": "String"
+          },
+          "alternatives": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCustomFoodHint": "Per 100g, from the label or your own measure. ZIVO stores these as yours and never overwrites them.",
+  "@dietCustomFoodHint": {
+      "description": "Explains the custom-food fields."
+  },
+  "dietMaintenanceCaps": "MAINTENANCE",
+  "@dietMaintenanceCaps": {
+      "description": "Caps label over the maintenance calorie figure. Set in caps in English."
+  },
+  "dietKcalPerDay": "{kcal} kcal a day",
+  "@dietKcalPerDay": {
+      "description": "A daily energy figure.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMaintenanceGiven": "The figure you gave. ZIVO uses it as-is.",
+  "@dietMaintenanceGiven": {
+      "description": "Where the maintenance figure came from: the user typed it."
+  },
+  "dietMaintenanceEstimated": "Estimated from these numbers — a population average, not a measurement of you.",
+  "@dietMaintenanceEstimated": {
+      "description": "Where the maintenance figure came from: a formula."
+  },
+  "dietDaysAgo": "{days} days ago",
+  "@dietDaysAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietWeeksAgo": "{weeks} weeks ago",
+  "@dietWeeksAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "weeks": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMonthsAgo": "{months} months ago",
+  "@dietMonthsAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "months": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCuisineEgyptian": "Egyptian",
+  "@dietCuisineEgyptian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineMediterranean": "Mediterranean",
+  "@dietCuisineMediterranean": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineLevantine": "Levantine",
+  "@dietCuisineLevantine": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineIndian": "Indian",
+  "@dietCuisineIndian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineAsian": "Asian",
+  "@dietCuisineAsian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineWestern": "Western",
+  "@dietCuisineWestern": {
+      "description": "A cuisine chip."
+  },
+  "dietImportOneRun": "A run either reads material or designs a plan — never both.",
+  "@dietImportOneRun": {
+      "description": "Assertion note explaining the import page has one mode per run."
+  },
+  "dietGeneratingFoods": "Choosing foods you like…",
+  "@dietGeneratingFoods": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietGeneratingCalories": "Looking up real calories for each one…",
+  "@dietGeneratingCalories": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietGeneratingPortions": "Sizing the portions to your target…",
+  "@dietGeneratingPortions": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietFileReadFailed": "Couldn't read that file.",
+  "@dietFileReadFailed": {
+      "description": "Shown when a picked document could not be read."
+  },
+  "dietFileTooLarge": "That file is too large — please choose one under {mb} MB.",
+  "@dietFileTooLarge": {
+      "description": "Shown when a picked document exceeds the size limit.",
+      "placeholders": {
+          "mb": {
+              "type": "int"
+          }
+      }
+  },
+  "dietImportPlanTitle": "Import Plan",
+  "@dietImportPlanTitle": {
+      "description": "Title of the diet import screen."
+  },
+  "dietBuildingYourPlan": "Building your plan",
+  "@dietBuildingYourPlan": {
+      "description": "Title while a plan is being generated."
+  },
+  "dietReadingYourPlan": "Reading your plan",
+  "@dietReadingYourPlan": {
+      "description": "Title while a document is being read."
+  },
+  "dietSelectYourPlan": "Select your diet plan",
+  "@dietSelectYourPlan": {
+      "description": "Prompt to pick a document or photo."
+  },
+  "dietSelectYourPlanBody": "Choose a PDF or a photo of your plan and I'll map it into a real, editable plan — estimating calories and macros wherever the document doesn't state them.",
+  "@dietSelectYourPlanBody": {
+      "description": "Explains what importing a document does."
+  },
+  "dietCouldntBuildPlan": "ZIVO couldn't build that plan",
+  "@dietCouldntBuildPlan": {
+      "description": "Failure title after a generation attempt."
+  },
+  "dietNotADietPlan": "This doesn't look like a diet plan",
+  "@dietNotADietPlan": {
+      "description": "Failure title when the document was not recognised."
+  },
+  "dietChooseDifferentFile": "Choose a different file",
+  "@dietChooseDifferentFile": {
+      "description": "Retry action after a failed import."
+  },
+  "dietGoBackAndEdit": "Go back and edit",
+  "@dietGoBackAndEdit": {
+      "description": "Retry action after a failed generation."
+  },
+  "dietBuildManually": "build the plan manually.",
+  "@dietBuildManually": {
+      "description": "Tail of a sentence offering the manual builder as a fallback."
+  },
+  "dietPreferencesIntro": "ZIVO picks the foods and looks up what they actually weigh in calories — it doesn't guess them. Tell it what you eat and it will build a day you can review before anything is saved.",
+  "@dietPreferencesIntro": {
+      "description": "Explains how plan generation works."
+  },
+  "dietMealsADay": "Meals a day",
+  "@dietMealsADay": {
+      "description": "Section label over the meals-per-day picker."
+  },
+  "dietMealsADayNote": "The single biggest reason a plan survives a working week, or does not.",
+  "@dietMealsADayNote": {
+      "description": "Why the meals-per-day choice matters."
+  },
+  "dietKitchen": "Kitchen",
+  "@dietKitchen": {
+      "description": "Section label over the cuisine chips."
+  },
+  "dietOptionalCaps": "OPTIONAL",
+  "@dietOptionalCaps": {
+      "description": "Marks a section that can be skipped. Set in caps in English."
+  },
+  "dietNothingSavedUntilReview": "Nothing is saved until you review the plan and tap Save.",
+  "@dietNothingSavedUntilReview": {
+      "description": "Reassurance above the generate button."
+  },
+  "dietSizedToTarget": "Sized to your target — {kcal} kcal a day.",
+  "@dietSizedToTarget": {
+      "description": "Confirms the generated plan will match the calorie target.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoTargetToSizeTo": "ZIVO will still build the plan, but it has no figure to size the portions to. Set one first and the day comes out fitted to it.",
+  "@dietNoTargetToSizeTo": {
+      "description": "Shown when generating a plan with no calorie target set."
+  },
+  "dietOnePlanNote": "One plan. Import or write another and you can switch between them without losing either.",
+  "@dietOnePlanNote": {
+      "description": "Note under a single saved plan."
+  },
+  "dietManyPlansNote": "{count} plans. One is in force at a time — the Diet screen always shows that one.",
+  "@dietManyPlansNote": {
+      "description": "Note under several saved plans.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoPlansYet": "No plans yet.",
+  "@dietNoPlansYet": {
+      "description": "Empty state in the plans library."
+  },
+  "dietDaysCaps": "{count, plural, =1{1 DAY} other{{count} DAYS}}",
+  "@dietDaysCaps": {
+      "description": "How many days a plan covers, on its card. Set in caps in English.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKcalPerDayCaps": "{kcal} KCAL/DAY",
+  "@dietKcalPerDayCaps": {
+      "description": "A plan's average daily energy. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietFollowingCaps": "FOLLOWING",
+  "@dietFollowingCaps": {
+      "description": "The plan currently in force. Set in caps in English."
+  },
+  "dietArchivedCaps": "ARCHIVED",
+  "@dietArchivedCaps": {
+      "description": "A shelved plan. Set in caps in English."
+  },
+  "dietDraftCaps": "DRAFT",
+  "@dietDraftCaps": {
+      "description": "An unfinished plan. Set in caps in English."
+  },
+  "dietWhatsInIt": "What’s in it",
+  "@dietWhatsInIt": {
+      "description": "Section label over a meal's items."
+  },
+  "dietNoItemsListed": "No items listed for this meal.",
+  "@dietNoItemsListed": {
+      "description": "Empty state on a meal with no items."
+  },
+  "dietMarkNotEaten": "Mark as not eaten",
+  "@dietMarkNotEaten": {
+      "description": "Undoes marking a meal eaten."
+  },
+  "dietMarkEaten": "Done — mark as eaten",
+  "@dietMarkEaten": {
+      "description": "Marks a meal as eaten."
+  },
+  "dietMacroP": "P",
+  "@dietMacroP": {
+      "description": "One-letter abbreviation for protein."
+  },
+  "dietMacroC": "C",
+  "@dietMacroC": {
+      "description": "One-letter abbreviation for carbohydrates."
+  },
+  "dietMacroF": "F",
+  "@dietMacroF": {
+      "description": "One-letter abbreviation for fat."
+  },
+  "dietGramsValue": "{grams}g",
+  "@dietGramsValue": {
+      "description": "A weight in grams.",
+      "placeholders": {
+          "grams": {
+              "type": "int"
+          }
+      }
+  },
+  "dietUsePlanNumbers": "Use your plan's numbers",
+  "@dietUsePlanNumbers": {
+      "description": "Title of the sheet that adopts a plan total as the calorie target."
+  },
+  "dietPlanAverageOverDays": "{kcal} kcal a day, averaged over the {days} days of {plan}.",
+  "@dietPlanAverageOverDays": {
+      "description": "A plan's average daily calories. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          },
+          "days": {
+              "type": "int"
+          },
+          "plan": {
+              "type": "String"
+          }
+      }
+  },
+  "dietPlanFrom": "{kcal} kcal a day, from {plan}.",
+  "@dietPlanFrom": {
+      "description": "A plan's daily calories. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          },
+          "plan": {
+              "type": "String"
+          }
+      }
+  },
+  "dietDaysWithoutCalories": "{count, plural, =1{1 day has no calorie figures and is not in that average.} other{{count} days have no calorie figures and are not in that average.}}",
+  "@dietDaysWithoutCalories": {
+      "description": "Caveat on a plan average that skipped days.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietWhatIsItFor": "What is it for?",
+  "@dietWhatIsItFor": {
+      "description": "Section label over the goal picker in the adopt sheet."
+  },
+  "dietWhyGoalMatters": "The same calories mean different things depending on what you're doing. ZIVO needs this to say how you're doing against them.",
+  "@dietWhyGoalMatters": {
+      "description": "Why a goal is required alongside a calorie target."
+  },
+  "dietPlanBelowSafeFloor": "This plan averages under {kcal} kcal a day. Adopting it as a target is worth talking through with a doctor or a registered dietitian first.",
+  "@dietPlanBelowSafeFloor": {
+      "description": "Warning before adopting a plan below the safe floor.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietEveryDay": "Every day",
+  "@dietEveryDay": {
+      "description": "A meal that repeats on every day of the plan."
+  },
+  "dietRemoveDay": "Remove day",
+  "@dietRemoveDay": {
+      "description": "Deletes a day from the plan."
+  },
+  "dietRemoveMeal": "Remove meal",
+  "@dietRemoveMeal": {
+      "description": "Deletes a meal from a day."
+  },
+  "dietRemoveItem": "Remove item",
+  "@dietRemoveItem": {
+      "description": "Deletes a food from a meal."
+  },
+  "dietUnitCaps": "UNIT",
+  "@dietUnitCaps": {
+      "description": "Column header over a food's unit. Set in caps in English."
+  },
+  "dietDescribeYourDiet": "Describe your diet",
+  "@dietDescribeYourDiet": {
+      "description": "Title when dictating a diet plan."
+  },
+  "dietTypeItOut": "Type it out",
+  "@dietTypeItOut": {
+      "description": "Title when typing a diet plan."
+  },
+  "dietDictateBody": "Say or write what you eat in a day — meals, foods and rough amounts. ZIVO turns it into a plan you review before anything is saved.",
+  "@dietDictateBody": {
+      "description": "Explains dictating or typing a diet plan."
+  },
+  "dietDictateExample": "Example: \"Breakfast is three eggs and 60 grams of oats. Lunch is 200 grams of chicken with rice and salad.\"",
+  "@dietDictateExample": {
+      "description": "An example utterance for dictating a diet plan."
+  },
+  "dietHideCaps": "HIDE",
+  "@dietHideCaps": {
+      "description": "Collapses a finding's reasoning. Set in caps in English."
+  },
+  "dietWhyCaps": "WHY",
+  "@dietWhyCaps": {
+      "description": "Expands a finding's reasoning. Set in caps in English."
+  },
+  "dietSourceManual": "Written by hand",
+  "@dietSourceManual": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourcePdf": "Imported from a document",
+  "@dietSourcePdf": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourcePhoto": "Imported from a photo",
+  "@dietSourcePhoto": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourceDictated": "Dictated",
+  "@dietSourceDictated": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourceGenerated": "Built by ZIVO",
+  "@dietSourceGenerated": {
+      "description": "How a diet plan was created."
   }
 }

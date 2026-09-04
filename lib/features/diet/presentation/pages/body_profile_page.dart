@@ -15,6 +15,7 @@ import '../../domain/body_profile.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
 import '../widgets/diet_number_field.dart';
+import '../diet_labels.dart';
 
 /// Where the user gives ZIVO the body data every energy figure rests on.
 ///
@@ -326,7 +327,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                           for (final level in ActivityLevel.values)
                             SelectChip(
                               key: Key('activity-${level.name}'),
-                              label: activityLabel(level),
+                              label: activityText(context, level),
                               selected: _activity == level,
                               onTap: () => setState(() => _activity = level),
                             ),
@@ -338,7 +339,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                       if (_activity != null) ...[
                         const SizedBox(height: 9),
                         Text(
-                          activityDescription(_activity!),
+                          activityDetailText(context, _activity!),
                           style: AppText.meta.copyWith(color: TrainColors.ink3),
                         ),
                       ],

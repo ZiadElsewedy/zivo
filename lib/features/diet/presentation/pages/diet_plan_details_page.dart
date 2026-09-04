@@ -13,7 +13,6 @@ import '../../domain/analysis/plan_verdict.dart';
 import '../../domain/body_measures.dart';
 import '../../domain/diet_day.dart';
 import '../../domain/diet_format.dart';
-import '../../domain/diet_goal.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_state.dart';
 import '../../domain/diet_state_builder.dart';
@@ -25,6 +24,7 @@ import '../today_diet.dart';
 import '../widgets/todays_read_card.dart';
 import 'body_profile_page.dart';
 import 'diet_targets_page.dart';
+import '../diet_labels.dart';
 
 /// **Plan details** — everything the Diet screen used to stack on top of the
 /// meals, moved one level down.
@@ -149,7 +149,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
         // how you got there; this says "eaten", so it owes the user the
         // qualifier the coach is also held to: ticking plan meals is not
         // weighed food (see diet/FEATURE.md).
-        const TrainSectionLabel('Today so far'),
+        TrainSectionLabel(l(context).dietTodaySoFar),
         const SizedBox(height: 11),
         TrainCard(
           radius: 20,
@@ -158,8 +158,9 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${approx(state.consumed.estimated)}${state.consumed.kcal} '
-                '${l(context).unitKcal} eaten',
+                l(context).dietKcalEaten(
+                  '${approx(state.consumed.estimated)}${state.consumed.kcal}',
+                ),
                 style: TrainType.ui(
                   size: 17,
                   weight: FontWeight.w700,
@@ -181,7 +182,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
           ),
         ),
         const SizedBox(height: 20),
-        const TrainSectionLabel('Your target'),
+        TrainSectionLabel(l(context).dietYourTarget),
         const SizedBox(height: 11),
         if (targets == null)
           _NoTargetCard(plan: plan, onSet: () => _openTargets(context, null))
@@ -192,7 +193,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
           ),
         if (macroBars.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const TrainSectionLabel('Macros today'),
+          TrainSectionLabel(l(context).dietMacrosToday),
           const SizedBox(height: 11),
           TrainCard(
             radius: 20,
@@ -201,11 +202,11 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
               children: [
                 for (final macro in macroBars)
                   _MacroBar(
-                    label: macro.label.toUpperCase(),
+                    label: macroText(context, macro.kind).toUpperCase(),
                     eaten: macro.consumed,
                     target: macro.target!,
                     estimated: macro.estimated,
-                    color: _macroColor(macro.label),
+                    color: _macroColor(macro.kind),
                     loading: false,
                   ),
               ],
@@ -213,7 +214,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
           ),
         ],
         const SizedBox(height: 20),
-        const TrainSectionLabel('What this plan does'),
+        TrainSectionLabel(l(context).dietWhatPlanDoes),
         const SizedBox(height: 11),
         _PlanVerdictSection(
           plan: plan,
@@ -225,16 +226,14 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
         ),
         if (targets != null) ...[
           const SizedBox(height: 20),
-          const TrainSectionLabel("Today's read"),
+          TrainSectionLabel(l(context).dietTodaysRead),
           const SizedBox(height: 11),
           TodaysReadCard(state: state, localHour: _now.hour),
         ],
         const SizedBox(height: 20),
         TrainSectionLabel(
-          'Full plan',
-          trailing: plan.days.length == 1
-              ? '1 DAY'
-              : '${plan.days.length} DAYS',
+          l(context).dietFullPlan,
+          trailing: l(context).dietDayCountCaps(plan.days.length),
         ),
         const SizedBox(height: 11),
         for (final day in plan.days)
@@ -292,8 +291,7 @@ class _NoTargetCard extends StatelessWidget {
                     Text(l(context).targetsNoneSet, style: AppText.rowTitle),
                     const SizedBox(height: 3),
                     Text(
-                      "Set one and the numbers above become progress toward a "
-                      "goal — and your coach can tell you where you stand.",
+                      l(context).dietNoTargetBody,
                       style: AppText.meta.copyWith(color: TrainColors.ink3),
                     ),
                   ],
@@ -321,8 +319,9 @@ class _NoTargetCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
                 child: Text(
-                  "Use this plan's ${approx(planDailyEnergy(plan).estimated)}"
-                  '$planKcal kcal',
+                  l(context).dietUseThisPlanKcal(
+                    '${approx(planDailyEnergy(plan).estimated)}$planKcal',
+                  ),
                   style: AppText.meta.copyWith(color: TrainColors.green),
                 ),
               ),
@@ -362,8 +361,10 @@ class _TargetSummaryRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${dietGoalLabel(targets.goal).toUpperCase()} · '
-                      '${targets.calories} KCAL/DAY',
+                      l(context).dietGoalKcalPerDayCaps(
+                        dietGoalText(context, targets.goal).toUpperCase(),
+                        targets.calories,
+                      ),
                       style: TrainType.mono(
                         size: 11.5,
                         tracking: 0.06,
@@ -373,10 +374,11 @@ class _TargetSummaryRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       low
-                          ? '${targetSourceLabel(targets.source)} · below '
-                                '$kMinimumSafeCalories kcal — worth checking '
-                                'with a professional'
-                          : targetSourceLabel(targets.source),
+                          ? l(context).dietBelowSafeFloor(
+                              targetSourceText(context, targets.source),
+                              kMinimumSafeCalories,
+                            )
+                          : targetSourceText(context, targets.source),
                       style: AppText.meta.copyWith(
                         color: low ? TrainColors.ember : TrainColors.ink3,
                       ),
@@ -388,7 +390,7 @@ class _TargetSummaryRow extends StatelessWidget {
                     if (targets.basis != null) ...[
                       const SizedBox(height: 3),
                       Text(
-                        targetBasisSummary(targets.basis!),
+                        targetBasisText(context, targets.basis!),
                         key: const Key('target-basis'),
                         style: AppText.meta.copyWith(color: TrainColors.ink4),
                       ),
@@ -484,7 +486,7 @@ class _BodyDataPrompt extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Is this plan making you gain or lose?',
+                  l(context).dietGainOrLose,
                   style: AppText.rowTitle,
                 ),
                 const SizedBox(height: 3),
@@ -493,7 +495,7 @@ class _BodyDataPrompt extends StatelessWidget {
                   // profile" — one of these is usually already known, and
                   // being asked again for something you gave is what makes a
                   // prompt feel like a wall.
-                  'ZIVO needs ${_missingPhrase(missing)} to work it out.',
+                  l(context).dietNeedsToWorkOut(_missingPhrase(context, missing)),
                   key: const Key('body-data-missing'),
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
@@ -512,14 +514,23 @@ class _BodyDataPrompt extends StatelessWidget {
 
   /// "your height" · "your height and your current weight" · "your height,
   /// your current weight and how active your week is".
-  static String _missingPhrase(Set<MissingBodyData> missing) {
+  static String _missingPhrase(
+    BuildContext context,
+    Set<MissingBodyData> missing,
+  ) {
     // The three that arrive together (an absent body profile) read as one
     // ask, not three.
-    final labels = missing.map(missingBodyDataLabel).toList();
+    final labels = [
+      for (final m in missing) missingBodyDataText(context, m),
+    ];
     if (labels.length == 1) return labels.first;
-    if (labels.length == 2) return '${labels[0]} and ${labels[1]}';
-    return '${labels.sublist(0, labels.length - 1).join(', ')} '
-        'and ${labels.last}';
+    if (labels.length == 2) {
+      return l(context).dietListTwo(labels[0], labels[1]);
+    }
+    return l(context).dietListMany(
+      labels.sublist(0, labels.length - 1).join(', '),
+      labels.last,
+    );
   }
 }
 
@@ -565,7 +576,7 @@ class _VerdictCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'THIS PLAN',
+                l(context).dietThisPlanCaps,
                 style: TrainType.caption(size: 9, tracking: 0.16),
               ),
               const Spacer(),
@@ -574,7 +585,7 @@ class _VerdictCard extends StatelessWidget {
                 onTap: onEditBodyData,
                 behavior: HitTestBehavior.opaque,
                 child: Text(
-                  'BODY DATA',
+                  l(context).dietBodyDataCaps,
                   style: TrainType.caption(
                     size: 9,
                     tracking: 0.16,
@@ -620,11 +631,10 @@ class _VerdictCard extends StatelessWidget {
               // The average speaks for part of the plan, and says so — the
               // alternative is a figure that quietly stands in for days it
               // never counted.
-              'Averaged over ${verdict.daysCounted} '
-              '${verdict.daysCounted == 1 ? "day" : "days"}; '
-              '${verdict.daysWithoutCalories} '
-              '${verdict.daysWithoutCalories == 1 ? "day has" : "days have"} '
-              'no calorie figures.',
+              l(context).dietAveragedOver(
+                verdict.daysCounted,
+                verdict.daysWithoutCalories,
+              ),
               key: const Key('verdict-partial'),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
@@ -632,8 +642,9 @@ class _VerdictCard extends StatelessWidget {
           if (verdict.proteinGPerKg != null) ...[
             const SizedBox(height: 6),
             Text(
-              'Protein ${verdict.proteinGPerKg!.toStringAsFixed(1)} g per kg '
-              'of bodyweight.',
+              l(context).dietProteinPerKg(
+                verdict.proteinGPerKg!.toStringAsFixed(1),
+              ),
               key: const Key('verdict-protein'),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
@@ -641,8 +652,7 @@ class _VerdictCard extends StatelessWidget {
           if (weighInAgeDays > kWeighInStaleAfterDays) ...[
             const SizedBox(height: 6),
             Text(
-              'Your last weigh-in is $weighInAgeDays days old — weight drives '
-              'this figure, so it is worth updating.',
+              l(context).dietStaleWeighIn(weighInAgeDays),
               key: const Key('verdict-stale-weight'),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
@@ -651,8 +661,7 @@ class _VerdictCard extends StatelessWidget {
           if (verdict.belowSafetyFloor) ...[
             const SizedBox(height: 10),
             Text(
-              'This plan is under $kMinimumSafeCalories kcal a day. Sustained '
-              'intake down here belongs with a doctor, not an app.',
+              l(context).dietUnderSafeFloor(kMinimumSafeCalories),
               key: const Key('verdict-safety-floor'),
               style: AppText.meta.copyWith(
                 color: TrainColors.ember,
@@ -689,8 +698,7 @@ class _CalibrationLine extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(top: 6),
         child: Text(
-          'Log ${calibrationGapLabel(gap)} and ZIVO can measure what you '
-          'actually burn, instead of estimating it.',
+          l(context).dietCalibrationPrompt(calibrationGapText(context, gap)),
           key: const Key('verdict-calibration-gap'),
           style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
         ),
@@ -705,12 +713,16 @@ class _CalibrationLine extends StatelessWidget {
       padding: const EdgeInsets.only(top: 6),
       child: Text(
         disagrees
-            ? 'Your last ${measured.days} days say you actually burn about '
-                  '${measured.maintenanceKcal} — not the $used above. Worth '
-                  'updating.'
-            : 'Measured from your last ${measured.days} days: '
-                  '${measured.averageIntakeKcal} kcal a day eaten, '
-                  '${_change(measured)}.',
+            ? l(context).dietMeasuredDisagrees(
+                measured.days,
+                measured.maintenanceKcal,
+                used,
+              )
+            : l(context).dietMeasuredFrom(
+                measured.days,
+                measured.averageIntakeKcal,
+                _change(context, measured),
+              ),
         key: const Key('verdict-calibration'),
         style: AppText.meta.copyWith(
           color: disagrees ? TrainColors.ember : TrainColors.ink3,
@@ -720,20 +732,21 @@ class _CalibrationLine extends StatelessWidget {
     );
   }
 
-  static String _change(MeasuredMaintenance measured) {
+  static String _change(BuildContext context, MeasuredMaintenance measured) {
     final kg = measured.weightChangeKg;
-    if (kg.abs() < 0.2) return 'weight steady';
-    final direction = kg > 0 ? 'up' : 'down';
-    return 'weight $direction ${formatKgPerWeek(kg)} kg';
+    if (kg.abs() < 0.2) return l(context).dietWeightSteady;
+    return kg > 0
+        ? l(context).dietWeightUp(formatKgPerWeek(kg))
+        : l(context).dietWeightDown(formatKgPerWeek(kg));
   }
 }
 
 /// The hue that owns each macro, so a target-driven bar and a plan-driven one
 /// never disagree about which colour protein is.
-Color _macroColor(String label) => switch (label) {
-  'Protein' => TrainColors.green,
-  'Carbs' => TrainColors.violetGlyph,
-  _ => TrainColors.amber,
+Color _macroColor(MacroKind kind) => switch (kind) {
+  MacroKind.protein => TrainColors.green,
+  MacroKind.carbs => TrainColors.violetGlyph,
+  MacroKind.fat => TrainColors.amber,
 };
 
 /// One macro: a mono caption and its `eaten/target` figure on one line, with
@@ -786,8 +799,10 @@ class _MacroBar extends StatelessWidget {
                 ),
               ),
               Text(
-                '${loading ? '–' : eaten.round()}'
-                '/${approx(estimated)}${target.round()}g',
+                l(context).dietMacroProgress(
+                  loading ? '–' : '${eaten.round()}',
+                  '${approx(estimated)}${target.round()}',
+                ),
                 style: TrainType.mono(
                   size: 9.5,
                   color: const Color(0x99F4F4F0),
@@ -848,7 +863,7 @@ class _DaySummaryCard extends StatelessWidget {
               ),
               if (kcal != null)
                 Text(
-                  '${approx(dayEstimated(day))}$kcal kcal',
+                  l(context).dietDayKcal('${approx(dayEstimated(day))}$kcal'),
                   style: TrainType.mono(size: 13, color: TrainColors.green),
                 ),
             ],

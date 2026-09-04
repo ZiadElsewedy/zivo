@@ -2080,4 +2080,742 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileEditPhoto => 'Edit Photo';
+
+  @override
+  String get dietGoalFatLoss => 'Fat loss';
+
+  @override
+  String get dietGoalMaintain => 'Maintain';
+
+  @override
+  String get dietGoalMuscleGain => 'Muscle gain';
+
+  @override
+  String get dietGoalRecomp => 'Recomposition';
+
+  @override
+  String get dietGoalFatLossDetail =>
+      'Eat below maintenance to lose fat, keeping protein high.';
+
+  @override
+  String get dietGoalMaintainDetail =>
+      'Hold weight steady at roughly maintenance calories.';
+
+  @override
+  String get dietGoalMuscleGainDetail =>
+      'Eat above maintenance to support building muscle.';
+
+  @override
+  String get dietGoalRecompDetail =>
+      'Hold calories near maintenance with protein high enough to build while leaning out.';
+
+  @override
+  String get dietTargetSourceManual => 'You set this';
+
+  @override
+  String get dietTargetSourceCalculated => 'Calculated from your body data';
+
+  @override
+  String get dietTargetSourcePlan => 'Adopted from your plan\'s daily total';
+
+  @override
+  String get dietCalibrationNeedsWeighIns => 'two weigh-ins';
+
+  @override
+  String dietCalibrationNeedsLongerWindow(int days) {
+    return 'weigh-ins at least $days days apart';
+  }
+
+  @override
+  String get dietCalibrationNeedsMoreDays => 'more days of food logged';
+
+  @override
+  String get dietMacroProtein => 'Protein';
+
+  @override
+  String get dietMacroCarbs => 'Carbs';
+
+  @override
+  String get dietMacroFat => 'Fat';
+
+  @override
+  String get dietTodaySoFar => 'Today so far';
+
+  @override
+  String dietKcalEaten(String kcal) {
+    return '$kcal kcal eaten';
+  }
+
+  @override
+  String get dietYourTarget => 'Your target';
+
+  @override
+  String get dietMacrosToday => 'Macros today';
+
+  @override
+  String get dietWhatPlanDoes => 'What this plan does';
+
+  @override
+  String get dietTodaysRead => 'Today\'s read';
+
+  @override
+  String get dietFullPlan => 'Full plan';
+
+  @override
+  String dietDayCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count DAYS',
+      one: '1 DAY',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietNoTargetBody =>
+      'Set one and the numbers above become progress toward a goal — and your coach can tell you where you stand.';
+
+  @override
+  String dietUseThisPlanKcal(String kcal) {
+    return 'Use this plan\'s $kcal kcal';
+  }
+
+  @override
+  String dietGoalKcalPerDayCaps(String goal, int kcal) {
+    return '$goal · $kcal KCAL/DAY';
+  }
+
+  @override
+  String dietBelowSafeFloor(String source, int kcal) {
+    return '$source · below $kcal kcal — worth checking with a professional';
+  }
+
+  @override
+  String get dietGainOrLose => 'Is this plan making you gain or lose?';
+
+  @override
+  String dietNeedsToWorkOut(String missing) {
+    return 'ZIVO needs $missing to work it out.';
+  }
+
+  @override
+  String dietListTwo(String first, String second) {
+    return '$first and $second';
+  }
+
+  @override
+  String dietListMany(String leading, String last) {
+    return '$leading and $last';
+  }
+
+  @override
+  String get dietThisPlanCaps => 'THIS PLAN';
+
+  @override
+  String get dietBodyDataCaps => 'BODY DATA';
+
+  @override
+  String dietAveragedOver(int counted, int missing) {
+    String _temp0 = intl.Intl.pluralLogic(
+      counted,
+      locale: localeName,
+      other: '$counted days',
+      one: '1 day',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      missing,
+      locale: localeName,
+      other: '$missing days have',
+      one: '1 day has',
+    );
+    return 'Averaged over $_temp0; $_temp1 no calorie figures.';
+  }
+
+  @override
+  String dietProteinPerKg(String grams) {
+    return 'Protein $grams g per kg of bodyweight.';
+  }
+
+  @override
+  String dietStaleWeighIn(int days) {
+    return 'Your last weigh-in is $days days old — weight drives this figure, so it is worth updating.';
+  }
+
+  @override
+  String dietUnderSafeFloor(int kcal) {
+    return 'This plan is under $kcal kcal a day. Sustained intake down here belongs with a doctor, not an app.';
+  }
+
+  @override
+  String dietCalibrationPrompt(String missing) {
+    return 'Log $missing and ZIVO can measure what you actually burn, instead of estimating it.';
+  }
+
+  @override
+  String dietMeasuredDisagrees(int days, int measured, int used) {
+    return 'Your last $days days say you actually burn about $measured — not the $used above. Worth updating.';
+  }
+
+  @override
+  String dietMeasuredFrom(int days, int intake, String change) {
+    return 'Measured from your last $days days: $intake kcal a day eaten, $change.';
+  }
+
+  @override
+  String get dietWeightSteady => 'weight steady';
+
+  @override
+  String dietWeightUp(String kg) {
+    return 'weight up $kg kg';
+  }
+
+  @override
+  String dietWeightDown(String kg) {
+    return 'weight down $kg kg';
+  }
+
+  @override
+  String dietMacroProgress(String eaten, String target) {
+    return '$eaten/${target}g';
+  }
+
+  @override
+  String dietDayKcal(String kcal) {
+    return '$kcal kcal';
+  }
+
+  @override
+  String get dietMissingWeight => 'your current weight';
+
+  @override
+  String get dietMissingHeight => 'your height';
+
+  @override
+  String get dietMissingSex => 'the BMR formula ZIVO should use';
+
+  @override
+  String get dietMissingActivity => 'how active your week is';
+
+  @override
+  String get dietMissingDateOfBirth => 'your date of birth';
+
+  @override
+  String get dietSourceUsda => 'USDA FoodData Central';
+
+  @override
+  String get dietSourceUserCustom => 'Your own food';
+
+  @override
+  String get dietSourcePlan => 'Your diet plan';
+
+  @override
+  String get dietNoPlanYetHeadline => 'No diet plan yet.';
+
+  @override
+  String get dietNotFollowingHeadline => 'You\'re not following a plan.';
+
+  @override
+  String get dietNoPlanYetBody =>
+      'Import a document or a photo, say it out loud, type it out, or build one by hand — I\'ll fill in the calories and macros.';
+
+  @override
+  String dietArchivedPlans(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count plans are archived — pick one back up, or add another.',
+      one: '1 plan is archived — pick one back up, or add another.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietSeeYourPlans => 'See your plans';
+
+  @override
+  String get dietFromYourPlan => 'from your plan';
+
+  @override
+  String dietQuantityUnit(String quantity, String unit) {
+    return '$quantity $unit';
+  }
+
+  @override
+  String dietMealsEaten(int eaten, int total) {
+    return '$eaten of $total meals eaten';
+  }
+
+  @override
+  String get dietNoCalorieDataCaps => 'NO CALORIE DATA YET';
+
+  @override
+  String get dietKcalOverCaps => 'KCAL OVER';
+
+  @override
+  String get dietKcalLeftCaps => 'KCAL LEFT';
+
+  @override
+  String get dietKcalLeftOfPlanCaps => 'KCAL LEFT OF PLAN';
+
+  @override
+  String get dietEstPrefixCaps => 'EST. ';
+
+  @override
+  String dietItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietViewDetails => 'View details';
+
+  @override
+  String get dietActivitySedentary => 'Sedentary';
+
+  @override
+  String get dietActivityLight => 'Light';
+
+  @override
+  String get dietActivityModerate => 'Moderate';
+
+  @override
+  String get dietActivityHigh => 'High';
+
+  @override
+  String get dietActivityAthlete => 'Very high';
+
+  @override
+  String get dietActivitySedentaryDetail =>
+      'Desk job, little deliberate exercise';
+
+  @override
+  String get dietActivityLightDetail => 'Training 1–3 days a week';
+
+  @override
+  String get dietActivityModerateDetail => 'Training 3–5 days a week';
+
+  @override
+  String get dietActivityHighDetail => 'Training 6–7 days a week';
+
+  @override
+  String get dietActivityAthleteDetail =>
+      'Hard training daily, or a physical job on top';
+
+  @override
+  String dietTargetBasisSummary(
+    String weight,
+    String activity,
+    int maintenance,
+  ) {
+    return '$weight kg · $activity · $maintenance kcal maintenance';
+  }
+
+  @override
+  String get dietSetYourTarget => 'Set your target';
+
+  @override
+  String get dietDailyTarget => 'Daily target';
+
+  @override
+  String get dietTargetsIntro =>
+      'Your coach uses these numbers for everything it tells you. Until they\'re set, it can describe your plan but not how you\'re doing against it.';
+
+  @override
+  String get dietGoal => 'Goal';
+
+  @override
+  String get dietDailyNumbers => 'Daily numbers';
+
+  @override
+  String get dietCalculatedCaps => 'CALCULATED';
+
+  @override
+  String get dietOnlyCaloriesRequired =>
+      'Only calories are required. Leave a macro blank if you aren\'t tracking it — blank means untracked, not zero.';
+
+  @override
+  String get dietFillFieldsHint =>
+      'Fills the fields with a starting point you can edit. Nothing is saved until you tap Save.';
+
+  @override
+  String dietBelowSafeWarning(int calories, int floor) {
+    return '$calories kcal is below $floor, which is under what ZIVO should be coaching. You can still save it, but eating this low is worth talking through with a doctor or a registered dietitian first.';
+  }
+
+  @override
+  String dietCalculatedFrom(
+    String weight,
+    String activity,
+    int bmr,
+    int maintenance,
+    String goal,
+  ) {
+    return 'From ${weight}kg at $activity activity: $bmr kcal at rest, $maintenance kcal to maintain, adjusted for $goal. These are population estimates — adjust them from what the scale actually does.';
+  }
+
+  @override
+  String get dietSexMale => 'Male';
+
+  @override
+  String get dietSexFemale => 'Female';
+
+  @override
+  String dietStaleWeighInPrompt(int days) {
+    return 'Your last weigh-in was $days days ago. Worth logging a new one first.';
+  }
+
+  @override
+  String dietKgValue(String value) {
+    return '$value kg';
+  }
+
+  @override
+  String dietCmValue(int value) {
+    return '$value cm';
+  }
+
+  @override
+  String dietSearching(String source) {
+    return 'Searching $source.';
+  }
+
+  @override
+  String get dietFoodSearchHint => 'chicken breast, rice, olive oil…';
+
+  @override
+  String get dietEnterAmount => 'Enter an amount.';
+
+  @override
+  String get dietEnterAmountAboveZero => 'Enter an amount above zero.';
+
+  @override
+  String dietKcalPer100g(int kcal) {
+    return '$kcal kcal / 100g';
+  }
+
+  @override
+  String dietKcalPer100gTight(int kcal) {
+    return '$kcal kcal/100g';
+  }
+
+  @override
+  String get dietTypeToSearch => 'Type a food to search.';
+
+  @override
+  String dietNoCatalogMatch(String query) {
+    return 'Nothing in the catalog matches \"$query\".';
+  }
+
+  @override
+  String get dietCatalogThinBody =>
+      'It\'s a USDA catalog, so it\'s thin on regional and home cooking. Rather than guess, tell ZIVO what this food is once and it\'ll remember.';
+
+  @override
+  String dietKcalValue(int kcal) {
+    return '$kcal kcal';
+  }
+
+  @override
+  String dietMacroLine(String protein, String carbs, String fat, String grams) {
+    return 'P ${protein}g · C ${carbs}g · F ${fat}g · ${grams}g';
+  }
+
+  @override
+  String dietWeightOnlyFood(String unit) {
+    return 'ZIVO only has this food by weight — enter it in grams. Converting $unit would mean guessing a density.';
+  }
+
+  @override
+  String dietNoSuchUnit(String unit, String alternatives) {
+    return 'ZIVO doesn\'t have $unit for this food. Use grams, or: $alternatives';
+  }
+
+  @override
+  String get dietCustomFoodHint =>
+      'Per 100g, from the label or your own measure. ZIVO stores these as yours and never overwrites them.';
+
+  @override
+  String get dietMaintenanceCaps => 'MAINTENANCE';
+
+  @override
+  String dietKcalPerDay(int kcal) {
+    return '$kcal kcal a day';
+  }
+
+  @override
+  String get dietMaintenanceGiven => 'The figure you gave. ZIVO uses it as-is.';
+
+  @override
+  String get dietMaintenanceEstimated =>
+      'Estimated from these numbers — a population average, not a measurement of you.';
+
+  @override
+  String dietDaysAgo(int days) {
+    return '$days days ago';
+  }
+
+  @override
+  String dietWeeksAgo(int weeks) {
+    return '$weeks weeks ago';
+  }
+
+  @override
+  String dietMonthsAgo(int months) {
+    return '$months months ago';
+  }
+
+  @override
+  String get dietCuisineEgyptian => 'Egyptian';
+
+  @override
+  String get dietCuisineMediterranean => 'Mediterranean';
+
+  @override
+  String get dietCuisineLevantine => 'Levantine';
+
+  @override
+  String get dietCuisineIndian => 'Indian';
+
+  @override
+  String get dietCuisineAsian => 'Asian';
+
+  @override
+  String get dietCuisineWestern => 'Western';
+
+  @override
+  String get dietImportOneRun =>
+      'A run either reads material or designs a plan — never both.';
+
+  @override
+  String get dietGeneratingFoods => 'Choosing foods you like…';
+
+  @override
+  String get dietGeneratingCalories => 'Looking up real calories for each one…';
+
+  @override
+  String get dietGeneratingPortions => 'Sizing the portions to your target…';
+
+  @override
+  String get dietFileReadFailed => 'Couldn\'t read that file.';
+
+  @override
+  String dietFileTooLarge(int mb) {
+    return 'That file is too large — please choose one under $mb MB.';
+  }
+
+  @override
+  String get dietImportPlanTitle => 'Import Plan';
+
+  @override
+  String get dietBuildingYourPlan => 'Building your plan';
+
+  @override
+  String get dietReadingYourPlan => 'Reading your plan';
+
+  @override
+  String get dietSelectYourPlan => 'Select your diet plan';
+
+  @override
+  String get dietSelectYourPlanBody =>
+      'Choose a PDF or a photo of your plan and I\'ll map it into a real, editable plan — estimating calories and macros wherever the document doesn\'t state them.';
+
+  @override
+  String get dietCouldntBuildPlan => 'ZIVO couldn\'t build that plan';
+
+  @override
+  String get dietNotADietPlan => 'This doesn\'t look like a diet plan';
+
+  @override
+  String get dietChooseDifferentFile => 'Choose a different file';
+
+  @override
+  String get dietGoBackAndEdit => 'Go back and edit';
+
+  @override
+  String get dietBuildManually => 'build the plan manually.';
+
+  @override
+  String get dietPreferencesIntro =>
+      'ZIVO picks the foods and looks up what they actually weigh in calories — it doesn\'t guess them. Tell it what you eat and it will build a day you can review before anything is saved.';
+
+  @override
+  String get dietMealsADay => 'Meals a day';
+
+  @override
+  String get dietMealsADayNote =>
+      'The single biggest reason a plan survives a working week, or does not.';
+
+  @override
+  String get dietKitchen => 'Kitchen';
+
+  @override
+  String get dietOptionalCaps => 'OPTIONAL';
+
+  @override
+  String get dietNothingSavedUntilReview =>
+      'Nothing is saved until you review the plan and tap Save.';
+
+  @override
+  String dietSizedToTarget(int kcal) {
+    return 'Sized to your target — $kcal kcal a day.';
+  }
+
+  @override
+  String get dietNoTargetToSizeTo =>
+      'ZIVO will still build the plan, but it has no figure to size the portions to. Set one first and the day comes out fitted to it.';
+
+  @override
+  String get dietOnePlanNote =>
+      'One plan. Import or write another and you can switch between them without losing either.';
+
+  @override
+  String dietManyPlansNote(int count) {
+    return '$count plans. One is in force at a time — the Diet screen always shows that one.';
+  }
+
+  @override
+  String get dietNoPlansYet => 'No plans yet.';
+
+  @override
+  String dietDaysCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count DAYS',
+      one: '1 DAY',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dietKcalPerDayCaps(String kcal) {
+    return '$kcal KCAL/DAY';
+  }
+
+  @override
+  String get dietFollowingCaps => 'FOLLOWING';
+
+  @override
+  String get dietArchivedCaps => 'ARCHIVED';
+
+  @override
+  String get dietDraftCaps => 'DRAFT';
+
+  @override
+  String get dietWhatsInIt => 'What’s in it';
+
+  @override
+  String get dietNoItemsListed => 'No items listed for this meal.';
+
+  @override
+  String get dietMarkNotEaten => 'Mark as not eaten';
+
+  @override
+  String get dietMarkEaten => 'Done — mark as eaten';
+
+  @override
+  String get dietMacroP => 'P';
+
+  @override
+  String get dietMacroC => 'C';
+
+  @override
+  String get dietMacroF => 'F';
+
+  @override
+  String dietGramsValue(int grams) {
+    return '${grams}g';
+  }
+
+  @override
+  String get dietUsePlanNumbers => 'Use your plan\'s numbers';
+
+  @override
+  String dietPlanAverageOverDays(String kcal, int days, String plan) {
+    return '$kcal kcal a day, averaged over the $days days of $plan.';
+  }
+
+  @override
+  String dietPlanFrom(String kcal, String plan) {
+    return '$kcal kcal a day, from $plan.';
+  }
+
+  @override
+  String dietDaysWithoutCalories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days have no calorie figures and are not in that average.',
+      one: '1 day has no calorie figures and is not in that average.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietWhatIsItFor => 'What is it for?';
+
+  @override
+  String get dietWhyGoalMatters =>
+      'The same calories mean different things depending on what you\'re doing. ZIVO needs this to say how you\'re doing against them.';
+
+  @override
+  String dietPlanBelowSafeFloor(int kcal) {
+    return 'This plan averages under $kcal kcal a day. Adopting it as a target is worth talking through with a doctor or a registered dietitian first.';
+  }
+
+  @override
+  String get dietEveryDay => 'Every day';
+
+  @override
+  String get dietRemoveDay => 'Remove day';
+
+  @override
+  String get dietRemoveMeal => 'Remove meal';
+
+  @override
+  String get dietRemoveItem => 'Remove item';
+
+  @override
+  String get dietUnitCaps => 'UNIT';
+
+  @override
+  String get dietDescribeYourDiet => 'Describe your diet';
+
+  @override
+  String get dietTypeItOut => 'Type it out';
+
+  @override
+  String get dietDictateBody =>
+      'Say or write what you eat in a day — meals, foods and rough amounts. ZIVO turns it into a plan you review before anything is saved.';
+
+  @override
+  String get dietDictateExample =>
+      'Example: \"Breakfast is three eggs and 60 grams of oats. Lunch is 200 grams of chicken with rice and salad.\"';
+
+  @override
+  String get dietHideCaps => 'HIDE';
+
+  @override
+  String get dietWhyCaps => 'WHY';
+
+  @override
+  String get dietSourceManual => 'Written by hand';
+
+  @override
+  String get dietSourcePdf => 'Imported from a document';
+
+  @override
+  String get dietSourcePhoto => 'Imported from a photo';
+
+  @override
+  String get dietSourceDictated => 'Dictated';
+
+  @override
+  String get dietSourceGenerated => 'Built by ZIVO';
 }

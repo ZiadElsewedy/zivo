@@ -3727,6 +3727,1132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit Photo'**
   String get profileEditPhoto;
+
+  /// A diet goal: eat below maintenance to lose fat.
+  ///
+  /// In en, this message translates to:
+  /// **'Fat loss'**
+  String get dietGoalFatLoss;
+
+  /// A diet goal: hold weight steady.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintain'**
+  String get dietGoalMaintain;
+
+  /// A diet goal: eat above maintenance to build muscle.
+  ///
+  /// In en, this message translates to:
+  /// **'Muscle gain'**
+  String get dietGoalMuscleGain;
+
+  /// A diet goal: build muscle while losing fat at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Recomposition'**
+  String get dietGoalRecomp;
+
+  /// What choosing the fat-loss goal means for the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Eat below maintenance to lose fat, keeping protein high.'**
+  String get dietGoalFatLossDetail;
+
+  /// What choosing the maintain goal means for the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold weight steady at roughly maintenance calories.'**
+  String get dietGoalMaintainDetail;
+
+  /// What choosing the muscle-gain goal means for the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Eat above maintenance to support building muscle.'**
+  String get dietGoalMuscleGainDetail;
+
+  /// What choosing the recomposition goal means for the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold calories near maintenance with protein high enough to build while leaning out.'**
+  String get dietGoalRecompDetail;
+
+  /// Where a calorie target came from: the user entered it.
+  ///
+  /// In en, this message translates to:
+  /// **'You set this'**
+  String get dietTargetSourceManual;
+
+  /// Where a calorie target came from: derived from height, weight, age and activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculated from your body data'**
+  String get dietTargetSourceCalculated;
+
+  /// Where a calorie target came from: the active plan's own total.
+  ///
+  /// In en, this message translates to:
+  /// **'Adopted from your plan\'s daily total'**
+  String get dietTargetSourcePlan;
+
+  /// What is still missing before ZIVO can measure real maintenance calories.
+  ///
+  /// In en, this message translates to:
+  /// **'two weigh-ins'**
+  String get dietCalibrationNeedsWeighIns;
+
+  /// What is still missing before ZIVO can measure real maintenance calories.
+  ///
+  /// In en, this message translates to:
+  /// **'weigh-ins at least {days} days apart'**
+  String dietCalibrationNeedsLongerWindow(int days);
+
+  /// What is still missing before ZIVO can measure real maintenance calories.
+  ///
+  /// In en, this message translates to:
+  /// **'more days of food logged'**
+  String get dietCalibrationNeedsMoreDays;
+
+  /// The protein macronutrient.
+  ///
+  /// In en, this message translates to:
+  /// **'Protein'**
+  String get dietMacroProtein;
+
+  /// The carbohydrate macronutrient.
+  ///
+  /// In en, this message translates to:
+  /// **'Carbs'**
+  String get dietMacroCarbs;
+
+  /// The fat macronutrient.
+  ///
+  /// In en, this message translates to:
+  /// **'Fat'**
+  String get dietMacroFat;
+
+  /// Section label over what has been eaten today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today so far'**
+  String get dietTodaySoFar;
+
+  /// How many calories have been eaten today. {kcal} may carry a "~" prefix when estimated.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal eaten'**
+  String dietKcalEaten(String kcal);
+
+  /// Section label over the calorie/macro target.
+  ///
+  /// In en, this message translates to:
+  /// **'Your target'**
+  String get dietYourTarget;
+
+  /// Section label over today's macro progress bars.
+  ///
+  /// In en, this message translates to:
+  /// **'Macros today'**
+  String get dietMacrosToday;
+
+  /// Section label over the verdict on whether the plan gains or loses weight.
+  ///
+  /// In en, this message translates to:
+  /// **'What this plan does'**
+  String get dietWhatPlanDoes;
+
+  /// Section label over the coach's read on today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s read'**
+  String get dietTodaysRead;
+
+  /// Section label over every day of the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Full plan'**
+  String get dietFullPlan;
+
+  /// How many days a plan covers, as a caps micro-label.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 DAY} other{{count} DAYS}}'**
+  String dietDayCountCaps(int count);
+
+  /// Explains why setting a calorie target is worth doing.
+  ///
+  /// In en, this message translates to:
+  /// **'Set one and the numbers above become progress toward a goal — and your coach can tell you where you stand.'**
+  String get dietNoTargetBody;
+
+  /// Adopts the plan's own daily total as the calorie target. {kcal} may carry a "~" prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this plan\'s {kcal} kcal'**
+  String dietUseThisPlanKcal(String kcal);
+
+  /// A target summarised as its goal and daily calories.
+  ///
+  /// In en, this message translates to:
+  /// **'{goal} · {kcal} KCAL/DAY'**
+  String dietGoalKcalPerDayCaps(String goal, int kcal);
+
+  /// Warning under a calorie target set below the safe floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} · below {kcal} kcal — worth checking with a professional'**
+  String dietBelowSafeFloor(String source, int kcal);
+
+  /// Prompt to add the body data needed to judge the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Is this plan making you gain or lose?'**
+  String get dietGainOrLose;
+
+  /// What body data is still missing, e.g. "your height and your current weight".
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO needs {missing} to work it out.'**
+  String dietNeedsToWorkOut(String missing);
+
+  /// Joins two items into a phrase.
+  ///
+  /// In en, this message translates to:
+  /// **'{first} and {second}'**
+  String dietListTwo(String first, String second);
+
+  /// Joins three or more items; {leading} is already comma-separated.
+  ///
+  /// In en, this message translates to:
+  /// **'{leading} and {last}'**
+  String dietListMany(String leading, String last);
+
+  /// Caps label on the plan verdict card. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'THIS PLAN'**
+  String get dietThisPlanCaps;
+
+  /// Caps link to edit height, weight and activity. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'BODY DATA'**
+  String get dietBodyDataCaps;
+
+  /// Says how many days the plan average rests on, and how many had no calorie data.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged over {counted, plural, =1{1 day} other{{counted} days}}; {missing, plural, =1{1 day has} other{{missing} days have}} no calorie figures.'**
+  String dietAveragedOver(int counted, int missing);
+
+  /// How much protein the plan provides relative to bodyweight.
+  ///
+  /// In en, this message translates to:
+  /// **'Protein {grams} g per kg of bodyweight.'**
+  String dietProteinPerKg(String grams);
+
+  /// Nudge to log a fresh weigh-in.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last weigh-in is {days} days old — weight drives this figure, so it is worth updating.'**
+  String dietStaleWeighIn(int days);
+
+  /// Safety warning on a plan below the minimum safe calories.
+  ///
+  /// In en, this message translates to:
+  /// **'This plan is under {kcal} kcal a day. Sustained intake down here belongs with a doctor, not an app.'**
+  String dietUnderSafeFloor(int kcal);
+
+  /// What is still needed before real maintenance calories can be measured.
+  ///
+  /// In en, this message translates to:
+  /// **'Log {missing} and ZIVO can measure what you actually burn, instead of estimating it.'**
+  String dietCalibrationPrompt(String missing);
+
+  /// The measured maintenance differs from the one currently in use.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last {days} days say you actually burn about {measured} — not the {used} above. Worth updating.'**
+  String dietMeasuredDisagrees(int days, int measured, int used);
+
+  /// Summarises the measured maintenance window.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured from your last {days} days: {intake} kcal a day eaten, {change}.'**
+  String dietMeasuredFrom(int days, int intake, String change);
+
+  /// Weight did not meaningfully change over the measured window.
+  ///
+  /// In en, this message translates to:
+  /// **'weight steady'**
+  String get dietWeightSteady;
+
+  /// Weight rose over the measured window.
+  ///
+  /// In en, this message translates to:
+  /// **'weight up {kg} kg'**
+  String dietWeightUp(String kg);
+
+  /// Weight fell over the measured window.
+  ///
+  /// In en, this message translates to:
+  /// **'weight down {kg} kg'**
+  String dietWeightDown(String kg);
+
+  /// Grams eaten out of the target for one macro. {target} may carry a "~" prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten}/{target}g'**
+  String dietMacroProgress(String eaten, String target);
+
+  /// A plan day's calorie total. {kcal} may carry a "~" prefix when estimated.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal'**
+  String dietDayKcal(String kcal);
+
+  /// Body data still missing, phrased to drop into a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'your current weight'**
+  String get dietMissingWeight;
+
+  /// Body data still missing, phrased to drop into a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'your height'**
+  String get dietMissingHeight;
+
+  /// Body data still missing: which Mifflin-St Jeor form to use. Phrased to drop into a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'the BMR formula ZIVO should use'**
+  String get dietMissingSex;
+
+  /// Body data still missing, phrased to drop into a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'how active your week is'**
+  String get dietMissingActivity;
+
+  /// Body data still missing, phrased to drop into a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'your date of birth'**
+  String get dietMissingDateOfBirth;
+
+  /// A nutrition reference database. A proper name — keep it untranslated.
+  ///
+  /// In en, this message translates to:
+  /// **'USDA FoodData Central'**
+  String get dietSourceUsda;
+
+  /// A food the user entered themselves.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own food'**
+  String get dietSourceUserCustom;
+
+  /// Nutrition figures taken from the user's own plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Your diet plan'**
+  String get dietSourcePlan;
+
+  /// Empty state headline when the user has never had a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'No diet plan yet.'**
+  String get dietNoPlanYetHeadline;
+
+  /// Empty state headline when every plan is archived.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re not following a plan.'**
+  String get dietNotFollowingHeadline;
+
+  /// Empty state body listing the ways to add a diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a document or a photo, say it out loud, type it out, or build one by hand — I\'ll fill in the calories and macros.'**
+  String get dietNoPlanYetBody;
+
+  /// Empty state body when plans exist but none is active.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 plan is archived — pick one back up, or add another.} other{{count} plans are archived — pick one back up, or add another.}}'**
+  String dietArchivedPlans(int count);
+
+  /// Opens the list of saved diet plans.
+  ///
+  /// In en, this message translates to:
+  /// **'See your plans'**
+  String get dietSeeYourPlans;
+
+  /// Where a logged food's figures came from.
+  ///
+  /// In en, this message translates to:
+  /// **'from your plan'**
+  String get dietFromYourPlan;
+
+  /// A logged amount and its unit, e.g. "150 g".
+  ///
+  /// In en, this message translates to:
+  /// **'{quantity} {unit}'**
+  String dietQuantityUnit(String quantity, String unit);
+
+  /// How many of today's planned meals have been ticked.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten} of {total} meals eaten'**
+  String dietMealsEaten(int eaten, int total);
+
+  /// Caps note when a plan carries no calorie figures. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'NO CALORIE DATA YET'**
+  String get dietNoCalorieDataCaps;
+
+  /// Caps label under the hero figure when the target is exceeded. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'KCAL OVER'**
+  String get dietKcalOverCaps;
+
+  /// Caps label under the hero figure. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'KCAL LEFT'**
+  String get dietKcalLeftCaps;
+
+  /// Caps label under the hero figure when measured against the plan rather than a target.
+  ///
+  /// In en, this message translates to:
+  /// **'KCAL LEFT OF PLAN'**
+  String get dietKcalLeftOfPlanCaps;
+
+  /// Caps prefix marking a figure that rests on estimated values. Trailing space is intentional.
+  ///
+  /// In en, this message translates to:
+  /// **'EST. '**
+  String get dietEstPrefixCaps;
+
+  /// How many food items a meal contains.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String dietItemCount(int count);
+
+  /// Opens a meal's full breakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get dietViewDetails;
+
+  /// An activity level.
+  ///
+  /// In en, this message translates to:
+  /// **'Sedentary'**
+  String get dietActivitySedentary;
+
+  /// An activity level.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get dietActivityLight;
+
+  /// An activity level.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderate'**
+  String get dietActivityModerate;
+
+  /// An activity level.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get dietActivityHigh;
+
+  /// An activity level.
+  ///
+  /// In en, this message translates to:
+  /// **'Very high'**
+  String get dietActivityAthlete;
+
+  /// What the sedentary activity level describes.
+  ///
+  /// In en, this message translates to:
+  /// **'Desk job, little deliberate exercise'**
+  String get dietActivitySedentaryDetail;
+
+  /// What the light activity level describes.
+  ///
+  /// In en, this message translates to:
+  /// **'Training 1–3 days a week'**
+  String get dietActivityLightDetail;
+
+  /// What the moderate activity level describes.
+  ///
+  /// In en, this message translates to:
+  /// **'Training 3–5 days a week'**
+  String get dietActivityModerateDetail;
+
+  /// What the high activity level describes.
+  ///
+  /// In en, this message translates to:
+  /// **'Training 6–7 days a week'**
+  String get dietActivityHighDetail;
+
+  /// What the very-high activity level describes.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard training daily, or a physical job on top'**
+  String get dietActivityAthleteDetail;
+
+  /// The body data a calculated target was derived from.
+  ///
+  /// In en, this message translates to:
+  /// **'{weight} kg · {activity} · {maintenance} kcal maintenance'**
+  String dietTargetBasisSummary(
+    String weight,
+    String activity,
+    int maintenance,
+  );
+
+  /// Title when no target exists yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your target'**
+  String get dietSetYourTarget;
+
+  /// Title when editing an existing target.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily target'**
+  String get dietDailyTarget;
+
+  /// Explains why the calorie and macro targets matter.
+  ///
+  /// In en, this message translates to:
+  /// **'Your coach uses these numbers for everything it tells you. Until they\'re set, it can describe your plan but not how you\'re doing against it.'**
+  String get dietTargetsIntro;
+
+  /// Section label over the diet goal picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get dietGoal;
+
+  /// Section label over the calorie and macro fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily numbers'**
+  String get dietDailyNumbers;
+
+  /// Badge marking figures derived from body data. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'CALCULATED'**
+  String get dietCalculatedCaps;
+
+  /// Explains that macro fields are optional.
+  ///
+  /// In en, this message translates to:
+  /// **'Only calories are required. Leave a macro blank if you aren\'t tracking it — blank means untracked, not zero.'**
+  String get dietOnlyCaloriesRequired;
+
+  /// Explains what the calculate button does.
+  ///
+  /// In en, this message translates to:
+  /// **'Fills the fields with a starting point you can edit. Nothing is saved until you tap Save.'**
+  String get dietFillFieldsHint;
+
+  /// Warning before saving a calorie target below the safe floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{calories} kcal is below {floor}, which is under what ZIVO should be coaching. You can still save it, but eating this low is worth talking through with a doctor or a registered dietitian first.'**
+  String dietBelowSafeWarning(int calories, int floor);
+
+  /// Explains how a calculated target was derived.
+  ///
+  /// In en, this message translates to:
+  /// **'From {weight}kg at {activity} activity: {bmr} kcal at rest, {maintenance} kcal to maintain, adjusted for {goal}. These are population estimates — adjust them from what the scale actually does.'**
+  String dietCalculatedFrom(
+    String weight,
+    String activity,
+    int bmr,
+    int maintenance,
+    String goal,
+  );
+
+  /// The BMR formula variable, not a profile field.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get dietSexMale;
+
+  /// The BMR formula variable, not a profile field.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get dietSexFemale;
+
+  /// Nudge before calculating a target from an old weight.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last weigh-in was {days} days ago. Worth logging a new one first.'**
+  String dietStaleWeighInPrompt(int days);
+
+  /// A weight in kilograms.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} kg'**
+  String dietKgValue(String value);
+
+  /// A height in centimetres.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} cm'**
+  String dietCmValue(int value);
+
+  /// Which catalog a food search is running against.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching {source}.'**
+  String dietSearching(String source);
+
+  /// Placeholder in the food search field. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'chicken breast, rice, olive oil…'**
+  String get dietFoodSearchHint;
+
+  /// Validation when the amount field is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount.'**
+  String get dietEnterAmount;
+
+  /// Validation when the amount is zero or negative.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount above zero.'**
+  String get dietEnterAmountAboveZero;
+
+  /// A food's energy density.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal / 100g'**
+  String dietKcalPer100g(int kcal);
+
+  /// A food's energy density, tighter spacing for a compact row.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal/100g'**
+  String dietKcalPer100gTight(int kcal);
+
+  /// Prompt before any search term is entered.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a food to search.'**
+  String get dietTypeToSearch;
+
+  /// Shown when a food search returns nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in the catalog matches \"{query}\".'**
+  String dietNoCatalogMatch(String query);
+
+  /// Explains why a food may be missing, and offers to add it.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s a USDA catalog, so it\'s thin on regional and home cooking. Rather than guess, tell ZIVO what this food is once and it\'ll remember.'**
+  String get dietCatalogThinBody;
+
+  /// An energy figure in kilocalories.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal'**
+  String dietKcalValue(int kcal);
+
+  /// A compact macro breakdown. P/C/F abbreviate protein, carbs and fat.
+  ///
+  /// In en, this message translates to:
+  /// **'P {protein}g · C {carbs}g · F {fat}g · {grams}g'**
+  String dietMacroLine(String protein, String carbs, String fat, String grams);
+
+  /// Why a non-weight unit was rejected for this food.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO only has this food by weight — enter it in grams. Converting {unit} would mean guessing a density.'**
+  String dietWeightOnlyFood(String unit);
+
+  /// Which units this food does support.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO doesn\'t have {unit} for this food. Use grams, or: {alternatives}'**
+  String dietNoSuchUnit(String unit, String alternatives);
+
+  /// Explains the custom-food fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Per 100g, from the label or your own measure. ZIVO stores these as yours and never overwrites them.'**
+  String get dietCustomFoodHint;
+
+  /// Caps label over the maintenance calorie figure. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'MAINTENANCE'**
+  String get dietMaintenanceCaps;
+
+  /// A daily energy figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal a day'**
+  String dietKcalPerDay(int kcal);
+
+  /// Where the maintenance figure came from: the user typed it.
+  ///
+  /// In en, this message translates to:
+  /// **'The figure you gave. ZIVO uses it as-is.'**
+  String get dietMaintenanceGiven;
+
+  /// Where the maintenance figure came from: a formula.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated from these numbers — a population average, not a measurement of you.'**
+  String get dietMaintenanceEstimated;
+
+  /// How long since the last weigh-in.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days ago'**
+  String dietDaysAgo(int days);
+
+  /// How long since the last weigh-in.
+  ///
+  /// In en, this message translates to:
+  /// **'{weeks} weeks ago'**
+  String dietWeeksAgo(int weeks);
+
+  /// How long since the last weigh-in.
+  ///
+  /// In en, this message translates to:
+  /// **'{months} months ago'**
+  String dietMonthsAgo(int months);
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Egyptian'**
+  String get dietCuisineEgyptian;
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Mediterranean'**
+  String get dietCuisineMediterranean;
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Levantine'**
+  String get dietCuisineLevantine;
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Indian'**
+  String get dietCuisineIndian;
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Asian'**
+  String get dietCuisineAsian;
+
+  /// A cuisine chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Western'**
+  String get dietCuisineWestern;
+
+  /// Assertion note explaining the import page has one mode per run.
+  ///
+  /// In en, this message translates to:
+  /// **'A run either reads material or designs a plan — never both.'**
+  String get dietImportOneRun;
+
+  /// Progress line while generating a plan. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Choosing foods you like…'**
+  String get dietGeneratingFoods;
+
+  /// Progress line while generating a plan. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking up real calories for each one…'**
+  String get dietGeneratingCalories;
+
+  /// Progress line while generating a plan. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Sizing the portions to your target…'**
+  String get dietGeneratingPortions;
+
+  /// Shown when a picked document could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read that file.'**
+  String get dietFileReadFailed;
+
+  /// Shown when a picked document exceeds the size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'That file is too large — please choose one under {mb} MB.'**
+  String dietFileTooLarge(int mb);
+
+  /// Title of the diet import screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Plan'**
+  String get dietImportPlanTitle;
+
+  /// Title while a plan is being generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Building your plan'**
+  String get dietBuildingYourPlan;
+
+  /// Title while a document is being read.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your plan'**
+  String get dietReadingYourPlan;
+
+  /// Prompt to pick a document or photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your diet plan'**
+  String get dietSelectYourPlan;
+
+  /// Explains what importing a document does.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a PDF or a photo of your plan and I\'ll map it into a real, editable plan — estimating calories and macros wherever the document doesn\'t state them.'**
+  String get dietSelectYourPlanBody;
+
+  /// Failure title after a generation attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO couldn\'t build that plan'**
+  String get dietCouldntBuildPlan;
+
+  /// Failure title when the document was not recognised.
+  ///
+  /// In en, this message translates to:
+  /// **'This doesn\'t look like a diet plan'**
+  String get dietNotADietPlan;
+
+  /// Retry action after a failed import.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a different file'**
+  String get dietChooseDifferentFile;
+
+  /// Retry action after a failed generation.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back and edit'**
+  String get dietGoBackAndEdit;
+
+  /// Tail of a sentence offering the manual builder as a fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'build the plan manually.'**
+  String get dietBuildManually;
+
+  /// Explains how plan generation works.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO picks the foods and looks up what they actually weigh in calories — it doesn\'t guess them. Tell it what you eat and it will build a day you can review before anything is saved.'**
+  String get dietPreferencesIntro;
+
+  /// Section label over the meals-per-day picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Meals a day'**
+  String get dietMealsADay;
+
+  /// Why the meals-per-day choice matters.
+  ///
+  /// In en, this message translates to:
+  /// **'The single biggest reason a plan survives a working week, or does not.'**
+  String get dietMealsADayNote;
+
+  /// Section label over the cuisine chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchen'**
+  String get dietKitchen;
+
+  /// Marks a section that can be skipped. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'OPTIONAL'**
+  String get dietOptionalCaps;
+
+  /// Reassurance above the generate button.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is saved until you review the plan and tap Save.'**
+  String get dietNothingSavedUntilReview;
+
+  /// Confirms the generated plan will match the calorie target.
+  ///
+  /// In en, this message translates to:
+  /// **'Sized to your target — {kcal} kcal a day.'**
+  String dietSizedToTarget(int kcal);
+
+  /// Shown when generating a plan with no calorie target set.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO will still build the plan, but it has no figure to size the portions to. Set one first and the day comes out fitted to it.'**
+  String get dietNoTargetToSizeTo;
+
+  /// Note under a single saved plan.
+  ///
+  /// In en, this message translates to:
+  /// **'One plan. Import or write another and you can switch between them without losing either.'**
+  String get dietOnePlanNote;
+
+  /// Note under several saved plans.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} plans. One is in force at a time — the Diet screen always shows that one.'**
+  String dietManyPlansNote(int count);
+
+  /// Empty state in the plans library.
+  ///
+  /// In en, this message translates to:
+  /// **'No plans yet.'**
+  String get dietNoPlansYet;
+
+  /// How many days a plan covers, on its card. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 DAY} other{{count} DAYS}}'**
+  String dietDaysCaps(int count);
+
+  /// A plan's average daily energy. {kcal} may carry a "~" prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} KCAL/DAY'**
+  String dietKcalPerDayCaps(String kcal);
+
+  /// The plan currently in force. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'FOLLOWING'**
+  String get dietFollowingCaps;
+
+  /// A shelved plan. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'ARCHIVED'**
+  String get dietArchivedCaps;
+
+  /// An unfinished plan. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'DRAFT'**
+  String get dietDraftCaps;
+
+  /// Section label over a meal's items.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s in it'**
+  String get dietWhatsInIt;
+
+  /// Empty state on a meal with no items.
+  ///
+  /// In en, this message translates to:
+  /// **'No items listed for this meal.'**
+  String get dietNoItemsListed;
+
+  /// Undoes marking a meal eaten.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as not eaten'**
+  String get dietMarkNotEaten;
+
+  /// Marks a meal as eaten.
+  ///
+  /// In en, this message translates to:
+  /// **'Done — mark as eaten'**
+  String get dietMarkEaten;
+
+  /// One-letter abbreviation for protein.
+  ///
+  /// In en, this message translates to:
+  /// **'P'**
+  String get dietMacroP;
+
+  /// One-letter abbreviation for carbohydrates.
+  ///
+  /// In en, this message translates to:
+  /// **'C'**
+  String get dietMacroC;
+
+  /// One-letter abbreviation for fat.
+  ///
+  /// In en, this message translates to:
+  /// **'F'**
+  String get dietMacroF;
+
+  /// A weight in grams.
+  ///
+  /// In en, this message translates to:
+  /// **'{grams}g'**
+  String dietGramsValue(int grams);
+
+  /// Title of the sheet that adopts a plan total as the calorie target.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your plan\'s numbers'**
+  String get dietUsePlanNumbers;
+
+  /// A plan's average daily calories. {kcal} may carry a "~" prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal a day, averaged over the {days} days of {plan}.'**
+  String dietPlanAverageOverDays(String kcal, int days, String plan);
+
+  /// A plan's daily calories. {kcal} may carry a "~" prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal a day, from {plan}.'**
+  String dietPlanFrom(String kcal, String plan);
+
+  /// Caveat on a plan average that skipped days.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day has no calorie figures and is not in that average.} other{{count} days have no calorie figures and are not in that average.}}'**
+  String dietDaysWithoutCalories(int count);
+
+  /// Section label over the goal picker in the adopt sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'What is it for?'**
+  String get dietWhatIsItFor;
+
+  /// Why a goal is required alongside a calorie target.
+  ///
+  /// In en, this message translates to:
+  /// **'The same calories mean different things depending on what you\'re doing. ZIVO needs this to say how you\'re doing against them.'**
+  String get dietWhyGoalMatters;
+
+  /// Warning before adopting a plan below the safe floor.
+  ///
+  /// In en, this message translates to:
+  /// **'This plan averages under {kcal} kcal a day. Adopting it as a target is worth talking through with a doctor or a registered dietitian first.'**
+  String dietPlanBelowSafeFloor(int kcal);
+
+  /// A meal that repeats on every day of the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get dietEveryDay;
+
+  /// Deletes a day from the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove day'**
+  String get dietRemoveDay;
+
+  /// Deletes a meal from a day.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove meal'**
+  String get dietRemoveMeal;
+
+  /// Deletes a food from a meal.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove item'**
+  String get dietRemoveItem;
+
+  /// Column header over a food's unit. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'UNIT'**
+  String get dietUnitCaps;
+
+  /// Title when dictating a diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe your diet'**
+  String get dietDescribeYourDiet;
+
+  /// Title when typing a diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Type it out'**
+  String get dietTypeItOut;
+
+  /// Explains dictating or typing a diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Say or write what you eat in a day — meals, foods and rough amounts. ZIVO turns it into a plan you review before anything is saved.'**
+  String get dietDictateBody;
+
+  /// An example utterance for dictating a diet plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: \"Breakfast is three eggs and 60 grams of oats. Lunch is 200 grams of chicken with rice and salad.\"'**
+  String get dietDictateExample;
+
+  /// Collapses a finding's reasoning. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'HIDE'**
+  String get dietHideCaps;
+
+  /// Expands a finding's reasoning. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'WHY'**
+  String get dietWhyCaps;
+
+  /// How a diet plan was created.
+  ///
+  /// In en, this message translates to:
+  /// **'Written by hand'**
+  String get dietSourceManual;
+
+  /// How a diet plan was created.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported from a document'**
+  String get dietSourcePdf;
+
+  /// How a diet plan was created.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported from a photo'**
+  String get dietSourcePhoto;
+
+  /// How a diet plan was created.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictated'**
+  String get dietSourceDictated;
+
+  /// How a diet plan was created.
+  ///
+  /// In en, this message translates to:
+  /// **'Built by ZIVO'**
+  String get dietSourceGenerated;
 }
 
 class _AppLocalizationsDelegate

@@ -2092,4 +2092,755 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileEditPhoto => 'تعديل الصورة';
+
+  @override
+  String get dietGoalFatLoss => 'خسارة دهون';
+
+  @override
+  String get dietGoalMaintain => 'الحفاظ على الوزن';
+
+  @override
+  String get dietGoalMuscleGain => 'بناء عضل';
+
+  @override
+  String get dietGoalRecomp => 'إعادة تكوين';
+
+  @override
+  String get dietGoalFatLossDetail =>
+      'تناول أقل من احتياجك للحفاظ مع بقاء البروتين مرتفعًا لخسارة الدهون.';
+
+  @override
+  String get dietGoalMaintainDetail =>
+      'حافظ على وزنك عند سعرات الحفاظ تقريبًا.';
+
+  @override
+  String get dietGoalMuscleGainDetail =>
+      'تناول أكثر من احتياجك للحفاظ لدعم بناء العضل.';
+
+  @override
+  String get dietGoalRecompDetail =>
+      'أبقِ السعرات قرب الحفاظ مع بروتين كافٍ للبناء مع خسارة الدهون.';
+
+  @override
+  String get dietTargetSourceManual => 'أنت حدّدته';
+
+  @override
+  String get dietTargetSourceCalculated => 'محسوب من بيانات جسمك';
+
+  @override
+  String get dietTargetSourcePlan => 'مأخوذ من إجمالي خطتك اليومي';
+
+  @override
+  String get dietCalibrationNeedsWeighIns => 'قياسَي وزن';
+
+  @override
+  String dietCalibrationNeedsLongerWindow(int days) {
+    return 'قياسَي وزن بينهما $days يومًا على الأقل';
+  }
+
+  @override
+  String get dietCalibrationNeedsMoreDays => 'أيامًا أكثر من تسجيل الطعام';
+
+  @override
+  String get dietMacroProtein => 'بروتين';
+
+  @override
+  String get dietMacroCarbs => 'كربوهيدرات';
+
+  @override
+  String get dietMacroFat => 'دهون';
+
+  @override
+  String get dietTodaySoFar => 'اليوم حتى الآن';
+
+  @override
+  String dietKcalEaten(String kcal) {
+    return '$kcal سعرة مأكولة';
+  }
+
+  @override
+  String get dietYourTarget => 'هدفك';
+
+  @override
+  String get dietMacrosToday => 'الماكروز اليوم';
+
+  @override
+  String get dietWhatPlanDoes => 'ماذا تفعل هذه الخطة';
+
+  @override
+  String get dietTodaysRead => 'قراءة اليوم';
+
+  @override
+  String get dietFullPlan => 'الخطة كاملة';
+
+  @override
+  String dietDayCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يومًا',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietNoTargetBody =>
+      'حدّد هدفًا وتتحوّل الأرقام أعلاه إلى تقدّم نحوه — ويصبح بإمكان مدرّبك أن يخبرك أين أنت.';
+
+  @override
+  String dietUseThisPlanKcal(String kcal) {
+    return 'استخدم $kcal سعرة من هذه الخطة';
+  }
+
+  @override
+  String dietGoalKcalPerDayCaps(String goal, int kcal) {
+    return '$goal · $kcal سعرة/يوم';
+  }
+
+  @override
+  String dietBelowSafeFloor(String source, int kcal) {
+    return '$source · أقل من $kcal سعرة — يُستحسن مراجعة مختص';
+  }
+
+  @override
+  String get dietGainOrLose => 'هل تزيدك هذه الخطة وزنًا أم تنقصك؟';
+
+  @override
+  String dietNeedsToWorkOut(String missing) {
+    return 'يحتاج ZIVO إلى $missing ليحسبها.';
+  }
+
+  @override
+  String dietListTwo(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String dietListMany(String leading, String last) {
+    return '$leading و$last';
+  }
+
+  @override
+  String get dietThisPlanCaps => 'هذه الخطة';
+
+  @override
+  String get dietBodyDataCaps => 'بيانات الجسم';
+
+  @override
+  String dietAveragedOver(int counted, int missing) {
+    String _temp0 = intl.Intl.pluralLogic(
+      counted,
+      locale: localeName,
+      other: '$counted يومًا',
+      few: '$counted أيام',
+      two: 'يومين',
+      one: 'يوم واحد',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      missing,
+      locale: localeName,
+      other: '$missing يومًا بلا',
+      few: '$missing أيام بلا',
+      two: 'يومان بلا',
+      one: 'يوم واحد بلا',
+    );
+    return 'بمتوسط $_temp0؛ $_temp1 أرقام سعرات.';
+  }
+
+  @override
+  String dietProteinPerKg(String grams) {
+    return 'البروتين $grams جم لكل كجم من وزن الجسم.';
+  }
+
+  @override
+  String dietStaleWeighIn(int days) {
+    return 'آخر قياس لوزنك عمره $days يومًا — الوزن يحدّد هذا الرقم، لذا يستحق التحديث.';
+  }
+
+  @override
+  String dietUnderSafeFloor(int kcal) {
+    return 'هذه الخطة أقل من $kcal سعرة يوميًا. الاستمرار عند هذا الحد شأن طبيب، لا تطبيق.';
+  }
+
+  @override
+  String dietCalibrationPrompt(String missing) {
+    return 'سجّل $missing ليقيس ZIVO ما تحرقه فعلًا بدل تقديره.';
+  }
+
+  @override
+  String dietMeasuredDisagrees(int days, int measured, int used) {
+    return 'آخر $days يومًا تقول إنك تحرق نحو $measured — لا $used أعلاه. يستحق التحديث.';
+  }
+
+  @override
+  String dietMeasuredFrom(int days, int intake, String change) {
+    return 'مقيس من آخر $days يومًا: $intake سعرة يوميًا، $change.';
+  }
+
+  @override
+  String get dietWeightSteady => 'الوزن ثابت';
+
+  @override
+  String dietWeightUp(String kg) {
+    return 'الوزن زاد $kg كجم';
+  }
+
+  @override
+  String dietWeightDown(String kg) {
+    return 'الوزن نقص $kg كجم';
+  }
+
+  @override
+  String dietMacroProgress(String eaten, String target) {
+    return '$eaten/$target جم';
+  }
+
+  @override
+  String dietDayKcal(String kcal) {
+    return '$kcal سعرة';
+  }
+
+  @override
+  String get dietMissingWeight => 'وزنك الحالي';
+
+  @override
+  String get dietMissingHeight => 'طولك';
+
+  @override
+  String get dietMissingSex => 'معادلة الأيض التي يستخدمها ZIVO';
+
+  @override
+  String get dietMissingActivity => 'مدى نشاط أسبوعك';
+
+  @override
+  String get dietMissingDateOfBirth => 'تاريخ ميلادك';
+
+  @override
+  String get dietSourceUsda => 'USDA FoodData Central';
+
+  @override
+  String get dietSourceUserCustom => 'طعامك المخصّص';
+
+  @override
+  String get dietSourcePlan => 'خطتك الغذائية';
+
+  @override
+  String get dietNoPlanYetHeadline => 'لا توجد خطة غذائية بعد.';
+
+  @override
+  String get dietNotFollowingHeadline => 'أنت لا تتبع أي خطة.';
+
+  @override
+  String get dietNoPlanYetBody =>
+      'استورد مستندًا أو صورة، أو قلها بصوتك، أو اكتبها، أو ابنِ واحدة يدويًا — وسأكمل السعرات والماكروز.';
+
+  @override
+  String dietArchivedPlans(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count خطة مؤرشفة — أعِد واحدة أو أضف غيرها.',
+      few: '$count خطط مؤرشفة — أعِد واحدة أو أضف غيرها.',
+      two: 'خطتان مؤرشفتان — أعِد واحدة أو أضف غيرها.',
+      one: 'خطة واحدة مؤرشفة — أعِد واحدة أو أضف غيرها.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietSeeYourPlans => 'اعرض خططك';
+
+  @override
+  String get dietFromYourPlan => 'من خطتك';
+
+  @override
+  String dietQuantityUnit(String quantity, String unit) {
+    return '$quantity $unit';
+  }
+
+  @override
+  String dietMealsEaten(int eaten, int total) {
+    return '$eaten من $total وجبات مأكولة';
+  }
+
+  @override
+  String get dietNoCalorieDataCaps => 'لا بيانات سعرات بعد';
+
+  @override
+  String get dietKcalOverCaps => 'سعرة زائدة';
+
+  @override
+  String get dietKcalLeftCaps => 'سعرة متبقية';
+
+  @override
+  String get dietKcalLeftOfPlanCaps => 'سعرة متبقية من الخطة';
+
+  @override
+  String get dietEstPrefixCaps => 'تقديري ';
+
+  @override
+  String dietItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عنصرًا',
+      few: '$count عناصر',
+      two: 'عنصران',
+      one: 'عنصر واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietViewDetails => 'عرض التفاصيل';
+
+  @override
+  String get dietActivitySedentary => 'قليل الحركة';
+
+  @override
+  String get dietActivityLight => 'خفيف';
+
+  @override
+  String get dietActivityModerate => 'متوسط';
+
+  @override
+  String get dietActivityHigh => 'عالٍ';
+
+  @override
+  String get dietActivityAthlete => 'عالٍ جدًا';
+
+  @override
+  String get dietActivitySedentaryDetail =>
+      'عمل مكتبي، وقليل من التمرين المقصود';
+
+  @override
+  String get dietActivityLightDetail => 'تدريب ١–٣ أيام أسبوعيًا';
+
+  @override
+  String get dietActivityModerateDetail => 'تدريب ٣–٥ أيام أسبوعيًا';
+
+  @override
+  String get dietActivityHighDetail => 'تدريب ٦–٧ أيام أسبوعيًا';
+
+  @override
+  String get dietActivityAthleteDetail => 'تدريب شاق يوميًا، أو عمل بدني فوقه';
+
+  @override
+  String dietTargetBasisSummary(
+    String weight,
+    String activity,
+    int maintenance,
+  ) {
+    return '$weight كجم · $activity · $maintenance سعرة للحفاظ';
+  }
+
+  @override
+  String get dietSetYourTarget => 'حدّد هدفك';
+
+  @override
+  String get dietDailyTarget => 'الهدف اليومي';
+
+  @override
+  String get dietTargetsIntro =>
+      'يعتمد مدرّبك على هذه الأرقام في كل ما يقوله. وحتى تُضبط، يمكنه وصف خطتك لا تقييم أدائك عليها.';
+
+  @override
+  String get dietGoal => 'الهدف';
+
+  @override
+  String get dietDailyNumbers => 'الأرقام اليومية';
+
+  @override
+  String get dietCalculatedCaps => 'محسوب';
+
+  @override
+  String get dietOnlyCaloriesRequired =>
+      'السعرات وحدها مطلوبة. اترك أي ماكرو فارغًا إن كنت لا تتابعه — الفراغ يعني غير متابَع، لا صفرًا.';
+
+  @override
+  String get dietFillFieldsHint =>
+      'يملأ الحقول بنقطة بداية يمكنك تعديلها. لا يُحفظ شيء حتى تضغط حفظ.';
+
+  @override
+  String dietBelowSafeWarning(int calories, int floor) {
+    return '$calories سعرة أقل من $floor، وهو دون ما ينبغي أن يدرّب عليه ZIVO. يمكنك الحفظ، لكن الأكل عند هذا الحد يستحق مناقشته مع طبيب أو أخصائي تغذية أولًا.';
+  }
+
+  @override
+  String dietCalculatedFrom(
+    String weight,
+    String activity,
+    int bmr,
+    int maintenance,
+    String goal,
+  ) {
+    return 'من $weight كجم عند نشاط $activity: $bmr سعرة في الراحة، و$maintenance سعرة للحفاظ، معدّلة لـ$goal. هذه تقديرات لمتوسط الناس — عدّلها بحسب ما يقوله الميزان فعلًا.';
+  }
+
+  @override
+  String get dietSexMale => 'ذكر';
+
+  @override
+  String get dietSexFemale => 'أنثى';
+
+  @override
+  String dietStaleWeighInPrompt(int days) {
+    return 'آخر قياس لوزنك كان قبل $days يومًا. يُستحسن تسجيل واحد جديد أولًا.';
+  }
+
+  @override
+  String dietKgValue(String value) {
+    return '$value كجم';
+  }
+
+  @override
+  String dietCmValue(int value) {
+    return '$value سم';
+  }
+
+  @override
+  String dietSearching(String source) {
+    return 'يبحث في $source.';
+  }
+
+  @override
+  String get dietFoodSearchHint => 'صدر دجاج، أرز، زيت زيتون…';
+
+  @override
+  String get dietEnterAmount => 'أدخل كمية.';
+
+  @override
+  String get dietEnterAmountAboveZero => 'أدخل كمية أكبر من صفر.';
+
+  @override
+  String dietKcalPer100g(int kcal) {
+    return '$kcal سعرة / ١٠٠ جم';
+  }
+
+  @override
+  String dietKcalPer100gTight(int kcal) {
+    return '$kcal سعرة/١٠٠ جم';
+  }
+
+  @override
+  String get dietTypeToSearch => 'اكتب اسم طعام للبحث.';
+
+  @override
+  String dietNoCatalogMatch(String query) {
+    return 'لا شيء في الفهرس يطابق \"$query\".';
+  }
+
+  @override
+  String get dietCatalogThinBody =>
+      'إنه فهرس USDA، لذا فهو ضعيف في الأطعمة المحلية والمنزلية. بدل التخمين، عرّف ZIVO بهذا الطعام مرة وسيتذكّره.';
+
+  @override
+  String dietKcalValue(int kcal) {
+    return '$kcal سعرة';
+  }
+
+  @override
+  String dietMacroLine(String protein, String carbs, String fat, String grams) {
+    return 'بروتين $protein جم · كربوهيدرات $carbs جم · دهون $fat جم · $grams جم';
+  }
+
+  @override
+  String dietWeightOnlyFood(String unit) {
+    return 'لا يملك ZIVO هذا الطعام إلا بالوزن — أدخله بالجرامات. تحويل $unit يعني تخمين الكثافة.';
+  }
+
+  @override
+  String dietNoSuchUnit(String unit, String alternatives) {
+    return 'لا يملك ZIVO وحدة $unit لهذا الطعام. استخدم الجرامات، أو: $alternatives';
+  }
+
+  @override
+  String get dietCustomFoodHint =>
+      'لكل ١٠٠ جم، من الملصق أو قياسك الخاص. يحفظها ZIVO باسمك ولا يستبدلها أبدًا.';
+
+  @override
+  String get dietMaintenanceCaps => 'سعرات الحفاظ';
+
+  @override
+  String dietKcalPerDay(int kcal) {
+    return '$kcal سعرة يوميًا';
+  }
+
+  @override
+  String get dietMaintenanceGiven => 'الرقم الذي أدخلته. يستخدمه ZIVO كما هو.';
+
+  @override
+  String get dietMaintenanceEstimated =>
+      'مقدّر من هذه الأرقام — متوسط لعموم الناس، لا قياسًا لك أنت.';
+
+  @override
+  String dietDaysAgo(int days) {
+    return 'قبل $days يومًا';
+  }
+
+  @override
+  String dietWeeksAgo(int weeks) {
+    return 'قبل $weeks أسابيع';
+  }
+
+  @override
+  String dietMonthsAgo(int months) {
+    return 'قبل $months أشهر';
+  }
+
+  @override
+  String get dietCuisineEgyptian => 'مصري';
+
+  @override
+  String get dietCuisineMediterranean => 'متوسطي';
+
+  @override
+  String get dietCuisineLevantine => 'شامي';
+
+  @override
+  String get dietCuisineIndian => 'هندي';
+
+  @override
+  String get dietCuisineAsian => 'آسيوي';
+
+  @override
+  String get dietCuisineWestern => 'غربي';
+
+  @override
+  String get dietImportOneRun =>
+      'كل عملية إما تقرأ مادة أو تصمّم خطة — لا الاثنين معًا.';
+
+  @override
+  String get dietGeneratingFoods => 'يختار أطعمة تحبها…';
+
+  @override
+  String get dietGeneratingCalories => 'يبحث عن السعرات الحقيقية لكل منها…';
+
+  @override
+  String get dietGeneratingPortions => 'يضبط الحصص على هدفك…';
+
+  @override
+  String get dietFileReadFailed => 'تعذّر قراءة هذا الملف.';
+
+  @override
+  String dietFileTooLarge(int mb) {
+    return 'هذا الملف كبير جدًا — اختر واحدًا أقل من $mb ميجابايت.';
+  }
+
+  @override
+  String get dietImportPlanTitle => 'استيراد خطة';
+
+  @override
+  String get dietBuildingYourPlan => 'يبني خطتك';
+
+  @override
+  String get dietReadingYourPlan => 'يقرأ خطتك';
+
+  @override
+  String get dietSelectYourPlan => 'اختر خطتك الغذائية';
+
+  @override
+  String get dietSelectYourPlanBody =>
+      'اختر ملف PDF أو صورة لخطتك وسأحوّلها إلى خطة حقيقية قابلة للتعديل — مع تقدير السعرات والماكروز حيثما لا يذكرها المستند.';
+
+  @override
+  String get dietCouldntBuildPlan => 'تعذّر على ZIVO بناء تلك الخطة';
+
+  @override
+  String get dietNotADietPlan => 'لا يبدو هذا خطة غذائية';
+
+  @override
+  String get dietChooseDifferentFile => 'اختر ملفًا آخر';
+
+  @override
+  String get dietGoBackAndEdit => 'ارجع وعدّل';
+
+  @override
+  String get dietBuildManually => 'ابنِ الخطة يدويًا.';
+
+  @override
+  String get dietPreferencesIntro =>
+      'يختار ZIVO الأطعمة ويبحث عن سعراتها الحقيقية — لا يخمّنها. أخبره بما تأكل وسيبني يومًا تراجعه قبل حفظ أي شيء.';
+
+  @override
+  String get dietMealsADay => 'وجبات يوميًا';
+
+  @override
+  String get dietMealsADayNote =>
+      'السبب الأكبر في نجاح الخطة خلال أسبوع عمل أو فشلها.';
+
+  @override
+  String get dietKitchen => 'المطبخ';
+
+  @override
+  String get dietOptionalCaps => 'اختياري';
+
+  @override
+  String get dietNothingSavedUntilReview =>
+      'لا يُحفظ شيء حتى تراجع الخطة وتضغط حفظ.';
+
+  @override
+  String dietSizedToTarget(int kcal) {
+    return 'مضبوطة على هدفك — $kcal سعرة يوميًا.';
+  }
+
+  @override
+  String get dietNoTargetToSizeTo =>
+      'سيبني ZIVO الخطة على أي حال، لكن لا يوجد رقم يضبط عليه الحصص. حدّد هدفًا أولًا ليأتي اليوم مفصّلًا عليه.';
+
+  @override
+  String get dietOnePlanNote =>
+      'خطة واحدة. استورد أو اكتب أخرى وستتمكّن من التبديل بينهما دون فقد أي منهما.';
+
+  @override
+  String dietManyPlansNote(int count) {
+    return '$count خطط. واحدة فقط سارية في كل وقت — وشاشة التغذية تعرضها دائمًا.';
+  }
+
+  @override
+  String get dietNoPlansYet => 'لا خطط بعد.';
+
+  @override
+  String dietDaysCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يومًا',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dietKcalPerDayCaps(String kcal) {
+    return '$kcal سعرة/يوم';
+  }
+
+  @override
+  String get dietFollowingCaps => 'متبعة';
+
+  @override
+  String get dietArchivedCaps => 'مؤرشفة';
+
+  @override
+  String get dietDraftCaps => 'مسودة';
+
+  @override
+  String get dietWhatsInIt => 'ما بداخلها';
+
+  @override
+  String get dietNoItemsListed => 'لا عناصر مدرجة لهذه الوجبة.';
+
+  @override
+  String get dietMarkNotEaten => 'وضع علامة غير مأكولة';
+
+  @override
+  String get dietMarkEaten => 'تم — وضع علامة مأكولة';
+
+  @override
+  String get dietMacroP => 'ب';
+
+  @override
+  String get dietMacroC => 'ك';
+
+  @override
+  String get dietMacroF => 'د';
+
+  @override
+  String dietGramsValue(int grams) {
+    return '$grams جم';
+  }
+
+  @override
+  String get dietUsePlanNumbers => 'استخدم أرقام خطتك';
+
+  @override
+  String dietPlanAverageOverDays(String kcal, int days, String plan) {
+    return '$kcal سعرة يوميًا، بمتوسط $days أيام من $plan.';
+  }
+
+  @override
+  String dietPlanFrom(String kcal, String plan) {
+    return '$kcal سعرة يوميًا، من $plan.';
+  }
+
+  @override
+  String dietDaysWithoutCalories(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يومًا بلا أرقام سعرات وغير داخل في المتوسط.',
+      few: '$count أيام بلا أرقام سعرات وغير داخلة في المتوسط.',
+      two: 'يومان بلا أرقام سعرات وغير داخلين في المتوسط.',
+      one: 'يوم واحد بلا أرقام سعرات وغير داخل في المتوسط.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dietWhatIsItFor => 'لأي غرض؟';
+
+  @override
+  String get dietWhyGoalMatters =>
+      'السعرات نفسها تعني أشياء مختلفة بحسب ما تفعله. يحتاج ZIVO إلى هذا ليقول كيف أداؤك مقابلها.';
+
+  @override
+  String dietPlanBelowSafeFloor(int kcal) {
+    return 'متوسط هذه الخطة أقل من $kcal سعرة يوميًا. اعتمادها هدفًا يستحق مناقشته مع طبيب أو أخصائي تغذية أولًا.';
+  }
+
+  @override
+  String get dietEveryDay => 'كل يوم';
+
+  @override
+  String get dietRemoveDay => 'إزالة اليوم';
+
+  @override
+  String get dietRemoveMeal => 'إزالة الوجبة';
+
+  @override
+  String get dietRemoveItem => 'إزالة العنصر';
+
+  @override
+  String get dietUnitCaps => 'الوحدة';
+
+  @override
+  String get dietDescribeYourDiet => 'صف نظامك الغذائي';
+
+  @override
+  String get dietTypeItOut => 'اكتبها';
+
+  @override
+  String get dietDictateBody =>
+      'قل أو اكتب ما تأكله في يوم — الوجبات والأطعمة والكميات التقريبية. يحوّلها ZIVO إلى خطة تراجعها قبل حفظ أي شيء.';
+
+  @override
+  String get dietDictateExample =>
+      'مثال: \"الفطور ثلاث بيضات و٦٠ جرام شوفان. الغداء ٢٠٠ جرام دجاج مع أرز وسلطة.\"';
+
+  @override
+  String get dietHideCaps => 'إخفاء';
+
+  @override
+  String get dietWhyCaps => 'لماذا';
+
+  @override
+  String get dietSourceManual => 'مكتوبة يدويًا';
+
+  @override
+  String get dietSourcePdf => 'مستوردة من مستند';
+
+  @override
+  String get dietSourcePhoto => 'مستوردة من صورة';
+
+  @override
+  String get dietSourceDictated => 'مُملاة';
+
+  @override
+  String get dietSourceGenerated => 'بناها ZIVO';
 }

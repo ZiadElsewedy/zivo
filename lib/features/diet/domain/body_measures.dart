@@ -29,15 +29,6 @@ enum MissingBodyData {
   dateOfBirth,
 }
 
-/// What the user is asked for, in their words.
-String missingBodyDataLabel(MissingBodyData missing) => switch (missing) {
-  MissingBodyData.weight => 'your current weight',
-  MissingBodyData.height => 'your height',
-  MissingBodyData.sex => 'the BMR formula ZIVO should use',
-  MissingBodyData.activity => 'how active your week is',
-  MissingBodyData.dateOfBirth => 'your date of birth',
-};
-
 /// Where a maintenance figure came from. Carried with the number for the same
 /// reason [TargetSource] is carried with a target: "how do you know that" is
 /// part of the answer, not a footnote.

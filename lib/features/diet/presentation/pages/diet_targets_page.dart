@@ -15,6 +15,7 @@ import '../../domain/target_calculator.dart';
 import '../widgets/diet_number_field.dart';
 import 'body_profile_page.dart';
 import '../../../../l10n/l10n.dart';
+import '../diet_labels.dart';
 
 /// Where the user says what they are actually trying to do, and what numbers
 /// serve it.
@@ -229,7 +230,9 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
       child: Column(
         children: [
           CaptureTopBar(
-            title: widget.initial == null ? 'Set your target' : 'Daily target',
+            title: widget.initial == null
+                ? l(context).dietSetYourTarget
+                : l(context).dietDailyTarget,
             onClose: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -238,9 +241,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
               children: [
                 Text(
-                  'Your coach uses these numbers for everything it tells you. '
-                  "Until they're set, it can describe your plan but not how "
-                  "you're doing against it.",
+                  l(context).dietTargetsIntro,
                   style: AppText.body.copyWith(
                     color: TrainColors.ink2,
                     height: 1.45,
@@ -256,7 +257,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                     for (final goal in DietGoal.values)
                       SelectChip(
                         key: Key('goal-${goal.name}'),
-                        label: dietGoalLabel(goal),
+                        label: dietGoalText(context, goal),
                         selected: _goal == goal,
                         onTap: () => setState(() => _goal = goal),
                       ),
@@ -265,15 +266,15 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 if (_goal != null) ...[
                   const SizedBox(height: 10),
                   Text(
-                    dietGoalDescription(_goal!),
+                    dietGoalDetailText(context, _goal!),
                     style: AppText.meta.copyWith(color: TrainColors.ink3),
                   ),
                 ],
                 const SizedBox(height: 26),
                 TrainSectionLabel(
-                  'Daily numbers',
+                  l(context).dietDailyNumbers,
                   trailing: _source == TargetSource.calculated
-                      ? 'CALCULATED'
+                      ? l(context).dietCalculatedCaps
                       : null,
                 ),
                 const SizedBox(height: 11),
@@ -315,8 +316,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Only calories are required. Leave a macro blank if you '
-                  "aren't tracking it — blank means untracked, not zero.",
+                  l(context).dietOnlyCaloriesRequired,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
                 if (_belowFloor) ...[
@@ -344,8 +344,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              'Fills the fields with a starting point you can '
-                              'edit. Nothing is saved until you tap Save.',
+                              l(context).dietFillFieldsHint,
                               style: AppText.meta.copyWith(
                                 color: TrainColors.ink3,
                               ),
@@ -419,10 +418,7 @@ class _SafetyNote extends StatelessWidget {
           const SizedBox(width: 11),
           Expanded(
             child: Text(
-              '$calories kcal is below $kMinimumSafeCalories, which is under '
-              'what ZIVO should be coaching. You can still save it, but eating '
-              'this low is worth talking through with a doctor or a registered '
-              'dietitian first.',
+              l(context).dietBelowSafeWarning(calories, kMinimumSafeCalories),
               style: AppText.meta.copyWith(
                 color: TrainColors.ink2,
                 height: 1.45,
@@ -449,11 +445,13 @@ class _BasisNote extends StatelessWidget {
         ? basis.weightKg.round().toString()
         : basis.weightKg.toStringAsFixed(1);
     return Text(
-      'From ${weight}kg at ${activityLabel(basis.activity).toLowerCase()} '
-      'activity: ${basis.bmr} kcal at rest, '
-      '${basis.maintenanceCalories} kcal to maintain, adjusted for '
-      '${dietGoalLabel(goal).toLowerCase()}. These are population estimates — '
-      'adjust them from what the scale actually does.',
+      l(context).dietCalculatedFrom(
+        weight,
+        activityText(context, basis.activity).toLowerCase(),
+        basis.bmr,
+        basis.maintenanceCalories,
+        dietGoalText(context, goal).toLowerCase(),
+      ),
       style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.45),
     );
   }
@@ -496,12 +494,12 @@ class _CalculatorSheet extends StatelessWidget {
             _Fact(
               factKey: const Key('calc-fact-weight'),
               label: l(context).bodyWeightLabel,
-              value: '${_trim(measures.weightKg)} kg',
+              value: l(context).dietKgValue(_trim(measures.weightKg)),
             ),
             _Fact(
               factKey: const Key('calc-fact-height'),
               label: l(context).bodyHeightLabel,
-              value: '${measures.heightCm.round()} cm',
+              value: l(context).dietCmValue(measures.heightCm.round()),
             ),
             _Fact(
               factKey: const Key('calc-fact-age'),
@@ -510,11 +508,13 @@ class _CalculatorSheet extends StatelessWidget {
             ),
             _Fact(
               label: l(context).bodySexQuestion,
-              value: measures.sex == TargetSex.male ? 'Male' : 'Female',
+              value: measures.sex == TargetSex.male
+                  ? l(context).dietSexMale
+                  : l(context).dietSexFemale,
             ),
             _Fact(
               label: l(context).bodyActivityLabel,
-              value: activityLabel(measures.activity),
+              value: activityText(context, measures.activity),
               last: true,
             ),
             // A four-month-old weigh-in is the usual reason a calculated
@@ -522,8 +522,7 @@ class _CalculatorSheet extends StatelessWidget {
             if (stale > kWeighInStaleAfterDays) ...[
               const SizedBox(height: 14),
               Text(
-                'Your last weigh-in was $stale days ago. Worth logging a new '
-                'one first.',
+                l(context).dietStaleWeighInPrompt(stale),
                 key: const Key('calc-stale-weight'),
                 style: AppText.meta.copyWith(color: TrainColors.ember),
               ),

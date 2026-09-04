@@ -16,6 +16,7 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_from_import.dart';
 import 'diet_plan_edit_page.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Diet import flow — a deliberately shorter mirror of
 /// `WorkoutImportPage`: get the material → AI Analyzing → straight into
@@ -78,11 +79,15 @@ enum _ImportPhase { selecting, analyzing, rejected, error }
 /// describe the work but do not track it. Deliberately naming the catalog
 /// step, because "looking up real calories" is the part that makes this
 /// trustworthy rather than a guess.
-const _generatingStatusLines = [
-  'Choosing foods you like…',
-  'Looking up real calories for each one…',
-  'Sizing the portions to your target…',
+List<String> _generatingStatusLines(BuildContext context) => [
+  l(context).dietGeneratingFoods,
+  l(context).dietGeneratingCalories,
+  l(context).dietGeneratingPortions,
 ];
+
+/// How many lines the generating cycle rotates through. A count, not copy —
+/// the timer needs it without a [BuildContext].
+const _kGeneratingStatusCount = 3;
 
 class _DietImportPageState extends State<DietImportPage> {
   _ImportPhase _phase = _ImportPhase.selecting;
@@ -115,10 +120,10 @@ class _DietImportPageState extends State<DietImportPage> {
   ///
   /// Import reports real extraction (via [importProgressLine]); generation
   /// still cycles its written lines, because that callable does not stream.
-  String get _statusLine {
+  String _statusLineFor(BuildContext context) {
     if (widget.generateFrom != null) {
-      return _generatingStatusLines[_analyzingStatusIndex %
-          _generatingStatusLines.length];
+      final lines = _generatingStatusLines(context);
+      return lines[_analyzingStatusIndex % lines.length];
     }
     return importProgressLine(_progress, itemNoun: 'item');
   }
@@ -132,12 +137,15 @@ class _DietImportPageState extends State<DietImportPage> {
       if (!mounted) return;
       setState(
         () => _analyzingStatusIndex =
-            (_analyzingStatusIndex + 1) % _generatingStatusLines.length,
+            (_analyzingStatusIndex + 1) % _kGeneratingStatusCount,
       );
     });
   }
 
   Future<void> _run() async {
+    // Read before the awaits below — a BuildContext must not cross an async
+    // gap; an AppLocalizations value may.
+    final strings = l(context);
     _analyzingTimer?.cancel();
     setState(() {
       _phase = _ImportPhase.selecting;
@@ -171,7 +179,7 @@ class _DietImportPageState extends State<DietImportPage> {
         if (!mounted) return;
         setState(() {
           _phase = _ImportPhase.error;
-          _errorMessage = "Couldn't read that file.";
+          _errorMessage = strings.dietFileReadFailed;
           _errorDetail = kDebugMode ? error.toString() : null;
         });
         return;
@@ -189,9 +197,9 @@ class _DietImportPageState extends State<DietImportPage> {
         if (!mounted) return;
         setState(() {
           _phase = _ImportPhase.error;
-          _errorMessage =
-              'That file is too large — please choose one under '
-              '7 MB.';
+          _errorMessage = strings.dietFileTooLarge(
+            kMaxImportFileBytes ~/ (1024 * 1024),
+          );
         });
         return;
       }
@@ -221,6 +229,8 @@ class _DietImportPageState extends State<DietImportPage> {
     required DietSource source,
   }) async {
     if (!mounted) return;
+    // Read before the awaits below, for the same reason as in [_run].
+    final strings = l(context);
     setState(() {
       _phase = _ImportPhase.analyzing;
       _progress = null;
@@ -257,7 +267,7 @@ class _DietImportPageState extends State<DietImportPage> {
         _phase = _ImportPhase.error;
         _errorMessage = importErrorMessage(
           error,
-          manualFallback: 'build the plan manually.',
+          manualFallback: strings.dietBuildManually,
         );
         _errorDetail = kDebugMode ? error.toString() : null;
       });
@@ -292,9 +302,9 @@ class _DietImportPageState extends State<DietImportPage> {
           children: [
             CaptureTopBar(
               title: switch ((widget.input, widget.generateFrom)) {
-                (null, null) => 'Import Plan',
-                (_, final PlanPreferences _) => 'Building your plan',
-                _ => 'Reading your plan',
+                (null, null) => l(context).dietImportPlanTitle,
+                (_, final PlanPreferences _) => l(context).dietBuildingYourPlan,
+                _ => l(context).dietReadingYourPlan,
               },
               onClose: () => Navigator.of(context).maybePop(),
               titleColor: TrainColors.ink2,
@@ -335,27 +345,26 @@ class _DietImportPageState extends State<DietImportPage> {
     final fromFile = widget.input == null && !generating;
     switch (_phase) {
       case _ImportPhase.selecting:
-        return const ImportSelectingState(
-          title: 'Select your diet plan',
-          subtitle:
-              "Choose a PDF or a photo of your plan and I'll map it into a "
-              'real, editable plan — estimating calories and macros wherever '
-              "the document doesn't state them.",
+        return ImportSelectingState(
+          title: l(context).dietSelectYourPlan,
+          subtitle: l(context).dietSelectYourPlanBody,
         );
       case _ImportPhase.analyzing:
         return ImportAnalyzingState(
-          statusLine: _statusLine,
+          statusLine: _statusLineFor(context),
           chipColor: TrainColors.raisedStrong,
         );
       case _ImportPhase.rejected:
         return ImportRejectedState(
           title: generating
-              ? "ZIVO couldn't build that plan"
-              : "This doesn't look like a diet plan",
+              ? l(context).dietCouldntBuildPlan
+              : l(context).dietNotADietPlan,
           reason: _rejectionReason!,
           retryLabel: generating
-              ? 'Try again'
-              : (fromFile ? 'Choose a different file' : 'Go back and edit'),
+              ? l(context).actionRetry
+              : (fromFile
+                    ? l(context).dietChooseDifferentFile
+                    : l(context).dietGoBackAndEdit),
           onRetry: _retry,
           onBuildManually: _buildManually,
           retryColor: TrainColors.green,

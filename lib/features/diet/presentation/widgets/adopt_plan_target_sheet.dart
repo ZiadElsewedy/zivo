@@ -13,6 +13,7 @@ import '../../domain/diet_goal.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../../../l10n/l10n.dart';
+import '../diet_labels.dart';
 
 /// Adopting the plan's own numbers as the daily target — the shortest honest
 /// route from "I have a plan" to "the app can tell me how I'm doing".
@@ -145,7 +146,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
                 for (final goal in DietGoal.values)
                   SelectChip(
                     key: Key('adopt-goal-${goal.name}'),
-                    label: dietGoalLabel(goal),
+                    label: dietGoalText(context, goal),
                     selected: _goal == goal,
                     onTap: () => setState(() => _goal = goal),
                   ),
@@ -159,7 +160,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
                   ? 'The same calories mean different things depending on what '
                         "you're doing. ZIVO needs this to say how you're doing "
                         'against them.'
-                  : dietGoalDescription(_goal!),
+                  : dietGoalDetailText(context, _goal!),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
             if (targetIsBelowSafetyFloor(_calories)) ...[
