@@ -307,9 +307,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get hubMoments => 'اللحظات';
 
   @override
-  String get hubRecent => 'الأخيرة';
-
-  @override
   String get hubNoPlanYet => 'لا توجد خطة بعد';
 
   @override

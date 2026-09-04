@@ -418,10 +418,6 @@
   "@hubMoments": {
     "description": "Hub module tile."
   },
-  "hubRecent": "Recent",
-  "@hubRecent": {
-    "description": "Heading above the Hub's recent-activity rows."
-  },
   "hubNoPlanYet": "No plan yet",
   "@hubNoPlanYet": {
     "description": "Hub tile subtitle when no plan exists."

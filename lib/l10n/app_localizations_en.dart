@@ -308,9 +308,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hubMoments => 'Moments';
 
   @override
-  String get hubRecent => 'Recent';
-
-  @override
   String get hubNoPlanYet => 'No plan yet';
 
   @override

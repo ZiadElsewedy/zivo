@@ -662,12 +662,6 @@ abstract class AppLocalizations {
   /// **'Moments'**
   String get hubMoments;
 
-  /// Heading above the Hub's recent-activity rows.
-  ///
-  /// In en, this message translates to:
-  /// **'Recent'**
-  String get hubRecent;
-
   /// Hub tile subtitle when no plan exists.
   ///
   /// In en, this message translates to:

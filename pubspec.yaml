@@ -154,6 +154,10 @@ flutter:
     - assets/transparent/
     - assets/spotify/
     - assets/google/
+    # Hub module cards — the per-section hero photographs. Their baked-in
+    # titles are cropped off in-source (see the git history of assets/hub)
+    # so the Hub overlays its own localized label instead.
+    - assets/hub/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

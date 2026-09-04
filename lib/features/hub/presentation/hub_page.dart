@@ -6,7 +6,6 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/train_tokens.dart';
 import '../../../core/util/money.dart';
-import '../../../core/util/time_ago.dart';
 import '../../../core/widgets/pressable_scale.dart';
 import '../../../core/widgets/rise_in.dart';
 import '../../../core/media/media_service.dart';
@@ -19,7 +18,6 @@ import '../../diet/domain/diet_summary.dart';
 import '../../diet/presentation/pages/diet_plan_page.dart';
 import '../../diet/presentation/today_diet.dart';
 import '../../expenses/domain/expense.dart';
-import '../../expenses/domain/expense_category.dart';
 import '../../expenses/domain/expense_repository.dart';
 import '../../expenses/domain/wallet.dart';
 import '../../expenses/presentation/pages/expenses_list_page.dart';
@@ -32,26 +30,28 @@ import '../../music/music_config.dart';
 import '../../moments/presentation/pages/moments_timeline_page.dart';
 import '../../shell/presentation/widgets/bottom_chrome.dart';
 import '../../workout/domain/live_session.dart';
-import '../../workout/domain/session_status.dart';
 import '../../workout/domain/up_next_selection.dart';
 import '../../workout/domain/workout_plan.dart';
 import '../../auth/presentation/pages/settings_page.dart';
 import '../../workout/presentation/pages/workout_dashboard_page.dart';
 import '../../../l10n/l10n.dart';
 
-/// The Hub — a light dashboard into each module's depth. A two-column grid
-/// of premium module cards, each with a glowing gradient icon chip in its
-/// module colour, a barely-there hue wash bleeding into the card's corner,
-/// and a live stat line reading straight from that module's own repository
-/// (see each `_XTile`) — a snapshot of "what's happening in each area of my
-/// life right now", not just a launcher.
+/// The Hub — a light dashboard into each module's depth. A two-column grid of
+/// premium module cards, each led by the module's own hero photograph with a
+/// hue-tinted icon chip and a live stat line read straight from that module's
+/// repository (see each `_XTile`) — a snapshot of "what's happening in each
+/// area of my life right now", not just a launcher.
 ///
-/// Not one of the design handoff's eleven screens, but it is the doorway
-/// into four of them — so it runs on the same material: the green screen
-/// wash, single-hue 13%-tint icon tiles instead of glowing gradient chips,
-/// mono captions, and the handoff's list rows for Recent. A launcher in the
-/// old warm v2 skin would have been the one surface that didn't belong to
-/// the world it opens into.
+/// The photographs give the four modules an instant, distinct identity the
+/// old neutral-icon grid couldn't: each card carries a cropped, unified image
+/// (the source's baked-in title is cropped off in `assets/hub/` so the app's
+/// own localized label reads over clean photography), melting into the card
+/// surface along a bottom fade so the seam reads as depth. The icon chips then
+/// echo each area's owned hue — green for training and diet, amber for money,
+/// ember for moments — so the grid differentiates by image *and* colour while
+/// staying inside the four-hue system (ADR-006). Below the grid, the
+/// **Connected** band shows the services ZIVO talks to with their real brand
+/// marks and live state.
 class HubPage extends StatelessWidget {
   const HubPage({super.key});
 
@@ -65,22 +65,17 @@ class HubPage extends StatelessWidget {
       decoration: const BoxDecoration(gradient: TrainColors.hubTint),
       child: Stack(
         children: [
-          // The page is a single top-aligned scroll view: header, then the grid
-          // directly beneath it. The grid is shrink-wrapped (`shrinkWrap: true`
-          // + `NeverScrollableScrollPhysics`) so it sizes to its own content —
-          // GridView.count derives row height from tile width alone, so left in
-          // an `Expanded` its scroll viewport stretched taller than its content
-          // and left a large dead band above the nav; shrink-wrapping removes
-          // that. The outer `SingleChildScrollView` is the only scroller, so on
-          // a short device (or a large text scale) the whole thing scrolls
-          // naturally with nothing clipped. The bottom nav lives in
-          // `HomeShell`'s Scaffold, independent of this content; because
-          // `extendBody: true` draws the page behind it, the bottom scroll
+          // The page is a single top-aligned scroll view: header, then the
+          // grid, then the Connected band. The grid is shrink-wrapped
+          // (`shrinkWrap: true` + `NeverScrollableScrollPhysics`) so it sizes
+          // to its own content and the outer `SingleChildScrollView` is the
+          // only scroller — on a short device (or a large text scale) the whole
+          // thing scrolls naturally with nothing clipped. `extendBody: true`
+          // draws the page behind the shell's floating nav, so the bottom
           // padding reserves the bottom object's exact rendered height
           // (`BottomChrome`, safe-area inset and the fused now-playing strip
-          // included) so the last row always clears it with a small,
-          // consistent breathing room. Reserving the nav alone used to leave
-          // the last tile behind the music strip whenever a track was on.
+          // included) so the last row always clears it with a small, consistent
+          // breathing room.
           Positioned.fill(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -93,20 +88,21 @@ class HubPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _Header(),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   // The full "Start Workout" training card lives on Today (and
                   // the Workout dashboard) — the Hub deliberately doesn't
                   // duplicate it here, leading with the module grid instead.
-                  // The _WorkoutTile below still surfaces the up-next day.
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
-                    // The tiles lost their chevron with the redesign, so the
-                    // old 1.05 ratio left a band of dead space between the
-                    // icon tile and the label. 1.22 still clears a two-line
-                    // stat at a large text scale without the hollow middle.
-                    childAspectRatio: 1.22,
+                    // The cards carry a fixed-height hero photo plus a
+                    // flex-centred content block, so they're taller than wide.
+                    // 0.82 leaves the content (label + up-to-two-line stat,
+                    // clamped to 1.3×) clear room even on the narrowest phone at
+                    // a large accessibility scale; the centring absorbs the
+                    // slack at the default scale so there's no hollow gap.
+                    childAspectRatio: 0.82,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: const [
@@ -117,7 +113,6 @@ class HubPage extends StatelessWidget {
                     ],
                   ),
                   const _ConnectedSection(),
-                  const _RecentSection(),
                 ],
               ),
             ),
@@ -162,8 +157,8 @@ class _Header extends StatelessWidget {
             ),
           ),
           // The italic-serif aside is gone: Instrument Serif is the ZIVO
-          // assistant's voice and nothing else in the app (identity §3), and
-          // a launcher doesn't need a tagline to explain four labelled tiles.
+          // assistant's voice and nothing else in the app (identity §3), and a
+          // launcher doesn't need a tagline to explain four labelled tiles.
         ],
       ),
     );
@@ -185,7 +180,7 @@ class _WorkoutTile extends StatelessWidget {
         initialData: scope.workoutPlans.activePlan,
         builder: (context, planSnapshot) {
           final plan = planSnapshot.data;
-          if (plan == null) return _shell(context, stat: l(context).hubNoPlanYet);
+          if (plan == null) return _card(context, stat: l(context).hubNoPlanYet);
           return StreamBuilder<LiveSession?>(
             stream: scope.workoutSessions.watchActiveSession(),
             initialData: scope.workoutSessions.activeSession,
@@ -197,7 +192,7 @@ class _WorkoutTile extends StatelessWidget {
                   : selection.resumable != null
                   ? '${day.label} · resume'
                   : '${day.label} · up next';
-              return _shell(context, stat: stat);
+              return _card(context, stat: stat);
             },
           );
         },
@@ -205,10 +200,11 @@ class _WorkoutTile extends StatelessWidget {
     );
   }
 
-  Widget _shell(BuildContext context, {required String stat}) {
-    return _ModuleTileShell(
+  Widget _card(BuildContext context, {required String stat}) {
+    return _ModuleCard(
+      image: 'assets/hub/workout.jpg',
       icon: AppIcons.workout,
-      color: TrainColors.neutralMark,
+      accent: TrainColors.green,
       label: l(context).hubWorkout,
       stat: stat,
       onTap: () => Navigator.of(
@@ -234,7 +230,7 @@ class _DietTile extends StatelessWidget {
         builder: (context, planSnapshot) {
           final now = DateTime.now();
           final day = dayForDate(planSnapshot.data, now);
-          if (day == null) return _shell(context, stat: l(context).hubNoPlanYet);
+          if (day == null) return _card(context, stat: l(context).hubNoPlanYet);
           return StreamBuilder<Set<String>>(
             stream: scope.diet.watchConsumed(now),
             initialData: const <String>{},
@@ -243,16 +239,13 @@ class _DietTile extends StatelessWidget {
                 day,
                 consumedSnapshot.data ?? const <String>{},
               );
-              return _shell(
+              return _card(
                 context,
+                // "meals" and "left" dropped — the card is already labelled
+                // "Diet", so "X of Y" reads unambiguously without the former,
+                // and the latter is what pushed this to a 3rd line at a
+                // standard phone width (measured in hub_page_test.dart).
                 stat:
-                    // "meals" and "left" dropped — the tile is already
-                    // labelled "Diet", so "X of Y" reads unambiguously
-                    // without the former, and the latter is what actually
-                    // pushed this to a 3rd line at a standard phone width
-                    // (measured in hub_page_test.dart) — "of 3" vs "3/3"
-                    // barely moved the needle, "left" alone was the
-                    // difference between fitting in 2 lines and not.
                     '${summary.eaten} of ${summary.total} · '
                     '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft} kcal',
               );
@@ -263,10 +256,11 @@ class _DietTile extends StatelessWidget {
     );
   }
 
-  Widget _shell(BuildContext context, {required String stat}) {
-    return _ModuleTileShell(
+  Widget _card(BuildContext context, {required String stat}) {
+    return _ModuleCard(
+      image: 'assets/hub/diet.jpg',
       icon: AppIcons.diet,
-      color: TrainColors.neutralMark,
+      accent: TrainColors.green,
       label: l(context).hubDiet,
       stat: stat,
       onTap: () => Navigator.of(
@@ -276,9 +270,9 @@ class _DietTile extends StatelessWidget {
   }
 }
 
-/// Expenses' tile: this week's spend, same `weekTotalMinor` + wallet
-/// currency Today's Spending glance reads. Always shows a real number — a
-/// week with nothing spent is still a fact, not a "no data yet" case.
+/// Expenses' tile: this week's spend, same `weekTotalMinor` + wallet currency
+/// Today's Spending glance reads. Always shows a real number — a week with
+/// nothing spent is still a fact, not a "no data yet" case.
 class _ExpensesTile extends StatelessWidget {
   const _ExpensesTile();
 
@@ -298,7 +292,7 @@ class _ExpensesTile extends StatelessWidget {
             DateTime.now(),
           );
           if (wallet == null) {
-            return _shell(
+            return _card(
               context,
               stat: 'EGP ${formatAmount(weekMinor)} this week',
             );
@@ -308,7 +302,7 @@ class _ExpensesTile extends StatelessWidget {
             initialData: wallet.current,
             builder: (context, walletSnapshot) {
               final currency = walletSnapshot.data?.currency ?? 'EGP';
-              return _shell(
+              return _card(
                 context,
                 stat: '$currency ${formatAmount(weekMinor)} this week',
               );
@@ -319,10 +313,11 @@ class _ExpensesTile extends StatelessWidget {
     );
   }
 
-  Widget _shell(BuildContext context, {required String stat}) {
-    return _ModuleTileShell(
+  Widget _card(BuildContext context, {required String stat}) {
+    return _ModuleCard(
+      image: 'assets/hub/expenses.jpg',
       icon: AppIcons.expenses,
-      color: TrainColors.neutralMark,
+      accent: TrainColors.amber,
       label: l(context).hubExpenses,
       stat: stat,
       onTap: () => Navigator.of(
@@ -350,9 +345,10 @@ class _MomentsTile extends StatelessWidget {
           final stat = count == 0
               ? l(context).hubNoMomentsYet
               : '$count moment${count == 1 ? '' : 's'}';
-          return _ModuleTileShell(
+          return _ModuleCard(
+            image: 'assets/hub/moments.jpg',
             icon: AppIcons.moments,
-            color: TrainColors.neutralMark,
+            accent: TrainColors.ember,
             label: l(context).hubMoments,
             stat: stat,
             onTap: () => Navigator.of(context).push(
@@ -365,32 +361,35 @@ class _MomentsTile extends StatelessWidget {
   }
 }
 
-/// The shared visual shell for a Hub tile: a gradient-glowing icon chip, the
-/// module label, and a live stat line underneath, on a card whose top corner
-/// carries a whisper of the module hue. Data-fetching lives entirely in each
-/// concrete `_XTile` above — this is presentation only, reused so every tile
-/// shares one exact card language.
-///
-/// The decoration lives on `Ink` (not an inner `Container`) so the InkWell's
-/// splash composites over the gradient rather than beneath it.
-class _ModuleTileShell extends StatelessWidget {
-  const _ModuleTileShell({
+/// The shared visual shell for a Hub module card: a hero photograph up top, a
+/// hue-tinted icon chip, the module label, and a live stat line underneath.
+/// Data-fetching lives entirely in each concrete `_XTile` above — this is
+/// presentation only, reused so every card shares one exact language.
+class _ModuleCard extends StatelessWidget {
+  const _ModuleCard({
+    required this.image,
     required this.icon,
-    required this.color,
+    required this.accent,
     required this.label,
     required this.stat,
     required this.onTap,
   });
 
+  final String image;
   final IconData icon;
-  final Color color;
+  final Color accent;
   final String label;
   final String stat;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // Both the label and the stat are clamped so a large accessibility text
+    // scale can't blow past the card's fixed height (the hero photo is a fixed
+    // 92px, so the content block owns the rest).
+    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3);
     return PressableScale(
+      scale: 0.985,
       child: Material(
         color: Colors.transparent,
         child: Ink(
@@ -405,66 +404,67 @@ class _ModuleTileShell extends StatelessWidget {
               HapticFeedback.selectionClick();
               onTap();
             },
-            child: Padding(
-              padding: const EdgeInsets.all(18),
+            // Clip so the photo's top corners follow the card radius; the 1px
+            // hairline from the Ink decoration reads just outside it.
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // A bigger glyph on a lighter plate. At the shared
-                  // defaults a neutral tile is a grey block with a grey-
-                  // looking glyph on it: the plate and the mark are the same
-                  // colour, so neither reads. Letting the glyph grow and the
-                  // plate recede makes the module identifiable at a glance
-                  // without spending a hue on decoration (see ADR-006).
-                  TrainIconTile(
-                    icon: icon,
-                    accent: color,
-                    size: 44,
-                    iconSize: 22,
-                    radius: 14,
-                    fillAlpha: 0.07,
-                    borderAlpha: 0.14,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: TrainType.ui(
-                          size: 16,
-                          weight: FontWeight.w700,
-                          color: TrainColors.inkPlain,
-                          height: 1.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textScaler: MediaQuery.textScalerOf(
-                          context,
-                        ).clamp(maxScaleFactor: 1.3),
+                  _HeroPhoto(image: image, accent: accent),
+                  // The content owns whatever height the fixed hero leaves, and
+                  // sits centred within it — so a default-scale card reads as
+                  // balanced rather than bottom-heavy, while a large text scale
+                  // simply consumes the slack instead of overflowing.
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              TrainIconTile(
+                                icon: icon,
+                                accent: accent,
+                                size: 34,
+                                iconSize: 17,
+                                radius: 11,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textScaler: scaler,
+                                  style: TrainType.ui(
+                                    size: 15.5,
+                                    weight: FontWeight.w700,
+                                    color: TrainColors.inkPlain,
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          Text(
+                            stat.toUpperCase(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textScaler: scaler,
+                            style: TrainType.mono(
+                              size: 9.5,
+                              tracking: 0.06,
+                              color: TrainColors.ink4,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 7),
-                      Text(
-                        stat.toUpperCase(),
-                        style: TrainType.mono(
-                          size: 10,
-                          tracking: 0.06,
-                          color: TrainColors.ink4,
-                          height: 1.35,
-                        ),
-                        // 2 lines, not 1 — a couple of stats (Diet's "X of Y
-                        // meals · N kcal left") run long enough to ellipsize
-                        // the unit off the end at default text scale on a
-                        // standard phone width. The taller 1.05-ratio tile has
-                        // the headroom, and the other tiles' shorter stats
-                        // just naturally sit on one line.
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textScaler: MediaQuery.textScalerOf(
-                          context,
-                        ).clamp(maxScaleFactor: 1.3),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
@@ -476,235 +476,62 @@ class _ModuleTileShell extends StatelessWidget {
   }
 }
 
-/// One thing that happened, from any module — the shared shape [_mergeRecent]
-/// folds Workout/Expenses/Moments into before sorting.
-class _RecentItem {
-  const _RecentItem({
-    required this.at,
-    required this.icon,
-    required this.color,
-    required this.text,
-    required this.onTap,
-  });
+/// A module card's hero photograph: the section image, cover-fit into a fixed
+/// strip, with a fade to the screen base along its bottom edge so it melts into
+/// the card body rather than butting against it with a hard line. Falls back to
+/// a hue wash if the asset is ever missing, so the card never shows a broken
+/// image slot.
+class _HeroPhoto extends StatelessWidget {
+  const _HeroPhoto({required this.image, required this.accent});
 
-  final DateTime at;
-  final IconData icon;
-  final Color color;
-  final String text;
-  final VoidCallback onTap;
-}
-
-/// "Recent" — the last few things that happened across Workout, Expenses,
-/// and Moments, newest first. Diet is deliberately excluded: `watchConsumed`
-/// carries no order/timestamp, and a real cross-day "recently eaten" query
-/// would need a new Firestore composite index — real infra, not a
-/// client-only add, so it waits for whenever Diet next touches the backend
-/// rather than being faked here.
-///
-/// Three streams the tiles above already pay for, merged client-side (same
-/// nested-`StreamBuilder` idiom used everywhere else in this codebase) —
-/// nothing renders at all when every source is empty, matching how the rest
-/// of the app degrades (Today's own "Get started" card already carries that
-/// message; Hub doesn't need to repeat it).
-class _RecentSection extends StatelessWidget {
-  const _RecentSection();
+  final String image;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    return StreamBuilder<List<LiveSession>>(
-      stream: scope.workoutSessions.watchAll(),
-      initialData: scope.workoutSessions.current,
-      builder: (context, sessionsSnapshot) {
-        return StreamBuilder<List<Expense>>(
-          stream: scope.expenses.watchAll(),
-          initialData: scope.expenses.current,
-          builder: (context, expensesSnapshot) {
-            return StreamBuilder<List<Moment>>(
-              stream: scope.moments.watchAll(),
-              initialData: scope.moments.current,
-              builder: (context, momentsSnapshot) {
-                final items = _mergeRecent(
-                  context,
-                  sessions: sessionsSnapshot.data ?? const <LiveSession>[],
-                  expenses: expensesSnapshot.data ?? const <Expense>[],
-                  moments: momentsSnapshot.data ?? const <Moment>[],
-                );
-                if (items.isEmpty) return const SizedBox.shrink();
-                return RiseIn(
-                  delay: const Duration(milliseconds: 240),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 32),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 11),
-                        child: TrainSectionLabel(l(context).hubRecent),
-                      ),
-                      Material(
-                        // The rows' own InkWell needs a Material ancestor —
-                        // Hub has no Scaffold of its own (only HomeShell's,
-                        // in production), same reasoning as `_ModuleTileShell`
-                        // above.
-                        color: const Color(0x08FFFFFF),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: TrainColors.hairline),
-                          ),
-                          child: Column(
-                            children: [
-                              for (var i = 0; i < items.length; i++)
-                                _RecentRow(
-                                  item: items[i],
-                                  last: i == items.length - 1,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-/// Folds the three modules' already-loaded lists into one time-sorted,
-/// capped list. Pure function of the snapshots (no I/O) so it's cheap to
-/// recompute on every rebuild.
-List<_RecentItem> _mergeRecent(
-  BuildContext context, {
-  required List<LiveSession> sessions,
-  required List<Expense> expenses,
-  required List<Moment> moments,
-}) {
-  final items = <_RecentItem>[];
-
-  for (final s in sessions) {
-    // Only completed sessions read as "activity" — an abandoned one wasn't
-    // really a workout, and an active one is already the Workout tile's job.
-    final completedAt = s.completedAt;
-    if (s.status != SessionStatus.completed || completedAt == null) continue;
-    items.add(
-      _RecentItem(
-        at: completedAt,
-        icon: AppIcons.workout,
-        color: TrainColors.neutralMark,
-        text: 'Completed ${s.dayLabel}',
-        onTap: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const WorkoutDashboardPage())),
-      ),
-    );
-  }
-
-  for (final e in expenses) {
-    items.add(
-      _RecentItem(
-        at: e.spentAt,
-        icon: AppIcons.expenses,
-        color: TrainColors.neutralMark,
-        text:
-            '${formatAmount(e.amountMinor)} ${e.currency} on '
-            '${_expenseCategoryLabel(e.categoryId)}',
-        onTap: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const ExpensesListPage())),
-      ),
-    );
-  }
-
-  for (final m in moments) {
-    final caption = m.caption.trim();
-    items.add(
-      _RecentItem(
-        at: m.takenAt,
-        icon: AppIcons.moments,
-        color: TrainColors.neutralMark,
-        text: caption.isEmpty
-            ? 'Added a moment'
-            : (caption.length > 40 ? '${caption.substring(0, 40)}…' : caption),
-        onTap: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const MomentsTimelinePage())),
-      ),
-    );
-  }
-
-  items.sort((a, b) => b.at.compareTo(a.at));
-  return items.take(5).toList(growable: false);
-}
-
-/// Maps a stored expense `categoryId` to a display label — built-ins only.
-/// A custom category's id is an opaque `microsecondsSinceEpoch` string (see
-/// `add_category_sheet.dart`), never a readable slug, so anything not in
-/// [kBuiltInCategories] degrades to a generic label rather than leaking a
-/// raw id into the row. Deliberately skips `resolveCategory` (which would
-/// need the nullable `CategoryRepository` as a 4th stream just to prettify
-/// one label in a small activity row).
-String _expenseCategoryLabel(String categoryId) {
-  for (final category in kBuiltInCategories) {
-    if (category.id == categoryId) return category.label;
-  }
-  return 'Expense';
-}
-
-class _RecentRow extends StatelessWidget {
-  const _RecentRow({required this.item, required this.last});
-
-  final _RecentItem item;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        item.onTap();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          border: last
-              ? null
-              : const Border(bottom: BorderSide(color: TrainColors.hairline)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
-        child: Row(
-          children: [
-            TrainIconTile(icon: item.icon, accent: item.color),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                item.text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TrainType.ui(
-                  size: 14,
-                  weight: FontWeight.w600,
-                  color: TrainColors.inkPlain,
-                  height: 1.1,
+    return SizedBox(
+      height: 92,
+      width: double.infinity,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            image,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            // Decode near the widest a tile is drawn (×~2 for hi-DPI) rather
+            // than at the source's full resolution.
+            cacheWidth: 640,
+            errorBuilder: (context, error, stack) => DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withValues(alpha: 0.30),
+                    accent.withValues(alpha: 0.06),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              timeAgo(item.at, DateTime.now()).toUpperCase(),
-              style: TrainType.caption(
-                size: 9,
-                tracking: 0.1,
-                color: TrainColors.ink4,
+          ),
+          // The seam-softening fade: transparent over the top half, deepening
+          // to the screen base at the very bottom edge.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x00080908),
+                  Color(0x00080908),
+                  Color(0xC2080908),
+                ],
+                stops: [0.0, 0.52, 1.0],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -713,11 +540,10 @@ class _RecentRow extends StatelessWidget {
 /// The Hub's "Connected" band — the services ZIVO talks to, with their real
 /// brand marks and their **live** state.
 ///
-/// This fills what was a screenful of dead space between the module grid and
-/// Recent, and it answers a question the Hub is the natural place to ask: is
-/// my music hooked up, are my photos backed up? Both facts previously lived
-/// only inside Settings, two taps away, with nothing on the Hub hinting they
-/// existed. Each row is a shortcut to the screen that owns the setting.
+/// It answers a question the Hub is the natural place to ask: is my music
+/// hooked up, are my photos backed up? Both facts otherwise live only inside
+/// Settings, two taps away. Each row is a shortcut to the screen that owns the
+/// setting.
 class _ConnectedSection extends StatelessWidget {
   const _ConnectedSection();
 
@@ -749,6 +575,13 @@ class _ConnectedSection extends StatelessWidget {
 
 /// Spotify's live connection, in the same words Settings uses so the two
 /// surfaces can never disagree about what "connected" means.
+///
+/// The row leads with Spotify's **real brand mark on a neutral plate, always
+/// at full colour** — the same treatment the Drive row gets — rather than a
+/// generic music glyph that dimmed to near-invisible when disconnected. The
+/// connection state is carried entirely by the trailing value, so a
+/// not-connected Spotify still shows its icon clearly (the affordance to
+/// connect it has to be visible precisely when it isn't connected).
 class _SpotifyRow extends StatelessWidget {
   const _SpotifyRow({required this.controller});
 
@@ -782,9 +615,10 @@ class _SpotifyRow extends StatelessWidget {
             final connected = state == MusicConnection.connected;
             return TrainListRow(
               icon: AppIcons.music,
-              // Music is green throughout the app; a disconnected service is
-              // a neutral fact, not a warning, so it simply goes quiet.
+              // Music is green throughout the app; the accent tints the state
+              // dot, not the always-on brand mark.
               accent: connected ? TrainColors.green : TrainColors.ink3,
+              iconTile: const _BrandTile(child: _SpotifyMark(size: 18)),
               label: 'Spotify',
               value: value,
               onTap: () => Navigator.of(context).push(
@@ -851,6 +685,25 @@ class _BrandTile extends StatelessWidget {
         border: Border.all(color: TrainColors.hairline),
       ),
       child: child,
+    );
+  }
+}
+
+/// Spotify's brand mark — the bundled icon asset, always at full colour.
+class _SpotifyMark extends StatelessWidget {
+  const _SpotifyMark({this.size = 18});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/spotify/spotify-icon.png',
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stack) =>
+          const Icon(AppIcons.music, size: 16, color: TrainColors.green),
     );
   }
 }
