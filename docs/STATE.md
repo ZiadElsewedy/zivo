@@ -73,6 +73,36 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The profile surfaces are localized** (2026-09-04, on `core-edits`). Fourth
+  piece of the l10n push. **32 new keys** (573 → **605**),
+  `l10n-untranslated.txt` still `{}`. Three files: `profile_page` (1,268 lines,
+  previously **zero** `l(context)` calls), `profile_completion_page`, and
+  `dob_picker_sheet`.
+  - **A fourteenth hardcoded month table turned up** — in the date-of-birth
+    wheel, which the earlier `date_format.dart` sweep missed because there the
+    months are *options in a picker*, not part of a formatted date, so none of
+    the existing formatters fit. New `monthNames(context)` in
+    [`core/util/date_format.dart`](../lib/core/util/date_format.dart) resolves
+    all twelve through `intl`. `lib/` is hardcoded-month-free again.
+  - **Deliberately NOT translated:** `'google.com'`/`'apple.com'` (provider
+    IDs — data), `'Google'`/`'Apple'` (brand names, like ZIVO), and the `'\s+'`
+    regex. Only `'Email & password'` in `_providerLabel` was copy. The switch
+    now says so in a comment, so the next reader does not "finish the job".
+  - **Two helpers had to take a context** for one string each: `_cropAvatar`
+    drives the *native* iOS/Android cropper chrome ("Move & Scale", "Choose"),
+    which is real user-facing copy that had been shipping English to every
+    Arabic user; and `_name` fell back to "Signed in". `_cropAvatar` is handed
+    the strings rather than reading them, because its call site sits after two
+    awaits — same rule as the Ask sheet.
+  - **New `test/profile/profile_l10n_test.dart`**: the DOB wheel's months in
+    Arabic and English, the sheet's own chrome, and a sweep asserting the page
+    strings differ per locale and carry no latin — with the one intended
+    exception (the product name in `profileCompleteSubtitle`).
+  - Gates green: `flutter analyze` clean, **1142** tests passing (+4).
+  - **Still open:** ~198 literals across 49 presentation files — diet,
+    expenses, auth, capture, home, music. Plus the `domain/analytics/` engine
+    prose (owner decision, below).
+
 - **The Ask (AI coach) surface is localized** (2026-09-04, on `core-edits`).
   Third piece of the l10n push, and the one with the two real design problems.
   **66 new keys** (507 → **573**), `l10n-untranslated.txt` still `{}`.

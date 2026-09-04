@@ -2796,5 +2796,149 @@
   "askVoiceExamples": "\"add 40 EGP parking\" · \"finished chest day\"",
   "@askVoiceExamples": {
       "description": "Two example utterances shown under the record button."
+  },
+  "profileName": "Name",
+  "@profileName": {
+      "description": "The user's display name."
+  },
+  "profileDateOfBirth": "Date of birth",
+  "@profileDateOfBirth": {
+      "description": "The user's date of birth."
+  },
+  "profileEmail": "Email",
+  "@profileEmail": {
+      "description": "An email sign-in method."
+  },
+  "profileCompleteTitle": "Complete your profile",
+  "@profileCompleteTitle": {
+      "description": "Title of the one-time profile completion screen shown after sign-up."
+  },
+  "profileCompleteSubtitle": "A couple of details to personalise ZIVO.",
+  "@profileCompleteSubtitle": {
+      "description": "Subtitle of the profile completion screen. \"ZIVO\" is the product name."
+  },
+  "profileSaveFailed": "We couldn't save your profile. Please try again.",
+  "@profileSaveFailed": {
+      "description": "Shown when saving the profile failed."
+  },
+  "profileUseAnotherAccount": "Use another account",
+  "@profileUseAnotherAccount": {
+      "description": "Signs out of the half-set-up account so a different one can be used."
+  },
+  "actionContinue": "Continue",
+  "@actionContinue": {
+      "description": "Advances to the next step of a flow."
+  },
+  "profileSettings": "Settings",
+  "@profileSettings": {
+      "description": "Accessibility label for the button that opens Settings."
+  },
+  "profileAccountCaps": "ACCOUNT",
+  "@profileAccountCaps": {
+      "description": "Section header over the account details. Set in caps in English."
+  },
+  "profileSignInCaps": "SIGN-IN",
+  "@profileSignInCaps": {
+      "description": "Section header over the sign-in methods. Set in caps in English."
+  },
+  "profileEditName": "Edit name",
+  "@profileEditName": {
+      "description": "Title of the sheet for changing the display name."
+  },
+  "profileYourName": "Your name",
+  "@profileYourName": {
+      "description": "Placeholder in the name field."
+  },
+  "profileSignedIn": "Signed in",
+  "@profileSignedIn": {
+      "description": "Fallback heading when the account has no name to show."
+  },
+  "profileVerifiedCaps": "VERIFIED",
+  "@profileVerifiedCaps": {
+      "description": "Badge on a confirmed email address. Set in caps in English."
+  },
+  "profileUnverifiedCaps": "UNVERIFIED",
+  "@profileUnverifiedCaps": {
+      "description": "Badge on an email address that has not been confirmed. Set in caps in English."
+  },
+  "profileConnectedCaps": "CONNECTED",
+  "@profileConnectedCaps": {
+      "description": "Badge on a linked sign-in provider. Set in caps in English."
+  },
+  "profileEmailAndPassword": "Email & password",
+  "@profileEmailAndPassword": {
+      "description": "The email/password sign-in method. Google and Apple are brand names and stay untranslated."
+  },
+  "profileDobWithAge": "{date} · {age}",
+  "@profileDobWithAge": {
+      "description": "A date of birth followed by the age it implies, e.g. \"AUG 20, 1998 · 27\".",
+      "placeholders": {
+          "date": {
+              "type": "String"
+          },
+          "age": {
+              "type": "int"
+          }
+      }
+  },
+  "profileStatSessions": "Sessions",
+  "@profileStatSessions": {
+      "description": "Label under the number of completed training sessions."
+  },
+  "profileStatMonthsIn": "Months in",
+  "@profileStatMonthsIn": {
+      "description": "Label under how many months the user has been using ZIVO."
+  },
+  "profileStatLifetime": "Lifetime",
+  "@profileStatLifetime": {
+      "description": "Label under the all-time training volume."
+  },
+  "profileAbout": "About",
+  "@profileAbout": {
+      "description": "Section label over the user's short bio."
+  },
+  "profileAboutEmpty": "Add a few words about yourself.",
+  "@profileAboutEmpty": {
+      "description": "Prompt on the empty bio card."
+  },
+  "profileAboutHint": "A few words about yourself…",
+  "@profileAboutHint": {
+      "description": "Placeholder in the bio editor. Keep the ellipsis."
+  },
+  "profileCharCount": "{used} / {max}",
+  "@profileCharCount": {
+      "description": "Characters used out of the limit, under the bio editor.",
+      "placeholders": {
+          "used": {
+              "type": "int"
+          },
+          "max": {
+              "type": "int"
+          }
+      }
+  },
+  "profilePhotoTitle": "Profile Photo",
+  "@profilePhotoTitle": {
+      "description": "Title of the sheet for changing the profile photo."
+  },
+  "profileChoosePhoto": "Choose Photo",
+  "@profileChoosePhoto": {
+      "description": "Picks a new profile photo from the library."
+  },
+  "profileRemovePhoto": "Remove Photo",
+  "@profileRemovePhoto": {
+      "description": "Clears the current profile photo."
+  },
+  "profileCropTitle": "Move & Scale",
+  "@profileCropTitle": {
+      "description": "Title of the iOS photo cropper."
+  },
+  "profileCropDone": "Choose",
+  "@profileCropDone": {
+      "description": "Confirms the crop on the iOS photo cropper."
+  },
+  "profileEditPhoto": "Edit Photo",
+  "@profileEditPhoto": {
+      "description": "Title of the Android photo cropper."
   }
 }

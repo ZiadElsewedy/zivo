@@ -135,3 +135,15 @@ String formatFullDateLong(BuildContext context, DateTime date) =>
 /// any stamp that needs to be unambiguous across years.
 String formatDayMonthYear(BuildContext context, DateTime date) =>
     _format(context, (l) => DateFormat.yMMMd(l).format(date));
+
+/// The twelve full month names, in order (index 0 = January), for a picker
+/// that lists months rather than formatting a date.
+///
+/// The fourteenth hand-rolled month table lived in the date-of-birth wheel,
+/// where the names are *options* rather than part of a formatted date — so it
+/// could not use any of the formatters above and had spelled the list out
+/// again, in English.
+List<String> monthNames(BuildContext context) => [
+  for (var m = 1; m <= 12; m++)
+    _format(context, (l) => DateFormat.MMMM(l).format(DateTime(2024, m))),
+];

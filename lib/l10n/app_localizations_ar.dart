@@ -1992,4 +1992,104 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get askVoiceExamples =>
       '\"سجّل ٤٠ جنيه موقف سيارات\" · \"أنهيت تمرين الصدر\"';
+
+  @override
+  String get profileName => 'الاسم';
+
+  @override
+  String get profileDateOfBirth => 'تاريخ الميلاد';
+
+  @override
+  String get profileEmail => 'البريد الإلكتروني';
+
+  @override
+  String get profileCompleteTitle => 'أكمل ملفك';
+
+  @override
+  String get profileCompleteSubtitle => 'تفصيلان بسيطان لتخصيص ZIVO.';
+
+  @override
+  String get profileSaveFailed => 'تعذّر حفظ ملفك. حاول مرة أخرى.';
+
+  @override
+  String get profileUseAnotherAccount => 'استخدم حسابًا آخر';
+
+  @override
+  String get actionContinue => 'متابعة';
+
+  @override
+  String get profileSettings => 'الإعدادات';
+
+  @override
+  String get profileAccountCaps => 'الحساب';
+
+  @override
+  String get profileSignInCaps => 'تسجيل الدخول';
+
+  @override
+  String get profileEditName => 'تعديل الاسم';
+
+  @override
+  String get profileYourName => 'اسمك';
+
+  @override
+  String get profileSignedIn => 'مسجّل الدخول';
+
+  @override
+  String get profileVerifiedCaps => 'موثّق';
+
+  @override
+  String get profileUnverifiedCaps => 'غير موثّق';
+
+  @override
+  String get profileConnectedCaps => 'مرتبط';
+
+  @override
+  String get profileEmailAndPassword => 'البريد وكلمة المرور';
+
+  @override
+  String profileDobWithAge(String date, int age) {
+    return '$date · $age';
+  }
+
+  @override
+  String get profileStatSessions => 'الجلسات';
+
+  @override
+  String get profileStatMonthsIn => 'أشهر معنا';
+
+  @override
+  String get profileStatLifetime => 'الإجمالي';
+
+  @override
+  String get profileAbout => 'نبذة';
+
+  @override
+  String get profileAboutEmpty => 'أضف بضع كلمات عن نفسك.';
+
+  @override
+  String get profileAboutHint => 'بضع كلمات عن نفسك…';
+
+  @override
+  String profileCharCount(int used, int max) {
+    return '$used / $max';
+  }
+
+  @override
+  String get profilePhotoTitle => 'صورة الملف';
+
+  @override
+  String get profileChoosePhoto => 'اختر صورة';
+
+  @override
+  String get profileRemovePhoto => 'إزالة الصورة';
+
+  @override
+  String get profileCropTitle => 'حرّك وكبّر';
+
+  @override
+  String get profileCropDone => 'اختيار';
+
+  @override
+  String get profileEditPhoto => 'تعديل الصورة';
 }

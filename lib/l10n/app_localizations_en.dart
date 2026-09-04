@@ -1978,4 +1978,106 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get askVoiceExamples =>
       '\"add 40 EGP parking\" · \"finished chest day\"';
+
+  @override
+  String get profileName => 'Name';
+
+  @override
+  String get profileDateOfBirth => 'Date of birth';
+
+  @override
+  String get profileEmail => 'Email';
+
+  @override
+  String get profileCompleteTitle => 'Complete your profile';
+
+  @override
+  String get profileCompleteSubtitle =>
+      'A couple of details to personalise ZIVO.';
+
+  @override
+  String get profileSaveFailed =>
+      'We couldn\'t save your profile. Please try again.';
+
+  @override
+  String get profileUseAnotherAccount => 'Use another account';
+
+  @override
+  String get actionContinue => 'Continue';
+
+  @override
+  String get profileSettings => 'Settings';
+
+  @override
+  String get profileAccountCaps => 'ACCOUNT';
+
+  @override
+  String get profileSignInCaps => 'SIGN-IN';
+
+  @override
+  String get profileEditName => 'Edit name';
+
+  @override
+  String get profileYourName => 'Your name';
+
+  @override
+  String get profileSignedIn => 'Signed in';
+
+  @override
+  String get profileVerifiedCaps => 'VERIFIED';
+
+  @override
+  String get profileUnverifiedCaps => 'UNVERIFIED';
+
+  @override
+  String get profileConnectedCaps => 'CONNECTED';
+
+  @override
+  String get profileEmailAndPassword => 'Email & password';
+
+  @override
+  String profileDobWithAge(String date, int age) {
+    return '$date · $age';
+  }
+
+  @override
+  String get profileStatSessions => 'Sessions';
+
+  @override
+  String get profileStatMonthsIn => 'Months in';
+
+  @override
+  String get profileStatLifetime => 'Lifetime';
+
+  @override
+  String get profileAbout => 'About';
+
+  @override
+  String get profileAboutEmpty => 'Add a few words about yourself.';
+
+  @override
+  String get profileAboutHint => 'A few words about yourself…';
+
+  @override
+  String profileCharCount(int used, int max) {
+    return '$used / $max';
+  }
+
+  @override
+  String get profilePhotoTitle => 'Profile Photo';
+
+  @override
+  String get profileChoosePhoto => 'Choose Photo';
+
+  @override
+  String get profileRemovePhoto => 'Remove Photo';
+
+  @override
+  String get profileCropTitle => 'Move & Scale';
+
+  @override
+  String get profileCropDone => 'Choose';
+
+  @override
+  String get profileEditPhoto => 'Edit Photo';
 }

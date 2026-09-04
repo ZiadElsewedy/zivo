@@ -28,6 +28,7 @@ import '../../../../core/widgets/settings_row.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../auth/presentation/pages/settings_page.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account
 /// section, and a way into [SettingsPage]. Reads the live [UserProfile]
@@ -51,8 +52,8 @@ class ProfilePage extends StatelessWidget {
     final name = await showZivoSheet<String>(
       context: context,
       builder: (_) => _EditTextSheet(
-        title: 'Edit name',
-        hint: 'Your name',
+        title: l(context).profileEditName,
+        hint: l(context).profileYourName,
         maxLength: 60,
         initial: profile.name,
         capitalizeWords: true,
@@ -84,22 +85,22 @@ class ProfilePage extends StatelessWidget {
     final action = await showCupertinoModalPopup<_PhotoAction>(
       context: context,
       builder: (sheetContext) => CupertinoActionSheet(
-        title: const Text('Profile Photo'),
+        title: Text(l(context).profilePhotoTitle),
         actions: [
           CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(sheetContext, _PhotoAction.choose),
-            child: const Text('Choose Photo'),
+            child: Text(l(context).profileChoosePhoto),
           ),
           if (profile.photoPath != null)
             CupertinoActionSheetAction(
               isDestructiveAction: true,
               onPressed: () => Navigator.pop(sheetContext, _PhotoAction.remove),
-              child: const Text('Remove Photo'),
+              child: Text(l(context).profileRemovePhoto),
             ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(sheetContext),
-          child: const Text('Cancel'),
+          child: Text(l(context).actionCancel),
         ),
       ),
     );
@@ -108,6 +109,7 @@ class ProfilePage extends StatelessWidget {
     if (action == _PhotoAction.choose) {
       // Pick at a generous size so the crop editor has real pixels to work
       // with; the circular crop below produces the final square avatar.
+      final strings = l(context); // read before the awaits below
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 2048,
@@ -118,7 +120,7 @@ class ProfilePage extends StatelessWidget {
       // Guide the crop to the avatar's own shape: a locked 1:1 circular frame,
       // so what the person positions is exactly what lands in the circle — no
       // blind cover-cropping of a rectangle. Backing out cancels the change.
-      final cropped = await _cropAvatar(picked.path);
+      final cropped = await _cropAvatar(strings, picked.path);
       if (cropped == null || !context.mounted) return;
       // Route the avatar through the media pipeline: durable local copy +
       // registry entry + any enabled backup targets. Returns the store
@@ -160,23 +162,23 @@ class ProfilePage extends StatelessWidget {
   /// flow uses (`image_cropper`), here locked to a 1:1 **circular** frame and
   /// themed to ZIVO. Returns the cropped file, or null if the person backs
   /// out. "Move & Scale" so the circle previews exactly what will be saved.
-  Future<CroppedFile?> _cropAvatar(String sourcePath) {
+  Future<CroppedFile?> _cropAvatar(AppLocalizations strings, String sourcePath) {
     return ImageCropper().cropImage(
       sourcePath: sourcePath,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       compressQuality: 92,
       uiSettings: [
         IOSUiSettings(
-          title: 'Move & Scale',
-          doneButtonTitle: 'Choose',
-          cancelButtonTitle: 'Cancel',
+          title: strings.profileCropTitle,
+          doneButtonTitle: strings.profileCropDone,
+          cancelButtonTitle: strings.actionCancel,
           cropStyle: CropStyle.circle,
           aspectRatioLockEnabled: true,
           aspectRatioPickerButtonHidden: true,
           resetAspectRatioEnabled: false,
         ),
         AndroidUiSettings(
-          toolbarTitle: 'Edit Photo',
+          toolbarTitle: strings.profileEditPhoto,
           cropStyle: CropStyle.circle,
           lockAspectRatio: true,
           hideBottomControls: false,
@@ -233,7 +235,7 @@ class ProfilePage extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: TrainCircleButton(
-                      semanticLabel: 'Settings',
+                      semanticLabel: l(context).profileSettings,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const SettingsPage()),
                       ),
@@ -281,11 +283,11 @@ class ProfilePage extends StatelessWidget {
                 RiseIn(
                   delay: const Duration(milliseconds: 130),
                   child: SettingsSectionCard(
-                    label: 'ACCOUNT',
+                    label: l(context).profileAccountCaps,
                     children: [
                       SettingsRow(
                         icon: AppIcons.idCard,
-                        title: 'Name',
+                        title: l(context).profileName,
                         value: profile?.name ?? '—',
                         accent: TrainColors.violetGlyph,
                         onTap: profile == null
@@ -294,7 +296,7 @@ class ProfilePage extends StatelessWidget {
                       ),
                       SettingsRow(
                         icon: AppIcons.cake,
-                        title: 'Date of birth',
+                        title: l(context).profileDateOfBirth,
                         value: profile == null
                             ? '—'
                             : _formatDob(context, profile.dateOfBirth),
@@ -315,13 +317,13 @@ class ProfilePage extends StatelessWidget {
                 RiseIn(
                   delay: const Duration(milliseconds: 170),
                   child: SettingsSectionCard(
-                    label: 'SIGN-IN',
+                    label: l(context).profileSignInCaps,
                     children: [
                       for (var i = 0; i < user.providerIds.length; i++)
                         SettingsRow(
                           icon: _providerIcon(user.providerIds[i]),
                           iconWidget: _providerLogo(user.providerIds[i]),
-                          title: _providerLabel(user.providerIds[i]),
+                          title: _providerLabel(context, user.providerIds[i]),
                           // The state badge replaces the value
                           // column outright: "connected" is a state,
                           // and green is what state looks like here.
@@ -337,9 +339,9 @@ class ProfilePage extends StatelessWidget {
                           last: i == user.providerIds.length - 1,
                         ),
                       if (user.providerIds.isEmpty)
-                        const SettingsRow(
+                        SettingsRow(
                           icon: AppIcons.key,
-                          title: 'Email',
+                          title: l(context).profileEmail,
                           value: '',
                           trailing: _ConnectedBadge(),
                           accent: TrainColors.violetGlyph,
@@ -356,8 +358,10 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  static String _providerLabel(String id) => switch (id) {
-    'password' => 'Email & password',
+  /// Google and Apple are brand names — untranslated by design, like ZIVO.
+  /// Only the email/password method is copy.
+  static String _providerLabel(BuildContext context, String id) => switch (id) {
+    'password' => l(context).profileEmailAndPassword,
     'google.com' => 'Google',
     'apple.com' => 'Apple',
     _ => id,
@@ -389,7 +393,9 @@ class ProfilePage extends StatelessWidget {
     final now = DateTime.now();
     var age = now.year - d.year;
     if (now.month < d.month || (now.month == d.month && now.day < d.day)) age--;
-    return '${formatDayMonthYear(context, d).toUpperCase()} · $age';
+    return l(
+      context,
+    ).profileDobWithAge(formatDayMonthYear(context, d).toUpperCase(), age);
   }
 }
 
@@ -410,12 +416,15 @@ class _ProfileHeader extends StatelessWidget {
   final UserProfile? profile;
   final VoidCallback? onTapAvatar;
 
-  String get _name {
+  /// Takes a context (rather than being a getter) only because its last
+  /// fallback is copy: with no profile name and no provider display name,
+  /// the header says "Signed in", which has to be translated.
+  String _name(BuildContext context) {
     final profileName = profile?.name.trim();
     if (profileName != null && profileName.isNotEmpty) return profileName;
     final displayName = user.displayName?.trim();
     if (displayName != null && displayName.isNotEmpty) return displayName;
-    return 'Signed in';
+    return l(context).profileSignedIn;
   }
 
   @override
@@ -424,14 +433,14 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         _Avatar(
-          name: _name,
+          name: _name(context),
           photoPath: profile?.photoPath,
           onTap: onTapAvatar,
           completeness: _profileCompleteness(user, profile),
         ),
         const SizedBox(height: 16),
         Text(
-          _name,
+          _name(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
@@ -465,7 +474,9 @@ class _ProfileHeader extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                verified ? 'VERIFIED' : 'UNVERIFIED',
+                verified
+                    ? l(context).profileVerifiedCaps
+                    : l(context).profileUnverifiedCaps,
                 style: TrainType.caption(
                   size: 8.5,
                   tracking: 0.14,
@@ -520,7 +531,7 @@ class _ConnectedBadge extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(
-          'CONNECTED',
+          l(context).profileConnectedCaps,
           style: TrainType.caption(
             size: 9,
             tracking: 0.14,
@@ -563,13 +574,16 @@ class _LifetimeStats extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
           child: TrainStatStrip(
             items: [
-              TrainStat('$completed', 'Sessions'),
-              TrainStat(months == null ? '—' : '$months', 'Months in'),
+              TrainStat('$completed', l(context).profileStatSessions),
+              TrainStat(
+                months == null ? '—' : '$months',
+                l(context).profileStatMonthsIn,
+              ),
               // The one figure here that means progress rather than
               // description, so it gets the green.
               TrainStat(
                 '${volume.value}${volume.unit.toLowerCase()}',
-                'Lifetime',
+                l(context).profileStatLifetime,
                 color: TrainColors.green,
               ),
             ],
@@ -857,9 +871,9 @@ class _AboutSectionState extends State<_AboutSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 11),
-          child: TrainSectionLabel('About'),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 11),
+          child: TrainSectionLabel(l(context).profileAbout),
         ),
         // Empty and unfilled, the card is DASHED — an outline, not a surface.
         // A solid card with a prompt inside reads as a real container waiting
@@ -872,7 +886,7 @@ class _AboutSectionState extends State<_AboutSection> {
               children: [
                 Expanded(
                   child: Text(
-                    'Add a few words about yourself.',
+                    l(context).profileAboutEmpty,
                     style: TrainType.ui(
                       size: 13.5,
                       weight: FontWeight.w400,
@@ -1002,7 +1016,7 @@ class _AboutSectionState extends State<_AboutSection> {
             isCollapsed: true,
             counterText: '',
             border: InputBorder.none,
-            hintText: 'A few words about yourself…',
+            hintText: l(context).profileAboutHint,
             hintStyle: TrainType.ui(
               size: 13.5,
               weight: FontWeight.w400,
@@ -1015,14 +1029,17 @@ class _AboutSectionState extends State<_AboutSection> {
         Row(
           children: [
             Text(
-              '${_controller.text.length} / $_maxLength',
+              l(context).profileCharCount(_controller.text.length, _maxLength),
               style: TrainType.mono(size: 10.5, color: TrainColors.ink4),
             ),
             const Spacer(),
-            _AboutButton(label: 'Cancel', onTap: _saving ? null : _cancel),
+            _AboutButton(
+              label: l(context).actionCancel,
+              onTap: _saving ? null : _cancel,
+            ),
             const SizedBox(width: 6),
             _AboutButton(
-              label: 'Save',
+              label: l(context).actionSave,
               primary: true,
               busy: _saving,
               onTap: _saving ? null : _save,
@@ -1242,7 +1259,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Save',
+                              l(context).actionSave,
                               style: AppText.button.copyWith(
                                 fontSize: 16,
                                 color: Colors.white,

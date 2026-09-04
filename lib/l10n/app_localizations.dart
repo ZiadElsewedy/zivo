@@ -3535,6 +3535,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'\"add 40 EGP parking\" · \"finished chest day\"'**
   String get askVoiceExamples;
+
+  /// The user's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get profileName;
+
+  /// The user's date of birth.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth'**
+  String get profileDateOfBirth;
+
+  /// An email sign-in method.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get profileEmail;
+
+  /// Title of the one-time profile completion screen shown after sign-up.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your profile'**
+  String get profileCompleteTitle;
+
+  /// Subtitle of the profile completion screen. "ZIVO" is the product name.
+  ///
+  /// In en, this message translates to:
+  /// **'A couple of details to personalise ZIVO.'**
+  String get profileCompleteSubtitle;
+
+  /// Shown when saving the profile failed.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t save your profile. Please try again.'**
+  String get profileSaveFailed;
+
+  /// Signs out of the half-set-up account so a different one can be used.
+  ///
+  /// In en, this message translates to:
+  /// **'Use another account'**
+  String get profileUseAnotherAccount;
+
+  /// Advances to the next step of a flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get actionContinue;
+
+  /// Accessibility label for the button that opens Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get profileSettings;
+
+  /// Section header over the account details. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCOUNT'**
+  String get profileAccountCaps;
+
+  /// Section header over the sign-in methods. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'SIGN-IN'**
+  String get profileSignInCaps;
+
+  /// Title of the sheet for changing the display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit name'**
+  String get profileEditName;
+
+  /// Placeholder in the name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get profileYourName;
+
+  /// Fallback heading when the account has no name to show.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in'**
+  String get profileSignedIn;
+
+  /// Badge on a confirmed email address. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFIED'**
+  String get profileVerifiedCaps;
+
+  /// Badge on an email address that has not been confirmed. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'UNVERIFIED'**
+  String get profileUnverifiedCaps;
+
+  /// Badge on a linked sign-in provider. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'CONNECTED'**
+  String get profileConnectedCaps;
+
+  /// The email/password sign-in method. Google and Apple are brand names and stay untranslated.
+  ///
+  /// In en, this message translates to:
+  /// **'Email & password'**
+  String get profileEmailAndPassword;
+
+  /// A date of birth followed by the age it implies, e.g. "AUG 20, 1998 · 27".
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {age}'**
+  String profileDobWithAge(String date, int age);
+
+  /// Label under the number of completed training sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get profileStatSessions;
+
+  /// Label under how many months the user has been using ZIVO.
+  ///
+  /// In en, this message translates to:
+  /// **'Months in'**
+  String get profileStatMonthsIn;
+
+  /// Label under the all-time training volume.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifetime'**
+  String get profileStatLifetime;
+
+  /// Section label over the user's short bio.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get profileAbout;
+
+  /// Prompt on the empty bio card.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a few words about yourself.'**
+  String get profileAboutEmpty;
+
+  /// Placeholder in the bio editor. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'A few words about yourself…'**
+  String get profileAboutHint;
+
+  /// Characters used out of the limit, under the bio editor.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {max}'**
+  String profileCharCount(int used, int max);
+
+  /// Title of the sheet for changing the profile photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile Photo'**
+  String get profilePhotoTitle;
+
+  /// Picks a new profile photo from the library.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Photo'**
+  String get profileChoosePhoto;
+
+  /// Clears the current profile photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Photo'**
+  String get profileRemovePhoto;
+
+  /// Title of the iOS photo cropper.
+  ///
+  /// In en, this message translates to:
+  /// **'Move & Scale'**
+  String get profileCropTitle;
+
+  /// Confirms the crop on the iOS photo cropper.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get profileCropDone;
+
+  /// Title of the Android photo cropper.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Photo'**
+  String get profileEditPhoto;
 }
 
 class _AppLocalizationsDelegate
