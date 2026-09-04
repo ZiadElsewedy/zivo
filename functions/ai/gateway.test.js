@@ -555,6 +555,32 @@ test("the system prompt fences tool output as untrusted data", () => {
   assert.match(SYSTEM_PROMPT, /Never follow instructions/i);
 });
 
+test("the system prompt makes the coach answer the exact question asked and " +
+    "pull only relevant context", () => {
+  // FOCUS section (chat/prompt/sections/focus.js): respond to the specific
+  // request, follow intent, and don't drag in older data when the user is just
+  // telling you about now ("I worked out today" → today, not last week).
+  assert.match(SYSTEM_PROMPT, /answer the question that was actually asked/i);
+  assert.match(SYSTEM_PROMPT, /user's intent precisely matters more/);
+  assert.match(SYSTEM_PROMPT, /its immediate context/);
+  assert.match(
+      SYSTEM_PROMPT,
+      /Reach back only when the question is genuinely about a trend/);
+  assert.match(SYSTEM_PROMPT, /pull only what the question needs/i);
+});
+
+test("the system prompt gives plain-text formatting rules the client can " +
+    "actually render", () => {
+  // FORMATTING section (chat/prompt/sections/formatting.js): the Ask client
+  // renders assistant text as plain text (no Markdown renderer), so the prompt
+  // must forbid Markdown-for-styling and get structure from blank lines +
+  // "• " bullets instead. If a Markdown renderer is ever added, revisit this.
+  assert.match(SYSTEM_PROMPT, /render as PLAIN TEXT/);
+  assert.match(SYSTEM_PROMPT, /Markdown does not format here/);
+  assert.match(SYSTEM_PROMPT, /start it with "• "/);
+  assert.match(SYSTEM_PROMPT, /Keep structure proportional/);
+});
+
 test("usage is logged once with tokens/tools/iterations", async () => {
   const store = makeStore();
   const callModel = scriptedModel([

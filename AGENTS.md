@@ -123,7 +123,9 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | [`core/util/`](lib/core/util) | Small shared functions — `parse.dart` (every number a user types), `money.dart`, `time_ago.dart`, **`deferred_write.dart`** (local-first saves: hand the durable write to `deferWrite` and pop — never `await` a repository before navigating) |
 
 **Backend ([`functions/`](functions), Node — Cloud Functions):** `functions/ai/` —
-`gateway.js` (Ask streaming + tool loop + coach persona), `tools.js` (read tools),
+`gateway.js` (Ask facade → **`chat/`**: turn loop, system prompt in
+`chat/prompt/sections/`, context/token/cost logic — see `chat/README.md`),
+`tools.js` (read tools),
 `mutations.js` (confirm-gated writes), `workout_import.js`, `diet_import.js`,
 `coach_report.js`, `store.js`, `dates.js`. `functions/auth/activity.js` (auth event log +
 OTP mail). Each has a `*.test.js` (`node --test`, offline).
