@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/firebase/uid_scoped_mirror.dart';
 import '../../../core/firebase/uid_source.dart';
 import '../domain/live_session.dart';
 import '../domain/logged_set.dart';
@@ -23,42 +24,33 @@ import '../domain/workout_session_repository.dart';
 /// before sign-in, so it resolves the signed-in user from an injected
 /// [UidSource] rather than holding a `uid` of its own.
 class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
-  FirestoreWorkoutSessionRepository({FirebaseFirestore? firestore, required this.uidSource})
-    : _firestore = firestore ?? FirebaseFirestore.instance {
-    // Start listening immediately, independent of whether any widget is
-    // currently watching — see FirestoreWorkoutPlanRepository's constructor
-    // doc for the full rationale (this repo had the matching bug: finishing
-    // a session while nothing was subscribed left the cache stale for the
-    // next subscriber to replay).
-    _start();
+  FirestoreWorkoutSessionRepository({
+    FirebaseFirestore? firestore,
+    required this.uidSource,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance {
+    _mirror = UidScopedMirror<List<LiveSession>>(
+      uidSource: uidSource,
+      signedOutValue: const [],
+      source: (uid) => _sessionsCollection(uid)
+          .orderBy('startedAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map(_sessionFromDoc).toList(growable: false)),
+    )..start();
   }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
 
-  List<LiveSession> _sessions = const [];
-  bool _hasSnapshot = false;
-  StreamController<List<LiveSession>>? _controller;
-  StreamSubscription<String?>? _uidSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
+  late final UidScopedMirror<List<LiveSession>> _mirror;
 
   @override
-  List<LiveSession> get current => _sessions;
+  List<LiveSession> get current => _mirror.current;
 
   @override
-  Stream<List<LiveSession>> watchAll() async* {
-    _controller ??= StreamController<List<LiveSession>>.broadcast();
-    // A broadcast stream never replays its latest value to a *late*
-    // subscriber — replay the cached list on subscribe so every listener
-    // sees the current value immediately, matching the in-memory contract.
-    // Because the underlying Firestore listener runs for the repository's
-    // whole lifetime (see the constructor), this cached value is never stale.
-    if (_hasSnapshot) yield _sessions;
-    yield* _controller!.stream;
-  }
+  Stream<List<LiveSession>> watchAll() => _mirror.watch();
 
   @override
-  LiveSession? get activeSession => _firstActive(_sessions);
+  LiveSession? get activeSession => _firstActive(current);
 
   @override
   Stream<LiveSession?> watchActiveSession() => watchAll().map(_firstActive);
@@ -70,47 +62,14 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
     return null;
   }
 
-  void _start() {
-    _uidSub = _uidWithInitial().listen(_onUidChanged);
-  }
-
   /// Tears down the always-on listener — not called in production (the
   /// repository lives for the app's process lifetime), only for explicit
   /// teardown in tests.
-  void dispose() {
-    _uidSub?.cancel();
-    _querySub?.cancel();
-    _controller?.close();
-  }
-
-  Stream<String?> _uidWithInitial() async* {
-    yield uidSource.currentUid();
-    yield* uidSource.uidChanges;
-  }
-
-  void _onUidChanged(String? uid) {
-    _querySub?.cancel();
-    if (uid == null) {
-      _emit(const []);
-      return;
-    }
-    _querySub = _sessionsCollection(uid)
-        .orderBy('startedAt', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-          _emit(snapshot.docs.map(_sessionFromDoc).toList(growable: false));
-        }, onError: (e, s) => _controller?.addError(e, s));
-  }
-
-  void _emit(List<LiveSession> sessions) {
-    _sessions = sessions;
-    _hasSnapshot = true;
-    _controller?.add(_sessions);
-  }
+  void dispose() => _mirror.dispose();
 
   @override
   Future<void> saveSession(LiveSession session) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _sessionsCollection(uid).doc(session.id).set({
       'planId': session.planId,
       'dayId': session.dayId,
@@ -130,16 +89,8 @@ class FirestoreWorkoutSessionRepository implements WorkoutSessionRepository {
 
   @override
   Future<void> deleteSession(String id) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _sessionsCollection(uid).doc(id).delete();
-  }
-
-  String _requireUid() {
-    final uid = uidSource.currentUid();
-    if (uid == null) {
-      throw StateError('FirestoreWorkoutSessionRepository: no signed-in user.');
-    }
-    return uid;
   }
 
   CollectionReference<Map<String, dynamic>> _sessionsCollection(String uid) =>

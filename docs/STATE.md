@@ -73,6 +73,48 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **One uid-scoped Firestore mirror, and the stale-cache bug closed everywhere**
+  (2026-09-04, on `core-edits`). Ten Firestore repositories each carried the
+  same ~60 lines of uid-scoping machinery — `StreamController` + `_uidSub` +
+  `_querySub`, `_start`/`_stop`, `_uidWithInitial`, `_emit`, `_requireUid` —
+  and seven carried the same six-line explanatory comment **verbatim**. The
+  only parts that differed were the collection path, the `orderBy` and the
+  doc→domain mapper.
+  - **New [`core/firebase/uid_scoped_mirror.dart`](../lib/core/firebase/uid_scoped_mirror.dart)**
+    (`UidScopedMirror<T>`) owns uid re-scoping, the cached synchronous
+    `current`, the late-subscriber replay, and the always-on listener. It is a
+    **held object, not a superclass**, because a repository can own several
+    mirrors (diet mirrors plans, targets and body profile independently) —
+    inheritance could not express that. `T` covers both shapes: `List<X>` for a
+    collection (`signedOutValue: const []`) and `X?` for a single document
+    (`signedOutValue: null`). `UidSource.requireUid(this)` replaces the ten
+    identical private `_requireUid()`s, reporting the same message.
+  - **This is a correctness fix, not a tidy-up.** The always-on listener was
+    the hand-rolled fix for the Home/Workout-tab training-card drift — a write
+    landing while nothing was subscribed left the cache stale for the next
+    subscriber to replay. It had been applied to the **plan, session and
+    body-weight** repos only; **moments, expenses, categories, wallet and the
+    workout log still had the bug**. Routing all of them through the mirror
+    fixes it by construction, pinned per-repository by new
+    `test/core/firestore_repos_stay_hot_test.dart` (verified failing against
+    the pre-change code).
+  - **Migrated (7 mirrors):** moment, expense, category, wallet (doc shape),
+    workout, workout-session, body-weight. **Deliberately not migrated:**
+    `FirestoreWorkoutPlanRepository` (two coupled streams with a cross-stream
+    emission gate), `FirestoreDietRepository` (three mirrors + `onListen`
+    coupling), `FirebaseAiRepository` (per-conversation ephemeral streams, not
+    a singleton mirror at all). Those are follow-ups, not blockers — see the
+    owner action below.
+  - Net **−330 lines** across the seven repos. Gates green: `flutter analyze`
+    clean, full suite **1119** passing (+15: 8 new mirror-contract tests, 7 new
+    per-repo regression tests). One existing wallet test was updated — it read
+    `watch().first` immediately after a write and had been relying on the old
+    lazy listener opening a fresh query; no production code reads these streams
+    via `.first`. No Firestore/rules/backend changes.
+  - **Owner follow-up (optional):** diet and workout-plan can move onto the
+    mirror by composition (they would hold 3 and 2 mirrors respectively); that
+    is a bigger, separately-testable change and was left out on purpose.
+
 - **Hub redesigned as a photographic module dashboard** (2026-09-04, on
   `core-edits`). The Hub grid was four identical near-white neutral-mark icon
   tiles; it's now a 2×2 grid of **photographic module cards** (Workout · Diet ·

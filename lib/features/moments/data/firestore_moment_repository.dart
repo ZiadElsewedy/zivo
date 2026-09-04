@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/firebase/uid_scoped_mirror.dart';
 import '../../../core/firebase/uid_source.dart';
 import '../domain/moment.dart';
 import '../domain/moment_repository.dart';
@@ -11,9 +12,9 @@ import '../domain/moment_repository.dart';
 /// everything above consumes the domain [Moment] model.
 ///
 /// The repository is constructed once at app root, before sign-in, so it has
-/// no `uid` of its own — it resolves the signed-in user from an injected
-/// [UidSource] instead, which re-scopes `watchAll()` whenever the uid changes
-/// (including to/from signed-out).
+/// no `uid` of its own — the uid-scoping, the cached `current`, the late-
+/// subscriber replay and the always-on listener all live in
+/// [UidScopedMirror]; this class supplies only the query and the mapper.
 ///
 /// Like Notes' `updatedAt`, `takenAt` here is a domain field owned by the
 /// entity (the moment's own capture time), not pure server metadata — it is
@@ -30,76 +31,36 @@ class FirestoreMomentRepository implements MomentRepository {
   FirestoreMomentRepository({
     FirebaseFirestore? firestore,
     required this.uidSource,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance {
+    _mirror = UidScopedMirror<List<Moment>>(
+      uidSource: uidSource,
+      signedOutValue: const [],
+      source: (uid) => _momentsCollection(uid)
+          .orderBy('takenAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map(_fromDoc).toList(growable: false)),
+    )..start();
+  }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
 
-  List<Moment> _current = const [];
-  bool _hasSnapshot = false;
-  StreamController<List<Moment>>? _controller;
-  StreamSubscription<String?>? _uidSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
+  late final UidScopedMirror<List<Moment>> _mirror;
 
   @override
-  List<Moment> get current => List.unmodifiable(_current);
+  List<Moment> get current => List.unmodifiable(_mirror.current);
 
   @override
-  Stream<List<Moment>> watchAll() async* {
-    _controller ??= StreamController<List<Moment>>.broadcast(
-      onListen: _start,
-      onCancel: _stop,
-    );
-    // A broadcast stream never replays its latest value to a *late* subscriber.
-    // The Today dashboard subscribes first (it stays alive in the shell's
-    // IndexedStack) and consumes the initial snapshot, so a Hub detail page
-    // opened afterwards would otherwise sit on ConnectionState.waiting forever
-    // whenever the collection is empty. Replay the cached snapshot on subscribe
-    // so every listener sees the current value immediately — matching the
-    // in-memory repo contract the pages and tests rely on.
-    if (_hasSnapshot) yield current;
-    yield* _controller!.stream;
-  }
+  Stream<List<Moment>> watchAll() => _mirror.watch();
 
-  void _start() {
-    _uidSub = _uidWithInitial().listen(_onUidChanged);
-  }
-
-  void _stop() {
-    _uidSub?.cancel();
-    _uidSub = null;
-    _querySub?.cancel();
-    _querySub = null;
-  }
-
-  Stream<String?> _uidWithInitial() async* {
-    yield uidSource.currentUid();
-    yield* uidSource.uidChanges;
-  }
-
-  void _onUidChanged(String? uid) {
-    _querySub?.cancel();
-    if (uid == null) {
-      _emit(const []);
-      return;
-    }
-    _querySub = _momentsCollection(uid)
-        .orderBy('takenAt', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-          _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-        }, onError: (e, s) => _controller?.addError(e, s));
-  }
-
-  void _emit(List<Moment> moments) {
-    _current = moments;
-    _hasSnapshot = true;
-    _controller?.add(current);
-  }
+  /// Tears down the always-on listener — not called in production (the
+  /// repository lives for the app's process lifetime), only for explicit
+  /// teardown in tests.
+  void dispose() => _mirror.dispose();
 
   @override
   Future<void> add(Moment moment) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _momentsCollection(uid).doc(moment.id).set({
       'caption': moment.caption,
       'takenAt': Timestamp.fromDate(moment.takenAt),
@@ -113,7 +74,7 @@ class FirestoreMomentRepository implements MomentRepository {
 
   @override
   Future<void> update(Moment moment) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _momentsCollection(uid).doc(moment.id).update({
       'caption': moment.caption,
       'takenAt': Timestamp.fromDate(moment.takenAt),
@@ -126,16 +87,8 @@ class FirestoreMomentRepository implements MomentRepository {
 
   @override
   Future<void> remove(String id) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _momentsCollection(uid).doc(id).delete();
-  }
-
-  String _requireUid() {
-    final uid = uidSource.currentUid();
-    if (uid == null) {
-      throw StateError('FirestoreMomentRepository: no signed-in user.');
-    }
-    return uid;
   }
 
   CollectionReference<Map<String, dynamic>> _momentsCollection(String uid) =>

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/firebase/uid_scoped_mirror.dart';
 import '../../../core/firebase/uid_source.dart';
 import '../domain/expense.dart';
 import '../domain/expense_repository.dart';
@@ -18,76 +19,36 @@ class FirestoreExpenseRepository implements ExpenseRepository {
   FirestoreExpenseRepository({
     FirebaseFirestore? firestore,
     required this.uidSource,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance {
+    _mirror = UidScopedMirror<List<Expense>>(
+      uidSource: uidSource,
+      signedOutValue: const [],
+      source: (uid) => _expensesCollection(uid)
+          .orderBy('spentAt', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map(_fromDoc).toList(growable: false)),
+    )..start();
+  }
 
   final FirebaseFirestore _firestore;
   final UidSource uidSource;
 
-  List<Expense> _current = const [];
-  bool _hasSnapshot = false;
-  StreamController<List<Expense>>? _controller;
-  StreamSubscription<String?>? _uidSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _querySub;
+  late final UidScopedMirror<List<Expense>> _mirror;
 
   @override
-  List<Expense> get current => List.unmodifiable(_current);
+  List<Expense> get current => List.unmodifiable(_mirror.current);
 
   @override
-  Stream<List<Expense>> watchAll() async* {
-    _controller ??= StreamController<List<Expense>>.broadcast(
-      onListen: _start,
-      onCancel: _stop,
-    );
-    // A broadcast stream never replays its latest value to a *late* subscriber.
-    // The Today dashboard subscribes first (it stays alive in the shell's
-    // IndexedStack) and consumes the initial snapshot, so a Hub detail page
-    // opened afterwards would otherwise sit on ConnectionState.waiting forever
-    // whenever the collection is empty. Replay the cached snapshot on subscribe
-    // so every listener sees the current value immediately — matching the
-    // in-memory repo contract the pages and tests rely on.
-    if (_hasSnapshot) yield current;
-    yield* _controller!.stream;
-  }
+  Stream<List<Expense>> watchAll() => _mirror.watch();
 
-  void _start() {
-    _uidSub = _uidWithInitial().listen(_onUidChanged);
-  }
-
-  void _stop() {
-    _uidSub?.cancel();
-    _uidSub = null;
-    _querySub?.cancel();
-    _querySub = null;
-  }
-
-  Stream<String?> _uidWithInitial() async* {
-    yield uidSource.currentUid();
-    yield* uidSource.uidChanges;
-  }
-
-  void _onUidChanged(String? uid) {
-    _querySub?.cancel();
-    if (uid == null) {
-      _emit(const []);
-      return;
-    }
-    _querySub = _expensesCollection(uid)
-        .orderBy('spentAt', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-          _emit(snapshot.docs.map(_fromDoc).toList(growable: false));
-        }, onError: (e, s) => _controller?.addError(e, s));
-  }
-
-  void _emit(List<Expense> expenses) {
-    _current = expenses;
-    _hasSnapshot = true;
-    _controller?.add(current);
-  }
+  /// Tears down the always-on listener — not called in production (the
+  /// repository lives for the app's process lifetime), only for explicit
+  /// teardown in tests.
+  void dispose() => _mirror.dispose();
 
   @override
   Future<void> add(Expense expense) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _expensesCollection(uid).doc(expense.id).set({
       'amountMinor': expense.amountMinor,
       'currency': expense.currency,
@@ -102,7 +63,7 @@ class FirestoreExpenseRepository implements ExpenseRepository {
 
   @override
   Future<void> update(Expense expense) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _expensesCollection(uid).doc(expense.id).update({
       'amountMinor': expense.amountMinor,
       'currency': expense.currency,
@@ -115,16 +76,8 @@ class FirestoreExpenseRepository implements ExpenseRepository {
 
   @override
   Future<void> remove(String id) {
-    final uid = _requireUid();
+    final uid = uidSource.requireUid(this);
     return _expensesCollection(uid).doc(id).delete();
-  }
-
-  String _requireUid() {
-    final uid = uidSource.currentUid();
-    if (uid == null) {
-      throw StateError('FirestoreExpenseRepository: no signed-in user.');
-    }
-    return uid;
   }
 
   CollectionReference<Map<String, dynamic>> _expensesCollection(String uid) =>
