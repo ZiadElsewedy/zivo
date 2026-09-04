@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-03 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-04 · **Active branch:** `core-edits`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,34 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Hub redesigned as a photographic module dashboard** (2026-09-04, on
+  `core-edits`). The Hub grid was four identical near-white neutral-mark icon
+  tiles; it's now a 2×2 grid of **photographic module cards** (Workout · Diet ·
+  Expenses · Moments) — each a hero photograph (`assets/hub/*.jpg`) melting into
+  the card body via a bottom fade, with a **hue-tinted icon chip** (green /
+  green / amber / ember — the area's owned hue, inside the four-hue system), the
+  localized label, and the same live stat as before. The source images'
+  baked-in titles are **cropped off in-source** (via `ffmpeg`, ~2.3 MB PNG →
+  ~90 KB JPG each) so the card overlays the app's own l10n label over clean
+  photography rather than a fixed-English, screen-reader-invisible title.
+  - **Spotify icon fix (owner report):** the Connected band's Spotify row led
+    with a generic music glyph that dimmed to near-invisible when disconnected.
+    It now uses Spotify's **real brand mark on a neutral plate, always at full
+    colour** (the same treatment the Drive row has), with the connection state
+    carried entirely by the trailing value — a not-connected Spotify still shows
+    its mark and the affordance to connect it.
+  - **"Recent" removed** entirely (owner request) — the cross-module activity
+    merge (`_RecentSection`/`_mergeRecent`) and its `hubRecent` l10n key are
+    gone; the grid → Connected spacing was reflowed so there's no dead gap.
+  - This is a deliberate, owner-signed evolution of the Hub's visual direction:
+    it leans on **image + colour** for module identity where the grid previously
+    differentiated **by icon only** (ADR-006's "grids differentiate by icon, not
+    colour"). Everything still dresses from `TrainColors`/`TrainType`; the hue
+    chips stay inside the four owned hues. See [hub/FEATURE.md](../lib/features/hub/FEATURE.md).
+  - Gates green: `flutter analyze` clean, full suite **1104** passing
+    (`test/hub/hub_page_test.dart` updated — Recent group removed, stat/label/
+    Connected assertions unchanged). No backend/Firestore/rules changes.
 
 - **The AI coach now sees the per-exercise drill-down + plan adherence**
   (2026-09-03, on `core-edits`). Closes the loop the previous entry left open:
