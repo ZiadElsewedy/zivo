@@ -1759,5 +1759,758 @@
   "musicDisconnect": "Disconnect Spotify",
   "@musicDisconnect": {
     "description": "Settings action: unlink this device so the app stops reconnecting to Spotify on its own."
+  },
+  "errorCouldntLoad": "Couldn't load this.",
+  "@errorCouldntLoad": {
+      "description": "Generic failure copy for a surface whose data could not be read."
+  },
+  "workoutStatusProgressing": "Progressing",
+  "@workoutStatusProgressing": {
+      "description": "A lift's overall direction: strength is trending up over recent sessions."
+  },
+  "workoutStatusHolding": "Holding",
+  "@workoutStatusHolding": {
+      "description": "A lift's overall direction: steady — neither building nor losing."
+  },
+  "workoutStatusPlateaued": "Plateaued",
+  "@workoutStatusPlateaued": {
+      "description": "A lift's overall direction: unchanged for several sessions; needs a change."
+  },
+  "workoutStatusTrendingDown": "Trending down",
+  "@workoutStatusTrendingDown": {
+      "description": "A lift's overall direction: strength has declined recently."
+  },
+  "workoutStatusBuilding": "Building",
+  "@workoutStatusBuilding": {
+      "description": "A lift's overall direction: too few sessions logged to judge a trend yet."
+  },
+  "workoutToneImproved": "Improved",
+  "@workoutToneImproved": {
+      "description": "One session versus the previous one: better."
+  },
+  "workoutToneMatched": "Matched",
+  "@workoutToneMatched": {
+      "description": "One session versus the previous one: the same. Not a failure."
+  },
+  "workoutToneMixed": "Mixed",
+  "@workoutToneMixed": {
+      "description": "One session versus the previous one: some measures up, some down."
+  },
+  "workoutToneDown": "Down",
+  "@workoutToneDown": {
+      "description": "One session versus the previous one: worse."
+  },
+  "workoutBodyweightLoadError": "Couldn't load weigh-ins.",
+  "@workoutBodyweightLoadError": {
+      "description": "Shown when the body-weight history fails to load."
+  },
+  "workoutWeighInsLogged": "{count} weigh-ins logged",
+  "@workoutWeighInsLogged": {
+      "description": "Subtitle counting the user's logged weigh-ins.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutUnitKg": "KG",
+  "@workoutUnitKg": {
+      "description": "The kilogram unit as a micro-label beside a number. Set in caps in English."
+  },
+  "workoutBodyweightChange30d": "{change} KG · 30D",
+  "@workoutBodyweightChange30d": {
+      "description": "Body-weight change over the last 30 days, e.g. \"−1.4 KG · 30D\". The change already carries its sign.",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutBodyweightEmpty": "Log your first weigh-in to start the trend.",
+  "@workoutBodyweightEmpty": {
+      "description": "Empty state on the body-weight history page."
+  },
+  "workoutThisWeekCaps": "THIS WEEK",
+  "@workoutThisWeekCaps": {
+      "description": "Group header over the current week in the session history. Set in caps in English."
+  },
+  "workoutLastWeekCaps": "LAST WEEK",
+  "@workoutLastWeekCaps": {
+      "description": "Group header over the previous week in the session history. Set in caps in English."
+  },
+  "workoutSessionsLabel": "Sessions",
+  "@workoutSessionsLabel": {
+      "description": "Label under a count of training sessions."
+  },
+  "workoutTrained": "Trained",
+  "@workoutTrained": {
+      "description": "Label under the total time spent training."
+  },
+  "workoutThisWeek": "This week",
+  "@workoutThisWeek": {
+      "description": "Label under a count for the current week."
+  },
+  "workoutSessionCompleted": "Completed",
+  "@workoutSessionCompleted": {
+      "description": "A finished training session."
+  },
+  "workoutSessionInProgress": "In progress",
+  "@workoutSessionInProgress": {
+      "description": "A training session that is still running."
+  },
+  "workoutSessionNotCompleted": "Not completed",
+  "@workoutSessionNotCompleted": {
+      "description": "A training session that was left unfinished."
+  },
+  "workoutExerciseCount": "{count, plural, =1{1 exercise} other{{count} exercises}}",
+  "@workoutExerciseCount": {
+      "description": "How many exercises a logged session contained.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSetsOfTotal": "{done}/{total} sets",
+  "@workoutSetsOfTotal": {
+      "description": "How many of a session's sets were completed, e.g. \"12/15 sets\".",
+      "placeholders": {
+          "done": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutNoSessionsTitle": "No sessions logged yet.",
+  "@workoutNoSessionsTitle": {
+      "description": "Empty state title on the session history page."
+  },
+  "workoutNoSessionsBody": "Finish a workout and it shows up here.",
+  "@workoutNoSessionsBody": {
+      "description": "Empty state body on the session history page."
+  },
+  "workoutSessionsLoadError": "Couldn't load sessions.",
+  "@workoutSessionsLoadError": {
+      "description": "Shown when the session list fails to load."
+  },
+  "workoutNoCompletedWorkouts": "No completed workouts yet.",
+  "@workoutNoCompletedWorkouts": {
+      "description": "Sessions drill-down subtitle when nothing at all has been logged."
+  },
+  "workoutCompletedCount": "{count, plural, =1{1 completed workout} other{{count} completed workouts}}",
+  "@workoutCompletedCount": {
+      "description": "Sessions drill-down subtitle: how many workouts were finished.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutNoCompletedWithEntries": "{count, plural, =1{No completed workouts · 1 entry} other{No completed workouts · {count} entries}}",
+  "@workoutNoCompletedWithEntries": {
+      "description": "Sessions drill-down subtitle when there are only unfinished entries.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutCompletedAndNotCompleted": "{completed} · {notCompleted} not completed",
+  "@workoutCompletedAndNotCompleted": {
+      "description": "Sessions drill-down subtitle combining the completed count with the unfinished count.",
+      "placeholders": {
+          "completed": {
+              "type": "String"
+          },
+          "notCompleted": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionsEmpty": "Nothing here yet — finished workouts land here.",
+  "@workoutSessionsEmpty": {
+      "description": "Empty card on the Sessions drill-down."
+  },
+  "workoutSessionEndedEarly": "Ended early",
+  "@workoutSessionEndedEarly": {
+      "description": "A training session the user stopped before finishing."
+  },
+  "workoutSetsCaps": "{done}/{total} SETS",
+  "@workoutSetsCaps": {
+      "description": "Completed sets out of the session total, as a caps micro-label.",
+      "placeholders": {
+          "done": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDayStreak": "Day streak",
+  "@workoutDayStreak": {
+      "description": "The number of consecutive days trained."
+  },
+  "workoutNoActiveStreak": "No active streak — complete a workout to start one.",
+  "@workoutNoActiveStreak": {
+      "description": "Label under a zero day-streak."
+  },
+  "workoutStreakDays": "{count, plural, =1{day in your current streak} other{days in your current streak}}",
+  "@workoutStreakDays": {
+      "description": "Label under the current day-streak number.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutBestStreak": "best day streak ever",
+  "@workoutBestStreak": {
+      "description": "Label under the all-time best day streak."
+  },
+  "workoutStreakEmpty": "Train today and day one starts now.",
+  "@workoutStreakEmpty": {
+      "description": "Empty card on the Day streak drill-down."
+  },
+  "workoutSessionsCountCaps": "{count, plural, =1{1 SESSION} other{{count} SESSIONS}}",
+  "@workoutSessionsCountCaps": {
+      "description": "How many sessions a streak day contained, as a caps micro-label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionLength": "Session length",
+  "@workoutSessionLength": {
+      "description": "How long a training session lasts."
+  },
+  "workoutNoAverageYet": "Complete a workout to see your average.",
+  "@workoutNoAverageYet": {
+      "description": "Label under an unavailable average session length."
+  },
+  "workoutAverageSession": "average completed session",
+  "@workoutAverageSession": {
+      "description": "Label under the average session duration."
+  },
+  "workoutDurationsEmpty": "Durations appear once you finish workouts.",
+  "@workoutDurationsEmpty": {
+      "description": "Empty card on the Session length drill-down."
+  },
+  "workoutStartTimes": "Start times",
+  "@workoutStartTimes": {
+      "description": "When the user usually starts training."
+  },
+  "workoutNoStartTimeYet": "Complete a workout to see your usual start time.",
+  "@workoutNoStartTimeYet": {
+      "description": "Label under an unavailable usual start time."
+  },
+  "workoutUsualStartTime": "when you usually start training",
+  "@workoutUsualStartTime": {
+      "description": "Label under the average training start time."
+  },
+  "workoutStartTimesEmpty": "Your start times will show up here.",
+  "@workoutStartTimesEmpty": {
+      "description": "Empty card on the Start times drill-down."
+  },
+  "workoutToday": "Today",
+  "@workoutToday": {
+      "description": "Stands in for a date when that date is today."
+  },
+  "workoutAgo": "{value} ago",
+  "@workoutAgo": {
+      "description": "A relative time, e.g. \"3h ago\". {value} is an already-formatted span like \"3h\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutCurrentSplit": "Current split",
+  "@workoutCurrentSplit": {
+      "description": "Section label over the active training split."
+  },
+  "workoutRecentActivity": "Recent activity",
+  "@workoutRecentActivity": {
+      "description": "Section label over the most recent training sessions."
+  },
+  "workoutNoSessionYet": "You haven't logged a session yet.",
+  "@workoutNoSessionYet": {
+      "description": "Empty card under Recent activity."
+  },
+  "workoutGoDeeper": "Go deeper",
+  "@workoutGoDeeper": {
+      "description": "Section label over the links into the detailed analysis pages."
+  },
+  "workoutFullAnalysis": "Full analysis",
+  "@workoutFullAnalysis": {
+      "description": "Link into the full training analysis page."
+  },
+  "workoutFullAnalysisDetail": "Exercise-by-exercise, per training day",
+  "@workoutFullAnalysisDetail": {
+      "description": "Subtitle under the Full analysis link."
+  },
+  "workoutAllHistory": "All history",
+  "@workoutAllHistory": {
+      "description": "Link into the full session history page."
+  },
+  "workoutAllHistoryDetail": "Every session you have logged",
+  "@workoutAllHistoryDetail": {
+      "description": "Subtitle under the All history link."
+  },
+  "workoutSplitsDetail": "Switch or edit your training splits",
+  "@workoutSplitsDetail": {
+      "description": "Subtitle under the Splits link."
+  },
+  "workoutTotalSessions": "Total sessions",
+  "@workoutTotalSessions": {
+      "description": "Label under the all-time completed session count."
+  },
+  "workoutAvgLength": "Avg length",
+  "@workoutAvgLength": {
+      "description": "Label under the average session duration."
+  },
+  "workoutSeeFullAnalysisCaps": "SEE FULL ANALYSIS",
+  "@workoutSeeFullAnalysisCaps": {
+      "description": "Caps link out of the progress summary card into the analysis page."
+  },
+  "workoutSeeAllCaps": "SEE ALL",
+  "@workoutSeeAllCaps": {
+      "description": "Caps link out of a section into its full list."
+  },
+  "workoutPrCount": "{count, plural, =1{1 PR} other{{count} PRs}}",
+  "@workoutPrCount": {
+      "description": "How many personal records were set. \"PR\" is personal record.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionsCompletedCount": "{count, plural, =1{1 session completed} other{{count} sessions completed}}",
+  "@workoutSessionsCompletedCount": {
+      "description": "How many training sessions have been completed in total.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutPlanShort": "Plan",
+  "@workoutPlanShort": {
+      "description": "Compact pill linking to the training plan."
+  },
+  "workoutAgoWithDuration": "{value} ago · {duration}",
+  "@workoutAgoWithDuration": {
+      "description": "A finished session's relative time plus how long it ran, e.g. \"3h ago · 52m\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          },
+          "duration": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutRecentPrs": "Recent PRs",
+  "@workoutRecentPrs": {
+      "description": "Section label over recently set personal records."
+  },
+  "workoutGoingWell": "What's going well",
+  "@workoutGoingWell": {
+      "description": "Section label over the exercises that are progressing."
+  },
+  "workoutImprovingCount": "{count} improving",
+  "@workoutImprovingCount": {
+      "description": "Trailing count beside the \"going well\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutGettingWorse": "What's getting worse",
+  "@workoutGettingWorse": {
+      "description": "Section label over the exercises that are declining."
+  },
+  "workoutDecliningCount": "{count} declining",
+  "@workoutDecliningCount": {
+      "description": "Trailing count beside the \"getting worse\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutStalled": "Stalled — needs a change",
+  "@workoutStalled": {
+      "description": "Section label over the exercises that have plateaued."
+  },
+  "workoutFlatCount": "{count} flat",
+  "@workoutFlatCount": {
+      "description": "Trailing count beside the \"stalled\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutBeingSkipped": "What's being skipped",
+  "@workoutBeingSkipped": {
+      "description": "Section label over planned exercises that are not being trained."
+  },
+  "workoutSkippedOfPlanned": "{skipped} of {planned}",
+  "@workoutSkippedOfPlanned": {
+      "description": "Trailing count beside the \"being skipped\" section: how many planned exercises are neglected.",
+      "placeholders": {
+          "skipped": {
+              "type": "int"
+          },
+          "planned": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutFocusNext": "Focus next",
+  "@workoutFocusNext": {
+      "description": "Section label over the suggested next step."
+  },
+  "workoutTrainingVolume": "Training volume",
+  "@workoutTrainingVolume": {
+      "description": "Section label over the weekly working-set volume."
+  },
+  "workoutAllExercises": "All exercises",
+  "@workoutAllExercises": {
+      "description": "Section label over the full exercise list."
+  },
+  "workoutTapToDrillIn": "tap to drill in",
+  "@workoutTapToDrillIn": {
+      "description": "Hint beside the All exercises section."
+  },
+  "workoutOverallCaps": "OVERALL",
+  "@workoutOverallCaps": {
+      "description": "Caps label over the summary verdict card."
+  },
+  "workoutPrHeaviest": "Heaviest",
+  "@workoutPrHeaviest": {
+      "description": "A personal record for the heaviest weight lifted."
+  },
+  "workoutPrMostReps": "Most reps",
+  "@workoutPrMostReps": {
+      "description": "A personal record for the most repetitions performed."
+  },
+  "workoutPrBestStrength": "Best strength",
+  "@workoutPrBestStrength": {
+      "description": "A personal record for the best estimated one-rep max."
+  },
+  "workoutRepsOnly": "{reps} reps",
+  "@workoutRepsOnly": {
+      "description": "An unloaded set, described by its repetitions alone.",
+      "placeholders": {
+          "reps": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutWeightByReps": "{weight}kg × {reps}",
+  "@workoutWeightByReps": {
+      "description": "A loaded set, e.g. \"100kg × 8\".",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "reps": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutStatusWithStrength": "{status} · {change} strength",
+  "@workoutStatusWithStrength": {
+      "description": "A status word with its strength change, e.g. \"Progressing · +4% strength\".",
+      "placeholders": {
+          "status": {
+              "type": "String"
+          },
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNeverTrained": "Planned but never trained",
+  "@workoutNeverTrained": {
+      "description": "Why a planned exercise is flagged: it has never been performed."
+  },
+  "workoutStaleSince": "{days} days since last — on {day}",
+  "@workoutStaleSince": {
+      "description": "Why a planned exercise is flagged: it has not been trained recently.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNoPriorWeek": "No prior week to compare",
+  "@workoutNoPriorWeek": {
+      "description": "Shown when there is no previous week of volume to compare against."
+  },
+  "workoutVsLastWeek": "{change} vs last week",
+  "@workoutVsLastWeek": {
+      "description": "Volume change against the previous week, e.g. \"+12% vs last week\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSameAsLastWeek": "Same as last week",
+  "@workoutSameAsLastWeek": {
+      "description": "Shown when this week's volume matches last week's."
+  },
+  "workoutThisWeekWorkingSets": "This week · working sets only",
+  "@workoutThisWeekWorkingSets": {
+      "description": "Caption over the weekly volume number, noting warm-ups are excluded."
+  },
+  "workoutAnalysisEmptyTitle": "Complete a few sessions to start tracking progress.",
+  "@workoutAnalysisEmptyTitle": {
+      "description": "Empty state title on the analysis page."
+  },
+  "workoutAnalysisEmptyBody": "Once you've logged the same exercise a few times, ZIVO will show your strength trend, PRs, and what to focus on next.",
+  "@workoutAnalysisEmptyBody": {
+      "description": "Empty state body on the analysis page."
+  },
+  "workoutStrengthTrend": "Strength trend",
+  "@workoutStrengthTrend": {
+      "description": "Section label over the estimated-1RM chart for a loaded lift."
+  },
+  "workoutVolumeTrend": "Volume trend",
+  "@workoutVolumeTrend": {
+      "description": "Section label over the volume chart for an unloaded movement."
+  },
+  "workoutAtAGlance": "At a glance",
+  "@workoutAtAGlance": {
+      "description": "Section label over the summary metric tiles."
+  },
+  "workoutPersonalRecords": "Personal records",
+  "@workoutPersonalRecords": {
+      "description": "Section label over this exercise's personal records."
+  },
+  "workoutSessionHistory": "Session history",
+  "@workoutSessionHistory": {
+      "description": "Section label over the session-by-session timeline."
+  },
+  "workoutSessionsLogged": "{count} logged",
+  "@workoutSessionsLogged": {
+      "description": "Trailing count beside the Session history label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutEstStrengthChange": "{change} est. strength",
+  "@workoutEstStrengthChange": {
+      "description": "The change in estimated strength, e.g. \"+4% est. strength\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutEst1rmCaps": "EST. 1RM",
+  "@workoutEst1rmCaps": {
+      "description": "Caps micro-label under the current estimated one-rep max. \"1RM\" is one-rep max."
+  },
+  "workoutWhatHappenedCaps": "WHAT HAPPENED",
+  "@workoutWhatHappenedCaps": {
+      "description": "Caps marker over the coaching insight's first line."
+  },
+  "workoutWhyItMattersCaps": "WHY IT MATTERS",
+  "@workoutWhyItMattersCaps": {
+      "description": "Caps marker over the coaching insight's second line."
+  },
+  "workoutDoThisCaps": "DO THIS",
+  "@workoutDoThisCaps": {
+      "description": "Caps marker over the coaching insight's recommended action."
+  },
+  "workoutEst1rmUnitCaps": "EST. 1RM (KG)",
+  "@workoutEst1rmUnitCaps": {
+      "description": "Caps axis label on the strength chart."
+  },
+  "workoutVolumeUnitCaps": "VOLUME (KG)",
+  "@workoutVolumeUnitCaps": {
+      "description": "Caps axis label on the volume chart."
+  },
+  "workoutOldest": "Oldest",
+  "@workoutOldest": {
+      "description": "Left end of a chart's time axis."
+  },
+  "workoutLatest": "Latest",
+  "@workoutLatest": {
+      "description": "Right end of a chart's time axis."
+  },
+  "workoutBestEst1rm": "Best est. 1RM",
+  "@workoutBestEst1rm": {
+      "description": "Metric tile: the highest estimated one-rep max reached."
+  },
+  "workoutTotalVolume": "Total volume",
+  "@workoutTotalVolume": {
+      "description": "Metric tile: total working volume for this exercise."
+  },
+  "workoutFrequency": "Frequency",
+  "@workoutFrequency": {
+      "description": "Metric tile: how often this exercise is trained."
+  },
+  "workoutPerWeek": "/wk",
+  "@workoutPerWeek": {
+      "description": "Unit beside a per-week frequency."
+  },
+  "workoutLastTrained": "Last trained",
+  "@workoutLastTrained": {
+      "description": "Metric tile: when this exercise was last performed."
+  },
+  "workoutDaysAgo": "days ago",
+  "@workoutDaysAgo": {
+      "description": "Unit beside a number of days since the exercise was last trained."
+  },
+  "workoutPrHeaviestLoad": "Heaviest load",
+  "@workoutPrHeaviestLoad": {
+      "description": "Personal record row: the heaviest weight lifted."
+  },
+  "workoutKgValue": "{value}kg",
+  "@workoutKgValue": {
+      "description": "A weight in kilograms, e.g. \"100kg\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSessionNumberCaps": "SESSION {index}",
+  "@workoutSessionNumberCaps": {
+      "description": "Caps ordinal over one session in the timeline.",
+      "placeholders": {
+          "index": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSetsShort": "Sets",
+  "@workoutSetsShort": {
+      "description": "Micro-label under a count of working sets."
+  },
+  "workoutTopSet": "Top set",
+  "@workoutTopSet": {
+      "description": "Micro-label under the heaviest set of a session."
+  },
+  "workoutVolumeShort": "Volume",
+  "@workoutVolumeShort": {
+      "description": "Micro-label under a session's total volume."
+  },
+  "workoutEst1rmShort": "Est 1RM",
+  "@workoutEst1rmShort": {
+      "description": "Micro-label under a session's best estimated one-rep max."
+  },
+  "workoutVsPreviousSessionCaps": "VS PREVIOUS SESSION",
+  "@workoutVsPreviousSessionCaps": {
+      "description": "Caps label over the deltas against the previous session."
+  },
+  "workoutSetDropsetShort": "D",
+  "@workoutSetDropsetShort": {
+      "description": "One-letter marker on a drop set. Kept latin in both languages, as a symbol."
+  },
+  "workoutSetFailureShort": "F",
+  "@workoutSetFailureShort": {
+      "description": "One-letter marker on a set taken to failure. Kept latin in both languages, as a symbol."
+  },
+  "workoutPbCaps": "PB",
+  "@workoutPbCaps": {
+      "description": "Badge on a session that set a personal best."
+  },
+  "workoutExerciseEmptyTitle": "No completed sessions with this exercise yet.",
+  "@workoutExerciseEmptyTitle": {
+      "description": "Empty state title on the per-exercise analysis page."
+  },
+  "workoutExerciseEmptyBody": "Log it in a session and its full history, trend, and session-to-session comparison will appear here.",
+  "@workoutExerciseEmptyBody": {
+      "description": "Empty state body on the per-exercise analysis page."
+  },
+  "workoutNewPb": "New PB",
+  "@workoutNewPb": {
+      "description": "Delta chip: this session set a new personal best."
+  },
+  "workoutDeltaE1rm": "e1RM {change}",
+  "@workoutDeltaE1rm": {
+      "description": "Delta chip: how estimated strength moved, e.g. \"e1RM +4%\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaLoad": "Load {change}",
+  "@workoutDeltaLoad": {
+      "description": "Delta chip: how the working load moved, e.g. \"Load +2.5kg\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaReps": "Reps {change}",
+  "@workoutDeltaReps": {
+      "description": "Delta chip: how the top-set reps moved, e.g. \"Reps +2\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaVolume": "Volume {change}",
+  "@workoutDeltaVolume": {
+      "description": "Delta chip: how session volume moved, e.g. \"Volume +8%\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNoMeaningfulChange": "No meaningful change",
+  "@workoutNoMeaningfulChange": {
+      "description": "Delta chip: this session matched the previous one."
+  },
+  "workoutDurationHm": "{hours}h {minutes}m",
+  "@workoutDurationHm": {
+      "description": "A duration over an hour, e.g. \"1h 12m\". Abbreviations: h = hours, m = minutes.",
+      "placeholders": {
+          "hours": {
+              "type": "int"
+          },
+          "minutes": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDurationM": "{minutes}m",
+  "@workoutDurationM": {
+      "description": "A duration under an hour, e.g. \"52m\". Abbreviation: m = minutes.",
+      "placeholders": {
+          "minutes": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDurationH": "{hours}h",
+  "@workoutDurationH": {
+      "description": "A duration in hours with a decimal, e.g. \"3.5h\". Abbreviation: h = hours.",
+      "placeholders": {
+          "hours": {
+              "type": "String"
+          }
+      }
   }
 }

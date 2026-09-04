@@ -11,6 +11,8 @@ import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../pages/session_details_page.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
+import '../workout_format.dart';
 
 /// The drill-down pages behind the Workout dashboard's "This week" tiles.
 /// One file because they are one idea — each tile's number, opened up into
@@ -166,14 +168,14 @@ class WorkoutSessionsPage extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return StatDrillDownScaffold(
-            title: 'Sessions',
+            title: l(context).workoutSessionsLabel,
             children: [
-              const SizedBox(
+              SizedBox(
                 height: 200,
                 child: Center(
                   child: Text(
-                    "Couldn't load sessions.",
-                    style: TextStyle(color: TrainColors.ink4),
+                    l(context).workoutSessionsLoadError,
+                    style: const TextStyle(color: TrainColors.ink4),
                   ),
                 ),
               ),
@@ -191,25 +193,22 @@ class WorkoutSessionsPage extends StatelessWidget {
         // read as if the page were dropping workouts when the counts and
         // rows didn't line up.
         final subtitle = switch ((completedCount, unfinishedCount)) {
-          (0, 0) => 'No completed workouts yet.',
-          (_, 0) =>
-            '$completedCount completed ${completedCount == 1 ? 'workout' : 'workouts'}',
-          (0, _) =>
-            'No completed workouts · $unfinishedCount '
-                '${unfinishedCount == 1 ? 'entry' : 'entries'}',
-          (_, _) =>
-            '$completedCount completed '
-                '${completedCount == 1 ? 'workout' : 'workouts'} · '
-                '$unfinishedCount not completed',
+          (0, 0) => l(context).workoutNoCompletedWorkouts,
+          (_, 0) => l(context).workoutCompletedCount(completedCount),
+          (0, _) => l(context).workoutNoCompletedWithEntries(unfinishedCount),
+          (_, _) => l(context).workoutCompletedAndNotCompleted(
+            l(context).workoutCompletedCount(completedCount),
+            unfinishedCount,
+          ),
         };
         return StatDrillDownScaffold(
-          title: 'Sessions',
+          title: l(context).workoutSessionsLabel,
           subtitle: subtitle,
           children: [
             if (sessions.isEmpty)
-              const _EmptyCard(
+              _EmptyCard(
                 icon: Icons.event_busy_rounded,
-                text: 'Nothing here yet — finished workouts land here.',
+                text: l(context).workoutSessionsEmpty,
               )
             else
               for (final (i, session) in sessions.indexed)
@@ -235,9 +234,18 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusLabel, statusColor) = switch (session.status) {
-      SessionStatus.completed => ('Completed', TrainColors.green),
-      SessionStatus.active => ('In progress', TrainColors.ember),
-      SessionStatus.abandoned => ('Ended early', TrainColors.ink4),
+      SessionStatus.completed => (
+        l(context).workoutSessionCompleted,
+        TrainColors.green,
+      ),
+      SessionStatus.active => (
+        l(context).workoutSessionInProgress,
+        TrainColors.ember,
+      ),
+      SessionStatus.abandoned => (
+        l(context).workoutSessionEndedEarly,
+        TrainColors.ink4,
+      ),
     };
     // An active session's `elapsed` is ~0 (completedAt is null, so it
     // measures start→start minus pauses) and renders as "0m"/"-1m" — the
@@ -310,8 +318,8 @@ class _SessionRow extends StatelessWidget {
                       Text(
                         '${formatMonthDay(context, session.startedAt)} · '
                         '${formatClockTime(context, session.startedAt)} · '
-                        '${_durationLabel(duration)} · '
-                        '${session.completedSetCount}/${session.totalSets} SETS',
+                        '${formatDurationShort(context, duration)} · '
+                        '${l(context).workoutSetsCaps(session.completedSetCount, session.totalSets)}',
                         style: TrainType.mono(
                           size: 9.5,
                           tracking: 0.08,
@@ -338,14 +346,6 @@ class _SessionRow extends StatelessWidget {
   }
 }
 
-String _durationLabel(Duration d) {
-  final totalMinutes = d.inMinutes;
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours > 0) return '${hours}h ${minutes}m';
-  return '${minutes}m';
-}
-
 // ---- Day streak -------------------------------------------------------------
 
 /// The Day Streak tile's page: the current streak's headline, which exact
@@ -369,21 +369,19 @@ class WorkoutStreakPage extends StatelessWidget {
         );
         final best = bestStreakDays(sessions: sessions);
         return StatDrillDownScaffold(
-          title: 'Day streak',
+          title: l(context).workoutDayStreak,
           children: [
             StatHeroValue(
               value: '${streakDays.length}',
               label: streakDays.isEmpty
-                  ? 'No active streak — complete a workout to start one.'
-                  : streakDays.length == 1
-                  ? 'day in your current streak'
-                  : 'days in your current streak',
+                  ? l(context).workoutNoActiveStreak
+                  : l(context).workoutStreakDays(streakDays.length),
               accent: TrainColors.green,
             ),
             const SizedBox(height: 10),
             StatHeroValue(
               value: '$best',
-              label: best == 1 ? 'best day streak' : 'best day streak ever',
+              label: l(context).workoutBestStreak,
               accent: TrainColors.green,
             ),
             const SizedBox(height: 18),
@@ -397,9 +395,9 @@ class WorkoutStreakPage extends StatelessWidget {
                   ),
                 )
             else
-              const _EmptyCard(
+              _EmptyCard(
                 icon: Icons.local_fire_department_rounded,
-                text: 'Train today and day one starts now.',
+                text: l(context).workoutStreakEmpty,
               ),
           ],
         );
@@ -451,7 +449,9 @@ class _StreakDayRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isToday ? 'Today' : formatMonthDay(context, day),
+                  isToday
+                      ? l(context).workoutToday
+                      : formatMonthDay(context, day),
                   style: TrainType.ui(
                     size: 14,
                     weight: FontWeight.w700,
@@ -476,7 +476,7 @@ class _StreakDayRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${trained.length} ${trained.length == 1 ? 'SESSION' : 'SESSIONS'}',
+            l(context).workoutSessionsCountCaps(trained.length),
             style: TrainType.caption(
               size: 9,
               tracking: 0.12,
@@ -511,13 +511,13 @@ class WorkoutDurationStatsPage extends StatelessWidget {
           now: DateTime.now(),
         ).averageSessionDuration;
         return StatDrillDownScaffold(
-          title: 'Session length',
+          title: l(context).workoutSessionLength,
           children: [
             StatHeroValue(
-              value: avg == null ? '—' : _durationLabel(avg),
+              value: avg == null ? '—' : formatDurationShort(context, avg),
               label: avg == null
-                  ? 'Complete a workout to see your average.'
-                  : 'average completed session',
+                  ? l(context).workoutNoAverageYet
+                  : l(context).workoutAverageSession,
               accent: TrainColors.green,
             ),
             if (durations.isNotEmpty) ...[
@@ -526,7 +526,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                 children: [
                   Expanded(
                     child: StatHeroValue(
-                      value: _durationLabel(durations.first),
+                      value: formatDurationShort(context, durations.first),
                       label: 'shortest',
                       accent: TrainColors.green,
                     ),
@@ -534,7 +534,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: StatHeroValue(
-                      value: _durationLabel(durations.last),
+                      value: formatDurationShort(context, durations.last),
                       label: 'longest',
                       accent: TrainColors.green,
                     ),
@@ -544,9 +544,9 @@ class WorkoutDurationStatsPage extends StatelessWidget {
             ],
             const SizedBox(height: 18),
             if (completed.isEmpty)
-              const _EmptyCard(
+              _EmptyCard(
                 icon: Icons.timer_outlined,
-                text: 'Durations appear once you finish workouts.',
+                text: l(context).workoutDurationsEmpty,
               )
             else
               for (final (i, session) in completed.indexed)
@@ -557,8 +557,9 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: _MetricRow(
                       title: session.dayLabel,
                       subtitle:
-                          '${formatMonthDay(context, session.startedAt)} · ${timeAgo(session.startedAt, DateTime.now())} ago',
-                      trailing: _durationLabel(session.elapsed),
+                          '${formatMonthDay(context, session.startedAt)} · '
+                          '${l(context).workoutAgo(timeAgo(session.startedAt, DateTime.now()))}',
+                      trailing: formatDurationShort(context, session.elapsed),
                       accent: TrainColors.green,
                     ),
                   ),
@@ -589,22 +590,22 @@ class WorkoutStartTimesPage extends StatelessWidget {
         final completed = _completed(snapshot.data);
         final avgStart = stats.averageStartMinutesSinceMidnight;
         return StatDrillDownScaffold(
-          title: 'Start times',
+          title: l(context).workoutStartTimes,
           children: [
             StatHeroValue(
               value: avgStart == null
                   ? '—'
                   : formatMinutesSinceMidnight(context, avgStart.round()),
               label: avgStart == null
-                  ? 'Complete a workout to see your usual start time.'
-                  : 'when you usually start training',
+                  ? l(context).workoutNoStartTimeYet
+                  : l(context).workoutUsualStartTime,
               accent: TrainColors.green,
             ),
             const SizedBox(height: 18),
             if (completed.isEmpty)
-              const _EmptyCard(
+              _EmptyCard(
                 icon: Icons.schedule_rounded,
-                text: 'Your start times will show up here.',
+                text: l(context).workoutStartTimesEmpty,
               )
             else
               for (final (i, session) in completed.indexed)

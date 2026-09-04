@@ -73,6 +73,47 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The workout progress/analysis stack is localized** (2026-09-04, on
+  `core-edits`). The second landed piece of the l10n push, and the debt
+  STATE.md had been carrying since the drill-down shipped ("Analysis strings
+  stay hardcoded English"). This was the app's newest and most
+  product-differentiating surface, and an Arabic reader got an entirely
+  English screen on it.
+  - **143 new keys** in both `app_en.arb` and `app_ar.arb` (368 → **507**),
+    `l10n-untranslated.txt` still `{}`. Eight files: `workout_progress_page` ·
+    `workout_analysis_page` · `exercise_analysis_page` · `workout_history_page` ·
+    `bodyweight_history_page` · `workout_stats_pages` ·
+    `progress_status_style` · `verdict_style`.
+  - **The shared progression vocabulary went first**, because everything else
+    reads through it. `progressStatusStyle` / `trendToneStyle` /
+    `verdictStyle` now take a `BuildContext`, and `verdictStyle` reuses the
+    *same three keys* as the other two — so a set-level badge and an
+    exercise-level badge can no longer disagree about what "Down" is called.
+  - **Plurals are real ICU plurals**, not `count == 1 ? '' : 's'`. Arabic gets
+    its own `zero`/`one`/`two`/`few`/`many`/`other` forms where the count is
+    visible copy (exercises, sessions, PRs, streak days).
+  - **One more duplicated formatter died.** `formatDurationShort` lived on
+    `workout_dashboard_page.dart` (three pages imported a *page* to borrow it)
+    and was **also** copied verbatim into `workout_stats_pages.dart` as a
+    private `_durationLabel`. Both are gone; it now lives in
+    `workout/presentation/workout_format.dart` beside `trimWeight`, and its
+    `h`/`m` abbreviations come from the `.arb` too.
+  - Also localized `ErrorStateView`'s default in `core/widgets/` — it hardcoded
+    the same "Couldn't load this." those pages did; the new `errorCouldntLoad`
+    key now serves both.
+  - **New `test/workout/progress_stack_l10n_test.dart`** pumps each surface
+    under `Locale('ar')` and asserts **no** English survives, plus an
+    exhaustive sweep over every `ProgressStatus`/`ExerciseTrendTone` (a new
+    enum value that forgets its key fails here rather than silently shipping
+    English). `wrapWithScope` gained an optional `locale:` that installs the
+    real delegates — null by default, so the ~120 existing widget tests are
+    untouched.
+  - Gates green: `flutter analyze` clean, **1133** tests passing (+6).
+  - **Still open:** ~268 user-facing literals across 59 presentation files
+    (Ask widgets ~42, `profile_page` 17, diet, expenses, auth). And the
+    `domain/analytics/` engines still generate English coaching prose — see the
+    entry below for why that one needs an owner decision, not a `.arb` key.
+
 - **One locale-aware date formatter — Arabic dates now actually render in
   Arabic** (2026-09-04, on `core-edits`). The first landed piece of the l10n
   push. Thirteen files had grown their own private copy of the same tables:

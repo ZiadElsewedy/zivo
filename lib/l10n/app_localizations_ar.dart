@@ -1212,4 +1212,562 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get musicDisconnect => 'فصل Spotify';
+
+  @override
+  String get errorCouldntLoad => 'تعذّر تحميل هذا.';
+
+  @override
+  String get workoutStatusProgressing => 'يتقدّم';
+
+  @override
+  String get workoutStatusHolding => 'ثابت';
+
+  @override
+  String get workoutStatusPlateaued => 'متوقّف';
+
+  @override
+  String get workoutStatusTrendingDown => 'في تراجع';
+
+  @override
+  String get workoutStatusBuilding => 'قيد التكوين';
+
+  @override
+  String get workoutToneImproved => 'تحسّنت';
+
+  @override
+  String get workoutToneMatched => 'مماثلة';
+
+  @override
+  String get workoutToneMixed => 'متفاوتة';
+
+  @override
+  String get workoutToneDown => 'أقل';
+
+  @override
+  String get workoutBodyweightLoadError => 'تعذّر تحميل القياسات.';
+
+  @override
+  String workoutWeighInsLogged(int count) {
+    return '$count قياس مسجّل';
+  }
+
+  @override
+  String get workoutUnitKg => 'كجم';
+
+  @override
+  String workoutBodyweightChange30d(String change) {
+    return '$change كجم · ٣٠ يوم';
+  }
+
+  @override
+  String get workoutBodyweightEmpty => 'سجّل أول قياس لك لتبدأ متابعة التغيّر.';
+
+  @override
+  String get workoutThisWeekCaps => 'هذا الأسبوع';
+
+  @override
+  String get workoutLastWeekCaps => 'الأسبوع الماضي';
+
+  @override
+  String get workoutSessionsLabel => 'الجلسات';
+
+  @override
+  String get workoutTrained => 'وقت التدريب';
+
+  @override
+  String get workoutThisWeek => 'هذا الأسبوع';
+
+  @override
+  String get workoutSessionCompleted => 'مكتملة';
+
+  @override
+  String get workoutSessionInProgress => 'قيد التنفيذ';
+
+  @override
+  String get workoutSessionNotCompleted => 'غير مكتملة';
+
+  @override
+  String workoutExerciseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين',
+      many: '$count تمرينًا',
+      few: '$count تمارين',
+      two: 'تمرينان',
+      one: 'تمرين واحد',
+      zero: 'لا تمارين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutSetsOfTotal(int done, int total) {
+    return '$done/$total مجموعات';
+  }
+
+  @override
+  String get workoutNoSessionsTitle => 'لا توجد جلسات مسجّلة بعد.';
+
+  @override
+  String get workoutNoSessionsBody => 'أنهِ تمرينًا وسيظهر هنا.';
+
+  @override
+  String get workoutSessionsLoadError => 'تعذّر تحميل الجلسات.';
+
+  @override
+  String get workoutNoCompletedWorkouts => 'لا توجد تمارين مكتملة بعد.';
+
+  @override
+  String workoutCompletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين مكتمل',
+      many: '$count تمرينًا مكتملًا',
+      few: '$count تمارين مكتملة',
+      two: 'تمرينان مكتملان',
+      one: 'تمرين مكتمل واحد',
+      zero: 'لا تمارين مكتملة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutNoCompletedWithEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'لا تمارين مكتملة · $count مدخل',
+      many: 'لا تمارين مكتملة · $count مدخلًا',
+      few: 'لا تمارين مكتملة · $count مدخلات',
+      two: 'لا تمارين مكتملة · مدخلان',
+      one: 'لا تمارين مكتملة · مدخل واحد',
+      zero: 'لا تمارين مكتملة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutCompletedAndNotCompleted(String completed, int notCompleted) {
+    return '$completed · $notCompleted غير مكتملة';
+  }
+
+  @override
+  String get workoutSessionsEmpty =>
+      'لا شيء هنا بعد — التمارين المنتهية تظهر هنا.';
+
+  @override
+  String get workoutSessionEndedEarly => 'انتهت مبكرًا';
+
+  @override
+  String workoutSetsCaps(int done, int total) {
+    return '$done/$total مجموعات';
+  }
+
+  @override
+  String get workoutDayStreak => 'أيام متتالية';
+
+  @override
+  String get workoutNoActiveStreak =>
+      'لا سلسلة نشطة — أكمل تمرينًا لتبدأ واحدة.';
+
+  @override
+  String workoutStreakDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'أيام في سلسلتك الحالية',
+      two: 'يومان في سلسلتك الحالية',
+      one: 'يوم في سلسلتك الحالية',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutBestStreak => 'أطول سلسلة أيام';
+
+  @override
+  String get workoutStreakEmpty => 'تدرّب اليوم وتبدأ السلسلة من الآن.';
+
+  @override
+  String workoutSessionsCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count جلسة',
+      many: '$count جلسة',
+      few: '$count جلسات',
+      two: 'جلستان',
+      one: 'جلسة واحدة',
+      zero: 'لا جلسات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutSessionLength => 'مدة الجلسة';
+
+  @override
+  String get workoutNoAverageYet => 'أكمل تمرينًا لترى متوسطك.';
+
+  @override
+  String get workoutAverageSession => 'متوسط الجلسة المكتملة';
+
+  @override
+  String get workoutDurationsEmpty => 'تظهر المدد بعد أن تنهي تمارين.';
+
+  @override
+  String get workoutStartTimes => 'أوقات البدء';
+
+  @override
+  String get workoutNoStartTimeYet => 'أكمل تمرينًا لترى وقت بدئك المعتاد.';
+
+  @override
+  String get workoutUsualStartTime => 'وقت بدئك المعتاد للتدريب';
+
+  @override
+  String get workoutStartTimesEmpty => 'ستظهر أوقات بدئك هنا.';
+
+  @override
+  String get workoutToday => 'اليوم';
+
+  @override
+  String workoutAgo(String value) {
+    return 'منذ $value';
+  }
+
+  @override
+  String get workoutCurrentSplit => 'الجدول الحالي';
+
+  @override
+  String get workoutRecentActivity => 'النشاط الأخير';
+
+  @override
+  String get workoutNoSessionYet => 'لم تسجّل أي جلسة بعد.';
+
+  @override
+  String get workoutGoDeeper => 'تعمّق أكثر';
+
+  @override
+  String get workoutFullAnalysis => 'التحليل الكامل';
+
+  @override
+  String get workoutFullAnalysisDetail => 'تمرينًا بتمرين، لكل يوم تدريب';
+
+  @override
+  String get workoutAllHistory => 'كل السجل';
+
+  @override
+  String get workoutAllHistoryDetail => 'كل جلسة سجّلتها';
+
+  @override
+  String get workoutSplitsDetail => 'بدّل جداول تدريبك أو عدّلها';
+
+  @override
+  String get workoutTotalSessions => 'إجمالي الجلسات';
+
+  @override
+  String get workoutAvgLength => 'متوسط المدة';
+
+  @override
+  String get workoutSeeFullAnalysisCaps => 'عرض التحليل الكامل';
+
+  @override
+  String get workoutSeeAllCaps => 'عرض الكل';
+
+  @override
+  String workoutPrCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count رقم قياسي',
+      many: '$count رقمًا قياسيًا',
+      few: '$count أرقام قياسية',
+      two: 'رقمان قياسيان',
+      one: 'رقم قياسي',
+      zero: 'لا أرقام قياسية',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutSessionsCompletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count جلسة مكتملة',
+      many: '$count جلسة مكتملة',
+      few: '$count جلسات مكتملة',
+      two: 'جلستان مكتملتان',
+      one: 'جلسة واحدة مكتملة',
+      zero: 'لا جلسات مكتملة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutPlanShort => 'الخطة';
+
+  @override
+  String workoutAgoWithDuration(String value, String duration) {
+    return 'منذ $value · $duration';
+  }
+
+  @override
+  String get workoutRecentPrs => 'أرقام قياسية حديثة';
+
+  @override
+  String get workoutGoingWell => 'ما يسير على ما يرام';
+
+  @override
+  String workoutImprovingCount(int count) {
+    return '$count في تحسّن';
+  }
+
+  @override
+  String get workoutGettingWorse => 'ما يتراجع';
+
+  @override
+  String workoutDecliningCount(int count) {
+    return '$count في تراجع';
+  }
+
+  @override
+  String get workoutStalled => 'متوقّف — يحتاج تغييرًا';
+
+  @override
+  String workoutFlatCount(int count) {
+    return '$count ثابت';
+  }
+
+  @override
+  String get workoutBeingSkipped => 'ما يتم تخطّيه';
+
+  @override
+  String workoutSkippedOfPlanned(int skipped, int planned) {
+    return '$skipped من $planned';
+  }
+
+  @override
+  String get workoutFocusNext => 'ركّز على التالي';
+
+  @override
+  String get workoutTrainingVolume => 'حجم التدريب';
+
+  @override
+  String get workoutAllExercises => 'كل التمارين';
+
+  @override
+  String get workoutTapToDrillIn => 'اضغط للتفاصيل';
+
+  @override
+  String get workoutOverallCaps => 'الإجمالي';
+
+  @override
+  String get workoutPrHeaviest => 'الأثقل';
+
+  @override
+  String get workoutPrMostReps => 'أكثر تكرارات';
+
+  @override
+  String get workoutPrBestStrength => 'أفضل قوة';
+
+  @override
+  String workoutRepsOnly(int reps) {
+    return '$reps تكرار';
+  }
+
+  @override
+  String workoutWeightByReps(String weight, int reps) {
+    return '$weight كجم × $reps';
+  }
+
+  @override
+  String workoutStatusWithStrength(String status, String change) {
+    return '$status · $change قوة';
+  }
+
+  @override
+  String get workoutNeverTrained => 'مخطّط لكن لم يُدرَّب أبدًا';
+
+  @override
+  String workoutStaleSince(int days, String day) {
+    return '$days يومًا منذ آخر مرة — في $day';
+  }
+
+  @override
+  String get workoutNoPriorWeek => 'لا يوجد أسبوع سابق للمقارنة';
+
+  @override
+  String workoutVsLastWeek(String change) {
+    return '$change مقارنة بالأسبوع الماضي';
+  }
+
+  @override
+  String get workoutSameAsLastWeek => 'كما الأسبوع الماضي';
+
+  @override
+  String get workoutThisWeekWorkingSets =>
+      'هذا الأسبوع · المجموعات الفعّالة فقط';
+
+  @override
+  String get workoutAnalysisEmptyTitle => 'أكمل بضع جلسات لتبدأ متابعة تقدّمك.';
+
+  @override
+  String get workoutAnalysisEmptyBody =>
+      'بعد أن تسجّل التمرين نفسه بضع مرات، سيعرض ZIVO تطوّر قوتك وأرقامك القياسية وما يجب التركيز عليه.';
+
+  @override
+  String get workoutStrengthTrend => 'تطوّر القوة';
+
+  @override
+  String get workoutVolumeTrend => 'تطوّر الحجم';
+
+  @override
+  String get workoutAtAGlance => 'نظرة سريعة';
+
+  @override
+  String get workoutPersonalRecords => 'الأرقام القياسية';
+
+  @override
+  String get workoutSessionHistory => 'سجل الجلسات';
+
+  @override
+  String workoutSessionsLogged(int count) {
+    return '$count مسجّلة';
+  }
+
+  @override
+  String workoutEstStrengthChange(String change) {
+    return '$change قوة تقديرية';
+  }
+
+  @override
+  String get workoutEst1rmCaps => 'أقصى تكرار تقديري';
+
+  @override
+  String get workoutWhatHappenedCaps => 'ما الذي حدث';
+
+  @override
+  String get workoutWhyItMattersCaps => 'لماذا يهم';
+
+  @override
+  String get workoutDoThisCaps => 'افعل هذا';
+
+  @override
+  String get workoutEst1rmUnitCaps => 'أقصى تكرار تقديري (كجم)';
+
+  @override
+  String get workoutVolumeUnitCaps => 'الحجم (كجم)';
+
+  @override
+  String get workoutOldest => 'الأقدم';
+
+  @override
+  String get workoutLatest => 'الأحدث';
+
+  @override
+  String get workoutBestEst1rm => 'أفضل أقصى تكرار تقديري';
+
+  @override
+  String get workoutTotalVolume => 'إجمالي الحجم';
+
+  @override
+  String get workoutFrequency => 'التكرار';
+
+  @override
+  String get workoutPerWeek => '/أسبوع';
+
+  @override
+  String get workoutLastTrained => 'آخر تدريب';
+
+  @override
+  String get workoutDaysAgo => 'يومًا مضت';
+
+  @override
+  String get workoutPrHeaviestLoad => 'أثقل حمل';
+
+  @override
+  String workoutKgValue(String value) {
+    return '$value كجم';
+  }
+
+  @override
+  String workoutSessionNumberCaps(int index) {
+    return 'الجلسة $index';
+  }
+
+  @override
+  String get workoutSetsShort => 'المجموعات';
+
+  @override
+  String get workoutTopSet => 'أفضل مجموعة';
+
+  @override
+  String get workoutVolumeShort => 'الحجم';
+
+  @override
+  String get workoutEst1rmShort => 'أقصى تكرار تقديري';
+
+  @override
+  String get workoutVsPreviousSessionCaps => 'مقارنة بالجلسة السابقة';
+
+  @override
+  String get workoutSetDropsetShort => 'D';
+
+  @override
+  String get workoutSetFailureShort => 'F';
+
+  @override
+  String get workoutPbCaps => 'رقم قياسي';
+
+  @override
+  String get workoutExerciseEmptyTitle =>
+      'لا توجد جلسات مكتملة بهذا التمرين بعد.';
+
+  @override
+  String get workoutExerciseEmptyBody =>
+      'سجّله في جلسة وسيظهر هنا سجلّه الكامل وتطوّره ومقارنة كل جلسة بالتي قبلها.';
+
+  @override
+  String get workoutNewPb => 'رقم قياسي جديد';
+
+  @override
+  String workoutDeltaE1rm(String change) {
+    return 'أقصى تكرار تقديري $change';
+  }
+
+  @override
+  String workoutDeltaLoad(String change) {
+    return 'الحمل $change';
+  }
+
+  @override
+  String workoutDeltaReps(String change) {
+    return 'التكرارات $change';
+  }
+
+  @override
+  String workoutDeltaVolume(String change) {
+    return 'الحجم $change';
+  }
+
+  @override
+  String get workoutNoMeaningfulChange => 'لا تغيّر يُذكر';
+
+  @override
+  String workoutDurationHm(int hours, int minutes) {
+    return '$hoursس $minutesد';
+  }
+
+  @override
+  String workoutDurationM(int minutes) {
+    return '$minutesد';
+  }
+
+  @override
+  String workoutDurationH(String hours) {
+    return '$hoursس';
+  }
 }

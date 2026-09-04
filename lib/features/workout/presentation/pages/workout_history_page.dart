@@ -13,7 +13,8 @@ import '../../domain/session_status.dart';
 import '../../domain/workout_session_repository.dart';
 import 'session_details_page.dart';
 import '../../../../core/util/date_format.dart';
-import 'workout_dashboard_page.dart' show formatDurationShort;
+import '../../../../l10n/l10n.dart';
+import '../workout_format.dart';
 
 /// Every logged training session, newest first, grouped into weeks — the
 /// same [LiveSession] model the Workout Dashboard's "Recent activity" and
@@ -38,9 +39,11 @@ class WorkoutHistoryPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(22, 12, 22, 0),
-            child: RiseIn(child: TrainPageHeader(title: 'History')),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+            child: RiseIn(
+              child: TrainPageHeader(title: l(context).workoutHistory),
+            ),
           ),
           Expanded(child: _body(sessions)),
         ],
@@ -160,9 +163,9 @@ class _WeekGroup {
   /// anything further back — so no stretch of history is ever lumped into
   /// an anonymous bucket.
   String label(BuildContext context, DateTime currentWeekStart) {
-    if (weekStart == currentWeekStart) return 'THIS WEEK';
+    if (weekStart == currentWeekStart) return l(context).workoutThisWeekCaps;
     if (weekStart == currentWeekStart.subtract(const Duration(days: 7))) {
-      return 'LAST WEEK';
+      return l(context).workoutLastWeekCaps;
     }
     String part(DateTime d) => formatMonthDayCaps(context, d);
     return '${part(weekStart)} – ${part(weekEnd)}';
@@ -216,7 +219,7 @@ class _SummaryStrip extends StatelessWidget {
               icon: AppIcons.sessions,
               accent: TrainColors.green,
               value: '$totalSessions',
-              label: 'Sessions',
+              label: l(context).workoutSessionsLabel,
             ),
           ),
           const _SummaryDivider(),
@@ -225,9 +228,9 @@ class _SummaryStrip extends StatelessWidget {
               icon: AppIcons.timer,
               accent: TrainColors.green,
               value: totalHours < 1
-                  ? '${totalMinutesLabel(totalHours)}m'
-                  : '${totalHours.toStringAsFixed(1)}h',
-              label: 'Trained',
+                  ? l(context).workoutDurationM(totalMinutesLabel(totalHours))
+                  : l(context).workoutDurationH(totalHours.toStringAsFixed(1)),
+              label: l(context).workoutTrained,
             ),
           ),
           const _SummaryDivider(),
@@ -236,7 +239,7 @@ class _SummaryStrip extends StatelessWidget {
               icon: AppIcons.streak,
               accent: TrainColors.green,
               value: '$thisWeek',
-              label: 'This week',
+              label: l(context).workoutThisWeek,
             ),
           ),
         ],
@@ -332,9 +335,18 @@ class _SessionHistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', TrainColors.green),
-      SessionStatus.active => ('In progress', TrainColors.amber),
-      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
+      SessionStatus.completed => (
+        l(context).workoutSessionCompleted,
+        TrainColors.green,
+      ),
+      SessionStatus.active => (
+        l(context).workoutSessionInProgress,
+        TrainColors.amber,
+      ),
+      SessionStatus.abandoned => (
+        l(context).workoutSessionNotCompleted,
+        TrainColors.ink4,
+      ),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: now)
@@ -436,19 +448,22 @@ class _SessionHistoryRow extends StatelessWidget {
                 children: [
                   _MetaChip(
                     icon: AppIcons.timer,
-                    label: formatDurationShort(duration),
+                    label: formatDurationShort(context, duration),
                   ),
                   const SizedBox(width: 14),
                   _MetaChip(
                     icon: AppIcons.workout,
                     label:
-                        '${session.exercises.length} exercise${session.exercises.length == 1 ? '' : 's'}',
+                        l(context).workoutExerciseCount(session.exercises.length),
                   ),
                   const SizedBox(width: 14),
                   _MetaChip(
                     icon: AppIcons.check,
                     label:
-                        '${session.completedSetCount}/${session.totalSets} sets',
+                        l(context).workoutSetsOfTotal(
+                          session.completedSetCount,
+                          session.totalSets,
+                        ),
                   ),
                 ],
               ),
@@ -552,13 +567,13 @@ class _HistoryErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "Couldn't load this.",
+              l(context).errorCouldntLoad,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
-              'Check your connection and try again in a moment.',
+              l(context).errorCheckConnection,
               style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
@@ -603,13 +618,13 @@ class _HistoryEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No sessions logged yet.',
+              l(context).workoutNoSessionsTitle,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
-              'Finish a workout and it shows up here.',
+              l(context).workoutNoSessionsBody,
               style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),

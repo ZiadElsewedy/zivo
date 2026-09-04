@@ -1222,4 +1222,541 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get musicDisconnect => 'Disconnect Spotify';
+
+  @override
+  String get errorCouldntLoad => 'Couldn\'t load this.';
+
+  @override
+  String get workoutStatusProgressing => 'Progressing';
+
+  @override
+  String get workoutStatusHolding => 'Holding';
+
+  @override
+  String get workoutStatusPlateaued => 'Plateaued';
+
+  @override
+  String get workoutStatusTrendingDown => 'Trending down';
+
+  @override
+  String get workoutStatusBuilding => 'Building';
+
+  @override
+  String get workoutToneImproved => 'Improved';
+
+  @override
+  String get workoutToneMatched => 'Matched';
+
+  @override
+  String get workoutToneMixed => 'Mixed';
+
+  @override
+  String get workoutToneDown => 'Down';
+
+  @override
+  String get workoutBodyweightLoadError => 'Couldn\'t load weigh-ins.';
+
+  @override
+  String workoutWeighInsLogged(int count) {
+    return '$count weigh-ins logged';
+  }
+
+  @override
+  String get workoutUnitKg => 'KG';
+
+  @override
+  String workoutBodyweightChange30d(String change) {
+    return '$change KG · 30D';
+  }
+
+  @override
+  String get workoutBodyweightEmpty =>
+      'Log your first weigh-in to start the trend.';
+
+  @override
+  String get workoutThisWeekCaps => 'THIS WEEK';
+
+  @override
+  String get workoutLastWeekCaps => 'LAST WEEK';
+
+  @override
+  String get workoutSessionsLabel => 'Sessions';
+
+  @override
+  String get workoutTrained => 'Trained';
+
+  @override
+  String get workoutThisWeek => 'This week';
+
+  @override
+  String get workoutSessionCompleted => 'Completed';
+
+  @override
+  String get workoutSessionInProgress => 'In progress';
+
+  @override
+  String get workoutSessionNotCompleted => 'Not completed';
+
+  @override
+  String workoutExerciseCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count exercises',
+      one: '1 exercise',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutSetsOfTotal(int done, int total) {
+    return '$done/$total sets';
+  }
+
+  @override
+  String get workoutNoSessionsTitle => 'No sessions logged yet.';
+
+  @override
+  String get workoutNoSessionsBody => 'Finish a workout and it shows up here.';
+
+  @override
+  String get workoutSessionsLoadError => 'Couldn\'t load sessions.';
+
+  @override
+  String get workoutNoCompletedWorkouts => 'No completed workouts yet.';
+
+  @override
+  String workoutCompletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count completed workouts',
+      one: '1 completed workout',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutNoCompletedWithEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'No completed workouts · $count entries',
+      one: 'No completed workouts · 1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutCompletedAndNotCompleted(String completed, int notCompleted) {
+    return '$completed · $notCompleted not completed';
+  }
+
+  @override
+  String get workoutSessionsEmpty =>
+      'Nothing here yet — finished workouts land here.';
+
+  @override
+  String get workoutSessionEndedEarly => 'Ended early';
+
+  @override
+  String workoutSetsCaps(int done, int total) {
+    return '$done/$total SETS';
+  }
+
+  @override
+  String get workoutDayStreak => 'Day streak';
+
+  @override
+  String get workoutNoActiveStreak =>
+      'No active streak — complete a workout to start one.';
+
+  @override
+  String workoutStreakDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'days in your current streak',
+      one: 'day in your current streak',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutBestStreak => 'best day streak ever';
+
+  @override
+  String get workoutStreakEmpty => 'Train today and day one starts now.';
+
+  @override
+  String workoutSessionsCountCaps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count SESSIONS',
+      one: '1 SESSION',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutSessionLength => 'Session length';
+
+  @override
+  String get workoutNoAverageYet => 'Complete a workout to see your average.';
+
+  @override
+  String get workoutAverageSession => 'average completed session';
+
+  @override
+  String get workoutDurationsEmpty =>
+      'Durations appear once you finish workouts.';
+
+  @override
+  String get workoutStartTimes => 'Start times';
+
+  @override
+  String get workoutNoStartTimeYet =>
+      'Complete a workout to see your usual start time.';
+
+  @override
+  String get workoutUsualStartTime => 'when you usually start training';
+
+  @override
+  String get workoutStartTimesEmpty => 'Your start times will show up here.';
+
+  @override
+  String get workoutToday => 'Today';
+
+  @override
+  String workoutAgo(String value) {
+    return '$value ago';
+  }
+
+  @override
+  String get workoutCurrentSplit => 'Current split';
+
+  @override
+  String get workoutRecentActivity => 'Recent activity';
+
+  @override
+  String get workoutNoSessionYet => 'You haven\'t logged a session yet.';
+
+  @override
+  String get workoutGoDeeper => 'Go deeper';
+
+  @override
+  String get workoutFullAnalysis => 'Full analysis';
+
+  @override
+  String get workoutFullAnalysisDetail =>
+      'Exercise-by-exercise, per training day';
+
+  @override
+  String get workoutAllHistory => 'All history';
+
+  @override
+  String get workoutAllHistoryDetail => 'Every session you have logged';
+
+  @override
+  String get workoutSplitsDetail => 'Switch or edit your training splits';
+
+  @override
+  String get workoutTotalSessions => 'Total sessions';
+
+  @override
+  String get workoutAvgLength => 'Avg length';
+
+  @override
+  String get workoutSeeFullAnalysisCaps => 'SEE FULL ANALYSIS';
+
+  @override
+  String get workoutSeeAllCaps => 'SEE ALL';
+
+  @override
+  String workoutPrCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count PRs',
+      one: '1 PR',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutSessionsCompletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions completed',
+      one: '1 session completed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutPlanShort => 'Plan';
+
+  @override
+  String workoutAgoWithDuration(String value, String duration) {
+    return '$value ago · $duration';
+  }
+
+  @override
+  String get workoutRecentPrs => 'Recent PRs';
+
+  @override
+  String get workoutGoingWell => 'What\'s going well';
+
+  @override
+  String workoutImprovingCount(int count) {
+    return '$count improving';
+  }
+
+  @override
+  String get workoutGettingWorse => 'What\'s getting worse';
+
+  @override
+  String workoutDecliningCount(int count) {
+    return '$count declining';
+  }
+
+  @override
+  String get workoutStalled => 'Stalled — needs a change';
+
+  @override
+  String workoutFlatCount(int count) {
+    return '$count flat';
+  }
+
+  @override
+  String get workoutBeingSkipped => 'What\'s being skipped';
+
+  @override
+  String workoutSkippedOfPlanned(int skipped, int planned) {
+    return '$skipped of $planned';
+  }
+
+  @override
+  String get workoutFocusNext => 'Focus next';
+
+  @override
+  String get workoutTrainingVolume => 'Training volume';
+
+  @override
+  String get workoutAllExercises => 'All exercises';
+
+  @override
+  String get workoutTapToDrillIn => 'tap to drill in';
+
+  @override
+  String get workoutOverallCaps => 'OVERALL';
+
+  @override
+  String get workoutPrHeaviest => 'Heaviest';
+
+  @override
+  String get workoutPrMostReps => 'Most reps';
+
+  @override
+  String get workoutPrBestStrength => 'Best strength';
+
+  @override
+  String workoutRepsOnly(int reps) {
+    return '$reps reps';
+  }
+
+  @override
+  String workoutWeightByReps(String weight, int reps) {
+    return '${weight}kg × $reps';
+  }
+
+  @override
+  String workoutStatusWithStrength(String status, String change) {
+    return '$status · $change strength';
+  }
+
+  @override
+  String get workoutNeverTrained => 'Planned but never trained';
+
+  @override
+  String workoutStaleSince(int days, String day) {
+    return '$days days since last — on $day';
+  }
+
+  @override
+  String get workoutNoPriorWeek => 'No prior week to compare';
+
+  @override
+  String workoutVsLastWeek(String change) {
+    return '$change vs last week';
+  }
+
+  @override
+  String get workoutSameAsLastWeek => 'Same as last week';
+
+  @override
+  String get workoutThisWeekWorkingSets => 'This week · working sets only';
+
+  @override
+  String get workoutAnalysisEmptyTitle =>
+      'Complete a few sessions to start tracking progress.';
+
+  @override
+  String get workoutAnalysisEmptyBody =>
+      'Once you\'ve logged the same exercise a few times, ZIVO will show your strength trend, PRs, and what to focus on next.';
+
+  @override
+  String get workoutStrengthTrend => 'Strength trend';
+
+  @override
+  String get workoutVolumeTrend => 'Volume trend';
+
+  @override
+  String get workoutAtAGlance => 'At a glance';
+
+  @override
+  String get workoutPersonalRecords => 'Personal records';
+
+  @override
+  String get workoutSessionHistory => 'Session history';
+
+  @override
+  String workoutSessionsLogged(int count) {
+    return '$count logged';
+  }
+
+  @override
+  String workoutEstStrengthChange(String change) {
+    return '$change est. strength';
+  }
+
+  @override
+  String get workoutEst1rmCaps => 'EST. 1RM';
+
+  @override
+  String get workoutWhatHappenedCaps => 'WHAT HAPPENED';
+
+  @override
+  String get workoutWhyItMattersCaps => 'WHY IT MATTERS';
+
+  @override
+  String get workoutDoThisCaps => 'DO THIS';
+
+  @override
+  String get workoutEst1rmUnitCaps => 'EST. 1RM (KG)';
+
+  @override
+  String get workoutVolumeUnitCaps => 'VOLUME (KG)';
+
+  @override
+  String get workoutOldest => 'Oldest';
+
+  @override
+  String get workoutLatest => 'Latest';
+
+  @override
+  String get workoutBestEst1rm => 'Best est. 1RM';
+
+  @override
+  String get workoutTotalVolume => 'Total volume';
+
+  @override
+  String get workoutFrequency => 'Frequency';
+
+  @override
+  String get workoutPerWeek => '/wk';
+
+  @override
+  String get workoutLastTrained => 'Last trained';
+
+  @override
+  String get workoutDaysAgo => 'days ago';
+
+  @override
+  String get workoutPrHeaviestLoad => 'Heaviest load';
+
+  @override
+  String workoutKgValue(String value) {
+    return '${value}kg';
+  }
+
+  @override
+  String workoutSessionNumberCaps(int index) {
+    return 'SESSION $index';
+  }
+
+  @override
+  String get workoutSetsShort => 'Sets';
+
+  @override
+  String get workoutTopSet => 'Top set';
+
+  @override
+  String get workoutVolumeShort => 'Volume';
+
+  @override
+  String get workoutEst1rmShort => 'Est 1RM';
+
+  @override
+  String get workoutVsPreviousSessionCaps => 'VS PREVIOUS SESSION';
+
+  @override
+  String get workoutSetDropsetShort => 'D';
+
+  @override
+  String get workoutSetFailureShort => 'F';
+
+  @override
+  String get workoutPbCaps => 'PB';
+
+  @override
+  String get workoutExerciseEmptyTitle =>
+      'No completed sessions with this exercise yet.';
+
+  @override
+  String get workoutExerciseEmptyBody =>
+      'Log it in a session and its full history, trend, and session-to-session comparison will appear here.';
+
+  @override
+  String get workoutNewPb => 'New PB';
+
+  @override
+  String workoutDeltaE1rm(String change) {
+    return 'e1RM $change';
+  }
+
+  @override
+  String workoutDeltaLoad(String change) {
+    return 'Load $change';
+  }
+
+  @override
+  String workoutDeltaReps(String change) {
+    return 'Reps $change';
+  }
+
+  @override
+  String workoutDeltaVolume(String change) {
+    return 'Volume $change';
+  }
+
+  @override
+  String get workoutNoMeaningfulChange => 'No meaningful change';
+
+  @override
+  String workoutDurationHm(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String workoutDurationM(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String workoutDurationH(String hours) {
+    return '${hours}h';
+  }
 }

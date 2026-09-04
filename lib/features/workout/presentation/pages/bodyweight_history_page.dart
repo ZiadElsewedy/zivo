@@ -8,6 +8,7 @@ import '../../domain/body_weight_entry.dart';
 import '../../domain/weight_trend.dart';
 import 'workout_stats_pages.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Bodyweight tile's page: the full weigh-in history — trend chart,
 /// 30-day delta, and every entry newest first with its change vs. the
@@ -23,15 +24,15 @@ class BodyweightHistoryPage extends StatelessWidget {
       initialData: bodyWeight?.current ?? const <BodyWeightEntry>[],
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const StatDrillDownScaffold(
-            title: 'Bodyweight',
+          return StatDrillDownScaffold(
+            title: l(context).workoutBodyweight,
             children: [
               SizedBox(
                 height: 200,
                 child: Center(
                   child: Text(
-                    "Couldn't load weigh-ins.",
-                    style: TextStyle(color: TrainColors.ink4),
+                    l(context).workoutBodyweightLoadError,
+                    style: const TextStyle(color: TrainColors.ink4),
                   ),
                 ),
               ),
@@ -43,10 +44,10 @@ class BodyweightHistoryPage extends StatelessWidget {
         final trend = computeWeightTrend(entries: entries, now: DateTime.now());
         final latest = trend.latest;
         return StatDrillDownScaffold(
-          title: 'Bodyweight',
+          title: l(context).workoutBodyweight,
           subtitle: entries.isEmpty
               ? null
-              : '${entries.length} weigh-ins logged',
+              : l(context).workoutWeighInsLogged(entries.length),
           children: [
             RiseIn(
               child: Container(
@@ -78,7 +79,7 @@ class BodyweightHistoryPage extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(left: 7, bottom: 7),
                             child: Text(
-                              'KG',
+                              l(context).workoutUnitKg,
                               style: TrainType.mono(
                                 size: 11,
                                 weight: FontWeight.w500,
@@ -93,9 +94,10 @@ class BodyweightHistoryPage extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 7),
                             // A delta always states its baseline (identity §7).
                             child: Text(
-                              '${trend.changeKgOverWindow! > 0 ? '+' : '−'}'
-                              '${_trimKg(trend.changeKgOverWindow!.abs())} '
-                              'KG · 30D',
+                              l(context).workoutBodyweightChange30d(
+                                '${trend.changeKgOverWindow! > 0 ? '+' : '−'}'
+                                '${_trimKg(trend.changeKgOverWindow!.abs())}',
+                              ),
                               style: TrainType.caption(
                                 size: 9,
                                 tracking: 0.12,
@@ -118,7 +120,7 @@ class BodyweightHistoryPage extends StatelessWidget {
                     if (entries.isEmpty) ...[
                       const SizedBox(height: 10),
                       Text(
-                        'Log your first weigh-in to start the trend.',
+                        l(context).workoutBodyweightEmpty,
                         style: TrainType.ui(
                           size: 12.5,
                           weight: FontWeight.w400,
@@ -186,7 +188,7 @@ class _WeighInRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      'KG',
+                      l(context).workoutUnitKg,
                       style: TrainType.caption(
                         size: 8.5,
                         tracking: 0.14,

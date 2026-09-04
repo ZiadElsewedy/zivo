@@ -4,6 +4,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../domain/analytics/exercise_analysis.dart';
 import '../../domain/analytics/workout_analytics.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The ONE place a progression direction (or a session-to-session tone) gets
 /// its word + colour + icon, so the Analysis hub, the exercise detail page and
@@ -18,29 +19,31 @@ class ProgressStatusStyle {
   final IconData icon;
 }
 
-ProgressStatusStyle progressStatusStyle(ProgressStatus s) => switch (s) {
-      ProgressStatus.progressing =>
-        const ProgressStatusStyle('Progressing', TrainColors.green, AppIcons.trendUp),
-      ProgressStatus.maintaining =>
-        const ProgressStatusStyle('Holding', TrainColors.ink2, AppIcons.minus),
-      ProgressStatus.plateauing =>
-        const ProgressStatusStyle('Plateaued', TrainColors.amber, AppIcons.minus),
-      ProgressStatus.regressing =>
-        const ProgressStatusStyle('Trending down', TrainColors.ember, AppIcons.trendDown),
-      ProgressStatus.building =>
-        const ProgressStatusStyle('Building', TrainColors.ink4, AppIcons.analysis),
+ProgressStatusStyle progressStatusStyle(BuildContext context, ProgressStatus s) =>
+    switch (s) {
+      ProgressStatus.progressing => ProgressStatusStyle(
+        l(context).workoutStatusProgressing, TrainColors.green, AppIcons.trendUp),
+      ProgressStatus.maintaining => ProgressStatusStyle(
+        l(context).workoutStatusHolding, TrainColors.ink2, AppIcons.minus),
+      ProgressStatus.plateauing => ProgressStatusStyle(
+        l(context).workoutStatusPlateaued, TrainColors.amber, AppIcons.minus),
+      ProgressStatus.regressing => ProgressStatusStyle(
+        l(context).workoutStatusTrendingDown, TrainColors.ember, AppIcons.trendDown),
+      ProgressStatus.building => ProgressStatusStyle(
+        l(context).workoutStatusBuilding, TrainColors.ink4, AppIcons.analysis),
     };
 
 /// The tone of one session versus the previous one — a slightly different
 /// vocabulary from the overall direction (a single step "improves"; a lift
 /// "progresses").
-ProgressStatusStyle trendToneStyle(ExerciseTrendTone t) => switch (t) {
-      ExerciseTrendTone.improved =>
-        const ProgressStatusStyle('Improved', TrainColors.green, AppIcons.trendUp),
-      ExerciseTrendTone.maintained =>
-        const ProgressStatusStyle('Matched', TrainColors.ink2, AppIcons.minus),
-      ExerciseTrendTone.mixed =>
-        const ProgressStatusStyle('Mixed', TrainColors.amber, AppIcons.analysis),
-      ExerciseTrendTone.declined =>
-        const ProgressStatusStyle('Down', TrainColors.ember, AppIcons.trendDown),
+ProgressStatusStyle trendToneStyle(BuildContext context, ExerciseTrendTone t) =>
+    switch (t) {
+      ExerciseTrendTone.improved => ProgressStatusStyle(
+        l(context).workoutToneImproved, TrainColors.green, AppIcons.trendUp),
+      ExerciseTrendTone.maintained => ProgressStatusStyle(
+        l(context).workoutToneMatched, TrainColors.ink2, AppIcons.minus),
+      ExerciseTrendTone.mixed => ProgressStatusStyle(
+        l(context).workoutToneMixed, TrainColors.amber, AppIcons.analysis),
+      ExerciseTrendTone.declined => ProgressStatusStyle(
+        l(context).workoutToneDown, TrainColors.ember, AppIcons.trendDown),
     };

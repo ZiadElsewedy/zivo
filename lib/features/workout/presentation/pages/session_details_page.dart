@@ -14,9 +14,9 @@ import '../../domain/session_exercise.dart';
 import '../../domain/session_status.dart';
 import '../../domain/set_outcome.dart';
 import '../widgets/staggered_reveal.dart';
-import 'workout_dashboard_page.dart' show formatDurationShort;
 import '../../../../l10n/l10n.dart';
 import '../../../../core/util/date_format.dart';
+import '../workout_format.dart';
 
 /// The full detail view of one logged/live session — a designed screen, not
 /// a table: a hero header (day, date, status, duration, time range,
@@ -216,7 +216,7 @@ class _SessionHeroHeader extends StatelessWidget {
             children: [
               Expanded(
                 child: _HeroStat(
-                  value: formatDurationShort(duration),
+                  value: formatDurationShort(context, duration),
                   label: 'Duration',
                 ),
               ),

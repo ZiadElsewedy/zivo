@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:zivo/l10n/l10n.dart';
 import 'package:zivo/core/media/data/in_memory_media_preferences_repository.dart';
 import 'package:zivo/core/media/data/in_memory_media_registry.dart';
 import 'package:zivo/core/media/data/local_media_store.dart';
@@ -35,6 +36,10 @@ MediaService testMediaService() {
   );
 }
 
+/// Pass [locale] to install the real localization delegates and render the
+/// page in that language. Left null (the default), the [MaterialApp] carries no
+/// delegates and `l(context)` falls back to English — which is what the ~120
+/// existing widget tests rely on, so they are unaffected.
 Widget wrapWithScope(
   Widget child, {
   AuthRepository? auth,
@@ -42,6 +47,7 @@ Widget wrapWithScope(
   MediaService? media,
   MusicController? music,
   MomentRepository? moments,
+  Locale? locale,
 }) {
   return AppScope(
     media: media ?? testMediaService(),
@@ -55,6 +61,13 @@ Widget wrapWithScope(
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     music: music ?? InertMusicController(),
-    child: MaterialApp(home: child),
+    child: locale == null
+        ? MaterialApp(home: child)
+        : MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: child,
+          ),
   );
 }

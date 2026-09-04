@@ -907,15 +907,6 @@ class _PhaseIconLike extends StatelessWidget {
   }
 }
 
-/// "52m" under an hour, "1h 12m" past one.
-String formatDurationShort(Duration d) {
-  final totalMinutes = d.inMinutes;
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours > 0) return '${hours}h ${minutes}m';
-  return '${minutes}m';
-}
-
 /// "82.5" — one decimal only when there is one.
 String _trimNumber(double v) =>
     v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);

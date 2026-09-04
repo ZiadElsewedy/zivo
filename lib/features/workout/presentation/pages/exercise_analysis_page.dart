@@ -15,6 +15,7 @@ import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
 import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The exercise drill-down — everything a coach would open on ONE movement.
 ///
@@ -81,14 +82,18 @@ class ExerciseAnalysisPage extends StatelessWidget {
                       child: _InsightCard(insight: analysis.insight),
                     ),
                     const SizedBox(height: 24),
-                    _Label(analysis.isWeighted ? 'Strength trend' : 'Volume trend'),
+                    _Label(
+                      analysis.isWeighted
+                          ? l(context).workoutStrengthTrend
+                          : l(context).workoutVolumeTrend,
+                    ),
                     const SizedBox(height: 10),
                     RiseIn(
                       delay: const Duration(milliseconds: 100),
                       child: _TrendCard(analysis: analysis),
                     ),
                     const SizedBox(height: 22),
-                    _Label('At a glance'),
+                    _Label(l(context).workoutAtAGlance),
                     const SizedBox(height: 10),
                     RiseIn(
                       delay: const Duration(milliseconds: 120),
@@ -96,7 +101,7 @@ class ExerciseAnalysisPage extends StatelessWidget {
                     ),
                     if (analysis.records.isNotEmpty) ...[
                       const SizedBox(height: 22),
-                      _Label('Personal records'),
+                      _Label(l(context).workoutPersonalRecords),
                       const SizedBox(height: 10),
                       RiseIn(
                         delay: const Duration(milliseconds: 140),
@@ -105,8 +110,10 @@ class ExerciseAnalysisPage extends StatelessWidget {
                     ],
                     const SizedBox(height: 24),
                     _Label(
-                      'Session history',
-                      trailing: '${analysis.totalSessions} logged',
+                      l(context).workoutSessionHistory,
+                      trailing: l(context).workoutSessionsLogged(
+                        analysis.totalSessions,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     _SessionTimeline(analysis: analysis),
@@ -141,7 +148,7 @@ class _StatusHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = progressStatusStyle(analysis.status);
+    final style = progressStatusStyle(context, analysis.status);
     final change = analysis.strengthChangePercent;
     return Container(
       width: double.infinity,
@@ -180,7 +187,8 @@ class _StatusHeader extends StatelessWidget {
                 Text(
                   [
                     if (analysis.muscleGroup != null) analysis.muscleGroup!,
-                    if (change != null) '${_signed(change)} est. strength',
+                    if (change != null)
+                      l(context).workoutEstStrengthChange(_signed(change)),
                   ].join(' · '),
                   style: TrainType.mono(size: 11, tracking: 0.02, color: style.color),
                 ),
@@ -196,7 +204,7 @@ class _StatusHeader extends StatelessWidget {
                   style: TrainType.mono(size: 24, tracking: -0.03, color: TrainColors.ink),
                 ),
                 Text(
-                  'EST. 1RM',
+                  l(context).workoutEst1rmCaps,
                   style: TrainType.caption(size: 8, tracking: 0.16, color: TrainColors.ink4),
                 ),
               ],
@@ -216,7 +224,7 @@ class _InsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = progressStatusStyle(insight.tone).color;
+    final color = progressStatusStyle(context, insight.tone).color;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -229,13 +237,13 @@ class _InsightCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InsightLine(
-            marker: 'WHAT HAPPENED',
+            marker: l(context).workoutWhatHappenedCaps,
             markerColor: TrainColors.ink4,
             text: insight.whatHappened,
           ),
           const SizedBox(height: 14),
           _InsightLine(
-            marker: 'WHY IT MATTERS',
+            marker: l(context).workoutWhyItMattersCaps,
             markerColor: TrainColors.ink4,
             text: insight.whyItMatters,
           ),
@@ -254,7 +262,7 @@ class _InsightCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _InsightLine(
-                    marker: 'DO THIS',
+                    marker: l(context).workoutDoThisCaps,
                     markerColor: color,
                     text: insight.whatToDo,
                   ),
@@ -314,7 +322,9 @@ class _TrendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // e1RM for a loaded movement (the intensity story); volume otherwise.
     final series = analysis.isWeighted ? analysis.e1rmSeries : analysis.volumeSeries;
-    final unit = analysis.isWeighted ? 'EST. 1RM (KG)' : 'VOLUME (KG)';
+    final unit = analysis.isWeighted
+        ? l(context).workoutEst1rmUnitCaps
+        : l(context).workoutVolumeUnitCaps;
     final color = analysis.status == ProgressStatus.regressing
         ? TrainColors.ember
         : TrainColors.green;
@@ -343,11 +353,11 @@ class _TrendCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Oldest',
+                l(context).workoutOldest,
                 style: TrainType.caption(size: 8.5, tracking: 0.1, color: TrainColors.ink4),
               ),
               Text(
-                'Latest',
+                l(context).workoutLatest,
                 style: TrainType.caption(size: 8.5, tracking: 0.1, color: TrainColors.ink4),
               ),
             ],
@@ -379,7 +389,7 @@ class _MetricsGrid extends StatelessWidget {
                 accent: TrainColors.amber,
                 value: analysis.bestE1RM == null ? '—' : _kg(analysis.bestE1RM!),
                 unit: analysis.bestE1RM == null ? null : 'kg',
-                label: 'Best est. 1RM',
+                label: l(context).workoutBestEst1rm,
               ),
             ),
             const SizedBox(width: 10),
@@ -389,7 +399,7 @@ class _MetricsGrid extends StatelessWidget {
                 accent: TrainColors.green,
                 value: vol.value,
                 unit: vol.unit,
-                label: 'Total volume',
+                label: l(context).workoutTotalVolume,
               ),
             ),
           ],
@@ -402,8 +412,8 @@ class _MetricsGrid extends StatelessWidget {
                 icon: AppIcons.repeat,
                 accent: TrainColors.violet,
                 value: freq == null ? '—' : freq.toStringAsFixed(freq >= 10 ? 0 : 1),
-                unit: freq == null ? null : '/wk',
-                label: 'Frequency',
+                unit: freq == null ? null : l(context).workoutPerWeek,
+                label: l(context).workoutFrequency,
               ),
             ),
             const SizedBox(width: 10),
@@ -413,9 +423,13 @@ class _MetricsGrid extends StatelessWidget {
                 accent: analysis.daysSinceLast >= kQuietExerciseDays
                     ? TrainColors.amber
                     : TrainColors.ink2,
-                value: analysis.daysSinceLast == 0 ? 'Today' : '${analysis.daysSinceLast}',
-                unit: analysis.daysSinceLast == 0 ? null : 'days ago',
-                label: 'Last trained',
+                value: analysis.daysSinceLast == 0
+                    ? l(context).workoutToday
+                    : '${analysis.daysSinceLast}',
+                unit: analysis.daysSinceLast == 0
+                    ? null
+                    : l(context).workoutDaysAgo,
+                label: l(context).workoutLastTrained,
               ),
             ),
           ],
@@ -475,12 +489,20 @@ class _PrRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, value) = switch (kind) {
-      PrKind.heaviestWeight => ('Heaviest load', _setLine(record.weightKg, record.reps)),
+      PrKind.heaviestWeight => (
+        l(context).workoutPrHeaviestLoad,
+        _setLine(record.weightKg, record.reps),
+      ),
       PrKind.bestEstimatedStrength => (
-          'Best est. 1RM',
-          record.estimatedOneRepMax == null ? '—' : '${_kg(record.estimatedOneRepMax!)}kg',
-        ),
-      PrKind.mostReps => ('Most reps', _setLine(record.weightKg, record.reps)),
+        l(context).workoutBestEst1rm,
+        record.estimatedOneRepMax == null
+            ? '—'
+            : l(context).workoutKgValue(_kg(record.estimatedOneRepMax!)),
+      ),
+      PrKind.mostReps => (
+        l(context).workoutPrMostReps,
+        _setLine(record.weightKg, record.reps),
+      ),
     };
     return TrainListRow(
       icon: AppIcons.trophy,
@@ -567,7 +589,7 @@ class _SessionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'SESSION $index',
+                            l(context).workoutSessionNumberCaps(index),
                             style: TrainType.caption(size: 8.5, tracking: 0.16, color: TrainColors.ink4),
                           ),
                           const SizedBox(height: 3),
@@ -603,11 +625,23 @@ class _SessionCard extends StatelessWidget {
                 TrainStatStrip(
                   valueSize: 15,
                   items: [
-                    TrainStat('${record.workingSetCount}', 'Sets'),
-                    TrainStat(_setLine(record.topWeightKg, record.topReps), 'Top set'),
-                    TrainStat('${vol.value}${vol.unit == 'kg' ? '' : vol.unit}', 'Volume'),
+                    TrainStat(
+                      '${record.workingSetCount}',
+                      l(context).workoutSetsShort,
+                    ),
+                    TrainStat(
+                      _setLine(record.topWeightKg, record.topReps),
+                      l(context).workoutTopSet,
+                    ),
+                    TrainStat(
+                      '${vol.value}${vol.unit == 'kg' ? '' : vol.unit}',
+                      l(context).workoutVolumeShort,
+                    ),
                     if (record.bestE1RM != null)
-                      TrainStat(_kg(record.bestE1RM!), 'Est 1RM'),
+                      TrainStat(
+                        _kg(record.bestE1RM!),
+                        l(context).workoutEst1rmShort,
+                      ),
                   ],
                 ),
               ],
@@ -630,7 +664,7 @@ class _DeltaStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = _deltaChips(comparison);
+    final chips = _deltaChips(context, comparison);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -641,7 +675,7 @@ class _DeltaStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'VS PREVIOUS SESSION',
+            l(context).workoutVsPreviousSessionCaps,
             style: TrainType.caption(size: 8, tracking: 0.16, color: TrainColors.ink4),
           ),
           const SizedBox(height: 8),
@@ -686,7 +720,11 @@ class _SetChip extends StatelessWidget {
           if (set.type.name != 'working') ...[
             const SizedBox(width: 4),
             Text(
-              set.type.name == 'dropset' ? 'D' : set.type.name == 'failure' ? 'F' : '',
+              set.type.name == 'dropset'
+                  ? l(context).workoutSetDropsetShort
+                  : set.type.name == 'failure'
+                  ? l(context).workoutSetFailureShort
+                  : '',
               style: TrainType.caption(size: 8, tracking: 0.1, color: TrainColors.amber),
             ),
           ],
@@ -713,7 +751,7 @@ class _PrBadge extends StatelessWidget {
           const Icon(AppIcons.trophy, size: 11, color: TrainColors.amber),
           const SizedBox(width: 4),
           Text(
-            'PB',
+            l(context).workoutPbCaps,
             style: TrainType.mono(size: 9, weight: FontWeight.w600, tracking: 0.1, color: TrainColors.amber),
           ),
         ],
@@ -729,7 +767,7 @@ class _ToneChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = trendToneStyle(tone);
+    final style = trendToneStyle(context, tone);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -810,12 +848,12 @@ class _EmptyState extends StatelessWidget {
           const Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
           const SizedBox(height: 12),
           Text(
-            'No completed sessions with this exercise yet.',
+            l(context).workoutExerciseEmptyTitle,
             style: TrainType.ui(size: 15, weight: FontWeight.w600, color: TrainColors.ink),
           ),
           const SizedBox(height: 4),
           Text(
-            'Log it in a session and its full history, trend, and session-to-session comparison will appear here.',
+            l(context).workoutExerciseEmptyBody,
             style: TrainType.ui(size: 12.5, weight: FontWeight.w400, height: 1.4, color: TrainColors.ink4),
           ),
         ],
@@ -837,30 +875,39 @@ class _Chip {
 /// meaning conservatively: green for a genuine gain, ember for a genuine loss,
 /// neutral ink where a direction isn't itself good or bad (fewer reps at a
 /// heavier load is a trade, not a regression). Amber marks a PB.
-List<_Chip> _deltaChips(SessionComparison c) {
+List<_Chip> _deltaChips(BuildContext context, SessionComparison c) {
+  final strings = l(context);
+  final e1rm = strings.workoutDeltaE1rm(_signed(c.e1rmChangePercent));
+  final load = strings.workoutDeltaLoad(_signedKg(c.loadChangeKg));
+  final reps = strings.workoutDeltaReps(_signedInt(c.topRepsChange));
+  final volume = strings.workoutDeltaVolume(_signed(c.volumeChangePercent));
   final out = <_Chip>[];
   for (final tag in c.tags) {
     switch (tag) {
       case SessionChange.newPr:
-        out.add(const _Chip('New PB', TrainColors.amber, AppIcons.trophy));
+        out.add(_Chip(strings.workoutNewPb, TrainColors.amber, AppIcons.trophy));
       case SessionChange.strengthUp:
-        out.add(_Chip('e1RM ${_signed(c.e1rmChangePercent)}', TrainColors.green, AppIcons.trendUp));
+        out.add(_Chip(e1rm, TrainColors.green, AppIcons.trendUp));
       case SessionChange.strengthDown:
-        out.add(_Chip('e1RM ${_signed(c.e1rmChangePercent)}', TrainColors.ember, AppIcons.trendDown));
+        out.add(_Chip(e1rm, TrainColors.ember, AppIcons.trendDown));
       case SessionChange.loadUp:
-        out.add(_Chip('Load ${_signedKg(c.loadChangeKg)}', TrainColors.green, AppIcons.trendUp));
+        out.add(_Chip(load, TrainColors.green, AppIcons.trendUp));
       case SessionChange.loadDown:
-        out.add(_Chip('Load ${_signedKg(c.loadChangeKg)}', TrainColors.ink2, AppIcons.trendDown));
+        out.add(_Chip(load, TrainColors.ink2, AppIcons.trendDown));
       case SessionChange.repsUp:
-        out.add(_Chip('Reps ${_signedInt(c.topRepsChange)}', TrainColors.green, AppIcons.trendUp));
+        out.add(_Chip(reps, TrainColors.green, AppIcons.trendUp));
       case SessionChange.repsDown:
-        out.add(_Chip('Reps ${_signedInt(c.topRepsChange)}', TrainColors.ink2, AppIcons.trendDown));
+        out.add(_Chip(reps, TrainColors.ink2, AppIcons.trendDown));
       case SessionChange.volumeUp:
-        out.add(_Chip('Volume ${_signed(c.volumeChangePercent)}', TrainColors.green, AppIcons.trendUp));
+        out.add(_Chip(volume, TrainColors.green, AppIcons.trendUp));
       case SessionChange.volumeDown:
-        out.add(_Chip('Volume ${_signed(c.volumeChangePercent)}', TrainColors.ink2, AppIcons.trendDown));
+        out.add(_Chip(volume, TrainColors.ink2, AppIcons.trendDown));
       case SessionChange.noChange:
-        out.add(const _Chip('No meaningful change', TrainColors.ink4, AppIcons.minus));
+        out.add(_Chip(
+          strings.workoutNoMeaningfulChange,
+          TrainColors.ink4,
+          AppIcons.minus,
+        ));
     }
   }
   return out;

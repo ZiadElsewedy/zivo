@@ -18,6 +18,7 @@ import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
 import 'exercise_analysis_page.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Analysis hub — a coaching dashboard, not one AI text block.
 ///
@@ -73,7 +74,7 @@ class WorkoutAnalysisPage extends StatelessWidget {
                 padding: EdgeInsets.fromLTRB(
                     22, 12, 22, TrainBottomInset.of(context)),
                 children: [
-                  RiseIn(child: const TrainPageHeader(title: 'Analysis')),
+                  RiseIn(child: TrainPageHeader(title: l(context).workoutAnalysis)),
                   const SizedBox(height: 20),
                   RiseIn(
                     delay: const Duration(milliseconds: 40),
@@ -85,54 +86,60 @@ class WorkoutAnalysisPage extends StatelessWidget {
                   ] else ...[
                     if (analysis.recentPrs.isNotEmpty)
                       _Section(
-                        label: 'Recent PRs',
+                        label: l(context).workoutRecentPrs,
                         delay: delay(),
                         child: _RecentPrsCard(prs: analysis.recentPrs),
                       ),
                     if (analysis.improving.isNotEmpty)
                       _Section(
-                        label: "What's going well",
-                        trailing: '${analysis.improving.length} improving',
+                        label: l(context).workoutGoingWell,
+                        trailing: l(context).workoutImprovingCount(
+                          analysis.improving.length,
+                        ),
                         delay: delay(),
                         child: _ExerciseCard(exercises: analysis.improving),
                       ),
                     if (declining.isNotEmpty)
                       _Section(
-                        label: "What's getting worse",
-                        trailing: '${declining.length} declining',
+                        label: l(context).workoutGettingWorse,
+                        trailing: l(context).workoutDecliningCount(
+                          declining.length,
+                        ),
                         delay: delay(),
                         child: _ExerciseCard(exercises: declining),
                       ),
                     if (stalled.isNotEmpty)
                       _Section(
-                        label: 'Stalled — needs a change',
-                        trailing: '${stalled.length} flat',
+                        label: l(context).workoutStalled,
+                        trailing: l(context).workoutFlatCount(stalled.length),
                         delay: delay(),
                         child: _ExerciseCard(exercises: stalled),
                       ),
                     if (adherence.neglected.isNotEmpty)
                       _Section(
-                        label: "What's being skipped",
-                        trailing:
-                            '${adherence.neglected.length} of ${adherence.plannedExerciseCount}',
+                        label: l(context).workoutBeingSkipped,
+                        trailing: l(context).workoutSkippedOfPlanned(
+                          adherence.neglected.length,
+                          adherence.plannedExerciseCount,
+                        ),
                         delay: delay(),
                         child: _SkippedCard(neglected: adherence.neglected),
                       ),
                     if (analysis.nextStep != null)
                       _Section(
-                        label: 'Focus next',
+                        label: l(context).workoutFocusNext,
                         delay: delay(),
                         child: _NextStepCard(step: analysis.nextStep!),
                       ),
                     _Section(
-                      label: 'Training volume',
+                      label: l(context).workoutTrainingVolume,
                       delay: delay(),
                       child: _VolumeCard(volume: analysis.volume),
                     ),
                     if (analysis.exercises.isNotEmpty)
                       _Section(
-                        label: 'All exercises',
-                        trailing: 'tap to drill in',
+                        label: l(context).workoutAllExercises,
+                        trailing: l(context).workoutTapToDrillIn,
                         delay: delay(),
                         child: _ExerciseCard(exercises: analysis.exercises),
                       ),
@@ -153,8 +160,10 @@ String _trim(double v) =>
     v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 /// "100kg × 8" (or "8 reps" when unloaded) — a record set in one line.
-String _setLine(double? weightKg, int reps) =>
-    weightKg == null ? '$reps reps' : '${_trim(weightKg)}kg × $reps';
+String _setLine(BuildContext context, double? weightKg, int reps) =>
+    weightKg == null
+    ? l(context).workoutRepsOnly(reps)
+    : l(context).workoutWeightByReps(_trim(weightKg), reps);
 
 void _openExercise(BuildContext context, String id, String name) {
   HapticFeedback.selectionClick();
@@ -207,7 +216,7 @@ class _OverallCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = progressStatusStyle(analysis.overallStatus);
+    final style = progressStatusStyle(context, analysis.overallStatus);
     final color = analysis.isEmpty ? TrainColors.ink2 : style.color;
     return Container(
       width: double.infinity,
@@ -242,7 +251,10 @@ class _OverallCard extends StatelessWidget {
                 child: Icon(style.icon, size: 16, color: color),
               ),
               const SizedBox(width: 9),
-              Text('OVERALL', style: AppText.sectionLabel.copyWith(color: color)),
+              Text(
+                l(context).workoutOverallCaps,
+                style: AppText.sectionLabel.copyWith(color: color),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -296,9 +308,9 @@ class _PrRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kind = switch (pr.kind) {
-      PrKind.heaviestWeight => 'Heaviest',
-      PrKind.mostReps => 'Most reps',
-      PrKind.bestEstimatedStrength => 'Best strength',
+      PrKind.heaviestWeight => l(context).workoutPrHeaviest,
+      PrKind.mostReps => l(context).workoutPrMostReps,
+      PrKind.bestEstimatedStrength => l(context).workoutPrBestStrength,
     };
     return InkWell(
       onTap: () => _openExercise(context, pr.exerciseId, pr.name),
@@ -323,7 +335,7 @@ class _PrRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$kind · ${_setLine(pr.weightKg, pr.reps)}',
+                    '$kind · ${_setLine(context, pr.weightKg, pr.reps)}',
                     style: AppText.meta.copyWith(color: TrainColors.ink4),
                   ),
                 ],
@@ -369,7 +381,7 @@ class _ExerciseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = progressStatusStyle(ex.status);
+    final style = progressStatusStyle(context, ex.status);
     final change = ex.strengthChangePercent;
     final showChart = ex.e1rmSeries.length >= 2;
     return InkWell(
@@ -400,7 +412,10 @@ class _ExerciseRow extends StatelessWidget {
                         // A concrete number when we have one, else the plain
                         // status word — never a fake percentage.
                         change != null
-                            ? '${style.label} · ${_signedPct(change)} strength'
+                            ? l(context).workoutStatusWithStrength(
+                                style.label,
+                                _signedPct(change),
+                              )
                             : style.label,
                         style: AppText.meta.copyWith(
                           color: style.color,
@@ -465,11 +480,18 @@ class _SkippedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (line, color) = switch (item.reason) {
-      AdherenceReason.neverTrained => ('Planned but never trained', TrainColors.ember),
+      AdherenceReason.neverTrained => (
+        l(context).workoutNeverTrained,
+        TrainColors.ember,
+      ),
+      // `daysSinceLast` is only null on the neverTrained branch, which the
+      // case above already took — `analyzePlanAdherence` always sets it for a
+      // stale entry. Fall back rather than force-unwrap: a wrong number is a
+      // smaller failure than a crashed Analysis page.
       AdherenceReason.stale => (
-          '${item.daysSinceLast} days since last — on ${item.dayLabel}',
-          TrainColors.amber,
-        ),
+        l(context).workoutStaleSince(item.daysSinceLast ?? 0, item.dayLabel),
+        TrainColors.amber,
+      ),
     };
     return InkWell(
       onTap: () => _openExercise(context, item.exerciseId, item.name),
@@ -517,10 +539,16 @@ class _VolumeCard extends StatelessWidget {
     final parts = formatVolume(volume.thisWeekKg);
     final change = volume.changePercent;
     final (deltaText, deltaColor) = switch (change) {
-      null => ('No prior week to compare', TrainColors.ink4),
-      _ when change > 0 => ('${_signedPct(change)} vs last week', TrainColors.green),
-      _ when change < 0 => ('${_signedPct(change)} vs last week', TrainColors.ember),
-      _ => ('Same as last week', TrainColors.ink4),
+      null => (l(context).workoutNoPriorWeek, TrainColors.ink4),
+      _ when change > 0 => (
+        l(context).workoutVsLastWeek(_signedPct(change)),
+        TrainColors.green,
+      ),
+      _ when change < 0 => (
+        l(context).workoutVsLastWeek(_signedPct(change)),
+        TrainColors.ember,
+      ),
+      _ => (l(context).workoutSameAsLastWeek, TrainColors.ink4),
     };
     return _Card(
       child: Padding(
@@ -548,7 +576,7 @@ class _VolumeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'This week · working sets only',
+                    l(context).workoutThisWeekWorkingSets,
                     style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11.5),
                   ),
                   const SizedBox(height: 3),
@@ -689,7 +717,7 @@ class _EmptyHint extends StatelessWidget {
             const Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
             const SizedBox(height: 12),
             Text(
-              'Complete a few sessions to start tracking progress.',
+              l(context).workoutAnalysisEmptyTitle,
               style: AppText.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
                 color: TrainColors.ink,
@@ -697,8 +725,7 @@ class _EmptyHint extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              "Once you've logged the same exercise a few times, ZIVO will show "
-              'your strength trend, PRs, and what to focus on next.',
+              l(context).workoutAnalysisEmptyBody,
               style: AppText.meta.copyWith(color: TrainColors.ink4, height: 1.4),
             ),
           ],
@@ -732,7 +759,7 @@ class _ErrorState extends StatelessWidget {
               const Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink4),
               const SizedBox(height: 12),
               Text(
-                "Couldn't load this.",
+                l(context).errorCouldntLoad,
                 style: AppText.aside.copyWith(color: TrainColors.ink2),
                 textAlign: TextAlign.center,
               ),

@@ -2305,6 +2305,840 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disconnect Spotify'**
   String get musicDisconnect;
+
+  /// Generic failure copy for a surface whose data could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this.'**
+  String get errorCouldntLoad;
+
+  /// A lift's overall direction: strength is trending up over recent sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Progressing'**
+  String get workoutStatusProgressing;
+
+  /// A lift's overall direction: steady — neither building nor losing.
+  ///
+  /// In en, this message translates to:
+  /// **'Holding'**
+  String get workoutStatusHolding;
+
+  /// A lift's overall direction: unchanged for several sessions; needs a change.
+  ///
+  /// In en, this message translates to:
+  /// **'Plateaued'**
+  String get workoutStatusPlateaued;
+
+  /// A lift's overall direction: strength has declined recently.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending down'**
+  String get workoutStatusTrendingDown;
+
+  /// A lift's overall direction: too few sessions logged to judge a trend yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Building'**
+  String get workoutStatusBuilding;
+
+  /// One session versus the previous one: better.
+  ///
+  /// In en, this message translates to:
+  /// **'Improved'**
+  String get workoutToneImproved;
+
+  /// One session versus the previous one: the same. Not a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Matched'**
+  String get workoutToneMatched;
+
+  /// One session versus the previous one: some measures up, some down.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed'**
+  String get workoutToneMixed;
+
+  /// One session versus the previous one: worse.
+  ///
+  /// In en, this message translates to:
+  /// **'Down'**
+  String get workoutToneDown;
+
+  /// Shown when the body-weight history fails to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load weigh-ins.'**
+  String get workoutBodyweightLoadError;
+
+  /// Subtitle counting the user's logged weigh-ins.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} weigh-ins logged'**
+  String workoutWeighInsLogged(int count);
+
+  /// The kilogram unit as a micro-label beside a number. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'KG'**
+  String get workoutUnitKg;
+
+  /// Body-weight change over the last 30 days, e.g. "−1.4 KG · 30D". The change already carries its sign.
+  ///
+  /// In en, this message translates to:
+  /// **'{change} KG · 30D'**
+  String workoutBodyweightChange30d(String change);
+
+  /// Empty state on the body-weight history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Log your first weigh-in to start the trend.'**
+  String get workoutBodyweightEmpty;
+
+  /// Group header over the current week in the session history. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'THIS WEEK'**
+  String get workoutThisWeekCaps;
+
+  /// Group header over the previous week in the session history. Set in caps in English.
+  ///
+  /// In en, this message translates to:
+  /// **'LAST WEEK'**
+  String get workoutLastWeekCaps;
+
+  /// Label under a count of training sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get workoutSessionsLabel;
+
+  /// Label under the total time spent training.
+  ///
+  /// In en, this message translates to:
+  /// **'Trained'**
+  String get workoutTrained;
+
+  /// Label under a count for the current week.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get workoutThisWeek;
+
+  /// A finished training session.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get workoutSessionCompleted;
+
+  /// A training session that is still running.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get workoutSessionInProgress;
+
+  /// A training session that was left unfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Not completed'**
+  String get workoutSessionNotCompleted;
+
+  /// How many exercises a logged session contained.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 exercise} other{{count} exercises}}'**
+  String workoutExerciseCount(int count);
+
+  /// How many of a session's sets were completed, e.g. "12/15 sets".
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} sets'**
+  String workoutSetsOfTotal(int done, int total);
+
+  /// Empty state title on the session history page.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions logged yet.'**
+  String get workoutNoSessionsTitle;
+
+  /// Empty state body on the session history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish a workout and it shows up here.'**
+  String get workoutNoSessionsBody;
+
+  /// Shown when the session list fails to load.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load sessions.'**
+  String get workoutSessionsLoadError;
+
+  /// Sessions drill-down subtitle when nothing at all has been logged.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed workouts yet.'**
+  String get workoutNoCompletedWorkouts;
+
+  /// Sessions drill-down subtitle: how many workouts were finished.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 completed workout} other{{count} completed workouts}}'**
+  String workoutCompletedCount(int count);
+
+  /// Sessions drill-down subtitle when there are only unfinished entries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{No completed workouts · 1 entry} other{No completed workouts · {count} entries}}'**
+  String workoutNoCompletedWithEntries(int count);
+
+  /// Sessions drill-down subtitle combining the completed count with the unfinished count.
+  ///
+  /// In en, this message translates to:
+  /// **'{completed} · {notCompleted} not completed'**
+  String workoutCompletedAndNotCompleted(String completed, int notCompleted);
+
+  /// Empty card on the Sessions drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet — finished workouts land here.'**
+  String get workoutSessionsEmpty;
+
+  /// A training session the user stopped before finishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended early'**
+  String get workoutSessionEndedEarly;
+
+  /// Completed sets out of the session total, as a caps micro-label.
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} SETS'**
+  String workoutSetsCaps(int done, int total);
+
+  /// The number of consecutive days trained.
+  ///
+  /// In en, this message translates to:
+  /// **'Day streak'**
+  String get workoutDayStreak;
+
+  /// Label under a zero day-streak.
+  ///
+  /// In en, this message translates to:
+  /// **'No active streak — complete a workout to start one.'**
+  String get workoutNoActiveStreak;
+
+  /// Label under the current day-streak number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{day in your current streak} other{days in your current streak}}'**
+  String workoutStreakDays(int count);
+
+  /// Label under the all-time best day streak.
+  ///
+  /// In en, this message translates to:
+  /// **'best day streak ever'**
+  String get workoutBestStreak;
+
+  /// Empty card on the Day streak drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Train today and day one starts now.'**
+  String get workoutStreakEmpty;
+
+  /// How many sessions a streak day contained, as a caps micro-label.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 SESSION} other{{count} SESSIONS}}'**
+  String workoutSessionsCountCaps(int count);
+
+  /// How long a training session lasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Session length'**
+  String get workoutSessionLength;
+
+  /// Label under an unavailable average session length.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete a workout to see your average.'**
+  String get workoutNoAverageYet;
+
+  /// Label under the average session duration.
+  ///
+  /// In en, this message translates to:
+  /// **'average completed session'**
+  String get workoutAverageSession;
+
+  /// Empty card on the Session length drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Durations appear once you finish workouts.'**
+  String get workoutDurationsEmpty;
+
+  /// When the user usually starts training.
+  ///
+  /// In en, this message translates to:
+  /// **'Start times'**
+  String get workoutStartTimes;
+
+  /// Label under an unavailable usual start time.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete a workout to see your usual start time.'**
+  String get workoutNoStartTimeYet;
+
+  /// Label under the average training start time.
+  ///
+  /// In en, this message translates to:
+  /// **'when you usually start training'**
+  String get workoutUsualStartTime;
+
+  /// Empty card on the Start times drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Your start times will show up here.'**
+  String get workoutStartTimesEmpty;
+
+  /// Stands in for a date when that date is today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get workoutToday;
+
+  /// A relative time, e.g. "3h ago". {value} is an already-formatted span like "3h".
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ago'**
+  String workoutAgo(String value);
+
+  /// Section label over the active training split.
+  ///
+  /// In en, this message translates to:
+  /// **'Current split'**
+  String get workoutCurrentSplit;
+
+  /// Section label over the most recent training sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get workoutRecentActivity;
+
+  /// Empty card under Recent activity.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t logged a session yet.'**
+  String get workoutNoSessionYet;
+
+  /// Section label over the links into the detailed analysis pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Go deeper'**
+  String get workoutGoDeeper;
+
+  /// Link into the full training analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Full analysis'**
+  String get workoutFullAnalysis;
+
+  /// Subtitle under the Full analysis link.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise-by-exercise, per training day'**
+  String get workoutFullAnalysisDetail;
+
+  /// Link into the full session history page.
+  ///
+  /// In en, this message translates to:
+  /// **'All history'**
+  String get workoutAllHistory;
+
+  /// Subtitle under the All history link.
+  ///
+  /// In en, this message translates to:
+  /// **'Every session you have logged'**
+  String get workoutAllHistoryDetail;
+
+  /// Subtitle under the Splits link.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch or edit your training splits'**
+  String get workoutSplitsDetail;
+
+  /// Label under the all-time completed session count.
+  ///
+  /// In en, this message translates to:
+  /// **'Total sessions'**
+  String get workoutTotalSessions;
+
+  /// Label under the average session duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg length'**
+  String get workoutAvgLength;
+
+  /// Caps link out of the progress summary card into the analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'SEE FULL ANALYSIS'**
+  String get workoutSeeFullAnalysisCaps;
+
+  /// Caps link out of a section into its full list.
+  ///
+  /// In en, this message translates to:
+  /// **'SEE ALL'**
+  String get workoutSeeAllCaps;
+
+  /// How many personal records were set. "PR" is personal record.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 PR} other{{count} PRs}}'**
+  String workoutPrCount(int count);
+
+  /// How many training sessions have been completed in total.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 session completed} other{{count} sessions completed}}'**
+  String workoutSessionsCompletedCount(int count);
+
+  /// Compact pill linking to the training plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get workoutPlanShort;
+
+  /// A finished session's relative time plus how long it ran, e.g. "3h ago · 52m".
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ago · {duration}'**
+  String workoutAgoWithDuration(String value, String duration);
+
+  /// Section label over recently set personal records.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent PRs'**
+  String get workoutRecentPrs;
+
+  /// Section label over the exercises that are progressing.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s going well'**
+  String get workoutGoingWell;
+
+  /// Trailing count beside the "going well" section.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} improving'**
+  String workoutImprovingCount(int count);
+
+  /// Section label over the exercises that are declining.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s getting worse'**
+  String get workoutGettingWorse;
+
+  /// Trailing count beside the "getting worse" section.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} declining'**
+  String workoutDecliningCount(int count);
+
+  /// Section label over the exercises that have plateaued.
+  ///
+  /// In en, this message translates to:
+  /// **'Stalled — needs a change'**
+  String get workoutStalled;
+
+  /// Trailing count beside the "stalled" section.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} flat'**
+  String workoutFlatCount(int count);
+
+  /// Section label over planned exercises that are not being trained.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s being skipped'**
+  String get workoutBeingSkipped;
+
+  /// Trailing count beside the "being skipped" section: how many planned exercises are neglected.
+  ///
+  /// In en, this message translates to:
+  /// **'{skipped} of {planned}'**
+  String workoutSkippedOfPlanned(int skipped, int planned);
+
+  /// Section label over the suggested next step.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus next'**
+  String get workoutFocusNext;
+
+  /// Section label over the weekly working-set volume.
+  ///
+  /// In en, this message translates to:
+  /// **'Training volume'**
+  String get workoutTrainingVolume;
+
+  /// Section label over the full exercise list.
+  ///
+  /// In en, this message translates to:
+  /// **'All exercises'**
+  String get workoutAllExercises;
+
+  /// Hint beside the All exercises section.
+  ///
+  /// In en, this message translates to:
+  /// **'tap to drill in'**
+  String get workoutTapToDrillIn;
+
+  /// Caps label over the summary verdict card.
+  ///
+  /// In en, this message translates to:
+  /// **'OVERALL'**
+  String get workoutOverallCaps;
+
+  /// A personal record for the heaviest weight lifted.
+  ///
+  /// In en, this message translates to:
+  /// **'Heaviest'**
+  String get workoutPrHeaviest;
+
+  /// A personal record for the most repetitions performed.
+  ///
+  /// In en, this message translates to:
+  /// **'Most reps'**
+  String get workoutPrMostReps;
+
+  /// A personal record for the best estimated one-rep max.
+  ///
+  /// In en, this message translates to:
+  /// **'Best strength'**
+  String get workoutPrBestStrength;
+
+  /// An unloaded set, described by its repetitions alone.
+  ///
+  /// In en, this message translates to:
+  /// **'{reps} reps'**
+  String workoutRepsOnly(int reps);
+
+  /// A loaded set, e.g. "100kg × 8".
+  ///
+  /// In en, this message translates to:
+  /// **'{weight}kg × {reps}'**
+  String workoutWeightByReps(String weight, int reps);
+
+  /// A status word with its strength change, e.g. "Progressing · +4% strength".
+  ///
+  /// In en, this message translates to:
+  /// **'{status} · {change} strength'**
+  String workoutStatusWithStrength(String status, String change);
+
+  /// Why a planned exercise is flagged: it has never been performed.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned but never trained'**
+  String get workoutNeverTrained;
+
+  /// Why a planned exercise is flagged: it has not been trained recently.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days since last — on {day}'**
+  String workoutStaleSince(int days, String day);
+
+  /// Shown when there is no previous week of volume to compare against.
+  ///
+  /// In en, this message translates to:
+  /// **'No prior week to compare'**
+  String get workoutNoPriorWeek;
+
+  /// Volume change against the previous week, e.g. "+12% vs last week".
+  ///
+  /// In en, this message translates to:
+  /// **'{change} vs last week'**
+  String workoutVsLastWeek(String change);
+
+  /// Shown when this week's volume matches last week's.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as last week'**
+  String get workoutSameAsLastWeek;
+
+  /// Caption over the weekly volume number, noting warm-ups are excluded.
+  ///
+  /// In en, this message translates to:
+  /// **'This week · working sets only'**
+  String get workoutThisWeekWorkingSets;
+
+  /// Empty state title on the analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete a few sessions to start tracking progress.'**
+  String get workoutAnalysisEmptyTitle;
+
+  /// Empty state body on the analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you\'ve logged the same exercise a few times, ZIVO will show your strength trend, PRs, and what to focus on next.'**
+  String get workoutAnalysisEmptyBody;
+
+  /// Section label over the estimated-1RM chart for a loaded lift.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength trend'**
+  String get workoutStrengthTrend;
+
+  /// Section label over the volume chart for an unloaded movement.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume trend'**
+  String get workoutVolumeTrend;
+
+  /// Section label over the summary metric tiles.
+  ///
+  /// In en, this message translates to:
+  /// **'At a glance'**
+  String get workoutAtAGlance;
+
+  /// Section label over this exercise's personal records.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal records'**
+  String get workoutPersonalRecords;
+
+  /// Section label over the session-by-session timeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Session history'**
+  String get workoutSessionHistory;
+
+  /// Trailing count beside the Session history label.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} logged'**
+  String workoutSessionsLogged(int count);
+
+  /// The change in estimated strength, e.g. "+4% est. strength".
+  ///
+  /// In en, this message translates to:
+  /// **'{change} est. strength'**
+  String workoutEstStrengthChange(String change);
+
+  /// Caps micro-label under the current estimated one-rep max. "1RM" is one-rep max.
+  ///
+  /// In en, this message translates to:
+  /// **'EST. 1RM'**
+  String get workoutEst1rmCaps;
+
+  /// Caps marker over the coaching insight's first line.
+  ///
+  /// In en, this message translates to:
+  /// **'WHAT HAPPENED'**
+  String get workoutWhatHappenedCaps;
+
+  /// Caps marker over the coaching insight's second line.
+  ///
+  /// In en, this message translates to:
+  /// **'WHY IT MATTERS'**
+  String get workoutWhyItMattersCaps;
+
+  /// Caps marker over the coaching insight's recommended action.
+  ///
+  /// In en, this message translates to:
+  /// **'DO THIS'**
+  String get workoutDoThisCaps;
+
+  /// Caps axis label on the strength chart.
+  ///
+  /// In en, this message translates to:
+  /// **'EST. 1RM (KG)'**
+  String get workoutEst1rmUnitCaps;
+
+  /// Caps axis label on the volume chart.
+  ///
+  /// In en, this message translates to:
+  /// **'VOLUME (KG)'**
+  String get workoutVolumeUnitCaps;
+
+  /// Left end of a chart's time axis.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest'**
+  String get workoutOldest;
+
+  /// Right end of a chart's time axis.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get workoutLatest;
+
+  /// Metric tile: the highest estimated one-rep max reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Best est. 1RM'**
+  String get workoutBestEst1rm;
+
+  /// Metric tile: total working volume for this exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Total volume'**
+  String get workoutTotalVolume;
+
+  /// Metric tile: how often this exercise is trained.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency'**
+  String get workoutFrequency;
+
+  /// Unit beside a per-week frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'/wk'**
+  String get workoutPerWeek;
+
+  /// Metric tile: when this exercise was last performed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last trained'**
+  String get workoutLastTrained;
+
+  /// Unit beside a number of days since the exercise was last trained.
+  ///
+  /// In en, this message translates to:
+  /// **'days ago'**
+  String get workoutDaysAgo;
+
+  /// Personal record row: the heaviest weight lifted.
+  ///
+  /// In en, this message translates to:
+  /// **'Heaviest load'**
+  String get workoutPrHeaviestLoad;
+
+  /// A weight in kilograms, e.g. "100kg".
+  ///
+  /// In en, this message translates to:
+  /// **'{value}kg'**
+  String workoutKgValue(String value);
+
+  /// Caps ordinal over one session in the timeline.
+  ///
+  /// In en, this message translates to:
+  /// **'SESSION {index}'**
+  String workoutSessionNumberCaps(int index);
+
+  /// Micro-label under a count of working sets.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets'**
+  String get workoutSetsShort;
+
+  /// Micro-label under the heaviest set of a session.
+  ///
+  /// In en, this message translates to:
+  /// **'Top set'**
+  String get workoutTopSet;
+
+  /// Micro-label under a session's total volume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get workoutVolumeShort;
+
+  /// Micro-label under a session's best estimated one-rep max.
+  ///
+  /// In en, this message translates to:
+  /// **'Est 1RM'**
+  String get workoutEst1rmShort;
+
+  /// Caps label over the deltas against the previous session.
+  ///
+  /// In en, this message translates to:
+  /// **'VS PREVIOUS SESSION'**
+  String get workoutVsPreviousSessionCaps;
+
+  /// One-letter marker on a drop set. Kept latin in both languages, as a symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'D'**
+  String get workoutSetDropsetShort;
+
+  /// One-letter marker on a set taken to failure. Kept latin in both languages, as a symbol.
+  ///
+  /// In en, this message translates to:
+  /// **'F'**
+  String get workoutSetFailureShort;
+
+  /// Badge on a session that set a personal best.
+  ///
+  /// In en, this message translates to:
+  /// **'PB'**
+  String get workoutPbCaps;
+
+  /// Empty state title on the per-exercise analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed sessions with this exercise yet.'**
+  String get workoutExerciseEmptyTitle;
+
+  /// Empty state body on the per-exercise analysis page.
+  ///
+  /// In en, this message translates to:
+  /// **'Log it in a session and its full history, trend, and session-to-session comparison will appear here.'**
+  String get workoutExerciseEmptyBody;
+
+  /// Delta chip: this session set a new personal best.
+  ///
+  /// In en, this message translates to:
+  /// **'New PB'**
+  String get workoutNewPb;
+
+  /// Delta chip: how estimated strength moved, e.g. "e1RM +4%".
+  ///
+  /// In en, this message translates to:
+  /// **'e1RM {change}'**
+  String workoutDeltaE1rm(String change);
+
+  /// Delta chip: how the working load moved, e.g. "Load +2.5kg".
+  ///
+  /// In en, this message translates to:
+  /// **'Load {change}'**
+  String workoutDeltaLoad(String change);
+
+  /// Delta chip: how the top-set reps moved, e.g. "Reps +2".
+  ///
+  /// In en, this message translates to:
+  /// **'Reps {change}'**
+  String workoutDeltaReps(String change);
+
+  /// Delta chip: how session volume moved, e.g. "Volume +8%".
+  ///
+  /// In en, this message translates to:
+  /// **'Volume {change}'**
+  String workoutDeltaVolume(String change);
+
+  /// Delta chip: this session matched the previous one.
+  ///
+  /// In en, this message translates to:
+  /// **'No meaningful change'**
+  String get workoutNoMeaningfulChange;
+
+  /// A duration over an hour, e.g. "1h 12m". Abbreviations: h = hours, m = minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String workoutDurationHm(int hours, int minutes);
+
+  /// A duration under an hour, e.g. "52m". Abbreviation: m = minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String workoutDurationM(int minutes);
+
+  /// A duration in hours with a decimal, e.g. "3.5h". Abbreviation: h = hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String workoutDurationH(String hours);
 }
 
 class _AppLocalizationsDelegate

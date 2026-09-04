@@ -19,9 +19,10 @@ import '../widgets/workout_section_label.dart';
 import 'session_details_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
-import 'workout_dashboard_page.dart' show formatDurationShort;
 import 'workout_history_page.dart';
 import 'workout_plan_page.dart';
+import '../../../../l10n/l10n.dart';
+import '../workout_format.dart';
 
 /// The Workout tab's second screen — everything that used to crowd the
 /// dashboard landing. The landing answers "what am I doing now"; this
@@ -72,7 +73,7 @@ class WorkoutProgressPage extends StatelessWidget {
                 children: [
                   StaggeredReveal(
                     index: 0,
-                    child: const TrainPageHeader(title: 'Progress'),
+                    child: TrainPageHeader(title: l(context).workoutProgress),
                   ),
                   const SizedBox(height: 24),
                   // ---- HOW MUCH ---------------------------------
@@ -88,7 +89,7 @@ class WorkoutProgressPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const WorkoutSectionLabel('Progress'),
+                          WorkoutSectionLabel(l(context).workoutProgress),
                           const SizedBox(height: 10),
                           ProgressSummaryCard(analysis: analysis),
                         ],
@@ -102,7 +103,7 @@ class WorkoutProgressPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const WorkoutSectionLabel('Current split'),
+                          WorkoutSectionLabel(l(context).workoutCurrentSplit),
                           const SizedBox(height: 10),
                           SplitBreakdownCard(plan: plan, stats: stats),
                         ],
@@ -115,8 +116,10 @@ class WorkoutProgressPage extends StatelessWidget {
                     index: 3,
                     child: Row(
                       children: [
-                        const Expanded(
-                          child: WorkoutSectionLabel('Recent activity'),
+                        Expanded(
+                          child: WorkoutSectionLabel(
+                            l(context).workoutRecentActivity,
+                          ),
                         ),
                         if (stats.recentSessions.isNotEmpty)
                           _SeeAllLink(
@@ -136,8 +139,8 @@ class WorkoutProgressPage extends StatelessWidget {
                   if (stats.recentSessions.isEmpty)
                     StaggeredReveal(
                       index: 4,
-                      child: const _EmptyCard(
-                        label: "You haven't logged a session yet.",
+                      child: _EmptyCard(
+                        label: l(context).workoutNoSessionYet,
                       ),
                     )
                   else
@@ -167,15 +170,15 @@ class WorkoutProgressPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const WorkoutSectionLabel('Go deeper'),
+                        WorkoutSectionLabel(l(context).workoutGoDeeper),
                         const SizedBox(height: 10),
                         _DestinationCard(
                           destinations: [
                             _Destination(
                               icon: AppIcons.analysis,
                               accent: TrainColors.green,
-                              label: 'Full analysis',
-                              detail: 'Exercise-by-exercise, per training day',
+                              label: l(context).workoutFullAnalysis,
+                              detail: l(context).workoutFullAnalysisDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -188,8 +191,8 @@ class WorkoutProgressPage extends StatelessWidget {
                             _Destination(
                               icon: AppIcons.history,
                               accent: TrainColors.green,
-                              label: 'All history',
-                              detail: 'Every session you have logged',
+                              label: l(context).workoutAllHistory,
+                              detail: l(context).workoutAllHistoryDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -202,8 +205,8 @@ class WorkoutProgressPage extends StatelessWidget {
                             _Destination(
                               icon: AppIcons.splits,
                               accent: TrainColors.green,
-                              label: 'Splits',
-                              detail: 'Switch or edit your training splits',
+                              label: l(context).workoutSplits,
+                              detail: l(context).workoutSplitsDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -247,7 +250,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.sessions,
                 accent: TrainColors.green,
                 value: '${stats.sessionsThisWeek}',
-                label: 'This week',
+                label: l(context).workoutThisWeek,
               ),
             ),
             const SizedBox(width: 10),
@@ -256,7 +259,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.streak,
                 accent: TrainColors.green,
                 value: '${stats.currentStreakDays}',
-                label: 'Day streak',
+                label: l(context).workoutDayStreak,
               ),
             ),
           ],
@@ -269,7 +272,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.analysis,
                 accent: TrainColors.green,
                 value: '${stats.totalCompletedSessions}',
-                label: 'Total sessions',
+                label: l(context).workoutTotalSessions,
               ),
             ),
             const SizedBox(width: 10),
@@ -279,8 +282,8 @@ class _OverviewStrip extends StatelessWidget {
                 accent: TrainColors.green,
                 value: stats.averageSessionDuration == null
                     ? '—'
-                    : formatDurationShort(stats.averageSessionDuration!),
-                label: 'Avg length',
+                    : formatDurationShort(context, stats.averageSessionDuration!),
+                label: l(context).workoutAvgLength,
               ),
             ),
           ],
@@ -443,7 +446,7 @@ class ProgressSummaryCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'SEE FULL ANALYSIS',
+                      l(context).workoutSeeFullAnalysisCaps,
                       style: TrainType.mono(
                         size: 9.5,
                         color: TrainColors.green,
@@ -486,7 +489,7 @@ class _PrCountBadge extends StatelessWidget {
           const Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
           const SizedBox(width: 4),
           AnimatedStatValue(
-            value: '$count PR${count == 1 ? '' : 's'}',
+            value: l(context).workoutPrCount(count),
             style: TrainType.mono(
               color: TrainColors.amber,
               weight: FontWeight.w600,
@@ -585,7 +588,9 @@ class SplitBreakdownCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           AnimatedStatValue(
                             value:
-                                '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
+                                l(context).workoutSessionsCompletedCount(
+                                  stats.totalCompletedSessions,
+                                ),
                             style: TrainType.mono(
                               size: 10.5,
                               tracking: 0.06,
@@ -727,7 +732,7 @@ class _PlanLinkButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Text(
-              'Plan',
+              l(context).workoutPlanShort,
               style: TrainType.ui(
                 color: TrainColors.ink2,
                 weight: FontWeight.w600,
@@ -760,7 +765,7 @@ class _SeeAllLink extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'SEE ALL',
+                  l(context).workoutSeeAllCaps,
                   style: TrainType.mono(
                     size: 9.5,
                     weight: FontWeight.w600,
@@ -793,9 +798,18 @@ class _RecentSessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', TrainColors.green),
-      SessionStatus.active => ('In progress', TrainColors.amber),
-      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
+      SessionStatus.completed => (
+        l(context).workoutSessionCompleted,
+        TrainColors.green,
+      ),
+      SessionStatus.active => (
+        l(context).workoutSessionInProgress,
+        TrainColors.amber,
+      ),
+      SessionStatus.abandoned => (
+        l(context).workoutSessionNotCompleted,
+        TrainColors.ink4,
+      ),
     };
     return PressableScale(
       child: Material(
@@ -854,8 +868,13 @@ class _RecentSessionRow extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         session.status == SessionStatus.completed
-                            ? '${timeAgo(session.startedAt, now)} ago · ${formatDurationShort(session.elapsed)}'
-                            : '${timeAgo(session.startedAt, now)} ago',
+                            ? l(context).workoutAgoWithDuration(
+                                timeAgo(session.startedAt, now),
+                                formatDurationShort(context, session.elapsed),
+                              )
+                            : l(context).workoutAgo(
+                                timeAgo(session.startedAt, now),
+                              ),
                         style: TrainType.mono(
                           size: 10.5,
                           tracking: 0.06,
