@@ -13,10 +13,10 @@ import '../../domain/body_measures.dart';
 import '../../domain/diet_format.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/diet_plan_status.dart';
-import '../../domain/diet_source.dart';
 import '../widgets/body_measures_builder.dart';
 import '../widgets/add_diet_sheet.dart';
 import '../../../../l10n/l10n.dart';
+import '../diet_labels.dart';
 
 /// The user's **library of plans** — the cut, the bulk, the one their coach
 /// wrote — with exactly one in force.
@@ -66,11 +66,8 @@ class DietPlansPage extends StatelessWidget {
                     children: [
                       Text(
                         plans.length == 1
-                            ? 'One plan. Import or write another and you can '
-                                  'switch between them without losing either.'
-                            : '${plans.length} plans. One is in force at a '
-                                  'time — the Diet screen always shows that '
-                                  'one.',
+                            ? l(context).dietOnePlanNote
+                            : l(context).dietManyPlansNote(plans.length),
                         style: AppText.meta.copyWith(color: TrainColors.ink3),
                       ),
                       const SizedBox(height: 16),
@@ -102,7 +99,7 @@ class _NoPlans extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Text(
-        'No plans yet.',
+        l(context).dietNoPlansYet,
         key: const Key('plans-empty'),
         style: AppText.aside,
         textAlign: TextAlign.center,
@@ -184,10 +181,12 @@ class _PlanCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             [
-              dietSourceLabel(plan.source).toUpperCase(),
-              '${plan.days.length} ${plan.days.length == 1 ? "DAY" : "DAYS"}',
+              dietSourceText(context, plan.source).toUpperCase(),
+              l(context).dietDaysCaps(plan.days.length),
               if (energy.kcalPerDay != null)
-                '${approx(energy.estimated)}${energy.kcalPerDay} KCAL/DAY',
+                l(context).dietKcalPerDayCaps(
+                  '${approx(energy.estimated)}${energy.kcalPerDay}',
+                ),
             ].join(' · '),
             style: TrainType.mono(
               size: 10.5,
@@ -258,9 +257,9 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(switch (status) {
-        DietPlanStatus.active => 'FOLLOWING',
-        DietPlanStatus.archived => 'ARCHIVED',
-        DietPlanStatus.draft => 'DRAFT',
+        DietPlanStatus.active => l(context).dietFollowingCaps,
+        DietPlanStatus.archived => l(context).dietArchivedCaps,
+        DietPlanStatus.draft => l(context).dietDraftCaps,
       }, style: TrainType.caption(size: 8.5, tracking: 0.14, color: color)),
     );
   }

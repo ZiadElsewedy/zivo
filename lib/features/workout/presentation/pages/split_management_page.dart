@@ -14,7 +14,7 @@ import '../../../../core/widgets/zivo_confirm.dart';
 import '../../domain/workout_plan.dart';
 import '../../domain/workout_plan_repository.dart';
 import '../widgets/staggered_reveal.dart';
-import 'workout_pdf_import_page.dart';
+import '../widgets/add_workout_sheet.dart';
 import 'workout_plan_edit_page.dart';
 import '../../../../l10n/l10n.dart';
 
@@ -101,46 +101,13 @@ class SplitManagementPage extends StatelessWidget {
 
 enum _SplitAction { setActive, edit, duplicate, delete }
 
-enum _NewSplitAction { manual, importAi }
-
-Future<void> _openNewSplitSheet(BuildContext context) async {
-  final action = await showCupertinoModalPopup<_NewSplitAction>(
-    context: context,
-    builder: (sheetContext) => CupertinoActionSheet(
-      title: const Text('New split'),
-      actions: [
-        CupertinoActionSheetAction(
-          onPressed: () =>
-              Navigator.of(sheetContext).pop(_NewSplitAction.manual),
-          child: const Text('Create Manually'),
-        ),
-        CupertinoActionSheetAction(
-          onPressed: () =>
-              Navigator.of(sheetContext).pop(_NewSplitAction.importAi),
-          child: const Text('Import with AI'),
-        ),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        onPressed: () => Navigator.of(sheetContext).pop(),
-        child: const Text('Cancel'),
-      ),
-    ),
-  );
-  if (action == null || !context.mounted) return;
-  HapticFeedback.selectionClick();
-  switch (action) {
-    case _NewSplitAction.manual:
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const WorkoutPlanEditPage(asSplit: true),
-        ),
-      );
-    case _NewSplitAction.importAi:
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const WorkoutPdfImportPage()));
-  }
-}
+/// The "new split" entry — every capture route (document · dictate · type ·
+/// build by hand) in one sheet. This replaced a two-option Cupertino chooser
+/// ("Create Manually" / "Import with AI") that offered only a file import and
+/// hard-coded an English "Cancel"; `showAddWorkoutSheet` is the same doorway
+/// the Workout hub and Today card use, so there is one way to add a split.
+Future<void> _openNewSplitSheet(BuildContext context) =>
+    showAddWorkoutSheet(context);
 
 /// A fresh split from [original]'s content — new id/createdAt/updatedAt, name
 /// suffixed " copy". Reuses the SAME day/exercise ids as the original: safe,

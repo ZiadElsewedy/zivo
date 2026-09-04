@@ -160,6 +160,9 @@ void main() {
         id: 'm2',
         ownerUid: 'u1',
       );
+      // `capture` returns at the local copy; the registry record this test
+      // then patches is written on its background tail.
+      await service.settleCaptures();
       // Simulate another device's world: metadata synced, bytes not here,
       // Drive holds a copy.
       (await store.resolve(ref))!.deleteSync();
@@ -208,6 +211,9 @@ void main() {
         id: 'm4',
         ownerUid: 'u1',
       );
+      // `capture` returns at the local copy; the registry record this test
+      // then patches is written on its background tail.
+      await service.settleCaptures();
       (await store.resolve(ref))!.deleteSync();
       await registry.put(
         (await registry.get('m4'))!

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../domain/live_session.dart';
@@ -48,8 +49,13 @@ class UpNextWorkoutCard extends StatefulWidget {
   State<UpNextWorkoutCard> createState() => _UpNextWorkoutCardState();
 }
 
-class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
-  Future<void> _start([WorkoutDay? dayOverride]) async {
+class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
+    with AsyncAction<UpNextWorkoutCard> {
+  /// Guarded because it PUSHES: the route takes a frame or two to cover the
+  /// card, and an impatient second tap on Start pushed a second live session
+  /// on top of the first — two sessions autosaving the same day, with the one
+  /// underneath revealed on the way back.
+  Future<void> _start([WorkoutDay? dayOverride]) => runAction(#start, () async {
     final day = dayOverride ?? widget.day;
     final resume = dayOverride == null ? widget.resumable : null;
     HapticFeedback.mediumImpact();
@@ -59,7 +65,7 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard> {
             LiveSessionPage(day: day, plan: widget.plan, resume: resume),
       ),
     );
-  }
+  });
 
   Future<void> _openDetails() async {
     HapticFeedback.selectionClick();

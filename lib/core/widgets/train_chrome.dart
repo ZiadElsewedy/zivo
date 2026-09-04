@@ -310,18 +310,26 @@ class TrainSegmentCaptions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // 10.5, not the 9 this row shipped with. It is read from arm's
+        // length, one-handed, by someone who is out of breath — "EXERCISE 4 /
+        // 10" and the running set tally are the two things you check without
+        // picking the phone up, and at 9pt mono they were decoration.
         Text(
           left,
           style: TrainType.caption(
-            size: 9,
+            size: 10.5,
             tracking: 0.14,
-            color: const Color(0x59F4F4F0),
+            color: const Color(0x7AF4F4F0),
           ),
         ),
         Text(
           right,
           key: const Key('session-tally'),
-          style: TrainType.caption(size: 9, tracking: 0.14, color: rightColor),
+          style: TrainType.caption(
+            size: 10.5,
+            tracking: 0.14,
+            color: rightColor,
+          ),
         ),
       ],
     );

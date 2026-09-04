@@ -13,8 +13,10 @@
 | `split_management_page.dart` | Create / switch / edit / delete splits (multi-split) |
 | `live_session_page.dart` | The guided live workout session — **renders only**; its logic is `presentation/controllers/live_session_controller.dart` (see below) |
 | `session_details_page.dart`, `workout_history_page.dart` | Past sessions + history |
-| `workout_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progressive-overload analysis, scoped to the active split |
-| `workout_pdf_import_page.dart` | AI PDF import → review UI (pairs with `functions/ai/workout_import.js`) |
+| `workout_analysis_page.dart`, `exercise_analysis_page.dart`, `workout_progress_page.dart`, `workout_stats_pages.dart` | Progress/analysis. `workout_analysis_page.dart` is the **coaching hub** — engine-driven sections (overall · recent PRs · what's going well · getting worse · stalled · **what's being skipped** · focus next · volume · all exercises) reading `analytics/workout_analytics.dart` + `analytics/plan_adherence.dart`; **every exercise/PR/skip row taps into `exercise_analysis_page.dart`**, the per-exercise drill-down (status + what-happened/why/do insight · strength/volume trend · at-a-glance metrics · PRs · **session-by-session history with per-session deltas**) reading `analytics/exercise_analysis.dart`. `workout_progress_page.dart` is the landing whose summary card shares the hub engine. Direction word/colour/icon come from the shared `widgets/progress_status_style.dart` |
+| `workout_import_page.dart` | AI import → review UI, for a document (PDF/photo) **or** a dictated/typed description via `WorkoutImportInput` (pairs with `functions/ai/workout_import.js`). Was `workout_pdf_import_page.dart`. |
+| `workout_describe_page.dart` | Say-it / type-it route — a thin wrapper over the shared `capture/presentation/import/plan_describe_page.dart` |
+| `widgets/add_workout_sheet.dart` | `showAddWorkoutSheet` — the one doorway (document · say it · type it · build by hand); every entry point (hub, Today, split editor) opens it |
 | `bodyweight_history_page.dart` | Body-weight log + trend |
 | `workout_capture_page.dart`, `workout_day_details_page.dart` | Quick capture + day drill-in |
 
@@ -64,11 +66,54 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 - Progression/analysis: `progression.dart`, `day_progress_analysis.dart`,
   `progress_comparison.dart`, `weight_trend.dart`, `up_next_selection.dart`,
   `training_dashboard_stats.dart`.
-- Import: `workout_import_result.dart` (+ `ImportedDay`/`ImportedExercise`),
-  `workout_plan_from_import.dart`, `workout_plan_normalize.dart`, `workout_plan_source.dart`.
+- **Analytics engine: `analytics/workout_analytics.dart`** — the ONE centralized
+  "how am I progressing" engine, consumed by BOTH the progress UI
+  (`workout_analysis_page.dart`, `workout_progress_page.dart`'s summary card) and
+  the AI coach (mirrored in `functions/ai/workout_analytics.js`, pinned by shared
+  golden vectors). Pure over `List<LiveSession>`: `estimatedOneRepMax` (Epley,
+  capped at 12 reps), `personalRecords`/`detectNewPrs` (derived from history — no
+  stored ledger), per-exercise `ProgressStatus` (min-3-appearance gate + a
+  meaningful-change threshold + best-of-window smoothing, so one off day can't
+  flip a verdict), a per-muscle rollup (`normalizeMuscleGroup` folds free-text
+  labels into six buckets), working-volume trend, an overall summary, typed
+  `TrainingFinding`s (fact vs interpretation), and a `computeGoal`-based next
+  step. **Warm-up sets are excluded everywhere.** Prefer this over the older
+  per-day `analyzeDayProgress` (n=2) for progress questions.
+- **Drill-down engine: `analytics/exercise_analysis.dart`** (`analyzeExercise`) — the
+  per-exercise layer BENEATH the hub. Pure over `List<LiveSession>`; **reuses** the hub's
+  primitives (`analyzeTraining` for the direction, `estimatedOneRepMax`, `isWorkingSet`,
+  `computeGoal`) so hub and detail can't disagree, and adds what the hub can't show: full
+  session-by-session records (sets/reps/load/volume/e1RM/avg-load/rep-range), consecutive
+  `SessionComparison`s with typed `SessionChange` deltas, an **intensity-first**
+  `ExerciseTrendTone` (e1RM leads, volume is secondary — a heavier-for-fewer-reps session
+  can still be a win), PR-along-the-timeline flags, and a `CoachingInsight` (what
+  happened → why → do) templated from the numbers. The pinned engine's numbers are
+  untouched — this is purely additive (only new public export on `workout_analytics.dart`
+  is `isWorkingSet`). **Mirrored in Node** (`functions/ai/exercise_analytics.js`) and fed
+  to the AI coach via `get_exercise_analysis` + `get_training_analysis`'s `planAdherence`,
+  pinned to the Dart engines by shared golden vectors (both suites run them).
+- **Adherence engine: `analytics/plan_adherence.dart`** (`analyzePlanAdherence`) — joins
+  the active plan against completed history (join key `PlannedExercise.id` ==
+  `SessionExercise.exerciseId`) to flag **skipped** (planned, never trained) and **stale**
+  (>14d) movements — the hub's "what's being skipped?" section.
+- Import: `workout_import_input.dart` (the sealed `WorkoutImportInput` =
+  `Document | Description`, mirroring diet), `workout_import_result.dart` (+
+  `ImportedDay`/`ImportedExercise`), `workout_plan_from_import.dart` (takes a
+  `source`), `workout_plan_normalize.dart`, `workout_plan_source.dart`
+  (`manual`/`pdf`/`photo`/`dictated`/`typed`).
 
 ## Gotchas / invariants (don't re-litigate — see `docs/STATE.md` + git history)
 
+- **The live session is read at arm's length, mid-set.** The session clock is 18pt and
+  the segment captions 10.5pt for that reason (they were 13 and 9, which is decoration
+  at a metre). The exercise name is capped at two lines so a long movement name can't
+  push the goal card — the point of the screen — under the fold. Keep that bias when
+  adding anything: if it can't be read without picking the phone up, it doesn't belong
+  on this screen.
+- **The docked music bar shows a reconnect, not nothing.** `SessionNowPlaying` collapses
+  only on a device that has never linked to Spotify; a *linked* device that dropped mid-
+  workout keeps a slim reconnect row, because the alternative was abandoning the session
+  to go find Settings. See [`music/FEATURE.md`](../music/FEATURE.md).
 - **Exercise-identity invariant** and the `splitId` alias are intentional; analysis/history
   are deliberately scoped to the **active** split.
 - The splits-migration tie-break resolves to **oldest-by-`createdAt`** on purpose (matches

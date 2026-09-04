@@ -49,8 +49,12 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 
 | File | Role |
 |---|---|
-| `gateway.js` | Ask entrypoint: streaming, prompt-cache prefix, history trim, tool loop, **system prompt (coach persona)**, confirm/execute dispatch (`applyProposedAction`) |
-| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, `get_expenses`, `summarize_week`, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it |
+| `gateway.js` | Ask entrypoint — now a thin **facade** re-exporting `chat/` (`runAiTurn`, `confirmAction`, `cancelAction`, `GatewayError`, `SYSTEM_PROMPT`, `DEFAULT_CONFIG`). The split is invisible to callers |
+| **`chat/`** | The chat subsystem, split by concern (see [`chat/README.md`](../../../functions/ai/chat/README.md)): `turn.js` (the model↔tool loop), `actions.js` (propose→confirm→execute writes), `context.js` (the system blocks handed to the model each turn + prompt-cache discipline), `config.js` (ceilings/pricing/canned messages), `usage.js` (token accounting + cost + daily cap), `messages.js` (history + tool-result shaping), `errors.js` (`GatewayError`) |
+| **`chat/prompt/`** | The **system prompt**, composed in `system_prompt.js` from `sections/` — `persona` · **`focus`** (answer the exact question, pull only relevant context) · **`formatting`** (plain-text structure the client renders) · `numbers` · `training` · `coaching` · `mutations` · `safety`. The load-bearing sections are pinned by `gateway.test.js`; `formatting` assumes the client renders **plain text** (no Markdown) |
+| `tools.js` | uid-scoped **read** tools — `get_today`, `get_diet`, `get_workouts`, **`get_training_analysis`**, `get_expenses`, `summarize_week`, plus **`resolve_food`** (a food → its `foodId` + per-100g nutrition, or `ambiguous`/`notFound`) and **`calculate_meal_nutrition`** (items → computed kcal/macros + total). Every payload states the **date** it resolved; diet payloads carry the user's `targets`, what's `remaining` of them, and the `estimated` provenance of every figure. `get_expenses` surfaces each expense's `id` so edit/delete can target it. **`get_workouts` returns the REAL per-set actuals** from `workoutSessions` (weight/reps/type/outcome per set — warm-ups flagged, skipped/pending dropped), never the lossy flat log; **`get_training_analysis` hands the model ZIVO's deterministic workout analysis + typed `findings`** (see `workout_analytics.js`) so it phrases strength/PRs/trends, never computes them — and now also **`planAdherence`** (planned movements being skipped/gone-stale, from `exercise_analytics.js` + `store.getActiveWorkoutPlan`); **`get_exercise_analysis`** resolves ONE lift by name and returns its full session-by-session history, session-to-session deltas, verdict/tone and deterministic insight (the drill-down the model explains, never recomputes) |
+| `workout_analytics.js` | the **workout analytics engine** — the Node mirror of `lib/features/workout/domain/analytics/workout_analytics.dart`, pinned to it by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`, run by both suites). Estimated 1RM (Epley), PRs derived from history, per-exercise status (thresholded, min-3-appearance, warm-ups excluded), per-muscle rollup, working-volume trend, and `fact`/`interpretation`-typed findings. `store.listWorkoutSessions` feeds it |
+| `exercise_analytics.js` | the **per-exercise drill-down + plan-adherence engine** — the Node mirror of `exercise_analysis.dart` + `plan_adherence.dart`, reusing `workout_analytics.js`'s primitives. `analyzeExercise` (one lift's session records, session-to-session deltas, **intensity-first** verdict/tone, PRs, frequency, insight) and `analyzePlanAdherence` (skipped/never-trained/stale planned movements). The numeric facts + verdict/tone + change tags + adherence reasons are pinned to Dart by the `exerciseAnalysis`/`planAdherence` golden vectors (both suites); the insight PROSE is generated per side, not pinned |
 | `dates.js` | timezone-aware day/week/month resolution — takes the client's `offsetMinutes` so "today" is the **user's** today, not the server's UTC one |
 | `mutations.js` | confirm-gated **write** tools (propose → confirm → execute): `create_expense`, `edit_expense`, `delete_expense`, `mark_meal_eaten`, **`log_food`** (logs what the user ate; nutrition computed server-side in `verify`, never supplied by the model) |
 | `../nutrition/resolve.js` | the ONE server path from a food reference (query or `foodId`) + an amount to calories — mirrors the Dart `CompositeFoodResolver` (custom foods layered over USDA). Shared by `resolve_food`, `calculate_meal_nutrition` and `log_food` so they can't disagree |
@@ -60,6 +64,29 @@ tree. The `ask_page_*_test.dart` suite still covers what the screen renders.
 | `store.js`, `dates.js` | Firestore access + date helpers |
 
 Each has a `*.test.js` (`node --test`, offline — canned fake model, no live API).
+
+## Live progress (what the rail and the import screens show)
+
+Both surfaces report **real backend state**, never a timer.
+
+- **Ask.** `gateway.js` emits `{type:'phase'}` for the loop's coarse boundaries and
+  `{type:'step', tool, status}` as each **read** tool starts and finishes. Only the tool
+  *name* crosses the wire — never its input or result — and `AskController._stepLabel`
+  maps it to human copy ("Reading today's diet…"). A running step outranks the phase; an
+  unknown tool falls back to "Working…" so a newer server can't leak a raw identifier onto
+  an older client. Mutating tools emit no step: they propose rather than execute, which
+  `preparing_change` and the confirmation card already describe.
+- **PDF/photo import.** `aiImportWorkoutPlan` / `aiImportDietPlan` stream. These turns emit
+  **no assistant text** (`toolChoice: "any"` forces a tool call), so the only thing moving
+  is the structured output being written — `ai/import_progress.js` scans that partially
+  streamed tool input for *complete* `"key": "value"` pairs and reports days/meals and item
+  counts as they land. Progress only ever grows, and a half-written label is never shown.
+  The screens previously cycled three hardcoded lines on a 1.6s timer, which moved whether
+  or not the backend did; **a stalled import now visibly stalls.**
+- Both are **opt-in**: without `acceptsStreaming` (chat) or `onProgress` (import) the call
+  is buffered and byte-identical to before.
+- **`aiGenerateDietPlan` was NOT converted** — it still cycles written lines, and
+  `diet_import_page` says so in a comment. That asymmetry is deliberate, not an oversight.
 
 ## Gotchas
 

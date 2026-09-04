@@ -104,18 +104,28 @@ class SessionHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TrainType.mono(
-                        size: 9,
+                        size: 9.5,
                         weight: FontWeight.w600,
                         tracking: 0.18,
-                        color: const Color(0x66F4F4F0),
+                        color: const Color(0x73F4F4F0),
                       ),
                     ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 6),
+                  // The session clock, at 18 rather than the 13 it shipped
+                  // with. It is the one number on this bar and the one people
+                  // glance at between sets from across a bench — the day
+                  // caption above it is the label, so the clock can afford to
+                  // be the size it actually gets read at. Tabular by
+                  // construction (Azeret Mono), so ticking seconds don't
+                  // shuffle the row.
                   Text(
                     formatElapsed(elapsed),
                     key: const Key('elapsed-timer'),
                     style: TrainType.mono(
-                      size: 13,
+                      size: 18,
+                      weight: FontWeight.w400,
+                      tracking: -0.01,
+                      height: 1,
                       color: isPaused
                           ? const Color(0x66F4F4F0)
                           : TrainColors.inkPlain,

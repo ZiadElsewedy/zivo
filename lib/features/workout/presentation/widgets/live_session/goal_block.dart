@@ -436,7 +436,7 @@ class _ProgressVerdictBadgeState extends State<ProgressVerdictBadge>
   @override
   Widget build(BuildContext context) {
     final comparison = widget.comparison;
-    final (icon, color, word) = verdictStyle(comparison.verdict);
+    final (icon, color, word) = verdictStyle(context, comparison.verdict);
     final pct = comparison.overallChangePercent.round();
     final label = comparison.verdict == ProgressVerdict.matched
         ? word

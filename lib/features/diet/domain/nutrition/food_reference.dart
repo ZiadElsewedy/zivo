@@ -18,13 +18,6 @@ enum NutritionSource {
   dietPlan,
 }
 
-/// How the source describes itself, for the UI and for the coach to quote.
-String nutritionSourceLabel(NutritionSource source) => switch (source) {
-  NutritionSource.usdaFdc => 'USDA FoodData Central',
-  NutritionSource.userCustom => 'Your own food',
-  NutritionSource.dietPlan => 'Your diet plan',
-};
-
 /// Parses a stored source name, defaulting to [NutritionSource.dietPlan] —
 /// the least-verified reading. An unknown value must never be mistaken for a
 /// reference figure.

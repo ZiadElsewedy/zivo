@@ -46,12 +46,41 @@ abstract class MusicController {
   /// role as [currentNowPlaying]/[currentConnection].
   AudioOutput? get currentOutput;
 
+  /// Whether this device is **linked** to the player: the user has connected
+  /// here at least once and has not unlinked, so the app may re-establish the
+  /// connection on its own.
+  ///
+  /// Linked is not the same as [connection] — a linked device is routinely
+  /// *disconnected* (the app was backgrounded, Spotify was closed, the phone
+  /// slept). The distinction is what lets the app reconnect silently instead
+  /// of asking again, and lets the UI keep music chrome on screen with a
+  /// reconnect affordance in it rather than vanishing and leaving the user to
+  /// hunt for a Connect button. A device that has never connected is not
+  /// linked, and nothing is offered or attempted for it beyond the one
+  /// explicit Connect.
+  ///
+  /// [connect] sets it on success; [disconnect] clears it — which is why
+  /// disconnect means "unlink", not "drop the socket".
+  Stream<bool> get linked;
+
+  /// The last value [linked] emitted, read synchronously — same `initialData`
+  /// role as [currentNowPlaying].
+  bool get isLinked;
+
   /// Starts (or retries) connecting to the underlying player. A no-op if
-  /// already connected/connecting.
+  /// already connected/connecting. **User-initiated**: it may present the
+  /// player's authorization UI, and success links this device.
   Future<void> connect();
 
-  /// Tears down the connection — [connection] emits `disconnected` and
-  /// [nowPlaying] emits null.
+  /// Connects only if this device [isLinked] — the silent attempt the app
+  /// makes at launch and on every resume, so a user who already said yes
+  /// once never presses Connect again. A no-op on an unlinked device, so it
+  /// can never surface an authorization prompt the user didn't ask for.
+  Future<void> reconnectIfLinked();
+
+  /// Tears down the connection AND unlinks the device — [connection] emits
+  /// `disconnected`, [nowPlaying] emits null, [linked] emits false, and no
+  /// automatic reconnect will be attempted until the user connects again.
   Future<void> disconnect();
 
   Future<void> play();

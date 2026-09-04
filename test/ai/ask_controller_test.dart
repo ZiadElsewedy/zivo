@@ -3,10 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/l10n/app_localizations_en.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
@@ -17,6 +19,7 @@ import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
+import 'package:zivo/features/ai/domain/import_progress.dart';
 
 /// The Ask turn machinery, asserted directly.
 ///
@@ -89,20 +92,23 @@ void main() {
     expect(ai.renamed.single.$2, 'How is my bench trending?');
   });
 
-  test('a chat named at creation keeps its name instead of auto-titling', () async {
-    final ai = _FakeAi();
-    final c = _controller(ai);
-    addTearDown(c.dispose);
-    await c.load();
-    c.setDraftTitle('Workout Changes');
+  test(
+    'a chat named at creation keeps its name instead of auto-titling',
+    () async {
+      final ai = _FakeAi();
+      final c = _controller(ai);
+      addTearDown(c.dispose);
+      await c.load();
+      c.setDraftTitle('Workout Changes');
 
-    c.input.text = 'anything';
-    await c.send();
+      c.input.text = 'anything';
+      await c.send();
 
-    expect(ai.created, 1);
-    expect(ai.createdTitles.single, 'Workout Changes');
-    expect(ai.renamed, isEmpty);
-  });
+      expect(ai.created, 1);
+      expect(ai.createdTitles.single, 'Workout Changes');
+      expect(ai.renamed, isEmpty);
+    },
+  );
 
   test('a second send is blocked while the first has not landed', () async {
     final ai = _FakeAi();
@@ -118,7 +124,8 @@ void main() {
     expect(
       ai.sent.map((s) => s.text),
       ['first'],
-      reason: 'a fast second send would overwrite the unlanded optimistic bubble',
+      reason:
+          'a fast second send would overwrite the unlanded optimistic bubble',
     );
   });
 
@@ -143,19 +150,22 @@ void main() {
     );
   });
 
-  test('a failed send surfaces the retry state and clears the live text', () async {
-    final c = _controller(_FakeAi(failSend: true));
-    addTearDown(c.dispose);
-    await c.load();
+  test(
+    'a failed send surfaces the retry state and clears the live text',
+    () async {
+      final c = _controller(_FakeAi(failSend: true));
+      addTearDown(c.dispose);
+      await c.load();
 
-    c.input.text = 'hello';
-    await c.send();
+      c.input.text = 'hello';
+      await c.send();
 
-    expect(c.sendFailed, isTrue);
-    expect(c.sending, isFalse);
-    expect(c.liveText, isEmpty);
-    expect(c.pendingText, 'hello', reason: 'the bubble stays for the retry');
-  });
+      expect(c.sendFailed, isTrue);
+      expect(c.sending, isFalse);
+      expect(c.liveText, isEmpty);
+      expect(c.pendingText, 'hello', reason: 'the bubble stays for the retry');
+    },
+  );
 
   test('turnLanded pairs by client turn id, not by text or count', () async {
     final ai = _FakeAi();
@@ -235,6 +245,79 @@ void main() {
     expect(c.railLabel, 'Thinking…');
     expect(ai.observedPhases, [AiPhase.understanding, AiPhase.working]);
   });
+
+  test(
+    'a running step names the rail; finishing it falls back to the phase',
+    () async {
+      final labels = <String>[];
+      late final AskController c;
+      final ai = _FakeAi(
+        events: const [
+          AiPhaseEvent(AiPhase.working),
+          AiStepEvent('get_diet', AiStepStatus.running),
+          AiStepEvent('get_diet', AiStepStatus.ok),
+          AiStepEvent('resolve_food', AiStepStatus.running),
+        ],
+        afterEachEvent: () => labels.add(c.railLabel),
+      );
+      c = _controller(ai);
+      addTearDown(c.dispose);
+      await c.load();
+
+      c.input.text = 'how many calories left?';
+      await c.send();
+
+      expect(labels, [
+        'Working…',
+        "Reading today's diet…",
+        // Step closed → the phase speaks again, rather than a finished step
+        // claiming work that has stopped.
+        'Working…',
+        'Looking that food up…',
+      ]);
+    },
+  );
+
+  test(
+    'an unknown tool degrades to the generic line, never a raw identifier',
+    () async {
+      final labels = <String>[];
+      late final AskController c;
+      final ai = _FakeAi(
+        events: const [
+          AiPhaseEvent(AiPhase.working),
+          AiStepEvent('get_body_composition', AiStepStatus.running),
+        ],
+        afterEachEvent: () => labels.add(c.railLabel),
+      );
+      c = _controller(ai);
+      addTearDown(c.dispose);
+      await c.load();
+
+      c.input.text = 'hi';
+      await c.send();
+
+      expect(labels.last, 'Working…');
+      expect(labels.last, isNot(contains('get_body_composition')));
+    },
+  );
+
+  test('a step never survives its turn — the next turn starts calm', () async {
+    final ai = _FakeAi(
+      events: const [AiStepEvent('get_diet', AiStepStatus.running)],
+    );
+    final c = _controller(ai);
+    addTearDown(c.dispose);
+    await c.load();
+
+    c.input.text = 'first';
+    await c.send();
+
+    // The turn ended without ever closing that step (a dropped final event).
+    // It must not leak into the idle rail or the next turn.
+    expect(c.stepTool, isNull);
+    expect(c.railLabel, 'Thinking…');
+  });
 }
 
 // ---- Fixtures ---------------------------------------------------------------
@@ -244,12 +327,16 @@ class _NoopTickerProvider implements TickerProvider {
   Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
 }
 
+/// English copy, built directly rather than resolved from a widget tree —
+/// [AskController] takes an [AppLocalizations] value (it never holds a
+/// BuildContext, per ADR-008), so these tests need no `pumpWidget`.
 AskController _controller(AiRepository ai, {void Function(String)? onError}) =>
     AskController(
       ai: ai,
       recorder: null,
       vsync: _NoopTickerProvider(),
       transcribeTimeout: const Duration(seconds: 5),
+      strings: AppLocalizationsEn(),
       onError: onError,
     );
 
@@ -274,7 +361,18 @@ class _FakeAi implements AiRepository {
     this.failStyleSave = false,
     this.failConfirm = false,
     this.phases = const [],
+    this.events = const [],
+    this.afterEachEvent,
   });
+
+  /// Arbitrary turn events, replayed in order — use instead of [phases] when
+  /// the test needs steps or a specific interleaving.
+  final List<AiTurnEvent> events;
+
+  /// Runs after each event in [events] is delivered, so a test can observe the
+  /// controller *mid-turn*. Without it `send()` returns with the turn already
+  /// over and every intermediate label lost.
+  final void Function()? afterEachEvent;
 
   final AiConversation? latest;
   String responseStyle;
@@ -324,10 +422,18 @@ class _FakeAi implements AiRepository {
     String responseStyle = kDefaultResponseStyle,
     String? clientTurnId,
   }) async {
-    sent.add((conversationId: conversationId, text: text, turnId: clientTurnId));
+    sent.add((
+      conversationId: conversationId,
+      text: text,
+      turnId: clientTurnId,
+    ));
     for (final phase in phases) {
       observedPhases.add(phase);
       onEvent?.call(AiPhaseEvent(phase));
+    }
+    for (final event in events) {
+      onEvent?.call(event);
+      afterEachEvent?.call();
     }
     if (failSend) throw StateError('offline');
   }
@@ -357,13 +463,16 @@ class _FakeAi implements AiRepository {
   Future<void> deleteConversation(String id) async {}
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
   }) => throw UnimplementedError();
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) =>
       throw UnimplementedError();
 
   @override

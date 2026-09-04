@@ -11,14 +11,21 @@ import 'workout_set.dart';
 /// Converts an AI-extracted [WorkoutImportResult] (WORKOUT_SYSTEM.md §3.4,
 /// Phase 6) into a real, editable [WorkoutPlan] draft — with freshly-minted
 /// ids for the plan/days/exercises, so the result is a genuinely new split
-/// the moment it's saved (never collides with an existing one). [source] is
-/// always [WorkoutPlanSource.pdf], the marker reserved for exactly this.
+/// the moment it's saved (never collides with an existing one). [source]
+/// records which capture route produced it — a document `pdf`, a `photo`, a
+/// `dictated` or `typed` description — defaulting to [WorkoutPlanSource.pdf],
+/// the original document route.
 ///
 /// This produces a DRAFT for review, not a saved split — the caller pushes
 /// it into `WorkoutPlanEditPage(initialPlan: ..., asSplit: true)` so the user
 /// can fix anything before tapping Save; nothing here touches
 /// `WorkoutPlanRepository`.
-WorkoutPlan workoutPlanFromImport(WorkoutImportResult result, {required String id, required DateTime now}) {
+WorkoutPlan workoutPlanFromImport(
+  WorkoutImportResult result, {
+  required String id,
+  required DateTime now,
+  WorkoutPlanSource source = WorkoutPlanSource.pdf,
+}) {
   final days = <WorkoutDay>[];
   for (var i = 0; i < result.days.length; i++) {
     final importedDay = result.days[i];
@@ -42,7 +49,7 @@ WorkoutPlan workoutPlanFromImport(WorkoutImportResult result, {required String i
     id: id,
     name: result.planName,
     status: WorkoutPlanStatus.active,
-    source: WorkoutPlanSource.pdf,
+    source: source,
     createdAt: now,
     updatedAt: now,
     cycleCursor: 0,

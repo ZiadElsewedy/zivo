@@ -182,7 +182,24 @@ class FakeMusicController implements MusicController {
   }
 
   @override
+  Stream<bool> get linked => _linkedController.stream;
+
+  @override
+  bool get isLinked => _linked;
+
+  /// The fake starts connected, so it also starts linked — there is no real
+  /// authorization to have granted, and pretending otherwise would show a
+  /// Connect affordance over a player that is already playing.
+  bool _linked = true;
+  final _linkedController = StreamController<bool>.broadcast();
+
+  @override
+  Future<void> reconnectIfLinked() => _linked ? connect() : Future.value();
+
+  @override
   Future<void> connect() async {
+    _linked = true;
+    _linkedController.add(true);
     if (_connected) return;
     _connectionState = MusicConnection.connecting;
     _connectionController.add(_connectionState);
@@ -198,6 +215,8 @@ class FakeMusicController implements MusicController {
   @override
   Future<void> disconnect() async {
     _connected = false;
+    _linked = false;
+    _linkedController.add(false);
     _ticker?.cancel();
     _connectionState = MusicConnection.disconnected;
     _connectionController.add(_connectionState);
@@ -274,5 +293,6 @@ class FakeMusicController implements MusicController {
     _nowPlayingController.close();
     _connectionController.close();
     _outputController.close();
+    _linkedController.close();
   }
 }

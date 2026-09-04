@@ -20,11 +20,14 @@
 - `diet_plan_edit_page.dart`, `meal_detail_page.dart` — edit plan / drill into a meal.
 - `diet_import_page.dart` — the one analysis + review flow every capture route lands in
   (pairs with `functions/ai/diet_import.js`). With no `input` it opens the file picker; with
-  one, the material was gathered before the push.
-- `diet_dictate_page.dart` — describing your diet out loud (or typing it). The transcript is
+  one, the material was gathered before the push. Its picker, error copy and analyse/reject
+  screens are the shared `capture/presentation/import/` module (workout imports the same).
+- `diet_dictate_page.dart` — describing your diet out loud (or typing it): a thin wrapper
+  over the shared `capture/presentation/import/plan_describe_page.dart`. The transcript is
   **editable before extraction** — STT mis-hears food names and amounts, and that is the
   cheapest place to fix it.
-- `presentation/widgets/add_diet_sheet.dart` — every route into a plan, in one sheet.
+- `presentation/widgets/add_diet_sheet.dart` — every route into a plan, in one sheet (rows
+  are the shared `AddPlanRouteTile`).
 - `diet_preferences_page.dart` — what ZIVO asks before it **builds** a plan (meals/day,
   likes, won't-eats, allergies, cuisine). Pairs with `functions/ai/diet_generate.js`.
 - `presentation/widgets/todays_read_card.dart` — **Today's read**: the coaching

@@ -34,7 +34,15 @@ import '../../../../l10n/l10n.dart';
 /// so the dashboard can never disagree with the tabs. No looping animation
 /// anywhere: these are calm surfaces that repaint only when data changes.
 class TodayPulseSection extends StatelessWidget {
-  const TodayPulseSection({super.key});
+  const TodayPulseSection({DateTime Function()? now, super.key})
+    : now = now ?? DateTime.now;
+
+  /// The dashboard's clock, injectable for the same reason
+  /// [InsightsSection.now] is: every section here answers a question about
+  /// *today* or *this week*, so a test that lets them read the wall clock
+  /// asserts a different screen depending on when it runs. Defaults to the
+  /// real clock, so production is unchanged.
+  final DateTime Function() now;
 
   @override
   Widget build(BuildContext context) {
@@ -52,11 +60,15 @@ class TodayPulseSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: _TrainedRing(scope: scope)),
+                Expanded(
+                  child: _TrainedRing(scope: scope, now: now),
+                ),
                 const _RingDivider(),
                 Expanded(child: _StepsRing(scope: scope)),
                 const _RingDivider(),
-                Expanded(child: _VolumeRing(scope: scope)),
+                Expanded(
+                  child: _VolumeRing(scope: scope, now: now),
+                ),
               ],
             ),
           ),
@@ -82,9 +94,10 @@ class _RingDivider extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TrainedRing extends StatelessWidget {
-  const _TrainedRing({required this.scope});
+  const _TrainedRing({required this.scope, required this.now});
 
   final AppScope scope;
+  final DateTime Function() now;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +106,7 @@ class _TrainedRing extends StatelessWidget {
       initialData: scope.workoutSessions.current,
       builder: (context, snapshot) {
         final sessions = snapshot.data ?? const <LiveSession>[];
-        final now = DateTime.now();
+        final now = this.now();
         final today = DateTime(now.year, now.month, now.day);
         final done = trainedTodaySummary(sessions, now);
         final midSession = done == null
@@ -199,9 +212,10 @@ class _StepsRing extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _VolumeRing extends StatelessWidget {
-  const _VolumeRing({required this.scope});
+  const _VolumeRing({required this.scope, required this.now});
 
   final AppScope scope;
+  final DateTime Function() now;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +225,7 @@ class _VolumeRing extends StatelessWidget {
       builder: (context, snapshot) {
         final trend = weeklyVolume(
           snapshot.data ?? const <LiveSession>[],
-          DateTime.now(),
+          now(),
         );
         if (trend.isEmpty) {
           return TrainMetricRing(
@@ -273,7 +287,13 @@ String formatSteps(int steps) {
 /// itself until there's at least one completed session or weigh-in — a
 /// dashboard must never bluff about an empty life.
 class MomentumSection extends StatelessWidget {
-  const MomentumSection({super.key});
+  const MomentumSection({DateTime Function()? now, super.key})
+    : now = now ?? DateTime.now;
+
+  /// See [TodayPulseSection.now]. The streak and the week bars both bucket by
+  /// calendar day, so this is the difference between a test that asserts a
+  /// streak and one that asserts a streak *unless it runs late in the evening*.
+  final DateTime Function() now;
 
   @override
   Widget build(BuildContext context) {
@@ -301,10 +321,10 @@ class MomentumSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StreakRow(sessions: sessions),
+                  _StreakRow(sessions: sessions, clock: now),
                   if (sessions.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    WeekActivityBars(sessions: sessions),
+                    WeekActivityBars(sessions: sessions, now: now),
                   ],
                   if (hasWeight) ...[
                     const SizedBox(height: 12),
@@ -323,13 +343,14 @@ class MomentumSection extends StatelessWidget {
 }
 
 class _StreakRow extends StatelessWidget {
-  const _StreakRow({required this.sessions});
+  const _StreakRow({required this.sessions, required this.clock});
 
   final List<LiveSession> sessions;
+  final DateTime Function() clock;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = clock();
     final streak = trainingStreakDays(sessions, now);
     final weekTotal = weekActivity(
       sessions,
@@ -402,13 +423,20 @@ class _StreakRow extends StatelessWidget {
 /// initials beneath. Height is proportional to that day's completed
 /// sessions; a resting day keeps a visible stub so the week reads as a week.
 class WeekActivityBars extends StatelessWidget {
-  const WeekActivityBars({super.key, required this.sessions});
+  const WeekActivityBars({
+    super.key,
+    required this.sessions,
+    DateTime Function()? now,
+  }) : now = now ?? DateTime.now;
 
   final List<LiveSession> sessions;
 
+  /// See [TodayPulseSection.now].
+  final DateTime Function() now;
+
   @override
   Widget build(BuildContext context) {
-    final activity = weekActivity(sessions, DateTime.now());
+    final activity = weekActivity(sessions, now());
     final maxWorkouts = activity.fold<int>(
       0,
       (m, d) => math.max(m, d.workouts),

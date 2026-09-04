@@ -356,7 +356,12 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                               key: const Key('session-music-bar'),
                               controller: musicController,
                               density: SpotifyStripDensity.bar,
-                              padding: const EdgeInsets.fromLTRB(22, 6, 22, 2),
+                              // A real gap above it, not a seam: at 6 the bar
+                              // welded to whatever the phase ended with (Skip
+                              // rest, the commit row's ember glow) and the
+                              // two read as one stack of slabs rather than
+                              // the workout and its companion.
+                              padding: const EdgeInsets.fromLTRB(22, 14, 22, 6),
                               accent: vivid,
                             ),
                           ),

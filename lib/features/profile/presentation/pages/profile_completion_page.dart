@@ -4,10 +4,12 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/rise_in.dart';
-import '../../domain/auth_user.dart';
-import '../widgets/auth_action_button.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/widgets/auth_action_button.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Collects the missing Name / Date of birth for a signed-in user with an
 /// incomplete profile.
@@ -81,7 +83,10 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
 
   Future<void> _submit() async {
     if (_saving || !_canSubmit) return;
-    final profiles = AppScope.of(context).profiles; // read before await
+    // Both read before the await — a BuildContext must not cross an async
+    // gap, and AppLocalizations is a plain value so a local copy is safe.
+    final profiles = AppScope.of(context).profiles;
+    final strings = l(context);
     setState(() {
       _saving = true;
       _error = null;
@@ -97,7 +102,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = "We couldn't save your profile. Please try again.";
+        _error = strings.profileSaveFailed;
       });
       return;
     }
@@ -119,7 +124,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: TrainColors.ink),
-          tooltip: 'Use another account',
+          tooltip: l(context).profileUseAnotherAccount,
           onPressed: _saving ? null : _useAnotherAccount,
         ),
       ),
@@ -135,12 +140,12 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Complete your profile',
+                      l(context).profileCompleteTitle,
                       style: AppText.greeting.copyWith(fontSize: 28),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'A couple of details to personalise ZIVO.',
+                      l(context).profileCompleteSubtitle,
                       style: AppText.aside,
                     ),
                   ],
@@ -176,7 +181,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
               RiseIn(
                 delay: const Duration(milliseconds: 120),
                 child: AuthActionButton(
-                  label: 'Continue',
+                  label: l(context).actionContinue,
                   loading: _saving,
                   enabled: !_saving && _canSubmit,
                   onTap: _submit,
@@ -209,7 +214,7 @@ class _NameField extends StatelessWidget {
       style: AppText.rowTitle,
       cursorColor: TrainColors.ember,
       decoration: InputDecoration(
-        hintText: 'Name',
+        hintText: l(context).profileName,
         hintStyle: AppText.rowTitle.copyWith(color: TrainColors.ink3),
         prefixIcon: const Icon(
           Icons.person_outline_rounded,
@@ -256,23 +261,6 @@ class _DobField extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  static String _format(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +286,9 @@ class _DobField extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                hasDate ? _format(date!) : 'Date of birth',
+                hasDate
+                    ? formatDayMonthYear(context, date!)
+                    : l(context).profileDateOfBirth,
                 style: AppText.rowTitle.copyWith(
                   color: hasDate ? TrainColors.ink : TrainColors.ink3,
                 ),

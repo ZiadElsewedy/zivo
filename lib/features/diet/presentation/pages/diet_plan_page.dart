@@ -7,6 +7,7 @@ import '../../../../core/motion/springs.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/deferred_write.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
@@ -20,7 +21,6 @@ import '../../domain/diet_plan.dart';
 import '../../domain/diet_summary.dart';
 import '../../domain/meal.dart';
 import '../../domain/nutrition/food_log_entry.dart';
-import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/diet_state.dart';
 import '../../domain/diet_state_builder.dart';
@@ -33,6 +33,7 @@ import 'diet_plan_details_page.dart';
 import 'diet_plan_edit_page.dart';
 import 'diet_plans_page.dart';
 import 'meal_detail_page.dart';
+import '../diet_labels.dart';
 
 /// The Diet Plan page, built to the design handoff's **Diet** screen (4b):
 /// the green screen wash, a hero card whose 104px ring reports **one number**
@@ -174,19 +175,16 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               shelvedPlans == 0
-                  ? 'No diet plan yet.'
-                  : "You're not following a plan.",
+                  ? l(context).dietNoPlanYetHeadline
+                  : l(context).dietNotFollowingHeadline,
               key: const Key('diet-empty-headline'),
               style: AppText.aside,
             ),
             const SizedBox(height: 6),
             Text(
               shelvedPlans == 0
-                  ? 'Import a document or a photo, say it out loud, type it '
-                        "out, or build one by hand — I'll fill in the "
-                        'calories and macros.'
-                  : '$shelvedPlans ${shelvedPlans == 1 ? "plan is" : "plans are"} '
-                        'archived — pick one back up, or add another.',
+                  ? l(context).dietNoPlanYetBody
+                  : l(context).dietArchivedPlans(shelvedPlans),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -214,7 +212,7 @@ class _EmptyState extends StatelessWidget {
                     onOpenLibrary();
                   },
                   child: Text(
-                    'See your plans',
+                    l(context).dietSeeYourPlans,
                     style: AppText.meta.copyWith(color: TrainColors.ink2),
                   ),
                 ),
@@ -296,9 +294,15 @@ class _PlanBodyForTargetsState extends State<_PlanBodyForTargets> {
   /// entries, and persisting them is this page's job.
   Future<void> _logFood() async {
     final diet = AppScope.of(context).diet;
+    // Read before the sheet: `l(context)` after an await is a context across
+    // an async gap, and the copy is the same either way.
+    final failure = l(context).dietLogFailed;
     final entries = await showLogFoodSheet(context, day: widget.now);
     if (entries == null || entries.isEmpty) return;
-    await diet.logFood(entries);
+    // Local-first: the ledger above already shows the entries (the Firestore
+    // write reaches its own listeners off the cache), so there is nothing for
+    // the sheet's dismissal to wait on.
+    deferWrite(diet.logFood(entries), failureMessage: failure);
   }
 
   @override
@@ -599,10 +603,13 @@ class _LogEntryRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   [
-                    '${_trim(entry.quantity)} ${entry.unit}',
+                    l(context).dietQuantityUnit(
+                      _trim(entry.quantity),
+                      entry.unit,
+                    ),
                     fromPlan
-                        ? 'from your plan'
-                        : nutritionSourceLabel(entry.source),
+                        ? l(context).dietFromYourPlan
+                        : nutritionSourceText(context, entry.source),
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -622,7 +629,7 @@ class _LogEntryRow extends StatelessWidget {
             iconSize: 17,
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.close_rounded, color: TrainColors.ink4),
-            tooltip: 'Remove',
+            tooltip: l(context).actionRemove,
           ),
         ],
       ),
@@ -795,7 +802,7 @@ class _DietHeroState extends State<_DietHero>
                             // know "left of what". It is allowed to wrap, so
                             // it is centred: the longest label's second line
                             // ("PLAN") hung off to the left otherwise.
-                            _heroLabel(progress, summary),
+                            _heroLabel(context, progress, summary),
                             textAlign: TextAlign.center,
                             style: TrainType.caption(
                               size: 8,
@@ -820,8 +827,8 @@ class _DietHeroState extends State<_DietHero>
                   // No plan day means no meals to count — "0 of 0 meals
                   // eaten" would read as a failure rather than as an absence.
                   widget.loading || summary == null
-                      ? 'Today'
-                      : '${summary.eaten} of ${summary.total} meals eaten',
+                      ? l(context).workoutToday
+                      : l(context).dietMealsEaten(summary.eaten, summary.total),
                   style: TrainType.ui(
                     size: 17,
                     weight: FontWeight.w700,
@@ -844,7 +851,7 @@ class _DietHeroState extends State<_DietHero>
                 if (totalKcal == null && progress == null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'NO CALORIE DATA YET',
+                    l(context).dietNoCalorieDataCaps,
                     style: TrainType.mono(
                       size: 10.5,
                       tracking: 0.06,
@@ -879,18 +886,19 @@ String _heroNumber(
 
 /// What that figure is measured against — never left implicit.
 String _heroLabel(
+  BuildContext context,
   DietState? progress,
   ({int eaten, int total, int kcalLeft, bool kcalLeftEstimated})? summary,
 ) {
+  final strings = l(context);
   if (progress != null) {
-    final estimated = progress.consumed.estimated ? 'EST. ' : '';
+    final estimated = progress.consumed.estimated ? strings.dietEstPrefixCaps : '';
     return progress.overTarget
-        ? '${estimated}KCAL OVER'
-        : '${estimated}KCAL LEFT';
+        ? '$estimated${strings.dietKcalOverCaps}'
+        : '$estimated${strings.dietKcalLeftCaps}';
   }
-  return summary!.kcalLeftEstimated
-      ? 'EST. KCAL LEFT OF PLAN'
-      : 'KCAL LEFT OF PLAN';
+  final estimated = summary!.kcalLeftEstimated ? strings.dietEstPrefixCaps : '';
+  return '$estimated${strings.dietKcalLeftOfPlanCaps}';
 }
 
 /// The widest the hero's figure + label may be inside the 104px ring.
@@ -1227,7 +1235,7 @@ class _SupplementCard extends StatelessWidget {
                 if (meal.items.length > 1) ...[
                   const SizedBox(width: 8),
                   Text(
-                    '${meal.items.length} items',
+                    l(context).dietItemCount(meal.items.length),
                     style: AppText.meta.copyWith(
                       fontSize: 11.5,
                       color: TrainColors.ink3,
@@ -1237,7 +1245,7 @@ class _SupplementCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  tooltip: 'View details',
+                  tooltip: l(context).dietViewDetails,
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) =>

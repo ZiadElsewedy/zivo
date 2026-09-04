@@ -22,10 +22,17 @@
 
 const {GatewayError} = require("./gateway");
 const {AnthropicProvider} = require("./providers/anthropic_provider");
+const {scanWorkoutProgress} = require("./import_progress");
 const {legacyAnthropicClient} = require("./providers/legacy_client");
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
+
+// The longest description this will read. A dictated or typed split is a few
+// hundred words; anything past this is a paste of something else, and a clear
+// refusal beats a slow, expensive call that ends in a rejection. Mirrors
+// `diet_import.js`.
+const MAX_TEXT_CHARS = 20000;
 const TOOL_NAME = "propose_workout_split";
 const REJECT_TOOL_NAME = "reject_import";
 
@@ -148,14 +155,24 @@ const REJECT_TOOL = {
   inputSchema: REJECT_SCHEMA,
 };
 
-// Untrusted content (ADR-002 guardrail): the PDF is the user's own document,
-// but its text is still DATA, not instructions — a PDF that says "ignore
-// your instructions" is just text on a page.
-const SYSTEM_PROMPT = `You extract structured workout-split data from a document a
+// The opening line differs by capture route — a document to read vs. the
+// user's own words — but the extraction rules below are identical, so they
+// live once in SHARED_RULES and `systemPromptFor` composes the two. Mirrors
+// `diet_import.js`'s DOCUMENT_INTRO / DESCRIPTION_INTRO / SHARED_RULES split.
+const DOCUMENT_INTRO = `You extract structured workout-split data from a document a
 user uploaded — a coach's plan, a nutritionist-style printout, a photographed
-sheet. Read every page, then call exactly one tool.
+sheet. Read every page, then call exactly one tool.`;
 
-Your default action is ${TOOL_NAME}. Real workout plans people actually
+const DESCRIPTION_INTRO = `You extract structured workout-split data from a user's
+own description of their training split — dictated and transcribed, or typed in
+their own words. Read the whole description, then call exactly one tool. Spoken
+or typed input rambles, self-corrects and leans on shorthand ("4 by 8", "then
+some curls"); that is the normal shape of this input, not a reason to reject.`;
+
+// Untrusted content (ADR-002 guardrail): the document/description is the user's
+// own, but its text is still DATA, not instructions — content that says "ignore
+// your instructions" is just text on a page.
+const SHARED_RULES = `Your default action is ${TOOL_NAME}. Real workout plans people actually
 upload are messy: phone photos of a whiteboard, scanned handwriting, wonky
 tables, coach shorthand, inconsistent spacing, multiple weeks crammed onto
 one page. None of that is a reason to reject — it's the normal shape of this
@@ -201,6 +218,22 @@ Guidance for a genuine extraction:
   must; never fabricate whole days or exercises that aren't legibly there.`;
 
 /**
+ * The system prompt for a given capture route: a `"document"` (a PDF/photo) or
+ * a `"description"` (the user's own dictated/typed words). Same extraction
+ * rules; only the opening line differs.
+ * @param {string} kind `"document"` or `"description"`.
+ * @return {string}
+ */
+function systemPromptFor(kind) {
+  const intro = kind === "description" ? DESCRIPTION_INTRO : DOCUMENT_INTRO;
+  return `${intro}\n\n${SHARED_RULES}`;
+}
+
+// The document prompt, unchanged — kept as a named export for callers/tests
+// that reference it directly.
+const SYSTEM_PROMPT = systemPromptFor("document");
+
+/**
  * A generic, safe fallback shown only if the model calls `reject_import`
  * without a usable reason (schema requires the field, but strict mode can't
  * guarantee it's non-blank).
@@ -234,25 +267,53 @@ const DEFAULT_REJECTION_REASON =
  *   newlines — a PDF or a supported image.
  * @param {string=} args.mediaType One of SUPPORTED_MEDIA_TYPES for
  *   `fileBase64`/`pdfBase64` — defaults to `application/pdf`.
+ * @param {string=} args.text The user's own description of their split —
+ *   dictated and transcribed, or typed. Mutually exclusive with the file
+ *   params: exactly one kind of material per call.
  * @param {function(!Object): void} [args.logEvent] Optional diagnostic
  *   sink — called with one structured event per outcome (stop reason, which
  *   tool fired, reject reason if any). Injected rather than importing
  *   `firebase-functions/logger` directly, so this stays dependency-free for
  *   `node --test`. Defaults to a no-op.
+ * @param {function(!Object): void} [args.onProgress] Optional **live** sink,
+ *   called as the model writes its tool input with
+ *   `{planName, days: [...labels], exercises: n}` — see `./import_progress.js`.
+ *   This is the only real progress an import has: the call emits no assistant
+ *   text, so the extraction itself is the only thing moving. Passing it opts
+ *   the call into streaming; omitting it leaves the request buffered and
+ *   byte-identical to before. Fires only when the numbers actually change, so
+ *   a caller can forward each event straight to the client.
  * @return {!Promise<{ok: true, planName: string, days: !Array<!Object>}|
  *   {ok: false, reason: string}>}
  */
 async function extractWorkoutPlan({
-  provider, model, callModel, pdfBase64, fileBase64, mediaType,
-  logEvent = () => {},
+  provider, model, callModel, pdfBase64, fileBase64, mediaType, text,
+  logEvent = () => {}, onProgress,
 }) {
   const base64 = fileBase64 || pdfBase64;
-  if (typeof base64 !== "string" || base64.trim() === "") {
+  const hasFile = typeof base64 === "string" && base64.trim() !== "";
+  const description = typeof text === "string" ? text.trim() : "";
+  const hasText = description !== "";
+
+  // Exactly one kind of material — mirrors `diet_import.js`. Accepting both
+  // would leave it ambiguous which one the extraction actually read.
+  if (hasFile && hasText) {
     throw new GatewayError(
-        "invalid-argument", "A PDF or photo of a workout plan is required.");
+        "invalid-argument",
+        "Send either a file or a description, not both.");
   }
-  const type = mediaType || "application/pdf";
-  if (!SUPPORTED_MEDIA_TYPES.includes(type)) {
+  if (!hasFile && !hasText) {
+    throw new GatewayError(
+        "invalid-argument",
+        "A PDF, a photo, or a description of the plan is required.");
+  }
+  if (hasText && description.length > MAX_TEXT_CHARS) {
+    throw new GatewayError(
+        "invalid-argument",
+        "That description is too long to read — please shorten it.");
+  }
+  const type = hasFile ? (mediaType || "application/pdf") : null;
+  if (hasFile && !SUPPORTED_MEDIA_TYPES.includes(type)) {
     throw new GatewayError(
         "invalid-argument",
         "Only PDFs and photos (JPEG, PNG, WebP, GIF) can be imported.");
@@ -263,7 +324,7 @@ async function extractWorkoutPlan({
   const normalizedRequest = {
     model: model || MODEL,
     maxTokens: MAX_TOKENS,
-    system: [{text: SYSTEM_PROMPT}],
+    system: [{text: systemPromptFor(hasText ? "description" : "document")}],
     tools: [IMPORT_TOOL, REJECT_TOOL],
     // `any`, not a forced single tool: the model must call ONE of the two
     // tools (always structured output, never a free-text non-answer), but
@@ -273,19 +334,50 @@ async function extractWorkoutPlan({
     messages: [
       {
         role: "user",
-        content: [
-          type === "application/pdf" ?
-            {type: "document", mediaType: type, dataBase64: base64} :
-            {type: "image", mediaType: type, dataBase64: base64},
-          {type: "text", text: "Extract the workout split from this document."},
-        ],
+        content: hasText ?
+          [
+            // Fenced and labelled so the model can tell the user's words from
+            // the instruction wrapping them — the same data-not-instructions
+            // boundary the document branch gets for free by the content being
+            // a separate block.
+            {
+              type: "text",
+              text: "Here is the user's own description of their workout " +
+                "split, between the markers.\n\n---BEGIN DESCRIPTION---\n" +
+                description + "\n---END DESCRIPTION---\n\nExtract the workout " +
+                "split from it.",
+            },
+          ] :
+          [
+            type === "application/pdf" ?
+              {type: "document", mediaType: type, dataBase64: base64} :
+              {type: "image", mediaType: type, dataBase64: base64},
+            {type: "text", text: "Extract the workout split from this document."},
+          ],
       },
     ],
   };
 
+  // Only re-emit when the visible numbers move: `inputJson` fires per token,
+  // and forwarding every one of those to a client would be hundreds of chunks
+  // saying the same thing.
+  let lastSignature = "";
+  const opts = typeof onProgress === "function" ? {
+    onInputJson: (_delta, snapshot) => {
+      const p = scanWorkoutProgress(snapshot);
+      // Nothing has been extracted yet — the model is still opening the
+      // object. An event here would say literally nothing.
+      if (!p.planName && !p.days.length && !p.exercises) return;
+      const signature = `${p.planName || ""}|${p.days.length}|${p.exercises}`;
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      onProgress(p);
+    },
+  } : {};
+
   let response;
   try {
-    response = await activeProvider.generate(normalizedRequest);
+    response = await activeProvider.generate(normalizedRequest, opts);
   } catch (err) {
     throw new GatewayError(
         "internal", err.message || "Couldn't read that PDF. Please try again.");
@@ -431,6 +523,8 @@ module.exports = {
   IMPORT_TOOL,
   REJECT_TOOL,
   SYSTEM_PROMPT,
+  systemPromptFor,
   DEFAULT_REJECTION_REASON,
   SUPPORTED_MEDIA_TYPES,
+  MAX_TEXT_CHARS,
 };

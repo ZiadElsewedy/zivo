@@ -26,6 +26,11 @@ container-path changes) → `MediaRegistry` (metadata at `users/{uid}/media`) �
 
 ## Gotchas
 
+- **`MediaService.capture` returns at the local copy.** The registry write, the
+  "Save to Photos" copy and the Drive push all run on a background tail once the bytes
+  are safe — a test that asserts on any of those must `await service.settleCaptures()`.
+  The capture screen awaits only the copy (it needs the ref) and defers the Firestore
+  write; see the save contract in [`capture/FEATURE.md`](../capture/FEATURE.md).
 - **Never store a raw `image_picker` cache path or an absolute path** — that was the old
   bug; everything goes through `MediaService` and relative refs.
 - Backup connection is per-account and reset on account switch (see [`app.dart`](../../app/app.dart)).

@@ -84,6 +84,10 @@ void main() {
       );
 
       expect(ref, 'media/moments/m1.jpg');
+      // `capture` returns at the durable LOCAL copy and registers on a
+      // background tail (see its doc) — the registry assertions below are
+      // about that tail, so wait for it.
+      await service.settleCaptures();
       final object = await registry.get('m1');
       expect(object, isNotNull);
       expect(object!.ownerUid, 'u1');
@@ -96,6 +100,7 @@ void main() {
       final gallery = _FakeTarget();
       final service = buildService(galleryTarget: gallery);
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
+      await service.settleCaptures();
       expect(gallery.backedUp, isEmpty);
     });
 
@@ -105,6 +110,7 @@ void main() {
       final service = buildService(galleryTarget: gallery);
 
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
+      await service.settleCaptures();
 
       expect(gallery.backedUp, ['m1']);
       expect((await registry.get('m1'))!.gallery, BackupState.done);
@@ -135,6 +141,7 @@ void main() {
       final service = buildService(galleryTarget: gallery);
 
       await service.capture(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', ownerUid: 'u1');
+      await service.settleCaptures();
       expect((await registry.get('m1'))!.gallery, BackupState.failed);
     });
   });

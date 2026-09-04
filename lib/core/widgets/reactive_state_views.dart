@@ -54,9 +54,11 @@ class EmptyStateView extends StatelessWidget {
 /// [EmptyStateView] so the user can tell "nothing here" apart from
 /// "couldn't load this".
 class ErrorStateView extends StatelessWidget {
-  const ErrorStateView({super.key, this.message = "Couldn't load this."});
+  const ErrorStateView({super.key, this.message});
 
-  final String message;
+  /// Defaults to the localized `errorCouldntLoad`. Pass one only where the
+  /// surface can say something more specific than "this".
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +74,11 @@ class ErrorStateView extends StatelessWidget {
               color: TrainColors.ink3,
             ),
             const SizedBox(height: 12),
-            Text(message, style: AppText.aside, textAlign: TextAlign.center),
+            Text(
+              message ?? l(context).errorCouldntLoad,
+              style: AppText.aside,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             Text(
               l(context).errorCheckConnection,

@@ -30,6 +30,7 @@
 
 const {GatewayError} = require("./gateway");
 const {AnthropicProvider} = require("./providers/anthropic_provider");
+const {scanDietProgress} = require("./import_progress");
 const {legacyAnthropicClient} = require("./providers/legacy_client");
 
 const MODEL = "claude-sonnet-5";
@@ -343,7 +344,7 @@ const DEFAULT_REJECTION_REASON =
  */
 async function extractDietPlan({
   provider, model, callModel, pdfBase64, fileBase64, mediaType, text,
-  logEvent = () => {},
+  logEvent = () => {}, onProgress,
 }) {
   const base64 = fileBase64 || pdfBase64;
   const hasFile = typeof base64 === "string" && base64.trim() !== "";
@@ -414,9 +415,24 @@ async function extractDietPlan({
     ],
   };
 
+  // See `extractWorkoutPlan` — re-emit only when the visible numbers move,
+  // because `inputJson` fires per token.
+  let lastSignature = "";
+  const opts = typeof onProgress === "function" ? {
+    onInputJson: (_delta, snapshot) => {
+      const p = scanDietProgress(snapshot);
+      // Nothing extracted yet — an event here would say literally nothing.
+      if (!p.planName && !p.labels.length && !p.items) return;
+      const signature = `${p.planName || ""}|${p.labels.length}|${p.items}`;
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      onProgress(p);
+    },
+  } : {};
+
   let response;
   try {
-    response = await activeProvider.generate(normalizedRequest);
+    response = await activeProvider.generate(normalizedRequest, opts);
   } catch (err) {
     throw new GatewayError(
         "internal",

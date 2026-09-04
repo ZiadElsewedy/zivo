@@ -418,10 +418,6 @@
   "@hubMoments": {
     "description": "Hub module tile."
   },
-  "hubRecent": "Recent",
-  "@hubRecent": {
-    "description": "Heading above the Hub's recent-activity rows."
-  },
   "hubNoPlanYet": "No plan yet",
   "@hubNoPlanYet": {
     "description": "Hub tile subtitle when no plan exists."
@@ -1059,6 +1055,10 @@
   "liveFinish": "Finish",
   "@liveFinish": {
     "description": "Ends the session and writes it to history."
+  },
+  "livePrsTitle": "New personal records",
+  "@livePrsTitle": {
+    "description": "Heading of the personal-records celebration on the finished-session screen, shown when this session set one or more PRs."
   },
   "liveMatchingPrevious": "Matching your previous set",
   "@liveMatchingPrevious": {
@@ -1707,5 +1707,2328 @@
   "splitDeleteTitlePlain": "Delete this split?",
   "@splitDeleteTitlePlain": {
     "description": "Title of the delete confirmation inside the split editor, where which split is being edited is already obvious."
+  },
+  "expenseSaveFailed": "Couldn't save that expense.",
+  "@expenseSaveFailed": {
+    "description": "Toast: a spend row that was recorded locally didn't reach the server."
+  },
+  "expenseDeleteFailed": "Couldn't delete that expense.",
+  "@expenseDeleteFailed": {
+    "description": "Toast: a spend row removed locally didn't reach the server."
+  },
+  "dietLogFailed": "Couldn't log that food.",
+  "@dietLogFailed": {
+    "description": "Toast: a food-log entry recorded locally didn't reach the server."
+  },
+  "musicConnect": "Connect Spotify",
+  "@musicConnect": {
+    "description": "Bottom-bar action: authorize and attach to the Spotify app."
+  },
+  "musicReconnect": "Reconnect Spotify",
+  "@musicReconnect": {
+    "description": "Bottom-bar action: re-attach after the Spotify connection dropped."
+  },
+  "musicConnecting": "Connecting\u2026",
+  "@musicConnecting": {
+    "description": "Bottom-bar state while the Spotify handshake is in flight."
+  },
+  "musicInstallSpotify": "Install Spotify to play",
+  "@musicInstallSpotify": {
+    "description": "Bottom-bar state when the Spotify app isn't on this device."
+  },
+  "musicNothingPlaying": "Nothing playing",
+  "@musicNothingPlaying": {
+    "description": "Bottom-bar state: connected to Spotify, but no track is loaded."
+  },
+  "musicPrevious": "Previous track",
+  "@musicPrevious": {
+    "description": "Accessibility label for the bottom bar's skip-back control."
+  },
+  "musicNext": "Next track",
+  "@musicNext": {
+    "description": "Accessibility label for the bottom bar's skip-forward control."
+  },
+  "musicPlay": "Play",
+  "@musicPlay": {
+    "description": "Accessibility label for the bottom bar's play control."
+  },
+  "musicPause": "Pause",
+  "@musicPause": {
+    "description": "Accessibility label for the bottom bar's pause control."
+  },
+  "musicDisconnect": "Disconnect Spotify",
+  "@musicDisconnect": {
+    "description": "Settings action: unlink this device so the app stops reconnecting to Spotify on its own."
+  },
+  "errorCouldntLoad": "Couldn't load this.",
+  "@errorCouldntLoad": {
+      "description": "Generic failure copy for a surface whose data could not be read."
+  },
+  "workoutStatusProgressing": "Progressing",
+  "@workoutStatusProgressing": {
+      "description": "A lift's overall direction: strength is trending up over recent sessions."
+  },
+  "workoutStatusHolding": "Holding",
+  "@workoutStatusHolding": {
+      "description": "A lift's overall direction: steady — neither building nor losing."
+  },
+  "workoutStatusPlateaued": "Plateaued",
+  "@workoutStatusPlateaued": {
+      "description": "A lift's overall direction: unchanged for several sessions; needs a change."
+  },
+  "workoutStatusTrendingDown": "Trending down",
+  "@workoutStatusTrendingDown": {
+      "description": "A lift's overall direction: strength has declined recently."
+  },
+  "workoutStatusBuilding": "Building",
+  "@workoutStatusBuilding": {
+      "description": "A lift's overall direction: too few sessions logged to judge a trend yet."
+  },
+  "workoutToneImproved": "Improved",
+  "@workoutToneImproved": {
+      "description": "One session versus the previous one: better."
+  },
+  "workoutToneMatched": "Matched",
+  "@workoutToneMatched": {
+      "description": "One session versus the previous one: the same. Not a failure."
+  },
+  "workoutToneMixed": "Mixed",
+  "@workoutToneMixed": {
+      "description": "One session versus the previous one: some measures up, some down."
+  },
+  "workoutToneDown": "Down",
+  "@workoutToneDown": {
+      "description": "One session versus the previous one: worse."
+  },
+  "workoutBodyweightLoadError": "Couldn't load weigh-ins.",
+  "@workoutBodyweightLoadError": {
+      "description": "Shown when the body-weight history fails to load."
+  },
+  "workoutWeighInsLogged": "{count} weigh-ins logged",
+  "@workoutWeighInsLogged": {
+      "description": "Subtitle counting the user's logged weigh-ins.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutUnitKg": "KG",
+  "@workoutUnitKg": {
+      "description": "The kilogram unit as a micro-label beside a number. Set in caps in English."
+  },
+  "workoutBodyweightChange30d": "{change} KG · 30D",
+  "@workoutBodyweightChange30d": {
+      "description": "Body-weight change over the last 30 days, e.g. \"−1.4 KG · 30D\". The change already carries its sign.",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutBodyweightEmpty": "Log your first weigh-in to start the trend.",
+  "@workoutBodyweightEmpty": {
+      "description": "Empty state on the body-weight history page."
+  },
+  "workoutThisWeekCaps": "THIS WEEK",
+  "@workoutThisWeekCaps": {
+      "description": "Group header over the current week in the session history. Set in caps in English."
+  },
+  "workoutLastWeekCaps": "LAST WEEK",
+  "@workoutLastWeekCaps": {
+      "description": "Group header over the previous week in the session history. Set in caps in English."
+  },
+  "workoutSessionsLabel": "Sessions",
+  "@workoutSessionsLabel": {
+      "description": "Label under a count of training sessions."
+  },
+  "workoutTrained": "Trained",
+  "@workoutTrained": {
+      "description": "Label under the total time spent training."
+  },
+  "workoutThisWeek": "This week",
+  "@workoutThisWeek": {
+      "description": "Label under a count for the current week."
+  },
+  "workoutSessionCompleted": "Completed",
+  "@workoutSessionCompleted": {
+      "description": "A finished training session."
+  },
+  "workoutSessionInProgress": "In progress",
+  "@workoutSessionInProgress": {
+      "description": "A training session that is still running."
+  },
+  "workoutSessionNotCompleted": "Not completed",
+  "@workoutSessionNotCompleted": {
+      "description": "A training session that was left unfinished."
+  },
+  "workoutExerciseCount": "{count, plural, =1{1 exercise} other{{count} exercises}}",
+  "@workoutExerciseCount": {
+      "description": "How many exercises a logged session contained.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSetsOfTotal": "{done}/{total} sets",
+  "@workoutSetsOfTotal": {
+      "description": "How many of a session's sets were completed, e.g. \"12/15 sets\".",
+      "placeholders": {
+          "done": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutNoSessionsTitle": "No sessions logged yet.",
+  "@workoutNoSessionsTitle": {
+      "description": "Empty state title on the session history page."
+  },
+  "workoutNoSessionsBody": "Finish a workout and it shows up here.",
+  "@workoutNoSessionsBody": {
+      "description": "Empty state body on the session history page."
+  },
+  "workoutSessionsLoadError": "Couldn't load sessions.",
+  "@workoutSessionsLoadError": {
+      "description": "Shown when the session list fails to load."
+  },
+  "workoutNoCompletedWorkouts": "No completed workouts yet.",
+  "@workoutNoCompletedWorkouts": {
+      "description": "Sessions drill-down subtitle when nothing at all has been logged."
+  },
+  "workoutCompletedCount": "{count, plural, =1{1 completed workout} other{{count} completed workouts}}",
+  "@workoutCompletedCount": {
+      "description": "Sessions drill-down subtitle: how many workouts were finished.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutNoCompletedWithEntries": "{count, plural, =1{No completed workouts · 1 entry} other{No completed workouts · {count} entries}}",
+  "@workoutNoCompletedWithEntries": {
+      "description": "Sessions drill-down subtitle when there are only unfinished entries.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutCompletedAndNotCompleted": "{completed} · {notCompleted} not completed",
+  "@workoutCompletedAndNotCompleted": {
+      "description": "Sessions drill-down subtitle combining the completed count with the unfinished count.",
+      "placeholders": {
+          "completed": {
+              "type": "String"
+          },
+          "notCompleted": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionsEmpty": "Nothing here yet — finished workouts land here.",
+  "@workoutSessionsEmpty": {
+      "description": "Empty card on the Sessions drill-down."
+  },
+  "workoutSessionEndedEarly": "Ended early",
+  "@workoutSessionEndedEarly": {
+      "description": "A training session the user stopped before finishing."
+  },
+  "workoutSetsCaps": "{done}/{total} SETS",
+  "@workoutSetsCaps": {
+      "description": "Completed sets out of the session total, as a caps micro-label.",
+      "placeholders": {
+          "done": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDayStreak": "Day streak",
+  "@workoutDayStreak": {
+      "description": "The number of consecutive days trained."
+  },
+  "workoutNoActiveStreak": "No active streak — complete a workout to start one.",
+  "@workoutNoActiveStreak": {
+      "description": "Label under a zero day-streak."
+  },
+  "workoutStreakDays": "{count, plural, =1{day in your current streak} other{days in your current streak}}",
+  "@workoutStreakDays": {
+      "description": "Label under the current day-streak number.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutBestStreak": "best day streak ever",
+  "@workoutBestStreak": {
+      "description": "Label under the all-time best day streak."
+  },
+  "workoutStreakEmpty": "Train today and day one starts now.",
+  "@workoutStreakEmpty": {
+      "description": "Empty card on the Day streak drill-down."
+  },
+  "workoutSessionsCountCaps": "{count, plural, =1{1 SESSION} other{{count} SESSIONS}}",
+  "@workoutSessionsCountCaps": {
+      "description": "How many sessions a streak day contained, as a caps micro-label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionLength": "Session length",
+  "@workoutSessionLength": {
+      "description": "How long a training session lasts."
+  },
+  "workoutNoAverageYet": "Complete a workout to see your average.",
+  "@workoutNoAverageYet": {
+      "description": "Label under an unavailable average session length."
+  },
+  "workoutAverageSession": "average completed session",
+  "@workoutAverageSession": {
+      "description": "Label under the average session duration."
+  },
+  "workoutDurationsEmpty": "Durations appear once you finish workouts.",
+  "@workoutDurationsEmpty": {
+      "description": "Empty card on the Session length drill-down."
+  },
+  "workoutStartTimes": "Start times",
+  "@workoutStartTimes": {
+      "description": "When the user usually starts training."
+  },
+  "workoutNoStartTimeYet": "Complete a workout to see your usual start time.",
+  "@workoutNoStartTimeYet": {
+      "description": "Label under an unavailable usual start time."
+  },
+  "workoutUsualStartTime": "when you usually start training",
+  "@workoutUsualStartTime": {
+      "description": "Label under the average training start time."
+  },
+  "workoutStartTimesEmpty": "Your start times will show up here.",
+  "@workoutStartTimesEmpty": {
+      "description": "Empty card on the Start times drill-down."
+  },
+  "workoutToday": "Today",
+  "@workoutToday": {
+      "description": "Stands in for a date when that date is today."
+  },
+  "workoutAgo": "{value} ago",
+  "@workoutAgo": {
+      "description": "A relative time, e.g. \"3h ago\". {value} is an already-formatted span like \"3h\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutCurrentSplit": "Current split",
+  "@workoutCurrentSplit": {
+      "description": "Section label over the active training split."
+  },
+  "workoutRecentActivity": "Recent activity",
+  "@workoutRecentActivity": {
+      "description": "Section label over the most recent training sessions."
+  },
+  "workoutNoSessionYet": "You haven't logged a session yet.",
+  "@workoutNoSessionYet": {
+      "description": "Empty card under Recent activity."
+  },
+  "workoutGoDeeper": "Go deeper",
+  "@workoutGoDeeper": {
+      "description": "Section label over the links into the detailed analysis pages."
+  },
+  "workoutFullAnalysis": "Full analysis",
+  "@workoutFullAnalysis": {
+      "description": "Link into the full training analysis page."
+  },
+  "workoutFullAnalysisDetail": "Exercise-by-exercise, per training day",
+  "@workoutFullAnalysisDetail": {
+      "description": "Subtitle under the Full analysis link."
+  },
+  "workoutAllHistory": "All history",
+  "@workoutAllHistory": {
+      "description": "Link into the full session history page."
+  },
+  "workoutAllHistoryDetail": "Every session you have logged",
+  "@workoutAllHistoryDetail": {
+      "description": "Subtitle under the All history link."
+  },
+  "workoutSplitsDetail": "Switch or edit your training splits",
+  "@workoutSplitsDetail": {
+      "description": "Subtitle under the Splits link."
+  },
+  "workoutTotalSessions": "Total sessions",
+  "@workoutTotalSessions": {
+      "description": "Label under the all-time completed session count."
+  },
+  "workoutAvgLength": "Avg length",
+  "@workoutAvgLength": {
+      "description": "Label under the average session duration."
+  },
+  "workoutSeeFullAnalysisCaps": "SEE FULL ANALYSIS",
+  "@workoutSeeFullAnalysisCaps": {
+      "description": "Caps link out of the progress summary card into the analysis page."
+  },
+  "workoutSeeAllCaps": "SEE ALL",
+  "@workoutSeeAllCaps": {
+      "description": "Caps link out of a section into its full list."
+  },
+  "workoutPrCount": "{count, plural, =1{1 PR} other{{count} PRs}}",
+  "@workoutPrCount": {
+      "description": "How many personal records were set. \"PR\" is personal record.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSessionsCompletedCount": "{count, plural, =1{1 session completed} other{{count} sessions completed}}",
+  "@workoutSessionsCompletedCount": {
+      "description": "How many training sessions have been completed in total.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutPlanShort": "Plan",
+  "@workoutPlanShort": {
+      "description": "Compact pill linking to the training plan."
+  },
+  "workoutAgoWithDuration": "{value} ago · {duration}",
+  "@workoutAgoWithDuration": {
+      "description": "A finished session's relative time plus how long it ran, e.g. \"3h ago · 52m\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          },
+          "duration": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutRecentPrs": "Recent PRs",
+  "@workoutRecentPrs": {
+      "description": "Section label over recently set personal records."
+  },
+  "workoutGoingWell": "What's going well",
+  "@workoutGoingWell": {
+      "description": "Section label over the exercises that are progressing."
+  },
+  "workoutImprovingCount": "{count} improving",
+  "@workoutImprovingCount": {
+      "description": "Trailing count beside the \"going well\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutGettingWorse": "What's getting worse",
+  "@workoutGettingWorse": {
+      "description": "Section label over the exercises that are declining."
+  },
+  "workoutDecliningCount": "{count} declining",
+  "@workoutDecliningCount": {
+      "description": "Trailing count beside the \"getting worse\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutStalled": "Stalled — needs a change",
+  "@workoutStalled": {
+      "description": "Section label over the exercises that have plateaued."
+  },
+  "workoutFlatCount": "{count} flat",
+  "@workoutFlatCount": {
+      "description": "Trailing count beside the \"stalled\" section.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutBeingSkipped": "What's being skipped",
+  "@workoutBeingSkipped": {
+      "description": "Section label over planned exercises that are not being trained."
+  },
+  "workoutSkippedOfPlanned": "{skipped} of {planned}",
+  "@workoutSkippedOfPlanned": {
+      "description": "Trailing count beside the \"being skipped\" section: how many planned exercises are neglected.",
+      "placeholders": {
+          "skipped": {
+              "type": "int"
+          },
+          "planned": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutFocusNext": "Focus next",
+  "@workoutFocusNext": {
+      "description": "Section label over the suggested next step."
+  },
+  "workoutTrainingVolume": "Training volume",
+  "@workoutTrainingVolume": {
+      "description": "Section label over the weekly working-set volume."
+  },
+  "workoutAllExercises": "All exercises",
+  "@workoutAllExercises": {
+      "description": "Section label over the full exercise list."
+  },
+  "workoutTapToDrillIn": "tap to drill in",
+  "@workoutTapToDrillIn": {
+      "description": "Hint beside the All exercises section."
+  },
+  "workoutOverallCaps": "OVERALL",
+  "@workoutOverallCaps": {
+      "description": "Caps label over the summary verdict card."
+  },
+  "workoutPrHeaviest": "Heaviest",
+  "@workoutPrHeaviest": {
+      "description": "A personal record for the heaviest weight lifted."
+  },
+  "workoutPrMostReps": "Most reps",
+  "@workoutPrMostReps": {
+      "description": "A personal record for the most repetitions performed."
+  },
+  "workoutPrBestStrength": "Best strength",
+  "@workoutPrBestStrength": {
+      "description": "A personal record for the best estimated one-rep max."
+  },
+  "workoutRepsOnly": "{reps} reps",
+  "@workoutRepsOnly": {
+      "description": "An unloaded set, described by its repetitions alone.",
+      "placeholders": {
+          "reps": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutWeightByReps": "{weight}kg × {reps}",
+  "@workoutWeightByReps": {
+      "description": "A loaded set, e.g. \"100kg × 8\".",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "reps": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutStatusWithStrength": "{status} · {change} strength",
+  "@workoutStatusWithStrength": {
+      "description": "A status word with its strength change, e.g. \"Progressing · +4% strength\".",
+      "placeholders": {
+          "status": {
+              "type": "String"
+          },
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNeverTrained": "Planned but never trained",
+  "@workoutNeverTrained": {
+      "description": "Why a planned exercise is flagged: it has never been performed."
+  },
+  "workoutStaleSince": "{days} days since last — on {day}",
+  "@workoutStaleSince": {
+      "description": "Why a planned exercise is flagged: it has not been trained recently.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNoPriorWeek": "No prior week to compare",
+  "@workoutNoPriorWeek": {
+      "description": "Shown when there is no previous week of volume to compare against."
+  },
+  "workoutVsLastWeek": "{change} vs last week",
+  "@workoutVsLastWeek": {
+      "description": "Volume change against the previous week, e.g. \"+12% vs last week\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSameAsLastWeek": "Same as last week",
+  "@workoutSameAsLastWeek": {
+      "description": "Shown when this week's volume matches last week's."
+  },
+  "workoutThisWeekWorkingSets": "This week · working sets only",
+  "@workoutThisWeekWorkingSets": {
+      "description": "Caption over the weekly volume number, noting warm-ups are excluded."
+  },
+  "workoutAnalysisEmptyTitle": "Complete a few sessions to start tracking progress.",
+  "@workoutAnalysisEmptyTitle": {
+      "description": "Empty state title on the analysis page."
+  },
+  "workoutAnalysisEmptyBody": "Once you've logged the same exercise a few times, ZIVO will show your strength trend, PRs, and what to focus on next.",
+  "@workoutAnalysisEmptyBody": {
+      "description": "Empty state body on the analysis page."
+  },
+  "workoutStrengthTrend": "Strength trend",
+  "@workoutStrengthTrend": {
+      "description": "Section label over the estimated-1RM chart for a loaded lift."
+  },
+  "workoutVolumeTrend": "Volume trend",
+  "@workoutVolumeTrend": {
+      "description": "Section label over the volume chart for an unloaded movement."
+  },
+  "workoutAtAGlance": "At a glance",
+  "@workoutAtAGlance": {
+      "description": "Section label over the summary metric tiles."
+  },
+  "workoutPersonalRecords": "Personal records",
+  "@workoutPersonalRecords": {
+      "description": "Section label over this exercise's personal records."
+  },
+  "workoutSessionHistory": "Session history",
+  "@workoutSessionHistory": {
+      "description": "Section label over the session-by-session timeline."
+  },
+  "workoutSessionsLogged": "{count} logged",
+  "@workoutSessionsLogged": {
+      "description": "Trailing count beside the Session history label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutEstStrengthChange": "{change} est. strength",
+  "@workoutEstStrengthChange": {
+      "description": "The change in estimated strength, e.g. \"+4% est. strength\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutEst1rmCaps": "EST. 1RM",
+  "@workoutEst1rmCaps": {
+      "description": "Caps micro-label under the current estimated one-rep max. \"1RM\" is one-rep max."
+  },
+  "workoutWhatHappenedCaps": "WHAT HAPPENED",
+  "@workoutWhatHappenedCaps": {
+      "description": "Caps marker over the coaching insight's first line."
+  },
+  "workoutWhyItMattersCaps": "WHY IT MATTERS",
+  "@workoutWhyItMattersCaps": {
+      "description": "Caps marker over the coaching insight's second line."
+  },
+  "workoutDoThisCaps": "DO THIS",
+  "@workoutDoThisCaps": {
+      "description": "Caps marker over the coaching insight's recommended action."
+  },
+  "workoutEst1rmUnitCaps": "EST. 1RM (KG)",
+  "@workoutEst1rmUnitCaps": {
+      "description": "Caps axis label on the strength chart."
+  },
+  "workoutVolumeUnitCaps": "VOLUME (KG)",
+  "@workoutVolumeUnitCaps": {
+      "description": "Caps axis label on the volume chart."
+  },
+  "workoutOldest": "Oldest",
+  "@workoutOldest": {
+      "description": "Left end of a chart's time axis."
+  },
+  "workoutLatest": "Latest",
+  "@workoutLatest": {
+      "description": "Right end of a chart's time axis."
+  },
+  "workoutBestEst1rm": "Best est. 1RM",
+  "@workoutBestEst1rm": {
+      "description": "Metric tile: the highest estimated one-rep max reached."
+  },
+  "workoutTotalVolume": "Total volume",
+  "@workoutTotalVolume": {
+      "description": "Metric tile: total working volume for this exercise."
+  },
+  "workoutFrequency": "Frequency",
+  "@workoutFrequency": {
+      "description": "Metric tile: how often this exercise is trained."
+  },
+  "workoutPerWeek": "/wk",
+  "@workoutPerWeek": {
+      "description": "Unit beside a per-week frequency."
+  },
+  "workoutLastTrained": "Last trained",
+  "@workoutLastTrained": {
+      "description": "Metric tile: when this exercise was last performed."
+  },
+  "workoutDaysAgo": "days ago",
+  "@workoutDaysAgo": {
+      "description": "Unit beside a number of days since the exercise was last trained."
+  },
+  "workoutPrHeaviestLoad": "Heaviest load",
+  "@workoutPrHeaviestLoad": {
+      "description": "Personal record row: the heaviest weight lifted."
+  },
+  "workoutKgValue": "{value}kg",
+  "@workoutKgValue": {
+      "description": "A weight in kilograms, e.g. \"100kg\".",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSessionNumberCaps": "SESSION {index}",
+  "@workoutSessionNumberCaps": {
+      "description": "Caps ordinal over one session in the timeline.",
+      "placeholders": {
+          "index": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutSetsShort": "Sets",
+  "@workoutSetsShort": {
+      "description": "Micro-label under a count of working sets."
+  },
+  "workoutTopSet": "Top set",
+  "@workoutTopSet": {
+      "description": "Micro-label under the heaviest set of a session."
+  },
+  "workoutVolumeShort": "Volume",
+  "@workoutVolumeShort": {
+      "description": "Micro-label under a session's total volume."
+  },
+  "workoutEst1rmShort": "Est 1RM",
+  "@workoutEst1rmShort": {
+      "description": "Micro-label under a session's best estimated one-rep max."
+  },
+  "workoutVsPreviousSessionCaps": "VS PREVIOUS SESSION",
+  "@workoutVsPreviousSessionCaps": {
+      "description": "Caps label over the deltas against the previous session."
+  },
+  "workoutSetDropsetShort": "D",
+  "@workoutSetDropsetShort": {
+      "description": "One-letter marker on a drop set. Kept latin in both languages, as a symbol."
+  },
+  "workoutSetFailureShort": "F",
+  "@workoutSetFailureShort": {
+      "description": "One-letter marker on a set taken to failure. Kept latin in both languages, as a symbol."
+  },
+  "workoutPbCaps": "PB",
+  "@workoutPbCaps": {
+      "description": "Badge on a session that set a personal best."
+  },
+  "workoutExerciseEmptyTitle": "No completed sessions with this exercise yet.",
+  "@workoutExerciseEmptyTitle": {
+      "description": "Empty state title on the per-exercise analysis page."
+  },
+  "workoutExerciseEmptyBody": "Log it in a session and its full history, trend, and session-to-session comparison will appear here.",
+  "@workoutExerciseEmptyBody": {
+      "description": "Empty state body on the per-exercise analysis page."
+  },
+  "workoutNewPb": "New PB",
+  "@workoutNewPb": {
+      "description": "Delta chip: this session set a new personal best."
+  },
+  "workoutDeltaE1rm": "e1RM {change}",
+  "@workoutDeltaE1rm": {
+      "description": "Delta chip: how estimated strength moved, e.g. \"e1RM +4%\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaLoad": "Load {change}",
+  "@workoutDeltaLoad": {
+      "description": "Delta chip: how the working load moved, e.g. \"Load +2.5kg\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaReps": "Reps {change}",
+  "@workoutDeltaReps": {
+      "description": "Delta chip: how the top-set reps moved, e.g. \"Reps +2\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutDeltaVolume": "Volume {change}",
+  "@workoutDeltaVolume": {
+      "description": "Delta chip: how session volume moved, e.g. \"Volume +8%\".",
+      "placeholders": {
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutNoMeaningfulChange": "No meaningful change",
+  "@workoutNoMeaningfulChange": {
+      "description": "Delta chip: this session matched the previous one."
+  },
+  "workoutDurationHm": "{hours}h {minutes}m",
+  "@workoutDurationHm": {
+      "description": "A duration over an hour, e.g. \"1h 12m\". Abbreviations: h = hours, m = minutes.",
+      "placeholders": {
+          "hours": {
+              "type": "int"
+          },
+          "minutes": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDurationM": "{minutes}m",
+  "@workoutDurationM": {
+      "description": "A duration under an hour, e.g. \"52m\". Abbreviation: m = minutes.",
+      "placeholders": {
+          "minutes": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDurationH": "{hours}h",
+  "@workoutDurationH": {
+      "description": "A duration in hours with a decimal, e.g. \"3.5h\". Abbreviation: h = hours.",
+      "placeholders": {
+          "hours": {
+              "type": "String"
+          }
+      }
+  },
+  "askTitle": "Ask",
+  "@askTitle": {
+      "description": "The AI chat surface's title."
+  },
+  "askNewChat": "New chat",
+  "@askNewChat": {
+      "description": "Starts a fresh conversation. Also what an untitled thread is shown as — the stored sentinel stays English."
+  },
+  "askChatHistory": "Chat history",
+  "@askChatHistory": {
+      "description": "Opens the list of past conversations."
+  },
+  "askReplyStyle": "Reply style",
+  "@askReplyStyle": {
+      "description": "Opens the picker for how long or detailed ZIVO's replies should be."
+  },
+  "askChats": "Chats",
+  "@askChats": {
+      "description": "Header of the conversation list sheet."
+  },
+  "askNoChats": "No chats yet.",
+  "@askNoChats": {
+      "description": "Empty state in the conversation list."
+  },
+  "askNameItHint": "Name it so you can find it later — or leave it blank and the first message will title it.",
+  "@askNameItHint": {
+      "description": "Explains the optional name field when starting a new chat."
+  },
+  "askNamePlaceholder": "e.g. Workout changes",
+  "@askNamePlaceholder": {
+      "description": "Placeholder in the new-chat name field."
+  },
+  "askStartChatting": "Start chatting",
+  "@askStartChatting": {
+      "description": "Confirms creating the new conversation."
+  },
+  "askDeleteChatTitle": "Delete this chat?",
+  "@askDeleteChatTitle": {
+      "description": "Title of the confirmation before deleting a conversation."
+  },
+  "askDeleteChatBody": "This permanently removes \"{title}\" and everything in it. This can't be undone.",
+  "@askDeleteChatBody": {
+      "description": "Body of the confirmation before deleting a conversation.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          }
+      }
+  },
+  "askDeleteChatConfirm": "Delete chat",
+  "@askDeleteChatConfirm": {
+      "description": "Confirm button on the delete-conversation dialog."
+  },
+  "askGreeting": "Hey, I'm ZIVO.",
+  "@askGreeting": {
+      "description": "The assistant introducing itself on the empty chat screen. \"ZIVO\" is the product name and is never translated."
+  },
+  "askIntro": "Training, diet and spending. Ask me anything — or let me log it for you.",
+  "@askIntro": {
+      "description": "What the assistant can help with, on the empty chat screen."
+  },
+  "askSuggestSpend": "What did I spend this week?",
+  "@askSuggestSpend": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestTraining": "How is my training going?",
+  "@askSuggestTraining": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestDiet": "What's left on my diet today?",
+  "@askSuggestDiet": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestWeek": "Summarise my week",
+  "@askSuggestWeek": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askUnreachableTitle": "Couldn't reach ZIVO",
+  "@askUnreachableTitle": {
+      "description": "Title when a message could not be sent. \"ZIVO\" is the product name."
+  },
+  "askUnreachableBody": "Your message wasn’t sent.",
+  "@askUnreachableBody": {
+      "description": "Body when a message could not be sent."
+  },
+  "askRetry": "Retry",
+  "@askRetry": {
+      "description": "Sends the failed message again."
+  },
+  "askSaveFailed": "Couldn't save that — try again.",
+  "@askSaveFailed": {
+      "description": "Shown when a conversation could not be created or renamed."
+  },
+  "askActionFailed": "Couldn't do that just now. Try again.",
+  "@askActionFailed": {
+      "description": "Shown when confirming or cancelling a proposed change failed."
+  },
+  "askThinking": "Thinking…",
+  "@askThinking": {
+      "description": "The assistant is composing a reply. Keep the ellipsis."
+  },
+  "askUnderstanding": "Understanding…",
+  "@askUnderstanding": {
+      "description": "The assistant is interpreting the question. Keep the ellipsis."
+  },
+  "askWorking": "Working…",
+  "@askWorking": {
+      "description": "Generic progress line while the assistant runs a step. Keep the ellipsis."
+  },
+  "askPreparingChange": "Preparing your change…",
+  "@askPreparingChange": {
+      "description": "The assistant is drafting a change for the user to confirm. Keep the ellipsis."
+  },
+  "askStillWorking": "Still working on this one…",
+  "@askStillWorking": {
+      "description": "Shown when a turn is taking unusually long. Keep the ellipsis."
+  },
+  "askReadingDay": "Reading your day…",
+  "@askReadingDay": {
+      "description": "Progress line: the assistant is reading today's summary. Keep the ellipsis."
+  },
+  "askReadingDiet": "Reading today's diet…",
+  "@askReadingDiet": {
+      "description": "Progress line: the assistant is reading the diet log. Keep the ellipsis."
+  },
+  "askReadingTraining": "Reading your training…",
+  "@askReadingTraining": {
+      "description": "Progress line: the assistant is reading workout history. Keep the ellipsis."
+  },
+  "askReadingSpending": "Reading your spending…",
+  "@askReadingSpending": {
+      "description": "Progress line: the assistant is reading the expense log. Keep the ellipsis."
+  },
+  "askSummarisingWeek": "Summarising your week…",
+  "@askSummarisingWeek": {
+      "description": "Progress line: the assistant is building a weekly summary. Keep the ellipsis."
+  },
+  "askLookingUpFood": "Looking that food up…",
+  "@askLookingUpFood": {
+      "description": "Progress line: the assistant is resolving a food item. Keep the ellipsis."
+  },
+  "askCalculating": "Working out the numbers…",
+  "@askCalculating": {
+      "description": "Progress line: the assistant is computing nutrition figures. Keep the ellipsis."
+  },
+  "askProposalConfirmed": "Confirmed",
+  "@askProposalConfirmed": {
+      "description": "A proposed change the user accepted."
+  },
+  "askProposalCancelled": "Cancelled",
+  "@askProposalCancelled": {
+      "description": "A proposed change the user rejected."
+  },
+  "askProposalExpired": "Expired",
+  "@askProposalExpired": {
+      "description": "A proposed change that timed out before the user answered."
+  },
+  "askProposalConfirm": "Confirm",
+  "@askProposalConfirm": {
+      "description": "Accepts a change ZIVO proposed. A deletion says \"Delete\" instead."
+  },
+  "askActionNewExpense": "New expense",
+  "@askActionNewExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to add an expense."
+  },
+  "askActionEditExpense": "Edit expense",
+  "@askActionEditExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to change an expense."
+  },
+  "askActionDeleteExpense": "Delete expense",
+  "@askActionDeleteExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to remove an expense."
+  },
+  "askActionDietPlan": "Diet plan",
+  "@askActionDietPlan": {
+      "description": "Kind label on a proposal card: ZIVO wants to mark a meal eaten."
+  },
+  "askActionLogFood": "Log food",
+  "@askActionLogFood": {
+      "description": "Kind label on a proposal card: ZIVO wants to log food."
+  },
+  "askActionSuggestion": "Suggestion",
+  "@askActionSuggestion": {
+      "description": "Kind label on a proposal card for anything else."
+  },
+  "askFoodCount": "{count, plural, =1{1 food} other{{count} foods}}",
+  "@askFoodCount": {
+      "description": "How many food items a log-food proposal covers.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "askKcalTotal": "{total} kcal",
+  "@askKcalTotal": {
+      "description": "Total calories across a proposal's food items.",
+      "placeholders": {
+          "total": {
+              "type": "String"
+          }
+      }
+  },
+  "askVoiceUnavailable": "Voice input isn't available right now.",
+  "@askVoiceUnavailable": {
+      "description": "Shown when the device offers no microphone or recorder."
+  },
+  "askMicPermission": "Turn on microphone access to use voice input.",
+  "@askMicPermission": {
+      "description": "Shown when microphone permission was denied."
+  },
+  "askMicStartFailed": "Couldn't start the microphone — try again.",
+  "@askMicStartFailed": {
+      "description": "Shown when the recorder failed to start."
+  },
+  "askDidntCatchThat": "Didn't catch that — try recording again.",
+  "@askDidntCatchThat": {
+      "description": "Shown when a recording produced no speech."
+  },
+  "askTranscribeFailed": "Couldn't transcribe that — check your connection and try again.",
+  "@askTranscribeFailed": {
+      "description": "Shown when transcription failed."
+  },
+  "askTranscribeTimeout": "That took too long — check your connection and try again.",
+  "@askTranscribeTimeout": {
+      "description": "Shown when transcription ran past its timeout."
+  },
+  "askNothingCameThrough": "Nothing came through — try again.",
+  "@askNothingCameThrough": {
+      "description": "Shown when a transcription returned empty text."
+  },
+  "askTranscribing": "Transcribing…",
+  "@askTranscribing": {
+      "description": "Shown while a voice note is being turned into text. Keep the ellipsis."
+  },
+  "askDiscardRecording": "Discard recording",
+  "@askDiscardRecording": {
+      "description": "Accessibility label for cancelling an in-progress recording."
+  },
+  "askDiscardVoiceNote": "Discard voice note",
+  "@askDiscardVoiceNote": {
+      "description": "Accessibility label for cancelling a transcription."
+  },
+  "askTryAgain": "Try again",
+  "@askTryAgain": {
+      "description": "Retries a failed voice note."
+  },
+  "askSecondsElapsed": " · {seconds}s",
+  "@askSecondsElapsed": {
+      "description": "Elapsed seconds beside a transcription spinner. Leading separator is intentional.",
+      "placeholders": {
+          "seconds": {
+              "type": "int"
+          }
+      }
+  },
+  "askComposerHint": "Ask ZIVO…",
+  "@askComposerHint": {
+      "description": "Placeholder in the chat composer. \"ZIVO\" is the product name. Keep the ellipsis."
+  },
+  "askRecordVoiceNote": "Record a voice note",
+  "@askRecordVoiceNote": {
+      "description": "Accessibility label for the composer's microphone button."
+  },
+  "askSilenceHint": "Can't hear you yet — speak closer to the mic.",
+  "@askSilenceHint": {
+      "description": "Shown mid-recording when no speech has been detected."
+  },
+  "askVoiceLog": "Voice log",
+  "@askVoiceLog": {
+      "description": "Title of the quick voice-capture sheet."
+  },
+  "askVoiceLogSubtitle": "Say it once — it lands in Ask ready to send.",
+  "@askVoiceLogSubtitle": {
+      "description": "Subtitle of the quick voice-capture sheet."
+  },
+  "askTapAndSpeak": "Tap and speak",
+  "@askTapAndSpeak": {
+      "description": "Prompt above the record button in the quick voice-capture sheet."
+  },
+  "askVoiceExamples": "\"add 40 EGP parking\" · \"finished chest day\"",
+  "@askVoiceExamples": {
+      "description": "Two example utterances shown under the record button."
+  },
+  "profileName": "Name",
+  "@profileName": {
+      "description": "The user's display name."
+  },
+  "profileDateOfBirth": "Date of birth",
+  "@profileDateOfBirth": {
+      "description": "The user's date of birth."
+  },
+  "profileEmail": "Email",
+  "@profileEmail": {
+      "description": "An email sign-in method."
+  },
+  "profileCompleteTitle": "Complete your profile",
+  "@profileCompleteTitle": {
+      "description": "Title of the one-time profile completion screen shown after sign-up."
+  },
+  "profileCompleteSubtitle": "A couple of details to personalise ZIVO.",
+  "@profileCompleteSubtitle": {
+      "description": "Subtitle of the profile completion screen. \"ZIVO\" is the product name."
+  },
+  "profileSaveFailed": "We couldn't save your profile. Please try again.",
+  "@profileSaveFailed": {
+      "description": "Shown when saving the profile failed."
+  },
+  "profileUseAnotherAccount": "Use another account",
+  "@profileUseAnotherAccount": {
+      "description": "Signs out of the half-set-up account so a different one can be used."
+  },
+  "actionContinue": "Continue",
+  "@actionContinue": {
+      "description": "Advances to the next step of a flow."
+  },
+  "profileSettings": "Settings",
+  "@profileSettings": {
+      "description": "Accessibility label for the button that opens Settings."
+  },
+  "profileAccountCaps": "ACCOUNT",
+  "@profileAccountCaps": {
+      "description": "Section header over the account details. Set in caps in English."
+  },
+  "profileSignInCaps": "SIGN-IN",
+  "@profileSignInCaps": {
+      "description": "Section header over the sign-in methods. Set in caps in English."
+  },
+  "profileEditName": "Edit name",
+  "@profileEditName": {
+      "description": "Title of the sheet for changing the display name."
+  },
+  "profileYourName": "Your name",
+  "@profileYourName": {
+      "description": "Placeholder in the name field."
+  },
+  "profileSignedIn": "Signed in",
+  "@profileSignedIn": {
+      "description": "Fallback heading when the account has no name to show."
+  },
+  "profileVerifiedCaps": "VERIFIED",
+  "@profileVerifiedCaps": {
+      "description": "Badge on a confirmed email address. Set in caps in English."
+  },
+  "profileUnverifiedCaps": "UNVERIFIED",
+  "@profileUnverifiedCaps": {
+      "description": "Badge on an email address that has not been confirmed. Set in caps in English."
+  },
+  "profileConnectedCaps": "CONNECTED",
+  "@profileConnectedCaps": {
+      "description": "Badge on a linked sign-in provider. Set in caps in English."
+  },
+  "profileEmailAndPassword": "Email & password",
+  "@profileEmailAndPassword": {
+      "description": "The email/password sign-in method. Google and Apple are brand names and stay untranslated."
+  },
+  "profileDobWithAge": "{date} · {age}",
+  "@profileDobWithAge": {
+      "description": "A date of birth followed by the age it implies, e.g. \"AUG 20, 1998 · 27\".",
+      "placeholders": {
+          "date": {
+              "type": "String"
+          },
+          "age": {
+              "type": "int"
+          }
+      }
+  },
+  "profileStatSessions": "Sessions",
+  "@profileStatSessions": {
+      "description": "Label under the number of completed training sessions."
+  },
+  "profileStatMonthsIn": "Months in",
+  "@profileStatMonthsIn": {
+      "description": "Label under how many months the user has been using ZIVO."
+  },
+  "profileStatLifetime": "Lifetime",
+  "@profileStatLifetime": {
+      "description": "Label under the all-time training volume."
+  },
+  "profileAbout": "About",
+  "@profileAbout": {
+      "description": "Section label over the user's short bio."
+  },
+  "profileAboutEmpty": "Add a few words about yourself.",
+  "@profileAboutEmpty": {
+      "description": "Prompt on the empty bio card."
+  },
+  "profileAboutHint": "A few words about yourself…",
+  "@profileAboutHint": {
+      "description": "Placeholder in the bio editor. Keep the ellipsis."
+  },
+  "profileCharCount": "{used} / {max}",
+  "@profileCharCount": {
+      "description": "Characters used out of the limit, under the bio editor.",
+      "placeholders": {
+          "used": {
+              "type": "int"
+          },
+          "max": {
+              "type": "int"
+          }
+      }
+  },
+  "profilePhotoTitle": "Profile Photo",
+  "@profilePhotoTitle": {
+      "description": "Title of the sheet for changing the profile photo."
+  },
+  "profileChoosePhoto": "Choose Photo",
+  "@profileChoosePhoto": {
+      "description": "Picks a new profile photo from the library."
+  },
+  "profileRemovePhoto": "Remove Photo",
+  "@profileRemovePhoto": {
+      "description": "Clears the current profile photo."
+  },
+  "profileCropTitle": "Move & Scale",
+  "@profileCropTitle": {
+      "description": "Title of the iOS photo cropper."
+  },
+  "profileCropDone": "Choose",
+  "@profileCropDone": {
+      "description": "Confirms the crop on the iOS photo cropper."
+  },
+  "profileEditPhoto": "Edit Photo",
+  "@profileEditPhoto": {
+      "description": "Title of the Android photo cropper."
+  },
+  "dietGoalFatLoss": "Fat loss",
+  "@dietGoalFatLoss": {
+      "description": "A diet goal: eat below maintenance to lose fat."
+  },
+  "dietGoalMaintain": "Maintain",
+  "@dietGoalMaintain": {
+      "description": "A diet goal: hold weight steady."
+  },
+  "dietGoalMuscleGain": "Muscle gain",
+  "@dietGoalMuscleGain": {
+      "description": "A diet goal: eat above maintenance to build muscle."
+  },
+  "dietGoalRecomp": "Recomposition",
+  "@dietGoalRecomp": {
+      "description": "A diet goal: build muscle while losing fat at once."
+  },
+  "dietGoalFatLossDetail": "Eat below maintenance to lose fat, keeping protein high.",
+  "@dietGoalFatLossDetail": {
+      "description": "What choosing the fat-loss goal means for the numbers."
+  },
+  "dietGoalMaintainDetail": "Hold weight steady at roughly maintenance calories.",
+  "@dietGoalMaintainDetail": {
+      "description": "What choosing the maintain goal means for the numbers."
+  },
+  "dietGoalMuscleGainDetail": "Eat above maintenance to support building muscle.",
+  "@dietGoalMuscleGainDetail": {
+      "description": "What choosing the muscle-gain goal means for the numbers."
+  },
+  "dietGoalRecompDetail": "Hold calories near maintenance with protein high enough to build while leaning out.",
+  "@dietGoalRecompDetail": {
+      "description": "What choosing the recomposition goal means for the numbers."
+  },
+  "dietTargetSourceManual": "You set this",
+  "@dietTargetSourceManual": {
+      "description": "Where a calorie target came from: the user entered it."
+  },
+  "dietTargetSourceCalculated": "Calculated from your body data",
+  "@dietTargetSourceCalculated": {
+      "description": "Where a calorie target came from: derived from height, weight, age and activity."
+  },
+  "dietTargetSourcePlan": "Adopted from your plan's daily total",
+  "@dietTargetSourcePlan": {
+      "description": "Where a calorie target came from: the active plan's own total."
+  },
+  "dietCalibrationNeedsWeighIns": "two weigh-ins",
+  "@dietCalibrationNeedsWeighIns": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories."
+  },
+  "dietCalibrationNeedsLongerWindow": "weigh-ins at least {days} days apart",
+  "@dietCalibrationNeedsLongerWindow": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalibrationNeedsMoreDays": "more days of food logged",
+  "@dietCalibrationNeedsMoreDays": {
+      "description": "What is still missing before ZIVO can measure real maintenance calories."
+  },
+  "dietMacroProtein": "Protein",
+  "@dietMacroProtein": {
+      "description": "The protein macronutrient."
+  },
+  "dietMacroCarbs": "Carbs",
+  "@dietMacroCarbs": {
+      "description": "The carbohydrate macronutrient."
+  },
+  "dietMacroFat": "Fat",
+  "@dietMacroFat": {
+      "description": "The fat macronutrient."
+  },
+  "dietTodaySoFar": "Today so far",
+  "@dietTodaySoFar": {
+      "description": "Section label over what has been eaten today."
+  },
+  "dietKcalEaten": "{kcal} kcal eaten",
+  "@dietKcalEaten": {
+      "description": "How many calories have been eaten today. {kcal} may carry a \"~\" prefix when estimated.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietYourTarget": "Your target",
+  "@dietYourTarget": {
+      "description": "Section label over the calorie/macro target."
+  },
+  "dietMacrosToday": "Macros today",
+  "@dietMacrosToday": {
+      "description": "Section label over today's macro progress bars."
+  },
+  "dietWhatPlanDoes": "What this plan does",
+  "@dietWhatPlanDoes": {
+      "description": "Section label over the verdict on whether the plan gains or loses weight."
+  },
+  "dietTodaysRead": "Today's read",
+  "@dietTodaysRead": {
+      "description": "Section label over the coach's read on today."
+  },
+  "dietFullPlan": "Full plan",
+  "@dietFullPlan": {
+      "description": "Section label over every day of the plan."
+  },
+  "dietDayCountCaps": "{count, plural, =1{1 DAY} other{{count} DAYS}}",
+  "@dietDayCountCaps": {
+      "description": "How many days a plan covers, as a caps micro-label.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoTargetBody": "Set one and the numbers above become progress toward a goal — and your coach can tell you where you stand.",
+  "@dietNoTargetBody": {
+      "description": "Explains why setting a calorie target is worth doing."
+  },
+  "dietUseThisPlanKcal": "Use this plan's {kcal} kcal",
+  "@dietUseThisPlanKcal": {
+      "description": "Adopts the plan's own daily total as the calorie target. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietGoalKcalPerDayCaps": "{goal} · {kcal} KCAL/DAY",
+  "@dietGoalKcalPerDayCaps": {
+      "description": "A target summarised as its goal and daily calories.",
+      "placeholders": {
+          "goal": {
+              "type": "String"
+          },
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietBelowSafeFloor": "{source} · below {kcal} kcal — worth checking with a professional",
+  "@dietBelowSafeFloor": {
+      "description": "Warning under a calorie target set below the safe floor.",
+      "placeholders": {
+          "source": {
+              "type": "String"
+          },
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietGainOrLose": "Is this plan making you gain or lose?",
+  "@dietGainOrLose": {
+      "description": "Prompt to add the body data needed to judge the plan."
+  },
+  "dietNeedsToWorkOut": "ZIVO needs {missing} to work it out.",
+  "@dietNeedsToWorkOut": {
+      "description": "What body data is still missing, e.g. \"your height and your current weight\".",
+      "placeholders": {
+          "missing": {
+              "type": "String"
+          }
+      }
+  },
+  "dietListTwo": "{first} and {second}",
+  "@dietListTwo": {
+      "description": "Joins two items into a phrase.",
+      "placeholders": {
+          "first": {
+              "type": "String"
+          },
+          "second": {
+              "type": "String"
+          }
+      }
+  },
+  "dietListMany": "{leading} and {last}",
+  "@dietListMany": {
+      "description": "Joins three or more items; {leading} is already comma-separated.",
+      "placeholders": {
+          "leading": {
+              "type": "String"
+          },
+          "last": {
+              "type": "String"
+          }
+      }
+  },
+  "dietThisPlanCaps": "THIS PLAN",
+  "@dietThisPlanCaps": {
+      "description": "Caps label on the plan verdict card. Set in caps in English."
+  },
+  "dietBodyDataCaps": "BODY DATA",
+  "@dietBodyDataCaps": {
+      "description": "Caps link to edit height, weight and activity. Set in caps in English."
+  },
+  "dietAveragedOver": "Averaged over {counted, plural, =1{1 day} other{{counted} days}}; {missing, plural, =1{1 day has} other{{missing} days have}} no calorie figures.",
+  "@dietAveragedOver": {
+      "description": "Says how many days the plan average rests on, and how many had no calorie data.",
+      "placeholders": {
+          "counted": {
+              "type": "int"
+          },
+          "missing": {
+              "type": "int"
+          }
+      }
+  },
+  "dietProteinPerKg": "Protein {grams} g per kg of bodyweight.",
+  "@dietProteinPerKg": {
+      "description": "How much protein the plan provides relative to bodyweight.",
+      "placeholders": {
+          "grams": {
+              "type": "String"
+          }
+      }
+  },
+  "dietStaleWeighIn": "Your last weigh-in is {days} days old — weight drives this figure, so it is worth updating.",
+  "@dietStaleWeighIn": {
+      "description": "Nudge to log a fresh weigh-in.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietUnderSafeFloor": "This plan is under {kcal} kcal a day. Sustained intake down here belongs with a doctor, not an app.",
+  "@dietUnderSafeFloor": {
+      "description": "Safety warning on a plan below the minimum safe calories.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalibrationPrompt": "Log {missing} and ZIVO can measure what you actually burn, instead of estimating it.",
+  "@dietCalibrationPrompt": {
+      "description": "What is still needed before real maintenance calories can be measured.",
+      "placeholders": {
+          "missing": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMeasuredDisagrees": "Your last {days} days say you actually burn about {measured} — not the {used} above. Worth updating.",
+  "@dietMeasuredDisagrees": {
+      "description": "The measured maintenance differs from the one currently in use.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "measured": {
+              "type": "int"
+          },
+          "used": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMeasuredFrom": "Measured from your last {days} days: {intake} kcal a day eaten, {change}.",
+  "@dietMeasuredFrom": {
+      "description": "Summarises the measured maintenance window.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          },
+          "intake": {
+              "type": "int"
+          },
+          "change": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightSteady": "weight steady",
+  "@dietWeightSteady": {
+      "description": "Weight did not meaningfully change over the measured window."
+  },
+  "dietWeightUp": "weight up {kg} kg",
+  "@dietWeightUp": {
+      "description": "Weight rose over the measured window.",
+      "placeholders": {
+          "kg": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightDown": "weight down {kg} kg",
+  "@dietWeightDown": {
+      "description": "Weight fell over the measured window.",
+      "placeholders": {
+          "kg": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMacroProgress": "{eaten}/{target}g",
+  "@dietMacroProgress": {
+      "description": "Grams eaten out of the target for one macro. {target} may carry a \"~\" prefix.",
+      "placeholders": {
+          "eaten": {
+              "type": "String"
+          },
+          "target": {
+              "type": "String"
+          }
+      }
+  },
+  "dietDayKcal": "{kcal} kcal",
+  "@dietDayKcal": {
+      "description": "A plan day's calorie total. {kcal} may carry a \"~\" prefix when estimated.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMissingWeight": "your current weight",
+  "@dietMissingWeight": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingHeight": "your height",
+  "@dietMissingHeight": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingSex": "the BMR formula ZIVO should use",
+  "@dietMissingSex": {
+      "description": "Body data still missing: which Mifflin-St Jeor form to use. Phrased to drop into a sentence."
+  },
+  "dietMissingActivity": "how active your week is",
+  "@dietMissingActivity": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietMissingDateOfBirth": "your date of birth",
+  "@dietMissingDateOfBirth": {
+      "description": "Body data still missing, phrased to drop into a sentence."
+  },
+  "dietSourceUsda": "USDA FoodData Central",
+  "@dietSourceUsda": {
+      "description": "A nutrition reference database. A proper name — keep it untranslated."
+  },
+  "dietSourceUserCustom": "Your own food",
+  "@dietSourceUserCustom": {
+      "description": "A food the user entered themselves."
+  },
+  "dietSourcePlan": "Your diet plan",
+  "@dietSourcePlan": {
+      "description": "Nutrition figures taken from the user's own plan."
+  },
+  "dietNoPlanYetHeadline": "No diet plan yet.",
+  "@dietNoPlanYetHeadline": {
+      "description": "Empty state headline when the user has never had a plan."
+  },
+  "dietNotFollowingHeadline": "You're not following a plan.",
+  "@dietNotFollowingHeadline": {
+      "description": "Empty state headline when every plan is archived."
+  },
+  "dietNoPlanYetBody": "Import a document or a photo, say it out loud, type it out, or build one by hand — I'll fill in the calories and macros.",
+  "@dietNoPlanYetBody": {
+      "description": "Empty state body listing the ways to add a diet plan."
+  },
+  "dietArchivedPlans": "{count, plural, =1{1 plan is archived — pick one back up, or add another.} other{{count} plans are archived — pick one back up, or add another.}}",
+  "@dietArchivedPlans": {
+      "description": "Empty state body when plans exist but none is active.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSeeYourPlans": "See your plans",
+  "@dietSeeYourPlans": {
+      "description": "Opens the list of saved diet plans."
+  },
+  "dietFromYourPlan": "from your plan",
+  "@dietFromYourPlan": {
+      "description": "Where a logged food's figures came from."
+  },
+  "dietQuantityUnit": "{quantity} {unit}",
+  "@dietQuantityUnit": {
+      "description": "A logged amount and its unit, e.g. \"150 g\".",
+      "placeholders": {
+          "quantity": {
+              "type": "String"
+          },
+          "unit": {
+              "type": "String"
+          }
+      }
+  },
+  "dietMealsEaten": "{eaten} of {total} meals eaten",
+  "@dietMealsEaten": {
+      "description": "How many of today's planned meals have been ticked.",
+      "placeholders": {
+          "eaten": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoCalorieDataCaps": "NO CALORIE DATA YET",
+  "@dietNoCalorieDataCaps": {
+      "description": "Caps note when a plan carries no calorie figures. Set in caps in English."
+  },
+  "dietKcalOverCaps": "KCAL OVER",
+  "@dietKcalOverCaps": {
+      "description": "Caps label under the hero figure when the target is exceeded. Set in caps in English."
+  },
+  "dietKcalLeftCaps": "KCAL LEFT",
+  "@dietKcalLeftCaps": {
+      "description": "Caps label under the hero figure. Set in caps in English."
+  },
+  "dietKcalLeftOfPlanCaps": "KCAL LEFT OF PLAN",
+  "@dietKcalLeftOfPlanCaps": {
+      "description": "Caps label under the hero figure when measured against the plan rather than a target."
+  },
+  "dietEstPrefixCaps": "EST. ",
+  "@dietEstPrefixCaps": {
+      "description": "Caps prefix marking a figure that rests on estimated values. Trailing space is intentional."
+  },
+  "dietItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@dietItemCount": {
+      "description": "How many food items a meal contains.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietViewDetails": "View details",
+  "@dietViewDetails": {
+      "description": "Opens a meal's full breakdown."
+  },
+  "dietActivitySedentary": "Sedentary",
+  "@dietActivitySedentary": {
+      "description": "An activity level."
+  },
+  "dietActivityLight": "Light",
+  "@dietActivityLight": {
+      "description": "An activity level."
+  },
+  "dietActivityModerate": "Moderate",
+  "@dietActivityModerate": {
+      "description": "An activity level."
+  },
+  "dietActivityHigh": "High",
+  "@dietActivityHigh": {
+      "description": "An activity level."
+  },
+  "dietActivityAthlete": "Very high",
+  "@dietActivityAthlete": {
+      "description": "An activity level."
+  },
+  "dietActivitySedentaryDetail": "Desk job, little deliberate exercise",
+  "@dietActivitySedentaryDetail": {
+      "description": "What the sedentary activity level describes."
+  },
+  "dietActivityLightDetail": "Training 1–3 days a week",
+  "@dietActivityLightDetail": {
+      "description": "What the light activity level describes."
+  },
+  "dietActivityModerateDetail": "Training 3–5 days a week",
+  "@dietActivityModerateDetail": {
+      "description": "What the moderate activity level describes."
+  },
+  "dietActivityHighDetail": "Training 6–7 days a week",
+  "@dietActivityHighDetail": {
+      "description": "What the high activity level describes."
+  },
+  "dietActivityAthleteDetail": "Hard training daily, or a physical job on top",
+  "@dietActivityAthleteDetail": {
+      "description": "What the very-high activity level describes."
+  },
+  "dietTargetBasisSummary": "{weight} kg · {activity} · {maintenance} kcal maintenance",
+  "@dietTargetBasisSummary": {
+      "description": "The body data a calculated target was derived from.",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "activity": {
+              "type": "String"
+          },
+          "maintenance": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSetYourTarget": "Set your target",
+  "@dietSetYourTarget": {
+      "description": "Title when no target exists yet."
+  },
+  "dietDailyTarget": "Daily target",
+  "@dietDailyTarget": {
+      "description": "Title when editing an existing target."
+  },
+  "dietTargetsIntro": "Your coach uses these numbers for everything it tells you. Until they're set, it can describe your plan but not how you're doing against it.",
+  "@dietTargetsIntro": {
+      "description": "Explains why the calorie and macro targets matter."
+  },
+  "dietGoal": "Goal",
+  "@dietGoal": {
+      "description": "Section label over the diet goal picker."
+  },
+  "dietDailyNumbers": "Daily numbers",
+  "@dietDailyNumbers": {
+      "description": "Section label over the calorie and macro fields."
+  },
+  "dietCalculatedCaps": "CALCULATED",
+  "@dietCalculatedCaps": {
+      "description": "Badge marking figures derived from body data. Set in caps in English."
+  },
+  "dietOnlyCaloriesRequired": "Only calories are required. Leave a macro blank if you aren't tracking it — blank means untracked, not zero.",
+  "@dietOnlyCaloriesRequired": {
+      "description": "Explains that macro fields are optional."
+  },
+  "dietFillFieldsHint": "Fills the fields with a starting point you can edit. Nothing is saved until you tap Save.",
+  "@dietFillFieldsHint": {
+      "description": "Explains what the calculate button does."
+  },
+  "dietBelowSafeWarning": "{calories} kcal is below {floor}, which is under what ZIVO should be coaching. You can still save it, but eating this low is worth talking through with a doctor or a registered dietitian first.",
+  "@dietBelowSafeWarning": {
+      "description": "Warning before saving a calorie target below the safe floor.",
+      "placeholders": {
+          "calories": {
+              "type": "int"
+          },
+          "floor": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCalculatedFrom": "From {weight}kg at {activity} activity: {bmr} kcal at rest, {maintenance} kcal to maintain, adjusted for {goal}. These are population estimates — adjust them from what the scale actually does.",
+  "@dietCalculatedFrom": {
+      "description": "Explains how a calculated target was derived.",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "activity": {
+              "type": "String"
+          },
+          "bmr": {
+              "type": "int"
+          },
+          "maintenance": {
+              "type": "int"
+          },
+          "goal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietSexMale": "Male",
+  "@dietSexMale": {
+      "description": "The BMR formula variable, not a profile field."
+  },
+  "dietSexFemale": "Female",
+  "@dietSexFemale": {
+      "description": "The BMR formula variable, not a profile field."
+  },
+  "dietStaleWeighInPrompt": "Your last weigh-in was {days} days ago. Worth logging a new one first.",
+  "@dietStaleWeighInPrompt": {
+      "description": "Nudge before calculating a target from an old weight.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKgValue": "{value} kg",
+  "@dietKgValue": {
+      "description": "A weight in kilograms.",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCmValue": "{value} cm",
+  "@dietCmValue": {
+      "description": "A height in centimetres.",
+      "placeholders": {
+          "value": {
+              "type": "int"
+          }
+      }
+  },
+  "dietSearching": "Searching {source}.",
+  "@dietSearching": {
+      "description": "Which catalog a food search is running against.",
+      "placeholders": {
+          "source": {
+              "type": "String"
+          }
+      }
+  },
+  "dietFoodSearchHint": "chicken breast, rice, olive oil…",
+  "@dietFoodSearchHint": {
+      "description": "Placeholder in the food search field. Keep the ellipsis."
+  },
+  "dietEnterAmount": "Enter an amount.",
+  "@dietEnterAmount": {
+      "description": "Validation when the amount field is empty."
+  },
+  "dietEnterAmountAboveZero": "Enter an amount above zero.",
+  "@dietEnterAmountAboveZero": {
+      "description": "Validation when the amount is zero or negative."
+  },
+  "dietKcalPer100g": "{kcal} kcal / 100g",
+  "@dietKcalPer100g": {
+      "description": "A food's energy density.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKcalPer100gTight": "{kcal} kcal/100g",
+  "@dietKcalPer100gTight": {
+      "description": "A food's energy density, tighter spacing for a compact row.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietTypeToSearch": "Type a food to search.",
+  "@dietTypeToSearch": {
+      "description": "Prompt before any search term is entered."
+  },
+  "dietNoCatalogMatch": "Nothing in the catalog matches \"{query}\".",
+  "@dietNoCatalogMatch": {
+      "description": "Shown when a food search returns nothing.",
+      "placeholders": {
+          "query": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCatalogThinBody": "It's a USDA catalog, so it's thin on regional and home cooking. Rather than guess, tell ZIVO what this food is once and it'll remember.",
+  "@dietCatalogThinBody": {
+      "description": "Explains why a food may be missing, and offers to add it."
+  },
+  "dietKcalValue": "{kcal} kcal",
+  "@dietKcalValue": {
+      "description": "An energy figure in kilocalories.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMacroLine": "P {protein}g · C {carbs}g · F {fat}g · {grams}g",
+  "@dietMacroLine": {
+      "description": "A compact macro breakdown. P/C/F abbreviate protein, carbs and fat.",
+      "placeholders": {
+          "protein": {
+              "type": "String"
+          },
+          "carbs": {
+              "type": "String"
+          },
+          "fat": {
+              "type": "String"
+          },
+          "grams": {
+              "type": "String"
+          }
+      }
+  },
+  "dietWeightOnlyFood": "ZIVO only has this food by weight — enter it in grams. Converting {unit} would mean guessing a density.",
+  "@dietWeightOnlyFood": {
+      "description": "Why a non-weight unit was rejected for this food.",
+      "placeholders": {
+          "unit": {
+              "type": "String"
+          }
+      }
+  },
+  "dietNoSuchUnit": "ZIVO doesn't have {unit} for this food. Use grams, or: {alternatives}",
+  "@dietNoSuchUnit": {
+      "description": "Which units this food does support.",
+      "placeholders": {
+          "unit": {
+              "type": "String"
+          },
+          "alternatives": {
+              "type": "String"
+          }
+      }
+  },
+  "dietCustomFoodHint": "Per 100g, from the label or your own measure. ZIVO stores these as yours and never overwrites them.",
+  "@dietCustomFoodHint": {
+      "description": "Explains the custom-food fields."
+  },
+  "dietMaintenanceCaps": "MAINTENANCE",
+  "@dietMaintenanceCaps": {
+      "description": "Caps label over the maintenance calorie figure. Set in caps in English."
+  },
+  "dietKcalPerDay": "{kcal} kcal a day",
+  "@dietKcalPerDay": {
+      "description": "A daily energy figure.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMaintenanceGiven": "The figure you gave. ZIVO uses it as-is.",
+  "@dietMaintenanceGiven": {
+      "description": "Where the maintenance figure came from: the user typed it."
+  },
+  "dietMaintenanceEstimated": "Estimated from these numbers — a population average, not a measurement of you.",
+  "@dietMaintenanceEstimated": {
+      "description": "Where the maintenance figure came from: a formula."
+  },
+  "dietDaysAgo": "{days} days ago",
+  "@dietDaysAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "dietWeeksAgo": "{weeks} weeks ago",
+  "@dietWeeksAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "weeks": {
+              "type": "int"
+          }
+      }
+  },
+  "dietMonthsAgo": "{months} months ago",
+  "@dietMonthsAgo": {
+      "description": "How long since the last weigh-in.",
+      "placeholders": {
+          "months": {
+              "type": "int"
+          }
+      }
+  },
+  "dietCuisineEgyptian": "Egyptian",
+  "@dietCuisineEgyptian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineMediterranean": "Mediterranean",
+  "@dietCuisineMediterranean": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineLevantine": "Levantine",
+  "@dietCuisineLevantine": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineIndian": "Indian",
+  "@dietCuisineIndian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineAsian": "Asian",
+  "@dietCuisineAsian": {
+      "description": "A cuisine chip."
+  },
+  "dietCuisineWestern": "Western",
+  "@dietCuisineWestern": {
+      "description": "A cuisine chip."
+  },
+  "dietImportOneRun": "A run either reads material or designs a plan — never both.",
+  "@dietImportOneRun": {
+      "description": "Assertion note explaining the import page has one mode per run."
+  },
+  "dietGeneratingFoods": "Choosing foods you like…",
+  "@dietGeneratingFoods": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietGeneratingCalories": "Looking up real calories for each one…",
+  "@dietGeneratingCalories": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietGeneratingPortions": "Sizing the portions to your target…",
+  "@dietGeneratingPortions": {
+      "description": "Progress line while generating a plan. Keep the ellipsis."
+  },
+  "dietFileReadFailed": "Couldn't read that file.",
+  "@dietFileReadFailed": {
+      "description": "Shown when a picked document could not be read."
+  },
+  "dietFileTooLarge": "That file is too large — please choose one under {mb} MB.",
+  "@dietFileTooLarge": {
+      "description": "Shown when a picked document exceeds the size limit.",
+      "placeholders": {
+          "mb": {
+              "type": "int"
+          }
+      }
+  },
+  "dietImportPlanTitle": "Import Plan",
+  "@dietImportPlanTitle": {
+      "description": "Title of the diet import screen."
+  },
+  "dietBuildingYourPlan": "Building your plan",
+  "@dietBuildingYourPlan": {
+      "description": "Title while a plan is being generated."
+  },
+  "dietReadingYourPlan": "Reading your plan",
+  "@dietReadingYourPlan": {
+      "description": "Title while a document is being read."
+  },
+  "dietSelectYourPlan": "Select your diet plan",
+  "@dietSelectYourPlan": {
+      "description": "Prompt to pick a document or photo."
+  },
+  "dietSelectYourPlanBody": "Choose a PDF or a photo of your plan and I'll map it into a real, editable plan — estimating calories and macros wherever the document doesn't state them.",
+  "@dietSelectYourPlanBody": {
+      "description": "Explains what importing a document does."
+  },
+  "dietCouldntBuildPlan": "ZIVO couldn't build that plan",
+  "@dietCouldntBuildPlan": {
+      "description": "Failure title after a generation attempt."
+  },
+  "dietNotADietPlan": "This doesn't look like a diet plan",
+  "@dietNotADietPlan": {
+      "description": "Failure title when the document was not recognised."
+  },
+  "dietChooseDifferentFile": "Choose a different file",
+  "@dietChooseDifferentFile": {
+      "description": "Retry action after a failed import."
+  },
+  "dietGoBackAndEdit": "Go back and edit",
+  "@dietGoBackAndEdit": {
+      "description": "Retry action after a failed generation."
+  },
+  "dietBuildManually": "build the plan manually.",
+  "@dietBuildManually": {
+      "description": "Tail of a sentence offering the manual builder as a fallback."
+  },
+  "dietPreferencesIntro": "ZIVO picks the foods and looks up what they actually weigh in calories — it doesn't guess them. Tell it what you eat and it will build a day you can review before anything is saved.",
+  "@dietPreferencesIntro": {
+      "description": "Explains how plan generation works."
+  },
+  "dietMealsADay": "Meals a day",
+  "@dietMealsADay": {
+      "description": "Section label over the meals-per-day picker."
+  },
+  "dietMealsADayNote": "The single biggest reason a plan survives a working week, or does not.",
+  "@dietMealsADayNote": {
+      "description": "Why the meals-per-day choice matters."
+  },
+  "dietKitchen": "Kitchen",
+  "@dietKitchen": {
+      "description": "Section label over the cuisine chips."
+  },
+  "dietOptionalCaps": "OPTIONAL",
+  "@dietOptionalCaps": {
+      "description": "Marks a section that can be skipped. Set in caps in English."
+  },
+  "dietNothingSavedUntilReview": "Nothing is saved until you review the plan and tap Save.",
+  "@dietNothingSavedUntilReview": {
+      "description": "Reassurance above the generate button."
+  },
+  "dietSizedToTarget": "Sized to your target — {kcal} kcal a day.",
+  "@dietSizedToTarget": {
+      "description": "Confirms the generated plan will match the calorie target.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoTargetToSizeTo": "ZIVO will still build the plan, but it has no figure to size the portions to. Set one first and the day comes out fitted to it.",
+  "@dietNoTargetToSizeTo": {
+      "description": "Shown when generating a plan with no calorie target set."
+  },
+  "dietOnePlanNote": "One plan. Import or write another and you can switch between them without losing either.",
+  "@dietOnePlanNote": {
+      "description": "Note under a single saved plan."
+  },
+  "dietManyPlansNote": "{count} plans. One is in force at a time — the Diet screen always shows that one.",
+  "@dietManyPlansNote": {
+      "description": "Note under several saved plans.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietNoPlansYet": "No plans yet.",
+  "@dietNoPlansYet": {
+      "description": "Empty state in the plans library."
+  },
+  "dietDaysCaps": "{count, plural, =1{1 DAY} other{{count} DAYS}}",
+  "@dietDaysCaps": {
+      "description": "How many days a plan covers, on its card. Set in caps in English.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietKcalPerDayCaps": "{kcal} KCAL/DAY",
+  "@dietKcalPerDayCaps": {
+      "description": "A plan's average daily energy. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          }
+      }
+  },
+  "dietFollowingCaps": "FOLLOWING",
+  "@dietFollowingCaps": {
+      "description": "The plan currently in force. Set in caps in English."
+  },
+  "dietArchivedCaps": "ARCHIVED",
+  "@dietArchivedCaps": {
+      "description": "A shelved plan. Set in caps in English."
+  },
+  "dietDraftCaps": "DRAFT",
+  "@dietDraftCaps": {
+      "description": "An unfinished plan. Set in caps in English."
+  },
+  "dietWhatsInIt": "What’s in it",
+  "@dietWhatsInIt": {
+      "description": "Section label over a meal's items."
+  },
+  "dietNoItemsListed": "No items listed for this meal.",
+  "@dietNoItemsListed": {
+      "description": "Empty state on a meal with no items."
+  },
+  "dietMarkNotEaten": "Mark as not eaten",
+  "@dietMarkNotEaten": {
+      "description": "Undoes marking a meal eaten."
+  },
+  "dietMarkEaten": "Done — mark as eaten",
+  "@dietMarkEaten": {
+      "description": "Marks a meal as eaten."
+  },
+  "dietMacroP": "P",
+  "@dietMacroP": {
+      "description": "One-letter abbreviation for protein."
+  },
+  "dietMacroC": "C",
+  "@dietMacroC": {
+      "description": "One-letter abbreviation for carbohydrates."
+  },
+  "dietMacroF": "F",
+  "@dietMacroF": {
+      "description": "One-letter abbreviation for fat."
+  },
+  "dietGramsValue": "{grams}g",
+  "@dietGramsValue": {
+      "description": "A weight in grams.",
+      "placeholders": {
+          "grams": {
+              "type": "int"
+          }
+      }
+  },
+  "dietUsePlanNumbers": "Use your plan's numbers",
+  "@dietUsePlanNumbers": {
+      "description": "Title of the sheet that adopts a plan total as the calorie target."
+  },
+  "dietPlanAverageOverDays": "{kcal} kcal a day, averaged over the {days} days of {plan}.",
+  "@dietPlanAverageOverDays": {
+      "description": "A plan's average daily calories. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          },
+          "days": {
+              "type": "int"
+          },
+          "plan": {
+              "type": "String"
+          }
+      }
+  },
+  "dietPlanFrom": "{kcal} kcal a day, from {plan}.",
+  "@dietPlanFrom": {
+      "description": "A plan's daily calories. {kcal} may carry a \"~\" prefix.",
+      "placeholders": {
+          "kcal": {
+              "type": "String"
+          },
+          "plan": {
+              "type": "String"
+          }
+      }
+  },
+  "dietDaysWithoutCalories": "{count, plural, =1{1 day has no calorie figures and is not in that average.} other{{count} days have no calorie figures and are not in that average.}}",
+  "@dietDaysWithoutCalories": {
+      "description": "Caveat on a plan average that skipped days.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "dietWhatIsItFor": "What is it for?",
+  "@dietWhatIsItFor": {
+      "description": "Section label over the goal picker in the adopt sheet."
+  },
+  "dietWhyGoalMatters": "The same calories mean different things depending on what you're doing. ZIVO needs this to say how you're doing against them.",
+  "@dietWhyGoalMatters": {
+      "description": "Why a goal is required alongside a calorie target."
+  },
+  "dietPlanBelowSafeFloor": "This plan averages under {kcal} kcal a day. Adopting it as a target is worth talking through with a doctor or a registered dietitian first.",
+  "@dietPlanBelowSafeFloor": {
+      "description": "Warning before adopting a plan below the safe floor.",
+      "placeholders": {
+          "kcal": {
+              "type": "int"
+          }
+      }
+  },
+  "dietEveryDay": "Every day",
+  "@dietEveryDay": {
+      "description": "A meal that repeats on every day of the plan."
+  },
+  "dietRemoveDay": "Remove day",
+  "@dietRemoveDay": {
+      "description": "Deletes a day from the plan."
+  },
+  "dietRemoveMeal": "Remove meal",
+  "@dietRemoveMeal": {
+      "description": "Deletes a meal from a day."
+  },
+  "dietRemoveItem": "Remove item",
+  "@dietRemoveItem": {
+      "description": "Deletes a food from a meal."
+  },
+  "dietUnitCaps": "UNIT",
+  "@dietUnitCaps": {
+      "description": "Column header over a food's unit. Set in caps in English."
+  },
+  "dietDescribeYourDiet": "Describe your diet",
+  "@dietDescribeYourDiet": {
+      "description": "Title when dictating a diet plan."
+  },
+  "dietTypeItOut": "Type it out",
+  "@dietTypeItOut": {
+      "description": "Title when typing a diet plan."
+  },
+  "dietDictateBody": "Say or write what you eat in a day — meals, foods and rough amounts. ZIVO turns it into a plan you review before anything is saved.",
+  "@dietDictateBody": {
+      "description": "Explains dictating or typing a diet plan."
+  },
+  "dietDictateExample": "Example: \"Breakfast is three eggs and 60 grams of oats. Lunch is 200 grams of chicken with rice and salad.\"",
+  "@dietDictateExample": {
+      "description": "An example utterance for dictating a diet plan."
+  },
+  "dietHideCaps": "HIDE",
+  "@dietHideCaps": {
+      "description": "Collapses a finding's reasoning. Set in caps in English."
+  },
+  "dietWhyCaps": "WHY",
+  "@dietWhyCaps": {
+      "description": "Expands a finding's reasoning. Set in caps in English."
+  },
+  "dietSourceManual": "Written by hand",
+  "@dietSourceManual": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourcePdf": "Imported from a document",
+  "@dietSourcePdf": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourcePhoto": "Imported from a photo",
+  "@dietSourcePhoto": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourceDictated": "Dictated",
+  "@dietSourceDictated": {
+      "description": "How a diet plan was created."
+  },
+  "dietSourceGenerated": "Built by ZIVO",
+  "@dietSourceGenerated": {
+      "description": "How a diet plan was created."
+  },
+  "dateTodayLower": "today",
+  "@dateTodayLower": {
+      "description": "Lower-case \"today\", for dropping mid-sentence (e.g. \"Last weigh-in: today\")."
+  },
+  "dateYesterdayLower": "yesterday",
+  "@dateYesterdayLower": {
+      "description": "Lower-case \"yesterday\", for dropping mid-sentence."
   }
 }

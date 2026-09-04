@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
-import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../capture/presentation/import/add_plan_route_tile.dart';
 import '../pages/diet_dictate_page.dart';
 import '../pages/diet_import_page.dart';
 import '../pages/diet_plan_edit_page.dart';
@@ -65,7 +65,7 @@ class _AddDietSheet extends StatelessWidget {
             style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
           ),
           const SizedBox(height: 18),
-          _Route(
+          AddPlanRouteTile(
             routeKey: const Key('add-diet-document'),
             icon: Icons.description_outlined,
             label: l(context).addDietPdfOrPhoto,
@@ -73,14 +73,14 @@ class _AddDietSheet extends StatelessWidget {
             onTap: () => _open(context, const DietImportPage()),
           ),
           if (hasRecorder)
-            _Route(
+            AddPlanRouteTile(
               routeKey: const Key('add-diet-dictate'),
               icon: Icons.mic_none_rounded,
               label: l(context).addDietDictate,
               detail: l(context).addDietDictateDetail,
               onTap: () => _open(context, const DietDictatePage()),
             ),
-          _Route(
+          AddPlanRouteTile(
             routeKey: const Key('add-diet-type'),
             icon: Icons.notes_rounded,
             label: l(context).addDietType,
@@ -88,14 +88,14 @@ class _AddDietSheet extends StatelessWidget {
             onTap: () =>
                 _open(context, const DietDictatePage(startRecording: false)),
           ),
-          _Route(
+          AddPlanRouteTile(
             routeKey: const Key('add-diet-generate'),
             icon: Icons.auto_awesome_rounded,
             label: l(context).addDietGenerate,
             detail: l(context).addDietGenerateDetail,
             onTap: () => _open(context, const DietPreferencesPage()),
           ),
-          _Route(
+          AddPlanRouteTile(
             routeKey: const Key('add-diet-manual'),
             icon: Icons.edit_outlined,
             label: l(context).addDietManual,
@@ -109,66 +109,3 @@ class _AddDietSheet extends StatelessWidget {
   }
 }
 
-class _Route extends StatelessWidget {
-  const _Route({
-    required this.routeKey,
-    required this.icon,
-    required this.label,
-    required this.detail,
-    required this.onTap,
-    this.last = false,
-  });
-
-  final Key routeKey;
-  final IconData icon;
-  final String label;
-  final String detail;
-  final VoidCallback onTap;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : 9),
-      child: TrainCard(
-        radius: 18,
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          key: routeKey,
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-            child: Row(
-              children: [
-                // Differentiated by icon, not by colour — a hue here would
-                // have to mean something, and "dictation" isn't a hue
-                // (identity §3).
-                Icon(icon, size: 19, color: TrainColors.ink2),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: AppText.rowTitle),
-                      const SizedBox(height: 2),
-                      Text(
-                        detail,
-                        style: AppText.meta.copyWith(color: TrainColors.ink3),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: TrainColors.ink3,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

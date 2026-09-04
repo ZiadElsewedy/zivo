@@ -16,6 +16,7 @@ import '../widgets/wallet_balance_sheet.dart';
 import 'expense_capture_page.dart';
 import '../../../../l10n/l10n.dart';
 import '../widgets/category_label.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The Expenses history, built to the design handoff's **Expenses** screen
 /// (4c): the amber screen wash, a wallet card up top (deducted automatically
@@ -139,7 +140,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
                             children: [
                               for (final group in _groupByDay(items)) ...[
                                 _DayHeader(
-                                  label: _dayLabel(group.day, now),
+                                  label: _dayLabel(context, group.day, now),
                                   subtotalMinor: group.subtotalMinor,
                                   currency: group.expenses.first.currency,
                                 ),
@@ -269,26 +270,11 @@ List<_DayGroup> _groupByDay(List<Expense> items) {
   return groups;
 }
 
-String _dayLabel(DateTime day, DateTime now) {
+String _dayLabel(BuildContext context, DateTime day, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
   if (day == today) return 'Today';
   if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${weekdays[day.weekday - 1]} ${day.day} ${months[day.month - 1]}';
+  return formatWeekdayDate(context, day);
 }
 
 /// The wallet slab — the one saturated amber surface on the page, and the

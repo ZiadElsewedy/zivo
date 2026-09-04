@@ -9,9 +9,43 @@
   (route into workout / diet / expense / moment / etc. capture flows).
 - `presentation/widgets/capture_widgets.dart` — shared `CaptureTopBar` / `PillButton` /
   `SelectChip` used by the per-feature capture pages.
+- `presentation/import/` — **the shared plan-import flow**, used by both the workout and
+  diet importers so they can't drift on file types, error copy, or the analyse/reject
+  screens:
+  - `plan_import_file.dart` — `pickImportFile`, `kMaxImportFileBytes`,
+    `kImportAllowedExtensions`, `importErrorMessage` (the one differing clause is a param).
+  - `import_flow_states.dart` — the select/analyze/reject/error phase widgets +
+    `importProgressLine`. (Each importer keeps its own state machine; the workout preview/
+    done screens stay in `workout_import_page.dart`.)
+  - `plan_describe_page.dart` — the shared **say-it / type-it** screen (record → transcribe
+    → edit → extract); `DietDictatePage` and `WorkoutDescribePage` are thin wrappers over
+    it. `keyPrefix` lets each host keep its own stable test keys.
+  - `add_plan_route_tile.dart` — one row for the "Add a plan" sheets (`showAddDietSheet`,
+    `showAddWorkoutSheet`).
+
+## The save contract (every capture screen)
+
+Two rules, both enforced by shared code rather than by remembering:
+
+1. **Local-first.** Never `await` a repository before `pop()`. Firestore resolves a
+   write on the *server's* ack, not on the cache the UI already shows, so awaiting froze
+   Save for a round trip (indefinitely, offline). Hand the write to `deferWrite`
+   ([`core/util/deferred_write.dart`](../../core/util/deferred_write.dart)) and pop; a
+   write that genuinely fails toasts over whatever screen the user is on by then. Only
+   await what the screen *needs the result of* — e.g. `MediaService.capture`, for the
+   durable ref.
+2. **Exactly once.** Commit buttons go through the `AsyncAction` mixin
+   ([`core/widgets/async_action.dart`](../../core/widgets/async_action.dart)) with
+   `once: true`, and render `PillButton(enabled: … && !actionInFlight, busy:
+   isRunning(#save))`. `once` is not optional dressing: a local-first save finishes
+   within a frame, so "in flight" alone no longer separates a double-tap from a
+   duplicate row.
 
 ## Gotchas
 
 - Feature capture pages (e.g. `expenses/.../expense_capture_page.dart`,
   `workout/.../workout_capture_page.dart`) should **reuse** these shared widgets rather than
   rolling their own — it's what keeps capture consistent.
+- A **new plan-import flow** (another importer, another capture route) reuses
+  `presentation/import/` rather than copying a page — that shared module exists precisely
+  because the workout and diet importers had drifted as copy-paste twins.

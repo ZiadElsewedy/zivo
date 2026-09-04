@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
+import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Opens the shared ZIVO date-of-birth wheel and resolves to the picked date
 /// (or null if dismissed). Used by both first-run onboarding and profile-edit
@@ -36,20 +38,6 @@ class DobPickerSheet extends StatefulWidget {
 }
 
 class _DobPickerSheetState extends State<DobPickerSheet> {
-  static const _months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
 
   late final int _minYear = DateTime.now().year - 120;
   late final int _maxYear = DateTime.now().year - 13;
@@ -109,7 +97,10 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
-            child: Text('Date of birth', style: AppText.cardTitle),
+            child: Text(
+              l(context).profileDateOfBirth,
+              style: AppText.cardTitle,
+            ),
           ),
           Container(
             height: 190,
@@ -138,7 +129,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                       });
                     },
                     children: [
-                      for (final m in _months)
+                      for (final m in monthNames(context))
                         Center(
                           child: Text(
                             m,
@@ -232,7 +223,7 @@ class _DobPickerSheetState extends State<DobPickerSheet> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Save',
+                      l(context).actionSave,
                       style: AppText.button.copyWith(
                         fontSize: 16,
                         color: Colors.white,

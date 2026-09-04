@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
-import 'package:zivo/features/auth/presentation/pages/profile_completion_page.dart';
+import 'package:zivo/features/profile/presentation/pages/profile_completion_page.dart';
 import 'package:zivo/features/auth/presentation/widgets/auth_action_button.dart';
 
 import '../support/fake_profile_repository.dart';

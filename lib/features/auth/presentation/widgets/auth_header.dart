@@ -4,7 +4,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 
 /// The shared header for every pushed auth surface (verify, reset, change
-/// password): title in the display face, then the one warm Fraunces aside the
+/// password): title in the display face, then the one italic-serif aside the
 /// brand system allows per screen.
 ///
 /// Typography here is size-specific rather than a blanket `copyWith(fontSize:)`

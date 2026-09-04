@@ -23,4 +23,31 @@ void main() {
       );
     });
   });
+
+  group('useFirestore release guard', () {
+    // A release build always uses Firestore, so an accidental or stale
+    // USE_FIRESTORE=false override can never ship the in-memory demo mode
+    // (the bug that once reached TestFlight via a cached dart-define).
+    test('release ignores a false override', () {
+      expect(
+        AppEnvironment.resolveUseFirestore(isRelease: true, override: false),
+        isTrue,
+      );
+      expect(
+        AppEnvironment.resolveUseFirestore(isRelease: true, override: true),
+        isTrue,
+      );
+    });
+
+    test('debug/profile honour the override', () {
+      expect(
+        AppEnvironment.resolveUseFirestore(isRelease: false, override: false),
+        isFalse,
+      );
+      expect(
+        AppEnvironment.resolveUseFirestore(isRelease: false, override: true),
+        isTrue,
+      );
+    });
+  });
 }

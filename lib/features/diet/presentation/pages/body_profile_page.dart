@@ -15,6 +15,7 @@ import '../../domain/body_profile.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../domain/target_calculator.dart';
 import '../widgets/diet_number_field.dart';
+import '../diet_labels.dart';
 
 /// Where the user gives ZIVO the body data every energy figure rests on.
 ///
@@ -263,7 +264,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                       Text(
                         staleDays == null
                             ? l(context).bodyWeighInNote
-                            : l(context).bodyLastWeighIn(_agoLabel(staleDays)),
+                            : l(context).bodyLastWeighIn(_agoLabel(context, staleDays)),
                         key: const Key('weigh-in-note'),
                         style: AppText.meta.copyWith(color: TrainColors.ink3),
                       ),
@@ -326,7 +327,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                           for (final level in ActivityLevel.values)
                             SelectChip(
                               key: Key('activity-${level.name}'),
-                              label: activityLabel(level),
+                              label: activityText(context, level),
                               selected: _activity == level,
                               onTap: () => setState(() => _activity = level),
                             ),
@@ -338,7 +339,7 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
                       if (_activity != null) ...[
                         const SizedBox(height: 9),
                         Text(
-                          activityDescription(_activity!),
+                          activityDetailText(context, _activity!),
                           style: AppText.meta.copyWith(color: TrainColors.ink3),
                         ),
                       ],
@@ -383,12 +384,12 @@ class _BodyProfilePageState extends State<BodyProfilePage> {
     );
   }
 
-  static String _agoLabel(int days) => switch (days) {
-    <= 0 => 'today',
-    1 => 'yesterday',
-    < 14 => '$days days ago',
-    < 60 => '${(days / 7).round()} weeks ago',
-    _ => '${(days / 30).round()} months ago',
+  static String _agoLabel(BuildContext context, int days) => switch (days) {
+    <= 0 => l(context).dateTodayLower,
+    1 => l(context).dateYesterdayLower,
+    < 14 => l(context).dietDaysAgo(days),
+    < 60 => l(context).dietWeeksAgo((days / 7).round()),
+    _ => l(context).dietMonthsAgo((days / 30).round()),
   };
 }
 
@@ -413,21 +414,20 @@ class _MaintenancePreview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'MAINTENANCE',
+                  l(context).dietMaintenanceCaps,
                   style: TrainType.caption(size: 9, tracking: 0.16),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$kcal kcal a day',
+                  l(context).dietKcalPerDay(kcal),
                   key: const Key('maintenance-preview'),
                   style: AppText.rowTitle,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   source == MaintenanceSource.stated
-                      ? 'The figure you gave. ZIVO uses it as-is.'
-                      : 'Estimated from these numbers — a population average, '
-                            'not a measurement of you.',
+                      ? l(context).dietMaintenanceGiven
+                      : l(context).dietMaintenanceEstimated,
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
               ],

@@ -1,4 +1,3 @@
-import 'diet_format.dart';
 import 'diet_goal.dart';
 
 /// How a set of targets came to exist. Stored with the numbers themselves,
@@ -22,14 +21,6 @@ enum TargetSource {
   planDerived,
 }
 
-/// A short, honest description of where a target came from, for the UI and
-/// for the coach to quote.
-String targetSourceLabel(TargetSource source) => switch (source) {
-  TargetSource.manual => 'You set this',
-  TargetSource.calculated => 'Calculated from your body data',
-  TargetSource.planDerived => "Adopted from your plan's daily total",
-};
-
 /// The BMR formula's sex variable. This exists solely because Mifflin-St Jeor
 /// has two forms; it is an input to an equation, not a profile field, and it
 /// is stored only inside a calculated target's [TargetBasis].
@@ -50,21 +41,16 @@ double activityFactor(ActivityLevel level) => switch (level) {
 
 /// What the user reads when choosing an activity level — described by what
 /// their week looks like, not by a multiplier they can't evaluate.
+/// The activity level in the **coaching engine's** English vocabulary — it is
+/// spliced into generated prose and evidence. The screen's word comes from
+/// `activityText(context, level)` in `presentation/diet_labels.dart`; see the
+/// note on [dietGoalLabel] for why the two are separate on purpose.
 String activityLabel(ActivityLevel level) => switch (level) {
   ActivityLevel.sedentary => 'Sedentary',
   ActivityLevel.light => 'Light',
   ActivityLevel.moderate => 'Moderate',
   ActivityLevel.high => 'High',
   ActivityLevel.athlete => 'Very high',
-};
-
-/// The week each activity level describes, so the choice is answerable.
-String activityDescription(ActivityLevel level) => switch (level) {
-  ActivityLevel.sedentary => 'Desk job, little deliberate exercise',
-  ActivityLevel.light => 'Training 1–3 days a week',
-  ActivityLevel.moderate => 'Training 3–5 days a week',
-  ActivityLevel.high => 'Training 6–7 days a week',
-  ActivityLevel.athlete => 'Hard training daily, or a physical job on top',
 };
 
 /// Exactly what produced a [TargetSource.calculated] target — kept so the
@@ -96,17 +82,6 @@ class TargetBasis {
   /// goal's adjustment is applied to.
   final int maintenanceCalories;
 }
-
-/// The one-line explanation of a calculated target — the body data it came
-/// from and the maintenance figure the goal's adjustment was applied to.
-///
-/// Shown under the target itself, because [TargetSource.calculated] on its own
-/// only says a formula was involved; this says which numbers went into it, so
-/// a user who has since changed weight can see that the target hasn't.
-String targetBasisSummary(TargetBasis basis) =>
-    '${trimNumber(basis.weightKg)} kg · '
-    '${activityLabel(basis.activity).toLowerCase()} · '
-    '${basis.maintenanceCalories} kcal maintenance';
 
 /// The user's daily nutrition objective: a goal plus the numbers that serve
 /// it, and a record of where those numbers came from.

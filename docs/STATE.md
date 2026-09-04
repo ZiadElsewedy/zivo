@@ -7,8 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-01 · **Active branch:** `version-1`
-(51 commits ahead of `main` — worth a merge).
+**Last updated:** 2026-09-04 · **Active branch:** `core-edits`
+(`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
 
@@ -43,6 +43,23 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   The two foundational edits did the most work: `AppText`'s default ink and
   `AppTheme`'s `scaffoldBackgroundColor` were warm, so every screen that didn't override
   them inherited a warm cast — including the cool handoff ones.
+- **One type system, app-wide** (done 2026-09-01). Recorded as
+  [ADR-009](DECISIONS/ADR-009-one-type-system.md). ADR-006 unified colour but left
+  typography split: `AppText` was still Brand v2's **Bricolage Grotesque / Hanken Grotesk /
+  Fraunces** — three faces chosen for the deleted warm off-white skin — while `TrainType`
+  carried the handoff's **Azeret Mono / Manrope / Instrument Serif**. Five families, two
+  systems, meeting on 14 files (`today_page.dart` included). Now **three families, named in
+  exactly one file** (`train_tokens.dart`): Manrope = text/prose/titles/chrome, Azeret Mono =
+  numbers/timers/micro-labels (tabular, never prose), Instrument Serif italic = ZIVO
+  speaking. `AppText` survives as the **named ladder** built on those builders — its ~500
+  call sites are untouched — because `AppText.rowTitle` (what a thing *is*) and
+  `TrainType.mono(size: 54)` (a size) answer different questions. `GoogleFonts` is called in
+  one file. Deliberate visual changes: display steps up one weight, `body` w400→w500 (45%
+  ink on near-black), `heroNumber`/`amount` to mono, and `aside` to Instrument Serif — which
+  fixes a rule that was inverted in practice (the "reserved" serif had 1 call site while
+  Fraunces did the same job at 24). `AppText.dateLabel` was dead and is deleted.
+  **Follow-up not done:** the three families are still fetched at runtime by `google_fonts`;
+  bundling them in `pubspec.yaml` would remove the first-launch fallback-then-reflow.
 - **Hue discipline: hold the rule strictly** (owner decision, 2026-08-29, audit C2 —
   **implemented**; rationale in [ADR-006](DECISIONS/ADR-006-one-design-system.md)). A hue appears only where it means its thing: green = training/state,
   ember = the single committing action, amber = money, violet = system/meta. Grids
@@ -55,6 +72,593 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
+  largest piece of the l10n push — the feature had **264** hardcoded literals,
+  more than every other remaining feature put together. **188 new keys**
+  (605 → **793**), `l10n-untranslated.txt` still `{}`, all 14 presentation
+  files.
+  - **The densest version of the structural problem.** Eight enum→word maps
+    lived in the Flutter-free `domain/` layer, where they could only ever
+    return English, and were rendered straight onto the Targets page, the plan
+    verdict and the plan cards. New
+    [`diet/presentation/diet_labels.dart`](../lib/features/diet/presentation/diet_labels.dart)
+    is the diet feature's `progress_status_style.dart`: `dietGoalText` ·
+    `dietGoalDetailText` · `activityText` · `activityDetailText` ·
+    `targetSourceText` · `calibrationGapText` · `missingBodyDataText` ·
+    `macroText` · `nutritionSourceText` · `dietSourceText` ·
+    `targetBasisText`.
+  - **Which domain functions died and which stayed is the interesting part.**
+    `dietGoalDescription`, `targetSourceLabel`, `calibrationGapLabel`,
+    `missingBodyDataLabel`, `nutritionSourceLabel`, `activityDescription` and
+    `targetBasisSummary` were **presentation-only** and are gone — two ways to
+    name a thing is how the two drift apart. `dietGoalLabel`, `activityLabel`
+    and `dietSourceLabel` **stay**: the coaching engine splices them into
+    generated English prose (`coaching/rules.dart`, `coaching/evidence.dart`)
+    which cannot be half-translated, and two tests assert on the third. Those
+    three now carry a doc comment on both sides saying the split is deliberate.
+  - **A third stored-value-as-copy bug, found and closed.**
+    `MacroProgress.label` was English copy that the plan-details page **switched
+    on** to pick each bar's colour (`switch (label) { 'Protein' => green, … }`).
+    Translating the label would have sent every macro bar to the fallback colour
+    — silently. `MacroProgress` now carries a `MacroKind` enum: the kind is the
+    identity to switch on, the label stays the engine's word, and the screen
+    reads `macroText(context, kind)`. (After `kUntitledConversationTitle` in
+    Ask and `'google.com'` in profile, this is the third; the pattern is worth
+    watching for.) Cuisine chips got the same treatment — the value is sent to
+    the plan generator, so it stays an English id and only the chip's word is
+    translated, matching the allergen chips already in that file.
+  - **New `test/diet/diet_l10n_test.dart`** walks **every value of every one of
+    those enums** under `Locale('ar')` — so a new goal, activity level or
+    nutrition source that forgets its key fails there rather than shipping
+    English. It allows proper names through (ZIVO, USDA FoodData Central) and
+    separately asserts the engine's three labels are still English.
+  - Gates green: `flutter analyze` clean, **1150** tests passing (+8).
+  - **Still open:** ~160 literals across 38 presentation files — expenses,
+    auth, capture, home, music, shell. Plus the `domain/` coaching prose
+    (diet's `coaching/evidence.dart` + workout's `analytics/`), which is the
+    same blocked category and still needs an owner decision.
+
+- **The profile surfaces are localized** (2026-09-04, on `core-edits`). Fourth
+  piece of the l10n push. **32 new keys** (573 → **605**),
+  `l10n-untranslated.txt` still `{}`. Three files: `profile_page` (1,268 lines,
+  previously **zero** `l(context)` calls), `profile_completion_page`, and
+  `dob_picker_sheet`.
+  - **A fourteenth hardcoded month table turned up** — in the date-of-birth
+    wheel, which the earlier `date_format.dart` sweep missed because there the
+    months are *options in a picker*, not part of a formatted date, so none of
+    the existing formatters fit. New `monthNames(context)` in
+    [`core/util/date_format.dart`](../lib/core/util/date_format.dart) resolves
+    all twelve through `intl`. `lib/` is hardcoded-month-free again.
+  - **Deliberately NOT translated:** `'google.com'`/`'apple.com'` (provider
+    IDs — data), `'Google'`/`'Apple'` (brand names, like ZIVO), and the `'\s+'`
+    regex. Only `'Email & password'` in `_providerLabel` was copy. The switch
+    now says so in a comment, so the next reader does not "finish the job".
+  - **Two helpers had to take a context** for one string each: `_cropAvatar`
+    drives the *native* iOS/Android cropper chrome ("Move & Scale", "Choose"),
+    which is real user-facing copy that had been shipping English to every
+    Arabic user; and `_name` fell back to "Signed in". `_cropAvatar` is handed
+    the strings rather than reading them, because its call site sits after two
+    awaits — same rule as the Ask sheet.
+  - **New `test/profile/profile_l10n_test.dart`**: the DOB wheel's months in
+    Arabic and English, the sheet's own chrome, and a sweep asserting the page
+    strings differ per locale and carry no latin — with the one intended
+    exception (the product name in `profileCompleteSubtitle`).
+  - Gates green: `flutter analyze` clean, **1142** tests passing (+4).
+  - **Still open:** ~198 literals across 49 presentation files — diet,
+    expenses, auth, capture, home, music. Plus the `domain/analytics/` engine
+    prose (owner decision, below).
+
+- **The Ask (AI coach) surface is localized** (2026-09-04, on `core-edits`).
+  Third piece of the l10n push, and the one with the two real design problems.
+  **66 new keys** (507 → **573**), `l10n-untranslated.txt` still `{}`.
+  - **`'New chat'` was a stored sentinel, not copy** — and translating it
+    naively would have been a data bug, not a cosmetic one. `createConversation`
+    writes it into Firestore, `_fromDoc` defaults to it, and three call sites
+    compare `title == 'New chat'` to decide whether a thread is still untitled.
+    Localize it and every one of those comparisons silently breaks the moment
+    the user switches language, leaving older threads permanently "titled" in
+    whatever language created them — exactly what `kAmrapLabel` exists to warn
+    about. It is now
+    [`kUntitledConversationTitle`](../lib/features/ai/domain/ai_conversation.dart)
+    (a named, deliberately untranslated constant), and
+    `displayConversationTitle(context, title)` in `sessions_sheet.dart` is the
+    **one** render-boundary that maps it to the localized `askNewChat`. Pinned
+    by tests on both halves: the stored value stays English, the displayed one
+    is Arabic.
+  - **`AskController` now takes the copy as a value.** ADR-008 forbids a
+    controller holding a `BuildContext` — it says nothing about a value object,
+    and `AppLocalizations` is one. The controller took `required
+    AppLocalizations strings`, plus `updateStrings()`, which `AskPage` calls
+    from `didChangeDependencies`, so **switching language mid-chat re-renders
+    the thinking rail** rather than stranding it in the old locale. That closes
+    the debt the controller's own doc comment had already flagged ("a future
+    move to l10n is one file"). The 13 phase/step rail labels and 8 voice/error
+    messages all moved.
+  - Also localized: the empty state (its four suggestion chips are both label
+    AND the text that gets sent, so an Arabic reader now asks ZIVO in Arabic),
+    the proposal card (status, kind, confirm verbs), the sessions sheet, the
+    thinking rail, the chat header, the voice composer and the quick-log sheet.
+    Widget-test `Key('…')` strings were deliberately left alone — they are
+    identifiers, not copy.
+  - `ThinkingRail.label` became nullable and resolves in `build`; a `const`
+    constructor cannot reach `Localizations`. Two `quick_log_sheet` handlers now
+    read `l(context)` once **before** their awaits — a `BuildContext` across an
+    async gap is a lint and a bug; a captured `AppLocalizations` is neither.
+  - **New `test/ai/ask_l10n_test.dart`** — Arabic render, English unchanged, and
+    three assertions on the sentinel (stored value stays English; a sentinel
+    title displays Arabic; a user-named thread is untouched in either language).
+  - Gates green: `flutter analyze` clean, **1138** tests passing (+5).
+  - **Still open:** ~222 literals across 52 presentation files (`profile_page`
+    17, diet, expenses, auth). Plus the `domain/analytics/` engine prose, which
+    still needs the owner decision described below.
+
+- **The workout progress/analysis stack is localized** (2026-09-04, on
+  `core-edits`). The second landed piece of the l10n push, and the debt
+  STATE.md had been carrying since the drill-down shipped ("Analysis strings
+  stay hardcoded English"). This was the app's newest and most
+  product-differentiating surface, and an Arabic reader got an entirely
+  English screen on it.
+  - **143 new keys** in both `app_en.arb` and `app_ar.arb` (368 → **507**),
+    `l10n-untranslated.txt` still `{}`. Eight files: `workout_progress_page` ·
+    `workout_analysis_page` · `exercise_analysis_page` · `workout_history_page` ·
+    `bodyweight_history_page` · `workout_stats_pages` ·
+    `progress_status_style` · `verdict_style`.
+  - **The shared progression vocabulary went first**, because everything else
+    reads through it. `progressStatusStyle` / `trendToneStyle` /
+    `verdictStyle` now take a `BuildContext`, and `verdictStyle` reuses the
+    *same three keys* as the other two — so a set-level badge and an
+    exercise-level badge can no longer disagree about what "Down" is called.
+  - **Plurals are real ICU plurals**, not `count == 1 ? '' : 's'`. Arabic gets
+    its own `zero`/`one`/`two`/`few`/`many`/`other` forms where the count is
+    visible copy (exercises, sessions, PRs, streak days).
+  - **One more duplicated formatter died.** `formatDurationShort` lived on
+    `workout_dashboard_page.dart` (three pages imported a *page* to borrow it)
+    and was **also** copied verbatim into `workout_stats_pages.dart` as a
+    private `_durationLabel`. Both are gone; it now lives in
+    `workout/presentation/workout_format.dart` beside `trimWeight`, and its
+    `h`/`m` abbreviations come from the `.arb` too.
+  - Also localized `ErrorStateView`'s default in `core/widgets/` — it hardcoded
+    the same "Couldn't load this." those pages did; the new `errorCouldntLoad`
+    key now serves both.
+  - **New `test/workout/progress_stack_l10n_test.dart`** pumps each surface
+    under `Locale('ar')` and asserts **no** English survives, plus an
+    exhaustive sweep over every `ProgressStatus`/`ExerciseTrendTone` (a new
+    enum value that forgets its key fails here rather than silently shipping
+    English). `wrapWithScope` gained an optional `locale:` that installs the
+    real delegates — null by default, so the ~120 existing widget tests are
+    untouched.
+  - Gates green: `flutter analyze` clean, **1133** tests passing (+6).
+  - **Still open:** ~268 user-facing literals across 59 presentation files
+    (Ask widgets ~42, `profile_page` 17, diet, expenses, auth). And the
+    `domain/analytics/` engines still generate English coaching prose — see the
+    entry below for why that one needs an owner decision, not a `.arb` key.
+
+- **One locale-aware date formatter — Arabic dates now actually render in
+  Arabic** (2026-09-04, on `core-edits`). The first landed piece of the l10n
+  push. Thirteen files had grown their own private copy of the same tables:
+  **eight** a `const _monthNames = ['Jan', …]`, **five** a `['Mon', …]`, and
+  **four** their own `isPm ? 'PM' : 'AM'`. Beyond the duplication, every one was
+  **hardcoded English** — so an Arabic user reading an Arabic app got "MAR 1" on
+  session history and "6:30 AM" on their moments. **A `.arb` key can never fix
+  this**: a month name spliced out of a Dart list was never a string the
+  translator could see.
+  - **New [`core/util/date_format.dart`](../lib/core/util/date_format.dart)** —
+    `formatMonthDay` · `formatMonthDayCaps` · `formatWeekdayShort` ·
+    `formatWeekdayFull` · `formatWeekdayDate` · `formatWeekdayDateTime` ·
+    `formatClockTime` · `formatClockTimeWithSeconds` · `formatDayPeriod` ·
+    `formatMinutesSinceMidnight` · `formatWeekdayShortForIndex` ·
+    `formatDayMonthYear` · `formatFullDateLong`. Each takes a `BuildContext` and
+    resolves through `intl`'s `DateFormat` for the locale `Localizations` is
+    rendering in, falling back to English with no `Localizations` (the same
+    fallback, for the same reason, as `l(context)`).
+  - **Nine competing formatters collapsed into one set.** There were **four**
+    clock formatters (`formatClockTime(double)` on the dashboard,
+    `formatClockTimeLabel`/`formatClockTimeDouble` on the stats pages —
+    the latter carrying a comment admitting it was "duplicated here to keep
+    pages dependency-light" — and `formatExactTime` in moments) and **five**
+    date formatters. Two page files imported `workout_dashboard_page.dart`
+    purely to borrow a formatter off it; both now import `core/util` instead.
+  - **Migrated (12 files):** workout — stats · dashboard · history ·
+    session-details · exercise-analysis · bodyweight-history; moments —
+    metadata · photo-viewer; expenses — list · capture; profile — page ·
+    completion; diet — plan-edit; home — today. **Zero** hardcoded date tables
+    remain in `lib/`.
+  - **Deliberate visible changes:** where a call site hand-rolled an order
+    (`"20 Aug"`, `"Mon 5 Mar"`), it now uses an `intl` *skeleton* and the locale
+    picks the order (`"Aug 20"`, `"Mon, Mar 5"`) — letting the locale decide is
+    the whole point. The one exception is the photo detail panel, which keeps an
+    explicit day-first pattern because reading like an EXIF record is part of its
+    design; only the names localize there. CLDR's U+202F before AM/PM is
+    normalised to a plain space, matching what the replaced formatters emitted.
+  - Gates green: `flutter analyze` clean, **1127** tests passing (+8). New
+    `test/core/date_format_test.dart` asserts the Arabic month, weekday and day
+    period explicitly — the thing the old tables could never do.
+    `test/moments/moment_metadata_test.dart` became widget tests, since
+    `buildMomentMetadata` now takes a context.
+  - **Still open (the rest of the l10n debt):** ~305 user-facing string literals
+    across 63 presentation files are still hardcoded English — worst are
+    `profile_page` (17), the Ask widgets (~42), and the workout progress/analysis
+    stack (~49). Separately, the **`domain/analytics/` engines generate English
+    coaching prose** (~79 literals across `workout_analytics.dart`,
+    `exercise_analysis.dart`, `plan_adherence.dart`) and `domain/` is
+    deliberately Flutter-free, so `l(context)` cannot reach it — localizing that
+    needs the engines to return structured tokens the presentation layer renders,
+    which is an ADR-sized decision touching the Node parity. Owner call.
+
+- **One uid-scoped Firestore mirror, and the stale-cache bug closed everywhere**
+  (2026-09-04, on `core-edits`). Ten Firestore repositories each carried the
+  same ~60 lines of uid-scoping machinery — `StreamController` + `_uidSub` +
+  `_querySub`, `_start`/`_stop`, `_uidWithInitial`, `_emit`, `_requireUid` —
+  and seven carried the same six-line explanatory comment **verbatim**. The
+  only parts that differed were the collection path, the `orderBy` and the
+  doc→domain mapper.
+  - **New [`core/firebase/uid_scoped_mirror.dart`](../lib/core/firebase/uid_scoped_mirror.dart)**
+    (`UidScopedMirror<T>`) owns uid re-scoping, the cached synchronous
+    `current`, the late-subscriber replay, and the always-on listener. It is a
+    **held object, not a superclass**, because a repository can own several
+    mirrors (diet mirrors plans, targets and body profile independently) —
+    inheritance could not express that. `T` covers both shapes: `List<X>` for a
+    collection (`signedOutValue: const []`) and `X?` for a single document
+    (`signedOutValue: null`). `UidSource.requireUid(this)` replaces the ten
+    identical private `_requireUid()`s, reporting the same message.
+  - **This is a correctness fix, not a tidy-up.** The always-on listener was
+    the hand-rolled fix for the Home/Workout-tab training-card drift — a write
+    landing while nothing was subscribed left the cache stale for the next
+    subscriber to replay. It had been applied to the **plan, session and
+    body-weight** repos only; **moments, expenses, categories, wallet and the
+    workout log still had the bug**. Routing all of them through the mirror
+    fixes it by construction, pinned per-repository by new
+    `test/core/firestore_repos_stay_hot_test.dart` (verified failing against
+    the pre-change code).
+  - **Migrated (7 mirrors):** moment, expense, category, wallet (doc shape),
+    workout, workout-session, body-weight. **Deliberately not migrated:**
+    `FirestoreWorkoutPlanRepository` (two coupled streams with a cross-stream
+    emission gate), `FirestoreDietRepository` (three mirrors + `onListen`
+    coupling), `FirebaseAiRepository` (per-conversation ephemeral streams, not
+    a singleton mirror at all). Those are follow-ups, not blockers — see the
+    owner action below.
+  - Net **−330 lines** across the seven repos. Gates green: `flutter analyze`
+    clean, full suite **1119** passing (+15: 8 new mirror-contract tests, 7 new
+    per-repo regression tests). One existing wallet test was updated — it read
+    `watch().first` immediately after a write and had been relying on the old
+    lazy listener opening a fresh query; no production code reads these streams
+    via `.first`. No Firestore/rules/backend changes.
+  - **Owner follow-up (optional):** diet and workout-plan can move onto the
+    mirror by composition (they would hold 3 and 2 mirrors respectively); that
+    is a bigger, separately-testable change and was left out on purpose.
+
+- **Hub redesigned as a photographic module dashboard** (2026-09-04, on
+  `core-edits`). The Hub grid was four identical near-white neutral-mark icon
+  tiles; it's now a 2×2 grid of **photographic module cards** (Workout · Diet ·
+  Expenses · Moments) — each a hero photograph (`assets/hub/*.jpg`) melting into
+  the card body via a bottom fade, with a **hue-tinted icon chip** (green /
+  green / amber / ember — the area's owned hue, inside the four-hue system), the
+  localized label, and the same live stat as before. The source images'
+  baked-in titles are **cropped off in-source** (via `ffmpeg`, ~2.3 MB PNG →
+  ~90 KB JPG each) so the card overlays the app's own l10n label over clean
+  photography rather than a fixed-English, screen-reader-invisible title.
+  - **Spotify icon fix (owner report):** the Connected band's Spotify row led
+    with a generic music glyph that dimmed to near-invisible when disconnected.
+    It now uses Spotify's **real brand mark on a neutral plate, always at full
+    colour** (the same treatment the Drive row has), with the connection state
+    carried entirely by the trailing value — a not-connected Spotify still shows
+    its mark and the affordance to connect it.
+  - **"Recent" removed** entirely (owner request) — the cross-module activity
+    merge (`_RecentSection`/`_mergeRecent`) and its `hubRecent` l10n key are
+    gone; the grid → Connected spacing was reflowed so there's no dead gap.
+  - This is a deliberate, owner-signed evolution of the Hub's visual direction:
+    it leans on **image + colour** for module identity where the grid previously
+    differentiated **by icon only** (ADR-006's "grids differentiate by icon, not
+    colour"). Everything still dresses from `TrainColors`/`TrainType`; the hue
+    chips stay inside the four owned hues. See [hub/FEATURE.md](../lib/features/hub/FEATURE.md).
+  - Gates green: `flutter analyze` clean, full suite **1104** passing
+    (`test/hub/hub_page_test.dart` updated — Recent group removed, stat/label/
+    Connected assertions unchanged). No backend/Firestore/rules changes.
+
+- **The AI coach now sees the per-exercise drill-down + plan adherence**
+  (2026-09-03, on `core-edits`). Closes the loop the previous entry left open:
+  the deterministic exercise analysis and adherence engines are wired into the
+  "Ask" coach through the existing tool pipeline — **the coach explains the same
+  numbers the Analysis UI shows, and never recomputes or overturns them.**
+  - **Node parity, not a second pipeline.** New
+    [`functions/ai/exercise_analytics.js`](../functions/ai/exercise_analytics.js)
+    mirrors the two Dart engines (`analyzeExercise` + `analyzePlanAdherence`),
+    reusing `workout_analytics.js`'s primitives. Pinned to Dart by NEW shared
+    golden vectors (`exerciseAnalysis` + `planAdherence` in
+    `test/fixtures/workout_analytics_vectors.json`) that BOTH suites run — the
+    numeric facts, the verdict/tone, the change tags, and the adherence reasons
+    are guaranteed identical across engines (the human-readable insight prose is
+    generated per side and intentionally not pinned, same as the hub's findings).
+  - **Tools (the bounded context strategy).** New **`get_exercise_analysis`**
+    (`tools.js`) resolves a lift by name and returns ITS full session-by-session
+    history + deltas + verdict + insight + PRs — the "how is my bench / why did
+    incline improve / did I progress with fewer reps" tool. **`get_training_analysis`**
+    now also carries **`planAdherence`** (skipped / never-trained / stale planned
+    movements). Whole-training questions get the summary; a specific lift pulls
+    its own detail — context stays bounded, asserted by a test. Server plan read:
+    new `store.getActiveWorkoutPlan` mirrors the client's active-split resolution
+    (pointer → active-status → oldest).
+  - **Prompt (`gateway.js`) TRAINING section** now points at the new tool, tells
+    the coach the deterministic verdict/tone LEADS (a heavier-fewer-reps session
+    can be a gain — don't call it a regression because reps fell), and treats a
+    repeatedly-missing planned lift as an adherence issue, not a decline.
+  - Gates green: `functions` **420 node tests + ESLint clean**; Dart golden-vector
+    parity groups added to `exercise_analysis_test.dart` / `plan_adherence_test.dart`
+    (Dart == Node on the shared vectors). New `exercise_analytics.test.js` +
+    tool tests in `tools.test.js` (verdict/deltas reach the coach unchanged;
+    the 35×10→40×7 case stays "improved"; adherence surfaces; context bounded).
+    **Owner action: `firebase deploy --only functions`** to ship it (any prompt/
+    tool change needs a deploy; owner credentials).
+
+- **Analysis rebuilt as a coaching drill-down** (2026-09-03, on `core-edits`). The
+  progress surface was a flat, read-only scroll with no way into a single lift. It's
+  now a real coaching dashboard with a per-exercise detail page underneath it. **All
+  deterministic — the pinned `analyzeTraining`/`estimatedOneRepMax` numbers are
+  untouched; the new engine is purely additive and reuses the hub's primitives, so
+  hub and detail can't disagree.**
+  - **New per-exercise engine** —
+    [`workout/domain/analytics/exercise_analysis.dart`](../lib/features/workout/domain/analytics/exercise_analysis.dart)
+    (`analyzeExercise`): full session-by-session history (per session: sets, reps,
+    load, volume, e1RM, avg load, rep range), **session-to-session comparisons** with
+    typed deltas (`SessionChange`: load/reps/volume/strength up-down, new PB, no
+    change), an **intensity-first verdict** (`ExerciseTrendTone`) — e1RM decides,
+    volume is secondary, so 40×7 can beat 35×10 — PR-along-the-timeline flags,
+    frequency/days-since-last, and a `CoachingInsight` (what happened → why → do)
+    templated FROM the numbers so the AI can re-voice without inventing facts.
+  - **New plan-adherence engine** —
+    [`workout/domain/analytics/plan_adherence.dart`](../lib/features/workout/domain/analytics/plan_adherence.dart)
+    (`analyzePlanAdherence`): joins the active plan against history to surface what's
+    **skipped** (planned-but-never-trained) or **stale** (>14d) — the "what's being
+    skipped?" the hub couldn't answer.
+  - **UI:** new [`exercise_analysis_page.dart`](../lib/features/workout/presentation/pages/exercise_analysis_page.dart)
+    (status + insight → strength/volume trend → at-a-glance metrics → PRs → session
+    timeline with per-session deltas). `workout_analysis_page.dart` re-composed into
+    coaching sections (overall · recent PRs · what's going well · what's getting worse ·
+    stalled · what's being skipped · focus next · volume · **all exercises**), every
+    exercise/PR/skip row **tappable into the detail page**. Shared
+    `progress_status_style.dart` keeps the five directions' word/colour/icon in one place.
+  - Gates green: `flutter analyze` clean, full `test/workout/` suite (427) passes,
+    including new `exercise_analysis_test.dart`, `plan_adherence_test.dart`,
+    `exercise_analysis_page_test.dart`. **Now wired to the AI coach** — see the entry
+    above (Node mirror + `get_exercise_analysis` + adherence). Analysis strings stay
+    hardcoded English, matching the existing progress surfaces (l10n debt, pre-existing).
+
+- **Workout analytics engine + the AI training pipeline fixed** (2026-09-02, on
+  `core-edits`). A focused, correct progress layer — not a deep analytics platform.
+  - **One centralized engine** —
+    [`workout/domain/analytics/workout_analytics.dart`](../lib/features/workout/domain/analytics/workout_analytics.dart),
+    consumed by BOTH the UI and the AI, mirrored server-side by
+    [`functions/ai/workout_analytics.js`](../functions/ai/workout_analytics.js) and
+    pinned by shared golden vectors (`test/fixtures/workout_analytics_vectors.json`,
+    run by both suites). Estimated 1RM (Epley, ≤12 reps), PRs **derived from
+    history** (no stored ledger; `detectNewPrs` diffs prior-vs-with-session),
+    per-exercise status with a **min-3-appearance gate + a meaningful-change
+    threshold + best-of-window smoothing** (kills the old n=2 verdict's daily-noise
+    false alarms), a per-muscle rollup, working-volume trend, an overall summary,
+    typed `fact`/`interpretation` findings, and a `computeGoal`-based next step.
+    **Warm-ups excluded everywhere.**
+  - **The AI no longer sees the lossy flat log.** `store.listWorkoutSessions` reads
+    the real per-set `workoutSessions`; `get_workouts` now returns real per-set
+    actuals (warm-ups flagged, skipped/pending dropped); new **`get_training_analysis`**
+    hands the model the deterministic analysis + findings; the system prompt gained a
+    workout numbers/findings/confidence block. (Audit fix: the coach used to be fed a
+    fabricated single rep/weight per exercise.)
+  - **UI:** `workout_analysis_page.dart` rebuilt as a 6-section engine-driven view
+    (overall · recent PRs · exercise progress · working volume · needs-attention ·
+    next step); the Progress landing's summary card shares the same engine; a
+    post-workout **PR celebration** on the completed phase (`detectNewPrs`).
+  - Gates green: `flutter analyze` clean, 1085 Flutter tests + 409 functions tests +
+    functions lint all pass. **Owner action: `firebase deploy --only functions`** to
+    ship the AI-pipeline changes (backend deploys need owner credentials).
+
+- **Local-first saves, one-shot commit buttons, and Spotify that stays connected**
+  (2026-09-02, on `core-edits`). Four owner-reported problems, one pass.
+  - **Saving no longer waits for the database.** Every repository is Firestore-backed,
+    and a Firestore write resolves on the **server's** acknowledgement — not on the
+    local cache the UI already reflects — so `await repo.add(x)` before `pop()` froze
+    Save for a round trip, and indefinitely offline (expenses worst of all: the wallet
+    adjustment is a `runTransaction`, which bypasses the offline cache entirely). New
+    [`core/util/deferred_write.dart`](../lib/core/util/deferred_write.dart): the screen
+    commits to the local truth and pops, the durable write finishes on its own, and a
+    write that genuinely fails surfaces as a toast over whatever screen the user is on
+    by then (`DeferredWriteReporter`, mounted in `app.dart`'s `MaterialApp.builder`).
+    Applied to moments, expenses, workout capture, the food log, and moment deletion.
+    `MediaService.capture` is local-first the same way: it returns at the durable
+    on-device copy and does the registry write, the Photos copy and the Drive push on a
+    background tail (per-id serialized; `settleCaptures()` for tests).
+  - **A commit button can't fire twice.** New
+    [`core/widgets/async_action.dart`](../lib/core/widgets/async_action.dart) — the
+    `bool _busy` five screens had each grown, written once, plus `once: true` for
+    commit-and-leave actions. That flag matters *because* saves are now local-first: the
+    flight is over within a frame, so "in flight" alone stopped being a guard and the
+    only thing standing between a double-tap and a duplicate row was pop-animation
+    timing. `PillButton` gained a `busy` spinner. Guards added where there were none:
+    workout capture, both plan editors, the photo viewer's delete, and Start on the
+    Up-Next card (which was pushing two live sessions).
+  - **Spotify reconnects itself.** `MusicController` gained `linked` / `isLinked` /
+    `reconnectIfLinked`: connecting once **links the device** (persisted per-device in
+    `SpotifyLinkStore`), and from then on the app reattaches at launch, on every app
+    resume (`ZivoApp` is now a `WidgetsBindingObserver`), and on a dropped connection
+    via a bounded backoff — never on `authFailed`/`noSpotifyApp`, which can raise an
+    auth sheet or can't succeed. `disconnect()` now means *unlink*, and Settings'
+    Music card carries it.
+  - **The bottom bar is the music surface.** `NowPlayingLozenge` renders every
+    connection state instead of only a live track, so a linked device keeps the strip —
+    with Reconnect *on* it — through the drops that are normal for App Remote; the
+    Connect affordance is no longer buried. With a track it carries the full transport
+    (**previous · play/pause · next**) and a hairline playhead in place of the
+    unreadable 9pt timecode. The live session's docked bar does the same.
+  - **Live Session legibility.** The session clock 13→18pt, the segment captions
+    9→10.5pt (both read from arm's length mid-set), the exercise name capped at two
+    lines so a long movement can't push the goal card under the fold, and a real gap
+    above the music dock, which was welded to the button over it.
+
+- **Auth security pass + the auth module became a reference implementation**
+  (2026-09-02, on `core-edits`). Two parts: close the real holes, then draw the
+  boundary that keeps them closed. Full architecture writeup: [`AUTH.md`](AUTH.md).
+  - **Security (server-side, needs a deploy — see owner actions).**
+    (1) `deleteAccount` now verifies reauthentication **server-side** via the ID
+    token's `auth_time` (`requireRecentAuth`, 5-minute window). It was gated only by
+    the client prompt, so any valid token could reach the app's one irreversible
+    operation. (2) The four model-backed callables that had **no call ceiling at all**
+    — `aiImportWorkoutPlan`, `aiImportDietPlan`, `aiGenerateDietPlan`, `aiTranscribe` —
+    are now bounded by a per-user daily quota (`functions/shared/quota.js`, pure +
+    8 unit tests, counters at `users/{uid}/quotas/{bucket}`, Admin-only). Only a size
+    cap existed before, so one account could loop 14 MB PDF extractions against the
+    Anthropic bill. (3) `resetPasswordWithOtp` now calls `revokeRefreshTokens` — the
+    Admin SDK path does not revoke sessions on its own, so an attacker's session
+    survived the very reset made to evict it. (4) Client-supplied ids are validated as
+    single path segments before reaching `.doc()` (`functions/shared/ids.js`) — Firestore
+    reads a slash-bearing id as a *path*, which let a client steer Admin-SDK writes
+    (and `aiDeleteConversation`'s `recursiveDelete`) inside its own subtree.
+  - **Rules.** Ownership collapsed onto three helpers (`isOwner` / `emailTrusted` /
+    `canWrite`) instead of the same predicate repeated 56×. Email verification is now a
+    **boundary, not just a screen**: `canWrite` refuses writes from an unverified
+    address, while reads stay on plain ownership (a stranded account must still be able
+    to read and export). `users/{uid}` — the only PII document, previously a bare
+    `allow read, write` — is pinned with `hasOnly` + bounds and denies client deletes.
+    `authEvents` and the auth summary are `hasOnly`-pinned, and the summary's
+    server-authored `emailVerifiedAt`/`emailLastSentAt` are now immutable to clients.
+    Rules suite **111 → 129 green**.
+  - **Architecture — identity is not the user.** `features/profile/` split out of
+    `features/auth/`: `UserProfile`, its repository, the profile pages, and the new
+    `SessionState`. `AuthState` is now free of every ZIVO concept (it used to carry
+    `ProfileCompletionRequired`, which made the portable module import ZIVO's
+    date-of-birth field), and the app-specific "is this session ready?" question is
+    composed on top in `profile/domain/session_state.dart`. Dependency runs
+    profile → auth, never back.
+  - **Structure.** `FirebaseAuthRepository` 696 → 387 lines, now a composition root over
+    `sources/` (email-password · federated · callables) and `mappers/` (user · OTP
+    errors), plus `AuthActivityRecorder` whose signatures enforce "bookkeeping can never
+    fail a sign-in". `AuthRepository` split into four named facets
+    (`SessionAuthentication` · `EmailVerification` · `PasswordManagement` ·
+    `AccountLifecycle`) unioned into one injectable object. Barrels at
+    `features/auth/auth.dart` and `features/profile/profile.dart`.
+  - **Tests:** Flutter 1055 green (+ new `auth_state_test.dart` — the verification
+    policy was untested — and a rewritten `session_state_test.dart`), functions 394,
+    rules 129. `flutter analyze` clean.
+
+- **Bring-your-own-plan reaches parity: workout import now takes text and voice,
+  not just a document — and the two importers stopped being copy-paste twins**
+  (2026-09-02, on `claude/refactor-and-feature-review-e5b2ed`). Two parts, done in
+  sequence.
+  - **Refactor — one import flow, shared by workout and diet.** `workout_pdf_import_page.dart`
+    (965 lines) and `diet_import_page.dart` (698) were near-identical: same file
+    picker, same `_maxFileBytes`/`_allowedExtensions`, same `_importErrorMessage`
+    (the diet file's own comment said it "mirrors `workout_pdf_import_page.dart`
+    exactly"), same five phase widgets — and they had already drifted (workout on
+    raw `TrainType.ui(...)` literals, diet on the named `AppText` ladder). Now one
+    module under [`capture/presentation/import/`](../lib/features/capture/presentation/import):
+    `plan_import_file.dart` (`pickImportFile`, `kMaxImportFileBytes`,
+    `kImportAllowedExtensions`, `importErrorMessage` with the one differing clause as
+    a param) and `import_flow_states.dart` (`ImportSelectingState`/`ImportAnalyzingState`/
+    `ImportRejectedState`/`ImportErrorState` + `importProgressLine`). The workout
+    preview/done screens stay in the page (only it reviews in place). **Deliberate
+    visual settle** (like the sheet-radius/field-decoration passes before it): the
+    workout import's select/analyze/reject/error screens now render on the named
+    ladder, matching diet — copy is byte-identical, so tests were untouched. The
+    describe (dictate/type) screen was extracted the same way to
+    `plan_describe_page.dart` (diet's `DietDictatePage` is now a thin wrapper;
+    `keyPrefix` keeps its `dictate-*` test keys), and the add-plan sheet's route row
+    became the shared `AddPlanRouteTile`.
+  - **Feature — every capture route for a split.** Image import already worked (the
+    "PDF" name was stale); the missing routes were **type it out** and **say it out
+    loud**, both of which diet already had. `importWorkoutPlan` now takes a sealed
+    `WorkoutImportInput` (`Document | Description`) mirroring `DietImportInput`;
+    `WorkoutPlanSource` gained `photo`/`dictated`/`typed`, threaded through
+    `workoutPlanFromImport` for honest provenance. New `showAddWorkoutSheet` (document
+    · say it · type it · build by hand) replaces the four bare pushes of the old
+    `WorkoutPdfImportPage` **and** the split editor's two-option Cupertino chooser
+    (which hard-coded an English "Cancel" — one of the debts STATE flagged).
+    `WorkoutPdfImportPage` → `WorkoutImportPage`, file renamed. Voice reuses the
+    app-wide recorder + `aiTranscribe`, so it was nearly free.
+  - **Backend (owner deploy — see action items).** `functions/ai/workout_import.js`
+    gained the `text` branch `diet_import.js` already had (fenced description prompt,
+    `MAX_TEXT_CHARS`, exactly-one-kind validation), and `index.js`'s
+    `aiImportWorkoutPlan` passes `data.text` through. **Until deployed, the typed/
+    dictated workout routes hit the old file-only extractor and fail with
+    invalid-argument** — the document/photo route is unaffected.
+  - Cover: Flutter **1050 → 1053** (new `workout_capture_routes_test.dart` for the
+    type/dictate→`WorkoutImportDescription` paths; import + split-management +
+    diet-capture tests migrated to the shared flow, all green). Backend
+    `workout_import.test.js` **24 → 31** (mirrors diet's description block); full
+    functions suite **386** green. `flutter analyze` clean. Functions **lint not run
+    locally** — `eslint` isn't installed in this worktree; the JS mirrors
+    `diet_import.js`'s style exactly.
+
+- **The Today dashboard reads one injected clock, and its tests no longer break at night**
+  (2026-09-01). Two momentum tests failed on any run after **23:20 local**: `_done(at, id)`
+  completes its session at `at + 40 min`, the tests seeded off the real clock, and
+  `weekActivity`/`trainingStreakDays` bucket by **calendar day** — so past 23:20 the
+  completion landed in tomorrow's bucket and the streak collapsed. Commit `2e24991` had
+  pinned the insights strip's clock but never covered momentum, which read `DateTime.now()`
+  directly in four places.
+  - **Production:** `TodayPulseSection` and `MomentumSection` now take `DateTime Function()?
+    now` (defaulting to the real clock, so nothing changes at runtime), threaded from
+    `TodayPage.now` down through `_TrainedRing`, `_VolumeRing`, `_StreakRow` and
+    `WeekActivityBars` — the same seam `InsightsSection` already had. The whole dashboard
+    answers "today"/"this week" from **one** clock.
+  - **Tests:** every seeded test pins to `_middayToday()` and passes that same instant to
+    the page, so nothing derives from the hour the suite runs at. Midday is deliberate: far
+    enough from both midnight boundaries that a +40min completion stays on its day.
+  - A **fixture-invariant test** locks it — it asserts a seeded session and its completion
+    share a calendar day, and fails the moment the pinned hour moves back into the danger
+    zone. Verified by simulation: pinning to 23:30 reproduces exactly the two original
+    failures plus the guard; midday passes.
+
+- **The app now streams what it is actually doing — Ask and PDF import** (2026-09-01, on
+  `core-edits`). **Deployed to `zivo-63f15` 2026-09-01** — `aiChat` rev `aichat-00023-jiw`,
+  `aiImportWorkoutPlan` rev `aiimportworkoutplan-00018-jag`, `aiImportDietPlan` rev
+  `aiimportdietplan-00012-xoc`, all ACTIVE. Verified on device: a live turn's rail rendered
+  the streamed `working` phase (the buffered path can only ever show "Thinking…"), and two
+  multi-tool questions answered from real account data.
+  - **Ask.** The rail sat on one `working` label for the whole tool loop. `gateway.js` now
+    emits `{type:'step', tool, status}` as each **read** tool starts/finishes, and
+    `AskController` maps the name to copy ("Reading today's diet…", "Looking that food
+    up…"). Tool name only on the wire — no inputs, no results. Unknown tool → "Working…",
+    so a newer server can't leak `get_body_composition` onto an older client. Mutating
+    tools emit nothing (they propose, they don't execute). Ephemeral by choice: **no
+    Firestore schema change, no rules change, no extra writes per turn.**
+  - **PDF/photo import.** Was a plain `.call()` with three hardcoded lines cycling on a
+    **1.6s timer that had no connection to the backend**. Both import callables now stream:
+    an import emits no assistant text, so `ai/import_progress.js` scans the model's
+    partially-written tool input for *complete* `"key": "value"` pairs and reports real
+    days/meals and item counts ("Pull · 7 exercises"). Progress only grows; a half-written
+    label is never shown; **a stalled import now visibly stalls** instead of animating
+    reassuringly. Deliberately never claims a total — the model doesn't know how many days
+    a document holds until it reads them, so "Day 2 of 5" would be a number nobody has.
+  - **`aiGenerateDietPlan` was NOT converted** and still cycles written lines. Deliberate,
+    documented in `diet_import_page.dart` and `ai/FEATURE.md` — not an oversight to
+    "finish" without deciding it's worth it.
+  - Both paths are **opt-in** (`acceptsStreaming` / `onProgress`); omit them and the call
+    is buffered and byte-identical to before.
+  - **l10n debt:** the rail's step labels are English-only, like the phase labels they join.
+    `AskController` has no `BuildContext` by design (ADR-008) so it can't reach
+    `AppLocalizations`. Pre-existing; this widens it. Mapping is client-side in one file, so
+    copy changes need no deploy and a future move to l10n is one edit.
+  - Cover: 244 backend (`node --test`, incl. a scanner test asserting progress never goes
+    backwards across *every prefix* of the JSON) + Dart domain/controller/widget tests.
+    Backend lint clean.
+
+- **Capture save is re-entrancy-guarded — a double-tap used to write twice** (owner report,
+  2026-09-01, on `core-edits`). `_save` is async and the button stayed live across the
+  await, so a second tap ran the whole handler again before the first one's write and pop
+  landed. A new expense/moment mints its id from `microsecondsSinceEpoch` **per call**, so
+  the second tap wrote a *second* row rather than overwriting the first, and the second
+  `pop` popped the route underneath. Same hole in three flows — `expense_capture_page`
+  (`_save` **and** `_delete`), `moment_capture_page` (also ran a second media capture racing
+  the first on one store path), and `wallet_balance_sheet`, the silent one: `topUpWallet` is
+  **additive**, so there was no duplicate row to notice, the balance was just credited
+  twice. `add_category_sheet` already had the guard. All three now use the `_busy` pattern
+  from `LiveSessionController` (`:164`), guarding the write *and* the pop with the button
+  disabled in flight, while `_canSave` still drives the label so it doesn't flip back to a
+  bare "Save" the instant it's tapped. Covered by `test/expenses/capture_double_tap_test.dart`
+  — which blocks the repository write on a `Completer` **on purpose**: with the plain
+  in-memory repos the first tap resolves and pops before a second can land, so a test
+  written the obvious way passes against the unguarded code.
+  - The two `today_dashboard_widget_test.dart` momentum failures noted here are **fixed**
+    (see the entry below). The suite is green: **1050 passing.**
 
 - **Live session — the logging screen, on the owner's own report from a real session.**
   Five complaints, five causes, all in `widgets/live_session/`:
@@ -387,6 +991,14 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
 
+- **Live Session screen-wake — a dependency decision, not a bug.** The phone still
+  sleeps mid-set during a guided session: the app never asks the OS to keep the screen
+  on, and there is no way to do that from Flutter without a plugin (`wakelock_plus` is
+  the maintained one). "Every dependency pays rent" makes that the owner's call, so it
+  was **not** added as a side effect of the Live Session polish pass. If yes: one dep,
+  enable on entering `LiveSessionPage` and release in its `dispose` (and on Finish /
+  Leave / Discard, which all pop through it).
+
 - **Spotify on Android:** real playback fails with `authFailed` until the owner registers,
   in the Spotify Developer Dashboard, the Android package `com.ziadelsewedy.zivo` + the
   signing **SHA-1** (release currently signs with the *debug* keystore) **and** adds the
@@ -401,6 +1013,11 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Backend deploys:** any change under `functions/` (gateway/diet_import/coach_report/
   workout_import) needs `firebase deploy --only functions` with the owner's creds —
   **confirm the exact command with the owner; never run it yourself.**
+  - **Pending now (workout multi-format import):** `ai/workout_import.js` + `index.js`
+    now accept a dictated/typed **description** (the `text` branch, mirroring
+    `diet_import.js`). Until deployed, the workout **"Say it out loud" / "Type it out"**
+    routes reach the old file-only extractor and fail with invalid-argument; the
+    PDF/photo route is unaffected. Command: `firebase deploy --only functions`.
   - **Pending now:** the **Diet Coach Phases 0–7** work (`gateway.js`, `tools.js`,
     `dates.js`, `mutations.js`, `store.js`, `validator.js`, `index.js`, `functions/diet/*`,
     `functions/nutrition/*` **+ `firestore.rules`**) — see
@@ -445,7 +1062,22 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 - **Firebase App Check (still recommended, deferred by request):** the callables + Auth
   endpoints remain reachable by anything with the app config. Adding `firebase_app_check`
   + `enforceAppCheck: true` is the outstanding hardening layer that caps scripted abuse of
-  the (now unauthenticated) reset endpoint and account creation.
+  the (now unauthenticated) reset endpoint and account creation. **Needs a real release
+  keystore first** — Android release still signs with the debug key
+  (`android/app/build.gradle.kts`), which also blocks Play Integrity.
+- **Auth security pass deploy (2026-09-02):** `firebase deploy --only functions,firestore:rules`
+  (owner creds). Both halves must ship together — the rules now require a verified email
+  for writes, and the functions carry the reauth check, the daily quotas, and the token
+  revocation. No new secrets.
+- **⚠️ Migration caveat for the verified-email rule:** any EXISTING account with
+  `emailVerified == false` loses **write** access the moment the rules deploy (reads are
+  unaffected, by design). Password accounts recover by completing the OTP screen they are
+  already routed to; social accounts arrive verified so are unaffected. Worth a glance at
+  the Firebase Auth console for unverified accounts before deploying.
+- **Firebase Auth password policy:** sign-up strength is still client-side only
+  (`signUpWithEmail` goes straight to Firebase, whose floor is 6 characters); the *reset*
+  path is validated server-side. Enable the server-side policy in the Auth console — zero
+  code.
 
 ## How work happens here (workflow)
 
@@ -479,6 +1111,48 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-03 — **Fixed bogus per-exercise strength % (e.g. "+2750%").** Root cause:
+  `classify` fell back to a rep-count "score" when a lift's early sessions had no
+  logged weight, then divided a later estimated-1RM (kg) by it — mixing scales. Fix
+  (Dart `workout_analytics.dart` + Node mirror): compare on ONE metric (e1RM for a
+  loaded lift, reps for bodyweight); a loaded lift whose baseline window has no
+  weight reads "building", not a ratio; and a change beyond ±`kMaxReliableStrengthChangePct`
+  (100%) keeps its direction but withholds the number (null → status word only).
+  New shared `strengthChange` golden vectors both suites run (incl. the exact bug
+  case). 421 node + 1108 dart tests green. **Owner: deploy functions** (engine changed).
+- 2026-09-03 — **AI coach wired to the drill-down + adherence.** Node mirror
+  `functions/ai/exercise_analytics.js` (`analyzeExercise` + `analyzePlanAdherence`),
+  pinned to Dart by new shared golden vectors both suites run. New
+  `get_exercise_analysis` tool (one lift's full history/deltas/verdict/insight);
+  `get_training_analysis` now carries `planAdherence`; `store.getActiveWorkoutPlan`
+  mirrors the client's active-split resolution; TRAINING prompt says the deterministic
+  verdict leads (don't recompute/overturn). 420 node tests + ESLint green; Dart parity
+  groups green. **Owner: deploy functions.**
+- 2026-09-03 — **Analysis → coaching drill-down.** New per-exercise engine
+  `workout/domain/analytics/exercise_analysis.dart` (`analyzeExercise`: session history,
+  session-to-session typed deltas, intensity-first verdict so 40×7 can beat 35×10, PR
+  timeline, what-happened/why/do insight) + `plan_adherence.dart` (`analyzePlanAdherence`:
+  skipped/stale planned movements) — both pure, additive, reusing the pinned hub
+  primitives (its numbers untouched). New `exercise_analysis_page.dart` drill-down;
+  `workout_analysis_page.dart` re-composed into tappable coaching sections; shared
+  `progress_status_style.dart`. `test/workout/` green (427). Not yet fed to the AI coach
+  (Dart-only for now) — clean follow-up.
+- 2026-09-02 — **Workout analytics engine + AI training pipeline.** New centralized
+  `workout/domain/analytics/workout_analytics.dart` (e1RM, history-derived PRs,
+  thresholded per-exercise status, muscle rollup, working-volume trend, typed findings,
+  `computeGoal` next step; warm-ups excluded) with a Node mirror (`functions/ai/workout_analytics.js`)
+  pinned by shared golden vectors. AI now reads real per-set sessions (`store.listWorkoutSessions`,
+  real `get_workouts`, new `get_training_analysis`) + a workout system-prompt block instead of the
+  lossy flat log. `workout_analysis_page.dart` rebuilt as a 6-section engine view; Progress landing
+  card + post-workout PR celebration share the engine. All gates green; **owner: deploy functions.**
+- 2026-09-02 — **Save flow, button guards, Spotify auto-connect, Live Session polish.**
+  Local-first persistence (`deferWrite` + `DeferredWriteReporter`) so Save never waits on
+  a Firestore round trip; a shared `AsyncAction` guard with a `once` mode for
+  commit-and-leave buttons; `MusicController.linked`/`reconnectIfLinked` with per-device
+  consent so Spotify reattaches at launch, on resume and after a drop; the nav-island
+  strip now shows every connection state and carries prev/play-pause/next; live-session
+  header and captions sized for arm's length. Owner action: consider a screen-wake
+  package for the live session (see Owner action items).
 - 2026-08-30 — **Diet Coach Phase 8.1: the nutrition cross-check, and T12 closed by
   re-audit.** The audit's last open finding (T14) is done and the table is now clean:
   T1–T15 all closed. `domain/nutrition/plausibility.dart` reads a plan item against

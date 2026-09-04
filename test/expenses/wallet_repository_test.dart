@@ -75,8 +75,15 @@ void main() {
         uidSource: _signedInAs('test-uid'),
       );
 
+      addTearDown(repo.dispose);
+
       await repo.setBalance(1000);
       await repo.adjustBy(-4500);
+      // The mirror's listener is always on, so `watch()` replays its CACHED
+      // value to a late subscriber rather than opening a fresh query — let
+      // the transaction's snapshot reach that cache first, as every other
+      // write assertion in this file does.
+      await Future<void>.delayed(Duration.zero);
 
       final wallet = await repo.watch().first;
       expect(wallet!.balanceMinor, -3500);

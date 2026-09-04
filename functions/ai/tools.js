@@ -52,6 +52,8 @@ const {
 const {buildDietState, summariseHistory} = require("../diet/state");
 const {calibrateMaintenance, energyFor, ageFrom} = require("../diet/energy");
 const {coachingFindings} = require("../diet/rules");
+const {analyzeTraining} = require("./workout_analytics");
+const {analyzeExercise, analyzePlanAdherence} = require("./exercise_analytics");
 const {
   resolveComposite,
   resolveAndCompute,
@@ -374,11 +376,28 @@ const EXPENSES_TOOL = {
   },
 };
 
+/**
+ * A session's actual duration in minutes (active time, pauses excluded).
+ * @param {!Object} s
+ * @return {?number}
+ */
+function sessionDurationMinutes(s) {
+  if (!s.completedAt || !s.startedAt) return null;
+  const ms = s.completedAt.getTime() - s.startedAt.getTime() -
+    (s.pausedAccumMs || 0);
+  return ms > 0 ? Math.round(ms / 60000) : 0;
+}
+
 const WORKOUTS_TOOL = {
   name: "get_workouts",
   description:
-    "List workout sessions with exercise summaries. range: 'week' " +
-    "(default) or 'month'.",
+    "List the user's workout SESSIONS with their REAL per-set actuals — every " +
+    "set's weight, reps, type (working/warmup/dropset/failure) and outcome. " +
+    "range: 'week' (default) or 'month'. Reason only from these real sets: a " +
+    "'top set' is the heaviest WORKING set, and warm-ups are marked so you " +
+    "don't treat them as working volume. Never collapse an exercise to one " +
+    "rep/weight, and never invent a set that isn't listed. For strength " +
+    "trends, PRs and whether a lift is progressing, prefer get_training_analysis.",
   inputSchema: {
     type: "object",
     properties: {range: {type: "string", enum: ["week", "month"]}},
@@ -394,24 +413,276 @@ const WORKOUTS_TOOL = {
   async execute(store, uid, input, now, offsetMinutes) {
     const range = input.range === "month" ?
       monthRangeMs(now, offsetMinutes) : weekRangeMs(now, offsetMinutes);
-    const workouts = await store.listWorkouts(uid, range);
+    const sessions = await store.listWorkoutSessions(uid, range);
+    sessions.sort((a, b) =>
+      (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
     return {
       range: input.range === "month" ? "month" : "week",
       today: dayKeyFor(now, offsetMinutes),
-      workouts: workouts.map((w) => ({
-        title: w.title,
-        performedAt: iso(w.performedAt),
-        durationMinutes: w.durationMinutes,
-        exercises: (w.exercises || []).map((e) => ({
+      note:
+        "Each set below is what the user actually performed. A warm-up set " +
+        "(type='warmup') is not working volume; the top set is the heaviest " +
+        "set with type!='warmup'.",
+      workouts: sessions.map((s) => ({
+        day: s.dayLabel,
+        status: s.status,
+        performedAt: iso(s.completedAt || s.startedAt),
+        durationMinutes: sessionDurationMinutes(s),
+        exercises: (s.exercises || []).map((e) => ({
           name: e.name,
-          sets: e.sets,
-          reps: e.reps,
-          weightKg: e.weightKg,
+          muscleGroup: e.muscleGroup,
+          // Real per-set actuals — done sets only (a skipped/pending set was
+          // not performed), numbered in order so "set 3" means set 3.
+          sets: (e.sets || [])
+              .filter((set) => set.outcome === "completed")
+              .map((set, i) => ({
+                set: i + 1,
+                weightKg: set.actualWeightKg,
+                reps: set.actualReps,
+                type: set.type,
+              })),
         })),
       })),
     };
   },
 };
+
+const TRAINING_ANALYSIS_TOOL = {
+  name: "get_training_analysis",
+  description:
+    "ZIVO's deterministic workout analysis over the user's whole session " +
+    "history — the SAME numbers the Progress screen shows, so you never have " +
+    "to compute strength, PRs or trends yourself (and must not contradict " +
+    "them). Returns: overallStatus + a plain summary; overallStrengthChangePercent " +
+    "(estimated 1RM change over ~6 weeks); per-exercise status " +
+    "(progressing/maintaining/plateauing/regressing/building) with " +
+    "strengthChangePercent and currentE1RM; a simple per-muscle weekly rollup; " +
+    "weekly working volume vs last week; recentPrs (last 30 days); improving / " +
+    "needsAttention lists; a nextStep; `findings` — typed, ranked coaching " +
+    "conclusions each marked confidence 'fact' (measured) or 'interpretation'; " +
+    "and `planAdherence` — planned movements the user is SKIPPING (reason " +
+    "'neverTrained') or has let go STALE ('stale', with daysSinceLast). " +
+    "**Lead with findings**, keep facts and interpretations distinct, and if " +
+    "there is no data say so. This is the WHOLE-training summary — for one " +
+    "specific lift's session-by-session detail, use get_exercise_analysis. " +
+    "Estimated strength is e1RM — call it 'estimated strength', never expose " +
+    "the formula.",
+  inputSchema: {type: "object", properties: {}},
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now) {
+    const sessions = await store.listWorkoutSessions(uid);
+    // The active plan is what makes "what's being skipped" answerable; a store
+    // without the reader (or with no plan) just yields empty adherence.
+    const plan = store.getActiveWorkoutPlan ?
+      await store.getActiveWorkoutPlan(uid) : null;
+    const analysis = analyzeTraining({sessions, now});
+    const adherence = analyzePlanAdherence({plan, sessions, now});
+    return {
+      ...analysis,
+      // ISO the PR dates for the model.
+      recentPrs: analysis.recentPrs.map((p) => ({
+        ...p,
+        achievedAt: iso(p.achievedAt),
+      })),
+      exercises: analysis.exercises.map((e) => ({
+        ...e,
+        lastPerformedAt: iso(e.lastPerformedAt),
+      })),
+      planAdherence: adherence,
+    };
+  },
+};
+
+const EXERCISE_ANALYSIS_TOOL = {
+  name: "get_exercise_analysis",
+  description:
+    "ZIVO's deterministic drill-down for ONE exercise — the SAME session-by-" +
+    "session analysis its Exercise Analysis screen shows. Pass the exercise by " +
+    "name (e.g. 'incline dumbbell press'); it's matched against the user's " +
+    "logged movements. Use this for any question about a SPECIFIC lift ('how " +
+    "is my bench going', 'why did my incline improve', 'did I progress even " +
+    "with fewer reps', 'what should I do on squats next'). Returns the full " +
+    "history oldest→newest (each session's sets, reps, load, total volume, " +
+    "average load, rep range, estimated 1RM), the session-to-session " +
+    "`comparisons` (load/reps/volume/estimated-1RM deltas + typed `tags` + a " +
+    "`tone` of improved/declined/mixed/maintained), all-time PRs, frequency, " +
+    "daysSinceLast, the overall `status`/`verdict`, and a deterministic " +
+    "`insight` (whatHappened / whyItMatters / whatToDo). These are FACTS — " +
+    "explain and coach on them; never recompute them or overturn the verdict. " +
+    "In particular a heavier load for fewer reps can be an improvement when " +
+    "estimated 1RM rose: trust `tone`/`verdict`, don't call it a regression " +
+    "because reps fell. If `matched` is false, tell the user and offer the " +
+    "listed candidates.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      exercise: {
+        type: "string",
+        description: "The exercise name to analyse (as the user refers to it).",
+      },
+    },
+    required: ["exercise"],
+  },
+  /**
+   * @param {!Object} store
+   * @param {string} uid
+   * @param {!Object} input
+   * @param {Date} now
+   * @return {!Promise<!Object>}
+   */
+  async execute(store, uid, input, now) {
+    const sessions = await store.listWorkoutSessions(uid);
+    const resolved = resolveExerciseId(sessions, input.exercise);
+    if (!resolved.exerciseId) {
+      return {
+        matched: false,
+        query: input.exercise || "",
+        candidates: resolved.candidates,
+        note: resolved.candidates.length === 0 ?
+          "No completed sessions logged yet, so there's no exercise history to analyse." :
+          "No logged exercise matched that name. Offer the user one of the candidates.",
+      };
+    }
+    const analysis = analyzeExercise({
+      exerciseId: resolved.exerciseId, sessions, now,
+    });
+    if (!analysis) {
+      return {
+        matched: false,
+        query: input.exercise || "",
+        candidates: resolved.candidates,
+        note: "That movement is in the plan/history but has no completed working sets to analyse yet.",
+      };
+    }
+    return {matched: true, ...serializeExerciseAnalysis(analysis)};
+  },
+};
+
+/**
+ * Resolves a free-text exercise name to a logged exerciseId. Prefers an exact
+ * (case-insensitive) name, then a whole-word/substring match, and returns the
+ * available names as candidates so the model can disambiguate or fall back.
+ * @param {!Array<Object>} sessions
+ * @param {?string} query
+ * @return {{exerciseId: ?string, candidates: !Array<string>}}
+ */
+function resolveExerciseId(sessions, query) {
+  const byId = new Map(); // exerciseId -> freshest name
+  const ordered = [...(sessions || [])].sort((a, b) =>
+    (a.completedAt || a.startedAt) - (b.completedAt || b.startedAt));
+  for (const s of ordered) {
+    if (s.status !== "completed") continue;
+    for (const e of s.exercises || []) {
+      const hasWorking = (e.sets || []).some(
+          (set) => set.outcome === "completed" && set.type !== "warmup");
+      if (hasWorking) byId.set(e.exerciseId, e.name || e.exerciseId);
+    }
+  }
+  const candidates = [...byId.values()];
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return {exerciseId: null, candidates};
+
+  let exact = null;
+  let starts = null;
+  let contains = null;
+  for (const [id, name] of byId) {
+    const n = name.toLowerCase();
+    if (n === q) {
+      exact = id;
+      break;
+    }
+    if (starts == null && n.startsWith(q)) starts = id;
+    if (contains == null && (n.includes(q) || q.includes(n))) contains = id;
+  }
+  return {exerciseId: exact || starts || contains, candidates};
+}
+
+/**
+ * Shapes an `analyzeExercise` result for the model — ISO dates, PRs as an
+ * array, the deltas passed through unchanged (they are the deterministic facts
+ * the coach must not restate differently).
+ * @param {!Object} a
+ * @return {!Object}
+ */
+function serializeExerciseAnalysis(a) {
+  return {
+    exercise: a.name,
+    muscleGroup: a.muscleGroup,
+    status: a.status,
+    verdict: a.verdict,
+    latestTone: a.latestTone,
+    strengthChangePercent: a.strengthChangePercent,
+    currentE1RM: a.currentE1RM,
+    bestE1RM: a.bestE1RM,
+    totalSessions: a.totalSessions,
+    totalWorkingSets: a.totalWorkingSets,
+    totalVolumeKg: a.totalVolumeKg,
+    daysSinceLast: a.daysSinceLast,
+    sessionsPerWeek: a.sessionsPerWeek,
+    isWeighted: a.isWeighted,
+    insight: a.insight,
+    personalRecords: Object.entries(a.records).map(([kind, r]) => ({
+      kind,
+      weightKg: r.weightKg,
+      reps: r.reps,
+      estimatedOneRepMax: r.estimatedOneRepMax,
+      achievedAt: iso(r.achievedAt),
+    })),
+    // Newest first, each with its own session-to-session comparison inlined.
+    sessions: [...a.sessions].reverse().map((s) => ({
+      performedAt: iso(s.date),
+      day: s.dayLabel,
+      isPersonalBest: s.isPrSession,
+      workingSets: s.workingSetCount,
+      topSet: s.topWeightKg == null ?
+        `${s.topReps} reps` : `${trimKg(s.topWeightKg)}kg × ${s.topReps}`,
+      totalVolumeKg: round1(s.totalVolumeKg),
+      avgLoadKg: s.avgLoadKg == null ? null : round1(s.avgLoadKg),
+      repRange: s.repRange,
+      estimatedOneRepMax: s.bestE1RM == null ? null : round1(s.bestE1RM),
+      sets: s.sets.map((set) => ({
+        weightKg: set.weightKg,
+        reps: set.reps,
+        type: set.type,
+      })),
+      vsPreviousSession: comparisonFor(a, s.sessionId),
+    })),
+  };
+}
+
+/**
+ * The comparison whose current session is `sessionId`, shaped for the model, or
+ * null for the oldest (baseline) session.
+ * @param {!Object} a
+ * @param {string} sessionId
+ * @return {?Object}
+ */
+function comparisonFor(a, sessionId) {
+  const c = a.comparisons.find((x) => x.currentSessionId === sessionId);
+  if (!c) return null;
+  return {
+    tone: c.tone,
+    changes: c.tags,
+    loadChangeKg: c.loadChangeKg == null ? null : round1(c.loadChangeKg),
+    topRepsChange: c.topRepsChange,
+    volumeChangeKg: round1(c.volumeChangeKg),
+    volumeChangePercent:
+      c.volumeChangePercent == null ? null : round1(c.volumeChangePercent),
+    estimatedOneRepMaxChangeKg:
+      c.e1rmChangeKg == null ? null : round1(c.e1rmChangeKg),
+    estimatedOneRepMaxChangePercent:
+      c.e1rmChangePercent == null ? null : round1(c.e1rmChangePercent),
+  };
+}
+
+const trimKg = (v) => Number.isInteger(v) ? String(v) : v.toFixed(1);
+const round1 = (v) => Math.round(v * 10) / 10;
 
 /** Mirrors the app's `kCalibrationWindowDays`. */
 const CALIBRATION_WINDOW_DAYS = 56;
@@ -724,6 +995,8 @@ const tools = [
   TODAY_TOOL,
   EXPENSES_TOOL,
   WORKOUTS_TOOL,
+  TRAINING_ANALYSIS_TOOL,
+  EXERCISE_ANALYSIS_TOOL,
   DIET_TOOL,
   RESOLVE_FOOD_TOOL,
   CALCULATE_MEAL_TOOL,

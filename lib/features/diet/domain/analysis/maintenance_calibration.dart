@@ -52,14 +52,6 @@ enum CalibrationGap {
   needsMoreLoggedDays,
 }
 
-/// What the user is asked for, in their words.
-String calibrationGapLabel(CalibrationGap gap) => switch (gap) {
-  CalibrationGap.needsWeighIns => 'two weigh-ins',
-  CalibrationGap.needsLongerWindow =>
-    'weigh-ins at least $kMinCalibrationDays days apart',
-  CalibrationGap.needsMoreLoggedDays => 'more days of food logged',
-};
-
 /// The shortest window a calibration may rest on.
 ///
 /// Two weeks. Bodyweight moves a kilogram or more on water, glycogen and gut

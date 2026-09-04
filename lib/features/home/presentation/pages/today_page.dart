@@ -12,7 +12,7 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_chrome.dart';
-import '../../../auth/domain/user_profile.dart';
+import '../../../profile/domain/user_profile.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../../diet/domain/diet_plan.dart';
 import '../../../diet/domain/diet_summary.dart';
@@ -28,7 +28,7 @@ import '../../../workout/domain/up_next_selection.dart';
 import '../../../workout/domain/workout_day.dart';
 import '../../../workout/domain/workout_plan.dart';
 import '../../../workout/presentation/pages/workout_plan_edit_page.dart';
-import '../../../workout/presentation/pages/workout_pdf_import_page.dart';
+import '../../../workout/presentation/widgets/add_workout_sheet.dart';
 import '../../../../l10n/l10n.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
@@ -36,6 +36,7 @@ import '../widgets/diet_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/bottom_chrome.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -150,9 +151,9 @@ class _TodayPageState extends State<TodayPage> {
                   ),
                   // Primary tier — the day at a glance: train / fuel /
                   // move rings answering "what have I done today?"
-                  const RiseIn(
-                    delay: Duration(milliseconds: 70),
-                    child: TodayPulseSection(),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 70),
+                    child: TodayPulseSection(now: widget.now),
                   ),
                   // The day's training, full-weight card.
                   const RiseIn(
@@ -161,9 +162,9 @@ class _TodayPageState extends State<TodayPage> {
                   ),
                   // Momentum — "how am I doing?" streak, week bars,
                   // weight trend.
-                  const RiseIn(
-                    delay: Duration(milliseconds: 210),
-                    child: MomentumSection(),
+                  RiseIn(
+                    delay: const Duration(milliseconds: 210),
+                    child: MomentumSection(now: widget.now),
                   ),
                   // Worth knowing — computed right-now nudges.
                   RiseIn(
@@ -342,7 +343,7 @@ class _LiveTimeState extends State<_LiveTime> {
     final hour = _now.hour;
     final h12 = hour % 12 == 0 ? 12 : hour % 12;
     final minute = _now.minute.toString().padLeft(2, '0');
-    final period = hour < 12 ? 'AM' : 'PM';
+    final period = formatDayPeriod(context, _now);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -657,11 +658,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WorkoutPdfImportPage(),
-                    ),
-                  );
+                  showAddWorkoutSheet(context);
                 },
               ),
             ),
@@ -820,11 +817,7 @@ class _GetStartedCard extends StatelessWidget {
                     icon: Icons.upload_file_rounded,
                     label: l(context).todayImportWorkoutPlan,
                     color: TrainColors.green,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WorkoutPdfImportPage(),
-                      ),
-                    ),
+                    onTap: () => showAddWorkoutSheet(context),
                   ),
                 ),
                 const SizedBox(width: 10),

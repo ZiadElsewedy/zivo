@@ -661,3 +661,182 @@ describe('customFoods shape validation', () => {
     await assertFails(write(food({ verified: true })));
   });
 });
+
+// --- email verification as a BOUNDARY, not just a screen --------------------
+//
+// `resolveAuthState` sends an unverified password account to the OTP screen,
+// but a screen is not a boundary — anything talking to the API directly used
+// to skip it and write freely. These pin the server half of that policy.
+//
+// Note the tokens every OTHER test in this file uses carry no email claim at
+// all, which is exactly the "provider withheld an address" case: those must
+// keep working, and the fact that all 111 of them still pass is that
+// assertion. Here we supply real email claims to exercise the other branches.
+describe('email verification gates writes, never reads', () => {
+  const unverifiedDb = () => testEnv
+    .authenticatedContext(OWNER, { email: 'z@example.com', email_verified: false })
+    .firestore();
+  const verifiedDb = () => testEnv
+    .authenticatedContext(OWNER, { email: 'z@example.com', email_verified: true })
+    .firestore();
+
+  it('an unverified address cannot write feature data', async () => {
+    await assertFails(
+      setDoc(doc(unverifiedDb(), collPath(OWNER, 'workouts')), valid.workouts),
+    );
+  });
+
+  it('an unverified address cannot write the profile', async () => {
+    await assertFails(
+      setDoc(doc(unverifiedDb(), `users/${OWNER}`), { name: 'Z', dateOfBirth: ts() }),
+    );
+  });
+
+  it('an unverified address CAN still read what it already has', async () => {
+    // Losing write access is a gate; losing read access is data loss. A
+    // stranded account must still be able to see and export its own data.
+    await seed(collPath(OWNER, 'workouts'), valid.workouts);
+    await seed(`users/${OWNER}`, { name: 'Z', dateOfBirth: ts() });
+    await assertSucceeds(getDoc(doc(unverifiedDb(), collPath(OWNER, 'workouts'))));
+    await assertSucceeds(getDoc(doc(unverifiedDb(), `users/${OWNER}`)));
+  });
+
+  it('a verified address writes normally', async () => {
+    await assertSucceeds(
+      setDoc(doc(verifiedDb(), collPath(OWNER, 'workouts')), valid.workouts),
+    );
+    await assertSucceeds(
+      setDoc(doc(verifiedDb(), `users/${OWNER}`), { name: 'Z', dateOfBirth: ts() }),
+    );
+  });
+
+  it('an unverified address may still record its own auth activity', async () => {
+    // The deliberate exception: an unverified account still signs in, and
+    // those sign-ins are the ones most worth having in the log. Gating the
+    // audit trail on verification would blind it exactly where it matters.
+    await assertSucceeds(setDoc(
+      doc(unverifiedDb(), `users/${OWNER}/authEvents/e1`),
+      { schemaVersion: 1, type: 'signIn', occurredAt: serverTimestamp() },
+    ));
+    await assertSucceeds(setDoc(
+      doc(unverifiedDb(), `users/${OWNER}/auth/account`),
+      { schemaVersion: 1, signInCount: 1 },
+    ));
+  });
+});
+
+// --- the profile document's own shape ---------------------------------------
+describe('users/{uid} profile shape validation', () => {
+  const write = (data) => setDoc(doc(ownerDb(), `users/${OWNER}`), data);
+
+  it('accepts the shape the app actually writes', async () => {
+    await assertSucceeds(write({
+      name: 'Ziad', dateOfBirth: ts(), photoPath: 'media/a.jpg',
+      bio: 'lifts things', updatedAt: serverTimestamp(),
+    }));
+  });
+
+  it('accepts a profile with no photo or bio — both are optional', async () => {
+    await assertSucceeds(write({
+      name: 'Ziad', dateOfBirth: ts(), photoPath: null, bio: null,
+    }));
+  });
+
+  it('requires a non-empty name and a real date of birth', async () => {
+    await assertFails(write({ name: '', dateOfBirth: ts() }));
+    await assertFails(write({ dateOfBirth: ts() }));
+    await assertFails(write({ name: 'Ziad', dateOfBirth: '1999-01-01' }));
+    await assertFails(write({ name: 'Ziad' }));
+  });
+
+  it('bounds the free-text fields', async () => {
+    await assertFails(write({ name: 'x'.repeat(121), dateOfBirth: ts() }));
+    await assertFails(write({ name: 'Z', dateOfBirth: ts(), bio: 'x'.repeat(501) }));
+  });
+
+  it('rejects unknown fields smuggled onto the profile', async () => {
+    // This document is the only PII in the database and used to be guarded by
+    // a bare `allow read, write`. Anything not in the vocabulary is refused.
+    await assertFails(write({ name: 'Z', dateOfBirth: ts(), role: 'admin' }));
+    await assertFails(write({ name: 'Z', dateOfBirth: ts(), blob: 'x'.repeat(2000) }));
+  });
+
+  it('nobody may delete the profile from a client', async () => {
+    // Account deletion runs server-side (recursiveDelete, Admin SDK). A client
+    // delete would strand every feature subcollection under a document that no
+    // longer describes anyone.
+    await seed(`users/${OWNER}`, { name: 'Z', dateOfBirth: ts() });
+    await assertFails(deleteDoc(doc(ownerDb(), `users/${OWNER}`)));
+  });
+});
+
+// --- the audit trail cannot be decorated or forged --------------------------
+describe('auth summary: server-authored fields are not client-writable', () => {
+  const acct = `users/${OWNER}/auth/account`;
+
+  it('a client cannot stamp emailVerifiedAt on create', async () => {
+    await assertFails(setDoc(doc(ownerDb(), acct), {
+      schemaVersion: 1, signInCount: 1, emailVerifiedAt: ts(),
+    }));
+    await assertFails(setDoc(doc(ownerDb(), acct), {
+      schemaVersion: 1, signInCount: 1, emailLastSentAt: ts(),
+    }));
+  });
+
+  it('a client cannot change or remove emailVerifiedAt on update', async () => {
+    // `hasOnly` alone cannot express this: on a merge, request.resource.data is
+    // the RESULTING document, so the server-authored field has to be allowed
+    // in the vocabulary. Immutability is stated separately.
+    await seed(acct, { schemaVersion: 1, signInCount: 1, emailVerifiedAt: ts() });
+    await assertFails(updateDoc(doc(ownerDb(), acct), {
+      emailVerifiedAt: Timestamp.fromDate(new Date('2020-01-01T00:00:00Z')),
+    }));
+  });
+
+  it('a client CAN advance its own sign-in bookkeeping alongside them', async () => {
+    await seed(acct, { schemaVersion: 1, signInCount: 1, emailVerifiedAt: ts() });
+    await assertSucceeds(updateDoc(doc(ownerDb(), acct), {
+      signInCount: 2, lastSignInAt: serverTimestamp(),
+    }));
+  });
+
+  it('rejects unknown fields and a negative sign-in count', async () => {
+    await assertFails(setDoc(doc(ownerDb(), acct), {
+      schemaVersion: 1, isAdmin: true,
+    }));
+    await assertFails(setDoc(doc(ownerDb(), acct), {
+      schemaVersion: 1, signInCount: -1,
+    }));
+  });
+});
+
+describe('authEvents entries cannot carry arbitrary payload', () => {
+  it('rejects unknown fields on an otherwise valid event', async () => {
+    // An append-only log whose entries accept anything is an unbounded,
+    // client-controlled write channel wearing an audit trail's clothes.
+    await assertFails(setDoc(doc(ownerDb(), `users/${OWNER}/authEvents/e1`), {
+      schemaVersion: 1, type: 'signIn', occurredAt: serverTimestamp(),
+      payload: 'x'.repeat(5000),
+    }));
+  });
+});
+
+// --- the paid-endpoint quota counters ---------------------------------------
+describe('quotas are Functions-only (owner may read, no client may write)', () => {
+  const bucket = `users/${OWNER}/quotas/workoutImport`;
+
+  it('owner can read their counter but cannot write one', async () => {
+    // A client that could write its own counter could reset it — which is the
+    // entire ceiling gone.
+    await seed(bucket, { dayKey: '2026-09-02', used: 3 });
+    await assertSucceeds(getDoc(doc(ownerDb(), bucket)));
+    await assertFails(setDoc(doc(ownerDb(), bucket), { dayKey: '2026-09-02', used: 0 }));
+    await assertFails(updateDoc(doc(ownerDb(), bucket), { used: 0 }));
+    await assertFails(deleteDoc(doc(ownerDb(), bucket)));
+  });
+
+  it('a different signed-in user cannot read it', async () => {
+    await seed(bucket, { dayKey: '2026-09-02', used: 3 });
+    await assertFails(getDoc(doc(otherDb(), bucket)));
+  });
+});

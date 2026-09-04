@@ -12,6 +12,7 @@ import '../../../../../core/widgets/zivo_sheet.dart';
 import '../../../../../core/widgets/zivo_field.dart';
 import '../../../../workout/presentation/widgets/staggered_reveal.dart';
 import '../../../domain/ai_conversation.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// What the sessions sheet was dismissed with — a "New chat" tap, or a tap on
 /// an existing conversation row.
@@ -49,11 +50,13 @@ Future<String?> promptNewChatName(BuildContext context) {
               ),
             ),
             const SizedBox(height: 20),
-            Text('New chat', style: AppText.cardTitle.copyWith(fontSize: 19)),
+            Text(
+              l(sheetContext).askNewChat,
+              style: AppText.cardTitle.copyWith(fontSize: 19),
+            ),
             const SizedBox(height: 6),
             Text(
-              'Name it so you can find it later — or leave it blank and the '
-              'first message will title it.',
+              l(sheetContext).askNameItHint,
               style: AppText.meta.copyWith(
                 color: TrainColors.ink3,
                 height: 1.35,
@@ -69,7 +72,7 @@ Future<String?> promptNewChatName(BuildContext context) {
               style: AppText.rowTitle.copyWith(color: TrainColors.ink),
               cursorColor: TrainColors.violet,
               decoration: zivoFieldDecoration(
-                hintText: 'e.g. Workout changes',
+                hintText: l(sheetContext).askNamePlaceholder,
                 hintStyle: AppText.body.copyWith(color: TrainColors.ink3),
                 counterStyle: AppText.meta.copyWith(
                   color: TrainColors.ink3,
@@ -90,7 +93,7 @@ Future<String?> promptNewChatName(BuildContext context) {
             SizedBox(
               width: double.infinity,
               child: SheetAction(
-                label: 'Start chatting',
+                label: l(sheetContext).askStartChatting,
                 color: TrainColors.violet,
                 background: TrainColors.violetWash,
                 onTap: () =>
@@ -101,7 +104,7 @@ Future<String?> promptNewChatName(BuildContext context) {
             SizedBox(
               width: double.infinity,
               child: SheetAction(
-                label: 'Cancel',
+                label: l(sheetContext).actionCancel,
                 color: TrainColors.ink2,
                 background: Colors.transparent,
                 onTap: () => Navigator.of(sheetContext).pop(null),
@@ -180,7 +183,7 @@ class _SessionsSheetState extends State<SessionsSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Chats',
+                      l(context).askChats,
                       style: AppText.cardTitle.copyWith(fontSize: 19),
                     ),
                   ),
@@ -206,7 +209,7 @@ class _SessionsSheetState extends State<SessionsSheet> {
                         28,
                       ),
                       child: Text(
-                        'No chats yet.',
+                        l(context).askNoChats,
                         style: AppText.aside.copyWith(color: TrainColors.ink2),
                       ),
                     );
@@ -237,7 +240,13 @@ class _SessionsSheetState extends State<SessionsSheet> {
                               }
                             },
                             confirmDismiss: (_) =>
-                                confirmDeleteChat(context, conversation.title),
+                                confirmDeleteChat(
+                                  context,
+                                  displayConversationTitle(
+                                    context,
+                                    conversation.title,
+                                  ),
+                                ),
                             onDismissed: (_) => _performDelete(conversation),
                             child: SessionRow(
                               conversation: conversation,
@@ -297,13 +306,12 @@ Future<bool> confirmDeleteChat(BuildContext context, String title) async {
               ),
               const SizedBox(height: 20),
               Text(
-                'Delete this chat?',
+                l(context).askDeleteChatTitle,
                 style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               ),
               const SizedBox(height: 8),
               Text(
-                'This permanently removes "$title" and everything in it. '
-                "This can't be undone.",
+                l(context).askDeleteChatBody(title),
                 textAlign: TextAlign.center,
                 style: AppText.body.copyWith(color: TrainColors.ink2),
               ),
@@ -311,7 +319,7 @@ Future<bool> confirmDeleteChat(BuildContext context, String title) async {
               SizedBox(
                 width: double.infinity,
                 child: SheetAction(
-                  label: 'Delete chat',
+                  label: l(context).askDeleteChatConfirm,
                   color: TrainColors.ember,
                   background: TrainColors.emberWash,
                   onTap: () => Navigator.pop(context, true),
@@ -321,7 +329,7 @@ Future<bool> confirmDeleteChat(BuildContext context, String title) async {
               SizedBox(
                 width: double.infinity,
                 child: SheetAction(
-                  label: 'Cancel',
+                  label: l(context).actionCancel,
                   color: TrainColors.ink2,
                   background: Colors.transparent,
                   onTap: () => Navigator.pop(context, false),
@@ -424,7 +432,7 @@ class NewChatPill extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'New chat',
+                  l(context).askNewChat,
                   style: AppText.meta.copyWith(
                     color: TrainColors.violet,
                     fontWeight: FontWeight.w600,
@@ -465,7 +473,7 @@ class SessionRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  conversation.title,
+                  displayConversationTitle(context, conversation.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.rowTitle.copyWith(
@@ -494,3 +502,13 @@ class SessionRow extends StatelessWidget {
     );
   }
 }
+
+/// What a conversation is *called on screen*.
+///
+/// A thread keeps [kUntitledConversationTitle] as its stored title until its
+/// first message renames it. That value is data — a stable sentinel the
+/// repository writes and the controller compares against — so it is translated
+/// here, at the point of display, and nowhere else. Anything that renders a
+/// conversation title goes through this.
+String displayConversationTitle(BuildContext context, String title) =>
+    title == kUntitledConversationTitle ? l(context).askNewChat : title;

@@ -7,24 +7,20 @@
 /// objective ("you're 35g short of the protein your fat-loss target asks for").
 enum DietGoal { fatLoss, maintain, muscleGain, recomp }
 
-/// The goal as the user reads it on screen and as the coach should name it.
+/// The goal's name in the **coaching engine's** vocabulary — the English word
+/// that gets spliced into a [Finding]'s prose (see `coaching/rules.dart`) and
+/// quoted as evidence.
+///
+/// This is deliberately NOT what the UI renders. `domain/` is Flutter-free, so
+/// it cannot reach `AppLocalizations`, and the coach's generated sentences are
+/// English end-to-end anyway — a half-translated sentence would read worse than
+/// an English one. The screen's word comes from `dietGoalText(context, goal)`
+/// in `presentation/diet_labels.dart` instead. Change one, consider the other.
 String dietGoalLabel(DietGoal goal) => switch (goal) {
   DietGoal.fatLoss => 'Fat loss',
   DietGoal.maintain => 'Maintain',
   DietGoal.muscleGain => 'Muscle gain',
   DietGoal.recomp => 'Recomposition',
-};
-
-/// One line explaining what choosing this goal means for the numbers — shown
-/// under each option so the user is picking an outcome, not a jargon word.
-String dietGoalDescription(DietGoal goal) => switch (goal) {
-  DietGoal.fatLoss =>
-    'Eat below maintenance to lose fat, keeping protein high.',
-  DietGoal.maintain => 'Hold weight steady at roughly maintenance calories.',
-  DietGoal.muscleGain => 'Eat above maintenance to support building muscle.',
-  DietGoal.recomp =>
-    'Hold calories near maintenance with protein high enough '
-        'to build while leaning out.',
 };
 
 /// Parses a stored [DietGoal] name. Returns null — never a default — for an

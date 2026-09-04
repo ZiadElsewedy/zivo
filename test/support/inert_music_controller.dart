@@ -37,6 +37,17 @@ class InertMusicController implements MusicController {
   @override
   AudioOutput? get currentOutput => null;
 
+  /// Never linked, so nothing auto-connects and no music chrome mounts —
+  /// see the class doc.
+  @override
+  Stream<bool> get linked => const Stream.empty();
+
+  @override
+  bool get isLinked => false;
+
+  @override
+  Future<void> reconnectIfLinked() async {}
+
   @override
   Future<void> connect() async {}
 

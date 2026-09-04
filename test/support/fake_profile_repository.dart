@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:zivo/features/auth/domain/profile_repository.dart';
-import 'package:zivo/features/auth/domain/user_profile.dart';
+import 'package:zivo/features/profile/domain/profile_repository.dart';
+import 'package:zivo/features/profile/domain/user_profile.dart';
 
 /// In-memory [ProfileRepository] for widget/unit tests.
 ///

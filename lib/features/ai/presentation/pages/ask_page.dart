@@ -25,6 +25,8 @@ import '../widgets/ask/message_bubble.dart';
 import '../widgets/ask/proposal_card.dart';
 import '../widgets/ask/sessions_sheet.dart';
 import '../widgets/ask/thinking_rail.dart';
+import '../../../../l10n/l10n.dart';
+import '../../domain/ai_conversation.dart';
 
 class AskPage extends StatefulWidget {
   const AskPage({
@@ -117,7 +119,15 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
     super.didChangeDependencies();
     // Built here rather than in [initState] because it needs the AI
     // repository and recorder from [AppScope], which is an inherited widget.
-    if (_reposInitialized) return;
+    //
+    // The controller has no BuildContext (ADR-008), so it is handed the
+    // localized copy instead — and re-handed it on every dependency change,
+    // which is what makes switching language mid-chat re-render the thinking
+    // rail rather than stranding it in the old locale.
+    if (_reposInitialized) {
+      _controller?.updateStrings(l(context));
+      return;
+    }
     _reposInitialized = true;
     final scope = AppScope.of(context);
     _controller = AskController(
@@ -125,6 +135,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
       recorder: scope.recorder,
       vsync: this,
       transcribeTimeout: widget.transcribeTimeout,
+      strings: l(context),
       onError: _showError,
       onSendStarted: () => _autoFollow = true,
       onContentGrew: ({required bool instant}) {
@@ -216,7 +227,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
         if (conversation.id != activeConversationId) {
           _switchTo(
             conversation.id,
-            isUntitled: conversation.title == 'New chat',
+            isUntitled: conversation.title == kUntitledConversationTitle,
           );
         }
     }

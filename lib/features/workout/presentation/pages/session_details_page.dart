@@ -14,8 +14,9 @@ import '../../domain/session_exercise.dart';
 import '../../domain/session_status.dart';
 import '../../domain/set_outcome.dart';
 import '../widgets/staggered_reveal.dart';
-import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/date_format.dart';
+import '../workout_format.dart';
 
 /// The full detail view of one logged/live session — a designed screen, not
 /// a table: a hero header (day, date, status, duration, time range,
@@ -183,7 +184,7 @@ class _SessionHeroHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _formatFullDate(session.startedAt),
+                      formatWeekdayDate(context, session.startedAt),
                       style: AppText.meta.copyWith(color: TrainColors.ink4),
                     ),
                   ],
@@ -215,12 +216,12 @@ class _SessionHeroHeader extends StatelessWidget {
             children: [
               Expanded(
                 child: _HeroStat(
-                  value: formatDurationShort(duration),
+                  value: formatDurationShort(context, duration),
                   label: 'Duration',
                 ),
               ),
               Expanded(
-                child: _HeroStat(value: _timeRange(session), label: 'Time'),
+                child: _HeroStat(value: _timeRange(context, session), label: 'Time'),
               ),
               Expanded(
                 child: _HeroStat(
@@ -241,10 +242,10 @@ class _SessionHeroHeader extends StatelessWidget {
     );
   }
 
-  static String _timeRange(LiveSession s) {
-    final start = formatClockTime(_minutesSinceMidnight(s.startedAt));
+  static String _timeRange(BuildContext context, LiveSession s) {
+    final start = formatClockTime(context, s.startedAt);
     if (s.completedAt == null) return start;
-    return '$start–${formatClockTime(_minutesSinceMidnight(s.completedAt!))}';
+    return '$start–${formatClockTime(context, s.completedAt!)}';
   }
 }
 
@@ -432,27 +433,6 @@ class _SetRow extends StatelessWidget {
 int? _targetRepsFallback(RepTarget target) =>
     target.kind == RepTargetKind.toFailure ? null : target.min;
 
-double _minutesSinceMidnight(DateTime dt) =>
-    (dt.hour * 60 + dt.minute).toDouble();
-
 String _trimNumber(double v) =>
     v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
-const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _monthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _formatFullDate(DateTime d) =>
-    '${_weekdayNames[d.weekday - 1]}, ${_monthNames[d.month - 1]} ${d.day}';

@@ -40,12 +40,34 @@ class AppEnvironment {
     AppConfig.release => 'Release',
   };
 
-  /// Whether to persist to Firestore. On by default; opt out for offline/dev
-  /// runs with `--dart-define=USE_FIRESTORE=false`.
-  static const bool useFirestore = bool.fromEnvironment(
+  /// The raw `USE_FIRESTORE` override. On by default; a debug/profile run can
+  /// opt into the in-memory demo mode with `--dart-define=USE_FIRESTORE=false`.
+  static const bool _useFirestoreOverride = bool.fromEnvironment(
     'USE_FIRESTORE',
     defaultValue: true,
   );
+
+  /// Whether to persist to Firestore (vs the in-memory demo repositories).
+  ///
+  /// **Release builds always use Firestore — the `USE_FIRESTORE=false` override
+  /// is ignored in release.** The in-memory repos seed demo data (the hardcoded
+  /// `ziadWorkoutPlan`, fake AI/music), which must never reach a shipped build:
+  /// a stale/accidental override once baked demo mode into a TestFlight archive
+  /// (Xcode's Archive reuses the dart-defines from the last `flutter build` —
+  /// see `docs/build_configurations.md`). This guard makes that impossible;
+  /// demo mode remains available in debug/profile for offline work and tests.
+  static bool get useFirestore =>
+      resolveUseFirestore(isRelease: isRelease, override: _useFirestoreOverride);
+
+  /// The pure guard behind [useFirestore], exposed so it is testable without a
+  /// release build (unit tests always run as Development, so the release branch
+  /// is otherwise unreachable). Release forces Firestore on; every other config
+  /// honours the [override].
+  @visibleForTesting
+  static bool resolveUseFirestore({
+    required bool isRelease,
+    required bool override,
+  }) => isRelease ? true : override;
 
   /// Public Google **Web** OAuth client id passed to `google_sign_in` as
   /// `serverClientId`. A public identifier, not a secret. Overridable via

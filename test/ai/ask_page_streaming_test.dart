@@ -7,6 +7,7 @@ import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_repository.dart';
+import 'package:zivo/features/workout/domain/workout_import_input.dart';
 import 'package:zivo/features/ai/domain/ai_response_style.dart';
 import 'package:zivo/features/ai/domain/ai_role.dart';
 import 'package:zivo/features/ai/domain/ai_turn_event.dart';
@@ -23,6 +24,7 @@ import 'package:zivo/features/diet/domain/diet_import_outcome.dart';
 import 'package:zivo/features/diet/domain/nutrition_targets.dart';
 import 'package:zivo/features/diet/domain/plan_preferences.dart';
 import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
+import 'package:zivo/features/ai/domain/import_progress.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -120,13 +122,16 @@ class _StreamingAi implements AiRepository {
   }) async {}
 
   @override
-  Future<WorkoutImportOutcome> importWorkoutPlan({
-    required Uint8List fileBytes,
-    required String mimeType,
+  Future<WorkoutImportOutcome> importWorkoutPlan(
+    WorkoutImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
   }) => throw UnimplementedError('not exercised by this test');
 
   @override
-  Future<DietImportOutcome> importDietPlan(DietImportInput input) =>
+  Future<DietImportOutcome> importDietPlan(
+    DietImportInput input, {
+    void Function(ImportProgress progress)? onProgress,
+  }) =>
       throw UnimplementedError('not exercised by this test');
 
   @override

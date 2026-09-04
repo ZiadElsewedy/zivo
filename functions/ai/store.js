@@ -94,6 +94,122 @@ class FirestoreStore {
   }
 
   /**
+   * The user's live/completed workout SESSIONS — the rich, per-set record in
+   * `users/{uid}/workoutSessions` (not the lossy flat `workouts` log). This is
+   * what the workout analytics engine (`./workout_analytics.js`) reasons over,
+   * so the AI sees the real sets the user performed rather than a single
+   * collapsed reps/weight per exercise. Ranged by `startedAt`; pass no range
+   * to read the whole history (the analytics windows filter internally).
+   *
+   * Field names mirror `FirestoreWorkoutSessionRepository` exactly.
+   * @param {string} uid
+   * @param {{fromMs: number, toMs: number}=} range
+   * @return {!Promise<!Array<Object>>}
+   */
+  async listWorkoutSessions(uid, range) {
+    let query = this._user(uid).collection("workoutSessions");
+    if (range) {
+      query = query
+          .where("startedAt", ">=", Timestamp.fromMillis(range.fromMs))
+          .where("startedAt", "<", Timestamp.fromMillis(range.toMs));
+    }
+    const snap = await query.get();
+    return snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        planId: d.planId || "",
+        dayId: d.dayId || "",
+        dayLabel: d.dayLabel || "",
+        status: d.status || "active",
+        startedAt: toDate(d.startedAt),
+        completedAt: toDate(d.completedAt),
+        pausedAccumMs: typeof d.pausedAccumMs === "number" ? d.pausedAccumMs : 0,
+        exercises: (d.exercises || []).map((e) => ({
+          id: e.id || "",
+          exerciseId: e.exerciseId || "",
+          name: e.name || "",
+          muscleGroup: e.muscleGroup || null,
+          restSeconds: e.restSeconds || 0,
+          sets: (e.sets || []).map((s) => ({
+            id: s.id || "",
+            actualReps: typeof s.actualReps === "number" ? s.actualReps : null,
+            actualWeightKg:
+              typeof s.actualWeightKg === "number" ? s.actualWeightKg : null,
+            rpe: typeof s.rpe === "number" ? s.rpe : null,
+            type: s.type || "working",
+            // Migrate a pre-outcome doc's legacy `done` bool, matching the
+            // client repo's `_outcomeFromMap`.
+            outcome: s.outcome || (s.done === true ? "completed" : "pending"),
+          })),
+        })),
+      };
+    });
+  }
+
+  /**
+   * The active `workoutPlans` doc for `uid`, resolved EXACTLY the way the app's
+   * `FirestoreWorkoutPlanRepository._resolveActive` does — so the coach's
+   * plan-adherence read and the Analysis screen agree on which split is active:
+   *   1. the split named by the `workoutMeta/active` pointer (`activeSplitId`),
+   *   2. else the first split with status 'active',
+   *   3. else the oldest split (splits are ordered createdAt-ascending).
+   * Returns only the fields adherence needs (days → exercises → id/name),
+   * or null when there is no plan.
+   * @param {string} uid
+   * @return {!Promise<?Object>}
+   */
+  async getActiveWorkoutPlan(uid) {
+    const snap = await this._user(uid)
+        .collection("workoutPlans")
+        .orderBy("createdAt")
+        .get();
+    if (snap.empty) return null;
+
+    const plans = snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.name || "",
+        status: d.status || "active",
+        days: (d.days || []).map((day) => ({
+          id: day.id || "",
+          slot: day.slot || "",
+          label: day.label || "",
+          order: typeof day.order === "number" ? day.order : 0,
+          exercises: (day.exercises || []).map((e) => ({
+            id: e.id || "",
+            name: e.name || "",
+            muscleGroup: e.muscleGroup || null,
+            order: typeof e.order === "number" ? e.order : 0,
+          })),
+        })),
+      };
+    });
+
+    let pointerId = null;
+    try {
+      const pointerSnap = await this._user(uid)
+          .collection("workoutMeta")
+          .doc("active")
+          .get();
+      const raw = pointerSnap.exists ? pointerSnap.data().activeSplitId : null;
+      pointerId = typeof raw === "string" && raw.length > 0 ? raw : null;
+    } catch (_) {
+      // The pointer is optional (same as the client): a read failure just
+      // falls through to the active-status / oldest resolution below.
+      pointerId = null;
+    }
+
+    if (pointerId) {
+      const byPointer = plans.find((p) => p.id === pointerId);
+      if (byPointer) return byPointer;
+    }
+    const active = plans.find((p) => p.status === "active");
+    return active || plans[0];
+  }
+
+  /**
    * The active `dietPlans` doc for `uid` (mirroring the client's "most
    * recently created plan with status active" resolution), or null.
    * @param {string} uid
@@ -158,8 +274,8 @@ class FirestoreStore {
    * Height, sex and activity are all required: two out of three cannot
    * produce a maintenance figure, and a profile that silently defaulted the
    * third would put a number nobody chose underneath every piece of coaching.
-   * Weight is deliberately NOT here — it lives in `bodyWeights`, which is
-   * where the user actually keeps it.
+   * Weight is deliberately NOT here — it lives in `bodyWeightEntries`, which
+   * is where the user actually keeps it.
    * @param {string} uid
    * @return {!Promise<?Object>}
    */
@@ -189,11 +305,19 @@ class FirestoreStore {
   /**
    * Every logged weigh-in, oldest first. The calibration needs the span, not
    * just the latest reading.
+   *
+   * The collection is `bodyWeightEntries` — the name the client writes
+   * (`FirestoreBodyWeightRepository`) and the one the rules declare. This read
+   * used to say `bodyWeights`, which is a collection nothing has ever written:
+   * it returned an empty array forever, and because every consumer downstream
+   * treats "no weigh-ins" as a legitimate state, it failed SILENTLY. The coach
+   * lost its measured-maintenance calibration and its current weight, and fell
+   * back to estimates without anything looking wrong.
    * @param {string} uid
    * @return {!Promise<!Array<{weightKg: number, loggedAtMs: number}>>}
    */
   async listBodyWeights(uid) {
-    const snap = await this._user(uid).collection("bodyWeights").get();
+    const snap = await this._user(uid).collection("bodyWeightEntries").get();
     return snap.docs
         .map((doc) => {
           const d = doc.data() || {};

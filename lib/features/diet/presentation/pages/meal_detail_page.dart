@@ -11,6 +11,7 @@ import '../../domain/diet_format.dart';
 import '../../domain/food_item.dart';
 import '../../domain/meal.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The dedicated view behind a meal card's "View" affordance — everything
 /// IN the meal, and nothing else: its items with quantities, calories and
@@ -68,7 +69,7 @@ class MealDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               Text(
-                'What\u2019s in it',
+                l(context).dietWhatsInIt,
                 style: AppText.meta.copyWith(
                   color: accent,
                   fontWeight: FontWeight.w600,
@@ -79,7 +80,7 @@ class MealDetailPage extends StatelessWidget {
                 _ItemRow(item: item, accent: accent),
               if (meal.items.isEmpty)
                 Text(
-                  'No items listed for this meal.',
+                  l(context).dietNoItemsListed,
                   style: AppText.body.copyWith(color: TrainColors.ink3),
                 ),
             ],
@@ -171,9 +172,8 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
             children: [
               Expanded(
                 child: Text(
-                  '${widget.meal.items.length} '
-                  'item${widget.meal.items.length == 1 ? '' : 's'}'
-                  '${kcal != null ? '${hasEstimate ? ' · ~' : ' · '}$kcal kcal' : ''}',
+                  '${l(context).dietItemCount(widget.meal.items.length)}'
+                  '${kcal != null ? '${hasEstimate ? ' · ~' : ' · '}$kcal ${l(context).unitKcal}' : ''}',
                   style: AppText.rowTitle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: TrainColors.ink,
@@ -181,14 +181,23 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
                 ),
               ),
               if (macros.proteinG != null)
-                _Macro(label: 'P', value: '${macros.proteinG!.round()}g'),
+                _Macro(
+                  label: l(context).dietMacroP,
+                  value: l(context).dietGramsValue(macros.proteinG!.round()),
+                ),
               if (macros.carbsG != null) ...[
                 const SizedBox(width: 12),
-                _Macro(label: 'C', value: '${macros.carbsG!.round()}g'),
+                _Macro(
+                  label: l(context).dietMacroC,
+                  value: l(context).dietGramsValue(macros.carbsG!.round()),
+                ),
               ],
               if (macros.fatG != null) ...[
                 const SizedBox(width: 12),
-                _Macro(label: 'F', value: '${macros.fatG!.round()}g'),
+                _Macro(
+                  label: l(context).dietMacroF,
+                  value: l(context).dietGramsValue(macros.fatG!.round()),
+                ),
               ],
             ],
           ),
@@ -229,8 +238,8 @@ class _MealTotalsCardState extends State<_MealTotalsCard>
                         const SizedBox(width: 8),
                         Text(
                           widget.eaten
-                              ? 'Mark as not eaten'
-                              : 'Done — mark as eaten',
+                              ? l(context).dietMarkNotEaten
+                              : l(context).dietMarkEaten,
                           style: AppText.button.copyWith(
                             color: widget.eaten
                                 ? TrainColors.ink2

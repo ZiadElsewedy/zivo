@@ -16,6 +16,7 @@ import '../../domain/nutrition/food_log_entry.dart';
 import '../../domain/nutrition/food_reference.dart';
 import '../../domain/nutrition/nutrition_calculator.dart';
 import '../../../../l10n/l10n.dart';
+import '../diet_labels.dart';
 
 /// "What did you eat?" — search the catalog, pick a food, give an amount.
 ///
@@ -187,7 +188,9 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
         Text(l(context).logWhatDidYouEat, style: AppText.rowTitle),
         const SizedBox(height: 4),
         Text(
-          'Searching ${nutritionSourceLabel(NutritionSource.usdaFdc)}.',
+          l(context).dietSearching(
+            nutritionSourceText(context, NutritionSource.usdaFdc),
+          ),
           style: AppText.meta.copyWith(color: TrainColors.ink3),
         ),
         const SizedBox(height: 14),
@@ -199,7 +202,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
           cursorColor: TrainColors.green,
           style: AppText.rowTitle,
           decoration: zivoFieldDecoration(
-            hintText: 'chicken breast, rice, olive oil…',
+            hintText: l(context).dietFoodSearchHint,
             prefixIcon: const Icon(
               Icons.search_rounded,
               size: 18,
@@ -326,7 +329,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
           _UnresolvedNote(problem: preview)
         else
           Text(
-            'Enter an amount.',
+            l(context).dietEnterAmount,
             style: AppText.meta.copyWith(color: TrainColors.ink3),
           ),
         const Spacer(),
@@ -358,9 +361,9 @@ class _ProvenanceLine extends StatelessWidget {
     };
     return Text(
       [
-        nutritionSourceLabel(food.source),
+        nutritionSourceText(context, food.source),
         ?preparation,
-        '${food.kcalPer100g.round()} kcal / 100g',
+        l(context).dietKcalPer100g(food.kcalPer100g.round()),
       ].join(' · '),
       style: AppText.meta.copyWith(color: TrainColors.ink3),
     );
@@ -400,10 +403,12 @@ class _FoodRow extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       [
-                        if (isCustom) 'Your own food',
+                        if (isCustom) l(context).dietSourceUserCustom,
                         if (food.preparation != FoodPreparation.unknown)
                           food.preparation.name,
-                        '${food.kcalPer100g.round()} kcal/100g',
+                        l(context).dietKcalPer100gTight(
+                          food.kcalPer100g.round(),
+                        ),
                       ].join(' · '),
                       style: AppText.meta.copyWith(
                         color: isCustom ? TrainColors.green : TrainColors.ink3,
@@ -439,7 +444,7 @@ class _EmptyResults extends StatelessWidget {
     if (query.length < 2) {
       return Center(
         child: Text(
-          'Type a food to search.',
+          l(context).dietTypeToSearch,
           style: AppText.meta.copyWith(color: TrainColors.ink3),
         ),
       );
@@ -449,15 +454,13 @@ class _EmptyResults extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Nothing in the catalog matches "$query".',
+            l(context).dietNoCatalogMatch(query),
             textAlign: TextAlign.center,
             style: AppText.rowTitle.copyWith(fontSize: 14),
           ),
           const SizedBox(height: 8),
           Text(
-            "It's a USDA catalog, so it's thin on regional and home cooking. "
-            "Rather than guess, tell ZIVO what this food is once and it'll "
-            'remember.',
+            l(context).dietCatalogThinBody,
             textAlign: TextAlign.center,
             style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.45),
           ),
@@ -497,13 +500,17 @@ class _NutritionPreview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${nutrition.kcal} kcal',
+            l(context).dietKcalValue(nutrition.kcal),
             style: TrainType.mono(size: 22, weight: FontWeight.w300),
           ),
           const SizedBox(height: 6),
           Text(
-            'P ${nutrition.proteinG}g · C ${nutrition.carbsG}g · '
-            'F ${nutrition.fatG}g · ${nutrition.grams}g',
+            l(context).dietMacroLine(
+              '${nutrition.proteinG}',
+              '${nutrition.carbsG}',
+              '${nutrition.fatG}',
+              '${nutrition.grams}',
+            ),
             style: AppText.meta.copyWith(color: TrainColors.ink2),
           ),
         ],
@@ -522,13 +529,11 @@ class _UnresolvedNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final measures = problem.availableMeasures;
     final text = switch (problem.problem) {
-      QuantityProblem.invalidQuantity => 'Enter an amount above zero.',
+      QuantityProblem.invalidQuantity => l(context).dietEnterAmountAboveZero,
       QuantityProblem.unknownMeasure =>
         measures.isEmpty
-            ? 'ZIVO only has this food by weight — enter it in grams. '
-                  'Converting ${problem.unit} would mean guessing a density.'
-            : "ZIVO doesn't have ${problem.unit} for this food. Use grams, or: "
-                  '${measures.join(', ')}.',
+            ? l(context).dietWeightOnlyFood(problem.unit)
+            : l(context).dietNoSuchUnit(problem.unit, measures.join(', ')),
     };
     return Container(
       key: const Key('log-unresolved'),
@@ -619,8 +624,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
             Text(l(context).logYourOwnFood, style: AppText.rowTitle),
             const SizedBox(height: 4),
             Text(
-              'Per 100g, from the label or your own measure. ZIVO stores these '
-              'as yours and never overwrites them.',
+              l(context).dietCustomFoodHint,
               style: AppText.meta.copyWith(
                 color: TrainColors.ink3,
                 height: 1.45,

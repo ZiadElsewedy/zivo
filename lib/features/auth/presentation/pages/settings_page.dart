@@ -8,6 +8,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../music/domain/music_connection.dart';
@@ -453,6 +454,30 @@ class _MusicSection extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+                // The way OUT. Connecting links this device, and a linked
+                // device reconnects itself at every launch and resume (see
+                // [MusicController.isLinked]) — so there has to be somewhere
+                // to say "stop doing that", and this card is the one surface
+                // that owns the connection rather than the playback.
+                StreamBuilder<bool>(
+                  stream: controller.linked,
+                  initialData: controller.isLinked,
+                  builder: (context, linkedSnap) => (linkedSnap.data ?? false)
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: TrainGhostButton(
+                              key: const Key('spotify-disconnect'),
+                              label: l(context).musicDisconnect,
+                              mono: false,
+                              height: 32,
+                              onTap: () => controller.disconnect(),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ],
             );

@@ -3,17 +3,20 @@
 Paste this whole file into Claude (or drop it in a repo as `BRAND.md`) before asking for any ZIVO screen or asset. It is the complete visual contract.
 
 > ⚠️ **Superseded for colour, surfaces and elevation** by
-> [`DECISIONS/ADR-006`](DECISIONS/ADR-006-one-design-system.md) (2026-08-29). The app runs on
-> one palette — `TrainColors` in
-> [`lib/core/theme/train_tokens.dart`](../lib/core/theme/train_tokens.dart) — and the v2
-> `AppColors`/`AppShadows` files described below **no longer exist**.
+> [`DECISIONS/ADR-006`](DECISIONS/ADR-006-one-design-system.md) (2026-08-29), **and for
+> typography** by [`DECISIONS/ADR-009`](DECISIONS/ADR-009-one-type-system.md) (2026-09-01).
+> The app runs on one palette and one type system, both in
+> [`lib/core/theme/train_tokens.dart`](../lib/core/theme/train_tokens.dart). The v2
+> `AppColors`/`AppShadows` files described below **no longer exist**, and neither do v2's
+> three typefaces.
 >
 > **Still current here:** the *meaning* system (each area owns one hue, ember appears once,
 > colour carries meaning and never decorates), the logo, spacing rhythm, motion identity,
 > layout rules, and the copy/tone guidance.
 > **No longer current here:** the light mode, the warm surface values, the five-hue table
-> (there are four, and no red), and shadow-based elevation — depth comes from light.
-> Read this file for *intent*; take hex values from `train_tokens.dart`.
+> (there are four, and no red), shadow-based elevation (depth comes from light), the
+> Bricolage/Hanken/Fraunces type stack, and the "no monospace" rule.
+> Read this file for *intent*; take hex values and typefaces from `train_tokens.dart`.
 
 ---
 
@@ -54,17 +57,23 @@ card may carry a **soft hue wash** of its area (e.g. Now/Next `#FFF3EB`, Trainin
 warmth. Keep it a wash, never saturated; the one-hue-per-region and **Ember-appears-once** rules
 still hold. Total saturated colour still stays low.
 
-**Typography (replaces v1's Sora/Geist/Geist Mono/Instrument Serif entirely):**
+**Typography — ARCHIVED. Superseded by [ADR-009](DECISIONS/ADR-009-one-type-system.md).**
+
+> The v2 stack below was chosen against v2's warm off-white ground. That ground was deleted by
+> ADR-006 and these three faces went with it in ADR-009. The app's type is now **Manrope**
+> (text, prose, titles, chrome), **Azeret Mono** (numbers, timers, micro-labels — tabular,
+> never prose) and **Instrument Serif** italic (ZIVO speaking, and nothing else), all built
+> from `TrainType` in `train_tokens.dart` and laddered by `AppText`.
+>
+> v2's **"no monospace"** rule is dead: it was guarding against mono *body text*, which the
+> app does not have, while a running timer that reflows its own width every tick is the worse
+> failure. Mono is scoped to numbers and micro-labels.
+
 | Role | Family | Weights | Use |
 |---|---|---|---|
-| Display | **Bricolage Grotesque** | 600, 700 | greeting, screen & card titles, hero numbers |
-| Text | **Hanken Grotesk** | 400, 500, 600, 700 | everything — rows, labels, buttons, **data/numbers** |
-| Aside | **Fraunces** italic | 450, 500 | one warm line per screen (asides, empty states) |
-
-- **No monospace.** Numbers/times/amounts use Hanken with `font-variant-numeric: tabular-nums`.
-  Removing the mono was the single biggest fix for the "coding tool" feel.
-- Uppercase micro-labels are Hanken 600 with ~0.11em tracking (not a mono, not all-caps mono).
-- All three families are OFL / on Google Fonts.
+| ~~Display~~ | ~~**Bricolage Grotesque**~~ | ~~600, 700~~ | ~~greeting, screen & card titles, hero numbers~~ |
+| ~~Text~~ | ~~**Hanken Grotesk**~~ | ~~400, 500, 600, 700~~ | ~~everything — rows, labels, buttons, **data/numbers**~~ |
+| ~~Aside~~ | ~~**Fraunces** italic~~ | ~~450, 500~~ | ~~one warm line per screen (asides, empty states)~~ |
 
 **Radius (slightly friendlier than v1):** cards/sheets **18–20**, chips/inputs 8, buttons/dots 999.
 

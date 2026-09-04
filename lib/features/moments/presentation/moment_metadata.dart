@@ -1,5 +1,8 @@
+import 'package:flutter/widgets.dart';
+
 import '../../../core/media/domain/media_object.dart';
 import '../domain/moment.dart';
+import '../../../core/util/date_format.dart';
 
 /// One labelled metadata field shown in the photo detail panel.
 class MetadataRow {
@@ -19,13 +22,14 @@ class MetadataRow {
 /// "On this device" then would be a lie, so callers that know better pass
 /// false (the panel then shows exactly which copy IS authoritative).
 List<MetadataRow> buildMomentMetadata(
+  BuildContext context,
   Moment moment,
   MediaObject? media, {
   bool photoOnDevice = true,
 }) {
   final rows = <MetadataRow>[
-    MetadataRow('Date', formatFullDate(moment.takenAt)),
-    MetadataRow('Time', formatExactTime(moment.takenAt)),
+    MetadataRow('Date', formatFullDateLong(context, moment.takenAt)),
+    MetadataRow('Time', formatClockTimeWithSeconds(context, moment.takenAt)),
     MetadataRow('Time zone', formatTimeZone(moment.takenAt)),
   ];
   if (media != null && media.source != CaptureSource.unknown) {
@@ -48,26 +52,6 @@ List<MetadataRow> buildMomentMetadata(
     rows.add(MetadataRow('Backup', _backupLabel(media, photoOnDevice)));
   }
   return rows;
-}
-
-const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _months = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-/// e.g. "Wed, 20 August 2026".
-String formatFullDate(DateTime t) =>
-    '${_weekdays[t.weekday - 1]}, ${t.day} ${_months[t.month - 1]} ${t.year}';
-
-/// e.g. "11:47:32 AM" (12-hour with seconds).
-String formatExactTime(DateTime t) {
-  final isPm = t.hour >= 12;
-  var hour12 = t.hour % 12;
-  if (hour12 == 0) hour12 = 12;
-  final mm = t.minute.toString().padLeft(2, '0');
-  final ss = t.second.toString().padLeft(2, '0');
-  return '$hour12:$mm:$ss ${isPm ? 'PM' : 'AM'}';
 }
 
 /// e.g. "UTC+03:00 (EEST)" — from the DateTime's local offset and zone name.

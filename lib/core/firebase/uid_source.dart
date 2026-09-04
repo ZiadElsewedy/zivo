@@ -27,3 +27,21 @@ class UidSource {
   /// Emits whenever the signed-in uid changes (including sign-out as null).
   final Stream<String?> uidChanges;
 }
+
+/// The signed-in-user precondition every Firestore repository puts in front of
+/// a write.
+///
+/// Reads are uid-scoped by `UidScopedMirror` and degrade to an empty value
+/// when signed out; a *write* has nowhere to go, so it throws instead. Every
+/// repository used to carry an identical private `_requireUid()` differing
+/// only in the class name it reported — [owner] supplies that, so the message
+/// is unchanged ("FirestoreMomentRepository: no signed-in user.").
+extension RequireUid on UidSource {
+  String requireUid(Object owner) {
+    final uid = currentUid();
+    if (uid == null) {
+      throw StateError('${owner.runtimeType}: no signed-in user.');
+    }
+    return uid;
+  }
+}

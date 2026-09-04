@@ -12,6 +12,7 @@ const {
   TOOL_NAME,
   REJECT_TOOL_NAME,
   DEFAULT_REJECTION_REASON,
+  MAX_TEXT_CHARS,
 } = require("./workout_import");
 const {GatewayError} = require("./gateway");
 
@@ -399,4 +400,236 @@ test("extractWorkoutPlan: rejects an unsupported media type before calling the m
       },
   );
   assert.equal(callModel.lastRequest, undefined);
+});
+
+// ---- Live progress -------------------------------------------------------
+
+/**
+ * An `AnthropicProvider`-shaped client that streams a tool call's input JSON
+ * in fragments, the way the real SDK does. This is what makes the progress
+ * path testable offline: `callModel` alone can never exercise it, because a
+ * buffered call has no intermediate state to report.
+ * @param {!Object} finalResponse
+ * @param {!Array<string>} fragments
+ * @return {!Object}
+ */
+function streamingClient(finalResponse, fragments) {
+  return {
+    messages: {
+      create: async () => finalResponse,
+      stream: () => {
+        const handlers = {};
+        return {
+          on(event, fn) {
+            handlers[event] = fn;
+            return this;
+          },
+          async finalMessage() {
+            let snapshot = "";
+            for (const fragment of fragments) {
+              snapshot += fragment;
+              if (handlers.inputJson) handlers.inputJson(fragment, snapshot);
+            }
+            return finalResponse;
+          },
+        };
+      },
+    },
+  };
+}
+
+test("streams live progress as days and exercises are extracted", async () => {
+  const {AnthropicProvider} = require("./providers/anthropic_provider");
+  const input = {
+    planName: "Push Pull Legs",
+    days: [
+      {slot: "A", label: "Push", exercises: [
+        {name: "Bench Press", muscleGroup: "Chest", sets: 4, repsMin: 6,
+          repsMax: 8, toFailure: false, targetWeightKg: null,
+          restSeconds: null},
+      ]},
+      {slot: "B", label: "Pull", exercises: [
+        {name: "Row", muscleGroup: "Back", sets: 4, repsMin: 6, repsMax: 8,
+          toFailure: false, targetWeightKg: null, restSeconds: null},
+      ]},
+    ],
+  };
+  const json = JSON.stringify(input);
+  // Fragment it the way a token stream would — mid-word, mid-string.
+  const fragments = [];
+  for (let i = 0; i < json.length; i += 17) {
+    fragments.push(json.slice(i, i + 17));
+  }
+
+  const seen = [];
+  const result = await extractWorkoutPlan({
+    provider: new AnthropicProvider(
+        streamingClient(toolResponse(input), fragments)),
+    fileBase64: "QUJD",
+    onProgress: (p) => seen.push(p),
+  });
+
+  assert.equal(result.ok, true);
+  assert.ok(seen.length > 0, "progress must actually be reported");
+
+  // It grows, and it never goes backwards.
+  for (let i = 1; i < seen.length; i++) {
+    assert.ok(seen[i].days.length >= seen[i - 1].days.length);
+    assert.ok(seen[i].exercises >= seen[i - 1].exercises);
+  }
+  const last = seen[seen.length - 1];
+  assert.deepEqual(last.days, ["Push", "Pull"]);
+  assert.equal(last.exercises, 2);
+  assert.equal(last.planName, "Push Pull Legs");
+});
+
+test("progress is emitted only when the numbers change, not per token",
+    async () => {
+      const {AnthropicProvider} = require("./providers/anthropic_provider");
+      const input = {
+        planName: "PPL",
+        days: [{slot: "A", label: "Push", exercises: [
+          {name: "Bench", muscleGroup: null, sets: 3, repsMin: 8, repsMax: 8,
+            toFailure: false, targetWeightKg: null, restSeconds: null},
+        ]}],
+      };
+      const json = JSON.stringify(input);
+      // One fragment per character: the worst case the real stream can throw.
+      const fragments = json.split("");
+
+      const seen = [];
+      await extractWorkoutPlan({
+        provider: new AnthropicProvider(
+            streamingClient(toolResponse(input), fragments)),
+        fileBase64: "QUJD",
+        onProgress: (p) => seen.push(p),
+      });
+
+      // Three things can change (planName, a day, an exercise), so at most
+      // three events — not one per character.
+      assert.ok(seen.length <= 3,
+          `expected at most 3 events, got ${seen.length}`);
+      assert.ok(fragments.length > 50, "fixture must be token-dense");
+    });
+
+test("omitting onProgress leaves the call buffered", async () => {
+  const {AnthropicProvider} = require("./providers/anthropic_provider");
+  const input = {planName: "PPL", days: [{
+    slot: "A",
+    label: "Push",
+    exercises: [{name: "Bench", muscleGroup: null, sets: 3, repsMin: 8,
+      repsMax: 8, toFailure: false, targetWeightKg: null, restSeconds: null}],
+  }]};
+  let streamed = false;
+  const client = streamingClient(toolResponse(input), [JSON.stringify(input)]);
+  const realStream = client.messages.stream;
+  client.messages.stream = (...args) => {
+    streamed = true;
+    return realStream(...args);
+  };
+
+  const result = await extractWorkoutPlan({
+    provider: new AnthropicProvider(client),
+    fileBase64: "QUJD",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(streamed, false, "no onProgress must mean no streaming call");
+});
+
+// --- a dictated or typed description ---------------------------------------
+//
+// The same extractor, different material: a transcript of someone describing
+// their own split. One schema and one review screen serve every capture
+// route — mirrors `diet_import.test.js`'s description block.
+
+test("extractWorkoutPlan: sends a description as text, with no document block", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My split", days: [VALID_DAY]}));
+
+  const result = await extractWorkoutPlan({
+    callModel,
+    text: "Day A is push — bench press 4 by 8, incline press 3 by 10.",
+  });
+
+  assert.equal(result.ok, true);
+  const content = callModel.lastRequest.messages[0].content;
+  assert.equal(content.length, 1);
+  assert.equal(content[0].type, "text");
+  assert.match(content[0].text, /bench press 4 by 8/);
+  // The user's words are fenced, so the model can tell them from the
+  // instruction wrapping them.
+  assert.match(content[0].text, /---BEGIN DESCRIPTION---/);
+  assert.equal(
+      content.some((b) => b.type === "document" || b.type === "image"), false);
+});
+
+test("extractWorkoutPlan: a description gets the description prompt, not the document one", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "My split", days: [VALID_DAY]}));
+
+  await extractWorkoutPlan({callModel, text: "Day A is push, day B is pull."});
+  const spoken = callModel.lastRequest.system[0].text;
+  assert.match(spoken, /dictated and transcribed, or typed/);
+  // The rules that matter are shared, not duplicated per input kind.
+  assert.match(spoken, new RegExp(`Your default action is ${TOOL_NAME}`));
+
+  await extractWorkoutPlan({callModel, pdfBase64: "ZmFrZS1wZGY="});
+  assert.match(callModel.lastRequest.system[0].text, /Read every page/);
+});
+
+test("extractWorkoutPlan: a description still rejects when it isn't a plan", async () => {
+  const callModel = scriptedModel(rejectResponse("This is a to-do list."));
+
+  const result = await extractWorkoutPlan({
+    callModel,
+    text: "Remember to call the plumber and pick up a parcel.",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "This is a to-do list.");
+});
+
+test("extractWorkoutPlan: refuses both a file and a description in one call", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({
+        callModel, pdfBase64: "ZmFrZS1wZGY=", text: "Day A is push.",
+      }),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: refuses neither, and treats a blank description as neither", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel, text: "   \n  "}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: refuses a description past the length bound", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  await assert.rejects(
+      () => extractWorkoutPlan({callModel, text: "a".repeat(MAX_TEXT_CHARS + 1)}),
+      (err) => err instanceof GatewayError && err.code === "invalid-argument");
+});
+
+test("extractWorkoutPlan: a description does not need a media type", async () => {
+  const callModel = scriptedModel(
+      toolResponse({planName: "PPL", days: [VALID_DAY]}));
+
+  // mediaType is meaningless for text; supplying a bogus one must not be
+  // validated against the file vocabulary and reject a good description.
+  const result = await extractWorkoutPlan({
+    callModel, text: "Day A: squats 5 by 5.", mediaType: "text/plain",
+  });
+  assert.equal(result.ok, true);
 });

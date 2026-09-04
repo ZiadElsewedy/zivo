@@ -61,12 +61,22 @@ spirit. Owner: Ziad.
   [`lib/core/theme/`](lib/core/theme) and [`lib/core/motion/springs.dart`](lib/core/motion/springs.dart),
   and the shared capture widgets. **One palette only — `TrainColors`; `AppColors`/`AppShadows`
   are deleted and must not come back** ([ADR-006](docs/DECISIONS/ADR-006-one-design-system.md)).
+  **One type system only — three families, all named in `train_tokens.dart`: Manrope (text),
+  Azeret Mono (numbers), Instrument Serif italic (ZIVO speaking). Never call `GoogleFonts`
+  anywhere else** ([ADR-009](docs/DECISIONS/ADR-009-one-type-system.md)).
   See also [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) for intent (superseded for
-  colour values by ADR-006).
+  colour values by ADR-006 and for typography by ADR-009).
 - **Security is deny-by-default, owner-scoped.** All persistence goes through Firestore
   with per-collection field validation in [`firestore.rules`](firestore.rules), covered by
   the emulator suite in [`firestore-tests/`](firestore-tests). A new collection needs a
-  rule **and** a rule test.
+  rule **and** a rule test. Several policies are stated on **both** sides of the wire
+  (email verification, password strength, reauth-before-delete, paid-endpoint quotas) —
+  the client half picks the screen, the server half is the boundary. Change one, change
+  the other: the table is in [`docs/AUTH.md`](docs/AUTH.md) §4.
+- **Identity is not the user.** `features/auth/` holds credentials and session and stays
+  free of every ZIVO concept so it can be lifted into another project; the app's own
+  record of a person lives in `features/profile/`, keyed by uid. Never add a product
+  field to `AuthUser` or to the Firebase Auth record — see [`docs/AUTH.md`](docs/AUTH.md).
 - **Don't present demo/in-memory data as persistent.** In-memory repos are the offline/test
   fallback; the real app runs on Firestore (`USE_FIRESTORE` defaults true).
 - **Reference docs are not current state.** `docs/PLAN.md` is aspirational; the big docs are
@@ -88,7 +98,8 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | **ai** | "Ask": streaming chat + tool-mediated read/confirm-write over your data + voice — **the coach** | [`lib/features/ai/`](lib/features/ai/FEATURE.md) | [ADR-001](docs/DECISIONS/ADR-001-ai-assistant.md), [ADR-003](docs/DECISIONS/ADR-003-ai-mutations-v2.md) |
 | **diet** | Meal plans, daily ledger, PDF import, AI kcal — training fuel | [`lib/features/diet/`](lib/features/diet/FEATURE.md) | — |
 | **music** | Training-anchored Spotify now-playing + color-adaptive Now Playing screen | [`lib/features/music/`](lib/features/music/FEATURE.md) | — |
-| **auth** | Email-OTP + Apple/Google/password, verify, profile, settings, privacy | [`lib/features/auth/`](lib/features/auth/FEATURE.md) | — |
+| **auth** | Email-OTP + Apple/Google/password, verify, session, account lifecycle — **portable module** | [`lib/features/auth/`](lib/features/auth/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
+| **profile** | The app's own user record (name · DOB · photo · bio) + `SessionState` — app-specific half of auth | [`lib/features/profile/`](lib/features/profile/FEATURE.md) | [AUTH.md](docs/AUTH.md) |
 | **expenses** | Append-only spend log, wallet balance, categories | [`lib/features/expenses/`](lib/features/expenses/FEATURE.md) | — |
 | **moments** | Local-first photo memories, timeline, viewer | [`lib/features/moments/`](lib/features/moments/FEATURE.md) | — |
 | **home** | Today surface (reactive glances: training, diet, spend, move ring) | [`lib/features/home/`](lib/features/home/FEATURE.md) | [UX_BLUEPRINT.md](docs/UX_BLUEPRINT.md) |
@@ -107,12 +118,14 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | [`core/motion/springs.dart`](lib/core/motion/springs.dart) | Apple-style springs (damping + response) — the one motion material |
 | [`core/media/`](lib/core/media) | Storage-agnostic media pipeline: local-first store + registry + Google Drive backup |
 | [`core/env/app_environment.dart`](lib/core/env/app_environment.dart) | `USE_FIRESTORE` and other dart-define flags |
-| [`core/firebase/uid_source.dart`](lib/core/firebase/uid_source.dart) | Current-uid source injected into every Firestore repo |
-| [`core/widgets/`](lib/core/widgets) | Shared widgets (RiseIn, reactive state views, toasts, loading bar, marks). **`zivo_sheet.dart` is the one way to open a bottom sheet** (`showZivoSheet`, + `ZivoSheetSurface`/`ZivoSheetHandle` for the chrome); **`zivo_field.dart` is the one filled-input decoration** (`zivoFieldDecoration`, which takes the feature's hue); **`zivo_confirm.dart` is the one destructive confirmation** (`confirmDestructive`, whose labels default to the localized `actionDelete`/`actionCancel`) |
-| [`core/util/`](lib/core/util) | Small shared functions — `parse.dart` (every number a user types), `money.dart`, `time_ago.dart` |
+| [`core/firebase/`](lib/core/firebase) | `uid_source.dart` — current-uid source injected into every Firestore repo, plus `requireUid(this)`, the signed-in precondition in front of every write. **`uid_scoped_mirror.dart` is the one way a repository mirrors a uid-scoped Firestore read** (`UidScopedMirror<T>`): uid re-scoping, the cached `current`, the late-subscriber replay, and the always-on listener. A new Firestore repo supplies only its query and its doc→domain mapper — never its own `StreamController`/uid plumbing |
+| [`core/widgets/`](lib/core/widgets) | Shared widgets (RiseIn, reactive state views, toasts, loading bar, marks). **`async_action.dart` is the one re-entrancy guard for a button that commits** (`AsyncAction` mixin — `runAction(#save, …, once: true)` for anything that saves and pops); `deferred_write_reporter.dart` surfaces a deferred write that failed. **`zivo_sheet.dart` is the one way to open a bottom sheet** (`showZivoSheet`, + `ZivoSheetSurface`/`ZivoSheetHandle` for the chrome); **`zivo_field.dart` is the one filled-input decoration** (`zivoFieldDecoration`, which takes the feature's hue); **`zivo_confirm.dart` is the one destructive confirmation** (`confirmDestructive`, whose labels default to the localized `actionDelete`/`actionCancel`) |
+| [`core/util/`](lib/core/util) | Small shared functions — `parse.dart` (every number a user types), `money.dart`, `time_ago.dart`, **`deferred_write.dart`** (local-first saves: hand the durable write to `deferWrite` and pop — never `await` a repository before navigating), **`date_format.dart` is the one way to render a date, weekday or clock time** (`formatMonthDay`, `formatClockTime`, `formatWeekdayDate`, … — all take `BuildContext` and resolve through the reader's locale). Never hand-roll a `['Jan', …]` / `['Mon', …]` table or an `isPm ? 'PM' : 'AM'`: a month name that is not a string the translator can see is a bug no `.arb` key can fix |
 
 **Backend ([`functions/`](functions), Node — Cloud Functions):** `functions/ai/` —
-`gateway.js` (Ask streaming + tool loop + coach persona), `tools.js` (read tools),
+`gateway.js` (Ask facade → **`chat/`**: turn loop, system prompt in
+`chat/prompt/sections/`, context/token/cost logic — see `chat/README.md`),
+`tools.js` (read tools),
 `mutations.js` (confirm-gated writes), `workout_import.js`, `diet_import.js`,
 `coach_report.js`, `store.js`, `dates.js`. `functions/auth/activity.js` (auth event log +
 OTP mail). Each has a `*.test.js` (`node --test`, offline).
@@ -174,8 +187,9 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference | reference |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits · sessions · progression engine | reference |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction/screen blueprints | design intent |
-| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Type · motion · tone identity (colour superseded by ADR-006) | reference |
+| [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Motion · tone · meaning identity (colour superseded by ADR-006, type by ADR-009) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
 | [`docs/DECISIONS/ADR-008-presentation-controllers.md`](docs/DECISIONS/ADR-008-presentation-controllers.md) | **When a page gets a controller, and the rules that keep the seam honest** | reference |
+| [`docs/DECISIONS/ADR-009-one-type-system.md`](docs/DECISIONS/ADR-009-one-type-system.md) | **Three typefaces, one system — what `AppText` and `TrainType` are each for** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

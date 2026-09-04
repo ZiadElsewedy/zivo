@@ -13,6 +13,7 @@ import '../../domain/diet_goal.dart';
 import '../../domain/diet_plan.dart';
 import '../../domain/nutrition_targets.dart';
 import '../../../../l10n/l10n.dart';
+import '../diet_labels.dart';
 
 /// Adopting the plan's own numbers as the daily target — the shortest honest
 /// route from "I have a plan" to "the app can tell me how I'm doing".
@@ -113,13 +114,19 @@ class _AdoptSheetState extends State<_AdoptSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Use your plan's numbers", style: AppText.rowTitle),
+            Text(l(context).dietUsePlanNumbers, style: AppText.rowTitle),
             const SizedBox(height: 4),
             Text(
               energy.daysCounted > 1
-                  ? '$tilde$_calories kcal a day, averaged over the '
-                        '${energy.daysCounted} days of ${widget.plan.name}.'
-                  : '$tilde$_calories kcal a day, from ${widget.plan.name}.',
+                  ? l(context).dietPlanAverageOverDays(
+                      '$tilde$_calories',
+                      energy.daysCounted,
+                      widget.plan.name,
+                    )
+                  : l(context).dietPlanFrom(
+                      '$tilde$_calories',
+                      widget.plan.name,
+                    ),
               key: const Key('adopt-summary'),
               style: AppText.meta.copyWith(
                 color: TrainColors.ink3,
@@ -129,14 +136,12 @@ class _AdoptSheetState extends State<_AdoptSheet> {
             if (energy.daysWithoutCalories > 0) ...[
               const SizedBox(height: 6),
               Text(
-                '${energy.daysWithoutCalories} '
-                '${energy.daysWithoutCalories == 1 ? "day has" : "days have"} '
-                'no calorie figures and are not in that average.',
+                l(context).dietDaysWithoutCalories(energy.daysWithoutCalories),
                 style: AppText.meta.copyWith(color: TrainColors.ink3),
               ),
             ],
             const SizedBox(height: 20),
-            const TrainSectionLabel('What is it for?'),
+            TrainSectionLabel(l(context).dietWhatIsItFor),
             const SizedBox(height: 11),
             Wrap(
               spacing: 7,
@@ -145,7 +150,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
                 for (final goal in DietGoal.values)
                   SelectChip(
                     key: Key('adopt-goal-${goal.name}'),
-                    label: dietGoalLabel(goal),
+                    label: dietGoalText(context, goal),
                     selected: _goal == goal,
                     onTap: () => setState(() => _goal = goal),
                   ),
@@ -156,18 +161,14 @@ class _AdoptSheetState extends State<_AdoptSheet> {
               _goal == null
                   // Said plainly: this is the one thing the plan cannot tell
                   // ZIVO, and every piece of coaching downstream reads it.
-                  ? 'The same calories mean different things depending on what '
-                        "you're doing. ZIVO needs this to say how you're doing "
-                        'against them.'
-                  : dietGoalDescription(_goal!),
+                  ? l(context).dietWhyGoalMatters
+                  : dietGoalDetailText(context, _goal!),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
             if (targetIsBelowSafetyFloor(_calories)) ...[
               const SizedBox(height: 14),
               Text(
-                'This plan averages under $kMinimumSafeCalories kcal a day. '
-                'Adopting it as a target is worth talking through with a '
-                'doctor or a registered dietitian first.',
+                l(context).dietPlanBelowSafeFloor(kMinimumSafeCalories),
                 key: const Key('adopt-safety-floor'),
                 style: AppText.meta.copyWith(
                   color: TrainColors.ember,

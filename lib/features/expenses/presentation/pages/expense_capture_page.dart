@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/deferred_write.dart';
 import '../../../../core/util/money.dart';
+import '../../../../core/widgets/async_action.dart';
 import '../../../capture/presentation/widgets/capture_widgets.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_category.dart';
@@ -11,6 +13,7 @@ import '../widgets/add_category_sheet.dart';
 import '../widgets/amount_keypad.dart';
 import '../widgets/category_chips.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/date_format.dart';
 
 /// Expense capture — the sub-5-second flow. Amount first, keypad up, one tap
 /// to categorise, Save. A Solar screen throughout. Pass [initial] to edit an
@@ -25,7 +28,8 @@ class ExpenseCapturePage extends StatefulWidget {
   State<ExpenseCapturePage> createState() => _ExpenseCapturePageState();
 }
 
-class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
+class _ExpenseCapturePageState extends State<ExpenseCapturePage>
+    with AsyncAction<ExpenseCapturePage> {
   String _digits = '';
   String _currency = 'EGP';
   String _categoryId = 'food';
@@ -60,21 +64,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
     );
     if (day == today) return l(context).dateToday;
     if (day == today.subtract(const Duration(days: 1))) return l(context).dateYesterday;
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${day.day} ${months[day.month - 1]}';
+    return formatMonthDay(context, day);
   }
 
   void _onKey(KeypadKey key) {
@@ -143,32 +133,47 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
     }
   }
 
-  Future<void> _save() async {
+  /// Local-first, and this is the flow that needed it most: `addExpense`
+  /// writes the log row AND adjusts the wallet, and the wallet adjustment is
+  /// a Firestore `runTransaction` — which does not use the offline cache at
+  /// all, so awaiting it froze the sub-5-second capture flow for a whole
+  /// round trip (indefinitely, on a bad connection). The list and the balance
+  /// behind this screen update off the cached write; the durable half
+  /// finishes on its own.
+  void _save() {
     if (!_canSave) return;
-    final service = AppScope.of(context).expensesService;
-    final initial = widget.initial;
-    final expense = Expense(
-      id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      amountMinor: _amountMinor,
-      currency: _currency,
-      categoryId: _categoryId,
-      spentAt: initial?.spentAt ?? DateTime.now(),
-      note: _note,
-    );
-    if (initial == null) {
-      await service.addExpense(expense);
-    } else {
-      await service.updateExpense(initial, expense);
-    }
-    if (mounted) Navigator.of(context).pop(expense);
+    runAction(#save, once: true, () async {
+      final service = AppScope.of(context).expensesService;
+      final initial = widget.initial;
+      final expense = Expense(
+        id: initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        amountMinor: _amountMinor,
+        currency: _currency,
+        categoryId: _categoryId,
+        spentAt: initial?.spentAt ?? DateTime.now(),
+        note: _note,
+      );
+      deferWrite(
+        initial == null
+            ? service.addExpense(expense)
+            : service.updateExpense(initial, expense),
+        failureMessage: l(context).expenseSaveFailed,
+      );
+      Navigator.of(context).pop(expense);
+    });
   }
 
-  Future<void> _delete() async {
+  void _delete() {
     final initial = widget.initial;
     if (initial == null) return;
-    final service = AppScope.of(context).expensesService;
-    await service.removeExpense(initial);
-    if (mounted) Navigator.of(context).pop();
+    runAction(#delete, once: true, () async {
+      final service = AppScope.of(context).expensesService;
+      deferWrite(
+        service.removeExpense(initial),
+        failureMessage: l(context).expenseDeleteFailed,
+      );
+      Navigator.of(context).pop();
+    });
   }
 
   Future<void> _addCategory() async {
@@ -234,9 +239,15 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: _SaveButton(
-                enabled: _canSave,
+                // `_canSave` alone drives the LABEL so it doesn't flip back to
+                // a bare "Save" the instant the button is tapped; the
+                // in-flight guard only disables.
+                enabled: _canSave && !actionInFlight,
+                busy: isRunning(#save),
                 label: _canSave
-                    ? l(context).expenseSaveAmount('${formatAmount(_amountMinor)} $_currency')
+                    ? l(context).expenseSaveAmount(
+                        '${formatAmount(_amountMinor)} $_currency',
+                      )
                     : l(context).actionSave,
                 onTap: _save,
               ),
@@ -381,11 +392,13 @@ class _SaveButton extends StatelessWidget {
     required this.enabled,
     required this.label,
     required this.onTap,
+    this.busy = false,
   });
 
   final bool enabled;
   final String label;
   final VoidCallback onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -404,10 +417,22 @@ class _SaveButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.check_rounded,
-                  size: 17,
-                  color: Color(0xFF2A2205),
+                SizedBox(
+                  width: 17,
+                  height: 17,
+                  child: busy
+                      ? const Padding(
+                          padding: EdgeInsets.all(1.5),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF2A2205),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.check_rounded,
+                          size: 17,
+                          color: Color(0xFF2A2205),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 Text(

@@ -8,23 +8,21 @@ import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/util/time_ago.dart';
 import '../../../../core/widgets/pressable_scale.dart';
-import '../../domain/day_progress_analysis.dart';
+import '../../domain/analytics/workout_analytics.dart';
 import '../../domain/live_session.dart';
-import '../../domain/progress_comparison.dart';
 import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
-import '../../domain/up_next_selection.dart';
 import '../../domain/workout_plan.dart';
 import '../widgets/animated_stat_value.dart';
 import '../widgets/staggered_reveal.dart';
-import '../widgets/verdict_style.dart';
 import '../widgets/workout_section_label.dart';
 import 'session_details_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
-import 'workout_dashboard_page.dart' show formatDurationShort;
 import 'workout_history_page.dart';
 import 'workout_plan_page.dart';
+import '../../../../l10n/l10n.dart';
+import '../workout_format.dart';
 
 /// The Workout tab's second screen — everything that used to crowd the
 /// dashboard landing. The landing answers "what am I doing now"; this
@@ -63,16 +61,7 @@ class WorkoutProgressPage extends StatelessWidget {
                 sessions: sessions,
                 now: now,
               );
-              final selection = plan == null
-                  ? null
-                  : resolveUpNext(plan, _firstActive(sessions));
-              final analysis = (plan == null || selection?.day == null)
-                  ? null
-                  : analyzeDayProgress(
-                      day: selection!.day!,
-                      planId: plan.id,
-                      allSessions: sessions,
-                    );
+              final analysis = analyzeTraining(sessions: sessions, now: now);
 
               return ListView(
                 padding: EdgeInsets.fromLTRB(
@@ -84,7 +73,7 @@ class WorkoutProgressPage extends StatelessWidget {
                 children: [
                   StaggeredReveal(
                     index: 0,
-                    child: const TrainPageHeader(title: 'Progress'),
+                    child: TrainPageHeader(title: l(context).workoutProgress),
                   ),
                   const SizedBox(height: 24),
                   // ---- HOW MUCH ---------------------------------
@@ -94,13 +83,13 @@ class WorkoutProgressPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
                   // ---- HOW WELL ---------------------------------
-                  if (analysis != null) ...[
+                  if (analysis.completedSessionCount > 0) ...[
                     StaggeredReveal(
                       index: 1,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const WorkoutSectionLabel('Progress'),
+                          WorkoutSectionLabel(l(context).workoutProgress),
                           const SizedBox(height: 10),
                           ProgressSummaryCard(analysis: analysis),
                         ],
@@ -114,7 +103,7 @@ class WorkoutProgressPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const WorkoutSectionLabel('Current split'),
+                          WorkoutSectionLabel(l(context).workoutCurrentSplit),
                           const SizedBox(height: 10),
                           SplitBreakdownCard(plan: plan, stats: stats),
                         ],
@@ -127,8 +116,10 @@ class WorkoutProgressPage extends StatelessWidget {
                     index: 3,
                     child: Row(
                       children: [
-                        const Expanded(
-                          child: WorkoutSectionLabel('Recent activity'),
+                        Expanded(
+                          child: WorkoutSectionLabel(
+                            l(context).workoutRecentActivity,
+                          ),
                         ),
                         if (stats.recentSessions.isNotEmpty)
                           _SeeAllLink(
@@ -148,8 +139,8 @@ class WorkoutProgressPage extends StatelessWidget {
                   if (stats.recentSessions.isEmpty)
                     StaggeredReveal(
                       index: 4,
-                      child: const _EmptyCard(
-                        label: "You haven't logged a session yet.",
+                      child: _EmptyCard(
+                        label: l(context).workoutNoSessionYet,
                       ),
                     )
                   else
@@ -179,15 +170,15 @@ class WorkoutProgressPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const WorkoutSectionLabel('Go deeper'),
+                        WorkoutSectionLabel(l(context).workoutGoDeeper),
                         const SizedBox(height: 10),
                         _DestinationCard(
                           destinations: [
                             _Destination(
                               icon: AppIcons.analysis,
                               accent: TrainColors.green,
-                              label: 'Full analysis',
-                              detail: 'Exercise-by-exercise, per training day',
+                              label: l(context).workoutFullAnalysis,
+                              detail: l(context).workoutFullAnalysisDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -200,8 +191,8 @@ class WorkoutProgressPage extends StatelessWidget {
                             _Destination(
                               icon: AppIcons.history,
                               accent: TrainColors.green,
-                              label: 'All history',
-                              detail: 'Every session you have logged',
+                              label: l(context).workoutAllHistory,
+                              detail: l(context).workoutAllHistoryDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -214,8 +205,8 @@ class WorkoutProgressPage extends StatelessWidget {
                             _Destination(
                               icon: AppIcons.splits,
                               accent: TrainColors.green,
-                              label: 'Splits',
-                              detail: 'Switch or edit your training splits',
+                              label: l(context).workoutSplits,
+                              detail: l(context).workoutSplitsDetail,
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 Navigator.of(context).push(
@@ -259,7 +250,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.sessions,
                 accent: TrainColors.green,
                 value: '${stats.sessionsThisWeek}',
-                label: 'This week',
+                label: l(context).workoutThisWeek,
               ),
             ),
             const SizedBox(width: 10),
@@ -268,7 +259,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.streak,
                 accent: TrainColors.green,
                 value: '${stats.currentStreakDays}',
-                label: 'Day streak',
+                label: l(context).workoutDayStreak,
               ),
             ),
           ],
@@ -281,7 +272,7 @@ class _OverviewStrip extends StatelessWidget {
                 icon: AppIcons.analysis,
                 accent: TrainColors.green,
                 value: '${stats.totalCompletedSessions}',
-                label: 'Total sessions',
+                label: l(context).workoutTotalSessions,
               ),
             ),
             const SizedBox(width: 10),
@@ -291,8 +282,8 @@ class _OverviewStrip extends StatelessWidget {
                 accent: TrainColors.green,
                 value: stats.averageSessionDuration == null
                     ? '—'
-                    : formatDurationShort(stats.averageSessionDuration!),
-                label: 'Avg length',
+                    : formatDurationShort(context, stats.averageSessionDuration!),
+                label: l(context).workoutAvgLength,
               ),
             ),
           ],
@@ -360,31 +351,21 @@ class _OverviewTile extends StatelessWidget {
   }
 }
 
-LiveSession? _firstActive(List<LiveSession> sessions) {
-  for (final s in sessions) {
-    if (s.status == SessionStatus.active) return s;
-  }
-  return null;
-}
-
-/// The active up-next day's overall verdict. Tapping anywhere opens the full
-/// [WorkoutAnalysisPage] for the day-by-day, exercise-by-exercise breakdown.
+/// The overall training verdict from the centralized [analyzeTraining] engine
+/// — the SAME summary the full analysis page and the AI coach use, so all
+/// three agree. Tapping opens the full [WorkoutAnalysisPage].
 class ProgressSummaryCard extends StatelessWidget {
   const ProgressSummaryCard({required this.analysis, super.key});
 
-  final DayProgressAnalysis analysis;
+  final TrainingAnalysis analysis;
 
   @override
   Widget build(BuildContext context) {
-    final overall = analysis.overallVerdict;
-    final (headline, color) = switch (overall) {
-      null => (
-        analysis.sessionCount == 0 ? "Let's get started" : 'Almost there',
-        TrainColors.ink2,
-      ),
-      ProgressVerdict.progressing => ('Progressing', TrainColors.green),
-      ProgressVerdict.matched => ('Holding steady', TrainColors.ink2),
-      ProgressVerdict.down => ('Slipping', TrainColors.ember),
+    final (color, icon) = switch (analysis.overallStatus) {
+      ProgressStatus.progressing => (TrainColors.green, AppIcons.trendUp),
+      ProgressStatus.regressing => (TrainColors.ember, AppIcons.trendDown),
+      ProgressStatus.plateauing => (TrainColors.amber, AppIcons.minus),
+      _ => (TrainColors.ink2, AppIcons.analysis),
     };
     return PressableScale(
       child: Material(
@@ -432,39 +413,16 @@ class ProgressSummaryCard extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(9),
                       ),
-                      child: Icon(
-                        overall == null
-                            ? AppIcons.analysis
-                            : switch (overall) {
-                                ProgressVerdict.progressing => AppIcons.trendUp,
-                                ProgressVerdict.matched => AppIcons.minus,
-                                ProgressVerdict.down => AppIcons.trendDown,
-                              },
-                        size: 16,
-                        color: color,
-                      ),
+                      child: Icon(icon, size: 16, color: color),
                     ),
                     const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        analysis.day.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TrainType.ui(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          color: TrainColors.inkPlain,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                    if (overall != null)
-                      _AnalysisVerdictBadge(verdict: overall),
+                    if (analysis.recentPrs.isNotEmpty)
+                      _PrCountBadge(count: analysis.recentPrs.length),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  headline,
+                  analysis.summaryHeadline,
                   style: TrainType.ui(
                     size: 24,
                     weight: FontWeight.w800,
@@ -475,16 +433,12 @@ class ProgressSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  overall == null
-                      ? (analysis.sessionCount == 0
-                            ? 'Log ${analysis.day.label} to start tracking progress.'
-                            : "Log ${analysis.day.label} once more to see how you're trending.")
-                      : '${analysis.improvedCount} improved · ${analysis.matchedCount} matched · '
-                            '${analysis.regressedCount} regressed',
-                  style: TrainType.mono(
-                    size: 10.5,
-                    tracking: 0.06,
-                    color: TrainColors.ink4,
+                  analysis.summaryDetail,
+                  style: TrainType.ui(
+                    size: 13.5,
+                    weight: FontWeight.w400,
+                    height: 1.4,
+                    color: TrainColors.ink2,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -492,7 +446,7 @@ class ProgressSummaryCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'SEE FULL ANALYSIS',
+                      l(context).workoutSeeFullAnalysisCaps,
                       style: TrainType.mono(
                         size: 9.5,
                         color: TrainColors.green,
@@ -516,31 +470,28 @@ class ProgressSummaryCard extends StatelessWidget {
   }
 }
 
-class _AnalysisVerdictBadge extends StatelessWidget {
-  const _AnalysisVerdictBadge({required this.verdict});
+class _PrCountBadge extends StatelessWidget {
+  const _PrCountBadge({required this.count});
 
-  final ProgressVerdict verdict;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, label) = verdictStyle(verdict);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: TrainColors.amber.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
+          const Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
           const SizedBox(width: 4),
-          // Verdict color is the state, not decoration — animate it with
-          // the label rather than snapping when a new session re-verdicts.
           AnimatedStatValue(
-            value: label,
+            value: l(context).workoutPrCount(count),
             style: TrainType.mono(
-              color: color,
+              color: TrainColors.amber,
               weight: FontWeight.w600,
               tracking: 0.12,
               size: 9.5,
@@ -637,7 +588,9 @@ class SplitBreakdownCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           AnimatedStatValue(
                             value:
-                                '${stats.totalCompletedSessions} session${stats.totalCompletedSessions == 1 ? '' : 's'} completed',
+                                l(context).workoutSessionsCompletedCount(
+                                  stats.totalCompletedSessions,
+                                ),
                             style: TrainType.mono(
                               size: 10.5,
                               tracking: 0.06,
@@ -779,7 +732,7 @@ class _PlanLinkButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Text(
-              'Plan',
+              l(context).workoutPlanShort,
               style: TrainType.ui(
                 color: TrainColors.ink2,
                 weight: FontWeight.w600,
@@ -812,7 +765,7 @@ class _SeeAllLink extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'SEE ALL',
+                  l(context).workoutSeeAllCaps,
                   style: TrainType.mono(
                     size: 9.5,
                     weight: FontWeight.w600,
@@ -845,9 +798,18 @@ class _RecentSessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', TrainColors.green),
-      SessionStatus.active => ('In progress', TrainColors.amber),
-      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
+      SessionStatus.completed => (
+        l(context).workoutSessionCompleted,
+        TrainColors.green,
+      ),
+      SessionStatus.active => (
+        l(context).workoutSessionInProgress,
+        TrainColors.amber,
+      ),
+      SessionStatus.abandoned => (
+        l(context).workoutSessionNotCompleted,
+        TrainColors.ink4,
+      ),
     };
     return PressableScale(
       child: Material(
@@ -906,8 +868,13 @@ class _RecentSessionRow extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         session.status == SessionStatus.completed
-                            ? '${timeAgo(session.startedAt, now)} ago · ${formatDurationShort(session.elapsed)}'
-                            : '${timeAgo(session.startedAt, now)} ago',
+                            ? l(context).workoutAgoWithDuration(
+                                timeAgo(session.startedAt, now),
+                                formatDurationShort(context, session.elapsed),
+                              )
+                            : l(context).workoutAgo(
+                                timeAgo(session.startedAt, now),
+                              ),
                         style: TrainType.mono(
                           size: 10.5,
                           tracking: 0.06,

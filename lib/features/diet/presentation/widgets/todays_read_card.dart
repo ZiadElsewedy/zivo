@@ -8,6 +8,7 @@ import '../../domain/coaching/evidence.dart';
 import '../../domain/coaching/finding.dart';
 import '../../domain/coaching/rules.dart';
 import '../../domain/diet_state.dart';
+import '../../../../l10n/l10n.dart';
 
 /// **The coach's read on today, on the screen, without a model call.**
 ///
@@ -48,7 +49,7 @@ class TodaysReadCard extends StatelessWidget {
         // Owns its leading gap, so a quiet day collapses to nothing at all
         // rather than to a doubled space where the card would have been.
         const SizedBox(height: 20),
-        const TrainSectionLabel('Today’s read'),
+        TrainSectionLabel(l(context).dietTodaysRead),
         const SizedBox(height: 11),
         TrainCard(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -132,7 +133,9 @@ class _FindingTileState extends State<_FindingTile> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _open ? 'HIDE' : 'WHY',
+                        _open
+                            ? l(context).dietHideCaps
+                            : l(context).dietWhyCaps,
                         style: TrainType.caption(
                           size: 9,
                           tracking: 0.18,

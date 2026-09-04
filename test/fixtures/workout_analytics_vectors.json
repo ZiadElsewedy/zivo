@@ -1,0 +1,151 @@
+{
+  "_comment": "Shared golden vectors pinning the workout analytics primitives across the Dart engine (lib/features/workout/domain/analytics/workout_analytics.dart) and its Node mirror (functions/ai/workout_analytics.js). BOTH test suites assert against this file; change one engine and the other fails until they agree. Keep e1RM values to 4-decimal tolerance.",
+  "e1rm": [
+    {"weightKg": 100, "reps": 1, "expected": 100.0},
+    {"weightKg": 100, "reps": 5, "expected": 116.6667},
+    {"weightKg": 100, "reps": 8, "expected": 126.6667},
+    {"weightKg": 100, "reps": 10, "expected": 133.3333},
+    {"weightKg": 60, "reps": 12, "expected": 84.0},
+    {"weightKg": 100, "reps": 13, "expected": null},
+    {"weightKg": 0, "reps": 5, "expected": null},
+    {"weightKg": 100, "reps": 0, "expected": null},
+    {"weightKg": null, "reps": 5, "expected": null},
+    {"weightKg": 100, "reps": null, "expected": null}
+  ],
+  "muscle": [
+    {"raw": "Chest", "expected": "Chest"},
+    {"raw": "Pecs", "expected": "Chest"},
+    {"raw": "upper chest", "expected": "Chest"},
+    {"raw": "Lats", "expected": "Back"},
+    {"raw": "Barbell Row", "expected": "Back"},
+    {"raw": "Quads", "expected": "Legs"},
+    {"raw": "Hamstrings", "expected": "Legs"},
+    {"raw": "Calves", "expected": "Legs"},
+    {"raw": "rear delts", "expected": "Shoulders"},
+    {"raw": "Shoulders", "expected": "Shoulders"},
+    {"raw": "Biceps", "expected": "Arms"},
+    {"raw": "Triceps", "expected": "Arms"},
+    {"raw": "abs", "expected": "Core"},
+    {"raw": "core", "expected": "Core"},
+    {"raw": "gibberish", "expected": null},
+    {"raw": "", "expected": null},
+    {"raw": null, "expected": null}
+  ],
+  "_exerciseAnalysisComment": "Pins analyzeExercise across the Dart (exercise_analysis.dart) and Node (exercise_analytics.js) engines. Both suites build sessions from the specs (sets are {reps, weight}; weight null = bodyweight) at `now` minus `daysAgo` days, run analyzeExercise, and assert `expect`. e1RM to 0.01 tolerance; changeSign is sign(percent) as -1/0/1. tags order is pinned too.",
+  "exerciseAnalysis": [
+    {
+      "name": "40x7 beats 35x10 on estimated strength (the headline case)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "incline",
+      "sessions": [
+        {"id": "s_last", "daysAgo": 7, "sets": [{"reps": 8, "weight": 35}, {"reps": 10, "weight": 35}]},
+        {"id": "s_this", "daysAgo": 1, "sets": [{"reps": 7, "weight": 40}, {"reps": 7, "weight": 40}, {"reps": 6, "weight": 37}]}
+      ],
+      "expect": {
+        "totalSessions": 2,
+        "status": "building",
+        "isWeighted": true,
+        "currentE1RM": 49.3333,
+        "latest": {"topWeightKg": 40, "topReps": 7, "totalReps": 20, "totalVolumeKg": 782, "bestE1RM": 49.3333, "workingSetCount": 3, "isPrSession": true},
+        "previous": {"topWeightKg": 35, "topReps": 10, "totalVolumeKg": 630, "bestE1RM": 46.6667},
+        "latestComparison": {"tone": "improved", "loadChangeKg": 5, "topRepsChange": -3, "e1rmChangeSign": 1, "volumeChangeSign": 1, "tags": ["newPr", "strengthUp", "loadUp", "repsDown", "volumeUp"]}
+      }
+    },
+    {
+      "name": "lighter for far more volume = mixed (intensity down, volume up)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "squat",
+      "sessions": [
+        {"id": "a", "daysAgo": 4, "sets": [{"reps": 5, "weight": 100}]},
+        {"id": "b", "daysAgo": 1, "sets": [{"reps": 12, "weight": 80}, {"reps": 12, "weight": 80}]}
+      ],
+      "expect": {
+        "totalSessions": 2,
+        "status": "building",
+        "isWeighted": true,
+        "latestComparison": {"tone": "mixed", "loadChangeKg": -20, "topRepsChange": 7, "e1rmChangeSign": -1, "volumeChangeSign": 1, "tags": ["newPr", "strengthDown", "loadDown", "repsUp", "volumeUp"]}
+      }
+    },
+    {
+      "name": "bodyweight movement judged on reps, not estimated 1RM",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "pullup",
+      "sessions": [
+        {"id": "a", "daysAgo": 3, "sets": [{"reps": 8, "weight": null}, {"reps": 8, "weight": null}]},
+        {"id": "b", "daysAgo": 1, "sets": [{"reps": 10, "weight": null}, {"reps": 10, "weight": null}]}
+      ],
+      "expect": {
+        "totalSessions": 2,
+        "isWeighted": false,
+        "currentE1RM": null,
+        "latestComparison": {"tone": "improved", "loadChangeKg": null, "topRepsChange": 2, "e1rmChangeSign": 0, "volumeChangeSign": 0, "tags": ["newPr", "repsUp"]}
+      }
+    }
+  ],
+  "_planAdherenceComment": "Pins analyzePlanAdherence across Dart (plan_adherence.dart) and Node (exercise_analytics.js). Both suites build the plan + one completed session per `trained` entry at `now` minus `daysAgo`, run analyzePlanAdherence, and assert `expect`.",
+  "planAdherence": [
+    {
+      "name": "one never-trained + one stale, one adherent",
+      "now": "2026-09-02T18:00:00",
+      "plan": {"days": [{"label": "Push", "exercises": [{"id": "bench", "name": "Bench"}, {"id": "ohp", "name": "OHP"}, {"id": "fly", "name": "Fly"}]}]},
+      "trained": [{"exerciseId": "bench", "daysAgo": 2}, {"exerciseId": "ohp", "daysAgo": 20}],
+      "expect": {
+        "plannedExerciseCount": 3,
+        "neglected": [
+          {"exerciseId": "fly", "reason": "neverTrained", "daysSinceLast": null},
+          {"exerciseId": "ohp", "reason": "stale", "daysSinceLast": 20}
+        ]
+      }
+    }
+  ],
+  "_strengthChangeComment": "Pins the per-exercise strengthChangePercent guard across Dart (classify) and Node (classify): (1) a loaded lift whose baseline window has no logged weight must NOT divide kg by reps → 'building', no number; (2) a tiny/first-exposure baseline that yields > kMaxReliableStrengthChangePct (100%) keeps the direction but withholds the number (null); (3) a normal gain still reports a real figure. Both suites build one exercise from `sessions`, run analyzeTraining, find it, and assert status + whether strengthChangePercent is null / approximately a value.",
+  "strengthChange": [
+    {
+      "name": "unloaded-then-loaded baseline must not produce a bogus % (the +2750% bug)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "bench",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 10, "weight": null}]},
+        {"id": "s2", "daysAgo": 10, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s3", "daysAgo": 2, "sets": [{"reps": 8, "weight": 100}]}
+      ],
+      "expect": {"status": "building", "strengthChangeNull": true}
+    },
+    {
+      "name": "a tiny loaded baseline (20kg→100kg) keeps direction but withholds the %",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "squat",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 5, "weight": 20}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 5, "weight": 20}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 5, "weight": 100}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 5, "weight": 100}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": true}
+    },
+    {
+      "name": "a normal gain still reports a real number",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "ohp",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 8, "weight": 105}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 8, "weight": 107}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": false, "strengthChangeApprox": 7.0}
+    },
+    {
+      "name": "bodyweight reps progression is compared reps-to-reps (still reports)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "pullup",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 8, "weight": null}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 8, "weight": null}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 12, "weight": null}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 12, "weight": null}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": false, "strengthChangeApprox": 50.0}
+    }
+  ]
+}
