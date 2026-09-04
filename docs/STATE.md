@@ -73,6 +73,58 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **One locale-aware date formatter — Arabic dates now actually render in
+  Arabic** (2026-09-04, on `core-edits`). The first landed piece of the l10n
+  push. Thirteen files had grown their own private copy of the same tables:
+  **eight** a `const _monthNames = ['Jan', …]`, **five** a `['Mon', …]`, and
+  **four** their own `isPm ? 'PM' : 'AM'`. Beyond the duplication, every one was
+  **hardcoded English** — so an Arabic user reading an Arabic app got "MAR 1" on
+  session history and "6:30 AM" on their moments. **A `.arb` key can never fix
+  this**: a month name spliced out of a Dart list was never a string the
+  translator could see.
+  - **New [`core/util/date_format.dart`](../lib/core/util/date_format.dart)** —
+    `formatMonthDay` · `formatMonthDayCaps` · `formatWeekdayShort` ·
+    `formatWeekdayFull` · `formatWeekdayDate` · `formatWeekdayDateTime` ·
+    `formatClockTime` · `formatClockTimeWithSeconds` · `formatDayPeriod` ·
+    `formatMinutesSinceMidnight` · `formatWeekdayShortForIndex` ·
+    `formatDayMonthYear` · `formatFullDateLong`. Each takes a `BuildContext` and
+    resolves through `intl`'s `DateFormat` for the locale `Localizations` is
+    rendering in, falling back to English with no `Localizations` (the same
+    fallback, for the same reason, as `l(context)`).
+  - **Nine competing formatters collapsed into one set.** There were **four**
+    clock formatters (`formatClockTime(double)` on the dashboard,
+    `formatClockTimeLabel`/`formatClockTimeDouble` on the stats pages —
+    the latter carrying a comment admitting it was "duplicated here to keep
+    pages dependency-light" — and `formatExactTime` in moments) and **five**
+    date formatters. Two page files imported `workout_dashboard_page.dart`
+    purely to borrow a formatter off it; both now import `core/util` instead.
+  - **Migrated (12 files):** workout — stats · dashboard · history ·
+    session-details · exercise-analysis · bodyweight-history; moments —
+    metadata · photo-viewer; expenses — list · capture; profile — page ·
+    completion; diet — plan-edit; home — today. **Zero** hardcoded date tables
+    remain in `lib/`.
+  - **Deliberate visible changes:** where a call site hand-rolled an order
+    (`"20 Aug"`, `"Mon 5 Mar"`), it now uses an `intl` *skeleton* and the locale
+    picks the order (`"Aug 20"`, `"Mon, Mar 5"`) — letting the locale decide is
+    the whole point. The one exception is the photo detail panel, which keeps an
+    explicit day-first pattern because reading like an EXIF record is part of its
+    design; only the names localize there. CLDR's U+202F before AM/PM is
+    normalised to a plain space, matching what the replaced formatters emitted.
+  - Gates green: `flutter analyze` clean, **1127** tests passing (+8). New
+    `test/core/date_format_test.dart` asserts the Arabic month, weekday and day
+    period explicitly — the thing the old tables could never do.
+    `test/moments/moment_metadata_test.dart` became widget tests, since
+    `buildMomentMetadata` now takes a context.
+  - **Still open (the rest of the l10n debt):** ~305 user-facing string literals
+    across 63 presentation files are still hardcoded English — worst are
+    `profile_page` (17), the Ask widgets (~42), and the workout progress/analysis
+    stack (~49). Separately, the **`domain/analytics/` engines generate English
+    coaching prose** (~79 literals across `workout_analytics.dart`,
+    `exercise_analysis.dart`, `plan_adherence.dart`) and `domain/` is
+    deliberately Flutter-free, so `l(context)` cannot reach it — localizing that
+    needs the engines to return structured tokens the presentation layer renders,
+    which is an ADR-sized decision touching the Node parity. Owner call.
+
 - **One uid-scoped Firestore mirror, and the stale-cache bug closed everywhere**
   (2026-09-04, on `core-edits`). Ten Firestore repositories each carried the
   same ~60 lines of uid-scoping machinery — `StreamController` + `_uidSub` +

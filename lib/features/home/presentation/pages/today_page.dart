@@ -36,6 +36,7 @@ import '../widgets/diet_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/bottom_chrome.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The Today command centre — the adaptive surface that reads like a
 /// sentence about the day, built live from the day's real signals.
@@ -342,7 +343,7 @@ class _LiveTimeState extends State<_LiveTime> {
     final hour = _now.hour;
     final h12 = hour % 12 == 0 ? 12 : hour % 12;
     final minute = _now.minute.toString().padLeft(2, '0');
-    final period = hour < 12 ? 'AM' : 'PM';
+    final period = formatDayPeriod(context, _now);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [

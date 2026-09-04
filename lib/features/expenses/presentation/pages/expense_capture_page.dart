@@ -13,6 +13,7 @@ import '../widgets/add_category_sheet.dart';
 import '../widgets/amount_keypad.dart';
 import '../widgets/category_chips.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/date_format.dart';
 
 /// Expense capture — the sub-5-second flow. Amount first, keypad up, one tap
 /// to categorise, Save. A Solar screen throughout. Pass [initial] to edit an
@@ -63,21 +64,7 @@ class _ExpenseCapturePageState extends State<ExpenseCapturePage>
     );
     if (day == today) return l(context).dateToday;
     if (day == today.subtract(const Duration(days: 1))) return l(context).dateYesterday;
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${day.day} ${months[day.month - 1]}';
+    return formatMonthDay(context, day);
   }
 
   void _onKey(KeypadKey key) {

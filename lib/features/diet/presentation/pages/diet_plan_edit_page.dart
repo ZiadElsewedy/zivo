@@ -19,10 +19,11 @@ import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../../core/widgets/zivo_field.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/date_format.dart';
 
-const _weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-String _weekdayLabel(int? weekday) =>
-    weekday == null ? 'Every day' : _weekdayNames[weekday - 1];
+String _weekdayLabel(BuildContext context, int? weekday) => weekday == null
+    ? 'Every day'
+    : formatWeekdayShortForIndex(context, weekday);
 
 class _MealDraft {
   _MealDraft({
@@ -585,7 +586,7 @@ class _DaySheetState extends State<_DaySheet> {
 
   void _submit() {
     final label = _label.text.trim().isEmpty
-        ? _weekdayLabel(_weekday)
+        ? _weekdayLabel(context, _weekday)
         : _label.text.trim();
     Navigator.of(context).pop(_DayDraft(weekday: _weekday, label: label));
   }
@@ -619,7 +620,7 @@ class _DaySheetState extends State<_DaySheet> {
             children: [
               for (var wd = 1; wd <= 7; wd++)
                 SelectChip(
-                  label: _weekdayNames[wd - 1],
+                  label: formatWeekdayShortForIndex(context, wd),
                   selected: _weekday == wd,
                   onTap: () => setState(() => _weekday = wd),
                 ),

@@ -27,6 +27,7 @@ import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 import '../../../../core/widgets/zivo_sheet.dart';
 import '../../../auth/presentation/pages/settings_page.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The "You" surface: identity at a glance, an editable about-me + account
 /// section, and a way into [SettingsPage]. Reads the live [UserProfile]
@@ -296,7 +297,7 @@ class ProfilePage extends StatelessWidget {
                         title: 'Date of birth',
                         value: profile == null
                             ? '—'
-                            : _formatDob(profile.dateOfBirth),
+                            : _formatDob(context, profile.dateOfBirth),
                         accent: TrainColors.violetGlyph,
                         last: true,
                         onTap: profile == null
@@ -384,25 +385,11 @@ class ProfilePage extends StatelessWidget {
     _ => null,
   };
 
-  static String _formatDob(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+  static String _formatDob(BuildContext context, DateTime d) {
     final now = DateTime.now();
     var age = now.year - d.year;
     if (now.month < d.month || (now.month == d.month && now.day < d.day)) age--;
-    return '${d.day} ${months[d.month - 1].toUpperCase()} ${d.year} · $age';
+    return '${formatDayMonthYear(context, d).toUpperCase()} · $age';
   }
 }
 

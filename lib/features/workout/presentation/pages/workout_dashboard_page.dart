@@ -920,20 +920,10 @@ String formatDurationShort(Duration d) {
 String _trimNumber(double v) =>
     v.truncateToDouble() == v ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
-/// Minutes-since-midnight to a 12-hour clock label, e.g. 390 -> "6:30 AM".
-String formatClockTime(double minutesSinceMidnight) {
-  final total = minutesSinceMidnight.round() % (24 * 60);
-  final h24 = total ~/ 60;
-  final minute = total % 60;
-  final period = h24 < 12 ? 'AM' : 'PM';
-  final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
-  return '$h12:${minute.toString().padLeft(2, '0')} $period';
-}
-
 /// `19:40` — a mean start time reads as a 24h clock here, not `7:40 PM`: at
 /// 30px mono the meridiem would be a second unit competing with the value,
 /// and the grid's tiles all read as instruments. The drill-down page keeps
-/// [formatClockTime]'s 12-hour label, where there's room for it.
+/// the 12-hour label `formatClockTime` gives it, where there's room for it.
 String _clock24(double minutesSinceMidnight) {
   final total = minutesSinceMidnight.round() % (24 * 60);
   return '${(total ~/ 60).toString().padLeft(2, '0')}:'

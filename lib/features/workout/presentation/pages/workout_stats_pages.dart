@@ -10,6 +10,7 @@ import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../pages/session_details_page.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The drill-down pages behind the Workout dashboard's "This week" tiles.
 /// One file because they are one idea — each tile's number, opened up into
@@ -307,8 +308,8 @@ class _SessionRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 7),
                       Text(
-                        '${formatDayLabel(session.startedAt)} · '
-                        '${formatClockTimeLabel(session.startedAt)} · '
+                        '${formatMonthDay(context, session.startedAt)} · '
+                        '${formatClockTime(context, session.startedAt)} · '
                         '${_durationLabel(duration)} · '
                         '${session.completedSetCount}/${session.totalSets} SETS',
                         style: TrainType.mono(
@@ -335,30 +336,6 @@ class _SessionRow extends StatelessWidget {
       ),
     );
   }
-}
-
-String formatDayLabel(DateTime d) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[d.month - 1]} ${d.day}';
-}
-
-String formatClockTimeLabel(DateTime d) {
-  final period = d.hour < 12 ? 'AM' : 'PM';
-  final h12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
-  return '$h12:${d.minute.toString().padLeft(2, '0')} $period';
 }
 
 String _durationLabel(Duration d) {
@@ -474,7 +451,7 @@ class _StreakDayRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isToday ? 'Today' : formatDayLabel(day),
+                  isToday ? 'Today' : formatMonthDay(context, day),
                   style: TrainType.ui(
                     size: 14,
                     weight: FontWeight.w700,
@@ -580,7 +557,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                     child: _MetricRow(
                       title: session.dayLabel,
                       subtitle:
-                          '${formatDayLabel(session.startedAt)} · ${timeAgo(session.startedAt, DateTime.now())} ago',
+                          '${formatMonthDay(context, session.startedAt)} · ${timeAgo(session.startedAt, DateTime.now())} ago',
                       trailing: _durationLabel(session.elapsed),
                       accent: TrainColors.green,
                     ),
@@ -615,7 +592,9 @@ class WorkoutStartTimesPage extends StatelessWidget {
           title: 'Start times',
           children: [
             StatHeroValue(
-              value: avgStart == null ? '—' : formatClockTimeDouble(avgStart),
+              value: avgStart == null
+                  ? '—'
+                  : formatMinutesSinceMidnight(context, avgStart.round()),
               label: avgStart == null
                   ? 'Complete a workout to see your usual start time.'
                   : 'when you usually start training',
@@ -634,9 +613,9 @@ class WorkoutStartTimesPage extends StatelessWidget {
                   child: RiseIn(
                     delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
                     child: _MetricRow(
-                      title: formatClockTimeLabel(session.startedAt),
+                      title: formatClockTime(context, session.startedAt),
                       subtitle:
-                          '${session.dayLabel} · ${formatDayLabel(session.startedAt)}',
+                          '${session.dayLabel} · ${formatMonthDay(context, session.startedAt)}',
                       trailing: timeAgo(session.startedAt, DateTime.now()),
                       accent: TrainColors.green,
                     ),
@@ -656,17 +635,6 @@ List<LiveSession> _completed(List<LiveSession>? sessions) {
           .toList()
         ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
   return list;
-}
-
-/// Minutes-since-midnight → "6:30 AM" (the domain layer's own formatting
-/// lives on the dashboard; duplicated here to keep pages dependency-light).
-String formatClockTimeDouble(double minutesSinceMidnight) {
-  final total = minutesSinceMidnight.round() % (24 * 60);
-  final h24 = total ~/ 60;
-  final minute = total % 60;
-  final period = h24 < 12 ? 'AM' : 'PM';
-  final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
-  return '$h12:${minute.toString().padLeft(2, '0')} $period';
 }
 
 // ---- Shared bits --------------------------------------------------------------

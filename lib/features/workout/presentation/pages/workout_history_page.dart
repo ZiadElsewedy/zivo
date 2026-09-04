@@ -12,7 +12,8 @@ import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../domain/workout_session_repository.dart';
 import 'session_details_page.dart';
-import 'workout_dashboard_page.dart' show formatClockTime, formatDurationShort;
+import '../../../../core/util/date_format.dart';
+import 'workout_dashboard_page.dart' show formatDurationShort;
 
 /// Every logged training session, newest first, grouped into weeks — the
 /// same [LiveSession] model the Workout Dashboard's "Recent activity" and
@@ -102,7 +103,7 @@ class WorkoutHistoryPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             for (final ws in weekStarts) ...[
-              _WeekHeader(_WeekGroup(ws, byWeek[ws]!).label(weekStart)),
+              _WeekHeader(_WeekGroup(ws, byWeek[ws]!).label(context, weekStart)),
               for (final (i, session) in byWeek[ws]!.indexed)
                 RiseIn(
                   delay: Duration(milliseconds: (90 + i * 40).clamp(0, 320)),
@@ -158,13 +159,12 @@ class _WeekGroup {
   /// "THIS WEEK", "LAST WEEK", or a dated range ("AUG 18 – AUG 24") for
   /// anything further back — so no stretch of history is ever lumped into
   /// an anonymous bucket.
-  String label(DateTime currentWeekStart) {
+  String label(BuildContext context, DateTime currentWeekStart) {
     if (weekStart == currentWeekStart) return 'THIS WEEK';
     if (weekStart == currentWeekStart.subtract(const Duration(days: 7))) {
       return 'LAST WEEK';
     }
-    String part(DateTime d) =>
-        '${_monthNames[d.month - 1].toUpperCase()} ${d.day}';
+    String part(DateTime d) => formatMonthDayCaps(context, d);
     return '${part(weekStart)} – ${part(weekEnd)}';
   }
 }
@@ -404,7 +404,7 @@ class _SessionHistoryRow extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _dateAndTimeRange(session),
+                          _dateAndTimeRange(context, session),
                           style: AppText.meta.copyWith(color: TrainColors.ink4),
                         ),
                       ],
@@ -459,11 +459,11 @@ class _SessionHistoryRow extends StatelessWidget {
     );
   }
 
-  static String _dateAndTimeRange(LiveSession s) {
-    final date = _formatDate(s.startedAt);
-    final start = formatClockTime(_minutesSinceMidnight(s.startedAt));
+  static String _dateAndTimeRange(BuildContext context, LiveSession s) {
+    final date = formatMonthDay(context, s.startedAt);
+    final start = formatClockTime(context, s.startedAt);
     if (s.completedAt == null) return '$date · $start';
-    return '$date · $start–${formatClockTime(_minutesSinceMidnight(s.completedAt!))}';
+    return '$date · $start–${formatClockTime(context, s.completedAt!)}';
   }
 }
 
@@ -507,26 +507,6 @@ class _DeleteSwipeBackground extends StatelessWidget {
     );
   }
 }
-
-double _minutesSinceMidnight(DateTime dt) =>
-    (dt.hour * 60 + dt.minute).toDouble();
-
-const _monthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _formatDate(DateTime d) => '${_monthNames[d.month - 1]} ${d.day}';
 
 class _HistoryLoadingState extends StatelessWidget {
   const _HistoryLoadingState();

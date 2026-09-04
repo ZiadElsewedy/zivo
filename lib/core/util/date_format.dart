@@ -86,12 +86,8 @@ String formatClockTimeWithSeconds(BuildContext context, DateTime time) =>
     _plainSpaces(_format(context, (l) => DateFormat.jms(l).format(time)));
 
 /// "Mon 1 Mar · 6:30 AM" — the long form a session row leads with.
-String formatWeekdayDateTime(BuildContext context, DateTime at) => _plainSpaces(
-      _format(
-        context,
-        (l) => '${DateFormat.MMMEd(l).format(at)} · ${DateFormat.jm(l).format(at)}',
-      ),
-    );
+String formatWeekdayDateTime(BuildContext context, DateTime at) =>
+    '${formatWeekdayDate(context, at)} · ${formatClockTime(context, at)}';
 
 /// "6:30 AM" from minutes since midnight — the shape the workout stats pages
 /// hold a usual-start-time in, where there is no [DateTime] to format.
@@ -102,3 +98,40 @@ String formatMinutesSinceMidnight(BuildContext context, int minutes) {
     DateTime(2000, 1, 1, clamped ~/ 60, clamped % 60),
   );
 }
+
+/// "Sun, Mar 1" — the weekday with an abbreviated month and day, the form a
+/// session header leads with.
+String formatWeekdayDate(BuildContext context, DateTime date) =>
+    _format(context, (l) => DateFormat.MMMEd(l).format(date));
+
+/// "AM" / "PM" (and "ص" / "م" in Arabic) on its own, for a clock whose numerals
+/// and day period are set as separate typographic elements — Today's hero
+/// clock renders the digits at 54px mono with the period beside them, so it
+/// cannot use [formatClockTime]'s single string.
+String formatDayPeriod(BuildContext context, DateTime time) =>
+    _format(context, (l) => DateFormat('a', l).format(time));
+
+/// "Mon" from a [DateTime.weekday] number (1 = Monday … 7 = Sunday), for the
+/// pickers that hold a weekday as an int and have no date to format.
+String formatWeekdayShortForIndex(BuildContext context, int weekday) {
+  // 2024-01-01 was a Monday, so this maps 1…7 onto Mon…Sun.
+  final anchor = DateTime(2024, 1, ((weekday - 1) % 7) + 1);
+  return formatWeekdayShort(context, anchor);
+}
+
+/// "Thu, 20 August 2026" — the long, day-first stamp the photo detail panel
+/// uses.
+///
+/// This is the one formatter here built from an explicit pattern rather than a
+/// [DateFormat] skeleton. The panel reads like an EXIF record, where day-first
+/// is the convention, and that ordering is a deliberate part of its design; the
+/// pattern keeps the order fixed while still resolving every weekday and month
+/// NAME through the locale. Everywhere else, prefer a skeleton and let the
+/// locale choose the order too.
+String formatFullDateLong(BuildContext context, DateTime date) =>
+    _format(context, (l) => DateFormat('EEE, d MMMM y', l).format(date));
+
+/// "Aug 20, 2026" — an abbreviated date with the year, for a date of birth or
+/// any stamp that needs to be unambiguous across years.
+String formatDayMonthYear(BuildContext context, DateTime date) =>
+    _format(context, (l) => DateFormat.yMMMd(l).format(date));

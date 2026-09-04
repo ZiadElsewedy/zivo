@@ -14,6 +14,7 @@ import '../../domain/workout_plan.dart';
 import '../widgets/progress_status_style.dart';
 import '../widgets/staggered_reveal.dart';
 import '../widgets/trend_chart.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The exercise drill-down — everything a coach would open on ONE movement.
 ///
@@ -571,7 +572,7 @@ class _SessionCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            _dateTime(record.date),
+                            formatWeekdayDateTime(context, record.date),
                             style: TrainType.ui(
                               size: 14.5,
                               weight: FontWeight.w700,
@@ -881,20 +882,3 @@ String _signedInt(int v) => '${v > 0 ? '+' : ''}$v';
 String _signedKg(double? v) =>
     v == null ? '—' : '${v > 0 ? '+' : ''}${_kg(v)}kg';
 
-const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-/// "Wed 3 Sep · 6:12pm" — a compact absolute stamp for a logged session.
-String _dateTime(DateTime d) {
-  final wd = _weekdays[(d.weekday - 1) % 7];
-  final mo = _months[(d.month - 1) % 12];
-  final h24 = d.hour;
-  final ampm = h24 < 12 ? 'am' : 'pm';
-  var h = h24 % 12;
-  if (h == 0) h = 12;
-  final m = d.minute.toString().padLeft(2, '0');
-  return '$wd ${d.day} $mo · $h:$m$ampm';
-}

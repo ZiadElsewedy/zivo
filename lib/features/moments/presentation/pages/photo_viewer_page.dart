@@ -441,6 +441,7 @@ class _BottomBar extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             for (final row in buildMomentMetadata(
+                              context,
                               moment,
                               media,
                               photoOnDevice: snap.data ?? true,

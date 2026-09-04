@@ -8,6 +8,7 @@ import '../../../auth/domain/auth_user.dart';
 import '../../../auth/presentation/widgets/auth_action_button.dart';
 import '../widgets/dob_picker_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/date_format.dart';
 
 /// Collects the missing Name / Date of birth for a signed-in user with an
 /// incomplete profile.
@@ -256,23 +257,6 @@ class _DobField extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  static String _format(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +282,7 @@ class _DobField extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                hasDate ? _format(date!) : 'Date of birth',
+                hasDate ? formatDayMonthYear(context, date!) : 'Date of birth',
                 style: AppText.rowTitle.copyWith(
                   color: hasDate ? TrainColors.ink : TrainColors.ink3,
                 ),

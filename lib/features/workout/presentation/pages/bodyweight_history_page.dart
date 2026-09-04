@@ -7,6 +7,7 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../domain/body_weight_entry.dart';
 import '../../domain/weight_trend.dart';
 import 'workout_stats_pages.dart';
+import '../../../../core/util/date_format.dart';
 
 /// The Bodyweight tile's page: the full weigh-in history — trend chart,
 /// 30-day delta, and every entry newest first with its change vs. the
@@ -196,7 +197,7 @@ class _WeighInRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  formatDayLabel(entry.loggedAt).toUpperCase(),
+                  formatMonthDayCaps(context, entry.loggedAt),
                   style: TrainType.mono(
                     size: 9.5,
                     tracking: 0.08,
