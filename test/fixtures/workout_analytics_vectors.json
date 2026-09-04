@@ -97,5 +97,55 @@
         ]
       }
     }
+  ],
+  "_strengthChangeComment": "Pins the per-exercise strengthChangePercent guard across Dart (classify) and Node (classify): (1) a loaded lift whose baseline window has no logged weight must NOT divide kg by reps → 'building', no number; (2) a tiny/first-exposure baseline that yields > kMaxReliableStrengthChangePct (100%) keeps the direction but withholds the number (null); (3) a normal gain still reports a real figure. Both suites build one exercise from `sessions`, run analyzeTraining, find it, and assert status + whether strengthChangePercent is null / approximately a value.",
+  "strengthChange": [
+    {
+      "name": "unloaded-then-loaded baseline must not produce a bogus % (the +2750% bug)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "bench",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 10, "weight": null}]},
+        {"id": "s2", "daysAgo": 10, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s3", "daysAgo": 2, "sets": [{"reps": 8, "weight": 100}]}
+      ],
+      "expect": {"status": "building", "strengthChangeNull": true}
+    },
+    {
+      "name": "a tiny loaded baseline (20kg→100kg) keeps direction but withholds the %",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "squat",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 5, "weight": 20}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 5, "weight": 20}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 5, "weight": 100}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 5, "weight": 100}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": true}
+    },
+    {
+      "name": "a normal gain still reports a real number",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "ohp",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 8, "weight": 100}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 8, "weight": 105}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 8, "weight": 107}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": false, "strengthChangeApprox": 7.0}
+    },
+    {
+      "name": "bodyweight reps progression is compared reps-to-reps (still reports)",
+      "now": "2026-09-02T18:00:00",
+      "exerciseId": "pullup",
+      "sessions": [
+        {"id": "s1", "daysAgo": 21, "sets": [{"reps": 8, "weight": null}]},
+        {"id": "s2", "daysAgo": 14, "sets": [{"reps": 8, "weight": null}]},
+        {"id": "s3", "daysAgo": 7, "sets": [{"reps": 12, "weight": null}]},
+        {"id": "s4", "daysAgo": 1, "sets": [{"reps": 12, "weight": null}]}
+      ],
+      "expect": {"status": "progressing", "strengthChangeNull": false, "strengthChangeApprox": 50.0}
+    }
   ]
 }

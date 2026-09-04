@@ -73,6 +73,27 @@ test("golden vectors: muscle normalization matches the Dart engine", () => {
   }
 });
 
+test("golden vectors: strength-change guard matches the Dart engine", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  for (const v of VECTORS.strengthChange) {
+    const vNow = new Date(v.now);
+    const sessions = v.sessions.map((s) =>
+      session(s.id, new Date(vNow.getTime() - s.daysAgo * DAY),
+          [ex(v.exerciseId, s.sets.map((x, i) =>
+            set(`${s.id}-${i}`, {reps: x.reps, weight: x.weight})))]));
+    const e = analyzeTraining({sessions, now: vNow})
+        .exercises.find((x) => x.exerciseId === v.exerciseId);
+    assert.equal(e.status, v.expect.status, v.name);
+    if (v.expect.strengthChangeNull) {
+      assert.equal(e.strengthChangePercent, null, `${v.name} null`);
+    } else {
+      assert.ok(
+          Math.abs(e.strengthChangePercent - v.expect.strengthChangeApprox) <
+            0.5, `${v.name} approx`);
+    }
+  }
+});
+
 // ---- Warm-ups -------------------------------------------------------------
 
 test("warm-ups are excluded from PRs and volume", () => {

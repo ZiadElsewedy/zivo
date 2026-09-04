@@ -828,6 +828,15 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-03 — **Fixed bogus per-exercise strength % (e.g. "+2750%").** Root cause:
+  `classify` fell back to a rep-count "score" when a lift's early sessions had no
+  logged weight, then divided a later estimated-1RM (kg) by it — mixing scales. Fix
+  (Dart `workout_analytics.dart` + Node mirror): compare on ONE metric (e1RM for a
+  loaded lift, reps for bodyweight); a loaded lift whose baseline window has no
+  weight reads "building", not a ratio; and a change beyond ±`kMaxReliableStrengthChangePct`
+  (100%) keeps its direction but withholds the number (null → status word only).
+  New shared `strengthChange` golden vectors both suites run (incl. the exact bug
+  case). 421 node + 1108 dart tests green. **Owner: deploy functions** (engine changed).
 - 2026-09-03 — **AI coach wired to the drill-down + adherence.** Node mirror
   `functions/ai/exercise_analytics.js` (`analyzeExercise` + `analyzePlanAdherence`),
   pinned to Dart by new shared golden vectors both suites run. New

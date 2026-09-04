@@ -392,9 +392,11 @@ function buildInsight({name, status, strengthChangePercent, latestComparison,
       return {
         whatHappened: changed ||
           `${name} is trending up across your recent sessions.${quiet}`,
-        whyItMatters: isWeighted ?
-          `Estimated 1RM is ${signed(strengthChangePercent)} — real strength gain, not just extra volume. The heavier load is paying for any drop in reps.` :
-          "You're doing more work at this movement — reps and volume are climbing.",
+        whyItMatters: !isWeighted ?
+          "You're doing more work at this movement — reps and volume are climbing." :
+          strengthChangePercent == null ?
+            "Your estimated strength has climbed a lot from a light starting point — real progress, though the exact percentage isn't a meaningful figure yet." :
+            `Estimated 1RM is ${signed(strengthChangePercent)} — real strength gain, not just extra volume. The heavier load is paying for any drop in reps.`,
         whatToDo,
       };
     case "maintaining":

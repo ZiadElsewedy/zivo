@@ -24,6 +24,10 @@ const MAX_RELIABLE_REPS_FOR_E1RM = 12;
 const MIN_APPEARANCES = 3;
 const PLATEAU_APPEARANCES = 4;
 const MEANINGFUL_CHANGE_PCT = 2.5;
+// Beyond this magnitude a per-exercise strength change isn't a trustworthy
+// figure (a near-empty / first-exposure baseline); the direction stands but the
+// number is withheld (null). Mirrors the Dart kMaxReliableStrengthChangePct.
+const MAX_RELIABLE_STRENGTH_CHANGE_PCT = 100.0;
 const MUSCLE_VOLUME_DROP_PCT = 20.0;
 const WEEK_WINDOW_DAYS = 7;
 const STRENGTH_WINDOW_DAYS = 42;
@@ -180,25 +184,17 @@ function historyByExercise(completed) {
 }
 
 /**
- * An appearance's performance score: e1RM when loaded, else best reps.
- * @param {!Object} a
- * @return {?number}
- */
-function scoreOf(a) {
-  if (a.bestE1RM != null) return a.bestE1RM;
-  return a.bestReps > 0 ? a.bestReps : null;
-}
-
-/**
- * The best performance score across appearances.
+ * Best reps across appearances — a bodyweight movement's only progression
+ * signal (used when nothing was ever loaded).
  * @param {!Array<Object>} apps
  * @return {?number}
  */
-function bestScore(apps) {
+function bestReps(apps) {
   let best = null;
   for (const a of apps) {
-    const s = scoreOf(a);
-    if (s != null && (best == null || s > best)) best = s;
+    if (a.bestReps > 0 && (best == null || a.bestReps > best)) {
+      best = a.bestReps;
+    }
   }
   return best;
 }
@@ -236,22 +232,32 @@ function classify(id, h) {
     const recentCount = apps.length >= 2 ? 2 : 1;
     const recentApps = apps.slice(apps.length - recentCount);
     const earlierApps = apps.slice(0, apps.length - recentCount);
-    const recentScore = bestScore(recentApps);
-    const baselineScore = bestScore(earlierApps);
-    if (recentScore == null || baselineScore == null || baselineScore === 0) {
+    // Compare on ONE metric so kilograms and reps are never divided by each
+    // other: estimated 1RM for a loaded lift, best reps for a bodyweight one.
+    const weighted = apps.some((a) => a.bestE1RM != null);
+    const recentScore =
+      weighted ? bestE1RMOf(recentApps) : bestReps(recentApps);
+    const baselineScore =
+      weighted ? bestE1RMOf(earlierApps) : bestReps(earlierApps);
+    if (recentScore == null || baselineScore == null || baselineScore <= 0) {
+      // A loaded lift whose baseline window has no logged weight has no
+      // comparable strength number — "building", never a reps-vs-kg ratio.
       status = BUILDING;
     } else {
-      changePercent = (recentScore - baselineScore) / baselineScore * 100;
-      baseline = bestE1RMOf(earlierApps);
-      if (changePercent >= MEANINGFUL_CHANGE_PCT) {
+      const raw = (recentScore - baselineScore) / baselineScore * 100;
+      baseline = weighted ? bestE1RMOf(earlierApps) : null;
+      if (raw >= MEANINGFUL_CHANGE_PCT) {
         status = PROGRESSING;
-      } else if (changePercent <= -MEANINGFUL_CHANGE_PCT) {
+      } else if (raw <= -MEANINGFUL_CHANGE_PCT) {
         status = REGRESSING;
       } else if (apps.length >= PLATEAU_APPEARANCES) {
         status = PLATEAUING;
       } else {
         status = MAINTAINING;
       }
+      // Direction stands; report the % only when the baseline is trustworthy.
+      changePercent =
+        Math.abs(raw) <= MAX_RELIABLE_STRENGTH_CHANGE_PCT ? raw : null;
     }
   }
 
@@ -555,15 +561,19 @@ function buildFindings({
     out.push({
       kind: "analysis",
       confidence: "interpretation",
-      text: `${e.name} is progressing — estimated strength ` +
-        `${signedPct(e.strengthChangePercent || 0)}.`,
+      text: e.strengthChangePercent == null ?
+        `${e.name} is progressing.` :
+        `${e.name} is progressing — estimated strength ` +
+          `${signedPct(e.strengthChangePercent)}.`,
       evidence: ["exercises"],
     });
   }
   for (const e of needsAttention.slice(0, 2)) {
     const line = e.status === REGRESSING ?
-      `${e.name} has been trending down recently ` +
-        `(${signedPct(e.strengthChangePercent || 0)}).` :
+      (e.strengthChangePercent == null ?
+        `${e.name} has been trending down recently.` :
+        `${e.name} has been trending down recently ` +
+          `(${signedPct(e.strengthChangePercent)}).`) :
       `${e.name} has stayed about the same for several sessions.`;
     out.push({
       kind: "warning",
@@ -665,9 +675,9 @@ function analyzeTraining({sessions, now}) {
   }
   recentPrs.sort((a, b) => b.achievedAt - a.achievedAt);
 
-  const improving = exercises.filter((e) =>
-    e.status === PROGRESSING &&
-    (e.strengthChangePercent || 0) >= MEANINGFUL_CHANGE_PCT);
+  // Status already encodes the threshold, so a big-but-withheld % (null) still
+  // counts as improving.
+  const improving = exercises.filter((e) => e.status === PROGRESSING);
   const needsAttention = exercises.filter((e) =>
     e.status === REGRESSING || e.status === PLATEAUING);
 

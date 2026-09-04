@@ -52,6 +52,15 @@ const int kPlateauAppearances = 4;
 /// (in %) is inside normal day-to-day noise and never flips a verdict.
 const double kMeaningfulChangePct = 2.5;
 
+/// Beyond this magnitude a per-exercise strength change is not a trustworthy
+/// figure to show — more than a doubling (or halving) of estimated strength
+/// means the baseline was a near-empty or first-exposure load, so the honest
+/// read is "you started light", not a literal "+400%". The DIRECTION still
+/// stands (the status is set from the raw comparison); only the precise number
+/// is withheld ([ExercisePerformance.strengthChangePercent] becomes null). This
+/// is the guard that stops a light early session headlining an absurd percent.
+const double kMaxReliableStrengthChangePct = 100.0;
+
 /// A muscle's weekly working volume dropping by at least this much (%) vs the
 /// prior comparable week is worth flagging as needing attention.
 const double kMuscleVolumeDropPct = 20.0;
@@ -434,10 +443,17 @@ Map<String, _ExerciseHistory> _historyByExercise(List<LiveSession> completed) {
   return byId;
 }
 
-/// The performance score for an appearance: e1RM when the exercise is loaded,
-/// else best reps (so a bodyweight movement still shows a direction).
-double? _score(ExerciseAppearance a) =>
-    a.bestE1RM ?? (a.bestReps > 0 ? a.bestReps.toDouble() : null);
+/// Best reps across appearances (for a purely bodyweight movement, where reps
+/// are the only progression signal). Null when none logged reps.
+double? _bestReps(List<ExerciseAppearance> apps) {
+  double? best;
+  for (final a in apps) {
+    if (a.bestReps > 0 && (best == null || a.bestReps > best)) {
+      best = a.bestReps.toDouble();
+    }
+  }
+  return best;
+}
 
 /// Classifies one exercise from its oldest→newest appearances. Best-of-recent
 /// vs best-of-earlier so a single bad day neither creates nor hides a trend.
@@ -452,27 +468,38 @@ ExercisePerformance _classify(String id, _ExerciseHistory h) {
   if (apps.length < kMinAppearances) {
     status = ProgressStatus.building;
   } else {
-    // Recent window = last min(2, n) appearances; baseline = the rest, each
-    // reduced to its BEST score so one off day can't swing either side.
+    // Recent window = last min(2, n) appearances; baseline = the rest. Compare
+    // on ONE metric so kilograms and reps are never divided by each other:
+    // estimated 1RM for a loaded lift, best reps for a purely bodyweight one.
+    // Each window keeps its BEST so a single off day can't swing either side.
     final recentCount = apps.length >= 2 ? 2 : 1;
     final recentApps = apps.sublist(apps.length - recentCount);
     final earlierApps = apps.sublist(0, apps.length - recentCount);
-    final recentScore = _bestScore(recentApps);
-    final baselineScore = _bestScore(earlierApps);
-    if (recentScore == null || baselineScore == null || baselineScore == 0) {
+    final weighted = apps.any((a) => a.bestE1RM != null);
+    final recentScore =
+        weighted ? _bestE1RM(recentApps) : _bestReps(recentApps);
+    final baselineScore =
+        weighted ? _bestE1RM(earlierApps) : _bestReps(earlierApps);
+    if (recentScore == null || baselineScore == null || baselineScore <= 0) {
+      // A loaded lift whose baseline window carries no logged weight has no
+      // comparable strength number — report "building", never a reps-vs-kg
+      // ratio (the bug that turned an unweighted first session into +2750%).
       status = ProgressStatus.building;
     } else {
-      changePercent = (recentScore - baselineScore) / baselineScore * 100;
-      baseline = _bestE1RM(earlierApps);
-      if (changePercent >= kMeaningfulChangePct) {
+      final raw = (recentScore - baselineScore) / baselineScore * 100;
+      baseline = weighted ? _bestE1RM(earlierApps) : null;
+      if (raw >= kMeaningfulChangePct) {
         status = ProgressStatus.progressing;
-      } else if (changePercent <= -kMeaningfulChangePct) {
+      } else if (raw <= -kMeaningfulChangePct) {
         status = ProgressStatus.regressing;
       } else if (apps.length >= kPlateauAppearances) {
         status = ProgressStatus.plateauing;
       } else {
         status = ProgressStatus.maintaining;
       }
+      // The direction stands; report the % only when the baseline is a
+      // trustworthy reference (see [kMaxReliableStrengthChangePct]).
+      changePercent = raw.abs() <= kMaxReliableStrengthChangePct ? raw : null;
     }
   }
 
@@ -488,15 +515,6 @@ ExercisePerformance _classify(String id, _ExerciseHistory h) {
     lastPerformedAt: last.date,
     e1rmSeries: series,
   );
-}
-
-double? _bestScore(List<ExerciseAppearance> apps) {
-  double? best;
-  for (final a in apps) {
-    final s = _score(a);
-    if (s != null && (best == null || s > best)) best = s;
-  }
-  return best;
 }
 
 double? _bestE1RM(List<ExerciseAppearance> apps) {
@@ -723,10 +741,10 @@ TrainingAnalysis analyzeTraining({
   ]..sort((a, b) => b.achievedAt.compareTo(a.achievedAt));
 
   // ---- Improving / needs attention ----------------------------------------
+  // Status already encodes the threshold (progressing ⇔ raw ≥ meaningful), so
+  // gate on it alone — a big-but-withheld % (null) is still improving.
   final improving = exercises
-      .where((e) =>
-          e.status == ProgressStatus.progressing &&
-          (e.strengthChangePercent ?? 0) >= kMeaningfulChangePct)
+      .where((e) => e.status == ProgressStatus.progressing)
       .toList(growable: false);
   final needsAttention = exercises
       .where((e) =>
@@ -1005,18 +1023,23 @@ List<TrainingFinding> _buildFindings({
   }
 
   for (final e in improving.take(2)) {
+    final pct = e.strengthChangePercent;
     out.add(TrainingFinding(
       kind: FindingKind.analysis,
       confidence: FindingConfidence.interpretation,
-      text:
-          '${e.name} is progressing — estimated strength ${_signedPct(e.strengthChangePercent ?? 0)}.',
+      text: pct == null
+          ? '${e.name} is progressing.'
+          : '${e.name} is progressing — estimated strength ${_signedPct(pct)}.',
       evidence: const ['exercises'],
     ));
   }
 
   for (final e in needsAttention.take(2)) {
+    final pct = e.strengthChangePercent;
     final line = e.status == ProgressStatus.regressing
-        ? '${e.name} has been trending down recently (${_signedPct(e.strengthChangePercent ?? 0)}).'
+        ? (pct == null
+            ? '${e.name} has been trending down recently.'
+            : '${e.name} has been trending down recently (${_signedPct(pct)}).')
         : '${e.name} has stayed about the same for several sessions.';
     out.add(TrainingFinding(
       kind: FindingKind.warning,

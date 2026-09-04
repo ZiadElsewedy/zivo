@@ -95,6 +95,41 @@ void main() {
             reason: '$spec');
       }
     });
+
+    test('strength-change guard matches the Node engine', () {
+      for (final raw in vectors['strengthChange'] as List) {
+        final v = raw as Map<String, dynamic>;
+        final vnow = DateTime.parse(v['now'] as String);
+        final id = v['exerciseId'] as String;
+        final sessions = [
+          for (final s in v['sessions'] as List)
+            _session(
+              id: (s as Map)['id'] as String,
+              at: vnow.subtract(Duration(days: (s['daysAgo'] as num).toInt())),
+              exercises: [
+                _ex(id, [
+                  for (final (i, x) in (s['sets'] as List).indexed)
+                    _set('${s['id']}-$i',
+                        reps: (x['reps'] as num?)?.toInt(),
+                        weight: (x['weight'] as num?)?.toDouble()),
+                ]),
+              ],
+            ),
+        ];
+        final e = analyzeTraining(sessions: sessions, now: vnow)
+            .exercises
+            .firstWhere((x) => x.exerciseId == id);
+        final exp = v['expect'] as Map<String, dynamic>;
+        expect(e.status.name, exp['status'], reason: v['name'] as String?);
+        if (exp['strengthChangeNull'] == true) {
+          expect(e.strengthChangePercent, isNull, reason: '${v['name']} null');
+        } else {
+          expect(e.strengthChangePercent,
+              closeTo((exp['strengthChangeApprox'] as num).toDouble(), 0.5),
+              reason: '${v['name']} approx');
+        }
+      }
+    });
   });
 
   group('estimatedOneRepMax', () {
