@@ -1770,4 +1770,226 @@ class AppLocalizationsAr extends AppLocalizations {
   String workoutDurationH(String hours) {
     return '$hoursس';
   }
+
+  @override
+  String get askTitle => 'اسأل';
+
+  @override
+  String get askNewChat => 'محادثة جديدة';
+
+  @override
+  String get askChatHistory => 'سجل المحادثات';
+
+  @override
+  String get askReplyStyle => 'أسلوب الرد';
+
+  @override
+  String get askChats => 'المحادثات';
+
+  @override
+  String get askNoChats => 'لا توجد محادثات بعد.';
+
+  @override
+  String get askNameItHint =>
+      'سمِّها لتجدها لاحقًا — أو اتركها فارغة وستأخذ اسمها من أول رسالة.';
+
+  @override
+  String get askNamePlaceholder => 'مثال: تعديلات التمرين';
+
+  @override
+  String get askStartChatting => 'ابدأ المحادثة';
+
+  @override
+  String get askDeleteChatTitle => 'حذف هذه المحادثة؟';
+
+  @override
+  String askDeleteChatBody(String title) {
+    return 'سيؤدي هذا إلى حذف \"$title\" وكل ما فيها نهائيًا. لا يمكن التراجع.';
+  }
+
+  @override
+  String get askDeleteChatConfirm => 'حذف المحادثة';
+
+  @override
+  String get askGreeting => 'أهلًا، أنا ZIVO.';
+
+  @override
+  String get askIntro =>
+      'التدريب والتغذية والمصروفات. اسألني أي شيء — أو دعني أسجّله لك.';
+
+  @override
+  String get askSuggestSpend => 'كم أنفقت هذا الأسبوع؟';
+
+  @override
+  String get askSuggestTraining => 'كيف يسير تدريبي؟';
+
+  @override
+  String get askSuggestDiet => 'ماذا تبقّى في نظامي الغذائي اليوم؟';
+
+  @override
+  String get askSuggestWeek => 'لخّص أسبوعي';
+
+  @override
+  String get askUnreachableTitle => 'تعذّر الوصول إلى ZIVO';
+
+  @override
+  String get askUnreachableBody => 'لم تُرسل رسالتك.';
+
+  @override
+  String get askRetry => 'إعادة المحاولة';
+
+  @override
+  String get askSaveFailed => 'تعذّر الحفظ — حاول مرة أخرى.';
+
+  @override
+  String get askActionFailed => 'تعذّر تنفيذ ذلك الآن. حاول مرة أخرى.';
+
+  @override
+  String get askThinking => 'يفكّر…';
+
+  @override
+  String get askUnderstanding => 'يفهم طلبك…';
+
+  @override
+  String get askWorking => 'يعمل…';
+
+  @override
+  String get askPreparingChange => 'يجهّز التعديل…';
+
+  @override
+  String get askStillWorking => 'ما زال يعمل على هذه…';
+
+  @override
+  String get askReadingDay => 'يقرأ يومك…';
+
+  @override
+  String get askReadingDiet => 'يقرأ نظامك الغذائي اليوم…';
+
+  @override
+  String get askReadingTraining => 'يقرأ تدريبك…';
+
+  @override
+  String get askReadingSpending => 'يقرأ مصروفاتك…';
+
+  @override
+  String get askSummarisingWeek => 'يلخّص أسبوعك…';
+
+  @override
+  String get askLookingUpFood => 'يبحث عن هذا الطعام…';
+
+  @override
+  String get askCalculating => 'يحسب الأرقام…';
+
+  @override
+  String get askProposalConfirmed => 'تم التأكيد';
+
+  @override
+  String get askProposalCancelled => 'أُلغيت';
+
+  @override
+  String get askProposalExpired => 'انتهت صلاحيتها';
+
+  @override
+  String get askProposalConfirm => 'تأكيد';
+
+  @override
+  String get askActionNewExpense => 'مصروف جديد';
+
+  @override
+  String get askActionEditExpense => 'تعديل مصروف';
+
+  @override
+  String get askActionDeleteExpense => 'حذف مصروف';
+
+  @override
+  String get askActionDietPlan => 'خطة التغذية';
+
+  @override
+  String get askActionLogFood => 'تسجيل طعام';
+
+  @override
+  String get askActionSuggestion => 'اقتراح';
+
+  @override
+  String askFoodCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count طعام',
+      many: '$count طعامًا',
+      few: '$count أطعمة',
+      two: 'طعامان',
+      one: 'طعام واحد',
+      zero: 'لا أطعمة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askKcalTotal(String total) {
+    return '$total سعرة';
+  }
+
+  @override
+  String get askVoiceUnavailable => 'الإدخال الصوتي غير متاح حاليًا.';
+
+  @override
+  String get askMicPermission => 'فعّل إذن الميكروفون لاستخدام الإدخال الصوتي.';
+
+  @override
+  String get askMicStartFailed => 'تعذّر تشغيل الميكروفون — حاول مرة أخرى.';
+
+  @override
+  String get askDidntCatchThat => 'لم أسمع ذلك — أعد التسجيل.';
+
+  @override
+  String get askTranscribeFailed =>
+      'تعذّر تحويل الصوت إلى نص — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get askTranscribeTimeout =>
+      'استغرق ذلك وقتًا طويلًا — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get askNothingCameThrough => 'لم يصل شيء — حاول مرة أخرى.';
+
+  @override
+  String get askTranscribing => 'يحوّل الصوت إلى نص…';
+
+  @override
+  String get askDiscardRecording => 'تجاهل التسجيل';
+
+  @override
+  String get askDiscardVoiceNote => 'تجاهل الملاحظة الصوتية';
+
+  @override
+  String get askTryAgain => 'حاول مرة أخرى';
+
+  @override
+  String askSecondsElapsed(int seconds) {
+    return ' · $seconds ث';
+  }
+
+  @override
+  String get askComposerHint => 'اسأل ZIVO…';
+
+  @override
+  String get askRecordVoiceNote => 'سجّل ملاحظة صوتية';
+
+  @override
+  String get askSilenceHint => 'لا أسمعك بعد — اقترب من الميكروفون.';
+
+  @override
+  String get askVoiceLog => 'تسجيل صوتي';
+
+  @override
+  String get askVoiceLogSubtitle =>
+      'قلها مرة واحدة — ستصل إلى \"اسأل\" جاهزة للإرسال.';
+
+  @override
+  String get askTapAndSpeak => 'اضغط وتحدّث';
+
+  @override
+  String get askVoiceExamples =>
+      '\"سجّل ٤٠ جنيه موقف سيارات\" · \"أنهيت تمرين الصدر\"';
 }

@@ -1759,4 +1759,223 @@ class AppLocalizationsEn extends AppLocalizations {
   String workoutDurationH(String hours) {
     return '${hours}h';
   }
+
+  @override
+  String get askTitle => 'Ask';
+
+  @override
+  String get askNewChat => 'New chat';
+
+  @override
+  String get askChatHistory => 'Chat history';
+
+  @override
+  String get askReplyStyle => 'Reply style';
+
+  @override
+  String get askChats => 'Chats';
+
+  @override
+  String get askNoChats => 'No chats yet.';
+
+  @override
+  String get askNameItHint =>
+      'Name it so you can find it later — or leave it blank and the first message will title it.';
+
+  @override
+  String get askNamePlaceholder => 'e.g. Workout changes';
+
+  @override
+  String get askStartChatting => 'Start chatting';
+
+  @override
+  String get askDeleteChatTitle => 'Delete this chat?';
+
+  @override
+  String askDeleteChatBody(String title) {
+    return 'This permanently removes \"$title\" and everything in it. This can\'t be undone.';
+  }
+
+  @override
+  String get askDeleteChatConfirm => 'Delete chat';
+
+  @override
+  String get askGreeting => 'Hey, I\'m ZIVO.';
+
+  @override
+  String get askIntro =>
+      'Training, diet and spending. Ask me anything — or let me log it for you.';
+
+  @override
+  String get askSuggestSpend => 'What did I spend this week?';
+
+  @override
+  String get askSuggestTraining => 'How is my training going?';
+
+  @override
+  String get askSuggestDiet => 'What\'s left on my diet today?';
+
+  @override
+  String get askSuggestWeek => 'Summarise my week';
+
+  @override
+  String get askUnreachableTitle => 'Couldn\'t reach ZIVO';
+
+  @override
+  String get askUnreachableBody => 'Your message wasn’t sent.';
+
+  @override
+  String get askRetry => 'Retry';
+
+  @override
+  String get askSaveFailed => 'Couldn\'t save that — try again.';
+
+  @override
+  String get askActionFailed => 'Couldn\'t do that just now. Try again.';
+
+  @override
+  String get askThinking => 'Thinking…';
+
+  @override
+  String get askUnderstanding => 'Understanding…';
+
+  @override
+  String get askWorking => 'Working…';
+
+  @override
+  String get askPreparingChange => 'Preparing your change…';
+
+  @override
+  String get askStillWorking => 'Still working on this one…';
+
+  @override
+  String get askReadingDay => 'Reading your day…';
+
+  @override
+  String get askReadingDiet => 'Reading today\'s diet…';
+
+  @override
+  String get askReadingTraining => 'Reading your training…';
+
+  @override
+  String get askReadingSpending => 'Reading your spending…';
+
+  @override
+  String get askSummarisingWeek => 'Summarising your week…';
+
+  @override
+  String get askLookingUpFood => 'Looking that food up…';
+
+  @override
+  String get askCalculating => 'Working out the numbers…';
+
+  @override
+  String get askProposalConfirmed => 'Confirmed';
+
+  @override
+  String get askProposalCancelled => 'Cancelled';
+
+  @override
+  String get askProposalExpired => 'Expired';
+
+  @override
+  String get askProposalConfirm => 'Confirm';
+
+  @override
+  String get askActionNewExpense => 'New expense';
+
+  @override
+  String get askActionEditExpense => 'Edit expense';
+
+  @override
+  String get askActionDeleteExpense => 'Delete expense';
+
+  @override
+  String get askActionDietPlan => 'Diet plan';
+
+  @override
+  String get askActionLogFood => 'Log food';
+
+  @override
+  String get askActionSuggestion => 'Suggestion';
+
+  @override
+  String askFoodCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count foods',
+      one: '1 food',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askKcalTotal(String total) {
+    return '$total kcal';
+  }
+
+  @override
+  String get askVoiceUnavailable => 'Voice input isn\'t available right now.';
+
+  @override
+  String get askMicPermission =>
+      'Turn on microphone access to use voice input.';
+
+  @override
+  String get askMicStartFailed => 'Couldn\'t start the microphone — try again.';
+
+  @override
+  String get askDidntCatchThat => 'Didn\'t catch that — try recording again.';
+
+  @override
+  String get askTranscribeFailed =>
+      'Couldn\'t transcribe that — check your connection and try again.';
+
+  @override
+  String get askTranscribeTimeout =>
+      'That took too long — check your connection and try again.';
+
+  @override
+  String get askNothingCameThrough => 'Nothing came through — try again.';
+
+  @override
+  String get askTranscribing => 'Transcribing…';
+
+  @override
+  String get askDiscardRecording => 'Discard recording';
+
+  @override
+  String get askDiscardVoiceNote => 'Discard voice note';
+
+  @override
+  String get askTryAgain => 'Try again';
+
+  @override
+  String askSecondsElapsed(int seconds) {
+    return ' · ${seconds}s';
+  }
+
+  @override
+  String get askComposerHint => 'Ask ZIVO…';
+
+  @override
+  String get askRecordVoiceNote => 'Record a voice note';
+
+  @override
+  String get askSilenceHint => 'Can\'t hear you yet — speak closer to the mic.';
+
+  @override
+  String get askVoiceLog => 'Voice log';
+
+  @override
+  String get askVoiceLogSubtitle =>
+      'Say it once — it lands in Ask ready to send.';
+
+  @override
+  String get askTapAndSpeak => 'Tap and speak';
+
+  @override
+  String get askVoiceExamples =>
+      '\"add 40 EGP parking\" · \"finished chest day\"';
 }

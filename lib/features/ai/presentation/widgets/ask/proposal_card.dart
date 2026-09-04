@@ -4,6 +4,7 @@ import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../domain/ai_pending_action.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// The ADR-003 confirmation card: an assistant proposal the user confirms or
 /// cancels. Nothing has been written while it shows Confirm/Cancel.
@@ -24,7 +25,7 @@ class ProposalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = status != AiActionStatus.pending;
-    final meta = _kindMeta(action.kind);
+    final meta = _kindMeta(context, action.kind);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       // The card grows/settles smoothly as it swaps between the proposal and
@@ -51,7 +52,9 @@ class ProposalCard extends StatelessWidget {
             duration: const Duration(milliseconds: 220),
             child: KeyedSubtree(
               key: ValueKey(resolved),
-              child: resolved ? _resolved(meta) : _pending(meta),
+              child: resolved
+                  ? _resolved(context, meta)
+                  : _pending(context, meta),
             ),
           ),
         ),
@@ -60,17 +63,18 @@ class ProposalCard extends StatelessWidget {
   }
 
   Widget _pending(
+    BuildContext context,
     ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
   ) {
-    final chips = _chips();
-    final confirm = _confirmSpec();
+    final chips = _chips(context);
+    final confirm = _confirmSpec(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _headerRow(meta),
         const SizedBox(height: 13),
         Text(
-          _primaryLine(),
+          _primaryLine(context),
           style: AppText.cardTitle.copyWith(fontSize: 20, letterSpacing: -0.3),
         ),
         if (chips.isNotEmpty) ...[
@@ -110,7 +114,7 @@ class ProposalCard extends StatelessWidget {
                   vertical: 13,
                 ),
                 child: Text(
-                  'Cancel',
+                  l(context).actionCancel,
                   style: AppText.button.copyWith(color: TrainColors.ink2),
                 ),
               ),
@@ -125,10 +129,11 @@ class ProposalCard extends StatelessWidget {
   /// confirmation read days later still says exactly what was added, changed,
   /// or removed — with a small status pill instead of the action buttons.
   Widget _resolved(
+    BuildContext context,
     ({IconData icon, String label, Color tintBg, Color tintFg}) meta,
   ) {
-    final s = _statusSpec();
-    final chips = _chips();
+    final s = _statusSpec(context);
+    final chips = _chips(context);
     final applied = status == AiActionStatus.applied;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +141,7 @@ class ProposalCard extends StatelessWidget {
         _headerRow(meta, trailing: _statusPill(s)),
         const SizedBox(height: 12),
         Text(
-          _primaryLine(),
+          _primaryLine(context),
           style: AppText.cardTitle.copyWith(
             fontSize: 19,
             letterSpacing: -0.3,
@@ -212,26 +217,28 @@ class ProposalCard extends StatelessWidget {
     );
   }
 
-  ({IconData icon, String label, Color fg, Color bg}) _statusSpec() {
+  ({IconData icon, String label, Color fg, Color bg}) _statusSpec(
+    BuildContext context,
+  ) {
     switch (status) {
       case AiActionStatus.applied:
         return (
           icon: AppIcons.check,
-          label: 'Confirmed',
+          label: l(context).askProposalConfirmed,
           fg: TrainColors.green,
           bg: TrainColors.greenWash,
         );
       case AiActionStatus.cancelled:
         return (
           icon: AppIcons.close,
-          label: 'Cancelled',
+          label: l(context).askProposalCancelled,
           fg: TrainColors.ink3,
           bg: TrainColors.hairline,
         );
       default:
         return (
           icon: AppIcons.clock,
-          label: 'Expired',
+          label: l(context).askProposalExpired,
           fg: TrainColors.ink3,
           bg: TrainColors.hairline,
         );
@@ -240,14 +247,14 @@ class ProposalCard extends StatelessWidget {
 
   /// The confirm button's verb + colour. A delete is destructive, so it wears
   /// the alert hue and says "Delete" rather than a neutral "Confirm".
-  ({String label, Color color}) _confirmSpec() {
+  ({String label, Color color}) _confirmSpec(BuildContext context) {
     if (action.kind == 'delete_expense') {
-      return (label: 'Delete', color: TrainColors.ember);
+      return (label: l(context).actionDelete, color: TrainColors.ember);
     }
-    return (label: 'Confirm', color: TrainColors.violet);
+    return (label: l(context).askProposalConfirm, color: TrainColors.violet);
   }
 
-  String _primaryLine() {
+  String _primaryLine(BuildContext context) {
     final f = action.fields;
     switch (action.kind) {
       case 'create_expense':
@@ -267,7 +274,7 @@ class ProposalCard extends StatelessWidget {
           if (name is String && name.trim().isNotEmpty) return name.trim();
         }
         final count = f['count'];
-        if (count is int && count > 0) return '$count foods';
+        if (count is int && count > 0) return l(context).askFoodCount(count);
         return action.summary;
       default:
         return action.summary;
@@ -282,7 +289,7 @@ class ProposalCard extends StatelessWidget {
     return value.toString();
   }
 
-  List<Widget> _chips() {
+  List<Widget> _chips(BuildContext context) {
     final f = action.fields;
     final chips = <Widget>[];
     switch (action.kind) {
@@ -339,7 +346,7 @@ class ProposalCard extends StatelessWidget {
         // A total, only when it adds something over a single item's own chip.
         final total = f['totalKcal'];
         if (total != null && items is List && items.length > 1) {
-          chips.add(_chip(AppIcons.diet, '$total kcal'));
+          chips.add(_chip(AppIcons.diet, l(context).askKcalTotal('$total')));
         }
     }
     return chips;
@@ -367,48 +374,49 @@ class ProposalCard extends StatelessWidget {
   }
 
   ({IconData icon, String label, Color tintBg, Color tintFg}) _kindMeta(
+    BuildContext context,
     String kind,
   ) {
     switch (kind) {
       case 'create_expense':
         return (
           icon: AppIcons.expenses,
-          label: 'New expense',
+          label: l(context).askActionNewExpense,
           tintBg: TrainColors.amberWash,
           tintFg: TrainColors.amber,
         );
       case 'edit_expense':
         return (
           icon: AppIcons.edit,
-          label: 'Edit expense',
+          label: l(context).askActionEditExpense,
           tintBg: TrainColors.amberWash,
           tintFg: TrainColors.amber,
         );
       case 'delete_expense':
         return (
           icon: AppIcons.trash,
-          label: 'Delete expense',
+          label: l(context).askActionDeleteExpense,
           tintBg: TrainColors.emberWash,
           tintFg: TrainColors.ember,
         );
       case 'mark_meal_eaten':
         return (
           icon: AppIcons.diet,
-          label: 'Diet plan',
+          label: l(context).askActionDietPlan,
           tintBg: TrainColors.greenWash,
           tintFg: TrainColors.green,
         );
       case 'log_food':
         return (
           icon: AppIcons.diet,
-          label: 'Log food',
+          label: l(context).askActionLogFood,
           tintBg: TrainColors.greenWash,
           tintFg: TrainColors.green,
         );
       default:
         return (
           icon: AppIcons.ask,
-          label: 'Suggestion',
+          label: l(context).askActionSuggestion,
           tintBg: TrainColors.hairline,
           tintFg: TrainColors.ink2,
         );

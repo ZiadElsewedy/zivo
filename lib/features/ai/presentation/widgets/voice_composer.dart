@@ -11,6 +11,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../data/audio_recorder.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's pinned composer — one pill that morphs through three
 /// states, each fully honest about what is happening:
@@ -185,10 +186,10 @@ class _IdleBar extends StatelessWidget {
                 cursorColor: TrainColors.violet,
                 cursorWidth: 1.6,
                 style: AppText.rowTitle,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Ask ZIVO…',
+                  hintText: l(context).askComposerHint,
                 ),
               ),
             ),
@@ -202,7 +203,7 @@ class _IdleBar extends StatelessWidget {
                 size: 22,
                 color: blocked ? TrainColors.ink3 : TrainColors.violet,
               ),
-              tooltip: 'Record a voice note',
+              tooltip: l(context).askRecordVoiceNote,
             ),
           ),
           _SendCircle(canSend: canSend, blocked: blocked, onSend: onSend),
@@ -437,7 +438,7 @@ class _RecordingBarState extends State<_RecordingBar>
                     size: 20,
                     color: TrainColors.ink3,
                   ),
-                  tooltip: 'Discard recording',
+                  tooltip: l(context).askDiscardRecording,
                 ),
               ),
               // The live record dot — breathing while motion is allowed.
@@ -505,7 +506,7 @@ class _RecordingBarState extends State<_RecordingBar>
                   key: const ValueKey('silence-hint'),
                   padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
                   child: Text(
-                    "Can't hear you yet — speak closer to the mic.",
+                    l(context).askSilenceHint,
                     style: AppText.meta.copyWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -633,12 +634,12 @@ class _TranscribingBarState extends State<_TranscribingBar>
           const SizedBox(width: 16),
           still ? glyph : FadeTransition(opacity: _c, child: glyph),
           const SizedBox(width: 10),
-          Text('Transcribing…', style: AppText.rowTitle),
+          Text(l(context).askTranscribing, style: AppText.rowTitle),
           // A visible counter: long waits read as progress, not a hang.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: Text(
-              ' · ${_seconds}s',
+              l(context).askSecondsElapsed(_seconds),
               key: ValueKey(_seconds),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
@@ -653,7 +654,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
                 size: 20,
                 color: TrainColors.ink3,
               ),
-              tooltip: 'Discard voice note',
+              tooltip: l(context).askDiscardVoiceNote,
             ),
           ),
         ],

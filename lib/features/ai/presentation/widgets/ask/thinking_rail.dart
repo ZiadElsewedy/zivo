@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../ask_constants.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// The calm "the assistant is working" state: a softly glowing iris orb that
 /// breathes beside the authoritative phase label, which cross-fades between
@@ -10,11 +11,12 @@ import '../../ask_constants.dart';
 /// silent hang. Shown only while a turn is in flight, so its looping pulse
 /// is never left mounted (which would stall `pumpAndSettle`). No spinner.
 class ThinkingRail extends StatefulWidget {
-  const ThinkingRail({this.label = 'Thinking…', this.slow = false, super.key});
+  const ThinkingRail({this.label, this.slow = false, super.key});
 
-  /// The current phase label (authoritative when streaming; "Thinking…" until
-  /// the first phase event or for a buffered turn).
-  final String label;
+  /// The current phase label (authoritative when streaming). Null falls back
+  /// to the localized "Thinking…" — resolved in `build` rather than as a
+  /// default here, because a `const` constructor cannot reach `Localizations`.
+  final String? label;
 
   /// The turn has gone quiet — add the honest reassurance line.
   final bool slow;
@@ -40,6 +42,7 @@ class _ThinkingRailState extends State<ThinkingRail>
 
   @override
   Widget build(BuildContext context) {
+    final label = widget.label ?? l(context).askThinking;
     final still = MediaQuery.of(context).disableAnimations;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
@@ -69,8 +72,8 @@ class _ThinkingRailState extends State<ThinkingRail>
                   children: [...previousChildren, ?currentChild],
                 ),
                 child: Text(
-                  widget.label,
-                  key: ValueKey(widget.label),
+                  label,
+                  key: ValueKey(label),
                   style: AppText.meta.copyWith(
                     color: TrainColors.violet,
                     fontWeight: FontWeight.w600,
@@ -89,7 +92,7 @@ class _ThinkingRailState extends State<ThinkingRail>
                     key: const ValueKey('slow'),
                     padding: const EdgeInsets.only(left: 19, top: 4),
                     child: Text(
-                      'Still working on this one…',
+                      l(context).askStillWorking,
                       style: AppText.meta.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,

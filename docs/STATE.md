@@ -73,6 +73,50 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The Ask (AI coach) surface is localized** (2026-09-04, on `core-edits`).
+  Third piece of the l10n push, and the one with the two real design problems.
+  **66 new keys** (507 → **573**), `l10n-untranslated.txt` still `{}`.
+  - **`'New chat'` was a stored sentinel, not copy** — and translating it
+    naively would have been a data bug, not a cosmetic one. `createConversation`
+    writes it into Firestore, `_fromDoc` defaults to it, and three call sites
+    compare `title == 'New chat'` to decide whether a thread is still untitled.
+    Localize it and every one of those comparisons silently breaks the moment
+    the user switches language, leaving older threads permanently "titled" in
+    whatever language created them — exactly what `kAmrapLabel` exists to warn
+    about. It is now
+    [`kUntitledConversationTitle`](../lib/features/ai/domain/ai_conversation.dart)
+    (a named, deliberately untranslated constant), and
+    `displayConversationTitle(context, title)` in `sessions_sheet.dart` is the
+    **one** render-boundary that maps it to the localized `askNewChat`. Pinned
+    by tests on both halves: the stored value stays English, the displayed one
+    is Arabic.
+  - **`AskController` now takes the copy as a value.** ADR-008 forbids a
+    controller holding a `BuildContext` — it says nothing about a value object,
+    and `AppLocalizations` is one. The controller took `required
+    AppLocalizations strings`, plus `updateStrings()`, which `AskPage` calls
+    from `didChangeDependencies`, so **switching language mid-chat re-renders
+    the thinking rail** rather than stranding it in the old locale. That closes
+    the debt the controller's own doc comment had already flagged ("a future
+    move to l10n is one file"). The 13 phase/step rail labels and 8 voice/error
+    messages all moved.
+  - Also localized: the empty state (its four suggestion chips are both label
+    AND the text that gets sent, so an Arabic reader now asks ZIVO in Arabic),
+    the proposal card (status, kind, confirm verbs), the sessions sheet, the
+    thinking rail, the chat header, the voice composer and the quick-log sheet.
+    Widget-test `Key('…')` strings were deliberately left alone — they are
+    identifiers, not copy.
+  - `ThinkingRail.label` became nullable and resolves in `build`; a `const`
+    constructor cannot reach `Localizations`. Two `quick_log_sheet` handlers now
+    read `l(context)` once **before** their awaits — a `BuildContext` across an
+    async gap is a lint and a bug; a captured `AppLocalizations` is neither.
+  - **New `test/ai/ask_l10n_test.dart`** — Arabic render, English unchanged, and
+    three assertions on the sentinel (stored value stays English; a sentinel
+    title displays Arabic; a user-named thread is untouched in either language).
+  - Gates green: `flutter analyze` clean, **1138** tests passing (+5).
+  - **Still open:** ~222 literals across 52 presentation files (`profile_page`
+    17, diet, expenses, auth). Plus the `domain/analytics/` engine prose, which
+    still needs the owner decision described below.
+
 - **The workout progress/analysis stack is localized** (2026-09-04, on
   `core-edits`). The second landed piece of the l10n push, and the debt
   STATE.md had been carrying since the drill-down shipped ("Analysis strings

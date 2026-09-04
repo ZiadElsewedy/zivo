@@ -2512,5 +2512,289 @@
               "type": "String"
           }
       }
+  },
+  "askTitle": "Ask",
+  "@askTitle": {
+      "description": "The AI chat surface's title."
+  },
+  "askNewChat": "New chat",
+  "@askNewChat": {
+      "description": "Starts a fresh conversation. Also what an untitled thread is shown as — the stored sentinel stays English."
+  },
+  "askChatHistory": "Chat history",
+  "@askChatHistory": {
+      "description": "Opens the list of past conversations."
+  },
+  "askReplyStyle": "Reply style",
+  "@askReplyStyle": {
+      "description": "Opens the picker for how long or detailed ZIVO's replies should be."
+  },
+  "askChats": "Chats",
+  "@askChats": {
+      "description": "Header of the conversation list sheet."
+  },
+  "askNoChats": "No chats yet.",
+  "@askNoChats": {
+      "description": "Empty state in the conversation list."
+  },
+  "askNameItHint": "Name it so you can find it later — or leave it blank and the first message will title it.",
+  "@askNameItHint": {
+      "description": "Explains the optional name field when starting a new chat."
+  },
+  "askNamePlaceholder": "e.g. Workout changes",
+  "@askNamePlaceholder": {
+      "description": "Placeholder in the new-chat name field."
+  },
+  "askStartChatting": "Start chatting",
+  "@askStartChatting": {
+      "description": "Confirms creating the new conversation."
+  },
+  "askDeleteChatTitle": "Delete this chat?",
+  "@askDeleteChatTitle": {
+      "description": "Title of the confirmation before deleting a conversation."
+  },
+  "askDeleteChatBody": "This permanently removes \"{title}\" and everything in it. This can't be undone.",
+  "@askDeleteChatBody": {
+      "description": "Body of the confirmation before deleting a conversation.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          }
+      }
+  },
+  "askDeleteChatConfirm": "Delete chat",
+  "@askDeleteChatConfirm": {
+      "description": "Confirm button on the delete-conversation dialog."
+  },
+  "askGreeting": "Hey, I'm ZIVO.",
+  "@askGreeting": {
+      "description": "The assistant introducing itself on the empty chat screen. \"ZIVO\" is the product name and is never translated."
+  },
+  "askIntro": "Training, diet and spending. Ask me anything — or let me log it for you.",
+  "@askIntro": {
+      "description": "What the assistant can help with, on the empty chat screen."
+  },
+  "askSuggestSpend": "What did I spend this week?",
+  "@askSuggestSpend": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestTraining": "How is my training going?",
+  "@askSuggestTraining": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestDiet": "What's left on my diet today?",
+  "@askSuggestDiet": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askSuggestWeek": "Summarise my week",
+  "@askSuggestWeek": {
+      "description": "Tappable example question on the empty chat screen."
+  },
+  "askUnreachableTitle": "Couldn't reach ZIVO",
+  "@askUnreachableTitle": {
+      "description": "Title when a message could not be sent. \"ZIVO\" is the product name."
+  },
+  "askUnreachableBody": "Your message wasn’t sent.",
+  "@askUnreachableBody": {
+      "description": "Body when a message could not be sent."
+  },
+  "askRetry": "Retry",
+  "@askRetry": {
+      "description": "Sends the failed message again."
+  },
+  "askSaveFailed": "Couldn't save that — try again.",
+  "@askSaveFailed": {
+      "description": "Shown when a conversation could not be created or renamed."
+  },
+  "askActionFailed": "Couldn't do that just now. Try again.",
+  "@askActionFailed": {
+      "description": "Shown when confirming or cancelling a proposed change failed."
+  },
+  "askThinking": "Thinking…",
+  "@askThinking": {
+      "description": "The assistant is composing a reply. Keep the ellipsis."
+  },
+  "askUnderstanding": "Understanding…",
+  "@askUnderstanding": {
+      "description": "The assistant is interpreting the question. Keep the ellipsis."
+  },
+  "askWorking": "Working…",
+  "@askWorking": {
+      "description": "Generic progress line while the assistant runs a step. Keep the ellipsis."
+  },
+  "askPreparingChange": "Preparing your change…",
+  "@askPreparingChange": {
+      "description": "The assistant is drafting a change for the user to confirm. Keep the ellipsis."
+  },
+  "askStillWorking": "Still working on this one…",
+  "@askStillWorking": {
+      "description": "Shown when a turn is taking unusually long. Keep the ellipsis."
+  },
+  "askReadingDay": "Reading your day…",
+  "@askReadingDay": {
+      "description": "Progress line: the assistant is reading today's summary. Keep the ellipsis."
+  },
+  "askReadingDiet": "Reading today's diet…",
+  "@askReadingDiet": {
+      "description": "Progress line: the assistant is reading the diet log. Keep the ellipsis."
+  },
+  "askReadingTraining": "Reading your training…",
+  "@askReadingTraining": {
+      "description": "Progress line: the assistant is reading workout history. Keep the ellipsis."
+  },
+  "askReadingSpending": "Reading your spending…",
+  "@askReadingSpending": {
+      "description": "Progress line: the assistant is reading the expense log. Keep the ellipsis."
+  },
+  "askSummarisingWeek": "Summarising your week…",
+  "@askSummarisingWeek": {
+      "description": "Progress line: the assistant is building a weekly summary. Keep the ellipsis."
+  },
+  "askLookingUpFood": "Looking that food up…",
+  "@askLookingUpFood": {
+      "description": "Progress line: the assistant is resolving a food item. Keep the ellipsis."
+  },
+  "askCalculating": "Working out the numbers…",
+  "@askCalculating": {
+      "description": "Progress line: the assistant is computing nutrition figures. Keep the ellipsis."
+  },
+  "askProposalConfirmed": "Confirmed",
+  "@askProposalConfirmed": {
+      "description": "A proposed change the user accepted."
+  },
+  "askProposalCancelled": "Cancelled",
+  "@askProposalCancelled": {
+      "description": "A proposed change the user rejected."
+  },
+  "askProposalExpired": "Expired",
+  "@askProposalExpired": {
+      "description": "A proposed change that timed out before the user answered."
+  },
+  "askProposalConfirm": "Confirm",
+  "@askProposalConfirm": {
+      "description": "Accepts a change ZIVO proposed. A deletion says \"Delete\" instead."
+  },
+  "askActionNewExpense": "New expense",
+  "@askActionNewExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to add an expense."
+  },
+  "askActionEditExpense": "Edit expense",
+  "@askActionEditExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to change an expense."
+  },
+  "askActionDeleteExpense": "Delete expense",
+  "@askActionDeleteExpense": {
+      "description": "Kind label on a proposal card: ZIVO wants to remove an expense."
+  },
+  "askActionDietPlan": "Diet plan",
+  "@askActionDietPlan": {
+      "description": "Kind label on a proposal card: ZIVO wants to mark a meal eaten."
+  },
+  "askActionLogFood": "Log food",
+  "@askActionLogFood": {
+      "description": "Kind label on a proposal card: ZIVO wants to log food."
+  },
+  "askActionSuggestion": "Suggestion",
+  "@askActionSuggestion": {
+      "description": "Kind label on a proposal card for anything else."
+  },
+  "askFoodCount": "{count, plural, =1{1 food} other{{count} foods}}",
+  "@askFoodCount": {
+      "description": "How many food items a log-food proposal covers.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "askKcalTotal": "{total} kcal",
+  "@askKcalTotal": {
+      "description": "Total calories across a proposal's food items.",
+      "placeholders": {
+          "total": {
+              "type": "String"
+          }
+      }
+  },
+  "askVoiceUnavailable": "Voice input isn't available right now.",
+  "@askVoiceUnavailable": {
+      "description": "Shown when the device offers no microphone or recorder."
+  },
+  "askMicPermission": "Turn on microphone access to use voice input.",
+  "@askMicPermission": {
+      "description": "Shown when microphone permission was denied."
+  },
+  "askMicStartFailed": "Couldn't start the microphone — try again.",
+  "@askMicStartFailed": {
+      "description": "Shown when the recorder failed to start."
+  },
+  "askDidntCatchThat": "Didn't catch that — try recording again.",
+  "@askDidntCatchThat": {
+      "description": "Shown when a recording produced no speech."
+  },
+  "askTranscribeFailed": "Couldn't transcribe that — check your connection and try again.",
+  "@askTranscribeFailed": {
+      "description": "Shown when transcription failed."
+  },
+  "askTranscribeTimeout": "That took too long — check your connection and try again.",
+  "@askTranscribeTimeout": {
+      "description": "Shown when transcription ran past its timeout."
+  },
+  "askNothingCameThrough": "Nothing came through — try again.",
+  "@askNothingCameThrough": {
+      "description": "Shown when a transcription returned empty text."
+  },
+  "askTranscribing": "Transcribing…",
+  "@askTranscribing": {
+      "description": "Shown while a voice note is being turned into text. Keep the ellipsis."
+  },
+  "askDiscardRecording": "Discard recording",
+  "@askDiscardRecording": {
+      "description": "Accessibility label for cancelling an in-progress recording."
+  },
+  "askDiscardVoiceNote": "Discard voice note",
+  "@askDiscardVoiceNote": {
+      "description": "Accessibility label for cancelling a transcription."
+  },
+  "askTryAgain": "Try again",
+  "@askTryAgain": {
+      "description": "Retries a failed voice note."
+  },
+  "askSecondsElapsed": " · {seconds}s",
+  "@askSecondsElapsed": {
+      "description": "Elapsed seconds beside a transcription spinner. Leading separator is intentional.",
+      "placeholders": {
+          "seconds": {
+              "type": "int"
+          }
+      }
+  },
+  "askComposerHint": "Ask ZIVO…",
+  "@askComposerHint": {
+      "description": "Placeholder in the chat composer. \"ZIVO\" is the product name. Keep the ellipsis."
+  },
+  "askRecordVoiceNote": "Record a voice note",
+  "@askRecordVoiceNote": {
+      "description": "Accessibility label for the composer's microphone button."
+  },
+  "askSilenceHint": "Can't hear you yet — speak closer to the mic.",
+  "@askSilenceHint": {
+      "description": "Shown mid-recording when no speech has been detected."
+  },
+  "askVoiceLog": "Voice log",
+  "@askVoiceLog": {
+      "description": "Title of the quick voice-capture sheet."
+  },
+  "askVoiceLogSubtitle": "Say it once — it lands in Ask ready to send.",
+  "@askVoiceLogSubtitle": {
+      "description": "Subtitle of the quick voice-capture sheet."
+  },
+  "askTapAndSpeak": "Tap and speak",
+  "@askTapAndSpeak": {
+      "description": "Prompt above the record button in the quick voice-capture sheet."
+  },
+  "askVoiceExamples": "\"add 40 EGP parking\" · \"finished chest day\"",
+  "@askVoiceExamples": {
+      "description": "Two example utterances shown under the record button."
   }
 }

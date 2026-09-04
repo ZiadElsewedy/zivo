@@ -3139,6 +3139,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h'**
   String workoutDurationH(String hours);
+
+  /// The AI chat surface's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get askTitle;
+
+  /// Starts a fresh conversation. Also what an untitled thread is shown as — the stored sentinel stays English.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get askNewChat;
+
+  /// Opens the list of past conversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat history'**
+  String get askChatHistory;
+
+  /// Opens the picker for how long or detailed ZIVO's replies should be.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply style'**
+  String get askReplyStyle;
+
+  /// Header of the conversation list sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get askChats;
+
+  /// Empty state in the conversation list.
+  ///
+  /// In en, this message translates to:
+  /// **'No chats yet.'**
+  String get askNoChats;
+
+  /// Explains the optional name field when starting a new chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Name it so you can find it later — or leave it blank and the first message will title it.'**
+  String get askNameItHint;
+
+  /// Placeholder in the new-chat name field.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Workout changes'**
+  String get askNamePlaceholder;
+
+  /// Confirms creating the new conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Start chatting'**
+  String get askStartChatting;
+
+  /// Title of the confirmation before deleting a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this chat?'**
+  String get askDeleteChatTitle;
+
+  /// Body of the confirmation before deleting a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently removes \"{title}\" and everything in it. This can\'t be undone.'**
+  String askDeleteChatBody(String title);
+
+  /// Confirm button on the delete-conversation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get askDeleteChatConfirm;
+
+  /// The assistant introducing itself on the empty chat screen. "ZIVO" is the product name and is never translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Hey, I\'m ZIVO.'**
+  String get askGreeting;
+
+  /// What the assistant can help with, on the empty chat screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Training, diet and spending. Ask me anything — or let me log it for you.'**
+  String get askIntro;
+
+  /// Tappable example question on the empty chat screen.
+  ///
+  /// In en, this message translates to:
+  /// **'What did I spend this week?'**
+  String get askSuggestSpend;
+
+  /// Tappable example question on the empty chat screen.
+  ///
+  /// In en, this message translates to:
+  /// **'How is my training going?'**
+  String get askSuggestTraining;
+
+  /// Tappable example question on the empty chat screen.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s left on my diet today?'**
+  String get askSuggestDiet;
+
+  /// Tappable example question on the empty chat screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise my week'**
+  String get askSuggestWeek;
+
+  /// Title when a message could not be sent. "ZIVO" is the product name.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach ZIVO'**
+  String get askUnreachableTitle;
+
+  /// Body when a message could not be sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your message wasn’t sent.'**
+  String get askUnreachableBody;
+
+  /// Sends the failed message again.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get askRetry;
+
+  /// Shown when a conversation could not be created or renamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that — try again.'**
+  String get askSaveFailed;
+
+  /// Shown when confirming or cancelling a proposed change failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t do that just now. Try again.'**
+  String get askActionFailed;
+
+  /// The assistant is composing a reply. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get askThinking;
+
+  /// The assistant is interpreting the question. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding…'**
+  String get askUnderstanding;
+
+  /// Generic progress line while the assistant runs a step. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get askWorking;
+
+  /// The assistant is drafting a change for the user to confirm. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your change…'**
+  String get askPreparingChange;
+
+  /// Shown when a turn is taking unusually long. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Still working on this one…'**
+  String get askStillWorking;
+
+  /// Progress line: the assistant is reading today's summary. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your day…'**
+  String get askReadingDay;
+
+  /// Progress line: the assistant is reading the diet log. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading today\'s diet…'**
+  String get askReadingDiet;
+
+  /// Progress line: the assistant is reading workout history. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your training…'**
+  String get askReadingTraining;
+
+  /// Progress line: the assistant is reading the expense log. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your spending…'**
+  String get askReadingSpending;
+
+  /// Progress line: the assistant is building a weekly summary. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarising your week…'**
+  String get askSummarisingWeek;
+
+  /// Progress line: the assistant is resolving a food item. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking that food up…'**
+  String get askLookingUpFood;
+
+  /// Progress line: the assistant is computing nutrition figures. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Working out the numbers…'**
+  String get askCalculating;
+
+  /// A proposed change the user accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get askProposalConfirmed;
+
+  /// A proposed change the user rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get askProposalCancelled;
+
+  /// A proposed change that timed out before the user answered.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get askProposalExpired;
+
+  /// Accepts a change ZIVO proposed. A deletion says "Delete" instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get askProposalConfirm;
+
+  /// Kind label on a proposal card: ZIVO wants to add an expense.
+  ///
+  /// In en, this message translates to:
+  /// **'New expense'**
+  String get askActionNewExpense;
+
+  /// Kind label on a proposal card: ZIVO wants to change an expense.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit expense'**
+  String get askActionEditExpense;
+
+  /// Kind label on a proposal card: ZIVO wants to remove an expense.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete expense'**
+  String get askActionDeleteExpense;
+
+  /// Kind label on a proposal card: ZIVO wants to mark a meal eaten.
+  ///
+  /// In en, this message translates to:
+  /// **'Diet plan'**
+  String get askActionDietPlan;
+
+  /// Kind label on a proposal card: ZIVO wants to log food.
+  ///
+  /// In en, this message translates to:
+  /// **'Log food'**
+  String get askActionLogFood;
+
+  /// Kind label on a proposal card for anything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get askActionSuggestion;
+
+  /// How many food items a log-food proposal covers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 food} other{{count} foods}}'**
+  String askFoodCount(int count);
+
+  /// Total calories across a proposal's food items.
+  ///
+  /// In en, this message translates to:
+  /// **'{total} kcal'**
+  String askKcalTotal(String total);
+
+  /// Shown when the device offers no microphone or recorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input isn\'t available right now.'**
+  String get askVoiceUnavailable;
+
+  /// Shown when microphone permission was denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on microphone access to use voice input.'**
+  String get askMicPermission;
+
+  /// Shown when the recorder failed to start.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start the microphone — try again.'**
+  String get askMicStartFailed;
+
+  /// Shown when a recording produced no speech.
+  ///
+  /// In en, this message translates to:
+  /// **'Didn\'t catch that — try recording again.'**
+  String get askDidntCatchThat;
+
+  /// Shown when transcription failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t transcribe that — check your connection and try again.'**
+  String get askTranscribeFailed;
+
+  /// Shown when transcription ran past its timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'That took too long — check your connection and try again.'**
+  String get askTranscribeTimeout;
+
+  /// Shown when a transcription returned empty text.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing came through — try again.'**
+  String get askNothingCameThrough;
+
+  /// Shown while a voice note is being turned into text. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribing…'**
+  String get askTranscribing;
+
+  /// Accessibility label for cancelling an in-progress recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard recording'**
+  String get askDiscardRecording;
+
+  /// Accessibility label for cancelling a transcription.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard voice note'**
+  String get askDiscardVoiceNote;
+
+  /// Retries a failed voice note.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get askTryAgain;
+
+  /// Elapsed seconds beside a transcription spinner. Leading separator is intentional.
+  ///
+  /// In en, this message translates to:
+  /// **' · {seconds}s'**
+  String askSecondsElapsed(int seconds);
+
+  /// Placeholder in the chat composer. "ZIVO" is the product name. Keep the ellipsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask ZIVO…'**
+  String get askComposerHint;
+
+  /// Accessibility label for the composer's microphone button.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a voice note'**
+  String get askRecordVoiceNote;
+
+  /// Shown mid-recording when no speech has been detected.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t hear you yet — speak closer to the mic.'**
+  String get askSilenceHint;
+
+  /// Title of the quick voice-capture sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice log'**
+  String get askVoiceLog;
+
+  /// Subtitle of the quick voice-capture sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it once — it lands in Ask ready to send.'**
+  String get askVoiceLogSubtitle;
+
+  /// Prompt above the record button in the quick voice-capture sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap and speak'**
+  String get askTapAndSpeak;
+
+  /// Two example utterances shown under the record button.
+  ///
+  /// In en, this message translates to:
+  /// **'\"add 40 EGP parking\" · \"finished chest day\"'**
+  String get askVoiceExamples;
 }
 
 class _AppLocalizationsDelegate

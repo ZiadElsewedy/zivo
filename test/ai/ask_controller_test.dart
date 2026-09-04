@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zivo/l10n/app_localizations_en.dart';
 import 'package:zivo/features/ai/domain/ai_conversation.dart';
 import 'package:zivo/features/ai/domain/ai_message.dart';
 import 'package:zivo/features/ai/domain/ai_pending_action.dart';
@@ -326,12 +327,16 @@ class _NoopTickerProvider implements TickerProvider {
   Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
 }
 
+/// English copy, built directly rather than resolved from a widget tree —
+/// [AskController] takes an [AppLocalizations] value (it never holds a
+/// BuildContext, per ADR-008), so these tests need no `pumpWidget`.
 AskController _controller(AiRepository ai, {void Function(String)? onError}) =>
     AskController(
       ai: ai,
       recorder: null,
       vsync: _NoopTickerProvider(),
       transcribeTimeout: const Duration(seconds: 5),
+      strings: AppLocalizationsEn(),
       onError: onError,
     );
 

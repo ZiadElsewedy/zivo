@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../data/audio_recorder.dart';
+import '../../../../l10n/l10n.dart';
+import '../../domain/ai_conversation.dart';
 import '../../domain/ai_message.dart';
 import '../../domain/ai_pending_action.dart';
 import '../../domain/ai_repository.dart';
@@ -41,12 +43,15 @@ class AskController extends ChangeNotifier {
     required AudioRecorderService? recorder,
     required TickerProvider vsync,
     required this.transcribeTimeout,
+    required AppLocalizations strings,
     this.onError,
     this.onContentGrew,
     this.onSendStarted,
   }) : // An initializing formal would have to be `this._ai`, and a named
        // parameter cannot start with an underscore — so these stay plain
        // assignments.
+       // ignore: prefer_initializing_formals
+       _strings = strings,
        // ignore: prefer_initializing_formals
        _ai = ai,
        // ignore: prefer_initializing_formals
@@ -95,6 +100,21 @@ class AskController extends ChangeNotifier {
   String _responseStyle = kDefaultResponseStyle;
   String? _draftTitle;
 
+  /// The localized copy this controller hands to [onError] and renders on the
+  /// thinking rail.
+  ///
+  /// ADR-008's rule is that a controller never holds a `BuildContext` — it says
+  /// nothing about a value object. [AppLocalizations] is one: no element, no
+  /// lifecycle, and nothing to go stale except the locale, which is what
+  /// [updateStrings] is for. The page refreshes it from
+  /// `didChangeDependencies`, so switching language mid-chat re-renders the
+  /// rail in the new one.
+  AppLocalizations _strings;
+
+  /// Re-points this controller at the current locale's copy. Cheap and
+  /// idempotent; call it whenever `Localizations` may have changed.
+  void updateStrings(AppLocalizations strings) => _strings = strings;
+
   /// Null while still loading, OR while sitting in an unsaved "New chat" that
   /// hasn't sent its first message yet — see [activeResolved].
   String? get activeConversationId => _activeConversationId;
@@ -125,7 +145,7 @@ class AskController extends ChangeNotifier {
     final style = await responseStyleFuture;
     if (_disposed || _activeResolved) return;
     _activeConversationId = latest?.id;
-    _activeIsUntitled = latest?.title == 'New chat';
+    _activeIsUntitled = latest?.title == kUntitledConversationTitle;
     _activeResolved = true;
     _responseStyle = validResponseStyle(style);
     _notify();
@@ -177,7 +197,7 @@ class AskController extends ChangeNotifier {
   Future<({String id, bool isUntitled})?> latestConversation() async {
     final latest = await _ai.latestConversation();
     if (latest == null) return null;
-    return (id: latest.id, isUntitled: latest.title == 'New chat');
+    return (id: latest.id, isUntitled: latest.title == kUntitledConversationTitle);
   }
 
   /// Picks a new reply-length style — applied optimistically (future sends
@@ -194,7 +214,7 @@ class AskController extends ChangeNotifier {
       if (_disposed) return;
       _responseStyle = previous;
       _notify();
-      onError?.call("Couldn't save that — try again.");
+      onError?.call(_strings.askSaveFailed);
     }
   }
 
@@ -301,10 +321,10 @@ class AskController extends ChangeNotifier {
     final step = _stepTool;
     if (step != null) return _stepLabel(step);
     return switch (_phase) {
-      AiPhase.understanding => 'Understanding…',
-      AiPhase.working => 'Working…',
-      AiPhase.preparingChange => 'Preparing your change…',
-      _ => 'Thinking…',
+      AiPhase.understanding => _strings.askUnderstanding,
+      AiPhase.working => _strings.askWorking,
+      AiPhase.preparingChange => _strings.askPreparingChange,
+      _ => _strings.askThinking,
     };
   }
 
@@ -313,15 +333,15 @@ class AskController extends ChangeNotifier {
   /// An unknown name falls back to the generic line rather than showing a raw
   /// identifier: a tool added server-side must degrade to "Working…" on an
   /// older build, never leak `get_body_composition` onto the screen.
-  static String _stepLabel(String tool) => switch (tool) {
-    'get_today' => 'Reading your day…',
-    'get_diet' => "Reading today's diet…",
-    'get_workouts' => 'Reading your training…',
-    'get_expenses' => 'Reading your spending…',
-    'summarize_week' => 'Summarising your week…',
-    'resolve_food' => 'Looking that food up…',
-    'calculate_meal_nutrition' => 'Working out the numbers…',
-    _ => 'Working…',
+  String _stepLabel(String tool) => switch (tool) {
+    'get_today' => _strings.askReadingDay,
+    'get_diet' => _strings.askReadingDiet,
+    'get_workouts' => _strings.askReadingTraining,
+    'get_expenses' => _strings.askReadingSpending,
+    'summarize_week' => _strings.askSummarisingWeek,
+    'resolve_food' => _strings.askLookingUpFood,
+    'calculate_meal_nutrition' => _strings.askCalculating,
+    _ => _strings.askWorking,
   };
 
   /// Drops text into the composer as editable content — never auto-sent.
@@ -651,7 +671,7 @@ class AskController extends ChangeNotifier {
       if (_disposed) return;
       _resolved.remove(actionId);
       _notify();
-      onError?.call("Couldn't do that just now. Try again.");
+      onError?.call(_strings.askActionFailed);
     }
   }
 
@@ -667,7 +687,7 @@ class AskController extends ChangeNotifier {
       if (_disposed) return;
       _resolved.remove(actionId);
       _notify();
-      onError?.call("Couldn't do that just now. Try again.");
+      onError?.call(_strings.askActionFailed);
     }
   }
 
@@ -692,10 +712,7 @@ class AskController extends ChangeNotifier {
     final recorder = _recorder;
     if (recorder == null) {
       _handleSttOutcome(
-        const SttFailed(
-          SttError.unknown,
-          "Voice input isn't available right now.",
-        ),
+        SttFailed(SttError.unknown, _strings.askVoiceUnavailable),
       );
       return;
     }
@@ -716,10 +733,7 @@ class AskController extends ChangeNotifier {
         _transcribing = false;
         _notify();
         _handleSttOutcome(
-          const SttFailed(
-            SttError.recordingFailed,
-            "Didn't catch that — try recording again.",
-          ),
+          SttFailed(SttError.recordingFailed, _strings.askDidntCatchThat),
         );
         return;
       }
@@ -736,9 +750,9 @@ class AskController extends ChangeNotifier {
     if (_disposed) return;
     if (!granted) {
       _handleSttOutcome(
-        const SttFailed(
+        SttFailed(
           SttError.microphonePermissionDenied,
-          'Turn on microphone access to use voice input.',
+          _strings.askMicPermission,
         ),
       );
       return;
@@ -748,10 +762,7 @@ class AskController extends ChangeNotifier {
     } catch (_) {
       if (_disposed) return;
       _handleSttOutcome(
-        const SttFailed(
-          SttError.recordingFailed,
-          "Couldn't start the microphone — try again.",
-        ),
+        SttFailed(SttError.recordingFailed, _strings.askMicStartFailed),
       );
       return;
     }
@@ -792,20 +803,13 @@ class AskController extends ChangeNotifier {
       outcome = await _withTimeout(
         _ai.transcribe(audioBytes: audio.bytes, mimeType: audio.mimeType),
         transcribeTimeout,
-        onTimeout: () => const SttFailed(
-          SttError.timeout,
-          'That took too long — check your connection and try again.',
-        ),
-        onFailure: () => const SttFailed(
-          SttError.unknown,
-          "Couldn't transcribe that — check your connection and try again.",
-        ),
+        onTimeout: () =>
+            SttFailed(SttError.timeout, _strings.askTranscribeTimeout),
+        onFailure: () =>
+            SttFailed(SttError.unknown, _strings.askTranscribeFailed),
       );
     } catch (_) {
-      outcome = const SttFailed(
-        SttError.unknown,
-        "Couldn't transcribe that — check your connection and try again.",
-      );
+      outcome = SttFailed(SttError.unknown, _strings.askTranscribeFailed);
     }
     if (_disposed || token != _transcribeToken) return;
     _transcribing = false;

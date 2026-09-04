@@ -7,6 +7,7 @@ import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/rise_in.dart';
 import '../../ask_constants.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// The small "✦ ZIVO" label grouping consecutive assistant content — shown
 /// once above a run of assistant bubbles/proposal cards, not per-message.
@@ -42,11 +43,14 @@ class EmptyAsk extends StatelessWidget {
 
   final void Function(String prompt) onSuggestion;
 
-  static const _suggestions = [
-    'What did I spend this week?',
-    'How is my training going?',
-    "What's left on my diet today?",
-    'Summarise my week',
+  /// The example prompts. Each is both the chip's label AND the text that
+  /// gets sent, so these are localized: an Arabic reader taps an Arabic
+  /// question and ZIVO is asked it in Arabic.
+  static List<String> _suggestions(BuildContext context) => [
+    l(context).askSuggestSpend,
+    l(context).askSuggestTraining,
+    l(context).askSuggestDiet,
+    l(context).askSuggestWeek,
   ];
 
   @override
@@ -115,7 +119,7 @@ class EmptyAsk extends StatelessWidget {
                         ? Duration.zero
                         : const Duration(milliseconds: 120),
                     child: Text(
-                      "Hey, I'm ZIVO.",
+                      l(context).askGreeting,
                       textAlign: TextAlign.center,
                       style: TrainType.serif(size: 36, height: 1),
                     ),
@@ -128,8 +132,7 @@ class EmptyAsk extends StatelessWidget {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 280),
                       child: Text(
-                        'Training, diet and spending. Ask me anything — or let '
-                        'me log it for you.',
+                        l(context).askIntro,
                         textAlign: TextAlign.center,
                         style: TrainType.ui(
                           size: 14,
@@ -147,7 +150,7 @@ class EmptyAsk extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final (index, prompt) in _suggestions.indexed)
+                        for (final (index, prompt) in _suggestions(context).indexed)
                           Padding(
                             padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
                             child: RiseIn(

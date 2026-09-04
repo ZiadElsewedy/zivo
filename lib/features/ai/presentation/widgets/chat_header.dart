@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/ai_response_style.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
 /// circle actions — reply style, chat history, new chat — all drawn from the
@@ -53,7 +54,7 @@ class ChatHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'Ask',
+              l(context).askTitle,
               style: TrainType.ui(
                 size: 27,
                 weight: FontWeight.w800,
@@ -72,14 +73,14 @@ class ChatHeader extends StatelessWidget {
           _HeaderAction(
             key: const Key('header-history'),
             icon: AppIcons.history,
-            tooltip: 'Chat history',
+            tooltip: l(context).askChatHistory,
             onTap: onSessions,
           ),
           const SizedBox(width: 8),
           _HeaderAction(
             key: const Key('header-new-chat'),
             icon: AppIcons.chatNew,
-            tooltip: 'New chat',
+            tooltip: l(context).askNewChat,
             onTap: onNewChat,
           ),
         ],
@@ -174,7 +175,7 @@ class _ReplyStyleMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       key: const Key('header-style'),
-      tooltip: 'Reply style',
+      tooltip: l(context).askReplyStyle,
       color: TrainColors.raised,
       surfaceTintColor: Colors.transparent,
       elevation: 12,

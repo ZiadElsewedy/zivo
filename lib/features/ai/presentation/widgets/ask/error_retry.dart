@@ -3,6 +3,7 @@ import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
+import '../../../../../l10n/l10n.dart';
 
 /// Shown in the trailing slot after a failed send — a quiet, modern inline
 /// card (not a 2010 banner): the user's text stays in its optimistic bubble
@@ -33,7 +34,7 @@ class ErrorRetry extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Couldn't reach ZIVO",
+                    l(context).askUnreachableTitle,
                     style: AppText.rowTitle.copyWith(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
@@ -42,7 +43,7 @@ class ErrorRetry extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Your message wasn\u2019t sent.',
+                    l(context).askUnreachableBody,
                     style: AppText.body.copyWith(
                       fontSize: 13,
                       height: 1.3,
@@ -66,7 +67,7 @@ class ErrorRetry extends StatelessWidget {
                       vertical: 9,
                     ),
                     child: Text(
-                      'Retry',
+                      l(context).askRetry,
                       style: AppText.button.copyWith(color: TrainColors.violet),
                     ),
                   ),

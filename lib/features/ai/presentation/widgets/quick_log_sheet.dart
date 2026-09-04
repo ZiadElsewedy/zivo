@@ -12,6 +12,7 @@ import '../../../../core/widgets/zivo_sheet.dart';
 import '../../data/audio_recorder.dart';
 import '../../domain/stt_error.dart';
 import '../../domain/stt_outcome.dart';
+import '../../../../l10n/l10n.dart';
 
 /// The Home-screen voice quick log: one sheet that records a short note,
 /// transcribes it, and hands the text back to the shell — which drops it
@@ -109,9 +110,13 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     // fails — a PlatformException from a denied/stale permission or an OS
     // audio-session conflict) degrades to the sheet's retryable failure
     // line. It must never throw out of this handler and take the app down.
+    // Read once, up front: everything below this line runs after an await,
+    // and `l(context)` there would be a BuildContext used across an async gap.
+    // AppLocalizations is a plain value object, so a local copy is safe.
+    final strings = l(context);
     final recorder = AppScope.of(context).recorder;
     if (recorder == null) {
-      _fail("Voice input isn't available right now.");
+      _fail(strings.askVoiceUnavailable);
       return;
     }
     _recorder = recorder;
@@ -124,13 +129,13 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     }
     if (!mounted) return;
     if (!granted) {
-      _fail('Turn on microphone access to use voice input.');
+      _fail(strings.askMicPermission);
       return;
     }
     try {
       await recorder.start();
     } catch (_) {
-      _fail("Couldn't start the microphone — try again.");
+      _fail(strings.askMicStartFailed);
       return;
     }
     if (!mounted) return;
@@ -148,6 +153,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
   /// stale recorder, sandbox/TCC quirks) lands on the sheet's retryable
   /// failure line — it can never escape as an unhandled async error.
   Future<void> _stopRecording() async {
+    final strings = l(context);
     final recorder = _recorder;
     if (_phase != _Phase.recording || recorder == null) return;
     _setPhase(_Phase.transcribing);
@@ -162,13 +168,14 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     _levelsSub = null;
     if (!mounted) return;
     if (audio == null) {
-      _fail("Didn't catch that — try recording again.");
+      _fail(strings.askDidntCatchThat);
       return;
     }
     await _transcribe(audio);
   }
 
   Future<void> _transcribe(RecordedAudio audio) async {
+    final strings = l(context);
     final ai = AppScope.of(context).ai;
     final token = ++_token;
     SttOutcome outcome;
@@ -178,10 +185,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         mimeType: audio.mimeType,
       );
     } catch (_) {
-      outcome = const SttFailed(
-        SttError.unknown,
-        "Couldn't transcribe that — check your connection and try again.",
-      );
+      outcome = SttFailed(SttError.unknown, strings.askTranscribeFailed);
     }
     if (!mounted || token != _token) return;
 
@@ -194,7 +198,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     _fail(
       resolved is SttFailed
           ? resolved.message
-          : "Nothing came through — try again.",
+          : strings.askNothingCameThrough,
     );
   }
 
@@ -241,10 +245,10 @@ class _QuickLogSheetState extends State<QuickLogSheet>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Voice log', style: AppText.rowTitle),
+            Text(l(context).askVoiceLog, style: AppText.rowTitle),
             const SizedBox(height: 4),
             Text(
-              'Say it once — it lands in Ask ready to send.',
+              l(context).askVoiceLogSubtitle,
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
             const SizedBox(height: 18),
@@ -282,11 +286,11 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         ),
         const SizedBox(height: 12),
         Text(
-          'Tap and speak',
+          l(context).askTapAndSpeak,
           style: AppText.body.copyWith(color: TrainColors.ink2),
         ),
         Text(
-          '"add 40 EGP parking" · "finished chest day"',
+          l(context).askVoiceExamples,
           style: AppText.meta.copyWith(color: TrainColors.ink3),
         ),
       ],
@@ -325,7 +329,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
             key: const Key('quicklog-cancel'),
             onPressed: _cancelRecording,
             icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
-            tooltip: 'Discard recording',
+            tooltip: l(context).askDiscardRecording,
           ),
         ),
         PressableScale(
@@ -357,7 +361,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         const SizedBox(width: 4),
         Icon(AppIcons.waveform, size: 18, color: TrainColors.violet),
         const SizedBox(width: 10),
-        Text('Transcribing…', style: AppText.rowTitle),
+        Text(l(context).askTranscribing, style: AppText.rowTitle),
         const Spacer(),
         PressableScale(
           child: IconButton(
@@ -367,7 +371,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
               _setPhase(_Phase.idle);
             },
             icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
-            tooltip: 'Discard voice note',
+            tooltip: l(context).askDiscardVoiceNote,
           ),
         ),
       ],
@@ -396,7 +400,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
                   horizontal: 22,
                   vertical: 10,
                 ),
-                child: Text('Try again', style: AppText.button),
+                child: Text(l(context).askTryAgain, style: AppText.button),
               ),
             ),
           ),
