@@ -27,14 +27,11 @@ class DietDictatePage extends StatelessWidget {
     return PlanDescribePage(
       keyPrefix: 'dictate',
       startRecording: startRecording,
-      title: startRecording ? 'Describe your diet' : 'Type it out',
+      title: startRecording ? l(context).dietDescribeYourDiet : l(context).dietTypeItOut,
       intro:
-          'Say or write what you eat in a day — meals, foods and rough '
-          'amounts. ZIVO turns it into a plan you review before anything is '
-          'saved.',
+          l(context).dietDictateBody,
       example:
-          'Example: "Breakfast is three eggs and 60 grams of oats. Lunch is '
-          '200 grams of chicken with rice and salad."',
+          l(context).dietDictateExample,
       hint: l(context).dictateHint,
       extractLabel: l(context).dictateTurnIntoPlan,
       doneTalkingLabel: l(context).dictateDoneTalking,

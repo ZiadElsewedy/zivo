@@ -22,7 +22,7 @@ import '../../../../l10n/l10n.dart';
 import '../../../../core/util/date_format.dart';
 
 String _weekdayLabel(BuildContext context, int? weekday) => weekday == null
-    ? 'Every day'
+    ? l(context).dietEveryDay
     : formatWeekdayShortForIndex(context, weekday);
 
 class _MealDraft {
@@ -425,7 +425,7 @@ class _DayCard extends StatelessWidget {
                   color: TrainColors.ink3,
                 ),
                 splashRadius: 20,
-                tooltip: 'Remove day',
+                tooltip: l(context).dietRemoveDay,
               ),
             ],
           ),
@@ -499,7 +499,7 @@ class _MealBlock extends StatelessWidget {
                   color: TrainColors.ink3,
                 ),
                 splashRadius: 18,
-                tooltip: 'Remove meal',
+                tooltip: l(context).dietRemoveMeal,
               ),
             ],
           ),
@@ -549,7 +549,7 @@ class _MealBlock extends StatelessWidget {
                       color: TrainColors.ink3,
                     ),
                     splashRadius: 16,
-                    tooltip: 'Remove item',
+                    tooltip: l(context).dietRemoveItem,
                   ),
                 ],
               ),
@@ -875,7 +875,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'UNIT',
+                      l(context).dietUnitCaps,
                       style: AppText.meta.copyWith(
                         color: TrainColors.ink3,
                         letterSpacing: 0.6,

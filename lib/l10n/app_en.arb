@@ -4022,5 +4022,13 @@
   "dietSourceGenerated": "Built by ZIVO",
   "@dietSourceGenerated": {
       "description": "How a diet plan was created."
+  },
+  "dateTodayLower": "today",
+  "@dateTodayLower": {
+      "description": "Lower-case \"today\", for dropping mid-sentence (e.g. \"Last weigh-in: today\")."
+  },
+  "dateYesterdayLower": "yesterday",
+  "@dateYesterdayLower": {
+      "description": "Lower-case \"yesterday\", for dropping mid-sentence."
   }
 }

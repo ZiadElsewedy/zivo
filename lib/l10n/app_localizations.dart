@@ -4853,6 +4853,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Built by ZIVO'**
   String get dietSourceGenerated;
+
+  /// Lower-case "today", for dropping mid-sentence (e.g. "Last weigh-in: today").
+  ///
+  /// In en, this message translates to:
+  /// **'today'**
+  String get dateTodayLower;
+
+  /// Lower-case "yesterday", for dropping mid-sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'yesterday'**
+  String get dateYesterdayLower;
 }
 
 class _AppLocalizationsDelegate

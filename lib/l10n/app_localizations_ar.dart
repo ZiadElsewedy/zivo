@@ -2843,4 +2843,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dietSourceGenerated => 'بناها ZIVO';
+
+  @override
+  String get dateTodayLower => 'اليوم';
+
+  @override
+  String get dateYesterdayLower => 'أمس';
 }

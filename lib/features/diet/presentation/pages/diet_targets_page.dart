@@ -248,7 +248,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                   ),
                 ),
                 const SizedBox(height: 22),
-                const TrainSectionLabel('Goal'),
+                TrainSectionLabel(l(context).dietGoal),
                 const SizedBox(height: 11),
                 Wrap(
                   spacing: 7,

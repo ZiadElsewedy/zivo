@@ -790,5 +790,7 @@
   "dietSourcePdf": "مستوردة من مستند",
   "dietSourcePhoto": "مستوردة من صورة",
   "dietSourceDictated": "مُملاة",
-  "dietSourceGenerated": "بناها ZIVO"
+  "dietSourceGenerated": "بناها ZIVO",
+  "dateTodayLower": "اليوم",
+  "dateYesterdayLower": "أمس"
 }

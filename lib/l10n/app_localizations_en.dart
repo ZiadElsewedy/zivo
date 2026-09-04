@@ -2818,4 +2818,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dietSourceGenerated => 'Built by ZIVO';
+
+  @override
+  String get dateTodayLower => 'today';
+
+  @override
+  String get dateYesterdayLower => 'yesterday';
 }

@@ -73,6 +73,52 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
+  largest piece of the l10n push — the feature had **264** hardcoded literals,
+  more than every other remaining feature put together. **188 new keys**
+  (605 → **793**), `l10n-untranslated.txt` still `{}`, all 14 presentation
+  files.
+  - **The densest version of the structural problem.** Eight enum→word maps
+    lived in the Flutter-free `domain/` layer, where they could only ever
+    return English, and were rendered straight onto the Targets page, the plan
+    verdict and the plan cards. New
+    [`diet/presentation/diet_labels.dart`](../lib/features/diet/presentation/diet_labels.dart)
+    is the diet feature's `progress_status_style.dart`: `dietGoalText` ·
+    `dietGoalDetailText` · `activityText` · `activityDetailText` ·
+    `targetSourceText` · `calibrationGapText` · `missingBodyDataText` ·
+    `macroText` · `nutritionSourceText` · `dietSourceText` ·
+    `targetBasisText`.
+  - **Which domain functions died and which stayed is the interesting part.**
+    `dietGoalDescription`, `targetSourceLabel`, `calibrationGapLabel`,
+    `missingBodyDataLabel`, `nutritionSourceLabel`, `activityDescription` and
+    `targetBasisSummary` were **presentation-only** and are gone — two ways to
+    name a thing is how the two drift apart. `dietGoalLabel`, `activityLabel`
+    and `dietSourceLabel` **stay**: the coaching engine splices them into
+    generated English prose (`coaching/rules.dart`, `coaching/evidence.dart`)
+    which cannot be half-translated, and two tests assert on the third. Those
+    three now carry a doc comment on both sides saying the split is deliberate.
+  - **A third stored-value-as-copy bug, found and closed.**
+    `MacroProgress.label` was English copy that the plan-details page **switched
+    on** to pick each bar's colour (`switch (label) { 'Protein' => green, … }`).
+    Translating the label would have sent every macro bar to the fallback colour
+    — silently. `MacroProgress` now carries a `MacroKind` enum: the kind is the
+    identity to switch on, the label stays the engine's word, and the screen
+    reads `macroText(context, kind)`. (After `kUntitledConversationTitle` in
+    Ask and `'google.com'` in profile, this is the third; the pattern is worth
+    watching for.) Cuisine chips got the same treatment — the value is sent to
+    the plan generator, so it stays an English id and only the chip's word is
+    translated, matching the allergen chips already in that file.
+  - **New `test/diet/diet_l10n_test.dart`** walks **every value of every one of
+    those enums** under `Locale('ar')` — so a new goal, activity level or
+    nutrition source that forgets its key fails there rather than shipping
+    English. It allows proper names through (ZIVO, USDA FoodData Central) and
+    separately asserts the engine's three labels are still English.
+  - Gates green: `flutter analyze` clean, **1150** tests passing (+8).
+  - **Still open:** ~160 literals across 38 presentation files — expenses,
+    auth, capture, home, music, shell. Plus the `domain/` coaching prose
+    (diet's `coaching/evidence.dart` + workout's `analytics/`), which is the
+    same blocked category and still needs an owner decision.
+
 - **The profile surfaces are localized** (2026-09-04, on `core-edits`). Fourth
   piece of the l10n push. **32 new keys** (573 → **605**),
   `l10n-untranslated.txt` still `{}`. Three files: `profile_page` (1,268 lines,
