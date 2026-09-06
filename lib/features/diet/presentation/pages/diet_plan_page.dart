@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../../core/util/bidi.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/motion/springs.dart';
@@ -620,7 +621,10 @@ class _LogEntryRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            '${approx(entry.estimated)}${entry.kcal}',
+            // "~1270" is a neutral tilde in front of digits: unpinned it
+            // renders as "1270~" in Arabic, moving the qualifier off the
+            // figure it qualifies.
+            ltrFor(context, '${approx(entry.estimated)}${entry.kcal}'),
             style: TrainType.mono(size: 14, color: TrainColors.ink),
           ),
           IconButton(
@@ -782,7 +786,10 @@ class _DietHeroState extends State<_DietHero>
                             child: Text(
                               widget.loading
                                   ? '…'
-                                  : _heroNumber(progress, summary),
+                                  : ltrFor(
+                                      context,
+                                      _heroNumber(progress, summary),
+                                    ),
                               maxLines: 1,
                               style: TrainType.mono(
                                 size: 30,
@@ -1122,7 +1129,10 @@ class _MealRowState extends State<_MealRow>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${approx(mealEstimated(meal))}$kcal',
+                          ltrFor(
+                            context,
+                            '${approx(mealEstimated(meal))}$kcal',
+                          ),
                           style: TrainType.mono(
                             size: 15,
                             color: TrainColors.ink,

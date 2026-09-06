@@ -4141,4 +4141,130 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planName => 'Plan name';
+
+  @override
+  String get privacyTitle => 'Privacy';
+
+  @override
+  String privacyIntro(String date) {
+    return 'How ZIVO handles your data.\nLast updated $date.';
+  }
+
+  @override
+  String get privacyOverviewLabel => 'OVERVIEW';
+
+  @override
+  String get privacyOverviewBody =>
+      'ZIVO is a private, personal application for organizing the parts of your day — moments, workouts, diet, expenses, and more — in one calm place. This policy explains what ZIVO stores, how it is used, and the choices you have.';
+
+  @override
+  String get privacyShortLabel => 'THE SHORT VERSION';
+
+  @override
+  String get privacyShortBullet1 =>
+      'Your content is private to your account and never sold or shared for ads.';
+
+  @override
+  String get privacyShortBullet2 =>
+      'ZIVO does not use your data or your content to train third-party models.';
+
+  @override
+  String get privacyShortBullet3 =>
+      'Backups live in your own Google Drive, under your own control.';
+
+  @override
+  String get privacyShortBullet4 =>
+      'You can delete your content at any time, from inside the app.';
+
+  @override
+  String get privacyAccountLabel => 'ACCOUNT & AUTHENTICATION';
+
+  @override
+  String get privacyAccountBody =>
+      'ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or email/password as sign-in options. Depending on the method you choose, ZIVO receives basic account details such as your name, email address, and a unique account identifier. That identifier is what keeps every piece of your data scoped to your account only.';
+
+  @override
+  String get privacyOtpLabel => 'EMAIL VERIFICATION CODES';
+
+  @override
+  String get privacyOtpBody =>
+      'If you sign in with email, ZIVO sends a short verification code to confirm your address. Codes are hashed before storage, expire within minutes, and are used for nothing beyond verifying that the address is yours.';
+
+  @override
+  String get privacyContentLabel => 'YOUR CONTENT';
+
+  @override
+  String get privacyContentBody =>
+      'Everything you create in ZIVO — moments, workout plans and sessions, diet plans and entries, expense logs, body-weight entries, and profile details — is stored in your account so the app can show it back to you across your devices. It is private to you and not visible to other users.';
+
+  @override
+  String get privacyPhotosLabel => 'PHOTOS & LOCAL STORAGE';
+
+  @override
+  String get privacyPhotosBody =>
+      'Where a feature lets you attach a photo (such as Moments or your profile), ZIVO accesses your photo library only when you pick or capture an image. Media lives first on your device; cloud backup happens only through the backup target you explicitly choose.';
+
+  @override
+  String get privacyAskLabel => 'AI ASSISTANT (“ASK”)';
+
+  @override
+  String get privacyAskBody =>
+      'Ask is an opt-in assistant that can answer questions about your own data — your workouts, meals, and spending. When you send a message, the relevant context is processed by the model provider solely to answer you. Conversations are stored privately in your account so history works across devices, and are never used to train third-party models.';
+
+  @override
+  String get privacySpotifyLabel => 'SPOTIFY';
+
+  @override
+  String get privacySpotifyBody =>
+      'The music feature connects to your own Spotify account when you ask it to. ZIVO uses Spotify’s official SDK to control playback and read what’s currently playing. You can disconnect at any time, from Settings.';
+
+  @override
+  String get privacyMetadataLabel => 'ACCOUNT & SECURITY METADATA';
+
+  @override
+  String get privacyMetadataBody =>
+      'To keep your account safe and supportable, ZIVO keeps a small record of authentication events — when your account was created, when you last signed in and how, and when verification emails were sent. This metadata is security bookkeeping: it is never sold, shared, or used for advertising.';
+
+  @override
+  String get privacyDriveLabel => 'GOOGLE DRIVE BACKUP';
+
+  @override
+  String get privacyDriveBody =>
+      'Backup is optional and, if enabled, runs against your own Google Drive — using Google’s most restrictive drive.file scope, which lets ZIVO see and manage only the files it created itself. ZIVO never requests broad access to your Drive, and your files remain under your control there.';
+
+  @override
+  String get privacySharingLabel => 'DATA SHARING';
+
+  @override
+  String get privacySharingBody =>
+      'ZIVO does not sell or rent personal data. Data is processed only by the infrastructure needed to run the app — Google Firebase (authentication, database, functions) — plus the integrations you explicitly enable: your own Google Drive and your own Spotify account.';
+
+  @override
+  String get privacyRetentionLabel => 'RETENTION & DELETION';
+
+  @override
+  String get privacyRetentionBody =>
+      'Your content is retained until you delete it or delete your account. Files in your own Google Drive stay there until you remove them, and Drive access can be revoked at any time — from Settings or from your Google Account’s third-party access page.';
+
+  @override
+  String get privacySecurityLabel => 'SECURITY';
+
+  @override
+  String get privacySecurityBody =>
+      'Access is enforced end-to-end: Firebase Authentication for identity and Firestore security rules so only your authenticated account can read or write your data. Verification codes are stored only as salted hashes. Data is encrypted in transit.';
+
+  @override
+  String get privacyChangesLabel => 'CHANGES TO THIS POLICY';
+
+  @override
+  String get privacyChangesBody =>
+      'This policy may be updated as features evolve. The “last updated” date always reflects the most recent revision.';
+
+  @override
+  String get privacyContactLabel => 'CONTACT';
+
+  @override
+  String privacyContactBody(String email) {
+    return 'Questions about privacy or your data can be sent to $email.';
+  }
 }

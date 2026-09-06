@@ -6971,6 +6971,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Plan name'**
   String get planName;
+
+  /// Title of the privacy policy page.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get privacyTitle;
+
+  /// Subtitle under the privacy title, carrying the revision date.
+  ///
+  /// In en, this message translates to:
+  /// **'How ZIVO handles your data.\nLast updated {date}.'**
+  String privacyIntro(String date);
+
+  /// Privacy section label. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'OVERVIEW'**
+  String get privacyOverviewLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO is a private, personal application for organizing the parts of your day — moments, workouts, diet, expenses, and more — in one calm place. This policy explains what ZIVO stores, how it is used, and the choices you have.'**
+  String get privacyOverviewBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'THE SHORT VERSION'**
+  String get privacyShortLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Your content is private to your account and never sold or shared for ads.'**
+  String get privacyShortBullet1;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO does not use your data or your content to train third-party models.'**
+  String get privacyShortBullet2;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Backups live in your own Google Drive, under your own control.'**
+  String get privacyShortBullet3;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'You can delete your content at any time, from inside the app.'**
+  String get privacyShortBullet4;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCOUNT & AUTHENTICATION'**
+  String get privacyAccountLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or email/password as sign-in options. Depending on the method you choose, ZIVO receives basic account details such as your name, email address, and a unique account identifier. That identifier is what keeps every piece of your data scoped to your account only.'**
+  String get privacyAccountBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'EMAIL VERIFICATION CODES'**
+  String get privacyOtpLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'If you sign in with email, ZIVO sends a short verification code to confirm your address. Codes are hashed before storage, expire within minutes, and are used for nothing beyond verifying that the address is yours.'**
+  String get privacyOtpBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'YOUR CONTENT'**
+  String get privacyContentLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you create in ZIVO — moments, workout plans and sessions, diet plans and entries, expense logs, body-weight entries, and profile details — is stored in your account so the app can show it back to you across your devices. It is private to you and not visible to other users.'**
+  String get privacyContentBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'PHOTOS & LOCAL STORAGE'**
+  String get privacyPhotosLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Where a feature lets you attach a photo (such as Moments or your profile), ZIVO accesses your photo library only when you pick or capture an image. Media lives first on your device; cloud backup happens only through the backup target you explicitly choose.'**
+  String get privacyPhotosBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'AI ASSISTANT (“ASK”)'**
+  String get privacyAskLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask is an opt-in assistant that can answer questions about your own data — your workouts, meals, and spending. When you send a message, the relevant context is processed by the model provider solely to answer you. Conversations are stored privately in your account so history works across devices, and are never used to train third-party models.'**
+  String get privacyAskBody;
+
+  /// Privacy section label. The brand name stays latin in both languages.
+  ///
+  /// In en, this message translates to:
+  /// **'SPOTIFY'**
+  String get privacySpotifyLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'The music feature connects to your own Spotify account when you ask it to. ZIVO uses Spotify’s official SDK to control playback and read what’s currently playing. You can disconnect at any time, from Settings.'**
+  String get privacySpotifyBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCOUNT & SECURITY METADATA'**
+  String get privacyMetadataLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'To keep your account safe and supportable, ZIVO keeps a small record of authentication events — when your account was created, when you last signed in and how, and when verification emails were sent. This metadata is security bookkeeping: it is never sold, shared, or used for advertising.'**
+  String get privacyMetadataBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'GOOGLE DRIVE BACKUP'**
+  String get privacyDriveLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup is optional and, if enabled, runs against your own Google Drive — using Google’s most restrictive drive.file scope, which lets ZIVO see and manage only the files it created itself. ZIVO never requests broad access to your Drive, and your files remain under your control there.'**
+  String get privacyDriveBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'DATA SHARING'**
+  String get privacySharingLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO does not sell or rent personal data. Data is processed only by the infrastructure needed to run the app — Google Firebase (authentication, database, functions) — plus the integrations you explicitly enable: your own Google Drive and your own Spotify account.'**
+  String get privacySharingBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'RETENTION & DELETION'**
+  String get privacyRetentionLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Your content is retained until you delete it or delete your account. Files in your own Google Drive stay there until you remove them, and Drive access can be revoked at any time — from Settings or from your Google Account’s third-party access page.'**
+  String get privacyRetentionBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'SECURITY'**
+  String get privacySecurityLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Access is enforced end-to-end: Firebase Authentication for identity and Firestore security rules so only your authenticated account can read or write your data. Verification codes are stored only as salted hashes. Data is encrypted in transit.'**
+  String get privacySecurityBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'CHANGES TO THIS POLICY'**
+  String get privacyChangesLabel;
+
+  /// A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'This policy may be updated as features evolve. The “last updated” date always reflects the most recent revision.'**
+  String get privacyChangesBody;
+
+  /// Privacy section label.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTACT'**
+  String get privacyContactLabel;
+
+  /// Privacy section: how to reach the owner. The address is a placeholder so it is never translated or reordered.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions about privacy or your data can be sent to {email}.'**
+  String privacyContactBody(String email);
 }
 
 class _AppLocalizationsDelegate

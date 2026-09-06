@@ -4227,4 +4227,130 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get planName => 'اسم الخطة';
+
+  @override
+  String get privacyTitle => 'الخصوصية';
+
+  @override
+  String privacyIntro(String date) {
+    return 'كيف يتعامل ZIVO مع بياناتك.\nآخر تحديث $date.';
+  }
+
+  @override
+  String get privacyOverviewLabel => 'نظرة عامة';
+
+  @override
+  String get privacyOverviewBody =>
+      'ZIVO تطبيق شخصي وخاص لتنظيم أجزاء يومك — اللحظات والتمارين والتغذية والمصروفات وغيرها — في مكان واحد هادئ. توضّح هذه السياسة ما يخزّنه ZIVO، وكيف يُستخدم، والخيارات المتاحة لك.';
+
+  @override
+  String get privacyShortLabel => 'النسخة المختصرة';
+
+  @override
+  String get privacyShortBullet1 =>
+      'محتواك خاص بحسابك ولا يُباع أو يُشارك لأغراض الإعلانات أبدًا.';
+
+  @override
+  String get privacyShortBullet2 =>
+      'لا يستخدم ZIVO بياناتك أو محتواك لتدريب نماذج تابعة لجهات خارجية.';
+
+  @override
+  String get privacyShortBullet3 =>
+      'تُحفظ النسخ الاحتياطية في حساب Google Drive الخاص بك، وتحت سيطرتك أنت.';
+
+  @override
+  String get privacyShortBullet4 =>
+      'يمكنك حذف محتواك في أي وقت، من داخل التطبيق.';
+
+  @override
+  String get privacyAccountLabel => 'الحساب وتسجيل الدخول';
+
+  @override
+  String get privacyAccountBody =>
+      'يستخدم ZIVO خدمة Firebase Authentication لتسجيل دخولك، مع خيارات Apple أو Google أو البريد الإلكتروني وكلمة المرور. وبحسب الطريقة التي تختارها، يتلقّى ZIVO تفاصيل أساسية عن الحساب مثل اسمك وبريدك الإلكتروني ومعرّف حساب فريد. هذا المعرّف هو ما يبقي كل جزء من بياناتك مقصورًا على حسابك وحده.';
+
+  @override
+  String get privacyOtpLabel => 'رموز التحقق بالبريد الإلكتروني';
+
+  @override
+  String get privacyOtpBody =>
+      'إذا سجّلت الدخول بالبريد الإلكتروني، يرسل ZIVO رمز تحقق قصيرًا لتأكيد عنوانك. تُشفَّر الرموز قبل تخزينها، وتنتهي صلاحيتها خلال دقائق، ولا تُستخدم لأي غرض سوى التأكد من أن العنوان يخصّك.';
+
+  @override
+  String get privacyContentLabel => 'محتواك';
+
+  @override
+  String get privacyContentBody =>
+      'كل ما تنشئه في ZIVO — اللحظات وخطط التمارين والجلسات وخطط التغذية وسجلاتها وسجلات المصروفات وقياسات الوزن وتفاصيل الملف الشخصي — يُخزَّن في حسابك ليتمكن التطبيق من عرضه عليك عبر أجهزتك. وهو خاص بك ولا يظهر لمستخدمين آخرين.';
+
+  @override
+  String get privacyPhotosLabel => 'الصور والتخزين المحلي';
+
+  @override
+  String get privacyPhotosBody =>
+      'حيثما تتيح لك ميزة إرفاق صورة (مثل اللحظات أو ملفك الشخصي)، لا يصل ZIVO إلى معرض صورك إلا عندما تختار صورة أو تلتقطها. تُحفظ الوسائط أولًا على جهازك؛ ولا يحدث النسخ الاحتياطي السحابي إلا عبر وجهة النسخ التي تختارها صراحةً.';
+
+  @override
+  String get privacyAskLabel => 'المساعد الذكي («اسأل»)';
+
+  @override
+  String get privacyAskBody =>
+      '«اسأل» مساعد اختياري يمكنه الإجابة عن أسئلة تخص بياناتك أنت — تمارينك ووجباتك ومصروفاتك. عند إرسالك رسالة، يعالج مزوّد النموذج السياق ذا الصلة لغرض الإجابة عليك فقط. تُحفظ المحادثات بشكل خاص في حسابك ليعمل السجل عبر أجهزتك، ولا تُستخدم أبدًا لتدريب نماذج تابعة لجهات خارجية.';
+
+  @override
+  String get privacySpotifyLabel => 'SPOTIFY';
+
+  @override
+  String get privacySpotifyBody =>
+      'تتصل ميزة الموسيقى بحساب Spotify الخاص بك عندما تطلب ذلك. يستخدم ZIVO حزمة تطوير Spotify الرسمية للتحكم في التشغيل ومعرفة ما يعمل حاليًا. ويمكنك فصل الاتصال في أي وقت من الإعدادات.';
+
+  @override
+  String get privacyMetadataLabel => 'بيانات الحساب والأمان';
+
+  @override
+  String get privacyMetadataBody =>
+      'للحفاظ على أمان حسابك وإمكانية دعمه، يحتفظ ZIVO بسجل صغير لأحداث تسجيل الدخول — متى أُنشئ حسابك، ومتى وكيف سجّلت الدخول آخر مرة، ومتى أُرسلت رسائل التحقق. هذه البيانات هي سجلّ أمني لا غير: لا تُباع ولا تُشارك ولا تُستخدم للإعلانات أبدًا.';
+
+  @override
+  String get privacyDriveLabel => 'النسخ الاحتياطي على GOOGLE DRIVE';
+
+  @override
+  String get privacyDriveBody =>
+      'النسخ الاحتياطي اختياري، وإذا فعّلته فإنه يعمل على حساب Google Drive الخاص بك — مستخدمًا نطاق drive.file، وهو أضيق نطاقات Google، والذي يتيح لـ ZIVO رؤية وإدارة الملفات التي أنشأها بنفسه فقط. لا يطلب ZIVO أبدًا صلاحية وصول واسعة إلى Drive، وتبقى ملفاتك هناك تحت سيطرتك.';
+
+  @override
+  String get privacySharingLabel => 'مشاركة البيانات';
+
+  @override
+  String get privacySharingBody =>
+      'لا يبيع ZIVO بياناتك الشخصية ولا يؤجّرها. تُعالَج البيانات فقط بواسطة البنية التحتية اللازمة لتشغيل التطبيق — Google Firebase (تسجيل الدخول وقاعدة البيانات والوظائف) — إضافةً إلى التكاملات التي تفعّلها صراحةً: حساب Google Drive الخاص بك وحساب Spotify الخاص بك.';
+
+  @override
+  String get privacyRetentionLabel => 'الاحتفاظ والحذف';
+
+  @override
+  String get privacyRetentionBody =>
+      'يُحتفظ بمحتواك حتى تحذفه أو تحذف حسابك. تبقى الملفات الموجودة في حساب Google Drive الخاص بك هناك حتى تزيلها، ويمكن إلغاء صلاحية الوصول إلى Drive في أي وقت — من الإعدادات أو من صفحة وصول الجهات الخارجية في حساب Google الخاص بك.';
+
+  @override
+  String get privacySecurityLabel => 'الأمان';
+
+  @override
+  String get privacySecurityBody =>
+      'يُفرَض التحكم في الوصول من طرف إلى طرف: Firebase Authentication للهوية، وقواعد أمان Firestore بحيث لا يستطيع قراءة بياناتك أو الكتابة فيها إلا حسابك بعد تسجيل دخوله. تُخزَّن رموز التحقق على هيئة تجزئات مملّحة فقط. وتُشفَّر البيانات أثناء نقلها.';
+
+  @override
+  String get privacyChangesLabel => 'التغييرات على هذه السياسة';
+
+  @override
+  String get privacyChangesBody =>
+      'قد تُحدَّث هذه السياسة مع تطوّر الميزات. ويعكس تاريخ «آخر تحديث» دائمًا أحدث مراجعة.';
+
+  @override
+  String get privacyContactLabel => 'التواصل';
+
+  @override
+  String privacyContactBody(String email) {
+    return 'يمكن إرسال الأسئلة المتعلقة بالخصوصية أو ببياناتك إلى $email.';
+  }
 }

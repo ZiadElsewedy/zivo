@@ -5823,5 +5823,155 @@
   "planName": "Plan name",
   "@planName": {
       "description": "Label on the plan name field."
+  },
+  "privacyTitle": "Privacy",
+  "@privacyTitle": {
+      "description": "Title of the privacy policy page."
+  },
+  "privacyIntro": "How ZIVO handles your data.\nLast updated {date}.",
+  "@privacyIntro": {
+      "description": "Subtitle under the privacy title, carrying the revision date.",
+      "placeholders": {
+          "date": {
+              "type": "String"
+          }
+      }
+  },
+  "privacyOverviewLabel": "OVERVIEW",
+  "@privacyOverviewLabel": {
+      "description": "Privacy section label. Upper case in English by design."
+  },
+  "privacyOverviewBody": "ZIVO is a private, personal application for organizing the parts of your day — moments, workouts, diet, expenses, and more — in one calm place. This policy explains what ZIVO stores, how it is used, and the choices you have.",
+  "@privacyOverviewBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortLabel": "THE SHORT VERSION",
+  "@privacyShortLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyShortBullet1": "Your content is private to your account and never sold or shared for ads.",
+  "@privacyShortBullet1": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet2": "ZIVO does not use your data or your content to train third-party models.",
+  "@privacyShortBullet2": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet3": "Backups live in your own Google Drive, under your own control.",
+  "@privacyShortBullet3": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet4": "You can delete your content at any time, from inside the app.",
+  "@privacyShortBullet4": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyAccountLabel": "ACCOUNT & AUTHENTICATION",
+  "@privacyAccountLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyAccountBody": "ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or email/password as sign-in options. Depending on the method you choose, ZIVO receives basic account details such as your name, email address, and a unique account identifier. That identifier is what keeps every piece of your data scoped to your account only.",
+  "@privacyAccountBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyOtpLabel": "EMAIL VERIFICATION CODES",
+  "@privacyOtpLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyOtpBody": "If you sign in with email, ZIVO sends a short verification code to confirm your address. Codes are hashed before storage, expire within minutes, and are used for nothing beyond verifying that the address is yours.",
+  "@privacyOtpBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyContentLabel": "YOUR CONTENT",
+  "@privacyContentLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyContentBody": "Everything you create in ZIVO — moments, workout plans and sessions, diet plans and entries, expense logs, body-weight entries, and profile details — is stored in your account so the app can show it back to you across your devices. It is private to you and not visible to other users.",
+  "@privacyContentBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyPhotosLabel": "PHOTOS & LOCAL STORAGE",
+  "@privacyPhotosLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyPhotosBody": "Where a feature lets you attach a photo (such as Moments or your profile), ZIVO accesses your photo library only when you pick or capture an image. Media lives first on your device; cloud backup happens only through the backup target you explicitly choose.",
+  "@privacyPhotosBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyAskLabel": "AI ASSISTANT (“ASK”)",
+  "@privacyAskLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyAskBody": "Ask is an opt-in assistant that can answer questions about your own data — your workouts, meals, and spending. When you send a message, the relevant context is processed by the model provider solely to answer you. Conversations are stored privately in your account so history works across devices, and are never used to train third-party models.",
+  "@privacyAskBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySpotifyLabel": "SPOTIFY",
+  "@privacySpotifyLabel": {
+      "description": "Privacy section label. The brand name stays latin in both languages."
+  },
+  "privacySpotifyBody": "The music feature connects to your own Spotify account when you ask it to. ZIVO uses Spotify’s official SDK to control playback and read what’s currently playing. You can disconnect at any time, from Settings.",
+  "@privacySpotifyBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyMetadataLabel": "ACCOUNT & SECURITY METADATA",
+  "@privacyMetadataLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyMetadataBody": "To keep your account safe and supportable, ZIVO keeps a small record of authentication events — when your account was created, when you last signed in and how, and when verification emails were sent. This metadata is security bookkeeping: it is never sold, shared, or used for advertising.",
+  "@privacyMetadataBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyDriveLabel": "GOOGLE DRIVE BACKUP",
+  "@privacyDriveLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyDriveBody": "Backup is optional and, if enabled, runs against your own Google Drive — using Google’s most restrictive drive.file scope, which lets ZIVO see and manage only the files it created itself. ZIVO never requests broad access to your Drive, and your files remain under your control there.",
+  "@privacyDriveBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySharingLabel": "DATA SHARING",
+  "@privacySharingLabel": {
+      "description": "Privacy section label."
+  },
+  "privacySharingBody": "ZIVO does not sell or rent personal data. Data is processed only by the infrastructure needed to run the app — Google Firebase (authentication, database, functions) — plus the integrations you explicitly enable: your own Google Drive and your own Spotify account.",
+  "@privacySharingBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyRetentionLabel": "RETENTION & DELETION",
+  "@privacyRetentionLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyRetentionBody": "Your content is retained until you delete it or delete your account. Files in your own Google Drive stay there until you remove them, and Drive access can be revoked at any time — from Settings or from your Google Account’s third-party access page.",
+  "@privacyRetentionBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySecurityLabel": "SECURITY",
+  "@privacySecurityLabel": {
+      "description": "Privacy section label."
+  },
+  "privacySecurityBody": "Access is enforced end-to-end: Firebase Authentication for identity and Firestore security rules so only your authenticated account can read or write your data. Verification codes are stored only as salted hashes. Data is encrypted in transit.",
+  "@privacySecurityBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyChangesLabel": "CHANGES TO THIS POLICY",
+  "@privacyChangesLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyChangesBody": "This policy may be updated as features evolve. The “last updated” date always reflects the most recent revision.",
+  "@privacyChangesBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyContactLabel": "CONTACT",
+  "@privacyContactLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyContactBody": "Questions about privacy or your data can be sent to {email}.",
+  "@privacyContactBody": {
+      "description": "Privacy section: how to reach the owner. The address is a placeholder so it is never translated or reordered.",
+      "placeholders": {
+          "email": {
+              "type": "String"
+          }
+      }
   }
 }

@@ -73,6 +73,71 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The Arabic copy pass finished the app-facing surfaces** (2026-09-06, on
+  `core-edits`). **1144 keys** in both languages, up from 344 — the en/ar gap
+  test is green and every `@description` is filled in.
+  - **Done this pass:** Storage & Sync, the whole of **auth** (settings, sign-in,
+    sign-up, verify-email, forgot/change password, delete-account, the password
+    checklist), **moments** (capture, timeline, viewer, the photo-metadata
+    sheet), **music** (player, compact strip, lozenge), the **workout
+    drill-downs** (session details, splits, dashboard, plan editor, exercise
+    sheet, workout capture), the **import/describe flows** (file picking,
+    backend error mapping, progress lines, the add-a-plan sheet), plus the
+    Today pulse card, expenses list and the diet leftovers.
+  - **Three more domain→presentation splits**, all the same shape as
+    `workout_labels.dart`: `PasswordRule` now carries a **`PasswordRuleId`** with
+    its sentences in `presentation/password_rule_labels.dart`; `CaptureSource`
+    lost its `label` getter to `core/media/presentation/capture_source_labels.dart`
+    (it is persisted by `name`, so it is an id); and `importProgressLine` takes an
+    **`ImportItemKind`** instead of an English `itemNoun` it pluralised by
+    appending an "s" — which Arabic cannot do. A `domain/` enum that is written
+    to Firestore must never carry copy.
+  - **Bidi pins went in with the strings, not after them.** Every composed
+    numeric run these screens show is now wrapped: session clocks and rest
+    countdowns, the `12/15` sets ratio, `RPE 8.5`, photo dimensions and file
+    sizes, `UTC+03:00`, the `-2:41` track countdown, signed weight/volume
+    deltas, and the `~1270` kcal figures. User-typed text — plan names, split
+    names, section headings out of an imported PDF, a moment's location —
+    is wrapped with **first-strong** `isolate()` instead, because its direction
+    is the user's to decide, not ours.
+  - **English copy is unchanged.** Two regressions caught by the suite proved
+    the rule worth stating: keying a string is not licence to reword it
+    ("3 tries left" had become "3 attempts left"; an import caption lost its
+    " total"). `ltrFor` is a no-op under LTR for the same reason.
+  - **New test helper:** `test/support/bidi_finders.dart` →
+    `findTextIgnoringBidi`, for asserting on a string composed from user data.
+    Plain app copy should keep using `find.text`, which stays stricter.
+  - **Owner check wanted:** ~365 new Arabic strings are mine, not a native
+    speaker's. The plural forms especially — Arabic's dual and few/many
+    categories are used throughout (`مجموعتان`, `صورتان`, `{count} صور` vs
+    `{count} صورة`) and are easy to get subtly wrong.
+  - **The privacy policy is translated too** (owner's call, after I flagged the
+    legal risk). All 15 sections + the four "short version" bullets, at
+    [`privacy_page.dart`](../lib/features/auth/presentation/pages/privacy_page.dart).
+    `kPrivacySections` was a `const` list of English and is now
+    **`privacySections(BuildContext)`**; `_SectionBlock` takes its index rather
+    than looking itself up by `indexOf`, which a per-locale list breaks. The
+    revision date is a `DateTime` run through `formatFullDateLong`, so it reads
+    "August 25, 2026" / "٢٥ أغسطس ٢٠٢٦" instead of an English month baked into
+    a translated sentence, and the contact address is a placeholder wrapped in
+    `isolate()` so bidi cannot break it apart around the `@`.
+    `test/auth/privacy_page_l10n_test.dart` asserts both languages have the
+    same 15 sections with the same bullet counts, that no Arabic section is
+    left in English (allowing the proper nouns), and that the address survives.
+    - **⚠ OWNER ACTION — two of them.** (1) **zzivo.com/privacy still shows the
+      English-only policy.** The file's own doc comment says the app and the web
+      page are one document and must be updated together; they are now out of
+      sync until the public page carries the Arabic. (2) **This is a legal
+      document translated by an AI, not a lawyer or a native speaker.** It is a
+      faithful rendering of the English as far as I can make it, but the
+      consent it describes is a legal instrument and should be reviewed before
+      it ships to Arabic users.
+  - **Still English:** roughly 230 literals, nearly all of them numeric
+    interpolations the bidi pass has already handled rather than prose —
+    plus `exercise_analysis_page`, `workout_stats_pages` and
+    `workout_progress_page`, whose remaining strings are chart axis labels
+    and units.
+
 - **Arabic RTL: the bottom bar, the Hub, and the bidi rule that was missing**
   (2026-09-06, on `core-edits`). Three separate bugs, one root cause each.
   - **The nav capsule was mirrored.** `ZivoBottomBar` drew its tabs in a `Row`
