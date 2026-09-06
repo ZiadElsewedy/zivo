@@ -314,6 +314,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hubNoMomentsYet => 'No moments yet';
 
   @override
+  String get hubTitle => 'Hub';
+
+  @override
+  String get hubConnected => 'Connected';
+
+  @override
+  String hubWorkoutResume(String day) {
+    return '$day · resume';
+  }
+
+  @override
+  String hubWorkoutUpNext(String day) {
+    return '$day · up next';
+  }
+
+  @override
+  String hubDietStat(int eaten, int total, String kcal) {
+    return '$eaten of $total · $kcal kcal';
+  }
+
+  @override
+  String hubExpensesStat(String amount) {
+    return '$amount this week';
+  }
+
+  @override
+  String hubMomentsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count moments',
+      one: '1 moment',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get connectedBackingUp => 'Backing up';
+
+  @override
+  String get connectedNotConnected => 'Not connected';
+
+  @override
+  String get connectedConnected => 'Connected';
+
+  @override
+  String get connectedPlaying => 'Playing';
+
+  @override
+  String get connectedPaused => 'Paused';
+
+  @override
+  String get connectedConnecting => 'Connecting…';
+
+  @override
+  String get connectedCouldntConnect => 'Couldn’t connect';
+
+  @override
+  String get connectedPremiumRequired => 'Premium required';
+
+  @override
+  String get connectedInstallSpotify => 'Install Spotify';
+
+  @override
   String get comingNext => 'Coming next.';
 
   @override
@@ -1720,6 +1784,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutSetDropsetShort => 'D';
+
+  @override
+  String workoutSetCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sets',
+      one: '1 set',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutToFailure => 'To failure';
+
+  @override
+  String workoutRestFor(String time) {
+    return 'rest $time';
+  }
+
+  @override
+  String workoutSetsBy(int count, String reps) {
+    return '$count × $reps';
+  }
+
+  @override
+  String workoutPlanDayMeta(String plan, String exercises) {
+    return '$plan · $exercises';
+  }
+
+  @override
+  String workoutExerciseMeta(String sets, String muscleGroup) {
+    return '$sets · $muscleGroup';
+  }
 
   @override
   String get workoutSetFailureShort => 'F';

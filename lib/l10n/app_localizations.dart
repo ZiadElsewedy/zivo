@@ -674,6 +674,102 @@ abstract class AppLocalizations {
   /// **'No moments yet'**
   String get hubNoMomentsYet;
 
+  /// The Hub tab's display title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub'**
+  String get hubTitle;
+
+  /// Section label over the band of services ZIVO talks to (Spotify, Google Drive).
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get hubConnected;
+
+  /// Hub workout tile: a session on this day is in progress and can be resumed.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} · resume'**
+  String hubWorkoutResume(String day);
+
+  /// Hub workout tile: the plan day that comes next.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} · up next'**
+  String hubWorkoutUpNext(String day);
+
+  /// Hub diet tile: meals eaten out of the day's total, and the calories left. {kcal} already carries a leading ~ when the figure is an estimate.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten} of {total} · {kcal} kcal'**
+  String hubDietStat(int eaten, int total, String kcal);
+
+  /// Hub expenses tile: what has been spent this week, already formatted with its currency.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this week'**
+  String hubExpensesStat(String amount);
+
+  /// Hub moments tile: how many moments have been captured.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 moment} other{{count} moments}}'**
+  String hubMomentsCount(int count);
+
+  /// Hub Connected band: Google Drive is connected and photos are being backed up to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up'**
+  String get connectedBackingUp;
+
+  /// Hub Connected band: this service has not been connected on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get connectedNotConnected;
+
+  /// Hub Connected band: Spotify is connected but nothing is playing.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connectedConnected;
+
+  /// Hub Connected band: Spotify is playing a track.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get connectedPlaying;
+
+  /// Hub Connected band: Spotify is connected and paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get connectedPaused;
+
+  /// Hub Connected band: a connection attempt is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get connectedConnecting;
+
+  /// Hub Connected band: the service refused the connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t connect'**
+  String get connectedCouldntConnect;
+
+  /// Hub Connected band: Spotify needs a Premium account to control playback.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium required'**
+  String get connectedPremiumRequired;
+
+  /// Hub Connected band: the Spotify app is not on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Spotify'**
+  String get connectedInstallSpotify;
+
   /// Placeholder on a module that isn't built yet.
   ///
   /// In en, this message translates to:
@@ -3085,6 +3181,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'D'**
   String get workoutSetDropsetShort;
+
+  /// How many sets a planned exercise has, e.g. "3 sets".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 set} other{{count} sets}}'**
+  String workoutSetCount(num count);
+
+  /// A set with no rep target — taken until no more reps are possible.
+  ///
+  /// In en, this message translates to:
+  /// **'To failure'**
+  String get workoutToFailure;
+
+  /// The rest window in a planned set's spec line, e.g. "rest 1:30". Lower case: it sits mid-line after a separator.
+  ///
+  /// In en, this message translates to:
+  /// **'rest {time}'**
+  String workoutRestFor(String time);
+
+  /// The head of a collapsed set line — how many sets at what rep target, e.g. "3 × 8–10". The × is a symbol in both languages.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} × {reps}'**
+  String workoutSetsBy(int count, String reps);
+
+  /// Caption under a workout day's title: which plan it belongs to and how many exercises it holds.
+  ///
+  /// In en, this message translates to:
+  /// **'{plan} · {exercises}'**
+  String workoutPlanDayMeta(String plan, String exercises);
+
+  /// A planned exercise's meta line: its set count and the muscle group it trains.
+  ///
+  /// In en, this message translates to:
+  /// **'{sets} · {muscleGroup}'**
+  String workoutExerciseMeta(String sets, String muscleGroup);
 
   /// One-letter marker on a set taken to failure. Kept latin in both languages, as a symbol.
   ///

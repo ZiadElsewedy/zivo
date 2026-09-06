@@ -313,6 +313,74 @@ class AppLocalizationsAr extends AppLocalizations {
   String get hubNoMomentsYet => 'لا توجد لحظات بعد';
 
   @override
+  String get hubTitle => 'الأقسام';
+
+  @override
+  String get hubConnected => 'المتصل';
+
+  @override
+  String hubWorkoutResume(String day) {
+    return '$day · استئناف';
+  }
+
+  @override
+  String hubWorkoutUpNext(String day) {
+    return '$day · التالي';
+  }
+
+  @override
+  String hubDietStat(int eaten, int total, String kcal) {
+    return '$eaten من $total · $kcal سعرة';
+  }
+
+  @override
+  String hubExpensesStat(String amount) {
+    return '$amount هذا الأسبوع';
+  }
+
+  @override
+  String hubMomentsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count لحظة',
+      many: '$count لحظة',
+      few: '$count لحظات',
+      two: 'لحظتان',
+      one: 'لحظة واحدة',
+      zero: 'لا لحظات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get connectedBackingUp => 'يتم النسخ الاحتياطي';
+
+  @override
+  String get connectedNotConnected => 'غير متصل';
+
+  @override
+  String get connectedConnected => 'متصل';
+
+  @override
+  String get connectedPlaying => 'قيد التشغيل';
+
+  @override
+  String get connectedPaused => 'متوقف مؤقتًا';
+
+  @override
+  String get connectedConnecting => 'جارٍ الاتصال…';
+
+  @override
+  String get connectedCouldntConnect => 'تعذّر الاتصال';
+
+  @override
+  String get connectedPremiumRequired => 'يتطلب Premium';
+
+  @override
+  String get connectedInstallSpotify => 'ثبّت Spotify';
+
+  @override
   String get comingNext => 'قريبًا.';
 
   @override
@@ -1731,6 +1799,44 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutSetDropsetShort => 'D';
+
+  @override
+  String workoutSetCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مجموعة',
+      many: '$count مجموعة',
+      few: '$count مجموعات',
+      two: 'مجموعتان',
+      one: 'مجموعة واحدة',
+      zero: 'لا مجموعات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutToFailure => 'حتى الفشل';
+
+  @override
+  String workoutRestFor(String time) {
+    return 'راحة $time';
+  }
+
+  @override
+  String workoutSetsBy(int count, String reps) {
+    return '$count × $reps';
+  }
+
+  @override
+  String workoutPlanDayMeta(String plan, String exercises) {
+    return '$plan · $exercises';
+  }
+
+  @override
+  String workoutExerciseMeta(String sets, String muscleGroup) {
+    return '$sets · $muscleGroup';
+  }
 
   @override
   String get workoutSetFailureShort => 'F';

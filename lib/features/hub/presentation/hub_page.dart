@@ -147,7 +147,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Hub',
+            l(context).hubTitle,
             style: TrainType.ui(
               size: 27,
               weight: FontWeight.w800,
@@ -187,11 +187,15 @@ class _WorkoutTile extends StatelessWidget {
             builder: (context, sessionSnapshot) {
               final selection = resolveUpNext(plan, sessionSnapshot.data);
               final day = selection.day;
+              // Localized whole, not assembled from a translated word and a
+              // separator: an English fragment inside an Arabic paragraph is
+              // reordered by the bidi algorithm, which is what turned this
+              // line into scrambled text in Arabic.
               final stat = day == null
                   ? l(context).hubNoPlanYet
                   : selection.resumable != null
-                  ? '${day.label} · resume'
-                  : '${day.label} · up next';
+                  ? l(context).hubWorkoutResume(day.label)
+                  : l(context).hubWorkoutUpNext(day.label);
               return _card(context, stat: stat);
             },
           );
@@ -245,9 +249,11 @@ class _DietTile extends StatelessWidget {
                 // "Diet", so "X of Y" reads unambiguously without the former,
                 // and the latter is what pushed this to a 3rd line at a
                 // standard phone width (measured in hub_page_test.dart).
-                stat:
-                    '${summary.eaten} of ${summary.total} · '
-                    '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft} kcal',
+                stat: l(context).hubDietStat(
+                  summary.eaten,
+                  summary.total,
+                  '${approx(summary.kcalLeftEstimated)}${summary.kcalLeft}',
+                ),
               );
             },
           );
@@ -294,7 +300,9 @@ class _ExpensesTile extends StatelessWidget {
           if (wallet == null) {
             return _card(
               context,
-              stat: 'EGP ${formatAmount(weekMinor)} this week',
+              stat: l(context).hubExpensesStat(
+                'EGP ${formatAmount(weekMinor)}',
+              ),
             );
           }
           return StreamBuilder<Wallet?>(
@@ -304,7 +312,9 @@ class _ExpensesTile extends StatelessWidget {
               final currency = walletSnapshot.data?.currency ?? 'EGP';
               return _card(
                 context,
-                stat: '$currency ${formatAmount(weekMinor)} this week',
+                stat: l(context).hubExpensesStat(
+                  '$currency ${formatAmount(weekMinor)}',
+                ),
               );
             },
           );
@@ -344,7 +354,7 @@ class _MomentsTile extends StatelessWidget {
           final count = (snapshot.data ?? const <Moment>[]).length;
           final stat = count == 0
               ? l(context).hubNoMomentsYet
-              : '$count moment${count == 1 ? '' : 's'}';
+              : l(context).hubMomentsCount(count);
           return _ModuleCard(
             image: 'assets/hub/moments.jpg',
             icon: AppIcons.moments,
@@ -559,7 +569,7 @@ class _ConnectedSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const TrainSectionLabel('Connected'),
+          TrainSectionLabel(l(context).hubConnected),
           const SizedBox(height: 12),
           TrainListCard(
             rows: [
@@ -599,18 +609,22 @@ class _SpotifyRow extends StatelessWidget {
           initialData: controller.currentNowPlaying,
           builder: (context, nowSnap) {
             final playing = nowSnap.data;
+            // Keyed in sentence case and upper-cased at the call site (the
+            // band's micro-caps are a type decision, not part of the string):
+            // `toUpperCase` is a no-op on Arabic, so one key serves both.
             final value = switch (state) {
               MusicConnection.connected =>
                 playing == null
-                    ? 'CONNECTED'
+                    ? l(context).connectedConnected
                     : playing.isPaused
-                    ? 'PAUSED'
-                    : 'PLAYING',
-              MusicConnection.connecting => 'CONNECTING…',
-              MusicConnection.authFailed => "COULDN'T CONNECT",
-              MusicConnection.needsPremium => 'PREMIUM REQUIRED',
-              MusicConnection.noSpotifyApp => 'INSTALL SPOTIFY',
-              MusicConnection.disconnected => 'NOT CONNECTED',
+                    ? l(context).connectedPaused
+                    : l(context).connectedPlaying,
+              MusicConnection.connecting => l(context).connectedConnecting,
+              MusicConnection.authFailed => l(context).connectedCouldntConnect,
+              MusicConnection.needsPremium =>
+                l(context).connectedPremiumRequired,
+              MusicConnection.noSpotifyApp => l(context).connectedInstallSpotify,
+              MusicConnection.disconnected => l(context).connectedNotConnected,
             };
             final connected = state == MusicConnection.connected;
             return TrainListRow(
@@ -620,7 +634,7 @@ class _SpotifyRow extends StatelessWidget {
               accent: connected ? TrainColors.green : TrainColors.ink3,
               iconTile: const _BrandTile(child: _SpotifyMark(size: 18)),
               label: 'Spotify',
-              value: value,
+              value: value.toUpperCase(),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
               ),
@@ -632,34 +646,78 @@ class _SpotifyRow extends StatelessWidget {
   }
 }
 
-/// Google Drive backup, read once per build of this row. `isBackupConnected`
-/// is a per-device SharedPreferences fact with no stream behind it, so a
-/// [FutureBuilder] is the honest shape — and it resolves fast enough that the
-/// row never visibly flickers.
-class _DriveRow extends StatelessWidget {
+/// Google Drive backup, watching [MediaService.backupConnected] rather than
+/// reading the connection once.
+///
+/// A one-shot `FutureBuilder` was the wrong shape here and it showed: the Hub
+/// is a tab inside the shell's `IndexedStack`, so it stays mounted forever —
+/// it is not rebuilt when the user returns from Storage & Sync, and not
+/// rebuilt when they switch tabs either. Connecting Drive therefore left this
+/// row reading "NOT CONNECTED" until the app was restarted, which is the one
+/// thing a status row must never do. The notifier is updated by the service
+/// itself on connect/disconnect, so the row follows the fact wherever it is
+/// changed from.
+///
+/// The state lives on disk, so there is nothing synchronous to seed the
+/// notifier with: this kicks one read on mount (and again whenever the row
+/// comes back into view via [didChangeDependencies], which covers a ZIVO
+/// account switch invalidating the connection) and shows nothing at all until
+/// that first answer lands, rather than flashing a "NOT CONNECTED" it has not
+/// verified.
+class _DriveRow extends StatefulWidget {
   const _DriveRow({required this.media});
 
   final MediaService media;
 
   @override
+  State<_DriveRow> createState() => _DriveRowState();
+}
+
+class _DriveRowState extends State<_DriveRow> {
+  /// Null until the first read resolves — "we don't know yet", which is a
+  /// different thing from "not connected" and reads as an empty value.
+  bool? _known;
+
+  @override
+  void initState() {
+    super.initState();
+    _read();
+  }
+
+  Future<void> _read() async {
+    await widget.media.isBackupConnected(); // publishes into the notifier
+    if (mounted) setState(() => _known = widget.media.backupConnected.value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: media.isBackupConnected(),
-      builder: (context, snap) {
-        final connected = snap.data ?? false;
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.media.backupConnected,
+      builder: (context, connected, _) {
+        final resolved = _known == null ? null : connected;
         return TrainListRow(
           icon: AppIcons.driveCloud,
-          accent: connected ? TrainColors.green : TrainColors.ink3,
+          accent: resolved == true ? TrainColors.green : TrainColors.ink3,
           iconTile: const _BrandTile(child: GoogleDriveMark(size: 17)),
           label: 'Google Drive',
-          value: snap.connectionState == ConnectionState.waiting
-              ? ''
-              : connected
-              ? 'BACKING UP'
-              : 'NOT CONNECTED',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const StorageSyncPage()),
-          ),
+          value:
+              (resolved == null
+                      ? ''
+                      : resolved
+                      ? l(context).connectedBackingUp
+                      : l(context).connectedNotConnected)
+                  .toUpperCase(),
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const StorageSyncPage()),
+            );
+            // The notifier already covers connect/disconnect done on that
+            // page; this re-read covers the rest (a connection revoked from
+            // the Google account, say), so returning here is always a
+            // refresh — which is what makes a manual refresh control on this
+            // band unnecessary.
+            if (mounted) await _read();
+          },
         );
       },
     );

@@ -56,9 +56,31 @@ class MediaService {
   /// Whether cloud backup is offered in the UI at all (build has a provider).
   bool get supportsBackup => backup != null;
 
+  /// The live answer to "is Drive connected on this device, for *this*
+  /// account?", as a listenable rather than a value a caller reads once.
+  ///
+  /// Connecting happens on exactly one screen (Storage & Sync) but is *shown*
+  /// on others — the Hub's Connected band most visibly — and those others
+  /// are not rebuilt when the user comes back: the Hub is a tab inside the
+  /// shell's [IndexedStack], so it stays mounted with whatever a one-shot
+  /// `FutureBuilder` resolved the first time it was built. That is exactly how
+  /// a freshly-connected Drive kept reading "NOT CONNECTED" until the app was
+  /// restarted. Broadcasting the fact from the one place that owns it means a
+  /// surface can never hold a stale copy of it.
+  ///
+  /// It starts pessimistic (`false`) and is corrected by the first
+  /// [isBackupConnected] call — the underlying state is on disk, so there is
+  /// no synchronous truth to seed it with. Watchers should therefore kick one
+  /// read when they mount; [MediaService] never guesses "connected" it has
+  /// not verified.
+  final ValueNotifier<bool> backupConnected = ValueNotifier<bool>(false);
+
   /// Whether this *device* has a backup connection usable by the current
   /// account. A connection owned by a different account is treated as not
   /// connected (and cleared — see [_backupConnectionValidForCurrentAccount]).
+  ///
+  /// Every call also refreshes [backupConnected], so any surface watching that
+  /// notifier is corrected by whoever happens to ask next.
   Future<bool> isBackupConnected() => _backupConnectionValidForCurrentAccount();
 
   /// The connected backup account email on this device, if any.
@@ -78,6 +100,10 @@ class MediaService {
   /// unowned connection therefore requires the user to reconnect once — by
   /// design.) Returns whether a valid connection for the current account exists.
   Future<bool> _backupConnectionValidForCurrentAccount() async {
+    return _publishConnected(await _computeConnectionValid());
+  }
+
+  Future<bool> _computeConnectionValid() async {
     final provider = backup;
     if (provider == null) return false;
     if (!await provider.isDeviceConnected()) return false;
@@ -88,6 +114,15 @@ class MediaService {
       return false;
     }
     return true;
+  }
+
+  /// Records [value] as the current connection state and returns it, so every
+  /// path that decides the answer also announces it. [ValueNotifier] only
+  /// notifies on a genuine change, so the repeated passive checks a photo grid
+  /// makes cost nothing.
+  bool _publishConnected(bool value) {
+    backupConnected.value = value;
+    return value;
   }
 
   /// Which cloud account is on the other end of this device's connection, or
@@ -827,6 +862,12 @@ class MediaService {
     // Whatever this device could and couldn't resolve a moment ago was an
     // answer about a different account.
     invalidateResolutionCaches();
+    // Re-derive rather than publishing `connected` straight: a *failed*
+    // attempt says nothing about whether a connection was already there, and
+    // the persisted state is the only thing that knows. This is also what
+    // wakes every other surface showing the connection (the Hub's Connected
+    // band) the moment this returns.
+    await _backupConnectionValidForCurrentAccount();
     // Reconnecting an account is exactly when deletions deferred against it
     // become possible again — do them before the user has to think about it.
     if (connected) unawaited(sweepPendingRemoteDeletions());
@@ -839,6 +880,7 @@ class MediaService {
   Future<void> disconnectBackup() async {
     invalidateResolutionCaches();
     await backup?.disconnect();
+    _publishConnected(false);
   }
 
   /// Uploads every not-yet-backed-up photo to the account's namespace.
