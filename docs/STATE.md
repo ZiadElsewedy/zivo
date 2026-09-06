@@ -116,7 +116,11 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     back on the work list — so any device still holding the local bytes
     re-uploads it on the next backup. **403 is deliberately not treated as
     gone** (it covers rate limits, and mass-dropping references under load
-    would be far worse than a slow retry), and a timeout never is.
+    would be far worse than a slow retry), and a timeout never is. **Only the
+    account that holds an id may declare it dead:** a 404 against a record with
+    no recorded account is ambiguous — deleted, or filed in the Drive the user
+    just left — so it keeps its reference (reconnecting the old account still
+    recovers the photo) and only drops to `failed`.
   - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
     drives a fake where **files belong to one account**, so a cross-account read
     404s naturally instead of by scripting; reverting the fix puts four of its
@@ -1160,6 +1164,13 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **Only the owning account may declare a file id dead.** Follow-up to the
+  deletion fix: it discarded a reference on ANY 404, which for a record with no recorded
+  account (i.e. every record predating `driveAccountKey` — all existing data) destroyed
+  the only pointer to a copy still sitting in the account the user had switched away
+  from. Now a 404 is conclusive only when the id is attributed to the account that
+  answered; otherwise the record keeps its id, drops to `failed` so local bytes
+  re-upload, and reads `otherAccount`. 1166 dart tests green.
 - 2026-09-06 — **A photo deleted from Drive no longer pulses forever.** `download`
   collapsed a hard 404 and a network blip into one null, so a deleted file read as
   `cloudOnly` ("on its way") indefinitely while its record still claimed `done`, which

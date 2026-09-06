@@ -435,8 +435,10 @@ class MediaService {
 
   /// Fetches one ref's bytes and reports what the attempt established:
   /// [MediaAvailability.onDevice] on success, [MediaAvailability.nowhere] when
-  /// the provider confirmed the remote copy is gone (the dead reference is
-  /// dropped and the record re-enters the backup work list), and
+  /// the account that holds the file confirmed it is gone (the dead reference
+  /// is dropped and the record re-enters the backup work list),
+  /// [MediaAvailability.otherAccount] when a 404 is ambiguous because we never
+  /// recorded which account the id belongs to, and
   /// [MediaAvailability.cloudOnly] for everything transient.
   Future<MediaAvailability> _downloadToStore(String ref, MediaObject object) async {
     // Respect the parallelism cap: beyond it, waiters queue FIFO and proceed
@@ -460,12 +462,23 @@ class MediaService {
       final fetched =
           await provider.download(object.remoteId!, expectedAccountKey: live);
 
-      // The copy is confirmed gone — the user deleted it from Drive, or it was
-      // purged from the trash. Drop the dead reference so reads stop promising
-      // bytes that will never arrive, and mark the record outstanding so any
-      // device that still holds the local file re-uploads it on the next
-      // backup. That is the whole recovery path: nothing else can restore it.
       if (fetched.gone) {
+        // "Not here" only means "deleted" if we know the file was filed HERE.
+        //
+        // For a record written before account keys existed, the account is
+        // unknown, and a 404 has two readings: the file was deleted, or it was
+        // never in this account to begin with (the exact situation an account
+        // switch leaves behind — which is the common case for legacy records,
+        // since a switch is what makes anyone look). Discarding the id on that
+        // evidence would destroy the only pointer to a copy still sitting in
+        // the other account, and reconnecting it would no longer recover
+        // anything. So: demote the record so local bytes get re-uploaded, keep
+        // the reference, and report the ambiguity honestly.
+        if (object.remoteAccountKey != live) {
+          await _demoteRemoteBackup(object);
+          return MediaAvailability.otherAccount;
+        }
+        // The account that owns the id says it is gone. That is conclusive.
         await _forgetRemoteCopy(object);
         return MediaAvailability.nowhere;
       }
@@ -514,6 +527,24 @@ class MediaService {
       );
     } catch (_) {
       // Best-effort: the read still reports `nowhere`, so nothing pulses.
+    }
+  }
+
+  /// Marks a record as needing backup again without touching its remote
+  /// reference — for the case where we know the bytes are not retrievable from
+  /// the connected account but cannot prove the stored id is dead.
+  ///
+  /// Keeping the id costs nothing and preserves the only route back to a copy
+  /// in another account; demoting the state is what gets the photo re-protected
+  /// from local bytes in the meantime.
+  Future<void> _demoteRemoteBackup(MediaObject object) async {
+    try {
+      final latest = await registry.get(object.id) ?? object;
+      if (latest.remoteId != object.remoteId) return;
+      if (latest.remoteBackup != BackupState.done) return;
+      await registry.put(latest.copyWith(remoteBackup: BackupState.failed));
+    } catch (_) {
+      // Best-effort.
     }
   }
 
@@ -834,10 +865,14 @@ class MediaService {
       final result =
           await provider.download(object.remoteId!, expectedAccountKey: expected);
       if (result.gone) {
-        // Same treatment as a failed passive read: drop the dead reference so
-        // this Sync — and every later one — stops asking for a file Drive has
-        // already told us is not there.
-        await _forgetRemoteCopy(object);
+        // Same distinction the passive read makes: only the account that holds
+        // an id may declare it dead. An unattributed id that 404s here is
+        // ambiguous and keeps its reference.
+        if (object.remoteAccountKey != expected) {
+          await _demoteRemoteBackup(object);
+        } else {
+          await _forgetRemoteCopy(object);
+        }
       } else if (result.hasBytes) {
         await store.writeBytes(object.relativePath, result.data!);
         if (object.remoteAccountKey == null) {

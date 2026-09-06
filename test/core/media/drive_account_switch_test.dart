@@ -344,6 +344,63 @@ void main() {
     });
   });
 
+  group('an unattributed reference that 404s', () {
+    /// The case that covers every record already on disk today: written before
+    /// account keys existed, so a 404 cannot distinguish "deleted" from "filed
+    /// in the Drive account you just disconnected".
+    Future<void> seedLegacyRecord(String remoteId) async {
+      await registry.put(MediaObject(
+        id: 'm1',
+        ownerUid: 'u1',
+        kind: MediaKind.moment,
+        relativePath: ref,
+        mimeType: 'image/jpeg',
+        byteSize: 3,
+        contentHash: 'h',
+        capturedAt: DateTime(2026, 1, 1),
+        remoteBackup: BackupState.done,
+        remoteId: remoteId,
+      ));
+    }
+
+    test('keeps its reference, so reconnecting the original account still '
+        'recovers the photo', () async {
+      // The file really does exist — in drive-1, which the user left.
+      drive.files['drive-1'] = {'legacy-1': [4, 5, 6]};
+      await seedLegacyRecord('legacy-1');
+      drive.platformAccountKey = 'drive-2';
+      await service.connectBackup();
+
+      final resolution = await service.resolveWithStatus(ref);
+      expect(resolution.availability, MediaAvailability.otherAccount);
+
+      // The pointer survived the 404 — this is the whole point.
+      final record = await registry.get('m1');
+      expect(record!.remoteId, 'legacy-1');
+      expect(record.remoteBackup, BackupState.failed,
+          reason: 'queued for re-upload, but not forgotten');
+
+      // Reconnecting drive-1 brings the photo back.
+      await switchDriveTo('drive-1');
+      final recovered = await service.resolveWithStatus(ref);
+      expect(recovered.availability, MediaAvailability.onDevice);
+      expect(recovered.file!.readAsBytesSync(), [4, 5, 6]);
+    });
+
+    test('only the account that holds an id may declare it dead', () async {
+      await service.connectBackup(); // drive-1
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      await deleteLocalBytes();
+
+      // Attributed to drive-1 and missing FROM drive-1 — conclusive.
+      drive.files['drive-1']!.remove(remoteId);
+      expect((await service.resolveWithStatus(ref)).availability,
+          MediaAvailability.nowhere);
+      expect((await registry.get('m1'))!.remoteId, isNull);
+    });
+  });
+
   group('Drive account switch', () {
     test('a photo backed up to Drive #1 is never resolved against Drive #2', () async {
       await service.connectBackup();
