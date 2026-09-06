@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -14,12 +15,12 @@ class MediaBackupSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsSectionCard(
-      label: 'Media',
+      label: l(context).settingsSectionMedia,
       children: [
         SettingsRow(
           icon: AppIcons.backupNow,
-          title: 'Storage & sync',
-          value: 'Photos · Drive',
+          title: l(context).settingsStorageSync,
+          value: l(context).settingsStorageSyncValue,
           accent: TrainColors.green,
           last: true,
           onTap: () => Navigator.of(

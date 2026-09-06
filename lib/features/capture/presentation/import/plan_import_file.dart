@@ -1,5 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
+import '../../../../l10n/l10n.dart';
 
 /// The file-picking half of a plan import, shared by the workout and diet
 /// import flows. Both read the *same* document types the *same* way and map
@@ -71,7 +74,11 @@ Future<PickedImportFile?> pickImportFile() async {
 ///
 /// [manualFallback] is the one clause that differs between importers — the
 /// "…or build the split/plan manually" tail on the generic message.
-String importErrorMessage(Object error, {required String manualFallback}) {
+String importErrorMessage(
+  BuildContext context,
+  Object error, {
+  required String manualFallback,
+}) {
   final text = error.toString().toLowerCase();
   if (text.contains('app-check') ||
       text.contains('app check') ||
@@ -80,24 +87,20 @@ String importErrorMessage(Object error, {required String manualFallback}) {
       text.contains('permission-denied') ||
       text.contains('permission denied')) {
     return kDebugMode
-        ? "The app couldn't verify itself (App Check). Register this "
-              "build's debug token in the Firebase console, then try again."
-        : "Couldn't verify this app install. Please try again in a moment.";
+        ? l(context).importAppCheckDebug
+        : l(context).importAppCheckFailed;
   }
   if (text.contains('not-found')) {
     // The callable itself is missing — an undeployed or renamed backend
     // function. Nothing about the picked file is wrong; blaming it sends
     // people re-scanning a perfectly good plan.
-    return "The import service isn't available right now — please try "
-        'again later.';
+    return l(context).importServiceUnavailable;
   }
   if (text.contains('deadline') ||
       text.contains('timeout') ||
       text.contains('unavailable') ||
       text.contains('network')) {
-    return 'Network problem reaching the import service — check your '
-        'connection and try again.';
+    return l(context).importNetworkProblem;
   }
-  return "Couldn't read that plan — try a clearer photo or PDF, or "
-      '$manualFallback';
+  return l(context).importCouldntRead(manualFallback);
 }

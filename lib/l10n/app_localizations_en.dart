@@ -2952,4 +2952,1193 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaOnAnotherBackupAccount => 'In another Drive account';
+
+  @override
+  String get storageTitle => 'Storage & Sync';
+
+  @override
+  String get storageSectionBackup => 'BACKUP & SYNC';
+
+  @override
+  String get storageSectionInstant => 'INSTANT SYNC';
+
+  @override
+  String get storageSectionDevicePhotos => 'DEVICE PHOTOS';
+
+  @override
+  String get storageUploadToDrive => 'Upload to Drive';
+
+  @override
+  String get storageSaveToPhotos => 'Save to Photos';
+
+  @override
+  String get storageAccountNote =>
+      'Each ZIVO account keeps its own photos in its own Drive folder, so accounts never mix — even if they use the same Google Drive.';
+
+  @override
+  String get storageOnThisDevice => 'On this device';
+
+  @override
+  String get storageLocalFirst => 'Your photos are saved here first, always.';
+
+  @override
+  String storageSavedHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos saved here.',
+      one: '1 photo saved here.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storageConnectDrive => 'Connect Google Drive';
+
+  @override
+  String get storageBackUpNow => 'Back up now';
+
+  @override
+  String get storageSync => 'Sync';
+
+  @override
+  String get storageDisconnect => 'Disconnect';
+
+  @override
+  String get storageUnavailableInBuild => 'Unavailable in this build';
+
+  @override
+  String get storageConnectedOnDevice => 'Connected on this device';
+
+  @override
+  String get storageNotConnectedOnDevice => 'Not connected on this device';
+
+  @override
+  String get storageConnectFailed => 'Couldn’t connect Google Drive.';
+
+  @override
+  String get storageConnectedToast => 'Google Drive connected on this device.';
+
+  @override
+  String get storageDisconnectedToast =>
+      'Google Drive disconnected on this device.';
+
+  @override
+  String get storageAlreadyBackedUp => 'Everything is already backed up.';
+
+  @override
+  String get storageNothingNew => 'Nothing new to download.';
+
+  @override
+  String storageBackedUpToast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Backed up $count photos to Drive.',
+      one: 'Backed up 1 photo to Drive.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storageDownloadedToast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Downloaded $count photos from Drive.',
+      one: 'Downloaded 1 photo from Drive.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storageOtherAccountTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos in another Google account',
+      one: '1 photo in another Google account',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storageOtherAccountBody =>
+      'Backed up before you switched accounts. Back up now copies the ones still on this device; for the rest, reconnect that account.';
+
+  @override
+  String get storageBackingUp => 'Backing up…';
+
+  @override
+  String get storageSyncing => 'Syncing…';
+
+  @override
+  String get storageCheckingPhotos => 'Checking your photos…';
+
+  @override
+  String storageProgressCount(int done, int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: 'photos',
+      one: 'photo',
+    );
+    return '$done of $total $_temp0';
+  }
+
+  @override
+  String get storageNothingYetTitle => 'Nothing to back up yet';
+
+  @override
+  String get storageNothingYetBody => 'Photos you add will back up here.';
+
+  @override
+  String get storageAllBackedUpTitle => 'All backed up';
+
+  @override
+  String storageAllSafeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos are safe in Google Drive.',
+      one: '1 photo is safe in Google Drive.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storagePartialTitle(int backedUp, int total) {
+    return '$backedUp of $total backed up';
+  }
+
+  @override
+  String storagePendingBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos are waiting to back up.',
+      one: '1 photo is waiting to back up.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionNoExercises => 'No exercises logged.';
+
+  @override
+  String get sessionDetailsTitle => 'Session details';
+
+  @override
+  String get sessionDeleteAction => 'Delete session';
+
+  @override
+  String get sessionStatusCompleted => 'Completed';
+
+  @override
+  String get sessionStatusActive => 'In progress';
+
+  @override
+  String get sessionStatusAbandoned => 'Not completed';
+
+  @override
+  String get sessionStatDuration => 'Duration';
+
+  @override
+  String get sessionStatTime => 'Time';
+
+  @override
+  String get sessionStatExercises => 'Exercises';
+
+  @override
+  String get sessionStatSetsDone => 'Sets done';
+
+  @override
+  String sessionSetNumber(int index) {
+    return 'Set $index';
+  }
+
+  @override
+  String get sessionSetSkipped => 'Skipped';
+
+  @override
+  String sessionSetRpe(String value) {
+    return 'RPE $value';
+  }
+
+  @override
+  String sessionSetWeightByReps(String weight, String reps) {
+    return '$weight × $reps';
+  }
+
+  @override
+  String sessionSetRepsOnly(int reps) {
+    String _temp0 = intl.Intl.pluralLogic(
+      reps,
+      locale: localeName,
+      other: '$reps reps',
+      one: '1 rep',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionSetRepsUnknown(String reps) {
+    return '$reps reps';
+  }
+
+  @override
+  String sessionTimeRange(String start, String end) {
+    return '$start–$end';
+  }
+
+  @override
+  String get splitsTitle => 'Splits';
+
+  @override
+  String get splitNewAction => 'New split';
+
+  @override
+  String splitCopyName(String name) {
+    return '$name copy';
+  }
+
+  @override
+  String splitDayCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String splitMeta(String days, String exercises) {
+    return '$days · $exercises';
+  }
+
+  @override
+  String get splitSetActive => 'Set as active';
+
+  @override
+  String get actionDuplicate => 'Duplicate';
+
+  @override
+  String get splitActiveBadge => 'Active';
+
+  @override
+  String get splitsEmptyTitle => 'No splits yet.';
+
+  @override
+  String get splitsEmptyBody => 'Tap + to build your first one.';
+
+  @override
+  String workoutThisWeekCount(int count) {
+    return '$count THIS WEEK';
+  }
+
+  @override
+  String get workoutLogTodaysWeight => 'Log today\'s weight';
+
+  @override
+  String get workoutWeighInFailed =>
+      'Couldn\'t save that weigh-in — check your connection and try again.';
+
+  @override
+  String get workoutNoPlanImportHint =>
+      'Import a PDF or photo and I\'ll turn it into a real split, or build one from scratch.';
+
+  @override
+  String workoutWeightDeltaWindow(String delta) {
+    return '$delta KG · 30D';
+  }
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsSectionApp => 'App';
+
+  @override
+  String get settingsSectionAccount => 'Account';
+
+  @override
+  String get settingsSectionMusic => 'Music';
+
+  @override
+  String get settingsSectionMedia => 'Media';
+
+  @override
+  String get settingsTheme => 'Theme';
+
+  @override
+  String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsVersion => 'Version';
+
+  @override
+  String get settingsBuild => 'Build';
+
+  @override
+  String get settingsPrivacyPolicy => 'Privacy policy';
+
+  @override
+  String get settingsChangePassword => 'Change password';
+
+  @override
+  String get settingsDeleteAccount => 'Delete account';
+
+  @override
+  String get settingsSignOut => 'Sign out';
+
+  @override
+  String settingsVersionLine(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
+  String settingsVersionValue(String version, String build) {
+    return '$version ($build)';
+  }
+
+  @override
+  String get settingsStorageSync => 'Storage & sync';
+
+  @override
+  String get settingsStorageSyncValue => 'Photos · Drive';
+
+  @override
+  String get connectedConnectedPaused => 'CONNECTED · PAUSED';
+
+  @override
+  String get connectedConnectedPlaying => 'CONNECTED · PLAYING';
+
+  @override
+  String get authEmail => 'Email';
+
+  @override
+  String get authPassword => 'Password';
+
+  @override
+  String get authNameOptional => 'Name (optional)';
+
+  @override
+  String get authConfirmPassword => 'Confirm password';
+
+  @override
+  String get authNewPassword => 'New password';
+
+  @override
+  String get authCurrentPassword => 'Current password';
+
+  @override
+  String get authConfirmNewPassword => 'Confirm new password';
+
+  @override
+  String get authSignIn => 'Sign in';
+
+  @override
+  String get authCreateAccount => 'Create account';
+
+  @override
+  String get authForgotPassword => 'Forgot password?';
+
+  @override
+  String get authHaveAccount => 'Already have an account?  ';
+
+  @override
+  String get authNewToZivo => 'New to ZIVO?  ';
+
+  @override
+  String get authTitleSignUp => 'Make your space.';
+
+  @override
+  String get authTitleSignIn => 'Your whole day, in one place.';
+
+  @override
+  String get authSignInWithApple => 'Sign in with Apple';
+
+  @override
+  String get authContinueWithGoogle => 'Continue with Google';
+
+  @override
+  String get authPasswordUpdated => 'Password updated.';
+
+  @override
+  String get authPasswordUpdatedSignIn =>
+      'Password updated. Sign in with your new password.';
+
+  @override
+  String authShowField(String label) {
+    return 'Show $label';
+  }
+
+  @override
+  String authHideField(String label) {
+    return 'Hide $label';
+  }
+
+  @override
+  String authOtpFieldLabel(int length) {
+    return '$length-digit verification code';
+  }
+
+  @override
+  String authCodeWrongWithAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'That code isn’t right. $count tries left.',
+      one: 'That code isn’t right. 1 try left.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get authCodeWrong => 'That code isn’t right.';
+
+  @override
+  String get authCodeExpired => 'That code has expired. Send a new one.';
+
+  @override
+  String get authCodeTooManyAttempts => 'Too many attempts. Send a new code.';
+
+  @override
+  String get authCodeSent => 'A new code is on its way.';
+
+  @override
+  String get authSending => 'Sending…';
+
+  @override
+  String authResendIn(int seconds) {
+    return 'Resend code in ${seconds}s';
+  }
+
+  @override
+  String get authResendCode => 'Resend code';
+
+  @override
+  String get authDidntGetIt => 'Didn’t get it?  ';
+
+  @override
+  String get authResetTitle => 'Reset your password';
+
+  @override
+  String get authResetSubtitle =>
+      'Enter your account email and we’ll send you a 6-digit code.';
+
+  @override
+  String get authSendCode => 'Send code';
+
+  @override
+  String get authEnterCode => 'Enter the code';
+
+  @override
+  String get authCodeSentTo => 'Enter the 6-digit code we sent to\n';
+
+  @override
+  String get authThenChoosePassword => ', then choose a new password.';
+
+  @override
+  String get authResetPassword => 'Reset password';
+
+  @override
+  String get authEmailLooksWrong => 'That email address doesn\'t look right.';
+
+  @override
+  String get authVerifyTitle => 'Verify your email';
+
+  @override
+  String get authVerify => 'Verify';
+
+  @override
+  String get authUseAnotherAccount => 'Use another account';
+
+  @override
+  String get authChangePasswordSubtitle =>
+      'Confirm it’s you, then choose a new one.';
+
+  @override
+  String get authConfirmItsYou => 'Confirm it’s you';
+
+  @override
+  String get authUpdatePassword => 'Update password';
+
+  @override
+  String get authDeleteAccountBody =>
+      'This permanently deletes your account and everything in it — workouts, diet, moments, expenses, and profile. This cannot be undone.';
+
+  @override
+  String get authDeleteConfirmPassword => 'Enter your password to confirm';
+
+  @override
+  String get authDeleteMyAccount => 'Delete my account';
+
+  @override
+  String get authPasswordStrength => 'Password strength';
+
+  @override
+  String get authPasswordStrong => 'Strong';
+
+  @override
+  String get authPasswordAlmost => 'Almost';
+
+  @override
+  String get authPasswordWeak => 'Weak';
+
+  @override
+  String get authPasswordsMatch => 'Passwords match';
+
+  @override
+  String get authPasswordsDontMatch => 'Passwords don\'t match';
+
+  @override
+  String authRuleState(String rule, String state) {
+    return '$rule: $state';
+  }
+
+  @override
+  String get authRuleMet => 'met';
+
+  @override
+  String get authRuleNotMet => 'not met';
+
+  @override
+  String get authRuleMinLength => 'At least 8 characters';
+
+  @override
+  String get authRuleMinLengthShort => '8+ characters';
+
+  @override
+  String get authRuleUppercase => 'One uppercase letter';
+
+  @override
+  String get authRuleUppercaseShort => 'Uppercase';
+
+  @override
+  String get authRuleLowercase => 'One lowercase letter';
+
+  @override
+  String get authRuleLowercaseShort => 'Lowercase';
+
+  @override
+  String get authRuleNumber => 'One number';
+
+  @override
+  String get authRuleNumberShort => 'Number';
+
+  @override
+  String get settingsPermanent => 'PERMANENT';
+
+  @override
+  String get momentTakePhoto => 'Take Photo';
+
+  @override
+  String get momentChooseFromLibrary => 'Choose from Library';
+
+  @override
+  String get momentEditPhoto => 'Edit Photo';
+
+  @override
+  String get momentEditTitle => 'Edit moment';
+
+  @override
+  String get momentNewTitle => 'New moment';
+
+  @override
+  String get momentDeleteAction => 'Delete moment';
+
+  @override
+  String get momentNoteHint => 'Say something…';
+
+  @override
+  String get momentSave => 'Save moment';
+
+  @override
+  String get momentAdd => 'Add moment';
+
+  @override
+  String get momentAddPhoto => 'Add a photo';
+
+  @override
+  String get momentRetake => 'Retake';
+
+  @override
+  String get momentRemove => 'Remove';
+
+  @override
+  String get momentSaveFailed => 'Couldn\'t save that moment.';
+
+  @override
+  String get momentDeleteFailed => 'Couldn\'t delete that moment.';
+
+  @override
+  String get momentsTitle => 'Moments';
+
+  @override
+  String get momentsFilterAll => 'All';
+
+  @override
+  String get momentsFilterPhotos => 'Photos';
+
+  @override
+  String get momentsFilterNotes => 'Notes';
+
+  @override
+  String get momentsFilterCamera => 'Camera';
+
+  @override
+  String get momentsFilterLibrary => 'Library';
+
+  @override
+  String get momentsEmptyTitle => 'Nothing logged yet';
+
+  @override
+  String get momentsEmptyBody =>
+      'Snap a lift, a meal, or a scale reading — moments attach to the session you were in.';
+
+  @override
+  String get momentsEmptyCamera => 'No camera photos yet.';
+
+  @override
+  String get momentsEmptyLibrary => 'Nothing from your library yet.';
+
+  @override
+  String get momentsEmptyPhotos => 'No photos yet.';
+
+  @override
+  String get momentsEmptyNotes => 'No notes yet.';
+
+  @override
+  String get momentsEmptyOther => 'Nothing else logged yet';
+
+  @override
+  String get momentUntitled => 'Untitled';
+
+  @override
+  String get momentUntitledFull => 'Untitled moment';
+
+  @override
+  String get momentPhotoInfo => 'Photo info';
+
+  @override
+  String momentPhotoPosition(int index, int total) {
+    return '$index of $total';
+  }
+
+  @override
+  String get metaDate => 'Date';
+
+  @override
+  String get metaTime => 'Time';
+
+  @override
+  String get metaTimeZone => 'Time zone';
+
+  @override
+  String get metaCapturedWith => 'Captured with';
+
+  @override
+  String get metaDimensions => 'Dimensions';
+
+  @override
+  String get metaFileSize => 'File size';
+
+  @override
+  String get metaType => 'Type';
+
+  @override
+  String get metaLocation => 'Location';
+
+  @override
+  String get metaBackup => 'Backup';
+
+  @override
+  String get metaOnThisDevice => 'On this device';
+
+  @override
+  String get metaInPhotos => 'Photos';
+
+  @override
+  String get metaNotBackedUp => 'Not backed up yet';
+
+  @override
+  String get metaInDriveTapToDownload => 'In Google Drive — tap to download';
+
+  @override
+  String get captureSourceCamera => 'Camera';
+
+  @override
+  String get captureSourceLibrary => 'Photo Library';
+
+  @override
+  String get captureSourceUnknown => 'Unknown';
+
+  @override
+  String get musicNowPlaying => 'NOW PLAYING';
+
+  @override
+  String get musicClosePlayer => 'Close player';
+
+  @override
+  String get musicReadOnly =>
+      'Playing on another device — controls are read-only here.';
+
+  @override
+  String get musicPreviousTrack => 'Previous track';
+
+  @override
+  String get musicNextTrack => 'Next track';
+
+  @override
+  String get musicShuffleOn => 'Shuffle on';
+
+  @override
+  String get musicShuffleOff => 'Shuffle off';
+
+  @override
+  String get musicRepeatOff => 'Repeat off';
+
+  @override
+  String get musicRepeatAll => 'Repeat all';
+
+  @override
+  String get musicRepeatOne => 'Repeat one';
+
+  @override
+  String get musicAuthFailed =>
+      'Spotify didn\'t authorize the connection. Make sure you\'re signed in to Spotify, then try again.';
+
+  @override
+  String get musicTryAgain => 'Try again';
+
+  @override
+  String get musicPremiumRequired =>
+      'Spotify Premium is required to control playback here.';
+
+  @override
+  String get musicConnectPrompt => 'Connect Spotify to see what\'s playing.';
+
+  @override
+  String get musicConnectSpotify => 'Connect Spotify';
+
+  @override
+  String musicTimeLeft(String time) {
+    return '$time LEFT';
+  }
+
+  @override
+  String musicStripMeta(String artist, String remaining) {
+    return '$artist · $remaining';
+  }
+
+  @override
+  String musicNowPlayingSemantics(String title, String artist) {
+    return 'Now playing: $title by $artist. Open the player.';
+  }
+
+  @override
+  String musicBatteryPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get importCouldntReadFile => 'Couldn\'t read that file.';
+
+  @override
+  String get importFileTooLarge =>
+      'That file is too large — please choose one under 7 MB.';
+
+  @override
+  String get importSaveFailed =>
+      'Couldn\'t save that split — check your connection and try again.';
+
+  @override
+  String get importReviewTitle => 'Review import';
+
+  @override
+  String get importPlanTitle => 'Import Plan';
+
+  @override
+  String get importSelectTitle => 'Select your training plan';
+
+  @override
+  String get importSelectBody =>
+      'Choose a PDF or a photo of your plan and I\'ll map it into a real, editable split.';
+
+  @override
+  String get importChooseDifferentFile => 'Choose a different file';
+
+  @override
+  String get importStartOver => 'Start over';
+
+  @override
+  String get importNotAPlan => 'This doesn\'t look like a workout plan';
+
+  @override
+  String get importGoBackAndEdit => 'Go back and edit';
+
+  @override
+  String get importHeresWhatIFound => 'HERE\'S WHAT I FOUND';
+
+  @override
+  String get importDoingIt => 'Importing…';
+
+  @override
+  String get importThisSplit => 'Import this split';
+
+  @override
+  String get importEditBefore => 'Edit before importing';
+
+  @override
+  String importDayHeading(String slot, String label) {
+    return 'Day $slot · $label';
+  }
+
+  @override
+  String get importNoExercisesForDay => 'No exercises found for this day.';
+
+  @override
+  String get importComplete => 'Import complete';
+
+  @override
+  String importSummary(String name, String days, String exercises) {
+    return '\"$name\" added to your splits — $days, $exercises.';
+  }
+
+  @override
+  String importPlanShape(String days, String exercises) {
+    return '$days · $exercises total';
+  }
+
+  @override
+  String get importBuildManually => 'build the split manually.';
+
+  @override
+  String get exerciseEditTitle => 'Edit exercise';
+
+  @override
+  String get exerciseAddTitle => 'Add exercise';
+
+  @override
+  String get exerciseName => 'Name';
+
+  @override
+  String get exerciseNameHint => 'Bench Press';
+
+  @override
+  String get exerciseMuscleGroup => 'Muscle group (optional)';
+
+  @override
+  String get exerciseMuscleGroupHint => 'Chest';
+
+  @override
+  String get exerciseSets => 'Sets';
+
+  @override
+  String get exerciseRepTarget => 'REP TARGET';
+
+  @override
+  String get exerciseTargetFixed => 'Fixed';
+
+  @override
+  String get exerciseTargetRange => 'Range';
+
+  @override
+  String get exerciseMinReps => 'Min reps';
+
+  @override
+  String get exerciseMaxReps => 'Max reps';
+
+  @override
+  String get exerciseReps => 'Reps';
+
+  @override
+  String get exerciseWeightKg => 'Weight (kg)';
+
+  @override
+  String get exerciseSaveChanges => 'Save changes';
+
+  @override
+  String get workoutCaptureSaveFailed => 'Couldn\'t save that workout.';
+
+  @override
+  String get workoutCaptureDeleteFailed => 'Couldn\'t delete that workout.';
+
+  @override
+  String get workoutCaptureEditTitle => 'Edit workout';
+
+  @override
+  String get workoutCaptureNewTitle => 'New workout';
+
+  @override
+  String get workoutCaptureDelete => 'Delete workout';
+
+  @override
+  String get workoutCaptureNameHint => 'Name this session';
+
+  @override
+  String get workoutCaptureSave => 'Save workout';
+
+  @override
+  String get workoutCaptureNoExercises => 'No exercises yet.';
+
+  @override
+  String get workoutCaptureExerciseName => 'Exercise name';
+
+  @override
+  String get workoutCaptureRemove => 'Remove';
+
+  @override
+  String get importAppCheckDebug =>
+      'The app couldn\'t verify itself (App Check). Register this build\'s debug token in the Firebase console, then try again.';
+
+  @override
+  String get importAppCheckFailed =>
+      'Couldn\'t verify this app install. Please try again in a moment.';
+
+  @override
+  String get importServiceUnavailable =>
+      'The import service isn\'t available right now — please try again later.';
+
+  @override
+  String get importNetworkProblem =>
+      'Network problem reaching the import service — check your connection and try again.';
+
+  @override
+  String importCouldntRead(String manualFallback) {
+    return 'Couldn\'t read that plan — try a clearer photo or PDF, or $manualFallback';
+  }
+
+  @override
+  String importUnsupportedFileType(String extension) {
+    return 'Unsupported file type: $extension';
+  }
+
+  @override
+  String get describeMicNeeded =>
+      'ZIVO needs microphone access to take this down. You can type it instead.';
+
+  @override
+  String get describeRecordFailed =>
+      'Couldn\'t start recording. You can type it instead.';
+
+  @override
+  String get describeNothingRecorded =>
+      'Nothing was recorded. Try again, or type it instead.';
+
+  @override
+  String get describeYourDescription => 'Your description';
+
+  @override
+  String get describeCheckWords =>
+      'Check the words before you continue — a mis-heard detail becomes a number downstream.';
+
+  @override
+  String get describeSayItInstead => 'Say it instead';
+
+  @override
+  String get describeAddMoreByVoice => 'Add more by voice';
+
+  @override
+  String get describeWritingItDown => 'Writing it down…';
+
+  @override
+  String get describeListening => 'Listening';
+
+  @override
+  String get describeDiscard => 'Discard';
+
+  @override
+  String get importReadingDocument => 'Reading the document…';
+
+  @override
+  String importFoundNamed(String name) {
+    return 'Found \"$name\"…';
+  }
+
+  @override
+  String get importAnalyzing => 'Analyzing your plan';
+
+  @override
+  String get importBuildManuallyInstead => 'Build manually instead';
+
+  @override
+  String importSectionItems(String section, String items) {
+    return '$section · $items';
+  }
+
+  @override
+  String importItemCountDay(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importItemCountMeal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count meals',
+      one: '1 meal',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutDescribeTitleVoice => 'Describe your training';
+
+  @override
+  String get workoutDescribeTitleType => 'Type it out';
+
+  @override
+  String get workoutDescribeBody =>
+      'Say or write your split — the days, the exercises, and the sets and reps for each. ZIVO turns it into a real, editable split you review before anything is saved.';
+
+  @override
+  String get workoutDescribeExample =>
+      'Example: \"Day A is push — bench press 4 sets of 8, incline dumbbell press 3 by 10, then cable flyes 3 by 15. Day B is pull…\"';
+
+  @override
+  String get workoutDescribeHint => 'Day A is push…';
+
+  @override
+  String get workoutDescribeSubmit => 'Turn this into a split';
+
+  @override
+  String get workoutDescribeDoneTalking => 'Done talking';
+
+  @override
+  String get addPlanTitle => 'Add a training plan';
+
+  @override
+  String get addPlanBody =>
+      'However your split arrives, it lands in the same editor to review before anything is saved.';
+
+  @override
+  String get addPlanPdfTitle => 'PDF or photo';
+
+  @override
+  String get addPlanPdfBody =>
+      'A coach\'s plan, a screenshot, a photo of a page';
+
+  @override
+  String get addPlanVoiceTitle => 'Say it out loud';
+
+  @override
+  String get addPlanVoiceBody => 'Describe your split and ZIVO writes it down';
+
+  @override
+  String get addPlanTypeTitle => 'Type it out';
+
+  @override
+  String get addPlanTypeBody => 'Write your split in a few lines';
+
+  @override
+  String get addPlanManualTitle => 'Build by hand';
+
+  @override
+  String get addPlanManualBody => 'Add days and exercises yourself';
+
+  @override
+  String importItemCountExercise(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count exercises',
+      one: '1 exercise',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importItemCountGeneric(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseTrainedFor(String day, int minutes) {
+    return '$day · $minutes MIN';
+  }
+
+  @override
+  String pulseUnderWay(String day) {
+    return '$day · UNDER WAY';
+  }
+
+  @override
+  String pulseStreakDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count-day streak',
+      one: '1-day streak',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseSessionsLast7(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count SESSIONS · LAST 7 DAYS',
+      one: '1 SESSION · LAST 7 DAYS',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseWeightSpan(int days) {
+    return 'KG · ${days}D';
+  }
+
+  @override
+  String expenseSpentToday(String amount) {
+    return '$amount SPENT TODAY';
+  }
+
+  @override
+  String expenseAmountWithCurrency(String amount, String currency) {
+    return '$amount $currency';
+  }
+
+  @override
+  String expenseRowMeta(String time, String category) {
+    return '$time · $category';
+  }
+
+  @override
+  String get planEditSplitTitle => 'Edit split';
+
+  @override
+  String get planEditPlanTitle => 'Edit workout plan';
+
+  @override
+  String get planNewSplitTitle => 'New split';
+
+  @override
+  String get planNewPlanTitle => 'New workout plan';
+
+  @override
+  String get planDeleteSplit => 'Delete split';
+
+  @override
+  String get planDeletePlan => 'Delete plan';
+
+  @override
+  String get planName => 'Plan name';
 }

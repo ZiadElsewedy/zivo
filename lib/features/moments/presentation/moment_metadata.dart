@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/media/domain/media_object.dart';
+import '../../../core/media/presentation/capture_source_labels.dart';
+import '../../../core/util/bidi.dart';
+import '../../../l10n/l10n.dart';
 import '../domain/moment.dart';
 import '../../../core/util/date_format.dart';
 
@@ -27,29 +30,65 @@ List<MetadataRow> buildMomentMetadata(
   MediaObject? media, {
   bool photoOnDevice = true,
 }) {
+  // Every value here is a measurement, an identifier or a machine string —
+  // dimensions, a byte count, a UTC offset, a MIME type. All of them are
+  // digits and neutral punctuation, so each is pinned: unpinned, "3024 × 4032"
+  // and "UTC+03:00" render reversed in Arabic.
   final rows = <MetadataRow>[
-    MetadataRow('Date', formatFullDateLong(context, moment.takenAt)),
-    MetadataRow('Time', formatClockTimeWithSeconds(context, moment.takenAt)),
-    MetadataRow('Time zone', formatTimeZone(moment.takenAt)),
+    MetadataRow(
+      l(context).metaDate,
+      formatFullDateLong(context, moment.takenAt),
+    ),
+    MetadataRow(
+      l(context).metaTime,
+      ltrFor(context, formatClockTimeWithSeconds(context, moment.takenAt)),
+    ),
+    MetadataRow(
+      l(context).metaTimeZone,
+      ltrFor(context, formatTimeZone(moment.takenAt)),
+    ),
   ];
   if (media != null && media.source != CaptureSource.unknown) {
-    rows.add(MetadataRow('Captured with', media.source.label));
+    rows.add(
+      MetadataRow(
+        l(context).metaCapturedWith,
+        captureSourceText(context, media.source),
+      ),
+    );
   }
   if (media?.width != null && media?.height != null) {
-    rows.add(MetadataRow('Dimensions', formatDimensions(media!.width!, media.height!)));
+    rows.add(
+      MetadataRow(
+        l(context).metaDimensions,
+        ltrFor(context, formatDimensions(media!.width!, media.height!)),
+      ),
+    );
   }
   if (media != null && media.byteSize > 0) {
-    rows.add(MetadataRow('File size', formatBytes(media.byteSize)));
+    rows.add(
+      MetadataRow(
+        l(context).metaFileSize,
+        ltrFor(context, formatBytes(media.byteSize)),
+      ),
+    );
   }
   if (media != null && media.mimeType.isNotEmpty) {
-    rows.add(MetadataRow('Type', media.mimeType));
+    rows.add(
+      MetadataRow(l(context).metaType, ltrFor(context, media.mimeType)),
+    );
   }
   final location = moment.location;
   if (location != null && location.trim().isNotEmpty) {
-    rows.add(MetadataRow('Location', location));
+    // The user's own text, in whichever script they wrote it.
+    rows.add(MetadataRow(l(context).metaLocation, isolate(location)));
   }
   if (media != null) {
-    rows.add(MetadataRow('Backup', _backupLabel(media, photoOnDevice)));
+    rows.add(
+      MetadataRow(
+        l(context).metaBackup,
+        _backupLabel(context, media, photoOnDevice),
+      ),
+    );
   }
   return rows;
 }
@@ -82,15 +121,21 @@ String formatBytes(int bytes) {
   return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
 }
 
-String _backupLabel(MediaObject media, bool photoOnDevice) {
+String _backupLabel(
+  BuildContext context,
+  MediaObject media,
+  bool photoOnDevice,
+) {
   final parts = <String>[];
   if (photoOnDevice) {
-    parts.add('On this device');
-    if (media.gallery == BackupState.done) parts.add('Photos');
+    parts.add(l(context).metaOnThisDevice);
+    if (media.gallery == BackupState.done) parts.add(l(context).metaInPhotos);
   }
   if (media.remoteBackup == BackupState.done) parts.add('Google Drive');
   if (parts.isEmpty) {
-    return photoOnDevice ? 'Not backed up yet' : 'In Google Drive — tap to download';
+    return photoOnDevice
+        ? l(context).metaNotBackedUp
+        : l(context).metaInDriveTapToDownload;
   }
   return parts.join(' · ');
 }

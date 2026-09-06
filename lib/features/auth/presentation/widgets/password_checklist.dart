@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../l10n/l10n.dart';
 import '../../domain/password_policy.dart';
+import '../password_rule_labels.dart';
 import '../../../../core/theme/train_tokens.dart';
 
 /// Live feedback on how far a password has got through [PasswordPolicy] —
@@ -114,14 +116,17 @@ class _StrengthLabel extends StatelessWidget {
   final int met;
   final int total;
 
-  String get _text {
-    if (met == 0) return 'Password strength';
-    if (met >= total) return 'Strong';
-    return met <= total / 2 ? 'Weak' : 'Almost';
+  String _textFor(BuildContext context) {
+    if (met == 0) return l(context).authPasswordStrength;
+    if (met >= total) return l(context).authPasswordStrong;
+    return met <= total / 2
+        ? l(context).authPasswordWeak
+        : l(context).authPasswordAlmost;
   }
 
   @override
   Widget build(BuildContext context) {
+    final text = _textFor(context);
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(end: _strengthTint(met, total)),
       duration: const Duration(milliseconds: 260),
@@ -131,8 +136,8 @@ class _StrengthLabel extends StatelessWidget {
         transitionBuilder: (child, animation) =>
             FadeTransition(opacity: animation, child: child),
         child: Text(
-          _text,
-          key: ValueKey(_text),
+          text,
+          key: ValueKey(text),
           style: AppText.sectionLabel.copyWith(
             fontSize: 10.5,
             letterSpacing: 0.9,
@@ -155,7 +160,10 @@ class _RuleChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '${rule.label}: ${met ? 'met' : 'not met'}',
+      label: l(context).authRuleState(
+        passwordRuleText(context, rule.id),
+        met ? l(context).authRuleMet : l(context).authRuleNotMet,
+      ),
       excludeSemantics: true,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
@@ -192,7 +200,7 @@ class _RuleChip extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              rule.shortLabel,
+              passwordRuleShortText(context, rule.id),
               style: AppText.meta.copyWith(
                 fontSize: 11,
                 color: met ? TrainColors.green : TrainColors.ink3,
@@ -231,7 +239,9 @@ class PasswordMatchHint extends StatelessWidget {
         final icon = matches
             ? Icons.check_circle_rounded
             : Icons.error_outline_rounded;
-        final label = matches ? 'Passwords match' : "Passwords don't match";
+        final label = matches
+            ? l(context).authPasswordsMatch
+            : l(context).authPasswordsDontMatch;
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 180),
           opacity: visible ? 1 : 0,

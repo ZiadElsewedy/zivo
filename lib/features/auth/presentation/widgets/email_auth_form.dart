@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../domain/password_policy.dart';
 import 'auth_action_button.dart';
@@ -124,7 +125,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
             visible: widget.isSignUp,
             child: AuthTextField(
               controller: _name,
-              hint: 'Name (optional)',
+              hint: l(context).authNameOptional,
               icon: Icons.person_outline_rounded,
               enabled: widget.enabled,
               textInputAction: TextInputAction.next,
@@ -133,7 +134,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           const SizedBox(height: 10),
           AuthTextField(
             controller: _email,
-            hint: 'Email',
+            hint: l(context).authEmail,
             icon: Icons.mail_outline_rounded,
             enabled: widget.enabled,
             keyboardType: TextInputType.emailAddress,
@@ -142,7 +143,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           const SizedBox(height: 10),
           AuthTextField(
             controller: _password,
-            hint: 'Password',
+            hint: l(context).authPassword,
             icon: Icons.lock_outline_rounded,
             enabled: widget.enabled,
             obscureText: true,
@@ -166,7 +167,7 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
                 const SizedBox(height: 10),
                 AuthTextField(
                   controller: _confirmPassword,
-                  hint: 'Confirm password',
+                  hint: l(context).authConfirmPassword,
                   icon: Icons.lock_outline_rounded,
                   enabled: widget.enabled,
                   obscureText: true,
@@ -185,7 +186,9 @@ class _EmailAuthFormState extends State<EmailAuthForm> {
           ),
           const SizedBox(height: 16),
           AuthActionButton(
-            label: widget.isSignUp ? 'Create account' : 'Sign in',
+            label: widget.isSignUp
+                ? l(context).authCreateAccount
+                : l(context).authSignIn,
             icon: const Icon(Icons.arrow_forward_rounded, size: 18),
             background: TrainColors.ember,
             loading: widget.submitting,

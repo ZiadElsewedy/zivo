@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/util/bidi.dart';
+import '../../../l10n/l10n.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
@@ -337,7 +339,7 @@ class _ImmersivePlayerState extends State<_ImmersivePlayer> {
                 if (!playing.hasControl) ...[
                   const SizedBox(height: 14),
                   Text(
-                    'Playing on another device — controls are read-only here.',
+                    l(context).musicReadOnly,
                     textAlign: TextAlign.center,
                     style: TrainType.caption(
                       size: 10,
@@ -425,7 +427,7 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         TrainCircleButton(
-          semanticLabel: 'Close player',
+          semanticLabel: l(context).musicClosePlayer,
           onTap: onClose,
           child: const Icon(
             AppIcons.chevronDown,
@@ -433,8 +435,10 @@ class _TopBar extends StatelessWidget {
             color: TrainColors.ink2,
           ),
         ),
-        const Expanded(
-          child: Center(child: TrainCaption('NOW PLAYING', tracking: 0.22)),
+        Expanded(
+          child: Center(
+            child: TrainCaption(l(context).musicNowPlaying, tracking: 0.22),
+          ),
         ),
         // Balances the chevron's tap target so the caption is truly centred.
         const SizedBox(width: TrainCircleButton.target),
@@ -613,7 +617,7 @@ class _Controls extends StatelessWidget {
       children: [
         _IconControl(
           icon: AppIcons.shuffle,
-          semanticLabel: playing.isShuffling ? 'Shuffle on' : 'Shuffle off',
+          semanticLabel: playing.isShuffling ? l(context).musicShuffleOn : l(context).musicShuffleOff,
           active: playing.isShuffling,
           activeColor: accent,
           enabled: enabled,
@@ -629,7 +633,7 @@ class _Controls extends StatelessWidget {
             bar: true,
           ),
           flip: true,
-          semanticLabel: 'Previous track',
+          semanticLabel: l(context).musicPreviousTrack,
           enabled: enabled,
           onTap: () {
             HapticFeedback.lightImpact();
@@ -643,7 +647,7 @@ class _Controls extends StatelessWidget {
             size: 18,
             bar: true,
           ),
-          semanticLabel: 'Next track',
+          semanticLabel: l(context).musicNextTrack,
           enabled: enabled,
           onTap: () {
             HapticFeedback.lightImpact();
@@ -655,9 +659,9 @@ class _Controls extends StatelessWidget {
               ? AppIcons.repeatOne
               : AppIcons.repeat,
           semanticLabel: switch (repeat) {
-            MusicRepeatMode.off => 'Repeat off',
-            MusicRepeatMode.all => 'Repeat all',
-            MusicRepeatMode.one => 'Repeat one',
+            MusicRepeatMode.off => l(context).musicRepeatOff,
+            MusicRepeatMode.all => l(context).musicRepeatAll,
+            MusicRepeatMode.one => l(context).musicRepeatOne,
           },
           active: repeat != MusicRepeatMode.off,
           activeColor: accent,
@@ -836,7 +840,10 @@ class _OutputRow extends StatelessWidget {
           if (output.batteryPercent != null) ...[
             const SizedBox(width: 10),
             Text(
-              '${output.batteryPercent}%',
+              ltrFor(
+                context,
+                l(context).musicBatteryPercent(output.batteryPercent!),
+              ),
               style: TrainType.mono(
                 size: 12,
                 tracking: 0.02,
@@ -868,25 +875,24 @@ class _ConnectionState extends StatelessWidget {
       // doc comment for why this doesn't name a specific cause.
       MusicConnection.authFailed => (
         Icons.error_outline_rounded,
-        "Spotify didn't authorize the connection. Make sure you're signed in "
-            "to Spotify, then try again.",
-        'Try again',
+        l(context).musicAuthFailed,
+        l(context).musicTryAgain,
       ),
       MusicConnection.needsPremium => (
         Icons.workspace_premium_outlined,
-        'Spotify Premium is required to control playback here.',
+        l(context).musicPremiumRequired,
         null,
       ),
       MusicConnection.noSpotifyApp => (
         Icons.error_outline_rounded,
-        'Install Spotify to connect.',
+        l(context).musicInstallSpotify,
         null,
       ),
       MusicConnection.connecting => (Icons.sync_rounded, 'Connecting…', null),
       MusicConnection.disconnected || MusicConnection.connected => (
         Icons.music_note_rounded,
-        "Connect Spotify to see what's playing.",
-        'Connect Spotify',
+        l(context).musicConnectPrompt,
+        l(context).musicConnectSpotify,
       ),
     };
     return Column(
@@ -896,7 +902,7 @@ class _ConnectionState extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 0, 0),
             child: TrainCircleButton(
-              semanticLabel: 'Close player',
+              semanticLabel: l(context).musicClosePlayer,
               onTap: () => Navigator.of(context).pop(),
               child: const Icon(
                 AppIcons.chevronDown,
@@ -954,7 +960,7 @@ class _NothingPlaying extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Nothing playing right now.',
+        l(context).musicNothingPlaying,
         style: TrainType.ui(
           size: 14,
           weight: FontWeight.w500,

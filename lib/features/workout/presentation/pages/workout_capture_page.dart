@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -89,7 +90,7 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
       // nothing to wait for before popping.
       deferWrite(
         initial == null ? workouts.add(workout) : workouts.update(workout),
-        failureMessage: "Couldn't save that workout.",
+        failureMessage: l(context).workoutCaptureSaveFailed,
       );
       Navigator.of(context).pop(workout);
     });
@@ -102,7 +103,7 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
       final workouts = AppScope.of(context).workouts;
       deferWrite(
         workouts.remove(initial.id),
-        failureMessage: "Couldn't delete that workout.",
+        failureMessage: l(context).workoutCaptureDeleteFailed,
       );
       Navigator.of(context).pop();
     });
@@ -121,14 +122,14 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CaptureTopBar(
-                title: _editing ? 'Edit workout' : 'New workout',
+                title: _editing ? l(context).workoutCaptureEditTitle : l(context).workoutCaptureNewTitle,
                 onClose: () => Navigator.of(context).maybePop(),
                 trailing: _editing
                     ? CaptureIconButton(
                         key: const Key('workout-delete'),
                         icon: Icons.delete_outline_rounded,
                         onTap: _delete,
-                        semanticLabel: 'Delete workout',
+                        semanticLabel: l(context).workoutCaptureDelete,
                         iconColor: TrainColors.ember,
                       )
                     : null,
@@ -149,7 +150,7 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
                   decoration: InputDecoration(
                     isCollapsed: true,
                     border: InputBorder.none,
-                    hintText: 'Name this session',
+                    hintText: l(context).workoutCaptureNameHint,
                     hintStyle: TrainType.ui(
                       size: 27,
                       weight: FontWeight.w800,
@@ -186,7 +187,7 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
                   MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
                 ),
                 child: PillButton(
-                  label: 'Save workout',
+                  label: l(context).workoutCaptureSave,
                   icon: Icons.check_rounded,
                   color: TrainColors.ember,
                   enabled: _canSave && !actionInFlight,
@@ -220,7 +221,7 @@ class _EmptyExercises extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No exercises yet.',
+            l(context).workoutCaptureNoExercises,
             style: TrainType.ui(
               size: 14,
               weight: FontWeight.w400,
@@ -258,7 +259,7 @@ class _AddExerciseButton extends StatelessWidget {
             const Icon(Icons.add_rounded, size: 17, color: TrainColors.green),
             const SizedBox(width: 7),
             Text(
-              'Add exercise',
+              l(context).exerciseAddTitle,
               style: TrainType.ui(
                 size: 14,
                 weight: FontWeight.w700,
@@ -324,7 +325,7 @@ class _ExerciseRow extends StatelessWidget {
               color: TrainColors.ink4,
             ),
             splashRadius: 20,
-            tooltip: 'Remove',
+            tooltip: l(context).workoutCaptureRemove,
           ),
         ],
       ),
@@ -411,7 +412,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           Padding(
             padding: const EdgeInsets.only(left: 2, bottom: 12),
             child: Text(
-              'Add exercise',
+              l(context).exerciseAddTitle,
               style: TrainType.ui(
                 size: 20,
                 weight: FontWeight.w800,
@@ -440,7 +441,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
               focusedBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
-              hintText: 'Exercise name',
+              hintText: l(context).workoutCaptureExerciseName,
               hintStyle: TrainType.ui(
                 size: 15,
                 weight: FontWeight.w700,
@@ -452,12 +453,12 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           const SizedBox(height: 18),
           Row(
             children: [
-              _NumberField(label: 'Sets', controller: _sets),
+              _NumberField(label: l(context).exerciseSets, controller: _sets),
               const SizedBox(width: 12),
-              _NumberField(label: 'Reps', controller: _reps),
+              _NumberField(label: l(context).exerciseReps, controller: _reps),
               const SizedBox(width: 12),
               _NumberField(
-                label: 'Weight (kg)',
+                label: l(context).exerciseWeightKg,
                 controller: _weight,
                 hint: '—',
               ),
@@ -465,7 +466,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
           ),
           const SizedBox(height: 22),
           PillButton(
-            label: 'Add exercise',
+            label: l(context).exerciseAddTitle,
             icon: Icons.add_rounded,
             color: TrainColors.ember,
             enabled: _canAdd,

@@ -87,7 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const RiseIn(child: TrainPageHeader(title: 'Settings')),
+            RiseIn(child: TrainPageHeader(title: l(context).settingsTitle)),
             const SizedBox(height: 26),
             const RiseIn(
               delay: Duration(milliseconds: 50),
@@ -106,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
             RiseIn(
               delay: const Duration(milliseconds: 130),
               child: SettingsSectionCard(
-                label: 'App',
+                label: l(context).settingsSectionApp,
                 children: [
                   // First in the section, above Theme: it is the only row
                   // here that changes what every other screen says.
@@ -118,28 +118,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     accent: TrainColors.violetGlyph,
                     onTap: () => showLanguageSheet(context),
                   ),
-                  const SettingsRow(
+                  SettingsRow(
                     icon: AppIcons.theme,
-                    title: 'Theme',
-                    value: 'Dark',
+                    title: l(context).settingsTheme,
+                    value: l(context).settingsThemeDark,
                     accent: TrainColors.violetGlyph,
                   ),
                   SettingsRow(
                     icon: AppIcons.version,
-                    title: 'Version',
+                    title: l(context).settingsVersion,
                     value: info == null
                         ? '…'
-                        : '${info.version} (${info.buildNumber})',
+                        : l(context).settingsVersionValue(
+                            info.version,
+                            info.buildNumber,
+                          ),
                   ),
                   if (!AppEnvironment.isRelease)
                     SettingsRow(
                       icon: AppIcons.build,
-                      title: 'Build',
+                      title: l(context).settingsBuild,
                       value: AppEnvironment.name,
                     ),
                   SettingsRow(
                     icon: AppIcons.privacy,
-                    title: 'Privacy policy',
+                    title: l(context).settingsPrivacyPolicy,
                     // No value: the row's own name already says what
                     // it is, and a restated explanation in the value
                     // column is filler, not information.
@@ -162,12 +165,12 @@ class _SettingsPageState extends State<SettingsPage> {
             RiseIn(
               delay: const Duration(milliseconds: 150),
               child: SettingsSectionCard(
-                label: 'Account',
+                label: l(context).settingsSectionAccount,
                 children: [
                   if (isPasswordUser)
                     SettingsRow(
                       icon: AppIcons.key,
-                      title: 'Change password',
+                      title: l(context).settingsChangePassword,
                       value: '',
                       accent: TrainColors.violetGlyph,
                       onTap: () {
@@ -180,11 +183,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   SettingsRow(
                     icon: AppIcons.trash,
-                    title: 'Delete account',
+                    title: l(context).settingsDeleteAccount,
                     // The one row on this page that states its own
                     // consequence — permanence is the fact worth
                     // knowing before the tap, not after.
-                    value: 'PERMANENT',
+                    value: l(context).settingsPermanent,
                     accent: TrainColors.ember,
                     onTap: () => DeleteAccountSheet.show(context),
                     last: true,
@@ -203,7 +206,10 @@ class _SettingsPageState extends State<SettingsPage> {
               child: _BrandFooter(
                 version: info == null
                     ? null
-                    : 'Version ${info.version} (${info.buildNumber})',
+                    : l(context).settingsVersionLine(
+                        info.version,
+                        info.buildNumber,
+                      ),
               ),
             ),
             const SizedBox(height: 12),
@@ -294,24 +300,29 @@ class _MusicSection extends StatelessWidget {
             final caption = switch (state) {
               MusicConnection.connected =>
                 playing == null
-                    ? 'CONNECTED'
+                    ? l(context).connectedConnected.toUpperCase()
                     : playing.isPaused
-                    ? 'CONNECTED · PAUSED'
-                    : 'CONNECTED · PLAYING',
-              MusicConnection.connecting => 'CONNECTING…',
-              MusicConnection.authFailed => "COULDN'T CONNECT",
-              MusicConnection.needsPremium => 'PREMIUM REQUIRED',
-              MusicConnection.noSpotifyApp => 'INSTALL SPOTIFY',
-              MusicConnection.disconnected => 'NOT CONNECTED',
+                    ? l(context).connectedConnectedPaused
+                    : l(context).connectedConnectedPlaying,
+              MusicConnection.connecting =>
+                l(context).connectedConnecting.toUpperCase(),
+              MusicConnection.authFailed =>
+                l(context).connectedCouldntConnect.toUpperCase(),
+              MusicConnection.needsPremium =>
+                l(context).connectedPremiumRequired.toUpperCase(),
+              MusicConnection.noSpotifyApp =>
+                l(context).connectedInstallSpotify.toUpperCase(),
+              MusicConnection.disconnected =>
+                l(context).connectedNotConnected.toUpperCase(),
             };
             final accent = connected ? TrainColors.green : TrainColors.ink4;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 11),
-                  child: TrainSectionLabel('Music'),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 11),
+                  child: TrainSectionLabel(l(context).settingsSectionMusic),
                 ),
                 PressableScale(
                   scale: 0.99,
@@ -559,7 +570,7 @@ class _SignOutButton extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Sign out',
+                        l(context).settingsSignOut,
                         style: TrainType.ui(
                           size: 15,
                           weight: FontWeight.w700,

@@ -73,6 +73,71 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Arabic RTL: the bottom bar, the Hub, and the bidi rule that was missing**
+  (2026-09-06, on `core-edits`). Three separate bugs, one root cause each.
+  - **The nav capsule was mirrored.** `ZivoBottomBar` drew its tabs in a `Row`
+    (which reverses under RTL) but positioned the ember capsule with
+    `Positioned(left:)` (which does not), so in Arabic the capsule sat under the
+    mirror image of the selected tab — tapping اليوم lit حسابي. Now
+    `PositionedDirectional(start:)`, defined against the same axis as the row.
+  - **Tab order is now pinned LTR in every language** — Today · Hub · Ask · You,
+    left to right, **at the owner's explicit call**. This is a deliberate
+    exception to platform mirroring (iOS/Android both mirror a tab bar under
+    RTL): the reasoning is that the four destinations are a fixed row of
+    hardware-like buttons a thumb learns by position, and moving them because
+    the language changed costs more than reading order gains. Implemented as one
+    `Directionality(textDirection: ltr)` around the strip's *geometry* only —
+    labels are still Arabic and still shape RTL. Deleting that one widget
+    reverts to mirroring; the capsule needs no change either way.
+    `test/shell/bottom_bar_rtl_test.dart` covers capsule/tab agreement in both
+    languages and pins the order decision so a later RTL sweep can't "fix" it by
+    accident.
+  - **New rule — `core/util/bidi.dart`, and it is not a translation gap.**
+    A line like `3 × 8–10 · rest 1:30` is digits and bidi-*neutral* characters
+    end to end, so an Arabic paragraph laid it out right-to-left and it rendered
+    as `rest 1:30 · 10–8 × 3`: the pre-workout screen was advertising a rep range
+    of **10–8**. No `.arb` key fixes that — the same thing happens inside a
+    perfectly translated sentence. Three tools now: **`ltrFor(context, s)`** for a
+    composed numeric run (a no-op under LTR, so English strings stay
+    byte-identical — that gate matters, an unconditional wrap splits
+    `rest 3:00` for every `find.textContaining` in the suite); **`isolate(s)`**
+    (first-strong) for text ZIVO did not write — a plan name, an exercise name —
+    whose direction is the user's, not ours; and **`stripBidi`** for tests.
+    Applied to every planned-set spec, the Today pulse card's signed deltas
+    (`+4%` was rendering as `4%+`), and the day-details caption.
+  - **`workout_plan_format.dart` split.** Grouping stayed in `domain/`
+    (`collapsedSetGroups` returns groups, not prose); every reader-facing string
+    moved to **`presentation/workout_labels.dart`**, which takes a `BuildContext`
+    — same shape as `diet_labels.dart`. `weightText` joined `workout_format.dart`
+    rather than becoming a second home for how a weight is written. Six call
+    sites follow; `workout_labels_test.dart` asserts the English wording is
+    byte-for-byte unchanged **and** that Arabic keeps `8–10` ascending and
+    isolated.
+  - **The Hub speaks Arabic.** Its title, the Connected band label, all four tile
+    stat lines and both service states were hardcoded English — which in RTL did
+    not merely stay English, it scrambled (`0 of 3 · 1270 kcal` rendered as
+    `OF 3 · 1270 KCAL 0`). ~25 new keys, `hubMomentsCount`/`workoutSetCount` as
+    real ICU plurals with Arabic's dual form.
+  - **Owner check wanted:** the ~25 new Arabic strings are mine, not a native
+    speaker's. `مجموعتان`/`تمارين`/`حتى الفشل`/`أسبوعيًا` especially.
+  - **Still English + still scrambling in Arabic** (the remaining copy pass, now
+    the *bigger* half of the RTL problem since untranslated text actively
+    reorders): workout drill-downs (analysis, stats, history, splits, PDF import,
+    plan editor, session details), auth, moments, music, and the exercise-name
+    column on every workout surface.
+
+- **The Hub's Drive row follows the connection instead of remembering it**
+  (2026-09-06, on `core-edits`). Connecting Google Drive left the Hub's Connected
+  band reading "NOT CONNECTED" until the app restarted: the row was a one-shot
+  `FutureBuilder`, and the Hub is a tab inside the shell's `IndexedStack` — built
+  once, never rebuilt on tab switch or on return from Storage & Sync.
+  `MediaService` now publishes `backupConnected` (a `ValueNotifier`, updated by
+  every path that decides the answer, including the cross-account fail-closed
+  check), and the row watches it, seeds itself with one read on mount, and
+  re-reads on return from Storage & Sync — so a manual refresh control on that
+  band would have nothing left to do. `test/hub/hub_drive_row_test.dart` connects
+  the service without rebuilding the page and asserts the row moves.
+
 - **Changing today's workout can now SWAP instead of skip — the cycle closes**
   (2026-09-06, on `core-edits`). Training out of rotation cost a day its turn:
   finishing advances the cursor **past what was actually trained**

@@ -127,11 +127,12 @@ class _TrainedRing extends StatelessWidget {
 
         final String sub;
         if (done != null) {
-          sub =
-              '${done.label.toUpperCase()} · '
-              '${done.duration.inMinutes} MIN';
+          sub = l(context).pulseTrainedFor(
+            done.label.toUpperCase(),
+            done.duration.inMinutes,
+          );
         } else if (midSession != null) {
-          sub = '${midSession.dayLabel.toUpperCase()} · UNDER WAY';
+          sub = l(context).pulseUnderWay(midSession.dayLabel.toUpperCase());
         } else {
           sub = l(context).pulseNotYetToday;
         }
@@ -381,7 +382,7 @@ class _StreakRow extends StatelessWidget {
         Flexible(
           child: hasStreak
               ? Text(
-                  '$streak-day streak',
+                  l(context).pulseStreakDays(streak),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.ui(
@@ -408,7 +409,7 @@ class _StreakRow extends StatelessWidget {
           child: Text(
             weekTotal == 0
                 ? l(context).pulseNoSessionsYet
-                : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
+                : l(context).pulseSessionsLast7(weekTotal),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
@@ -575,7 +576,7 @@ class _WeightRow extends StatelessWidget {
         // A delta always states its own baseline (identity §7), and the unit
         // stays smaller and dimmer than the value it belongs to.
         Text(
-          'KG · ${trend.spanDays}D',
+          l(context).pulseWeightSpan(trend.spanDays),
           style: TrainType.caption(
             size: 9,
             tracking: 0.12,

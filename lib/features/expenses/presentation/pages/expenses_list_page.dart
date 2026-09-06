@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/util/bidi.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -58,7 +59,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
       floatingActionButton: TrainFab(
         key: const Key('new-expense-fab'),
         icon: AppIcons.add,
-        semanticLabel: 'New expense',
+        semanticLabel: l(context).expenseNew,
         // Amber, not ember: on this screen the committing action is a money
         // action, and money is the one thing amber marks.
         color: TrainColors.amber,
@@ -272,8 +273,8 @@ List<_DayGroup> _groupByDay(List<Expense> items) {
 
 String _dayLabel(BuildContext context, DateTime day, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
-  if (day == today) return 'Today';
-  if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+  if (day == today) return l(context).dateToday;
+  if (day == today.subtract(const Duration(days: 1))) return l(context).dateYesterday;
   return formatWeekdayDate(context, day);
 }
 
@@ -379,7 +380,15 @@ class _WalletCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '${formatAmount(todayMinor)} $currency SPENT TODAY',
+                        l(context).expenseSpentToday(
+            ltrFor(
+              context,
+              l(context).expenseAmountWithCurrency(
+                formatAmount(todayMinor),
+                currency,
+              ),
+            ),
+          ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TrainType.mono(
@@ -657,7 +666,13 @@ class _DayHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 22, 0, 10),
       child: TrainSectionLabel(
         label,
-        trailing: '${formatAmount(subtotalMinor)} $currency',
+        trailing: ltrFor(
+              context,
+              l(context).expenseAmountWithCurrency(
+                formatAmount(subtotalMinor),
+                currency,
+              ),
+            ),
         trailingColor: TrainColors.amber,
       ),
     );
@@ -793,6 +808,9 @@ String _rowCaption(
       '${at.hour.toString().padLeft(2, '0')}:'
       '${at.minute.toString().padLeft(2, '0')}';
   return hasNote
-      ? '$time · ${categoryLabel(context, category).toUpperCase()}'
+      ? l(context).expenseRowMeta(
+            time,
+            categoryLabel(context, category).toUpperCase(),
+          )
       : time;
 }

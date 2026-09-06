@@ -16,11 +16,10 @@ enum CaptureSource {
       .firstWhere((s) => s.name == name, orElse: () => CaptureSource.unknown);
 
   /// Human label for the metadata panel.
-  String get label => switch (this) {
-        CaptureSource.camera => 'Camera',
-        CaptureSource.library => 'Photo Library',
-        CaptureSource.unknown => 'Unknown',
-      };
+  // The on-screen name for each source lives in
+  // `presentation/capture_source_labels.dart`: this enum is persisted by
+  // `name`, so it is an id, and an id must not carry copy that changes with
+  // the reader's language.
 }
 
 /// Where a single backup target stands for one media file.

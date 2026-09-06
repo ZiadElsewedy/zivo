@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -140,9 +141,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
     if (!granted) {
       setState(() {
         _phase = _DescribePhase.idle;
-        _error =
-            'ZIVO needs microphone access to take this down. You can type '
-            'it instead.';
+        _error = l(context).describeMicNeeded;
       });
       return;
     }
@@ -153,7 +152,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
       if (!mounted) return;
       setState(() {
         _phase = _DescribePhase.idle;
-        _error = "Couldn't start recording. You can type it instead.";
+        _error = l(context).describeRecordFailed;
       });
       return;
     }
@@ -186,7 +185,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
     if (audio == null) {
       setState(() {
         _phase = _DescribePhase.idle;
-        _error = "Nothing was recorded. Try again, or type it instead.";
+        _error = l(context).describeNothingRecorded;
       });
       return;
     }
@@ -210,8 +209,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
         setState(() {
           _phase = _DescribePhase.idle;
           _error = error == SttError.microphonePermissionDenied
-              ? 'ZIVO needs microphone access to take this down. You can '
-                    'type it instead.'
+              ? l(context).describeMicNeeded
               : message;
         });
     }
@@ -284,7 +282,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
                     onCancel: _cancelRecording,
                   )
                 else ...[
-                  const TrainSectionLabel('Your description'),
+                  TrainSectionLabel(l(context).describeYourDescription),
                   const SizedBox(height: 11),
                   TextField(
                     key: Key('${widget.keyPrefix}-text'),
@@ -311,8 +309,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
                   Text(
                     // Said plainly, because transcription mistakes on names and
                     // amounts are the norm, not the exception.
-                    'Check the words before you continue — a mis-heard '
-                    'detail becomes a number downstream.',
+                    l(context).describeCheckWords,
                     style: AppText.meta.copyWith(color: TrainColors.ink3),
                   ),
                   if (_recorderAvailable) ...[
@@ -329,8 +326,8 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
                         ),
                         label: Text(
                           _text.text.trim().isEmpty
-                              ? 'Say it instead'
-                              : 'Add more by voice',
+                              ? l(context).describeSayItInstead
+                              : l(context).describeAddMoreByVoice,
                           style: AppText.meta.copyWith(color: widget.accent),
                         ),
                       ),
@@ -446,7 +443,7 @@ class _RecordingCard extends StatelessWidget {
               key: Key('$keyPrefix-cancel'),
               onPressed: onCancel,
               child: Text(
-                'Discard',
+                l(context).describeDiscard,
                 style: AppText.meta.copyWith(color: TrainColors.ink3),
               ),
             ),

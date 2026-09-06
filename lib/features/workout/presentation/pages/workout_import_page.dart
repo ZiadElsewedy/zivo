@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../ai/domain/import_progress.dart';
@@ -86,7 +87,11 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   /// What the analysing screen says right now: the live extraction if one has
   /// arrived, else the opening line.
   String get _statusLine =>
-      importProgressLine(_progress, itemNoun: 'exercise');
+      importProgressLine(
+        context,
+        _progress,
+        itemKind: ImportItemKind.exercise,
+      );
 
   /// The entry point for both routes: an [input] gathered before the push goes
   /// straight to extraction; otherwise a file is picked first.
@@ -116,7 +121,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage = "Couldn't read that file.";
+        _errorMessage = l(context).importCouldntReadFile;
         _errorDetail = kDebugMode ? error.toString() : null;
       });
       return;
@@ -134,9 +139,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       if (!mounted) return;
       setState(() {
         _phase = _ImportPhase.error;
-        _errorMessage =
-            'That file is too large — please choose one under '
-            '7 MB.';
+        _errorMessage = l(context).importFileTooLarge;
       });
       return;
     }
@@ -193,8 +196,9 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       setState(() {
         _phase = _ImportPhase.error;
         _errorMessage = importErrorMessage(
+          context,
           error,
-          manualFallback: 'build the split manually.',
+          manualFallback: l(context).importBuildManually,
         );
         _errorDetail = kDebugMode ? error.toString() : null;
       });
@@ -251,7 +255,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       setState(() => _saving = false);
       showZivoToast(
         context,
-        "Couldn't save that split — check your connection and try again.",
+        l(context).importSaveFailed,
         kind: ToastKind.error,
       );
     }
@@ -309,8 +313,8 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
             children: [
               CaptureTopBar(
                 title: _phase == _ImportPhase.preview
-                    ? 'Review import'
-                    : 'Import Plan',
+                    ? l(context).importReviewTitle
+                    : l(context).importPlanTitle,
                 onClose: () => Navigator.of(context).maybePop(),
                 titleColor: TrainColors.ink2,
                 iconColor: TrainColors.ink2,
@@ -332,11 +336,9 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
   Widget _body() {
     switch (_phase) {
       case _ImportPhase.selecting:
-        return const ImportSelectingState(
-          title: 'Select your training plan',
-          subtitle:
-              "Choose a PDF or a photo of your plan and I'll map it into a "
-              'real, editable split.',
+        return ImportSelectingState(
+          title: l(context).importSelectTitle,
+          subtitle: l(context).importSelectBody,
         );
       case _ImportPhase.analyzing:
         return ImportAnalyzingState(statusLine: _statusLine);
@@ -348,8 +350,8 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
           onEdit: _editBeforeImporting,
           onRestart: _restart,
           restartLabel: widget.input == null
-              ? 'Choose a different file'
-              : 'Start over',
+              ? l(context).importChooseDifferentFile
+              : l(context).importStartOver,
         );
       case _ImportPhase.done:
         return _DoneState(
@@ -358,11 +360,11 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
         );
       case _ImportPhase.rejected:
         return ImportRejectedState(
-          title: "This doesn't look like a workout plan",
+          title: l(context).importNotAPlan,
           reason: _rejectionReason!,
           retryLabel: widget.input == null
-              ? 'Choose a different file'
-              : 'Go back and edit',
+              ? l(context).importChooseDifferentFile
+              : l(context).importGoBackAndEdit,
           onRetry: _restart,
           onBuildManually: _buildManually,
         );
@@ -417,7 +419,7 @@ class _PreviewState extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    "HERE'S WHAT I FOUND",
+                    l(context).importHeresWhatIFound,
                     style: TrainType.mono(
                       size: 10.5,
                       weight: FontWeight.w700,
@@ -439,8 +441,10 @@ class _PreviewState extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${plan.days.length} day${plan.days.length == 1 ? '' : 's'} · '
-                '$exerciseCount exercise${exerciseCount == 1 ? '' : 's'} total',
+                l(context).importPlanShape(
+                  l(context).splitDayCount(plan.days.length),
+                  l(context).workoutExerciseCount(exerciseCount),
+                ),
                 style: TrainType.mono(
                   size: 10.5,
                   tracking: 0.06,
@@ -465,7 +469,7 @@ class _PreviewState extends StatelessWidget {
           child: Column(
             children: [
               PillButton(
-                label: saving ? 'Importing…' : 'Import this split',
+                label: saving ? l(context).importDoingIt : l(context).importThisSplit,
                 icon: Icons.check_rounded,
                 color: TrainColors.ember,
                 enabled: !saving,
@@ -478,7 +482,7 @@ class _PreviewState extends StatelessWidget {
                   TextButton(
                     onPressed: saving ? null : onEdit,
                     child: Text(
-                      'Edit before importing',
+                      l(context).importEditBefore,
                       style: TrainType.mono(
                         size: 10.5,
                         tracking: 0.06,
@@ -536,7 +540,7 @@ class _PreviewDayCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Day ${day.slot} · ${day.label}',
+                  l(context).importDayHeading(day.slot, day.label),
                   style: TrainType.ui(
                     size: 15,
                     weight: FontWeight.w600,
@@ -558,7 +562,7 @@ class _PreviewDayCard extends StatelessWidget {
           if (day.exercises.isEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'No exercises found for this day.',
+              l(context).importNoExercisesForDay,
               style: TrainType.mono(
                 size: 10.5,
                 tracking: 0.06,
@@ -626,7 +630,7 @@ class _DoneState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'Import complete',
+              l(context).importComplete,
               style: TrainType.ui(
                 size: 20,
                 weight: FontWeight.w800,
@@ -637,8 +641,11 @@ class _DoneState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '"${plan.name}" added to your splits — ${plan.days.length} day'
-              '${plan.days.length == 1 ? '' : 's'}, $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}.',
+              l(context).importSummary(
+                plan.name,
+                l(context).splitDayCount(plan.days.length),
+                l(context).workoutExerciseCount(exerciseCount),
+              ),
               style: TrainType.ui(
                 size: 13.5,
                 weight: FontWeight.w400,
@@ -651,7 +658,7 @@ class _DoneState extends StatelessWidget {
             SizedBox(
               width: 160,
               child: PillButton(
-                label: 'Done',
+                label: l(context).actionDone,
                 icon: Icons.arrow_forward_rounded,
                 color: TrainColors.ember,
                 enabled: true,

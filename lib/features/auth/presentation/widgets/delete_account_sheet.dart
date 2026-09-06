@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -161,7 +162,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                       const SizedBox(width: 13),
                       Expanded(
                         child: Text(
-                          'Delete account',
+                          l(context).settingsDeleteAccount,
                           style: AppText.cardTitle.copyWith(fontSize: 21),
                         ),
                       ),
@@ -169,9 +170,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'This permanently deletes your account and everything in '
-                    'it — workouts, diet, moments, expenses, and profile. This '
-                    'cannot be undone.',
+                    l(context).authDeleteAccountBody,
                     style: AppText.body.copyWith(
                       color: TrainColors.ink2,
                       height: 1.45,
@@ -181,7 +180,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                     const SizedBox(height: 20),
                     AuthTextField(
                       controller: _password,
-                      hint: 'Enter your password to confirm',
+                      hint: l(context).authDeleteConfirmPassword,
                       icon: Icons.lock_outline_rounded,
                       enabled: !_deleting,
                       obscureText: true,
@@ -226,7 +225,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                     children: [
                       Expanded(
                         child: _SheetButton(
-                          label: 'Cancel',
+                          label: l(context).actionCancel,
                           enabled: !_deleting,
                           onTap: () => Navigator.of(context).maybePop(),
                         ),
@@ -234,7 +233,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _SheetButton(
-                          label: 'Delete my account',
+                          label: l(context).authDeleteMyAccount,
                           destructive: true,
                           loading: _deleting,
                           enabled: _canConfirm,

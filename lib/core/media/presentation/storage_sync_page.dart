@@ -8,7 +8,9 @@ import '../../widgets/google_drive_mark.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/rise_in.dart';
 import '../../widgets/settings_row.dart';
+import '../../util/bidi.dart';
 import '../../widgets/zivo_toast.dart';
+import '../../../l10n/l10n.dart';
 import '../domain/media_object.dart';
 import '../domain/media_storage_preferences.dart';
 import '../media_service.dart';
@@ -120,6 +122,16 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     if (mounted) showZivoToast(context, message, kind: kind);
   }
 
+  /// The localized strings, captured **before** the awaits below.
+  ///
+  /// Every message on this screen reports the result of a long operation, so
+  /// it is composed after an await — and reading `l(context)` there is an
+  /// async-gap use of a `BuildContext` that may be gone. `AppLocalizations`
+  /// is a plain value object, so holding one across the gap is safe in the way
+  /// holding the context is not; `_toast` still checks `mounted` before it
+  /// actually shows anything.
+  AppLocalizations get _strings => l(context);
+
   /// Connect runs the interactive sign-in, then — on success — immediately
   /// catches this device up with everything already backed up (the whole
   /// point of connecting a second device), driving the same live progress
@@ -132,15 +144,16 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
       _opDone = 0;
       _opTotal = 0;
     });
+    final strings = _strings;
     final ok = await _media.connectBackup();
     if (!mounted) return;
     if (!ok) {
-      _toast('Couldn’t connect Google Drive.', ToastKind.error);
+      _toast(strings.storageConnectFailed, ToastKind.error);
       setState(() => _op = _Op.none);
       await _refresh();
       return;
     }
-    _toast('Google Drive connected on this device.', ToastKind.success);
+    _toast(strings.storageConnectedToast, ToastKind.success);
     setState(() => _op = _Op.sync);
     try {
       final n = await _media.syncFromBackup(
@@ -154,7 +167,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
         },
       );
       if (n > 0) {
-        _toast('Downloaded $n ${_p(n)} from Drive.', ToastKind.success);
+        _toast(strings.storageDownloadedToast(n), ToastKind.success);
       }
     } finally {
       if (mounted) setState(() => _op = _Op.none);
@@ -162,32 +175,39 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     }
   }
 
-  Future<void> _disconnect() => _run(_Op.disconnect, (_) async {
-    await _media.disconnectBackup();
-    _toast('Google Drive disconnected on this device.', ToastKind.info);
-  });
+  Future<void> _disconnect() {
+    final strings = _strings;
+    return _run(_Op.disconnect, (_) async {
+      await _media.disconnectBackup();
+      _toast(strings.storageDisconnectedToast, ToastKind.info);
+    });
+  }
 
-  Future<void> _backupNow() => _run(_Op.backup, (onProgress) async {
-    final n = await _media.backupNow(onProgress: onProgress);
-    _toast(
-      n == 0
-          ? 'Everything is already backed up.'
-          : 'Backed up $n ${_p(n)} to Drive.',
-      ToastKind.success,
-    );
-  });
+  Future<void> _backupNow() {
+    final strings = _strings;
+    return _run(_Op.backup, (onProgress) async {
+      final n = await _media.backupNow(onProgress: onProgress);
+      _toast(
+        n == 0
+            ? strings.storageAlreadyBackedUp
+            : strings.storageBackedUpToast(n),
+        ToastKind.success,
+      );
+    });
+  }
 
-  Future<void> _syncFromDrive() => _run(_Op.sync, (onProgress) async {
-    final n = await _media.syncFromBackup(onProgress: onProgress);
-    _toast(
-      n == 0
-          ? 'Nothing new to download.'
-          : 'Downloaded $n ${_p(n)} from Drive.',
-      ToastKind.success,
-    );
-  });
-
-  String _p(int n) => n == 1 ? 'photo' : 'photos';
+  Future<void> _syncFromDrive() {
+    final strings = _strings;
+    return _run(_Op.sync, (onProgress) async {
+      final n = await _media.syncFromBackup(onProgress: onProgress);
+      _toast(
+        n == 0
+            ? strings.storageNothingNew
+            : strings.storageDownloadedToast(n),
+        ToastKind.success,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +241,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                         const _BackButton(),
                         const SizedBox(height: 20),
                         Text(
-                          'Storage & Sync',
+                          l(context).storageTitle,
                           style: AppText.greeting.copyWith(fontSize: 30),
                         ),
                       ],
@@ -241,7 +261,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                         Padding(
                           padding: const EdgeInsets.only(left: 6, bottom: 9),
                           child: Text(
-                            'BACKUP & SYNC',
+                            l(context).storageSectionBackup,
                             style: AppText.sectionLabel,
                           ),
                         ),
@@ -274,14 +294,14 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                         final prefs =
                             snapshot.data ?? MediaStoragePreferences.defaults;
                         return SettingsSectionCard(
-                          label: 'INSTANT SYNC',
+                          label: l(context).storageSectionInstant,
                           children: [
                             SettingsRow(
                               icon: AppIcons.bolt,
                               // "as you capture" lived here and pushed the
                               // title past the edge; the section label above
                               // already says INSTANT SYNC.
-                              title: 'Upload to Drive',
+                              title: l(context).storageUploadToDrive,
                               // A switch IS the value — printing "On" beside
                               // one says the same thing twice and steals the
                               // width the title needs.
@@ -313,11 +333,11 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                         final prefs =
                             snapshot.data ?? MediaStoragePreferences.defaults;
                         return SettingsSectionCard(
-                          label: 'DEVICE PHOTOS',
+                          label: l(context).storageSectionDevicePhotos,
                           children: [
                             SettingsRow(
                               icon: AppIcons.photos,
-                              title: 'Save to Photos',
+                              title: l(context).storageSaveToPhotos,
                               value: '',
                               accent: TrainColors.ember,
                               last: true,
@@ -340,8 +360,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                   RiseIn(
                     delay: const Duration(milliseconds: 170),
                     child: Text(
-                      'Each ZIVO account keeps its own photos in its own Drive folder, so '
-                      'accounts never mix — even if they use the same Google Drive.',
+                      l(context).storageAccountNote,
                       style: AppText.meta.copyWith(
                         color: TrainColors.ink3,
                         height: 1.4,
@@ -398,7 +417,7 @@ class _BackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Tooltip(
-        message: 'Back',
+        message: l(context).actionBack,
         child: InkWell(
           onTap: () => Navigator.of(context).maybePop(),
           customBorder: const CircleBorder(),
@@ -472,14 +491,14 @@ class _DeviceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'On this device',
+                  l(context).storageOnThisDevice,
                   style: AppText.rowTitle.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   total == 0
-                      ? 'Your photos are saved here first, always.'
-                      : '$total ${total == 1 ? 'photo' : 'photos'} saved here.',
+                      ? l(context).storageLocalFirst
+                      : l(context).storageSavedHere(total),
                   style: AppText.meta.copyWith(color: TrainColors.ink3),
                 ),
               ],
@@ -554,7 +573,7 @@ class _DriveCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _subtitle(),
+                      _subtitle(context),
                       style: AppText.meta.copyWith(
                         color: connected ? TrainColors.green : TrainColors.ink3,
                       ),
@@ -569,7 +588,7 @@ class _DriveCard extends StatelessWidget {
             const SizedBox(height: 16),
             if (!connected)
               _PrimaryButton(
-                label: 'Connect Google Drive',
+                label: l(context).storageConnectDrive,
                 loading: op == _Op.connect,
                 onTap: onConnect,
               )
@@ -591,7 +610,7 @@ class _DriveCard extends StatelessWidget {
                   Expanded(
                     child: _MiniButton(
                       icon: AppIcons.backupNow,
-                      label: 'Back up now',
+                      label: l(context).storageBackUpNow,
                       loading: op == _Op.backup,
                       enabled: !_busy,
                       onTap: onBackupNow,
@@ -601,7 +620,7 @@ class _DriveCard extends StatelessWidget {
                   Expanded(
                     child: _MiniButton(
                       icon: AppIcons.retake,
-                      label: 'Sync',
+                      label: l(context).storageSync,
                       loading: op == _Op.sync,
                       enabled: !_busy,
                       onTap: onSync,
@@ -612,7 +631,7 @@ class _DriveCard extends StatelessWidget {
               const SizedBox(height: 10),
               _MiniButton(
                 icon: AppIcons.disconnect,
-                label: 'Disconnect',
+                label: l(context).storageDisconnect,
                 loading: op == _Op.disconnect,
                 enabled: !_busy,
                 onTap: onDisconnect,
@@ -625,10 +644,17 @@ class _DriveCard extends StatelessWidget {
     );
   }
 
-  String _subtitle() {
-    if (!supported) return 'Unavailable in this build';
-    if (connected) return email ?? 'Connected on this device';
-    return 'Not connected on this device';
+  String _subtitle(BuildContext context) {
+    if (!supported) return l(context).storageUnavailableInBuild;
+    // The email is the user's own account address — never translated, and
+    // isolated so a latin address cannot fragment the Arabic around it.
+    if (connected) {
+      final address = email;
+      return address == null
+          ? l(context).storageConnectedOnDevice
+          : isolate(address);
+    }
+    return l(context).storageNotConnectedOnDevice;
   }
 }
 
@@ -649,7 +675,6 @@ class _OtherAccountNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photos = count == 1 ? 'photo' : 'photos';
     return Container(
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
       decoration: BoxDecoration(
@@ -667,7 +692,7 @@ class _OtherAccountNotice extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$count $photos in another Google account',
+                  l(context).storageOtherAccountTitle(count),
                   style: AppText.body.copyWith(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -676,9 +701,7 @@ class _OtherAccountNotice extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Backed up before you switched accounts. Back up now copies '
-                  'the ones still on this device; for the rest, reconnect that '
-                  'account.',
+                  l(context).storageOtherAccountBody,
                   style: AppText.meta.copyWith(
                     fontSize: 11.5,
                     height: 1.35,
@@ -731,35 +754,35 @@ class _BackupStatusBanner extends StatelessWidget {
       accent = TrainColors.ember;
       wash = TrainColors.emberWash;
       icon = op == _Op.backup ? AppIcons.backupNow : AppIcons.retake;
-      title = op == _Op.backup ? 'Backing up…' : 'Syncing…';
+      title = op == _Op.backup
+          ? l(context).storageBackingUp
+          : l(context).storageSyncing;
       if (opTotal == 0) {
-        subtitle = 'Checking your photos…';
+        subtitle = l(context).storageCheckingPhotos;
         indeterminate = true;
       } else {
-        subtitle = '$opDone of $opTotal ${opTotal == 1 ? 'photo' : 'photos'}';
+        subtitle = l(context).storageProgressCount(opDone, opTotal);
         progress = opDone / opTotal;
       }
     } else if (total == 0) {
       accent = TrainColors.ink3;
       wash = TrainColors.raisedStrong;
       icon = AppIcons.driveCloud;
-      title = 'Nothing to back up yet';
-      subtitle = 'Photos you add will back up here.';
+      title = l(context).storageNothingYetTitle;
+      subtitle = l(context).storageNothingYetBody;
     } else if (backedUp >= total) {
       accent = TrainColors.green;
       wash = TrainColors.greenWash;
       icon = AppIcons.success;
-      title = 'All backed up';
-      subtitle =
-          '$total ${total == 1 ? 'photo is' : 'photos are'} safe in Google Drive.';
+      title = l(context).storageAllBackedUpTitle;
+      subtitle = l(context).storageAllSafeBody(total);
     } else {
       accent = TrainColors.amber;
       wash = TrainColors.amberWash;
       icon = AppIcons.backupNow;
-      title = '$backedUp of $total backed up';
+      title = l(context).storagePartialTitle(backedUp, total);
       final pending = total - backedUp;
-      subtitle =
-          '$pending ${pending == 1 ? 'photo is' : 'photos are'} waiting to back up.';
+      subtitle = l(context).storagePendingBody(pending);
       progress = total == 0 ? 0 : backedUp / total;
     }
 
@@ -864,7 +887,7 @@ class _ConnectedDot extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
-        'Connected',
+        l(context).connectedConnected,
         style: AppText.meta.copyWith(color: TrainColors.green, fontSize: 11),
       ),
     );

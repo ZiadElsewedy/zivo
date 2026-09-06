@@ -1,20 +1,21 @@
-/// A single password requirement: a human-readable [label] and a [test] that
+/// Which requirement a [PasswordRule] states.
+///
+/// An **id**, not a label. The rule used to carry its own English sentence,
+/// which made the checklist untranslatable without moving the policy into the
+/// widget layer — and would have put a screen-reader string in `domain/`. Ids
+/// travel, labels translate: `presentation/password_rule_labels.dart` turns
+/// each of these into the sentence and the chip-sized form a reader sees.
+enum PasswordRuleId { minLength, uppercase, lowercase, number }
+
+/// A single password requirement: which rule it is ([id]) and a [test] that
 /// reports whether a candidate password satisfies it.
 ///
 /// Pure and Firebase-free so the policy is unit-testable and reusable by any
 /// UI that wants to render a live requirement checklist.
 class PasswordRule {
-  const PasswordRule(this.label, this.test, {String? shortLabel})
-    : shortLabel = shortLabel ?? label;
+  const PasswordRule(this.id, this.test);
 
-  /// The full requirement, as a sentence — for screen readers and any UI with
-  /// a line to spare.
-  final String label;
-
-  /// A chip-sized form of [label] ("Uppercase" for "One uppercase letter").
-  /// Requirement UI that lays the rules out inline needs a form that fits a
-  /// pill; defaults to [label] for a rule that doesn't declare one.
-  final String shortLabel;
+  final PasswordRuleId id;
 
   final bool Function(String password) test;
 
@@ -27,26 +28,10 @@ class PasswordRule {
 /// predate it, and the server remains the trust boundary for sign-in.
 abstract final class PasswordPolicy {
   static final List<PasswordRule> rules = [
-    PasswordRule(
-      'At least 8 characters',
-      (p) => p.length >= 8,
-      shortLabel: '8+ characters',
-    ),
-    PasswordRule(
-      'One uppercase letter',
-      (p) => p.contains(RegExp('[A-Z]')),
-      shortLabel: 'Uppercase',
-    ),
-    PasswordRule(
-      'One lowercase letter',
-      (p) => p.contains(RegExp('[a-z]')),
-      shortLabel: 'Lowercase',
-    ),
-    PasswordRule(
-      'One number',
-      (p) => p.contains(RegExp('[0-9]')),
-      shortLabel: 'Number',
-    ),
+    PasswordRule(PasswordRuleId.minLength, (p) => p.length >= 8),
+    PasswordRule(PasswordRuleId.uppercase, (p) => p.contains(RegExp('[A-Z]'))),
+    PasswordRule(PasswordRuleId.lowercase, (p) => p.contains(RegExp('[a-z]'))),
+    PasswordRule(PasswordRuleId.number, (p) => p.contains(RegExp('[0-9]'))),
   ];
 
   /// The rules [password] does not yet satisfy, in declaration order — handy

@@ -5045,6 +5045,1932 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In another Drive account'**
   String get mediaOnAnotherBackupAccount;
+
+  /// Title of the screen that answers where your photos live.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage & Sync'**
+  String get storageTitle;
+
+  /// Section label over the Google Drive card. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'BACKUP & SYNC'**
+  String get storageSectionBackup;
+
+  /// Section label over the auto-upload switch.
+  ///
+  /// In en, this message translates to:
+  /// **'INSTANT SYNC'**
+  String get storageSectionInstant;
+
+  /// Section label over the save-to-system-Photos switch.
+  ///
+  /// In en, this message translates to:
+  /// **'DEVICE PHOTOS'**
+  String get storageSectionDevicePhotos;
+
+  /// Switch: upload each capture to Drive as it is taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload to Drive'**
+  String get storageUploadToDrive;
+
+  /// Switch: also copy each capture into the phone's own photo library.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get storageSaveToPhotos;
+
+  /// Footnote explaining per-account isolation inside one Google Drive.
+  ///
+  /// In en, this message translates to:
+  /// **'Each ZIVO account keeps its own photos in its own Drive folder, so accounts never mix — even if they use the same Google Drive.'**
+  String get storageAccountNote;
+
+  /// Title of the card describing local storage, which is always on.
+  ///
+  /// In en, this message translates to:
+  /// **'On this device'**
+  String get storageOnThisDevice;
+
+  /// Local storage card subtitle when there are no photos yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photos are saved here first, always.'**
+  String get storageLocalFirst;
+
+  /// Local storage card subtitle: how many photos are on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo saved here.} other{{count} photos saved here.}}'**
+  String storageSavedHere(int count);
+
+  /// Primary button that starts the interactive Drive sign-in.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Google Drive'**
+  String get storageConnectDrive;
+
+  /// Button that uploads every not-yet-backed-up photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up now'**
+  String get storageBackUpNow;
+
+  /// Button that downloads photos backed up from another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get storageSync;
+
+  /// Button that clears this device's Drive connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get storageDisconnect;
+
+  /// Drive card subtitle when the build ships without a backup provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable in this build'**
+  String get storageUnavailableInBuild;
+
+  /// Drive card subtitle when connected but the account email is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected on this device'**
+  String get storageConnectedOnDevice;
+
+  /// Drive card subtitle when this device has no connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected on this device'**
+  String get storageNotConnectedOnDevice;
+
+  /// Toast when the interactive connect was cancelled or failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t connect Google Drive.'**
+  String get storageConnectFailed;
+
+  /// Toast after a successful connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Drive connected on this device.'**
+  String get storageConnectedToast;
+
+  /// Toast after disconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Drive disconnected on this device.'**
+  String get storageDisconnectedToast;
+
+  /// Toast when Back up now found nothing to upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is already backed up.'**
+  String get storageAlreadyBackedUp;
+
+  /// Toast when Sync found nothing to fetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing new to download.'**
+  String get storageNothingNew;
+
+  /// Toast reporting how many photos were uploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Backed up 1 photo to Drive.} other{Backed up {count} photos to Drive.}}'**
+  String storageBackedUpToast(int count);
+
+  /// Toast reporting how many photos were downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Downloaded 1 photo from Drive.} other{Downloaded {count} photos from Drive.}}'**
+  String storageDownloadedToast(int count);
+
+  /// Notice title: photos whose only cloud copy is in a Drive account this device is not signed into.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo in another Google account} other{{count} photos in another Google account}}'**
+  String storageOtherAccountTitle(int count);
+
+  /// Notice body explaining the two ways out of an account switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Backed up before you switched accounts. Back up now copies the ones still on this device; for the rest, reconnect that account.'**
+  String get storageOtherAccountBody;
+
+  /// Live banner title while an upload run is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up…'**
+  String get storageBackingUp;
+
+  /// Live banner title while a download run is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing…'**
+  String get storageSyncing;
+
+  /// Live banner subtitle before the run knows how many photos it will move.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your photos…'**
+  String get storageCheckingPhotos;
+
+  /// Live banner subtitle: how far through the run we are.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} {total, plural, =1{photo} other{photos}}'**
+  String storageProgressCount(int done, int total);
+
+  /// Status banner title when the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to back up yet'**
+  String get storageNothingYetTitle;
+
+  /// Status banner subtitle when the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos you add will back up here.'**
+  String get storageNothingYetBody;
+
+  /// Status banner title when every photo is safe in Drive.
+  ///
+  /// In en, this message translates to:
+  /// **'All backed up'**
+  String get storageAllBackedUpTitle;
+
+  /// Status banner subtitle when everything is backed up.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo is safe in Google Drive.} other{{count} photos are safe in Google Drive.}}'**
+  String storageAllSafeBody(int count);
+
+  /// Status banner title when some photos still need uploading.
+  ///
+  /// In en, this message translates to:
+  /// **'{backedUp} of {total} backed up'**
+  String storagePartialTitle(int backedUp, int total);
+
+  /// Status banner subtitle counting the photos still to upload.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo is waiting to back up.} other{{count} photos are waiting to back up.}}'**
+  String storagePendingBody(int count);
+
+  /// Session details: the session finished with nothing recorded in it.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises logged.'**
+  String get sessionNoExercises;
+
+  /// Title of the page showing one logged workout session.
+  ///
+  /// In en, this message translates to:
+  /// **'Session details'**
+  String get sessionDetailsTitle;
+
+  /// Accessibility label on the delete action in the session details header.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete session'**
+  String get sessionDeleteAction;
+
+  /// Session status: the workout was finished.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get sessionStatusCompleted;
+
+  /// Session status: the workout is still running.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get sessionStatusActive;
+
+  /// Session status: the workout was left unfinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Not completed'**
+  String get sessionStatusAbandoned;
+
+  /// Session details hero stat: how long the workout took.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get sessionStatDuration;
+
+  /// Session details hero stat: the clock range the workout ran over.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get sessionStatTime;
+
+  /// Session details hero stat: how many exercises the session held.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercises'**
+  String get sessionStatExercises;
+
+  /// Session details hero stat: completed sets out of the planned total.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets done'**
+  String get sessionStatSetsDone;
+
+  /// Label on one row of a logged exercise, numbering the set.
+  ///
+  /// In en, this message translates to:
+  /// **'Set {index}'**
+  String sessionSetNumber(int index);
+
+  /// Marker on a set the user skipped rather than performed.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get sessionSetSkipped;
+
+  /// Rate of Perceived Exertion badge on a logged set. RPE is a training term and stays latin in Arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'RPE {value}'**
+  String sessionSetRpe(String value);
+
+  /// A logged set stated as weight by repetitions, e.g. "60kg × 8". Both sides are already formatted.
+  ///
+  /// In en, this message translates to:
+  /// **'{weight} × {reps}'**
+  String sessionSetWeightByReps(String weight, String reps);
+
+  /// A logged bodyweight set, stated by repetitions alone.
+  ///
+  /// In en, this message translates to:
+  /// **'{reps, plural, =1{1 rep} other{{reps} reps}}'**
+  String sessionSetRepsOnly(int reps);
+
+  /// A logged set whose rep figure is a symbol rather than a number (AMRAP, or an em dash when nothing was recorded).
+  ///
+  /// In en, this message translates to:
+  /// **'{reps} reps'**
+  String sessionSetRepsUnknown(String reps);
+
+  /// The clock range a session ran over, e.g. "18:04–19:12".
+  ///
+  /// In en, this message translates to:
+  /// **'{start}–{end}'**
+  String sessionTimeRange(String start, String end);
+
+  /// Title of the page listing every training split.
+  ///
+  /// In en, this message translates to:
+  /// **'Splits'**
+  String get splitsTitle;
+
+  /// Accessibility label on the button that creates a split.
+  ///
+  /// In en, this message translates to:
+  /// **'New split'**
+  String get splitNewAction;
+
+  /// The name given to a duplicated split. Becomes the stored plan name, so it is written in the language the user duplicated it in.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} copy'**
+  String splitCopyName(String name);
+
+  /// How many days a split rotates through.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day} other{{count} days}}'**
+  String splitDayCount(int count);
+
+  /// A split row's meta line: its day count and its total exercise count.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} · {exercises}'**
+  String splitMeta(String days, String exercises);
+
+  /// Action that makes this split the one in play.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as active'**
+  String get splitSetActive;
+
+  /// Action that copies an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get actionDuplicate;
+
+  /// Badge on the split currently in play.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get splitActiveBadge;
+
+  /// Empty state on the splits page.
+  ///
+  /// In en, this message translates to:
+  /// **'No splits yet.'**
+  String get splitsEmptyTitle;
+
+  /// Empty state subtitle pointing at the create button.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to build your first one.'**
+  String get splitsEmptyBody;
+
+  /// Trailing caption on the Training section: sessions done this week. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} THIS WEEK'**
+  String workoutThisWeekCount(int count);
+
+  /// Title of the card that records a weigh-in.
+  ///
+  /// In en, this message translates to:
+  /// **'Log today\'s weight'**
+  String get workoutLogTodaysWeight;
+
+  /// Snack bar when a weigh-in could not be written.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that weigh-in — check your connection and try again.'**
+  String get workoutWeighInFailed;
+
+  /// Empty state under "no plan yet", offering the two ways to get one. ZIVO speaking in the first person.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a PDF or photo and I\'ll turn it into a real split, or build one from scratch.'**
+  String get workoutNoPlanImportHint;
+
+  /// Trailing caption on the Bodyweight section: the signed change over the last 30 days. A delta always states its own window.
+  ///
+  /// In en, this message translates to:
+  /// **'{delta} KG · 30D'**
+  String workoutWeightDeltaWindow(String delta);
+
+  /// Title of the settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// Settings section holding app-wide preferences.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get settingsSectionApp;
+
+  /// Settings section holding account actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get settingsSectionAccount;
+
+  /// Settings section for the Spotify connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get settingsSectionMusic;
+
+  /// Settings section for photo storage and backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get settingsSectionMedia;
+
+  /// Settings row: the app theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsTheme;
+
+  /// The only theme ZIVO ships, stated as the current value.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
+  /// Settings row: the app version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get settingsVersion;
+
+  /// Settings row: which build configuration is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get settingsBuild;
+
+  /// Settings row opening the privacy policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get settingsPrivacyPolicy;
+
+  /// Settings row opening the change-password flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get settingsChangePassword;
+
+  /// Settings row opening the delete-account flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get settingsDeleteAccount;
+
+  /// Button that ends the session on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get settingsSignOut;
+
+  /// Footer line stating the running version and build number.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} ({build})'**
+  String settingsVersionLine(String version, String build);
+
+  /// The version row’s value: version and build number.
+  ///
+  /// In en, this message translates to:
+  /// **'{version} ({build})'**
+  String settingsVersionValue(String version, String build);
+
+  /// Settings row opening the Storage & Sync screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage & sync'**
+  String get settingsStorageSync;
+
+  /// Value beside the Storage & sync row, naming what it covers.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos · Drive'**
+  String get settingsStorageSyncValue;
+
+  /// Settings: Spotify is connected and playback is paused. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'CONNECTED · PAUSED'**
+  String get connectedConnectedPaused;
+
+  /// Settings: Spotify is connected and playing.
+  ///
+  /// In en, this message translates to:
+  /// **'CONNECTED · PLAYING'**
+  String get connectedConnectedPlaying;
+
+  /// Label on the email field.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get authEmail;
+
+  /// Label on the password field.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get authPassword;
+
+  /// Label on the optional display-name field at sign-up.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (optional)'**
+  String get authNameOptional;
+
+  /// Label on the field that repeats a new password.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get authConfirmPassword;
+
+  /// Label on the new-password field.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get authNewPassword;
+
+  /// Label on the field confirming the existing password.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get authCurrentPassword;
+
+  /// Label on the field repeating the new password.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get authConfirmNewPassword;
+
+  /// Button that signs an existing user in.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get authSignIn;
+
+  /// Button that registers a new user.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get authCreateAccount;
+
+  /// Link to the password reset flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get authForgotPassword;
+
+  /// Prompt beside the link that switches to sign-in. Trailing spaces separate it from the link.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?  '**
+  String get authHaveAccount;
+
+  /// Prompt beside the link that switches to sign-up.
+  ///
+  /// In en, this message translates to:
+  /// **'New to ZIVO?  '**
+  String get authNewToZivo;
+
+  /// Hero line above the sign-up form.
+  ///
+  /// In en, this message translates to:
+  /// **'Make your space.'**
+  String get authTitleSignUp;
+
+  /// Hero line above the sign-in form, and the splash tagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Your whole day, in one place.'**
+  String get authTitleSignIn;
+
+  /// Apple sign-in button. Apple requires this exact wording per locale.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Apple'**
+  String get authSignInWithApple;
+
+  /// Google sign-in button.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get authContinueWithGoogle;
+
+  /// Toast after the password was changed from within the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Password updated.'**
+  String get authPasswordUpdated;
+
+  /// Message on the sign-in screen after a password reset completes.
+  ///
+  /// In en, this message translates to:
+  /// **'Password updated. Sign in with your new password.'**
+  String get authPasswordUpdatedSignIn;
+
+  /// Accessibility label on the reveal toggle of an obscured field.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {label}'**
+  String authShowField(String label);
+
+  /// Accessibility label on the hide toggle of a revealed field.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide {label}'**
+  String authHideField(String label);
+
+  /// Accessibility label on the one-time-code input.
+  ///
+  /// In en, this message translates to:
+  /// **'{length}-digit verification code'**
+  String authOtpFieldLabel(int length);
+
+  /// Wrong verification code, naming how many tries remain.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{That code isn’t right. 1 try left.} other{That code isn’t right. {count} tries left.}}'**
+  String authCodeWrongWithAttempts(int count);
+
+  /// Wrong verification code, with no attempt count to show.
+  ///
+  /// In en, this message translates to:
+  /// **'That code isn’t right.'**
+  String get authCodeWrong;
+
+  /// The verification code timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'That code has expired. Send a new one.'**
+  String get authCodeExpired;
+
+  /// The user exhausted their code attempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Send a new code.'**
+  String get authCodeTooManyAttempts;
+
+  /// Confirmation that a fresh verification code was sent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new code is on its way.'**
+  String get authCodeSent;
+
+  /// The resend request is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get authSending;
+
+  /// Cooldown before another code may be requested.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code in {seconds}s'**
+  String authResendIn(int seconds);
+
+  /// Link that requests a fresh code.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get authResendCode;
+
+  /// Prompt beside the resend link. Trailing spaces separate it from the link.
+  ///
+  /// In en, this message translates to:
+  /// **'Didn’t get it?  '**
+  String get authDidntGetIt;
+
+  /// Title of the password reset screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get authResetTitle;
+
+  /// Subtitle of the password reset screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your account email and we’ll send you a 6-digit code.'**
+  String get authResetSubtitle;
+
+  /// Button that emails a reset code.
+  ///
+  /// In en, this message translates to:
+  /// **'Send code'**
+  String get authSendCode;
+
+  /// Title of the step where the emailed code is typed in.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code'**
+  String get authEnterCode;
+
+  /// Lead-in before the masked email address. Ends with a newline so the address sits on its own line.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 6-digit code we sent to\n'**
+  String get authCodeSentTo;
+
+  /// Tail after the masked email address on the reset screen.
+  ///
+  /// In en, this message translates to:
+  /// **', then choose a new password.'**
+  String get authThenChoosePassword;
+
+  /// Button that commits the new password.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset password'**
+  String get authResetPassword;
+
+  /// Validation message for a malformed email address.
+  ///
+  /// In en, this message translates to:
+  /// **'That email address doesn\'t look right.'**
+  String get authEmailLooksWrong;
+
+  /// Title of the email verification screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your email'**
+  String get authVerifyTitle;
+
+  /// Button that submits the verification code.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get authVerify;
+
+  /// Link that signs out of the unverified account so another can be used.
+  ///
+  /// In en, this message translates to:
+  /// **'Use another account'**
+  String get authUseAnotherAccount;
+
+  /// Subtitle of the change-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm it’s you, then choose a new one.'**
+  String get authChangePasswordSubtitle;
+
+  /// Section title over the current-password field.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm it’s you'**
+  String get authConfirmItsYou;
+
+  /// Button that commits the password change.
+  ///
+  /// In en, this message translates to:
+  /// **'Update password'**
+  String get authUpdatePassword;
+
+  /// Body of the delete-account confirmation sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes your account and everything in it — workouts, diet, moments, expenses, and profile. This cannot be undone.'**
+  String get authDeleteAccountBody;
+
+  /// Label on the reauthentication field before deletion.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password to confirm'**
+  String get authDeleteConfirmPassword;
+
+  /// The button that actually deletes the account.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete my account'**
+  String get authDeleteMyAccount;
+
+  /// Label over the password strength meter.
+  ///
+  /// In en, this message translates to:
+  /// **'Password strength'**
+  String get authPasswordStrength;
+
+  /// Password strength: every rule met.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get authPasswordStrong;
+
+  /// Password strength: most rules met.
+  ///
+  /// In en, this message translates to:
+  /// **'Almost'**
+  String get authPasswordAlmost;
+
+  /// Password strength: few rules met.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get authPasswordWeak;
+
+  /// The confirmation field matches the password.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords match'**
+  String get authPasswordsMatch;
+
+  /// The confirmation field does not match the password.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords don\'t match'**
+  String get authPasswordsDontMatch;
+
+  /// Accessibility label pairing a password rule with whether it is satisfied.
+  ///
+  /// In en, this message translates to:
+  /// **'{rule}: {state}'**
+  String authRuleState(String rule, String state);
+
+  /// A password rule the current password satisfies.
+  ///
+  /// In en, this message translates to:
+  /// **'met'**
+  String get authRuleMet;
+
+  /// A password rule the current password fails.
+  ///
+  /// In en, this message translates to:
+  /// **'not met'**
+  String get authRuleNotMet;
+
+  /// Password rule: minimum length.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 8 characters'**
+  String get authRuleMinLength;
+
+  /// Chip-sized form of the minimum-length rule.
+  ///
+  /// In en, this message translates to:
+  /// **'8+ characters'**
+  String get authRuleMinLengthShort;
+
+  /// Password rule: at least one capital letter.
+  ///
+  /// In en, this message translates to:
+  /// **'One uppercase letter'**
+  String get authRuleUppercase;
+
+  /// Chip-sized form of the uppercase rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Uppercase'**
+  String get authRuleUppercaseShort;
+
+  /// Password rule: at least one lowercase letter.
+  ///
+  /// In en, this message translates to:
+  /// **'One lowercase letter'**
+  String get authRuleLowercase;
+
+  /// Chip-sized form of the lowercase rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowercase'**
+  String get authRuleLowercaseShort;
+
+  /// Password rule: at least one digit.
+  ///
+  /// In en, this message translates to:
+  /// **'One number'**
+  String get authRuleNumber;
+
+  /// Chip-sized form of the number rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Number'**
+  String get authRuleNumberShort;
+
+  /// Value beside Delete account, stating its consequence before the tap. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'PERMANENT'**
+  String get settingsPermanent;
+
+  /// Action sheet: use the camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo'**
+  String get momentTakePhoto;
+
+  /// Action sheet: pick an existing photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Library'**
+  String get momentChooseFromLibrary;
+
+  /// Title of the built-in crop/rotate editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Photo'**
+  String get momentEditPhoto;
+
+  /// Header when an existing moment is open for editing.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit moment'**
+  String get momentEditTitle;
+
+  /// Header when a moment is being created.
+  ///
+  /// In en, this message translates to:
+  /// **'New moment'**
+  String get momentNewTitle;
+
+  /// Accessibility label on the delete action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete moment'**
+  String get momentDeleteAction;
+
+  /// Placeholder in the moment’s note field.
+  ///
+  /// In en, this message translates to:
+  /// **'Say something…'**
+  String get momentNoteHint;
+
+  /// Commits an edit to an existing moment.
+  ///
+  /// In en, this message translates to:
+  /// **'Save moment'**
+  String get momentSave;
+
+  /// Commits a newly created moment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add moment'**
+  String get momentAdd;
+
+  /// Empty photo slot on the capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get momentAddPhoto;
+
+  /// Replaces the attached photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake'**
+  String get momentRetake;
+
+  /// Detaches the photo from the moment.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get momentRemove;
+
+  /// Error when a moment could not be written.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that moment.'**
+  String get momentSaveFailed;
+
+  /// Error when a moment could not be removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that moment.'**
+  String get momentDeleteFailed;
+
+  /// Title of the moments timeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Moments'**
+  String get momentsTitle;
+
+  /// Timeline filter: everything.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get momentsFilterAll;
+
+  /// Timeline filter: moments with a photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get momentsFilterPhotos;
+
+  /// Timeline filter: moments that are text only.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get momentsFilterNotes;
+
+  /// Timeline filter: photos taken in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get momentsFilterCamera;
+
+  /// Timeline filter: photos picked from the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get momentsFilterLibrary;
+
+  /// Timeline empty state title.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing logged yet'**
+  String get momentsEmptyTitle;
+
+  /// Timeline empty state body explaining what a moment is for.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap a lift, a meal, or a scale reading — moments attach to the session you were in.'**
+  String get momentsEmptyBody;
+
+  /// Empty state for the Camera filter.
+  ///
+  /// In en, this message translates to:
+  /// **'No camera photos yet.'**
+  String get momentsEmptyCamera;
+
+  /// Empty state for the Library filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing from your library yet.'**
+  String get momentsEmptyLibrary;
+
+  /// Empty state for the Photos filter.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos yet.'**
+  String get momentsEmptyPhotos;
+
+  /// Empty state for the Notes filter.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet.'**
+  String get momentsEmptyNotes;
+
+  /// Empty state for the remaining filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing else logged yet'**
+  String get momentsEmptyOther;
+
+  /// Stand-in for a moment with no note, in the timeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get momentUntitled;
+
+  /// Stand-in for a moment with no note, in the photo viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled moment'**
+  String get momentUntitledFull;
+
+  /// Opens the photo metadata sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo info'**
+  String get momentPhotoInfo;
+
+  /// Which photo of the set is on screen in the viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'{index} of {total}'**
+  String momentPhotoPosition(int index, int total);
+
+  /// Photo metadata row: the capture date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get metaDate;
+
+  /// Photo metadata row: the capture time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get metaTime;
+
+  /// Photo metadata row: the capture time zone.
+  ///
+  /// In en, this message translates to:
+  /// **'Time zone'**
+  String get metaTimeZone;
+
+  /// Photo metadata row: the camera or device used.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured with'**
+  String get metaCapturedWith;
+
+  /// Photo metadata row: pixel width and height.
+  ///
+  /// In en, this message translates to:
+  /// **'Dimensions'**
+  String get metaDimensions;
+
+  /// Photo metadata row: how large the file is.
+  ///
+  /// In en, this message translates to:
+  /// **'File size'**
+  String get metaFileSize;
+
+  /// Photo metadata row: the file format.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get metaType;
+
+  /// Photo metadata row: where it was taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get metaLocation;
+
+  /// Photo metadata row: where the cloud copy lives.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup'**
+  String get metaBackup;
+
+  /// Backup state: local only.
+  ///
+  /// In en, this message translates to:
+  /// **'On this device'**
+  String get metaOnThisDevice;
+
+  /// Backup state: also copied to the system photo library.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get metaInPhotos;
+
+  /// Backup state: no cloud copy exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Not backed up yet'**
+  String get metaNotBackedUp;
+
+  /// Backup state: the only copy is remote and can be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'In Google Drive — tap to download'**
+  String get metaInDriveTapToDownload;
+
+  /// How a photo was captured: with the in-app camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get captureSourceCamera;
+
+  /// How a photo was captured: picked from the phone’s library.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo Library'**
+  String get captureSourceLibrary;
+
+  /// How a photo was captured: not recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get captureSourceUnknown;
+
+  /// Eyebrow over the full-screen player. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'NOW PLAYING'**
+  String get musicNowPlaying;
+
+  /// Accessibility label on the player’s dismiss control.
+  ///
+  /// In en, this message translates to:
+  /// **'Close player'**
+  String get musicClosePlayer;
+
+  /// Notice when playback is on a remote Spotify device this app can only observe.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing on another device — controls are read-only here.'**
+  String get musicReadOnly;
+
+  /// Accessibility label on the previous-track control.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous track'**
+  String get musicPreviousTrack;
+
+  /// Accessibility label on the next-track control.
+  ///
+  /// In en, this message translates to:
+  /// **'Next track'**
+  String get musicNextTrack;
+
+  /// Accessibility state: shuffle is enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle on'**
+  String get musicShuffleOn;
+
+  /// Accessibility state: shuffle is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle off'**
+  String get musicShuffleOff;
+
+  /// Accessibility state: repeat is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat off'**
+  String get musicRepeatOff;
+
+  /// Accessibility state: repeat the whole context.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat all'**
+  String get musicRepeatAll;
+
+  /// Accessibility state: repeat the current track.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat one'**
+  String get musicRepeatOne;
+
+  /// Error when Spotify refused the authorization handshake.
+  ///
+  /// In en, this message translates to:
+  /// **'Spotify didn\'t authorize the connection. Make sure you\'re signed in to Spotify, then try again.'**
+  String get musicAuthFailed;
+
+  /// Retries a failed Spotify connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get musicTryAgain;
+
+  /// Error when the account cannot control playback remotely.
+  ///
+  /// In en, this message translates to:
+  /// **'Spotify Premium is required to control playback here.'**
+  String get musicPremiumRequired;
+
+  /// Prompt on the player before Spotify has ever been connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Spotify to see what\'s playing.'**
+  String get musicConnectPrompt;
+
+  /// Starts the Spotify connection flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Spotify'**
+  String get musicConnectSpotify;
+
+  /// How much of the track remains, beside the artist on the compact strip. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} LEFT'**
+  String musicTimeLeft(String time);
+
+  /// Compact strip subtitle: the artist and how much time is left.
+  ///
+  /// In en, this message translates to:
+  /// **'{artist} · {remaining}'**
+  String musicStripMeta(String artist, String remaining);
+
+  /// Accessibility summary of the now-playing strip.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing: {title} by {artist}. Open the player.'**
+  String musicNowPlayingSemantics(String title, String artist);
+
+  /// Battery level of the Spotify playback device.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String musicBatteryPercent(int percent);
+
+  /// Error when the chosen file could not be opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read that file.'**
+  String get importCouldntReadFile;
+
+  /// Error when the chosen file exceeds the upload limit.
+  ///
+  /// In en, this message translates to:
+  /// **'That file is too large — please choose one under 7 MB.'**
+  String get importFileTooLarge;
+
+  /// Error when the imported split could not be written.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that split — check your connection and try again.'**
+  String get importSaveFailed;
+
+  /// Header while the extracted plan is being checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Review import'**
+  String get importReviewTitle;
+
+  /// Header of the import screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Plan'**
+  String get importPlanTitle;
+
+  /// Title of the file-picking step.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your training plan'**
+  String get importSelectTitle;
+
+  /// Body of the file-picking step. ZIVO speaking in the first person.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a PDF or a photo of your plan and I\'ll map it into a real, editable split.'**
+  String get importSelectBody;
+
+  /// Retries the import with another file.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a different file'**
+  String get importChooseDifferentFile;
+
+  /// Abandons the current import.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get importStartOver;
+
+  /// Shown when extraction found nothing plan-shaped in the file.
+  ///
+  /// In en, this message translates to:
+  /// **'This doesn\'t look like a workout plan'**
+  String get importNotAPlan;
+
+  /// Returns to the previous step of the import.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back and edit'**
+  String get importGoBackAndEdit;
+
+  /// Eyebrow over the extracted plan preview. ZIVO speaking. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'HERE\'S WHAT I FOUND'**
+  String get importHeresWhatIFound;
+
+  /// The import is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get importDoingIt;
+
+  /// Commits the extracted plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Import this split'**
+  String get importThisSplit;
+
+  /// Opens the plan editor on the extracted plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit before importing'**
+  String get importEditBefore;
+
+  /// Heading over one day in the import preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {slot} · {label}'**
+  String importDayHeading(String slot, String label);
+
+  /// A day in the extracted plan that came back empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises found for this day.'**
+  String get importNoExercisesForDay;
+
+  /// Title of the success step.
+  ///
+  /// In en, this message translates to:
+  /// **'Import complete'**
+  String get importComplete;
+
+  /// Success summary naming the plan and what it contains.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" added to your splits — {days}, {exercises}.'**
+  String importSummary(String name, String days, String exercises);
+
+  /// Preview caption: how many days and exercises the extracted plan holds.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} · {exercises} total'**
+  String importPlanShape(String days, String exercises);
+
+  /// Tail of the sentence offering the manual route instead of importing.
+  ///
+  /// In en, this message translates to:
+  /// **'build the split manually.'**
+  String get importBuildManually;
+
+  /// Header when editing an existing exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit exercise'**
+  String get exerciseEditTitle;
+
+  /// Header when adding an exercise, and the button that does it.
+  ///
+  /// In en, this message translates to:
+  /// **'Add exercise'**
+  String get exerciseAddTitle;
+
+  /// Label on the exercise name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get exerciseName;
+
+  /// Example exercise name shown as a hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Bench Press'**
+  String get exerciseNameHint;
+
+  /// Label on the muscle group field.
+  ///
+  /// In en, this message translates to:
+  /// **'Muscle group (optional)'**
+  String get exerciseMuscleGroup;
+
+  /// Example muscle group shown as a hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Chest'**
+  String get exerciseMuscleGroupHint;
+
+  /// Label on the set-count field.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets'**
+  String get exerciseSets;
+
+  /// Section label over the rep target options. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'REP TARGET'**
+  String get exerciseRepTarget;
+
+  /// Rep target mode: a single number.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed'**
+  String get exerciseTargetFixed;
+
+  /// Rep target mode: a min and a max.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get exerciseTargetRange;
+
+  /// Label on the lower bound of a rep range.
+  ///
+  /// In en, this message translates to:
+  /// **'Min reps'**
+  String get exerciseMinReps;
+
+  /// Label on the upper bound of a rep range.
+  ///
+  /// In en, this message translates to:
+  /// **'Max reps'**
+  String get exerciseMaxReps;
+
+  /// Label on the rep-count field.
+  ///
+  /// In en, this message translates to:
+  /// **'Reps'**
+  String get exerciseReps;
+
+  /// Label on the target weight field.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight (kg)'**
+  String get exerciseWeightKg;
+
+  /// Commits an edit to an existing exercise.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get exerciseSaveChanges;
+
+  /// Error when a logged workout could not be written.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that workout.'**
+  String get workoutCaptureSaveFailed;
+
+  /// Error when a logged workout could not be removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete that workout.'**
+  String get workoutCaptureDeleteFailed;
+
+  /// Header when editing a logged workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit workout'**
+  String get workoutCaptureEditTitle;
+
+  /// Header when logging a new workout.
+  ///
+  /// In en, this message translates to:
+  /// **'New workout'**
+  String get workoutCaptureNewTitle;
+
+  /// Accessibility label on the delete action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete workout'**
+  String get workoutCaptureDelete;
+
+  /// Placeholder for the session name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this session'**
+  String get workoutCaptureNameHint;
+
+  /// Commits the logged workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Save workout'**
+  String get workoutCaptureSave;
+
+  /// Empty state in the workout capture list.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises yet.'**
+  String get workoutCaptureNoExercises;
+
+  /// Label on the exercise name field in capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise name'**
+  String get workoutCaptureExerciseName;
+
+  /// Removes an exercise row from the logged workout.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get workoutCaptureRemove;
+
+  /// Debug-build App Check failure, naming the exact fix for a developer.
+  ///
+  /// In en, this message translates to:
+  /// **'The app couldn\'t verify itself (App Check). Register this build\'s debug token in the Firebase console, then try again.'**
+  String get importAppCheckDebug;
+
+  /// Release-build App Check failure, without the developer detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t verify this app install. Please try again in a moment.'**
+  String get importAppCheckFailed;
+
+  /// The backend import callable is missing or undeployed. Nothing is wrong with the file.
+  ///
+  /// In en, this message translates to:
+  /// **'The import service isn\'t available right now — please try again later.'**
+  String get importServiceUnavailable;
+
+  /// A timeout or transport failure reaching the import backend.
+  ///
+  /// In en, this message translates to:
+  /// **'Network problem reaching the import service — check your connection and try again.'**
+  String get importNetworkProblem;
+
+  /// Generic extraction failure. {manualFallback} is the "…or build it manually" tail, which differs per importer.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read that plan — try a clearer photo or PDF, or {manualFallback}'**
+  String importCouldntRead(String manualFallback);
+
+  /// The picked file is not a PDF or an image. Developer-facing detail carried in a thrown error.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported file type: {extension}'**
+  String importUnsupportedFileType(String extension);
+
+  /// Shown when microphone permission is refused during a voice description.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO needs microphone access to take this down. You can type it instead.'**
+  String get describeMicNeeded;
+
+  /// The recorder failed to start.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start recording. You can type it instead.'**
+  String get describeRecordFailed;
+
+  /// The recording came back empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was recorded. Try again, or type it instead.'**
+  String get describeNothingRecorded;
+
+  /// Section label over the transcribed text.
+  ///
+  /// In en, this message translates to:
+  /// **'Your description'**
+  String get describeYourDescription;
+
+  /// Warning that a transcription error propagates into the generated plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the words before you continue — a mis-heard detail becomes a number downstream.'**
+  String get describeCheckWords;
+
+  /// Switches from typing to voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it instead'**
+  String get describeSayItInstead;
+
+  /// Appends another voice segment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add more by voice'**
+  String get describeAddMoreByVoice;
+
+  /// Transcription is in flight.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing it down…'**
+  String get describeWritingItDown;
+
+  /// The recorder is capturing audio.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get describeListening;
+
+  /// Throws away the current recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get describeDiscard;
+
+  /// Status line while the file is being parsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the document…'**
+  String get importReadingDocument;
+
+  /// Status line naming the plan the extractor recognised.
+  ///
+  /// In en, this message translates to:
+  /// **'Found \"{name}\"…'**
+  String importFoundNamed(String name);
+
+  /// Title of the analysing step.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing your plan'**
+  String get importAnalyzing;
+
+  /// Abandons the import and opens the empty editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Build manually instead'**
+  String get importBuildManuallyInstead;
+
+  /// Status line pairing the section being read with how many items are in it.
+  ///
+  /// In en, this message translates to:
+  /// **'{section} · {items}'**
+  String importSectionItems(String section, String items);
+
+  /// How many days the extractor has read so far.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day} other{{count} days}}'**
+  String importItemCountDay(int count);
+
+  /// How many meals the extractor has read so far.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 meal} other{{count} meals}}'**
+  String importItemCountMeal(int count);
+
+  /// Title when describing a split by voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe your training'**
+  String get workoutDescribeTitleVoice;
+
+  /// Title when typing a split out.
+  ///
+  /// In en, this message translates to:
+  /// **'Type it out'**
+  String get workoutDescribeTitleType;
+
+  /// Explains what to say or write when describing a split.
+  ///
+  /// In en, this message translates to:
+  /// **'Say or write your split — the days, the exercises, and the sets and reps for each. ZIVO turns it into a real, editable split you review before anything is saved.'**
+  String get workoutDescribeBody;
+
+  /// A worked example of the level of detail to give.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: \"Day A is push — bench press 4 sets of 8, incline dumbbell press 3 by 10, then cable flyes 3 by 15. Day B is pull…\"'**
+  String get workoutDescribeExample;
+
+  /// Placeholder in the split description field.
+  ///
+  /// In en, this message translates to:
+  /// **'Day A is push…'**
+  String get workoutDescribeHint;
+
+  /// Sends the description off to be turned into a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn this into a split'**
+  String get workoutDescribeSubmit;
+
+  /// Stops the voice recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Done talking'**
+  String get workoutDescribeDoneTalking;
+
+  /// Title of the sheet offering the four ways to add a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a training plan'**
+  String get addPlanTitle;
+
+  /// Reassurance that every route ends in the same review step.
+  ///
+  /// In en, this message translates to:
+  /// **'However your split arrives, it lands in the same editor to review before anything is saved.'**
+  String get addPlanBody;
+
+  /// Route: import a document.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF or photo'**
+  String get addPlanPdfTitle;
+
+  /// Examples of documents that can be imported.
+  ///
+  /// In en, this message translates to:
+  /// **'A coach\'s plan, a screenshot, a photo of a page'**
+  String get addPlanPdfBody;
+
+  /// Route: describe the plan by voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Say it out loud'**
+  String get addPlanVoiceTitle;
+
+  /// What the voice route does.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe your split and ZIVO writes it down'**
+  String get addPlanVoiceBody;
+
+  /// Route: type the plan in prose.
+  ///
+  /// In en, this message translates to:
+  /// **'Type it out'**
+  String get addPlanTypeTitle;
+
+  /// What the typing route does.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your split in a few lines'**
+  String get addPlanTypeBody;
+
+  /// Route: use the editor directly.
+  ///
+  /// In en, this message translates to:
+  /// **'Build by hand'**
+  String get addPlanManualTitle;
+
+  /// What the manual route does.
+  ///
+  /// In en, this message translates to:
+  /// **'Add days and exercises yourself'**
+  String get addPlanManualBody;
+
+  /// How many exercises the extractor has read so far.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 exercise} other{{count} exercises}}'**
+  String importItemCountExercise(int count);
+
+  /// How many items the extractor has read so far, when the kind is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String importItemCountGeneric(int count);
+
+  /// Today's Trained ring: which day was trained and for how long. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} · {minutes} MIN'**
+  String pulseTrainedFor(String day, int minutes);
+
+  /// Today's Trained ring: a session for this day is in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} · UNDER WAY'**
+  String pulseUnderWay(String day);
+
+  /// Momentum: consecutive days trained.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1-day streak} other{{count}-day streak}}'**
+  String pulseStreakDays(int count);
+
+  /// Momentum: how many sessions in the trailing week. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 SESSION · LAST 7 DAYS} other{{count} SESSIONS · LAST 7 DAYS}}'**
+  String pulseSessionsLast7(int count);
+
+  /// Bodyweight delta caption: the unit and the window it is measured over.
+  ///
+  /// In en, this message translates to:
+  /// **'KG · {days}D'**
+  String pulseWeightSpan(int days);
+
+  /// Header caption on the expenses list. Upper case in English by design.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} SPENT TODAY'**
+  String expenseSpentToday(String amount);
+
+  /// A money figure and its currency code.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} {currency}'**
+  String expenseAmountWithCurrency(String amount, String currency);
+
+  /// An expense row’s meta line: when it was logged and what it was for.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · {category}'**
+  String expenseRowMeta(String time, String category);
+
+  /// Header when editing an existing split.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit split'**
+  String get planEditSplitTitle;
+
+  /// Header when editing the active plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit workout plan'**
+  String get planEditPlanTitle;
+
+  /// Header when creating a split.
+  ///
+  /// In en, this message translates to:
+  /// **'New split'**
+  String get planNewSplitTitle;
+
+  /// Header when creating the active plan.
+  ///
+  /// In en, this message translates to:
+  /// **'New workout plan'**
+  String get planNewPlanTitle;
+
+  /// Accessibility label on the split delete action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete split'**
+  String get planDeleteSplit;
+
+  /// Accessibility label on the plan delete action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete plan'**
+  String get planDeletePlan;
+
+  /// Label on the plan name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan name'**
+  String get planName;
 }
 
 class _AppLocalizationsDelegate

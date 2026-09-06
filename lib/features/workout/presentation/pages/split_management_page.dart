@@ -40,7 +40,7 @@ class SplitManagementPage extends StatelessWidget {
       // "Active" badge on the split that is currently in play).
       floatingActionButton: TrainFab(
         icon: AppIcons.add,
-        semanticLabel: 'New split',
+        semanticLabel: l(context).splitNewAction,
         onTap: () => _openNewSplitSheet(context),
       ),
       body: DecoratedBox(
@@ -70,7 +70,9 @@ class SplitManagementPage extends StatelessWidget {
                         children: [
                           StaggeredReveal(
                             index: 0,
-                            child: const TrainPageHeader(title: 'Splits'),
+                            child: TrainPageHeader(
+                              title: l(context).splitsTitle,
+                            ),
                           ),
                           const SizedBox(height: 22),
                           for (var i = 0; i < splits.length; i++)
@@ -114,11 +116,14 @@ Future<void> _openNewSplitSheet(BuildContext context) =>
 /// because every history/analysis read filters by `planId` first (see
 /// `day_progress_analysis.dart`), so two different splits sharing an
 /// `exerciseId` never cross-contaminates either one's history.
-WorkoutPlan _duplicateOf(WorkoutPlan original) {
+WorkoutPlan _duplicateOf(WorkoutPlan original, {required String copyName}) {
   final now = DateTime.now();
   return WorkoutPlan(
     id: 'split-${now.microsecondsSinceEpoch}',
-    name: '${original.name} copy',
+    // The copy's name is handed in already localized: it becomes stored plan
+    // data, so it is written in the language the user duplicated it in rather
+    // than re-derived at read time.
+    name: copyName,
     status: original.status,
     source: original.source,
     createdAt: now,
@@ -230,7 +235,10 @@ class _SplitTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$dayCount day${dayCount == 1 ? '' : 's'} · $exerciseCount exercise${exerciseCount == 1 ? '' : 's'}',
+                        l(context).splitMeta(
+                          l(context).splitDayCount(dayCount),
+                          l(context).workoutExerciseCount(exerciseCount),
+                        ),
                         style: AppText.meta.copyWith(color: TrainColors.ink4),
                       ),
                     ],
@@ -260,27 +268,27 @@ class _SplitTile extends StatelessWidget {
             CupertinoActionSheetAction(
               onPressed: () =>
                   Navigator.of(sheetContext).pop(_SplitAction.setActive),
-              child: const Text('Set as active'),
+              child: Text(l(context).splitSetActive),
             ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop(_SplitAction.edit),
-            child: const Text('Edit'),
+            child: Text(l(context).actionEdit),
           ),
           CupertinoActionSheetAction(
             onPressed: () =>
                 Navigator.of(sheetContext).pop(_SplitAction.duplicate),
-            child: const Text('Duplicate'),
+            child: Text(l(context).actionDuplicate),
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
             onPressed: () =>
                 Navigator.of(sheetContext).pop(_SplitAction.delete),
-            child: const Text('Delete'),
+            child: Text(l(context).actionDelete),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(sheetContext).pop(),
-          child: const Text('Cancel'),
+          child: Text(l(context).actionCancel),
         ),
       ),
     );
@@ -301,7 +309,9 @@ class _SplitTile extends StatelessWidget {
         );
       case _SplitAction.duplicate:
         HapticFeedback.lightImpact();
-        await plans.saveSplit(_duplicateOf(split));
+        await plans.saveSplit(
+          _duplicateOf(split, copyName: l(context).splitCopyName(split.name)),
+        );
       case _SplitAction.delete:
         // mediumImpact fires inside _confirmDelete, right at the actual
         // commit — the dialog's Delete tap is this flow's "point of no
@@ -332,7 +342,7 @@ class _ActiveBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
-        'Active',
+        l(context).splitActiveBadge,
         style: AppText.meta.copyWith(
           color: TrainColors.green,
           fontSize: 11,
@@ -387,13 +397,13 @@ class _SplitsErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "Couldn't load this.",
+              l(context).errorCouldntLoad,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
-              'Check your connection and try again in a moment.',
+              l(context).errorCheckConnection,
               style: AppText.meta.copyWith(color: TrainColors.ink4),
               textAlign: TextAlign.center,
             ),
@@ -438,13 +448,13 @@ class _SplitsEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No splits yet.',
+              l(context).splitsEmptyTitle,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
-              'Tap + to build your first one.',
+              l(context).splitsEmptyBody,
               style: AppText.meta.copyWith(color: TrainColors.ink4),
             ),
           ],

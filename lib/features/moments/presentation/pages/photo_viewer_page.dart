@@ -344,7 +344,7 @@ class _TopBar extends StatelessWidget {
           _GlyphButton(icon: AppIcons.close, onTap: onClose, semantic: 'Close'),
           Expanded(
             child: Text(
-              '${index + 1} of $total',
+              l(context).momentPhotoPosition(index + 1, total),
               textAlign: TextAlign.center,
               style: AppText.meta.copyWith(color: Colors.white),
             ),
@@ -352,7 +352,7 @@ class _TopBar extends StatelessWidget {
           _GlyphButton(
             icon: AppIcons.trash,
             onTap: onDelete,
-            semantic: 'Delete',
+            semantic: l(context).actionDelete,
           ),
         ],
       ),
@@ -408,7 +408,7 @@ class _BottomBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       moment.caption.isEmpty
-                          ? 'Untitled moment'
+                          ? l(context).momentUntitledFull
                           : moment.caption,
                       style: AppText.cardTitle.copyWith(
                         fontSize: 18,
@@ -419,7 +419,7 @@ class _BottomBar extends StatelessWidget {
                   _GlyphButton(
                     icon: infoOpen ? AppIcons.infoFill : AppIcons.info,
                     onTap: onToggleInfo,
-                    semantic: 'Photo info',
+                    semantic: l(context).momentPhotoInfo,
                   ),
                 ],
               ),

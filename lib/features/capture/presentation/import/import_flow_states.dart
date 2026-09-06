@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../ai/domain/import_progress.dart';
@@ -18,25 +19,47 @@ import '../widgets/capture_widgets.dart';
 /// ladder (ADR-009), and each caller passes only its own copy and accent — the
 /// review/preview step, which only the workout flow has, stays in that page.
 
-/// Shown while importing, until the model has extracted anything at all. It is
-/// true copy: before the first day/meal arrives, reading is all that happens.
-const String kImportOpeningLine = 'Reading the document…';
+/// What kind of thing an importer is counting as it reads.
+///
+/// An id, not a noun: the count has to be a real ICU plural (Arabic has six
+/// forms, and "1 day"/"2 days" cannot be built by appending an "s"), so the
+/// caller names the *kind* and the `.arb` owns every form of it.
+enum ImportItemKind { day, meal, exercise, item }
+
+String _itemCount(BuildContext context, ImportItemKind kind, int count) =>
+    switch (kind) {
+      ImportItemKind.day => l(context).importItemCountDay(count),
+      ImportItemKind.meal => l(context).importItemCountMeal(count),
+      ImportItemKind.exercise => l(context).importItemCountExercise(count),
+      ImportItemKind.item => l(context).importItemCountGeneric(count),
+    };
 
 /// What the analysing screen says right now: the live extraction if one has
-/// arrived, else the opening line.
+/// arrived, else the opening line ("Reading the document…" — before the first
+/// day/meal arrives, reading really is all that happens).
 ///
-/// Deliberately never claims a total — the model doesn't know how many
-/// [itemNoun]s a document holds until it has read them, so "Day 2 of 5" would
-/// be a number nobody has. A rising count is the honest shape.
-String importProgressLine(ImportProgress? progress, {required String itemNoun}) {
+/// Deliberately never claims a total — the model doesn't know how many items a
+/// document holds until it has read them, so "Day 2 of 5" would be a number
+/// nobody has. A rising count is the honest shape.
+String importProgressLine(
+  BuildContext context,
+  ImportProgress? progress, {
+  required ImportItemKind itemKind,
+}) {
   final p = progress;
-  if (p == null || p.isEmpty) return kImportOpeningLine;
+  if (p == null || p.isEmpty) return l(context).importReadingDocument;
   final section = p.latestSection;
   if (section == null) {
-    return p.planName != null ? 'Found "${p.planName}"…' : kImportOpeningLine;
+    return p.planName != null
+        ? l(context).importFoundNamed(p.planName!)
+        : l(context).importReadingDocument;
   }
-  final items = p.items == 1 ? '1 $itemNoun' : '${p.items} ${itemNoun}s';
-  return '$section · $items';
+  // The section name comes out of the user's own document, in whichever
+  // script it was written in.
+  return l(context).importSectionItems(
+    isolate(section),
+    _itemCount(context, itemKind, p.items),
+  );
 }
 
 /// A large tinted rounded-square icon above a headline/subcopy pair — the
@@ -135,7 +158,7 @@ class ImportAnalyzingState extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Analyzing your plan',
+            l(context).importAnalyzing,
             style: AppText.cardTitle.copyWith(color: TrainColors.ink),
           ),
           const SizedBox(height: 8),
@@ -214,7 +237,7 @@ class ImportRejectedState extends StatelessWidget {
             TextButton(
               onPressed: onBuildManually,
               child: Text(
-                'Build manually instead',
+                l(context).importBuildManuallyInstead,
                 style: AppText.meta.copyWith(color: TrainColors.ink2),
               ),
             ),

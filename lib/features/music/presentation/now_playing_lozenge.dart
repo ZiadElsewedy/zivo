@@ -392,9 +392,9 @@ class _Body extends StatelessWidget {
       scale: 0.99,
       child: Semantics(
         button: true,
-        label:
-            'Now playing: ${playing.title} by ${playing.artist}. '
-            'Open the player.',
+        label: l(
+          context,
+        ).musicNowPlayingSemantics(playing.title, playing.artist),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _openPlayer(context, controller),
