@@ -21,7 +21,6 @@ import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dar
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
-import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/test_app.dart';
 
@@ -59,7 +58,7 @@ Widget _wrap({
 }) {
   return AppScope(
     media: testMediaService(),
-    auth: FakeAuthRepository(),
+    auth: signedInAuth(),
     profiles: FakeProfileRepository(),
     expenses: InMemoryExpenseRepository(),
     moments: momentsOverride,

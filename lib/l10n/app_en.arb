@@ -4030,5 +4030,13 @@
   "dateYesterdayLower": "yesterday",
   "@dateYesterdayLower": {
       "description": "Lower-case \"yesterday\", for dropping mid-sentence."
+  },
+  "mediaCapturedOnAnotherDevice": "Captured on another device",
+  "@mediaCapturedOnAnotherDevice": {
+      "description": "Shown on a photo tile whose bytes are not on this device and were never backed up anywhere."
+  },
+  "mediaOnAnotherBackupAccount": "In another Drive account",
+  "@mediaOnAnotherBackupAccount": {
+      "description": "Shown on a photo tile that is backed up to a Google Drive account this device is not connected to."
   }
 }

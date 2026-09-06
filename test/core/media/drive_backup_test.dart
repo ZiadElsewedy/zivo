@@ -26,6 +26,10 @@ class _FakeDriveClient implements MediaBackupProvider {
   List<int>? downloadBytes;
   String? ownerId;
 
+  /// The Google account this fake is connected to. Real file ids only resolve
+  /// inside one account, so the service now carries this alongside every id.
+  String accountKey = 'acc-1';
+
   final List<String> uploadedFolders = [];
   final List<String> uploaded = [];
   final List<String> downloaded = [];
@@ -35,6 +39,13 @@ class _FakeDriveClient implements MediaBackupProvider {
 
   @override
   bool get hasLiveSession => liveSession;
+
+  @override
+  String? get liveAccountKey => liveSession ? accountKey : null;
+
+  @override
+  Future<String?> connectedAccountKey() async =>
+      deviceConnected ? accountKey : null;
 
   @override
   Future<bool> isDeviceConnected() async => deviceConnected;
@@ -78,6 +89,7 @@ class _FakeDriveClient implements MediaBackupProvider {
     required String mimeType,
     required String accountFolder,
     String? replaceRemoteId,
+    String? replaceInAccountKey,
   }) async {
     uploaded.add(fileName);
     uploadedFolders.add(accountFolder);
@@ -85,7 +97,7 @@ class _FakeDriveClient implements MediaBackupProvider {
   }
 
   @override
-  Future<List<int>?> download(String fileId) async {
+  Future<List<int>?> download(String fileId, {required String expectedAccountKey}) async {
     downloaded.add(fileId);
     return downloadBytes;
   }
@@ -95,7 +107,7 @@ class _FakeDriveClient implements MediaBackupProvider {
   final List<String> deletedRemote = [];
 
   @override
-  Future<bool> deleteRemote(String remoteId) async {
+  Future<bool> deleteRemote(String remoteId, {required String expectedAccountKey}) async {
     if (failDeletes) return false;
     deletedRemote.add(remoteId);
     return true;

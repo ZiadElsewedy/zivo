@@ -51,6 +51,77 @@ void main() {
       final pending = await registry.pendingBackups();
       expect(pending.map((m) => m.id), ['m1']);
     });
+
+    test('the Drive account key round-trips, and a record backed up to another '
+        'account is still pending here', () async {
+      final firestore = FakeFirebaseFirestore();
+      final registry = FirestoreMediaRegistry(
+        firestore: firestore,
+        uidSource: _signedInAs('u1'),
+      );
+
+      MediaObject backedUpTo(String id, String? accountKey) => MediaObject(
+            id: id,
+            ownerUid: 'u1',
+            kind: MediaKind.moment,
+            relativePath: 'media/moments/$id.jpg',
+            mimeType: 'image/jpeg',
+            byteSize: 10,
+            contentHash: 'h',
+            capturedAt: DateTime(2026, 1, 2),
+            remoteBackup: BackupState.done,
+            remoteId: 'file-$id',
+            remoteAccountKey: accountKey,
+          );
+
+      await registry.put(backedUpTo('here', 'drive-1'));
+      await registry.put(backedUpTo('elsewhere', 'drive-2'));
+      await registry.put(backedUpTo('legacy', null)); // written pre-schema-2
+
+      expect((await registry.get('here'))!.remoteAccountKey, 'drive-1');
+      expect((await registry.get('legacy'))!.remoteAccountKey, isNull);
+
+      // Connected to drive-1: the drive-2 copy is unreachable from here and
+      // must be re-pushed; the legacy record's account is unknown, so it is
+      // given the benefit of the doubt rather than re-uploaded on a guess.
+      final pending = await registry.pendingBackups(forAccountKey: 'drive-1');
+      expect(pending.map((m) => m.id), ['elsewhere']);
+
+      // With nothing connected there is no destination to compare against, so
+      // the answer falls back to the destination-agnostic one.
+      expect(await registry.pendingBackups(), isEmpty);
+    });
+
+    test('refuses to file a record under an owner that is not the signed-in '
+        'account', () async {
+      final firestore = FakeFirebaseFirestore();
+      final registry = FirestoreMediaRegistry(
+        firestore: firestore,
+        uidSource: _signedInAs('u1'),
+      );
+
+      // `put` rejects synchronously — the caller never gets a Future to await,
+      // so a swallowed background tail cannot hide the mistake.
+      expect(
+        () => registry.put(MediaObject(
+          id: 'm1',
+          ownerUid: 'local', // the old signed-out placeholder
+          kind: MediaKind.moment,
+          relativePath: 'media/moments/m1.jpg',
+          mimeType: 'image/jpeg',
+          byteSize: 10,
+          contentHash: 'h',
+          capturedAt: DateTime(2026, 1, 2),
+        )),
+        throwsStateError,
+      );
+      // Nothing was written to an unroutable path.
+      expect(
+        (await firestore.collection('users').doc('local').collection('media').get())
+            .docs,
+        isEmpty,
+      );
+    });
   });
 
   group('FirestoreMediaPreferencesRepository', () {

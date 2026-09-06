@@ -229,6 +229,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
       if (_prevUid != null && _prevUid != uid) {
+        // disconnectBackup also drops the read-side resolution caches, which
+        // are keyed by ref alone and would otherwise serve the previous
+        // account's answers (and its failure backoffs) to the new one.
         _media.disconnectBackup();
       }
       _prevUid = uid;

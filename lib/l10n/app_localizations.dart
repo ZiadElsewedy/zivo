@@ -4865,6 +4865,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'yesterday'**
   String get dateYesterdayLower;
+
+  /// Shown on a photo tile whose bytes are not on this device and were never backed up anywhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured on another device'**
+  String get mediaCapturedOnAnotherDevice;
+
+  /// Shown on a photo tile that is backed up to a Google Drive account this device is not connected to.
+  ///
+  /// In en, this message translates to:
+  /// **'In another Drive account'**
+  String get mediaOnAnotherBackupAccount;
 }
 
 class _AppLocalizationsDelegate

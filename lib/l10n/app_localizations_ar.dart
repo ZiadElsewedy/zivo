@@ -2849,4 +2849,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dateYesterdayLower => 'أمس';
+
+  @override
+  String get mediaCapturedOnAnotherDevice => 'التُقطت على جهاز آخر';
+
+  @override
+  String get mediaOnAnotherBackupAccount => 'في حساب Drive آخر';
 }

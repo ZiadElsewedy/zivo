@@ -85,6 +85,33 @@ class MediaService {
     return true;
   }
 
+  /// Which cloud account is on the other end of this device's connection, or
+  /// null when there is none (or the connection predates account keys, in
+  /// which case *unknown* is the honest answer and callers fall back to their
+  /// pre-existing optimistic behaviour).
+  ///
+  /// This is the second half of isolation, and a deliberately different
+  /// question from [_backupConnectionValidForCurrentAccount], which asks "may
+  /// this ZIVO account use this device's connection?" and *fails closed by
+  /// disconnecting*. This one only reads local state and has no side effects,
+  /// because passive reads call it: tearing down a connection while rendering
+  /// a photo grid is not something a read should ever do. The ZIVO-ownership
+  /// gate still guards every path that actually talks to the provider.
+  Future<String?> _connectedBackupAccountKey() async =>
+      backup?.connectedAccountKey() ?? Future.value();
+
+  /// Drops the read-side memoization. Called whenever the identity behind a
+  /// reference can have changed — connect, disconnect, ZIVO account switch —
+  /// because these caches are keyed by ref alone and would otherwise keep
+  /// serving a previous account's answers (including its failure backoffs,
+  /// which would make a freshly-connected account look broken for the next
+  /// 15 seconds and suppress session restore for two minutes).
+  void invalidateResolutionCaches() {
+    _resolvedFiles.clear();
+    _lastFetchFailure.clear();
+    _lastSilentRestoreAttempt = null;
+  }
+
   /// Imports a just-captured/picked file into durable local storage and
   /// returns the store-relative reference to embed in the owning entity.
   ///
@@ -325,6 +352,16 @@ class MediaService {
       return const MediaResolution(MediaAvailability.nowhere);
     }
 
+    // A file id is a location inside ONE cloud account. If this device is
+    // connected to a different one, the bytes are not lost — they simply are
+    // not here, and no retry will change that — so say `otherAccount` instead
+    // of firing a request the wrong account can only 404, then reporting
+    // `cloudOnly` ("on its way") about bytes that are never coming.
+    final connectedKey = await _connectedBackupAccountKey();
+    if (connectedKey != null && !object!.isRemoteReachableFrom(connectedKey)) {
+      return const MediaResolution(MediaAvailability.otherAccount);
+    }
+
     // Fetchable — join any in-flight fetch of this ref, or start one through
     // the throttle. A recent failure skips the attempt entirely (backoff):
     // the caller gets `cloudOnly`, which reads as "on its way", not an error.
@@ -334,7 +371,7 @@ class MediaService {
     // putIfAbsent runs its closure synchronously, so concurrent callers of
     // the same ref always share ONE future — no isolate-level lock needed.
     final fetch =
-        _fetches.putIfAbsent(ref, () => _downloadToStore(ref, remoteId));
+        _fetches.putIfAbsent(ref, () => _downloadToStore(ref, object!));
     await fetch;
     final fetched = _resolvedFiles[ref];
     if (fetched != null && await fetched.exists()) {
@@ -389,7 +426,7 @@ class MediaService {
         DateTime.now().difference(last) < _fetchFailureBackoff;
   }
 
-  Future<void> _downloadToStore(String ref, String remoteId) async {
+  Future<void> _downloadToStore(String ref, MediaObject object) async {
     // Respect the parallelism cap: beyond it, waiters queue FIFO and proceed
     // as slots free up.
     if (_activeFetches >= _maxParallelFetches) {
@@ -400,11 +437,27 @@ class MediaService {
     _activeFetches++;
     try {
       if (!await _ensureSilentSession()) throw const _FetchUnavailable();
-      final bytes = await backup!.download(remoteId);
+      final provider = backup!;
+      // Re-read the live account here, not at queue time: this fetch may have
+      // waited behind three others while the user changed accounts.
+      final live = provider.liveAccountKey;
+      final expected = object.remoteAccountKey ?? live;
+      if (live == null || expected != live) throw const _FetchUnavailable();
+
+      // `expected == live` here, and `live` is the promoted non-null one.
+      final bytes =
+          await provider.download(object.remoteId!, expectedAccountKey: live);
       if (bytes == null || bytes.isEmpty) throw const _FetchUnavailable();
       final file = await store.writeBytes(ref, bytes);
       _rememberResolved(ref, file);
       _lastFetchFailure.remove(ref);
+
+      // Lazy migration: a record written before account keys existed just
+      // proved which account holds it. Stamp it, and it never has to be
+      // guessed about again. Best-effort — the bytes are already safe.
+      if (object.remoteAccountKey == null) {
+        unawaited(_stampRemoteAccount(object, live));
+      }
     } catch (_) {
       _lastFetchFailure[ref] = DateTime.now();
     } finally {
@@ -413,6 +466,20 @@ class MediaService {
       if (_fetchWaiters.isNotEmpty) {
         _fetchWaiters.removeAt(0).complete();
       }
+    }
+  }
+
+  /// Records which cloud account a legacy reference turned out to live in.
+  /// Reads the freshest record first so a concurrent capture/backup is not
+  /// clobbered by a stale copy.
+  Future<void> _stampRemoteAccount(MediaObject object, String accountKey) async {
+    try {
+      final latest = await registry.get(object.id) ?? object;
+      if (latest.remoteId != object.remoteId) return; // moved on; leave it
+      if (latest.remoteAccountKey != null) return;
+      await registry.put(latest.copyWith(remoteAccountKey: accountKey));
+    } catch (_) {
+      // Best-effort backfill.
     }
   }
 
@@ -442,14 +509,24 @@ class MediaService {
       }
       final file = await store.resolve(object.relativePath);
       if (file == null || !await file.exists()) return;
+
+      // Capture which account we are pushing to BEFORE the upload, and refuse
+      // to record anything if it changed underneath us. Reading "the current
+      // account" after the await would attribute this file to whichever
+      // account the user happened to connect while the bytes were in flight.
+      final startedWith = provider.liveAccountKey;
+      if (startedWith == null) return;
+
       final remoteId = await provider.upload(
         file: file,
         fileName: p.posix.basename(object.relativePath),
         mimeType: object.mimeType,
-        accountFolder: object.ownerUid, // per-account isolation
+        accountFolder: object.ownerUid, // per-ZIVO-account isolation
         replaceRemoteId: object.remoteId,
+        replaceInAccountKey: object.remoteAccountKey,
       );
       if (remoteId == null) return;
+      if (provider.liveAccountKey != startedWith) return; // switched mid-flight
 
       // Patch ONLY the backup fields onto the freshest record: the user may
       // have edited/re-captured while the upload ran. If those newer bytes
@@ -466,11 +543,19 @@ class MediaService {
           latest == null || latest.contentHash == object.contentHash;
       if (pushedBytesAreCurrent) {
         await registry.put(
-          target.copyWith(remoteBackup: BackupState.done, remoteId: remoteId),
+          target.copyWith(
+            remoteBackup: BackupState.done,
+            remoteId: remoteId,
+            remoteAccountKey: startedWith,
+          ),
         );
       } else {
+        // Newer bytes exist locally; leave the push pending, but remember the
+        // location so the next one can update in place instead of duplicating.
         await registry.put(
-          target.copyWith(remoteId: target.remoteId ?? remoteId),
+          target.remoteId == null
+              ? target.copyWith(remoteId: remoteId, remoteAccountKey: startedWith)
+              : target,
         );
       }
     } catch (_) {
@@ -539,11 +624,14 @@ class MediaService {
       // A failed tail is not a reason to refuse the delete.
     }
     var idToDelete = remoteId;
-    if (idToDelete == null && backup?.hasLiveSession == true) {
+    String? idAccountKey;
+    if (backup?.hasLiveSession == true) {
       try {
-        idToDelete = (await registry.get(id))?.remoteId;
+        final record = await registry.get(id);
+        idToDelete ??= record?.remoteId;
+        idAccountKey = record?.remoteAccountKey;
       } catch (_) {
-        idToDelete = null;
+        // Registry unavailable — fall back to whatever the caller passed.
       }
     }
     await store.delete(ref);
@@ -554,9 +642,18 @@ class MediaService {
       // gone — never surface a failure here.
     }
     final provider = backup;
-    if (idToDelete != null && provider != null && provider.hasLiveSession) {
+    // Only the account that holds the file can delete it. When the copy lives
+    // in an account the user has since disconnected, the delete is skipped —
+    // deleting by id against the wrong account would at best fail and at worst
+    // hit an unrelated file there.
+    final deleteIn = idAccountKey ?? provider?.liveAccountKey;
+    if (idToDelete != null &&
+        provider != null &&
+        provider.hasLiveSession &&
+        deleteIn != null &&
+        deleteIn == provider.liveAccountKey) {
       try {
-        await provider.deleteRemote(idToDelete);
+        await provider.deleteRemote(idToDelete, expectedAccountKey: deleteIn);
       } catch (_) {
         // Best-effort: an un-deletable remote copy is harmless (it sits in
         // the account's own folder; re-uploading under the same id replaces
@@ -572,13 +669,20 @@ class MediaService {
     final provider = backup;
     final owner = currentAccountId?.call();
     if (provider == null || owner == null) return false;
-    return await provider.connect(ownerAccountId: owner) != null;
+    final connected = await provider.connect(ownerAccountId: owner) != null;
+    // Whatever this device could and couldn't resolve a moment ago was an
+    // answer about a different account.
+    invalidateResolutionCaches();
+    return connected;
   }
 
   /// Disconnects the backup provider on this device — clears both the in-memory
   /// session and the persisted connection state. Called on sign-out / account
   /// switch, and when a stale cross-account connection is detected.
-  Future<void> disconnectBackup() => backup?.disconnect() ?? Future.value();
+  Future<void> disconnectBackup() async {
+    invalidateResolutionCaches();
+    await backup?.disconnect();
+  }
 
   /// Uploads every not-yet-backed-up photo to the account's namespace.
   /// User-initiated ("Back up now"): may establish/restore the session. Returns
@@ -595,9 +699,13 @@ class MediaService {
     if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
-    final pending = (await registry.pendingBackups())
-        .where((o) => o.remoteBackup != BackupState.done)
-        .toList();
+    // The destination this run is pushing to. Everything below is relative to
+    // it: a photo already backed up to a DIFFERENT cloud account still needs
+    // backing up here, which is what makes connecting a new account re-protect
+    // the existing library instead of reporting "everything is already backed
+    // up" over a destination that holds nothing.
+    final accountKey = provider.liveAccountKey;
+    final pending = await registry.pendingBackups(forAccountKey: accountKey);
     final total = pending.length;
     var done = 0;
     onProgress?.call(done, total);
@@ -608,15 +716,25 @@ class MediaService {
         onProgress?.call(++done, total); // nothing local to upload — still advance
         continue;
       }
+      // Re-check every iteration, not once at the top: a long run can outlive
+      // the account it started against, and half a run's ids attributed to the
+      // wrong account is worse than a run that stops.
+      if (provider.liveAccountKey != accountKey) break;
+
       final remoteId = await provider.upload(
         file: file,
         fileName: p.posix.basename(object.relativePath),
         mimeType: object.mimeType,
-        accountFolder: object.ownerUid, // per-account isolation
+        accountFolder: object.ownerUid, // per-ZIVO-account isolation
         replaceRemoteId: object.remoteId,
+        replaceInAccountKey: object.remoteAccountKey,
       );
       if (remoteId != null) {
-        await registry.put(object.copyWith(remoteBackup: BackupState.done, remoteId: remoteId));
+        await registry.put(object.copyWith(
+          remoteBackup: BackupState.done,
+          remoteId: remoteId,
+          remoteAccountKey: accountKey,
+        ));
         pushed++;
       } else {
         await registry.put(object.copyWith(remoteBackup: BackupState.failed));
@@ -640,11 +758,16 @@ class MediaService {
     if (!await _backupConnectionValidForCurrentAccount()) return 0;
     if (!provider.hasLiveSession && await provider.restoreSession() == null) return 0;
 
-    // Resolve the missing-locally candidates first so progress has a real total.
+    // Resolve the missing-locally candidates first so progress has a real
+    // total — and count only what THIS account can actually serve, so the
+    // progress bar doesn't promise photos that live in an account the user
+    // disconnected.
+    final accountKey = provider.liveAccountKey;
     final all = await registry.getAll();
     final missing = <MediaObject>[];
     for (final object in all) {
       if (object.remoteId == null) continue;
+      if (accountKey != null && !object.isRemoteReachableFrom(accountKey)) continue;
       final local = await store.resolve(object.relativePath);
       if (local != null && await local.exists()) continue;
       missing.add(object);
@@ -655,9 +778,18 @@ class MediaService {
     onProgress?.call(done, total);
     var fetched = 0;
     for (final object in missing) {
-      final bytes = await provider.download(object.remoteId!);
+      final expected = object.remoteAccountKey ?? accountKey;
+      if (expected == null || expected != provider.liveAccountKey) {
+        onProgress?.call(++done, total);
+        continue;
+      }
+      final bytes =
+          await provider.download(object.remoteId!, expectedAccountKey: expected);
       if (bytes != null && bytes.isNotEmpty) {
         await store.writeBytes(object.relativePath, bytes);
+        if (object.remoteAccountKey == null) {
+          await _stampRemoteAccount(object, expected);
+        }
         fetched++;
       }
       onProgress?.call(++done, total);

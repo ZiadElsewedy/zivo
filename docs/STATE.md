@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-04 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-06 · **Active branch:** `core-edits`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,49 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Drive backup is account-aware — a file id now carries the account that minted
+  it** (2026-09-06, on `core-edits`). Production bug: a photo backed up to Drive
+  account #1 became permanently unreachable after the user connected Drive #2 —
+  the Moment, caption and date all survived, the image did not.
+  - **Root cause.** `MediaObject` stored `remoteId` and nothing saying *which*
+    Drive account issued it, while the module's only ownership gate
+    (`_backupConnectionValidForCurrentAccount`) compares **ZIVO uids** — which
+    do not change when the Drive account does. The check passed, and Drive #1's
+    ids went on being issued against Drive #2.
+  - **Why it never healed.** Reads returned `cloudOnly` ("on its way") for bytes
+    that were never coming; `pendingBackups()` filtered out anything marked
+    `done`, so "Back up now" said *"Everything is already backed up"* over an
+    empty Drive #2 folder, leaving the local copy as the only copy; and every
+    retry passed the stale id as `replaceRemoteId`, which 404'd with **no
+    fallback to `files.create`** — a permanently poisoned record.
+  - **The fix stores the pair and makes "backed up" a claim about a
+    destination.** `MediaObject.remoteAccountKey` beside `remoteId` (Firestore
+    `driveAccountKey`, `schemaVersion` **2**); `MediaBackupProvider` gains
+    `liveAccountKey`/`connectedAccountKey()`, a required `expectedAccountKey` on
+    download+deleteRemote and `replaceInAccountKey` on upload — enforced at the
+    **seam**, so no call site can forget and a mid-flight account swap fails
+    loudly; `pendingBackups({forAccountKey})` so connecting a new account
+    re-protects the whole library from local bytes; `files.create` fallback;
+    `restoreSession` refuses an account other than the recorded one; new
+    `MediaAvailability.otherAccount` (no self-retry — it cannot succeed);
+    resolution caches dropped on connect/disconnect/uid change.
+  - **`FirestoreMediaRegistry.put` now files under the signed-in uid or throws**
+    (it routed writes by a caller-supplied owner while every read used the
+    current uid), and the Moments capture screen no longer substitutes a
+    `'local'` placeholder owner when signed out.
+  - **Migration is additive and lazy.** An absent key means *unknown*; unknown is
+    never treated as equal to the connected account, but gets the benefit of the
+    doubt once and is stamped by the first transfer that actually works. No batch
+    job and **no rules change** — the media rule pins only `relativePath` +
+    `schemaVersion`.
+  - **Still open:** a file deleted *inside* Drive still reads `cloudOnly`
+    forever. Separating a hard 404 from a transport error needs the provider to
+    surface the status, which `download`'s `List<int>?` cannot carry.
+  - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
+    drives a fake where **files belong to one account**, so a cross-account read
+    404s naturally instead of by scripting; reverting the fix puts four of its
+    scenarios red. **1160 dart tests green.**
 
 - **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
   largest piece of the l10n push — the feature had **264** hardcoded literals,
@@ -1111,6 +1154,15 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **Drive account switch no longer strands photos.** `remoteId` had no
+  companion account key, so after disconnecting Drive #1 and connecting Drive #2 every
+  old file id was reissued against the wrong account (blank image, `cloudOnly` forever)
+  and `pendingBackups` skipped them as `done` (Drive #2 never got the back catalogue —
+  real loss on reinstall). Added `MediaObject.remoteAccountKey` + `driveAccountKey`
+  (schema 2), moved the account check onto the `MediaBackupProvider` seam, made
+  `pendingBackups` destination-relative, added the `files.create` fallback and the
+  `otherAccount` read state. Additive lazy migration, no rules change. 1160 dart tests
+  green.
 - 2026-09-03 — **Fixed bogus per-exercise strength % (e.g. "+2750%").** Root cause:
   `classify` fell back to a rep-count "score" when a lift's early sessions had no
   logged weight, then divided a later estimated-1RM (kg) by it — mixing scales. Fix

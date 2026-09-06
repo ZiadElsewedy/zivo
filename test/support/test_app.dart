@@ -9,6 +9,8 @@ import 'package:zivo/core/media/media_service.dart';
 import 'package:zivo/core/scope/app_scope.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
+import 'package:zivo/features/auth/domain/auth_state.dart';
+import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/profile/domain/profile_repository.dart';
 import 'package:zivo/features/diet/data/in_memory_diet_repository.dart';
 import 'package:zivo/features/expenses/data/in_memory_expense_repository.dart';
@@ -35,6 +37,17 @@ MediaService testMediaService() {
     preferences: InMemoryMediaPreferencesRepository(),
   );
 }
+
+/// A fake auth already signed in — what every screen behind `AuthGate` sees in
+/// production. Screens that write owner-scoped data (Moments capture, the
+/// profile avatar) need it: signed out, they correctly refuse to save rather
+/// than filing records under an owner no query can match.
+FakeAuthRepository signedInAuth({String uid = 'fake-uid'}) =>
+    FakeAuthRepository(
+      initial: Authenticated(
+        AuthUser(uid: uid, email: 'you@zivo.app', displayName: 'Ziad'),
+      ),
+    );
 
 /// Pass [locale] to install the real localization delegates and render the
 /// page in that language. Left null (the default), the [MaterialApp] carries no

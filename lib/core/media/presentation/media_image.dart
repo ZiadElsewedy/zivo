@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/media_resolution.dart';
@@ -14,9 +15,14 @@ import '../../theme/train_tokens.dart';
 /// means:
 ///
 /// - **onDevice** — the image itself.
-/// - **cloudOnly** — bytes exist in Drive and are being fetched (or briefly
-///   backing off after a failed attempt). A quiet pulsing cloud state, never
-///   an error — the fetch self-heals.
+/// - **cloudOnly** — bytes exist in the connected Drive account and are being
+///   fetched (or briefly backing off after a failed attempt). A quiet pulsing
+///   cloud state, never an error — the fetch self-heals.
+/// - **otherAccount** — backed up, but to a Drive account this device is not
+///   connected to. Rendered as a distinct, static state with NO self-retry:
+///   the pulse would be a lie (nothing is in flight and nothing will arrive),
+///   and the remedy is a user action — reconnect that account, or back up from
+///   a device that still holds the file locally.
 /// - **nowhere** — the photo isn't on this device AND was never backed up
 ///   (typically captured on another device). Rendered as a calm "lives
 ///   elsewhere" tile with NO tappable retry — a retry cannot succeed until
@@ -148,9 +154,20 @@ class _MediaImageState extends State<MediaImage>
                   pulse: _pulse,
                   icon: AppIcons.driveCloud,
                 );
+              case MediaAvailability.otherAccount:
+                // Deliberately no self-retry: this cannot resolve itself.
+                _selfRetry?.cancel();
+                _pulse.stop();
+                return _LivesElsewhere(
+                  message: l(context).mediaOnAnotherBackupAccount,
+                  onRetry: widget.onRetry,
+                );
               case MediaAvailability.nowhere:
                 _pulse.stop();
-                return _LivesElsewhere(onRetry: widget.onRetry);
+                return _LivesElsewhere(
+                  message: l(context).mediaCapturedOnAnotherDevice,
+                  onRetry: widget.onRetry,
+                );
               case MediaAvailability.onDevice:
                 // The file existed at resolution time but evaporated before
                 // this frame (deleted underneath us) — quietly re-resolve.
@@ -195,8 +212,9 @@ class _PulsingSurface extends StatelessWidget {
 /// NOT tappable: nothing this device can do will fetch them until another
 /// device backs them up.
 class _LivesElsewhere extends StatelessWidget {
-  const _LivesElsewhere({this.onRetry});
+  const _LivesElsewhere({required this.message, this.onRetry});
 
+  final String message;
   final VoidCallback? onRetry;
 
   @override
@@ -207,7 +225,7 @@ class _LivesElsewhere extends StatelessWidget {
         Icon(AppIcons.driveCloud, size: 20, color: TrainColors.ink3),
         const SizedBox(height: 6),
         Text(
-          'Captured on another device',
+          message,
           style: AppText.meta.copyWith(color: TrainColors.ink3, fontSize: 10),
           textAlign: TextAlign.center,
         ),

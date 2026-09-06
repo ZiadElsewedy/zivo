@@ -93,6 +93,7 @@ void main() {
           ),
         ),
         moments: moments,
+        auth: signedInAuth(),
       ),
     );
     await tester.tap(find.text('open'));
@@ -125,7 +126,7 @@ void main() {
     final moments = _BlockingMomentRepository(inner);
 
     await tester.pumpWidget(
-      wrapWithScope(const MomentCapturePage(), moments: moments),
+      wrapWithScope(const MomentCapturePage(), moments: moments, auth: signedInAuth()),
     );
     await tester.pump();
 

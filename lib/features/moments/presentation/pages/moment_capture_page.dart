@@ -207,6 +207,23 @@ class _MomentCapturePageState extends State<MomentCapturePage>
     final media = scope.requireMedia;
     final initial = widget.initial;
     final id = initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
+
+    // Every write below is owner-scoped, so without a signed-in account there
+    // is nothing coherent to write. Bailing here rather than substituting a
+    // placeholder owner is deliberate: a capture filed under an owner no query
+    // can match lands its bytes on disk with no registry record, which reads
+    // as a Moment whose photo is permanently unresolvable on every other
+    // device. Fail the save honestly and keep the screen, so nothing is lost.
+    final ownerUid = scope.auth.currentUser?.uid;
+    if (ownerUid == null) {
+      deferWrite(
+        Future<void>.error(
+          StateError('MomentCapturePage: no signed-in account to save under.'),
+        ),
+        failureMessage: 'Couldn\'t save that moment.',
+      );
+      return;
+    }
     // Preserve the original capture time on edit; only stamp `now` when new.
     final takenAt = initial?.takenAt ?? DateTime.now();
 
@@ -221,7 +238,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
         sourcePath: tempPath,
         kind: MediaKind.moment,
         id: id,
-        ownerUid: scope.auth.currentUser?.uid ?? 'local',
+        ownerUid: ownerUid,
         source: _pickedSource,
         capturedAt: takenAt,
       );

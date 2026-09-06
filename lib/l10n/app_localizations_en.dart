@@ -2824,4 +2824,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dateYesterdayLower => 'yesterday';
+
+  @override
+  String get mediaCapturedOnAnotherDevice => 'Captured on another device';
+
+  @override
+  String get mediaOnAnotherBackupAccount => 'In another Drive account';
 }

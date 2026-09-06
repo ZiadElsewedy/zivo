@@ -60,6 +60,7 @@ class MediaObject {
     this.gallery = BackupState.pending,
     this.remoteBackup = BackupState.pending,
     this.remoteId,
+    this.remoteAccountKey,
   });
 
   /// Stable id, also embedded in [relativePath] and referenced by the owning
@@ -100,12 +101,40 @@ class MediaObject {
 
   /// The provider-assigned id of the uploaded file (for update/restore). Null
   /// until a remote backup succeeds.
+  ///
+  /// **Only meaningful paired with [remoteAccountKey].** A provider file id is
+  /// a location inside one cloud account, not a portable identity; the id
+  /// alone cannot tell you whether the account currently connected is the one
+  /// that can resolve it.
   final String? remoteId;
 
+  /// The backup account [remoteId] lives in — the provider's stable account
+  /// key (for Drive, the Google account id; never the email, which is
+  /// renameable and reusable). Null on records written before this field
+  /// existed, which means *unknown*, and unknown is deliberately never treated
+  /// as equal to the connected account: assuming otherwise is what let a photo
+  /// backed up to one Drive account be silently resolved against another.
+  final String? remoteAccountKey;
+
+  /// Whether this record's remote copy is reachable from the account currently
+  /// connected on this device. A legacy record (no [remoteAccountKey]) is
+  /// optimistically treated as reachable — the overwhelmingly common case is
+  /// that the user never switched accounts — and is stamped with the real key
+  /// the first time a transfer confirms it.
+  bool isRemoteReachableFrom(String? connectedAccountKey) {
+    if (remoteId == null || connectedAccountKey == null) return false;
+    return remoteAccountKey == null || remoteAccountKey == connectedAccountKey;
+  }
+
+  /// [clearRemote] drops [remoteId] and [remoteAccountKey] together — the pair
+  /// is meaningless apart, and the `??` fallbacks below otherwise make it
+  /// impossible to un-set a remote reference that has been proven dead.
   MediaObject copyWith({
     BackupState? gallery,
     BackupState? remoteBackup,
     String? remoteId,
+    String? remoteAccountKey,
+    bool clearRemote = false,
   }) {
     return MediaObject(
       id: id,
@@ -121,7 +150,9 @@ class MediaObject {
       height: height,
       gallery: gallery ?? this.gallery,
       remoteBackup: remoteBackup ?? this.remoteBackup,
-      remoteId: remoteId ?? this.remoteId,
+      remoteId: clearRemote ? null : (remoteId ?? this.remoteId),
+      remoteAccountKey:
+          clearRemote ? null : (remoteAccountKey ?? this.remoteAccountKey),
     );
   }
 }

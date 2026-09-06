@@ -46,6 +46,9 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   bool get hasLiveSession => _liveAccount != null;
 
   @override
+  String? get liveAccountKey => _liveAccount?.id;
+
+  @override
   Future<bool> isDeviceConnected() => _store.isConnected();
 
   @override
@@ -53,6 +56,9 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
 
   @override
   Future<String?> connectedOwnerId() => _store.ownerUid();
+
+  @override
+  Future<String?> connectedAccountKey() => _store.accountKey();
 
   Future<void> _ensureInit() async {
     if (_initTried) return;
@@ -76,10 +82,24 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     final authz = await account.authorizationClient.authorizeScopes(_scopes);
     if (authz.accessToken.isEmpty) return null;
     _liveAccount = account;
-    await _store.setConnected(email: account.email, ownerUid: ownerAccountId);
+    await _store.setConnected(
+      email: account.email,
+      ownerUid: ownerAccountId,
+      accountKey: account.id,
+    );
     return BackupAccount(id: account.id, email: account.email);
   }
 
+  /// Resumes the connection this device recorded — and *only* that one.
+  ///
+  /// `attemptLightweightAuthentication` returns whichever Google account the
+  /// platform considers current, which on a device with several signed-in
+  /// Google accounts (or after the user changes theirs) need not be the one
+  /// ZIVO was connected to. Binding to it unchecked would silently repoint
+  /// every stored file id at a Drive that cannot resolve any of them, so a
+  /// mismatch clears the connection instead: the user is asked to connect
+  /// again, deliberately, and the stored ids stay attributed to the account
+  /// that actually holds them.
   @override
   Future<BackupAccount?> restoreSession() async {
     if (_liveAccount != null) {
@@ -89,9 +109,26 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     await _ensureInit();
     final account = await _signIn.attemptLightweightAuthentication();
     if (account == null) return null;
+
+    final expected = await _store.accountKey();
+    if (expected != null && expected != account.id) {
+      await disconnect();
+      return null;
+    }
+
     final authz = await account.authorizationClient.authorizationForScopes(_scopes);
     if (authz == null) return null;
     _liveAccount = account;
+    // A connection recorded before account keys existed is stamped the first
+    // time it successfully restores — the migration costs nothing and needs no
+    // batch job.
+    if (expected == null) {
+      await _store.setConnected(
+        email: account.email,
+        ownerUid: await _store.ownerUid() ?? '',
+        accountKey: account.id,
+      );
+    }
     return BackupAccount(id: account.id, email: account.email);
   }
 
@@ -120,24 +157,51 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
     required String mimeType,
     required String accountFolder,
     String? replaceRemoteId,
+    String? replaceInAccountKey,
   }) async {
     final headers = await _headers();
     if (headers == null) return null;
+    final live = liveAccountKey;
+
+    // Update in place only when the id demonstrably belongs to the account we
+    // are signed into. A key we don't know (a legacy record) is worth trying —
+    // the common case is that it is this account — but a key we know differs
+    // is not, and must go straight to create.
+    final canReplace = replaceRemoteId != null &&
+        (replaceInAccountKey == null || replaceInAccountKey == live);
 
     final client = _BearerClient(headers);
     try {
       final api = drive.DriveApi(client);
-      final media = drive.Media(file.openRead(), await file.length(), contentType: mimeType);
 
-      if (replaceRemoteId != null) {
-        final updated = await api.files.update(drive.File(), replaceRemoteId, uploadMedia: media);
-        return updated.id;
+      if (canReplace) {
+        try {
+          final updated = await api.files.update(
+            drive.File(),
+            replaceRemoteId,
+            uploadMedia: drive.Media(
+              file.openRead(),
+              await file.length(),
+              contentType: mimeType,
+            ),
+          );
+          return updated.id;
+        } catch (_) {
+          // The file is gone, or belongs to an account this session can't
+          // touch. Falling through to a create is what keeps a stale id from
+          // poisoning a record forever: without it, every retry reissues the
+          // same doomed update and the photo can never be backed up again.
+        }
       }
 
       final folderId = await _ensureAccountFolder(api, accountFolder);
       final created = await api.files.create(
         drive.File(name: fileName, parents: folderId == null ? null : <String>[folderId]),
-        uploadMedia: media,
+        uploadMedia: drive.Media(
+          file.openRead(),
+          await file.length(),
+          contentType: mimeType,
+        ),
       );
       return created.id;
     } catch (_) {
@@ -148,7 +212,8 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   }
 
   @override
-  Future<List<int>?> download(String fileId) async {
+  Future<List<int>?> download(String fileId, {required String expectedAccountKey}) async {
+    if (liveAccountKey != expectedAccountKey) return null;
     final headers = await _headers();
     if (headers == null) return null;
 
@@ -172,7 +237,8 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   }
 
   @override
-  Future<bool> deleteRemote(String fileId) async {
+  Future<bool> deleteRemote(String fileId, {required String expectedAccountKey}) async {
+    if (liveAccountKey != expectedAccountKey) return false;
     final headers = await _headers();
     if (headers == null) return false;
 

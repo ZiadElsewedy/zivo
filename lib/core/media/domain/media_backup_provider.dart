@@ -24,8 +24,19 @@ class BackupAccount {
 /// separate from account-level (Firestore) preferences, so a device that never
 /// connected is never nagged to authenticate.
 ///
-/// Isolation: uploads go into a per-account namespace ([accountFolder]) so two
-/// ZIVO accounts sharing one cloud account never mix.
+/// Isolation runs on two independent axes, and both are enforced here:
+///
+/// - **ZIVO account → cloud account.** Uploads go into a per-account namespace
+///   ([accountFolder]) so two ZIVO accounts sharing one cloud account never
+///   mix, and [connectedOwnerId] lets the service reject a connection made by
+///   a different ZIVO account.
+/// - **Remote reference → cloud account.** A provider file id is a location
+///   inside ONE cloud account, so every method that dereferences one takes the
+///   account key it was minted in and refuses when the live session belongs to
+///   a different account. Putting that check at the seam rather than at each
+///   call site is deliberate: a caller cannot forget it, and a cloud account
+///   swapped mid-flight fails loudly instead of writing a reference nothing
+///   can resolve later.
 abstract interface class MediaBackupProvider {
   /// Interactive connect on this device: authenticates + authorizes and
   /// persists the connection, tagged with the [ownerAccountId] (the ZIVO
@@ -39,6 +50,20 @@ abstract interface class MediaBackupProvider {
   /// Whether an authorized session is live in memory right now — a pure,
   /// synchronous check that never touches the provider SDK.
   bool get hasLiveSession;
+
+  /// The stable account key of the live session, or null when none is live.
+  /// Synchronous and side-effect free, so it is safe to capture at the start
+  /// of an async operation and re-check at its end.
+  ///
+  /// "Stable" excludes the email: providers let users rename and reuse those.
+  /// Google Drive uses the Google account id.
+  String? get liveAccountKey;
+
+  /// The stable account key persisted for this device's connection, or null.
+  /// Available without a live session (it is local state), which is what lets
+  /// a passive read decide whether a stored reference is reachable *here*
+  /// without triggering any authentication.
+  Future<String?> connectedAccountKey();
 
   /// Whether this device was previously connected (persisted). For status UI.
   Future<bool> isDeviceConnected();
@@ -54,24 +79,40 @@ abstract interface class MediaBackupProvider {
   /// user-initiated actions (Back up now / Sync).
   Future<BackupAccount?> restoreSession();
 
-  /// Uploads [file] into the account's namespace ([accountFolder]). When
-  /// [replaceRemoteId] is given, updates that remote file in place. Returns the
-  /// remote id, or null on failure.
+  /// Uploads [file] into the account's namespace ([accountFolder]). Returns
+  /// the remote id, or null on failure.
+  ///
+  /// [replaceRemoteId] is an *optimisation*, never a requirement: when the id
+  /// is given and [replaceInAccountKey] matches the live session's account,
+  /// the file is updated in place (no duplicate next to an orphan). When the
+  /// key differs, or the update fails because the file is gone, the upload
+  /// falls back to creating a new file — an id from another account must never
+  /// turn a re-upload into a permanent failure.
   Future<String?> upload({
     required File file,
     required String fileName,
     required String mimeType,
     required String accountFolder,
     String? replaceRemoteId,
+    String? replaceInAccountKey,
   });
 
   /// Downloads a backed-up file's bytes by its remote id. Requires a live
   /// session (caller ensures it). Returns null on failure.
-  Future<List<int>?> download(String remoteId);
+  ///
+  /// [expectedAccountKey] is the account [remoteId] was minted in; the call is
+  /// refused without touching the network when the live session belongs to a
+  /// different account, so a stale reference can never be silently resolved
+  /// against whichever account happens to be connected now.
+  Future<List<int>?> download(String remoteId, {required String expectedAccountKey});
 
   /// Deletes the remote copy for [remoteId] (best-effort). Requires a live
   /// session (caller ensures it). Returns whether the deletion succeeded —
   /// a null/failed result leaves the remote copy in place (safe to retry via
   /// another backup/delete cycle), never corrupting anything local.
-  Future<bool> deleteRemote(String remoteId);
+  ///
+  /// [expectedAccountKey] guards the same way it does for [download]: deleting
+  /// by an id minted elsewhere would at best fail and at worst hit an
+  /// unrelated file in the connected account.
+  Future<bool> deleteRemote(String remoteId, {required String expectedAccountKey});
 }

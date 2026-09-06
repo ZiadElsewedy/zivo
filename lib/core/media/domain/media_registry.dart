@@ -19,9 +19,17 @@ abstract interface class MediaRegistry {
   /// gallery joins these onto moments for metadata display and filtering.
   Future<List<MediaObject>> getAll();
 
-  /// All entries for the current account whose backup to some target is still
-  /// pending/failed — the work list the "Back up now" / auto-backup flows walk.
-  Future<List<MediaObject>> pendingBackups();
+  /// The work list the "Back up now" / auto-backup flows walk: every entry for
+  /// the current account whose backup to some target is still outstanding.
+  ///
+  /// "Backed up" is a claim about a *destination*, not a property of a photo,
+  /// so [forAccountKey] — the cloud account connected right now — is part of
+  /// the question. A record already uploaded to a different cloud account is
+  /// still outstanding *here*, and returning it is what lets connecting a new
+  /// account re-protect the whole library from the local bytes. A null
+  /// [forAccountKey] (nothing connected) falls back to the destination-agnostic
+  /// answer, since there is no account to compare against.
+  Future<List<MediaObject>> pendingBackups({String? forAccountKey});
 
   /// Removes the entry for [id] (call after deleting the underlying file).
   Future<void> remove(String id);

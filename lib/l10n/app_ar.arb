@@ -792,5 +792,7 @@
   "dietSourceDictated": "مُملاة",
   "dietSourceGenerated": "بناها ZIVO",
   "dateTodayLower": "اليوم",
-  "dateYesterdayLower": "أمس"
+  "dateYesterdayLower": "أمس",
+  "mediaCapturedOnAnotherDevice": "التُقطت على جهاز آخر",
+  "mediaOnAnotherBackupAccount": "في حساب Drive آخر"
 }
