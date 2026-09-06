@@ -12,7 +12,7 @@ import '../../domain/workout_day.dart';
 import '../../domain/workout_import_input.dart';
 import '../../domain/workout_import_outcome.dart';
 import '../../domain/workout_plan.dart';
-import '../../domain/workout_plan_format.dart';
+import '../workout_labels.dart';
 import '../../domain/workout_plan_from_import.dart';
 import '../../domain/workout_plan_source.dart';
 import 'workout_plan_edit_page.dart';
@@ -546,7 +546,7 @@ class _PreviewDayCard extends StatelessWidget {
                 ),
               ),
               Text(
-                workoutDayMeta(day),
+                workoutDayMetaText(context, day),
                 style: TrainType.mono(
                   size: 10.5,
                   tracking: 0.06,
@@ -585,7 +585,7 @@ class _PreviewDayCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      collapsedSetSummaries(exercise.sets).join(' · '),
+                      collapsedSetSummaryTexts(context, exercise.sets).join(' · '),
                       style: TrainType.mono(
                         size: 12,
                         tracking: 0.06,

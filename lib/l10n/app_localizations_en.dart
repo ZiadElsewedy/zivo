@@ -314,6 +314,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hubNoMomentsYet => 'No moments yet';
 
   @override
+  String get pulseWeekOverWeek => 'WoW';
+
+  @override
   String get hubTitle => 'Hub';
 
   @override
@@ -1784,6 +1787,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutSetDropsetShort => 'D';
+
+  @override
+  String workoutRepsSpec(String reps) {
+    return '$reps reps';
+  }
 
   @override
   String workoutSetCount(num count) {

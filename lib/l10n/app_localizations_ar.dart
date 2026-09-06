@@ -313,6 +313,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get hubNoMomentsYet => 'لا توجد لحظات بعد';
 
   @override
+  String get pulseWeekOverWeek => 'أسبوعيًا';
+
+  @override
   String get hubTitle => 'الأقسام';
 
   @override
@@ -1799,6 +1802,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutSetDropsetShort => 'D';
+
+  @override
+  String workoutRepsSpec(String reps) {
+    return '$reps تكرار';
+  }
 
   @override
   String workoutSetCount(num count) {

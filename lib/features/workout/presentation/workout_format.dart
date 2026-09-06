@@ -14,6 +14,13 @@ import '../../../l10n/l10n.dart';
 String trimWeight(double v) =>
     v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1);
 
+/// "60kg" / "22.5kg" — a weight as it is written inside a spec line.
+///
+/// The unit rides with the number rather than coming from the `.arb`: `kg` is
+/// a symbol here, not a word, and it stays latin in both languages — the same
+/// call `workoutSetFailureShort` makes for its "F".
+String weightText(double kg) => '${trimWeight(kg)}kg';
+
 /// "52m" under an hour, "1h 12m" past one.
 ///
 /// This lived on `workout_dashboard_page.dart` and was *also* copied verbatim

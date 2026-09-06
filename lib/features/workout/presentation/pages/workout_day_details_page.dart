@@ -6,7 +6,9 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../domain/planned_exercise.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
-import '../../domain/workout_plan_format.dart';
+import '../../../../core/util/bidi.dart';
+import '../../../../l10n/l10n.dart';
+import '../workout_labels.dart';
 
 /// What "today's workout" actually is: one focused page for a single
 /// [WorkoutDay] of [plan] — every exercise with its collapsed set summary,
@@ -41,8 +43,20 @@ class WorkoutDayDetailsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${plan.name.toUpperCase()} · '
-                  '${workoutDayMeta(day).toUpperCase()}',
+                  // One key, not two upper-cased fragments joined by a literal
+                  // separator: in Arabic the separator is neutral, so a
+                  // hand-assembled "A · B" is free to come out as "B · A".
+                  l(context)
+                      .workoutPlanDayMeta(
+                        // The plan's name is the user's own text and can be in
+                        // either script, so it is isolated by first-strong
+                        // rather than pinned: without that the Arabic caption
+                        // broke apart around it and left the exercise count
+                        // stranded at the opposite end of the line.
+                        isolate(plan.name),
+                        workoutDayMetaText(context, day),
+                      )
+                      .toUpperCase(),
                   maxLines: 2,
                   style: TrainType.mono(
                     size: 11.5,
@@ -92,7 +106,7 @@ class _PlannedExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sets = [...exercise.sets]..sort((a, b) => a.order.compareTo(b.order));
-    final setLines = collapsedSetSummaries(sets);
+    final setLines = collapsedSetSummaryTexts(context, sets);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 15),
       decoration: BoxDecoration(
@@ -118,7 +132,7 @@ class _PlannedExerciseCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                plannedExerciseMeta(exercise).toUpperCase(),
+                plannedExerciseMetaText(context, exercise).toUpperCase(),
                 style: TrainType.mono(
                   size: 9.5,
                   tracking: 0.08,

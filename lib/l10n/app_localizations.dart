@@ -674,6 +674,12 @@ abstract class AppLocalizations {
   /// **'No moments yet'**
   String get hubNoMomentsYet;
 
+  /// Today's Volume ring: the change is week-over-week. Short by design — it sits under a figure in a small ring.
+  ///
+  /// In en, this message translates to:
+  /// **'WoW'**
+  String get pulseWeekOverWeek;
+
   /// The Hub tab's display title.
   ///
   /// In en, this message translates to:
@@ -3181,6 +3187,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'D'**
   String get workoutSetDropsetShort;
+
+  /// A planned set described by its rep target, which may be a range ("8–10 reps") rather than a single number.
+  ///
+  /// In en, this message translates to:
+  /// **'{reps} reps'**
+  String workoutRepsSpec(String reps);
 
   /// How many sets a planned exercise has, e.g. "3 sets".
   ///

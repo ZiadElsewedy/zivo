@@ -426,6 +426,10 @@
   "@hubNoMomentsYet": {
     "description": "Hub tile subtitle when no moments exist."
   },
+  "pulseWeekOverWeek": "WoW",
+  "@pulseWeekOverWeek": {
+    "description": "Today's Volume ring: the change is week-over-week. Short by design — it sits under a figure in a small ring."
+  },
   "hubTitle": "Hub",
   "@hubTitle": {
     "description": "The Hub tab's display title."
@@ -2545,6 +2549,15 @@
   "workoutSetDropsetShort": "D",
   "@workoutSetDropsetShort": {
       "description": "One-letter marker on a drop set. Kept latin in both languages, as a symbol."
+  },
+  "workoutRepsSpec": "{reps} reps",
+  "@workoutRepsSpec": {
+      "description": "A planned set described by its rep target, which may be a range (\"8–10 reps\") rather than a single number.",
+      "placeholders": {
+          "reps": {
+              "type": "String"
+          }
+      }
   },
   "workoutSetCount": "{count, plural, =1{1 set} other{{count} sets}}",
   "@workoutSetCount": {

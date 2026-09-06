@@ -24,8 +24,13 @@
 /// alone; it is the numeric skeleton around it that needs pinning.
 library;
 
+import 'package:flutter/widgets.dart';
+
 /// U+2066 LEFT-TO-RIGHT ISOLATE.
 const String _lri = '\u2066';
+
+/// U+2068 FIRST STRONG ISOLATE.
+const String _fsi = '\u2068';
 
 /// U+2069 POP DIRECTIONAL ISOLATE.
 const String _pdi = '\u2069';
@@ -36,11 +41,45 @@ const String _pdi = '\u2069';
 /// may be blank without planting stray control characters in the layout.
 String ltr(String text) => text.isEmpty ? text : '$_lri$text$_pdi';
 
+/// [text] isolated from the sentence around it, with its direction decided by
+/// its own first strong character (`U+2068 FIRST STRONG ISOLATE`).
+///
+/// This is the one to use for **text you did not write** — a plan name, an
+/// exercise name, a track title, anything typed by the user or imported from
+/// their PDF. [ltr] would be a guess: a plan called "Push · Pull" is
+/// left-to-right, one called "دفع · سحب" is not, and forcing either is wrong
+/// half the time. FSI asks the string. What it guarantees either way is the
+/// part that matters — that the name is one indivisible object inside the
+/// sentence, so an Arabic caption reading "{plan} · {n} exercises" cannot come
+/// apart with the count stranded at the far end of the line.
+///
+/// Applied unconditionally, unlike [ltrFor]: a name of unknown direction is
+/// just as capable of fragmenting an *English* sentence as an Arabic one.
+String isolate(String text) => text.isEmpty ? text : '$_fsi$text$_pdi';
+
+/// [text], pinned left-to-right **only where that actually does something** —
+/// that is, when the paragraph around [context] runs right-to-left.
+///
+/// Inside an LTR paragraph an LTR isolate changes nothing on screen: the run
+/// was already going to be laid out left-to-right. What it does change is the
+/// *string*, and invisibly — the isolate characters survive `==`,
+/// `contains` and `find.textContaining`, so an unconditional wrap silently
+/// splits `rest 3:00` into `rest <LRI>3:00<PDI>` for every English caller and every
+/// English test that ever reads one of these lines back. Gating on direction
+/// keeps English byte-for-byte what it was and confines the control
+/// characters to the language that needs them.
+///
+/// Prefer this over [ltr] anywhere a [BuildContext] is in hand.
+String ltrFor(BuildContext context, String text) =>
+    Directionality.of(context) == TextDirection.rtl ? ltr(text) : text;
+
 /// [text] with any directional isolates stripped back out.
 ///
 /// The isolate characters are invisible but they are still characters: they
 /// survive `length`, `contains`, `==` and, most importantly, a `find.text` in
 /// a widget test. Anything that compares a rendered string against a plain one
 /// should compare against this.
-String stripBidi(String text) =>
-    text.replaceAll(_lri, '').replaceAll(_pdi, '');
+String stripBidi(String text) => text
+    .replaceAll(_lri, '')
+    .replaceAll(_fsi, '')
+    .replaceAll(_pdi, '');
