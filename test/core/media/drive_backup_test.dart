@@ -139,12 +139,15 @@ void main() {
   String src(String name) =>
       (File('${srcDir.path}/$name')..writeAsBytesSync([1, 2, 3])).path;
 
+  /// [uid] is the record's OWNER (which becomes the Drive folder); the bytes
+  /// are always imported under `u1` by these tests, so the path is scoped to
+  /// that regardless — the two are deliberately different in the folder test.
   MediaObject makeObject({String id = 'm1', String? remoteId, String uid = 'u1'}) =>
       MediaObject(
         id: id,
         ownerUid: uid,
         kind: MediaKind.moment,
-        relativePath: 'media/moments/$id.jpg',
+        relativePath: 'media/u1/moments/$id.jpg',
         mimeType: 'image/jpeg',
         byteSize: 3,
         contentHash: 'h',
@@ -201,7 +204,7 @@ void main() {
 
   group('backupNow (manual)', () {
     test('uploads pending media to the per-account folder and records the id', () async {
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject(uid: 'acct-9'));
       final client = _FakeDriveClient(deviceConnected: true, liveSession: true, uploadId: 'drive-xyz', ownerId: 'u1');
@@ -217,7 +220,7 @@ void main() {
     });
 
     test('does nothing when Drive is not connected on this device', () async {
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject());
       final client = _FakeDriveClient(deviceConnected: false, liveSession: false);
@@ -228,7 +231,7 @@ void main() {
     });
 
     test('restores the session first when connected but not live (Back up now)', () async {
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
       final registry = InMemoryMediaRegistry();
       await registry.put(makeObject());
       final client = _FakeDriveClient(
@@ -246,10 +249,10 @@ void main() {
   });
 
   group('resolveOrFetch never prompts', () {
-    const ref = 'media/moments/m1.jpg';
+    const ref = 'media/u1/moments/m1.jpg';
 
     test('returns the local file without downloading when it exists', () async {
-      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1');
+      await store.importFile(sourcePath: src('m.jpg'), kind: MediaKind.moment, id: 'm1', owner: 'u1');
       final client = _FakeDriveClient(deviceConnected: true, liveSession: true);
       final file = await buildService(client, InMemoryMediaRegistry()).resolveOrFetch(ref);
       expect(file!.existsSync(), isTrue);
@@ -294,7 +297,7 @@ void main() {
       final fetched = await service.syncFromBackup();
       expect(fetched, 1);
       expect(client.downloaded, ['d1']);
-      expect((await store.resolve('media/moments/m1.jpg'))!.existsSync(), isTrue);
+      expect((await store.resolve('media/u1/moments/m1.jpg'))!.existsSync(), isTrue);
     });
 
     test('does nothing when Drive is not connected', () async {

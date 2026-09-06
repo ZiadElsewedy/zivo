@@ -151,7 +151,12 @@ class MediaService {
     // The ONLY thing on the caller's path: the durable local copy. Once this
     // returns, the photo is safe on disk and the ref is real — which is all
     // the capture screen needs to write its entity and pop.
-    final stored = await store.importFile(sourcePath: sourcePath, kind: kind, id: id);
+    final stored = await store.importFile(
+      sourcePath: sourcePath,
+      kind: kind,
+      id: id,
+      owner: ownerUid,
+    );
     _scheduleCaptureTail(
       id: id,
       ownerUid: ownerUid,

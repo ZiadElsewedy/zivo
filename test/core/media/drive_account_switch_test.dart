@@ -164,7 +164,13 @@ void main() {
   late _MultiAccountDrive drive;
   late MediaService service;
 
-  const ref = 'media/moments/m1.jpg';
+  /// What a capture writes today — bytes scoped to the account that took them.
+  const ref = 'media/u1/moments/m1.jpg';
+
+  /// The unscoped layout written before the owner segment existed. Refs are
+  /// opaque and self-describing, so records holding one must keep resolving
+  /// exactly as they always did; the legacy group below uses it to prove that.
+  const legacyRef = 'media/moments/m1.jpg';
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('zivo_switch_root');
@@ -222,7 +228,7 @@ void main() {
         id: 'm1',
         ownerUid: 'u1',
         kind: MediaKind.moment,
-        relativePath: ref,
+        relativePath: legacyRef,
         mimeType: 'image/jpeg',
         byteSize: 3,
         contentHash: 'h',
@@ -239,9 +245,11 @@ void main() {
       drive.files['drive-1'] = {'legacy-1': [7, 8, 9]};
       await seedLegacyRecord('legacy-1');
 
-      final resolution = await service.resolveWithStatus(ref);
+      final resolution = await service.resolveWithStatus(legacyRef);
       expect(resolution.availability, MediaAvailability.onDevice);
       expect(resolution.file!.readAsBytesSync(), [7, 8, 9]);
+      expect(resolution.file!.path, endsWith('media/moments/m1.jpg'),
+          reason: 'an unscoped ref still resolves where it was written');
 
       // Backfilled on the strength of a transfer that actually worked — no
       // batch job, and no guess.
@@ -254,7 +262,7 @@ void main() {
       await service.connectBackup(); // drive-1 holds nothing for this id
       await seedLegacyRecord('legacy-1');
 
-      final resolution = await service.resolveWithStatus(ref);
+      final resolution = await service.resolveWithStatus(legacyRef);
       expect(resolution.hasBytes, isFalse);
       expect((await registry.get('m1'))!.remoteAccountKey, isNull,
           reason: 'a failed fetch proves nothing about where the file lives');
@@ -353,7 +361,7 @@ void main() {
         id: 'm1',
         ownerUid: 'u1',
         kind: MediaKind.moment,
-        relativePath: ref,
+        relativePath: legacyRef,
         mimeType: 'image/jpeg',
         byteSize: 3,
         contentHash: 'h',
@@ -371,7 +379,7 @@ void main() {
       drive.platformAccountKey = 'drive-2';
       await service.connectBackup();
 
-      final resolution = await service.resolveWithStatus(ref);
+      final resolution = await service.resolveWithStatus(legacyRef);
       expect(resolution.availability, MediaAvailability.otherAccount);
 
       // The pointer survived the 404 — this is the whole point.
@@ -382,7 +390,7 @@ void main() {
 
       // Reconnecting drive-1 brings the photo back.
       await switchDriveTo('drive-1');
-      final recovered = await service.resolveWithStatus(ref);
+      final recovered = await service.resolveWithStatus(legacyRef);
       expect(recovered.availability, MediaAvailability.onDevice);
       expect(recovered.file!.readAsBytesSync(), [4, 5, 6]);
     });

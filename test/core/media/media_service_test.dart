@@ -89,7 +89,7 @@ void main() {
         ownerUid: 'u1',
       );
 
-      expect(ref, 'media/moments/m1.jpg');
+      expect(ref, 'media/u1/moments/m1.jpg');
       // `capture` returns at the durable LOCAL copy and registers on a
       // background tail (see its doc) — the registry assertions below are
       // about that tail, so wait for it.
@@ -137,7 +137,7 @@ void main() {
         ownerUid: 'u1',
       );
 
-      expect(ref, 'media/moments/m1.jpg');
+      expect(ref, 'media/u1/moments/m1.jpg');
       expect((await storeImpl.resolve(ref))!.existsSync(), isTrue);
     });
 

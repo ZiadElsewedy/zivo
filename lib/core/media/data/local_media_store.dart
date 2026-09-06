@@ -10,9 +10,17 @@ import '../domain/media_kind.dart';
 import '../domain/media_store.dart';
 
 /// [MediaStore] backed by the app's own documents directory. Files live under
-/// `<documents>/media/{kind}/{id}.{ext}` and are addressed by a *relative*
-/// path (`media/{kind}/{id}.{ext}`) so they survive the container-path changes
-/// that break stored absolute paths on iOS.
+/// `<documents>/media/{owner}/{kind}/{id}.{ext}` and are addressed by a
+/// *relative* path so they survive the container-path changes that break stored
+/// absolute paths on iOS.
+///
+/// Reads are layout-agnostic: [resolve] joins whatever ref it is given, so the
+/// unscoped `media/{kind}/{id}.{ext}` written before the owner segment existed
+/// still resolves. Only new imports get the scoped layout — no file is moved
+/// and no stored ref is rewritten, because a ref lives in a Firestore document
+/// (`Moment.imagePath`, `UserProfile.photoPath`) and a migration that missed
+/// one would turn a photo into exactly the unresolvable record this module has
+/// spent its recent history eliminating.
 ///
 /// The documents directory is discovered once and cached; a test can bypass
 /// `path_provider` (which needs a platform channel) by injecting [rootOverride].
@@ -34,10 +42,12 @@ class LocalMediaStore implements MediaStore {
     required String sourcePath,
     required MediaKind kind,
     required String id,
+    required String owner,
   }) async {
     final root = await _rootDir();
     final ext = _extensionOf(sourcePath);
-    final relativePath = p.join(_mediaDir, kind.folder, '$id.$ext');
+    final relativePath =
+        p.join(_mediaDir, _ownerSegment(owner), kind.folder, '$id.$ext');
     final dest = File(p.join(root.path, relativePath));
     await dest.parent.create(recursive: true);
 
@@ -104,6 +114,21 @@ class LocalMediaStore implements MediaStore {
       // Best-effort; a stray file on disk is harmless.
     }
   }
+
+  /// Turns an owner uid into one safe path segment.
+  ///
+  /// A Firebase uid is already alphanumeric, but this value reaches the
+  /// filesystem, so it is treated as untrusted: anything outside a
+  /// conservative set is dropped, which also neutralises `.`, `..` and
+  /// separators. An owner that sanitises to nothing falls back to a shared
+  /// segment rather than writing to the media root, so the layout stays
+  /// predictable.
+  static String _ownerSegment(String owner) {
+    final cleaned = owner.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
+    return cleaned.isEmpty ? _unknownOwner : cleaned;
+  }
+
+  static const String _unknownOwner = '_shared';
 
   String _extensionOf(String path) {
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();

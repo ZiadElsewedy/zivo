@@ -135,11 +135,21 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     plus both routes out (Back up now for the ones still on this device,
     reconnect for the rest). The status banner no longer counts a copy in an
     unreachable account as "backed up", because to this account it isn't.
+  - **Local bytes are scoped to the account that captured them.** The store
+    wrote every file to a flat `media/{kind}/{id}.{ext}`, shared by every ZIVO
+    account used on the device — the id was the only thing preventing a
+    collision, and an account's media could not be identified on disk. New
+    imports go to `media/{owner}/{kind}/{id}.{ext}` (the owner sanitised to one
+    safe path segment). **Nothing is migrated:** a ref is opaque and
+    self-describing, so unscoped paths already in `Moment.imagePath` /
+    `UserProfile.photoPath` resolve exactly as before. Rewriting them would mean
+    touching every Firestore doc holding one, and a single miss recreates the
+    unresolvable-photo bug this whole arc exists to remove.
   - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
     drives a fake where **files belong to one account**, so a cross-account read
     404s naturally instead of by scripting; reverting the fix puts four of its
     scenarios red, and [`media_availability_ui_test.dart`](../test/core/media/media_availability_ui_test.dart)
-    pins the read-side states. **1172 dart + 137 rules tests green.**
+    pins the read-side states. **1176 dart + 137 rules tests green.**
 
 - **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
   largest piece of the l10n push — the feature had **264** hardcoded literals,
@@ -1179,6 +1189,12 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **Media bytes are scoped by owner on disk.** `LocalMediaStore` wrote to a
+  flat `media/{kind}/{id}.{ext}` shared across every account on the device. New imports
+  use `media/{owner}/{kind}/{id}.{ext}`, with the owner sanitised to one safe path
+  segment (a hostile value cannot escape the store, an empty one gets `_shared`). Reads
+  are layout-agnostic, so the unscoped refs already sitting in Firestore keep resolving —
+  no file is moved and no stored ref is rewritten, deliberately. 1176 dart tests green.
 - 2026-09-06 — **Deleted photos no longer strand a Drive copy; Storage & Sync explains an
   account switch.** `deleteMedia` read the remote id only when a session was live, so
   deleting while the holding account was disconnected discarded the only pointer and left
