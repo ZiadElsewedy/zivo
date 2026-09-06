@@ -1106,6 +1106,30 @@ abstract class AppLocalizations {
   /// **'Change workout'**
   String get workoutChangeWorkout;
 
+  /// Day-picker mode: the picked day trades places with the day that was due, so nothing leaves the cycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap'**
+  String get workoutChangeSwap;
+
+  /// Day-picker mode: train the picked day and let the day that was due drop out of this cycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get workoutChangeSkip;
+
+  /// Explains the Swap mode, naming the day that was due.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} takes the slot you pick — the cycle stays whole.'**
+  String workoutChangeSwapNote(String day);
+
+  /// Explains the Skip mode, naming the day that was due.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} is skipped this cycle.'**
+  String workoutChangeSkipNote(String day);
+
   /// A rotation day: its slot and its name.
   ///
   /// In en, this message translates to:

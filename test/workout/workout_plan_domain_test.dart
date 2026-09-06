@@ -391,6 +391,98 @@ void main() {
     });
   });
 
+  group('WorkoutPlan.swapDays', () {
+    test('trades the two days\' rotation positions and leaves the cursor alone', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      final swapped = plan.swapDays('legs', 'arms');
+
+      // The cursor is an `order`, so it now resolves to the day that MOVED
+      // into position 0 — Arms is what gets trained today.
+      expect(swapped.cycleCursor, 0);
+      expect(swapped.nextDay?.id, 'arms');
+      expect(swapped.days.firstWhere((d) => d.id == 'arms').order, 0);
+      expect(swapped.days.firstWhere((d) => d.id == 'legs').order, 1);
+      expect(swapped.days.firstWhere((d) => d.id == 'chest').order, 2);
+    });
+
+    test('the displaced day comes up next, so no day loses its turn', () {
+      // The whole point: Legs was due, Arms is trained instead, and finishing
+      // Arms must put Legs back in front — not skip it the way a bare
+      // advanceToAfterDay would.
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      final afterArms = plan.swapDays('legs', 'arms').advanceToAfterDay('arms');
+      expect(afterArms.nextDay?.id, 'legs');
+
+      final afterLegs = afterArms.advanceToAfterDay('legs');
+      expect(afterLegs.nextDay?.id, 'chest');
+
+      // ...and without the swap, Legs is what gets dropped.
+      expect(plan.advanceToAfterDay('arms').nextDay?.id, 'chest');
+    });
+
+    test('keeps each day\'s slot letter — slot is identity, order is position', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final plan = _plan(days: [legs, arms], cycleCursor: 0);
+
+      final swapped = plan.swapDays('legs', 'arms');
+
+      expect(swapped.days.firstWhere((d) => d.id == 'arms').slot, 'B');
+      expect(swapped.days.firstWhere((d) => d.id == 'legs').slot, 'A');
+    });
+
+    test('swapping a day with a non-cursor day still keeps every day in the cycle', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      var next = plan.swapDays('legs', 'chest');
+      expect(next.nextDay?.id, 'chest');
+
+      final trained = <String>[];
+      for (var i = 0; i < 3; i++) {
+        final day = next.nextDay!;
+        trained.add(day.id);
+        next = next.advanceToAfterDay(day.id);
+      }
+
+      expect(trained, ['chest', 'arms', 'legs']);
+    });
+
+    test('the same id twice, or an unknown id, is a no-op', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 0);
+
+      expect(identical(plan.swapDays('a', 'a'), plan), isTrue);
+      expect(identical(plan.swapDays('a', 'gone'), plan), isTrue);
+      expect(identical(plan.swapDays('gone', 'a'), plan), isTrue);
+    });
+
+    test('is pure and preserves other fields', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 0);
+
+      final swapped = plan.swapDays('a', 'b');
+
+      expect(plan.days.first.order, 0); // untouched
+      expect(swapped.id, plan.id);
+      expect(swapped.name, plan.name);
+      expect(swapped.status, plan.status);
+      expect(swapped.createdAt, plan.createdAt);
+    });
+  });
+
   group('WorkoutPlan.copyWith', () {
     test('overrides only the given fields', () {
       final dayA = _day(id: 'a', slot: 'A', order: 0);

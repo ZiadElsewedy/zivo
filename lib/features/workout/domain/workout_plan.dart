@@ -65,6 +65,45 @@ class WorkoutPlan {
     return copyWith(cycleCursor: sorted[(index + 1) % sorted.length].order);
   }
 
+  /// A copy with [aId] and [bId] trading places in the rotation — each takes
+  /// the other's `order`. The cursor is deliberately **not** moved: it stores
+  /// an `order`, so it keeps pointing at the same POSITION in the cycle, which
+  /// now holds the other day.
+  ///
+  /// This is the "train something else today without losing what was due"
+  /// rule. Starting an out-of-rotation day on its own drops the due day from
+  /// the cycle, because [advanceToAfterDay] moves the recommendation PAST what
+  /// was trained; swapping the two first means every day still comes up
+  /// exactly once, so a week meant to cover the whole body still does.
+  ///
+  /// `slot` stays with its day — it is the day's identity ("Day B is Arms"),
+  /// not its position, which is why reordering in the editor doesn't reassign
+  /// it either. Returns `this` when the two ids are the same or either one is
+  /// not in [days].
+  WorkoutPlan swapDays(String aId, String bId) {
+    if (aId == bId) return this;
+    WorkoutDay? a;
+    WorkoutDay? b;
+    for (final day in days) {
+      if (day.id == aId) a = day;
+      if (day.id == bId) b = day;
+    }
+    if (a == null || b == null) return this;
+    final aOrder = a.order;
+    final bOrder = b.order;
+    return copyWith(
+      days: [
+        for (final day in days)
+          if (day.id == aId)
+            day.copyWith(order: bOrder)
+          else if (day.id == bId)
+            day.copyWith(order: aOrder)
+          else
+            day,
+      ],
+    );
+  }
+
   WorkoutPlan copyWith({
     String? name,
     WorkoutPlanStatus? status,

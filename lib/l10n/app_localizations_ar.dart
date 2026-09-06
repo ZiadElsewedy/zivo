@@ -561,6 +561,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get workoutChangeWorkout => 'تغيير التمرين';
 
   @override
+  String get workoutChangeSwap => 'تبديل';
+
+  @override
+  String get workoutChangeSkip => 'تخطّي';
+
+  @override
+  String workoutChangeSwapNote(String day) {
+    return '$day يأخذ مكان اليوم الذي تختاره — تبقى الدورة كاملة.';
+  }
+
+  @override
+  String workoutChangeSkipNote(String day) {
+    return 'سيُتخطّى $day في هذه الدورة.';
+  }
+
+  @override
   String workoutDayLabel(String slot, String label) {
     return 'اليوم $slot · $label';
   }

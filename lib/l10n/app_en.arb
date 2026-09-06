@@ -802,6 +802,34 @@
   "@workoutChangeWorkout": {
     "description": "Title of the day-picker sheet."
   },
+  "workoutChangeSwap": "Swap",
+  "@workoutChangeSwap": {
+    "description": "Day-picker mode: the picked day trades places with the day that was due, so nothing leaves the cycle."
+  },
+  "workoutChangeSkip": "Skip",
+  "@workoutChangeSkip": {
+    "description": "Day-picker mode: train the picked day and let the day that was due drop out of this cycle."
+  },
+  "workoutChangeSwapNote": "{day} takes the slot you pick — the cycle stays whole.",
+  "@workoutChangeSwapNote": {
+    "description": "Explains the Swap mode, naming the day that was due.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Legs"
+      }
+    }
+  },
+  "workoutChangeSkipNote": "{day} is skipped this cycle.",
+  "@workoutChangeSkipNote": {
+    "description": "Explains the Skip mode, naming the day that was due.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Legs"
+      }
+    }
+  },
   "workoutDayLabel": "Day {slot} · {label}",
   "@workoutDayLabel": {
     "description": "A rotation day: its slot and its name.",

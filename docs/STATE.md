@@ -73,6 +73,30 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Changing today's workout can now SWAP instead of skip — the cycle closes**
+  (2026-09-06, on `core-edits`). Training out of rotation cost a day its turn:
+  finishing advances the cursor **past what was actually trained**
+  (`advanceToAfterDay`), so picking Arms while Legs was due left Legs dropped
+  from the cycle and a week meant to cover the whole body didn't.
+  - The change-workout sheet now asks a second question — **Swap** (default) or
+    **Skip** — above the day list, with a line naming what happens to the due
+    day. The one-tap-starts contract is untouched: the toggle only decides what
+    happens to the day the pick displaced.
+  - **Swap** is `WorkoutPlan.swapDays(aId, bId)`: the two days trade `order`
+    and the cursor is deliberately *not* moved (it stores an `order`, so it
+    keeps pointing at the same position, which now holds the picked day).
+    `slot` stays with its day — it is identity ("Day B is Arms"), not position,
+    matching what the editor's drag-reorder already does. Written to the repo
+    **before** the session starts, so the card behind reads the new rotation
+    and an abandoned session still leaves the cycle whole.
+  - **Skip** is the old behaviour, kept for days you genuinely want to drop.
+  - Fixed alongside: the sheet computed a `resumable` session for the
+    in-progress day, showed its "In progress" badge, popped it — and the caller
+    threw it away, starting a *second* session over the first. Picking that day
+    now resumes.
+  - Domain rules in `test/workout/workout_plan_domain_test.dart`, the flow (both
+    modes + the resume fix) in `test/home/today_page_test.dart`.
+
 - **Drive backup is account-aware — a file id now carries the account that minted
   it** (2026-09-06, on `core-edits`). Production bug: a photo backed up to Drive
   account #1 became permanently unreachable after the user connected Drive #2 —

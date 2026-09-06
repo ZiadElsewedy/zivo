@@ -564,6 +564,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workoutChangeWorkout => 'Change workout';
 
   @override
+  String get workoutChangeSwap => 'Swap';
+
+  @override
+  String get workoutChangeSkip => 'Skip';
+
+  @override
+  String workoutChangeSwapNote(String day) {
+    return '$day takes the slot you pick — the cycle stays whole.';
+  }
+
+  @override
+  String workoutChangeSkipNote(String day) {
+    return '$day is skipped this cycle.';
+  }
+
+  @override
   String workoutDayLabel(String slot, String label) {
     return 'Day $slot · $label';
   }
