@@ -401,6 +401,66 @@ void main() {
     });
   });
 
+  group('deleting a photo whose backup is in a disconnected account', () {
+    test('leaves a tombstone instead of stranding the file in Drive', () async {
+      await service.connectBackup(); // drive-1
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+
+      await switchDriveTo('drive-2');
+      await service.deleteMedia(id: 'm1', ref: ref);
+
+      // Nothing was deleted from drive-2 (it holds an unrelated library), and
+      // the drive-1 copy still exists — but is now remembered.
+      expect(drive.files['drive-1']!.containsKey(remoteId), isTrue);
+      expect(await registry.get('m1'), isNull, reason: 'the media row is gone');
+
+      final pending = await registry.tombstones();
+      expect(pending, hasLength(1));
+      expect(pending.single.remoteId, remoteId);
+      expect(pending.single.remoteAccountKey, 'drive-1');
+    });
+
+    test('reconnecting that account completes the deletion', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      await switchDriveTo('drive-2');
+      await service.deleteMedia(id: 'm1', ref: ref);
+
+      await switchDriveTo('drive-1');
+      // connectBackup sweeps in the background; backupNow sweeps up front.
+      await service.backupNow();
+
+      expect(drive.files['drive-1']!.containsKey(remoteId), isFalse,
+          reason: 'the copy the user deleted is finally gone');
+      expect(await registry.tombstones(), isEmpty);
+    });
+
+    test('a tombstone for another account is left alone', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      await switchDriveTo('drive-2');
+      await service.deleteMedia(id: 'm1', ref: ref);
+
+      // Still on drive-2: the drive-1 tombstone is none of this account's
+      // business and must survive for whenever drive-1 comes back.
+      expect(await service.sweepPendingRemoteDeletions(), 0);
+      expect(await registry.tombstones(), hasLength(1));
+    });
+
+    test('a deletion that succeeds immediately leaves no tombstone', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+
+      await service.deleteMedia(id: 'm1', ref: ref);
+
+      expect(drive.files['drive-1']!.containsKey(remoteId), isFalse);
+      expect(await registry.tombstones(), isEmpty);
+    });
+  });
+
   group('Drive account switch', () {
     test('a photo backed up to Drive #1 is never resolved against Drive #2', () async {
       await service.connectBackup();

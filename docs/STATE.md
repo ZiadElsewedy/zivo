@@ -121,10 +121,25 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     no recorded account is ambiguous — deleted, or filed in the Drive the user
     just left — so it keeps its reference (reconnecting the old account still
     recovers the photo) and only drops to `failed`.
+  - **A deleted photo no longer strands its cloud copy.** `deleteMedia` used to
+    look up the remote id only when a session was live — precisely the case
+    where it did NOT need preserving — so deleting a Moment while the holding
+    account was disconnected dropped the row and left the file in the user's
+    Drive with nothing able to name it again. Now the coordinates survive as a
+    **`MediaTombstone`** (new owner-only `users/{uid}/mediaTombstones`
+    collection + rule + rules tests), and `sweepPendingRemoteDeletions()`
+    finishes the job from `connectBackup` and at the head of `backupNow`.
+    Tombstones for other accounts are left untouched for whenever those
+    reconnect.
+  - **Storage & Sync names the photos an account switch left behind** — a count
+    plus both routes out (Back up now for the ones still on this device,
+    reconnect for the rest). The status banner no longer counts a copy in an
+    unreachable account as "backed up", because to this account it isn't.
   - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
     drives a fake where **files belong to one account**, so a cross-account read
     404s naturally instead of by scripting; reverting the fix puts four of its
-    scenarios red. **1160 dart tests green.**
+    scenarios red, and [`media_availability_ui_test.dart`](../test/core/media/media_availability_ui_test.dart)
+    pins the read-side states. **1172 dart + 137 rules tests green.**
 
 - **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
   largest piece of the l10n push — the feature had **264** hardcoded literals,
@@ -1164,6 +1179,14 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **Deleted photos no longer strand a Drive copy; Storage & Sync explains an
+  account switch.** `deleteMedia` read the remote id only when a session was live, so
+  deleting while the holding account was disconnected discarded the only pointer and left
+  the file in the user's Drive forever (a privacy issue, since they deleted it). Added
+  `MediaTombstone` + `users/{uid}/mediaTombstones` (rule + rules tests) and
+  `sweepPendingRemoteDeletions()`, run on connect and at the head of `backupNow`. The
+  Storage & Sync card now counts photos reachable only from another Google account and
+  names both routes out. 1172 dart + 137 rules tests green.
 - 2026-09-06 — **Only the owning account may declare a file id dead.** Follow-up to the
   deletion fix: it discarded a reference on ANY 404, which for a record with no recorded
   account (i.e. every record predating `driveAccountKey` — all existing data) destroyed

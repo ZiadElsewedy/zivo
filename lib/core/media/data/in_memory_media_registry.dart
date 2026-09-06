@@ -50,4 +50,20 @@ class InMemoryMediaRegistry implements MediaRegistry {
   Future<void> remove(String id) async {
     _items.remove(id);
   }
+
+  final Map<String, MediaTombstone> _tombstones = {};
+
+  @override
+  Future<void> addTombstone(MediaTombstone tombstone) async {
+    _tombstones[tombstone.mediaId] = tombstone;
+  }
+
+  @override
+  Future<List<MediaTombstone>> tombstones() async =>
+      _tombstones.values.toList(growable: false);
+
+  @override
+  Future<void> removeTombstone(String mediaId) async {
+    _tombstones.remove(mediaId);
+  }
 }

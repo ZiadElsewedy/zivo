@@ -64,6 +64,11 @@ class MediaService {
   /// The connected backup account email on this device, if any.
   Future<String?> connectedBackupAccount() async => await backup?.connectedEmail();
 
+  /// The stable key of the backup account connected on this device, if any —
+  /// what a caller compares [MediaObject.remoteAccountKey] against to ask
+  /// "can this device actually reach that copy?".
+  Future<String?> connectedBackupAccountKey() => _connectedBackupAccountKey();
+
   /// Defense in depth against cross-account leakage: a device connection is
   /// only usable by the exact account that created it. Fail-closed — the
   /// connection is valid *only* when its recorded owner equals the current
@@ -691,8 +696,13 @@ class MediaService {
   ///
   /// [remoteId] may be passed by callers that already hold the registry
   /// record; otherwise it's looked up before the entry is removed. The local
-  /// delete always happens; cloud deletion is best-effort (a failure leaves
-  /// the remote copy for a later cleanup rather than blocking anything).
+  /// delete always happens; cloud deletion is best-effort.
+  ///
+  /// When the cloud copy cannot be deleted right now — the account holding it
+  /// is disconnected, or the attempt fails — a [MediaTombstone] keeps its
+  /// coordinates so [sweepPendingRemoteDeletions] can finish the job later.
+  /// Dropping the registry row without that would strand the file in the
+  /// user's Drive permanently, with nothing in the app able to name it again.
   Future<void> deleteMedia({required String id, required String? ref, String? remoteId}) async {
     // A capture's background tail may still be on its way to registering
     // this id. Let it land first, or its `registry.put` would resurrect the
@@ -702,9 +712,12 @@ class MediaService {
     } catch (_) {
       // A failed tail is not a reason to refuse the delete.
     }
+    // Read the record whether or not a session is live: without a live
+    // session is precisely when its coordinates need preserving, and the old
+    // `hasLiveSession` guard here is what made them unrecoverable.
     var idToDelete = remoteId;
     String? idAccountKey;
-    if (backup?.hasLiveSession == true) {
+    if (backup != null) {
       try {
         final record = await registry.get(id);
         idToDelete ??= record?.remoteId;
@@ -721,24 +734,81 @@ class MediaService {
       // gone — never surface a failure here.
     }
     final provider = backup;
-    // Only the account that holds the file can delete it. When the copy lives
-    // in an account the user has since disconnected, the delete is skipped —
-    // deleting by id against the wrong account would at best fail and at worst
-    // hit an unrelated file there.
-    final deleteIn = idAccountKey ?? provider?.liveAccountKey;
-    if (idToDelete != null &&
-        provider != null &&
-        provider.hasLiveSession &&
+    if (idToDelete == null || provider == null) return;
+
+    // Only the account that holds the file can delete it: issuing the id
+    // against a different account would at best fail and at worst hit an
+    // unrelated file there.
+    final deleteIn = idAccountKey ?? provider.liveAccountKey;
+    final canDeleteNow = provider.hasLiveSession &&
         deleteIn != null &&
-        deleteIn == provider.liveAccountKey) {
+        deleteIn == provider.liveAccountKey;
+
+    var deleted = false;
+    if (canDeleteNow) {
       try {
-        await provider.deleteRemote(idToDelete, expectedAccountKey: deleteIn);
+        deleted = await provider.deleteRemote(idToDelete, expectedAccountKey: deleteIn);
       } catch (_) {
-        // Best-effort: an un-deletable remote copy is harmless (it sits in
-        // the account's own folder; re-uploading under the same id replaces
-        // it).
+        deleted = false;
       }
     }
+    if (deleted) return;
+
+    // Couldn't remove it now. Remember where it is so the next connection to
+    // that account can.
+    try {
+      await registry.addTombstone(MediaTombstone(
+        mediaId: id,
+        remoteId: idToDelete,
+        remoteAccountKey: idAccountKey,
+        deletedAt: DateTime.now(),
+      ));
+    } catch (_) {
+      // Best-effort: a tombstone we failed to write leaves exactly the old
+      // behaviour, no worse.
+    }
+  }
+
+  /// Completes deletions that were deferred because the account holding the
+  /// file wasn't connected. Runs on the connected account only, and leaves
+  /// every other tombstone untouched for whenever its own account comes back.
+  ///
+  /// Returns how many remote copies were removed. Never throws: this is
+  /// housekeeping that rides along with user-initiated backup/sync, and a
+  /// failure simply leaves the tombstone in place for next time.
+  Future<int> sweepPendingRemoteDeletions() async {
+    final provider = backup;
+    if (provider == null) return 0;
+    final live = provider.liveAccountKey;
+    if (live == null) return 0;
+
+    List<MediaTombstone> pending;
+    try {
+      pending = await registry.tombstones();
+    } catch (_) {
+      return 0;
+    }
+
+    var removed = 0;
+    for (final tombstone in pending) {
+      // An unattributed tombstone is tried opportunistically: the id is
+      // probably from this account (it is the only one most users ever
+      // connect), and a miss costs one failed request.
+      if (tombstone.remoteAccountKey != null &&
+          tombstone.remoteAccountKey != live) {
+        continue;
+      }
+      if (provider.liveAccountKey != live) break; // account changed mid-sweep
+      try {
+        if (await provider.deleteRemote(tombstone.remoteId, expectedAccountKey: live)) {
+          await registry.removeTombstone(tombstone.mediaId);
+          removed++;
+        }
+      } catch (_) {
+        // Leave it for next time.
+      }
+    }
+    return removed;
   }
 
   /// Interactive connect to the backup provider (user-initiated). Tags the
@@ -752,6 +822,9 @@ class MediaService {
     // Whatever this device could and couldn't resolve a moment ago was an
     // answer about a different account.
     invalidateResolutionCaches();
+    // Reconnecting an account is exactly when deletions deferred against it
+    // become possible again — do them before the user has to think about it.
+    if (connected) unawaited(sweepPendingRemoteDeletions());
     return connected;
   }
 
@@ -783,6 +856,11 @@ class MediaService {
     // backing up here, which is what makes connecting a new account re-protect
     // the existing library instead of reporting "everything is already backed
     // up" over a destination that holds nothing.
+    // Housekeeping first: finish any deletion that was deferred while this
+    // account was disconnected, so a photo the user deleted does not linger in
+    // their Drive just because the timing was wrong.
+    await sweepPendingRemoteDeletions();
+
     final accountKey = provider.liveAccountKey;
     final pending = await registry.pendingBackups(forAccountKey: accountKey);
     final total = pending.length;

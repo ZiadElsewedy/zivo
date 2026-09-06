@@ -22,6 +22,13 @@ class FirestoreMediaRegistry implements MediaRegistry {
   CollectionReference<Map<String, dynamic>> _media(String uid) =>
       _firestore.collection('users').doc(uid).collection('media');
 
+  /// Deliberately a sibling collection, not a flag on a media doc: a tombstone
+  /// must never surface in `getAll()` (the gallery's metadata join) or in a
+  /// sync pass, and a separate collection makes that structural rather than a
+  /// filter every future read has to remember.
+  CollectionReference<Map<String, dynamic>> _tombstones(String uid) =>
+      _firestore.collection('users').doc(uid).collection('mediaTombstones');
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {
@@ -115,6 +122,39 @@ class FirestoreMediaRegistry implements MediaRegistry {
   Future<void> remove(String id) async {
     final uid = _requireUid();
     await _media(uid).doc(id).delete();
+  }
+
+  @override
+  Future<void> addTombstone(MediaTombstone tombstone) async {
+    final uid = _requireUid();
+    await _tombstones(uid).doc(tombstone.mediaId).set({
+      'driveFileId': tombstone.remoteId,
+      'driveAccountKey': tombstone.remoteAccountKey,
+      'deletedAt': Timestamp.fromDate(tombstone.deletedAt),
+      'schemaVersion': 1,
+    });
+  }
+
+  @override
+  Future<List<MediaTombstone>> tombstones() async {
+    final uid = _requireUid();
+    final snap = await _tombstones(uid).get();
+    return snap.docs.map((d) {
+      final data = d.data();
+      final deletedAt = data['deletedAt'];
+      return MediaTombstone(
+        mediaId: d.id,
+        remoteId: data['driveFileId'] as String? ?? '',
+        remoteAccountKey: data['driveAccountKey'] as String?,
+        deletedAt: deletedAt is Timestamp ? deletedAt.toDate() : DateTime.now(),
+      );
+    }).where((t) => t.remoteId.isNotEmpty).toList(growable: false);
+  }
+
+  @override
+  Future<void> removeTombstone(String mediaId) async {
+    final uid = _requireUid();
+    await _tombstones(uid).doc(mediaId).delete();
   }
 
   MediaObject _fromDoc(String uid, String id, Map<String, dynamic> data) {

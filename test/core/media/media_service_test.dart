@@ -26,6 +26,12 @@ class _ThrowingRegistry implements MediaRegistry {
   Future<List<MediaObject>> pendingBackups({String? forAccountKey}) async => const [];
   @override
   Future<void> remove(String id) async {}
+  @override
+  Future<void> addTombstone(MediaTombstone tombstone) async {}
+  @override
+  Future<List<MediaTombstone>> tombstones() async => const [];
+  @override
+  Future<void> removeTombstone(String mediaId) async {}
 }
 
 /// Records every gallery-copy call and returns a scripted result.

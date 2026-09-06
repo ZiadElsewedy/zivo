@@ -43,6 +43,13 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
   int _total = 0;
   int _backedUp = 0;
 
+  /// Photos whose only cloud copy sits in a Drive account this device is not
+  /// connected to — the visible half of an account switch. They are counted
+  /// separately from [_backedUp] because "backed up" is a claim about a
+  /// destination: to THIS account they are not backed up at all, and saying
+  /// otherwise is what let a switch quietly leave the library unprotected.
+  int _inOtherAccount = 0;
+
   bool get _busy => _op != _Op.none;
 
   MediaService get _media => AppScope.of(context).requireMedia;
@@ -57,13 +64,25 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
     try {
       final connected = await _media.isBackupConnected();
       final email = await _media.connectedBackupAccount();
+      final accountKey = await _media.connectedBackupAccountKey();
       final all = await _media.registry.getAll();
       if (!mounted) return;
+      final elsewhere = accountKey == null
+          ? 0
+          : all
+              .where((m) =>
+                  m.remoteId != null && !m.isRemoteReachableFrom(accountKey))
+              .length;
       setState(() {
         _connected = connected;
         _email = email;
         _total = all.length;
-        _backedUp = all.where((m) => m.remoteBackup == BackupState.done).length;
+        _backedUp = all
+            .where((m) =>
+                m.remoteBackup == BackupState.done &&
+                (accountKey == null || m.isRemoteReachableFrom(accountKey)))
+            .length;
+        _inOtherAccount = elsewhere;
       });
     } catch (_) {
       // Best-effort status.
@@ -233,6 +252,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                           email: _email,
                           total: _total,
                           backedUp: _backedUp,
+                          inOtherAccount: _inOtherAccount,
                           op: _op,
                           opDone: _opDone,
                           opTotal: _opTotal,
@@ -475,6 +495,7 @@ class _DriveCard extends StatelessWidget {
   const _DriveCard({
     required this.supported,
     required this.connected,
+    required this.inOtherAccount,
     required this.email,
     required this.total,
     required this.backedUp,
@@ -489,6 +510,9 @@ class _DriveCard extends StatelessWidget {
 
   final bool supported;
   final bool connected;
+
+  /// How many photos are backed up only to a different Drive account.
+  final int inOtherAccount;
   final String? email;
   final int total;
   final int backedUp;
@@ -557,6 +581,10 @@ class _DriveCard extends StatelessWidget {
                 opDone: opDone,
                 opTotal: opTotal,
               ),
+              if (inOtherAccount > 0 && op == _Op.none) ...[
+                const SizedBox(height: 12),
+                _OtherAccountNotice(count: inOtherAccount),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -601,6 +629,68 @@ class _DriveCard extends StatelessWidget {
     if (!supported) return 'Unavailable in this build';
     if (connected) return email ?? 'Connected on this device';
     return 'Not connected on this device';
+  }
+}
+
+/// The one honest thing to say about photos left behind by an account switch.
+///
+/// They are not lost and they are not broken: their only cloud copy sits in a
+/// Drive account this device is no longer signed into. Without this, the
+/// library simply looked short — the status banner counted them as not backed
+/// up with no hint as to why, and the photos themselves showed as unavailable
+/// in the gallery with nothing connecting the two.
+///
+/// It names both routes out, because which one applies depends on something
+/// the app cannot know: whether this device still holds the original files.
+class _OtherAccountNotice extends StatelessWidget {
+  const _OtherAccountNotice({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = count == 1 ? 'photo' : 'photos';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+      decoration: BoxDecoration(
+        color: TrainColors.violetWash,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TrainColors.violet.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(AppIcons.driveCloud, size: 17, color: TrainColors.violetGlyph),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count $photos in another Google account',
+                  style: AppText.body.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: TrainColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Backed up before you switched accounts. Back up now copies '
+                  'the ones still on this device; for the rest, reconnect that '
+                  'account.',
+                  style: AppText.meta.copyWith(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: TrainColors.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
