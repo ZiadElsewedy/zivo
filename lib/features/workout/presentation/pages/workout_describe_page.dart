@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/theme/train_tokens.dart';
 import '../../../capture/presentation/import/plan_describe_page.dart';
@@ -24,17 +25,14 @@ class WorkoutDescribePage extends StatelessWidget {
     return PlanDescribePage(
       keyPrefix: 'workout-describe',
       startRecording: startRecording,
-      title: startRecording ? 'Describe your training' : 'Type it out',
-      intro:
-          'Say or write your split — the days, the exercises, and the sets '
-          'and reps for each. ZIVO turns it into a real, editable split you '
-          'review before anything is saved.',
-      example:
-          'Example: "Day A is push — bench press 4 sets of 8, incline '
-          'dumbbell press 3 by 10, then cable flyes 3 by 15. Day B is pull…"',
-      hint: 'Day A is push…',
-      extractLabel: 'Turn this into a split',
-      doneTalkingLabel: 'Done talking',
+      title: startRecording
+          ? l(context).workoutDescribeTitleVoice
+          : l(context).workoutDescribeTitleType,
+      intro: l(context).workoutDescribeBody,
+      example: l(context).workoutDescribeExample,
+      hint: l(context).workoutDescribeHint,
+      extractLabel: l(context).workoutDescribeSubmit,
+      doneTalkingLabel: l(context).workoutDescribeDoneTalking,
       tint: TrainColors.hubTint,
       buildImportPage: (text, dictated) => WorkoutImportPage(
         input: WorkoutImportDescription(text: text, dictated: dictated),

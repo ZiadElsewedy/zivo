@@ -9,12 +9,14 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
+import '../../domain/progression.dart';
 import '../../domain/rep_target.dart';
 import '../../domain/session_exercise.dart';
 import '../../domain/session_status.dart';
 import '../../domain/set_outcome.dart';
 import '../widgets/staggered_reveal.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../core/util/date_format.dart';
 import '../workout_format.dart';
 
@@ -54,7 +56,7 @@ class SessionDetailsPage extends StatelessWidget {
           const SizedBox(height: 26),
           if (session.exercises.isEmpty)
             Text(
-              'No exercises logged.',
+              l(context).sessionNoExercises,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
             )
           else
@@ -83,10 +85,10 @@ class _DetailsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TrainPageHeader(
-      title: 'Session details',
+      title: l(context).sessionDetailsTitle,
       action: TrainHeaderAction(
         icon: AppIcons.trash,
-        semanticLabel: 'Delete session',
+        semanticLabel: l(context).sessionDeleteAction,
         // Neutral, not ember: destructive, but already gated behind its own
         // confirm — it doesn't get to be the loudest thing in the bar.
         accent: const Color(0xFFF4F4F0),
@@ -116,9 +118,18 @@ class _SessionHeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (session.status) {
-      SessionStatus.completed => ('Completed', TrainColors.green),
-      SessionStatus.active => ('In progress', TrainColors.amber),
-      SessionStatus.abandoned => ('Not completed', TrainColors.ink4),
+      SessionStatus.completed => (
+        l(context).sessionStatusCompleted,
+        TrainColors.green,
+      ),
+      SessionStatus.active => (
+        l(context).sessionStatusActive,
+        TrainColors.amber,
+      ),
+      SessionStatus.abandoned => (
+        l(context).sessionStatusAbandoned,
+        TrainColors.ink4,
+      ),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: DateTime.now())
@@ -217,22 +228,30 @@ class _SessionHeroHeader extends StatelessWidget {
               Expanded(
                 child: _HeroStat(
                   value: formatDurationShort(context, duration),
-                  label: 'Duration',
-                ),
-              ),
-              Expanded(
-                child: _HeroStat(value: _timeRange(context, session), label: 'Time'),
-              ),
-              Expanded(
-                child: _HeroStat(
-                  value: '${session.exercises.length}',
-                  label: 'Exercises',
+                  label: l(context).sessionStatDuration,
                 ),
               ),
               Expanded(
                 child: _HeroStat(
-                  value: '${session.completedSetCount}/${session.totalSets}',
-                  label: 'Sets done',
+                  value: _timeRange(context, session),
+                  label: l(context).sessionStatTime,
+                ),
+              ),
+              Expanded(
+                child: _HeroStat(
+                  value: ltrFor(context, '${session.exercises.length}'),
+                  label: l(context).sessionStatExercises,
+                ),
+              ),
+              Expanded(
+                child: _HeroStat(
+                  // A ratio is digits around a neutral slash: pinned, or
+                  // Arabic renders "12/15" as "15/12".
+                  value: ltrFor(
+                    context,
+                    '${session.completedSetCount}/${session.totalSets}',
+                  ),
+                  label: l(context).sessionStatSetsDone,
                 ),
               ),
             ],
@@ -245,7 +264,13 @@ class _SessionHeroHeader extends StatelessWidget {
   static String _timeRange(BuildContext context, LiveSession s) {
     final start = formatClockTime(context, s.startedAt);
     if (s.completedAt == null) return start;
-    return '$start–${formatClockTime(context, s.completedAt!)}';
+    return ltrFor(
+      context,
+      l(context).sessionTimeRange(
+        start,
+        formatClockTime(context, s.completedAt!),
+      ),
+    );
   }
 }
 
@@ -362,10 +387,22 @@ class _SetRow extends StatelessWidget {
     final reps =
         set.actualReps ?? (resolved ? _targetRepsFallback(set.target) : null);
     final toFailure = set.target.kind == RepTargetKind.toFailure;
-    final repsText = reps != null ? '$reps' : (toFailure ? 'AMRAP' : '—');
+    // `kAmrapLabel` is a sentinel value, not copy — the progression engine
+    // compares against it, so it must not be translated (see AGENTS.md).
+    final repsText = reps != null
+        ? '$reps'
+        : (toFailure ? kAmrapLabel : '—');
     final mainText = weight != null
-        ? '${_trimNumber(weight)}kg × $repsText'
-        : '$repsText rep${reps == 1 ? '' : 's'}';
+        ? ltrFor(
+            context,
+            l(context).sessionSetWeightByReps(
+              '${_trimNumber(weight)}kg',
+              repsText,
+            ),
+          )
+        : reps != null
+        ? l(context).sessionSetRepsOnly(reps)
+        : l(context).sessionSetRepsUnknown(repsText);
 
     final (icon, iconColor) = switch (set.outcome) {
       SetOutcome.completed => (Icons.check_circle_rounded, TrainColors.green),
@@ -384,7 +421,7 @@ class _SetRow extends StatelessWidget {
         Icon(icon, size: 16, color: iconColor),
         const SizedBox(width: 10),
         Text(
-          'Set $index',
+          l(context).sessionSetNumber(index),
           style: AppText.meta.copyWith(
             color: TrainColors.ink4,
             fontWeight: FontWeight.w600,
@@ -404,7 +441,7 @@ class _SetRow extends StatelessWidget {
         ),
         if (set.outcome == SetOutcome.skipped) ...[
           Text(
-            'Skipped',
+            l(context).sessionSetSkipped,
             style: AppText.meta.copyWith(color: TrainColors.ink4, fontSize: 11),
           ),
           const SizedBox(width: 8),
@@ -417,7 +454,9 @@ class _SetRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(
-              'RPE ${_trimNumber(set.rpe!)}',
+              l(context).sessionSetRpe(
+                ltrFor(context, _trimNumber(set.rpe!)),
+              ),
               style: AppText.meta.copyWith(
                 color: TrainColors.amber,
                 fontSize: 10,

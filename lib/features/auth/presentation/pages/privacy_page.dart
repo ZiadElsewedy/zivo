@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/util/bidi.dart';
+import '../../../../core/util/date_format.dart';
+import '../../../../l10n/l10n.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -18,116 +21,53 @@ class PrivacySection {
 }
 
 /// The policy itself — kept in one place, mirrored by the public version at
-/// zzivo.com/privacy. Update both together.
-const List<PrivacySection> kPrivacySections = [
-  PrivacySection(
-    'OVERVIEW',
-    'ZIVO is a private, personal application for organizing the parts of your '
-        'day — moments, workouts, diet, expenses, and more — in one calm place. '
-        'This policy explains what ZIVO stores, how it is used, and the choices '
-        'you have.',
-  ),
-  PrivacySection(
-    'THE SHORT VERSION',
-    '',
-    bullets: [
-      'Your content is private to your account and never sold or shared for ads.',
-      'ZIVO does not use your data or your content to train third-party models.',
-      'Backups live in your own Google Drive, under your own control.',
-      'You can delete your content at any time, from inside the app.',
-    ],
-  ),
-  PrivacySection(
-    'ACCOUNT & AUTHENTICATION',
-    'ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or '
-        'email/password as sign-in options. Depending on the method you choose, '
-        'ZIVO receives basic account details such as your name, email address, '
-        'and a unique account identifier. That identifier is what keeps every '
-        'piece of your data scoped to your account only.',
-  ),
-  PrivacySection(
-    'EMAIL VERIFICATION CODES',
-    'If you sign in with email, ZIVO sends a short verification code to '
-        'confirm your address. Codes are hashed before storage, expire within '
-        'minutes, and are used for nothing beyond verifying that the address is '
-        'yours.',
-  ),
-  PrivacySection(
-    'YOUR CONTENT',
-    'Everything you create in ZIVO — moments, workout plans and sessions, '
-        'diet plans and entries, expense logs, body-weight entries, and profile '
-        'details — is stored in your account so the app can show it back to you '
-        'across your devices. It is private to you and not visible to other '
-        'users.',
-  ),
-  PrivacySection(
-    'PHOTOS & LOCAL STORAGE',
-    'Where a feature lets you attach a photo (such as Moments or your '
-        'profile), ZIVO accesses your photo library only when you pick or capture '
-        'an image. Media lives first on your device; cloud backup happens only '
-        'through the backup target you explicitly choose.',
-  ),
-  PrivacySection(
-    'AI ASSISTANT (“ASK”)',
-    'Ask is an opt-in assistant that can answer questions about your own '
-        'data — your workouts, meals, and spending. When you send a message, the '
-        'relevant context is processed by the model provider solely to answer '
-        'you. Conversations are stored privately in your account so history '
-        'works across devices, and are never used to train third-party models.',
-  ),
-  PrivacySection(
-    'SPOTIFY',
-    'The music feature connects to your own Spotify account when you ask it '
-        'to. ZIVO uses Spotify’s official SDK to control playback and read what’s '
-        'currently playing. You can disconnect at any time, from Settings.',
-  ),
-  PrivacySection(
-    'ACCOUNT & SECURITY METADATA',
-    'To keep your account safe and supportable, ZIVO keeps a small record of '
-        'authentication events — when your account was created, when you last '
-        'signed in and how, and when verification emails were sent. This '
-        'metadata is security bookkeeping: it is never sold, shared, or used for '
-        'advertising.',
-  ),
-  PrivacySection(
-    'GOOGLE DRIVE BACKUP',
-    'Backup is optional and, if enabled, runs against your own Google Drive '
-        '— using Google’s most restrictive drive.file scope, which lets ZIVO see '
-        'and manage only the files it created itself. ZIVO never requests broad '
-        'access to your Drive, and your files remain under your control there.',
-  ),
-  PrivacySection(
-    'DATA SHARING',
-    'ZIVO does not sell or rent personal data. Data is processed only by the '
-        'infrastructure needed to run the app — Google Firebase (authentication, '
-        'database, functions) — plus the integrations you explicitly enable: '
-        'your own Google Drive and your own Spotify account.',
-  ),
-  PrivacySection(
-    'RETENTION & DELETION',
-    'Your content is retained until you delete it or delete your account. '
-        'Files in your own Google Drive stay there until you remove them, and '
-        'Drive access can be revoked at any time — from Settings or from your '
-        'Google Account’s third-party access page.',
-  ),
-  PrivacySection(
-    'SECURITY',
-    'Access is enforced end-to-end: Firebase Authentication for identity and '
-        'Firestore security rules so only your authenticated account can read or '
-        'write your data. Verification codes are stored only as salted hashes. '
-        'Data is encrypted in transit.',
-  ),
-  PrivacySection(
-    'CHANGES TO THIS POLICY',
-    'This policy may be updated as features evolve. The “last updated” date '
-        'always reflects the most recent revision.',
-  ),
-  PrivacySection(
-    'CONTACT',
-    'Questions about privacy or your data can be sent to '
-        'ziadelsewedy1@gmail.com.',
-  ),
-];
+/// zzivo.com/privacy. **Update both together**, in both languages: the app and
+/// the web page are the same document and must not drift.
+///
+/// A function rather than a `const` list because the policy is translated, and
+/// a translated string needs a [BuildContext] to resolve. The order is the
+/// document's order and is meaningful — the divider rhythm and the "short
+/// version" summary both depend on it — so sections are built as one list here
+/// rather than assembled per-widget.
+List<PrivacySection> privacySections(BuildContext context) {
+  final t = l(context);
+  return [
+    PrivacySection(t.privacyOverviewLabel, t.privacyOverviewBody),
+    PrivacySection(
+      t.privacyShortLabel,
+      '',
+      bullets: [
+        t.privacyShortBullet1,
+        t.privacyShortBullet2,
+        t.privacyShortBullet3,
+        t.privacyShortBullet4,
+      ],
+    ),
+    PrivacySection(t.privacyAccountLabel, t.privacyAccountBody),
+    PrivacySection(t.privacyOtpLabel, t.privacyOtpBody),
+    PrivacySection(t.privacyContentLabel, t.privacyContentBody),
+    PrivacySection(t.privacyPhotosLabel, t.privacyPhotosBody),
+    PrivacySection(t.privacyAskLabel, t.privacyAskBody),
+    PrivacySection(t.privacySpotifyLabel, t.privacySpotifyBody),
+    PrivacySection(t.privacyMetadataLabel, t.privacyMetadataBody),
+    PrivacySection(t.privacyDriveLabel, t.privacyDriveBody),
+    PrivacySection(t.privacySharingLabel, t.privacySharingBody),
+    PrivacySection(t.privacyRetentionLabel, t.privacyRetentionBody),
+    PrivacySection(t.privacySecurityLabel, t.privacySecurityBody),
+    PrivacySection(t.privacyChangesLabel, t.privacyChangesBody),
+    // The address is passed as a placeholder, not written into the sentence:
+    // it is a machine identifier, and left inline in an Arabic paragraph the
+    // bidi algorithm would break it apart around the "@" and the dot.
+    PrivacySection(
+      t.privacyContactLabel,
+      t.privacyContactBody(isolate(kPrivacyContactEmail)),
+    ),
+  ];
+}
+
+/// Where privacy questions go. A constant, not copy — the same address in
+/// every language.
+const String kPrivacyContactEmail = 'ziadelsewedy1@gmail.com';
 
 /// The in-app privacy policy — the same document as the public page at
 /// zzivo.com/privacy, presented in ZIVO's dashboard language: atmospheric
@@ -138,7 +78,11 @@ const List<PrivacySection> kPrivacySections = [
 class PrivacyPage extends StatelessWidget {
   const PrivacyPage({super.key});
 
-  static const String _lastUpdated = 'August 25, 2026';
+  /// The policy's revision date, as a date rather than a written-out string
+  /// so it renders through `intl` in the reader's own locale — "August 25,
+  /// 2026" in English, "٢٥ أغسطس ٢٠٢٦" in Arabic — instead of being an English
+  /// month name baked into a translated sentence.
+  static final DateTime _lastUpdated = DateTime(2026, 8, 25);
 
   @override
   Widget build(BuildContext context) {
@@ -180,12 +124,17 @@ class PrivacyPage extends StatelessWidget {
                                 color: TrainColors.green,
                               ),
                               const SizedBox(width: 10),
-                              Text('Privacy', style: AppText.greeting),
+                              Text(
+                                l(context).privacyTitle,
+                                style: AppText.greeting,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'How ZIVO handles your data.\nLast updated $_lastUpdated.',
+                            l(context).privacyIntro(
+                              formatFullDateLong(context, _lastUpdated),
+                            ),
                             style: AppText.body.copyWith(
                               color: TrainColors.ink3,
                             ),
@@ -194,10 +143,11 @@ class PrivacyPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    for (final (i, section) in kPrivacySections.indexed)
+                    for (final (i, section)
+                        in privacySections(context).indexed)
                       RiseIn(
                         delay: Duration(milliseconds: 40 + i * 18),
-                        child: _SectionBlock(section: section),
+                        child: _SectionBlock(section: section, index: i),
                       ),
                   ],
                 ),
@@ -214,13 +164,17 @@ class PrivacyPage extends StatelessWidget {
 /// neighbours by a full-width hairline — the legal-page rhythm of the public
 /// site, translated to the app's material.
 class _SectionBlock extends StatelessWidget {
-  const _SectionBlock({required this.section});
+  const _SectionBlock({required this.section, required this.index});
 
   final PrivacySection section;
 
+  /// Its position in the document — the first section carries no top rule.
+  /// Passed in rather than looked up: the sections are rebuilt per locale, so
+  /// an `indexOf` against a fresh list would find nothing.
+  final int index;
+
   @override
   Widget build(BuildContext context) {
-    final index = kPrivacySections.indexOf(section);
     return Container(
       padding: EdgeInsets.only(top: index == 0 ? 0 : 18, bottom: 18),
       decoration: index == 0
@@ -306,7 +260,7 @@ class _BackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Tooltip(
-        message: 'Back',
+        message: l(context).actionBack,
         child: InkWell(
           onTap: () => Navigator.of(context).maybePop(),
           customBorder: const CircleBorder(),

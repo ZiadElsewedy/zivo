@@ -8,6 +8,7 @@ import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/otp_result.dart';
+import '../../../../l10n/l10n.dart';
 import '../widgets/auth_action_button.dart';
 import '../widgets/auth_backdrop.dart';
 import '../widgets/auth_footer_bar.dart';
@@ -81,7 +82,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     switch (result) {
       case OtpSendSuccess(:final cooldownSeconds):
         _startCooldown(cooldownSeconds);
-        if (!initial) _toast('A new code is on its way.');
+        if (!initial) _toast(l(context).authCodeSent);
       case OtpSendCooldown(:final retryAfterSeconds):
         _startCooldown(retryAfterSeconds);
       case OtpSendAlreadyVerified():
@@ -115,14 +116,14 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       case OtpVerifyInvalid(:final attemptsRemaining):
         _fail(
           attemptsRemaining != null && attemptsRemaining > 0
-              ? 'That code isn’t right. $attemptsRemaining ${attemptsRemaining == 1 ? 'try' : 'tries'} left.'
-              : 'That code isn’t right.',
+              ? l(context).authCodeWrongWithAttempts(attemptsRemaining)
+              : l(context).authCodeWrong,
         );
       case OtpVerifyExpired():
-        _fail('That code has expired. Send a new one.');
+        _fail(l(context).authCodeExpired);
       case OtpVerifyTooManyAttempts(:final retryAfterSeconds):
         if (retryAfterSeconds != null) _startCooldown(retryAfterSeconds);
-        _fail('Too many attempts. Send a new code.');
+        _fail(l(context).authCodeTooManyAttempts);
       case OtpVerifyFailed(:final failure):
         _fail(failure.message);
     }
@@ -226,12 +227,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                       children: [
                         RiseIn(
                           child: AuthHeader(
-                            title: 'Verify your email',
+                            title: l(context).authVerifyTitle,
                             asideSpan: TextSpan(
                               children: [
-                                const TextSpan(
-                                  text: 'Enter the 6-digit code we sent to\n',
-                                ),
+                                TextSpan(text: l(context).authCodeSentTo),
                                 TextSpan(
                                   text: _maskedEmail,
                                   style: AuthHeader.asideStyle.copyWith(
@@ -295,7 +294,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   child: AuthFooterBar(
                     secondary: Center(child: _resendLine(canResend)),
                     child: AuthActionButton(
-                      label: 'Verify',
+                      label: l(context).authVerify,
                       loading: _verifying,
                       enabled: !_verifying && _code.text.length == _codeLength,
                       onTap: () => _verify(_code.text),
@@ -315,13 +314,13 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   Widget _resendLine(bool canResend) {
     if (_sending) {
       return Text(
-        'Sending…',
+        l(context).authSending,
         style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
     if (!canResend) {
       return Text(
-        'Resend code in ${_cooldown}s',
+        l(context).authResendIn(_cooldown),
         style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
@@ -331,9 +330,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         TextSpan(
           style: AppText.body,
           children: [
-            const TextSpan(text: 'Didn’t get it?  '),
+            TextSpan(text: l(context).authDidntGetIt),
             TextSpan(
-              text: 'Resend code',
+              text: l(context).authResendCode,
               style: AppText.button.copyWith(
                 fontSize: 14.5,
                 color: TrainColors.ember,
@@ -362,7 +361,7 @@ class _UseAnotherAccountChip extends StatelessWidget {
       child: PressableScale(
         enabled: enabled,
         child: Tooltip(
-          message: 'Use another account',
+          message: l(context).authUseAnotherAccount,
           child: Material(
             color: TrainColors.raisedStrong,
             shape: const StadiumBorder(
@@ -383,7 +382,7 @@ class _UseAnotherAccountChip extends StatelessWidget {
                     ),
                     const SizedBox(width: 7),
                     Text(
-                      'Use another account',
+                      l(context).authUseAnotherAccount,
                       style: AppText.meta.copyWith(color: TrainColors.ink2),
                     ),
                   ],

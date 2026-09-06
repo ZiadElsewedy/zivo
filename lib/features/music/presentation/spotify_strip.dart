@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/util/bidi.dart';
+import '../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
@@ -250,7 +253,7 @@ class SpotifyStrip extends StatelessWidget {
             const SizedBox(width: 6),
             _TransportButton(
               enabled: playing.hasControl,
-              semanticLabel: playing.isPaused ? 'Play' : 'Pause',
+              semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
               onTap: () =>
                   playing.isPaused ? controller.play() : controller.pause(),
               child: playing.isPaused
@@ -260,7 +263,7 @@ class SpotifyStrip extends StatelessWidget {
             const SizedBox(width: 8),
             _TransportButton(
               enabled: playing.hasControl,
-              semanticLabel: 'Next track',
+              semanticLabel: l(context).musicNextTrack,
               onTap: controller.next,
               child: const TrainPlayGlyph(
                 color: TrainColors.inkPlain,
@@ -287,7 +290,10 @@ class SpotifyStrip extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 9),
-            Text('-${_mmss(playing.duration - position)}', style: _timecode),
+            Text(
+              ltrFor(context, '-${_mmss(playing.duration - position)}'),
+              style: _timecode,
+            ),
             const SizedBox(width: 9),
             Text(
               'SPOTIFY',
@@ -328,13 +334,13 @@ class SpotifyStrip extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          '-${_mmss(playing.duration - position)}',
+          ltrFor(context, '-${_mmss(playing.duration - position)}'),
           style: TrainType.mono(size: 9, color: const Color(0x59F4F4F0)),
         ),
         const SizedBox(width: 6),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? 'Play' : 'Pause',
+          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
           size: 36,
           onTap: () =>
               playing.isPaused ? controller.play() : controller.pause(),
@@ -344,7 +350,7 @@ class SpotifyStrip extends StatelessWidget {
         ),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: 'Next track',
+          semanticLabel: l(context).musicNextTrack,
           size: 36,
           onTap: controller.next,
           child: const TrainPlayGlyph(
@@ -375,7 +381,15 @@ class SpotifyStrip extends StatelessWidget {
                 _Title(playing.title, size: 12),
                 const SizedBox(height: 3),
                 _Artist(
-                  '${playing.artist} · ${_mmss(playing.duration - position)} LEFT',
+                  l(context).musicStripMeta(
+                    playing.artist,
+                    l(context).musicTimeLeft(
+                      ltrFor(
+                        context,
+                        _mmss(playing.duration - position),
+                      ),
+                    ),
+                  ),
                   size: 9.5,
                 ),
               ],
@@ -385,7 +399,7 @@ class SpotifyStrip extends StatelessWidget {
         const SizedBox(width: 6),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: 'Previous track',
+          semanticLabel: l(context).musicPreviousTrack,
           size: 38,
           onTap: controller.previous,
           child: Transform.rotate(
@@ -399,7 +413,7 @@ class SpotifyStrip extends StatelessWidget {
         ),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? 'Play' : 'Pause',
+          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
           size: 38,
           onTap: () =>
               playing.isPaused ? controller.play() : controller.pause(),
@@ -409,7 +423,7 @@ class SpotifyStrip extends StatelessWidget {
         ),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: 'Next track',
+          semanticLabel: l(context).musicNextTrack,
           size: 38,
           onTap: controller.next,
           child: const TrainPlayGlyph(
@@ -455,7 +469,7 @@ class SpotifyStrip extends StatelessWidget {
         const SizedBox(width: 4),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: 'Previous track',
+          semanticLabel: l(context).musicPreviousTrack,
           size: 36,
           onTap: controller.previous,
           child: Transform.rotate(
@@ -469,7 +483,7 @@ class SpotifyStrip extends StatelessWidget {
         ),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: playing.isPaused ? 'Play' : 'Pause',
+          semanticLabel: playing.isPaused ? l(context).musicPlay : l(context).musicPause,
           size: 36,
           onTap: () =>
               playing.isPaused ? controller.play() : controller.pause(),
@@ -479,7 +493,7 @@ class SpotifyStrip extends StatelessWidget {
         ),
         _TransportButton(
           enabled: playing.hasControl,
-          semanticLabel: 'Next track',
+          semanticLabel: l(context).musicNextTrack,
           size: 36,
           onTap: controller.next,
           child: const TrainPlayGlyph(

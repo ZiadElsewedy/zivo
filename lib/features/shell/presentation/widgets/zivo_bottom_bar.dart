@@ -173,42 +173,67 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
                     height: ZivoBottomBarMetrics.islandHeight,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final tabs = _tabsFor(context);
-                          final slot = constraints.maxWidth / _kTabCount;
-                          return AnimatedBuilder(
-                            animation: _pos,
-                            builder: (context, _) {
-                              final pos = _pos.value.clamp(
-                                0.0,
-                                _kTabCount - 1.0,
-                              );
-                              return Stack(
-                                children: [
-                                  _Capsule(left: pos * slot, width: slot),
-                                  Row(
-                                    children: [
-                                      for (var i = 0; i < _kTabCount; i++)
-                                        Expanded(
-                                          child: _Tab(
-                                            spec: tabs[i],
-                                            // Warmth falls off with distance from the
-                                            // capsule: 1 at its centre, 0 a slot away.
-                                            t: (1 - (pos - i).abs()).clamp(
-                                              0.0,
-                                              1.0,
+                      // **The tab strip keeps one physical order in every
+                      // language: Today · Hub · Ask · You, left to right.**
+                      //
+                      // This is the one place in the app that deliberately
+                      // opts out of mirroring, at the owner's call. The four
+                      // destinations are a fixed row of hardware-like buttons,
+                      // not a sentence: a user's thumb learns *where* Today is
+                      // and reaches for it without looking, and having that
+                      // spot move because the language changed is worse than
+                      // any reading-order argument for moving it. (Note that
+                      // the platform convention is the opposite — iOS and
+                      // Android mirror a tab bar under RTL — so if that is
+                      // ever the call instead, deleting this `Directionality`
+                      // is the whole change: the capsule below is positioned
+                      // with `PositionedDirectional`, so it follows the row
+                      // either way rather than needing its own fix.)
+                      //
+                      // Only the strip's *geometry* is pinned. Each label is
+                      // still an Arabic string and still shapes and reads
+                      // right-to-left inside its own slot — bidi resolves a
+                      // run, and a run's direction is a property of its text,
+                      // not of the box around it.
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final tabs = _tabsFor(context);
+                            final slot = constraints.maxWidth / _kTabCount;
+                            return AnimatedBuilder(
+                              animation: _pos,
+                              builder: (context, _) {
+                                final pos = _pos.value.clamp(
+                                  0.0,
+                                  _kTabCount - 1.0,
+                                );
+                                return Stack(
+                                  children: [
+                                    _Capsule(start: pos * slot, width: slot),
+                                    Row(
+                                      children: [
+                                        for (var i = 0; i < _kTabCount; i++)
+                                          Expanded(
+                                            child: _Tab(
+                                              spec: tabs[i],
+                                              // Warmth falls off with distance from the
+                                              // capsule: 1 at its centre, 0 a slot away.
+                                              t: (1 - (pos - i).abs()).clamp(
+                                                0.0,
+                                                1.0,
+                                              ),
+                                              onTap: () => widget.onTap(i),
                                             ),
-                                            onTap: () => widget.onTap(i),
                                           ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -224,17 +249,28 @@ class _ZivoBottomBarState extends State<ZivoBottomBar>
 
 /// The ember highlight that glides beneath the active tab.
 class _Capsule extends StatelessWidget {
-  const _Capsule({required this.left, required this.width});
+  const _Capsule({required this.start, required this.width});
 
-  final double left;
+  /// Distance from the **leading** edge of the tab row — the left in English,
+  /// the right in Arabic.
+  ///
+  /// [PositionedDirectional], not [Positioned], so the capsule is defined
+  /// against the *same* axis as the [Row] of tabs whatever direction that row
+  /// is laid out in. That equivalence is the point: a capsule pinned to the
+  /// geometric `left` while the row reversed under RTL travelled the opposite
+  /// way to the tabs and sat under the mirror image of the selected one —
+  /// tapping اليوم lit the capsule under حسابي. The strip is pinned LTR today
+  /// (see the caller), which makes `start` the left edge; if that pin is ever
+  /// removed, this needs no change.
+  final double start;
   final double width;
 
   @override
   Widget build(BuildContext context) {
     // Inset within its slot so the capsule reads as a pill, not a full cell.
     const inset = 8.0;
-    return Positioned(
-      left: left + inset,
+    return PositionedDirectional(
+      start: start + inset,
       top: 8,
       bottom: 8,
       width: width - inset * 2,

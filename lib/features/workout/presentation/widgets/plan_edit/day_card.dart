@@ -5,7 +5,9 @@ import '../../../../../core/motion/springs.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../domain/planned_exercise.dart';
-import '../../../domain/workout_plan_format.dart';
+import '../../../../../core/util/bidi.dart';
+import '../../../../../l10n/l10n.dart';
+import '../../workout_labels.dart';
 import '../staggered_reveal.dart';
 import 'plan_edit_chrome.dart';
 import '../../workout_format.dart';
@@ -316,7 +318,7 @@ class ExerciseRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _setSpecLabel(exercise),
+                        _setSpecLabel(context, exercise),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TrainType.mono(
@@ -350,14 +352,21 @@ class ExerciseRow extends StatelessWidget {
 
   /// "3 × 6–8 · 60kg · rest 1:30" — the compact set spec read back off the
   /// generated sets (all identical for a manually-added exercise).
-  String _setSpecLabel(PlannedExercise e) {
-    if (e.sets.isEmpty) return 'No sets';
+  ///
+  /// Built through `workout_labels.dart` so it is translated AND pinned
+  /// left-to-right: the same line read as "rest 1:30 · 8–6 × 3" in Arabic,
+  /// with the rep range inverted, before the spec had a direction of its own.
+  String _setSpecLabel(BuildContext context, PlannedExercise e) {
+    if (e.sets.isEmpty) return l(context).workoutSetCount(0);
     final first = e.sets.first;
     final parts = <String>[
-      '${e.sets.length} × ${repTargetLabel(first.repTarget)}',
+      l(context).workoutSetsBy(
+        e.sets.length,
+        repTargetText(context, first.repTarget),
+      ),
       if (first.targetWeightKg != null)
-        '${trimWeight(first.targetWeightKg!)}kg',
-      'rest ${restLabel(first.restSeconds)}',
+        ltrFor(context, weightText(first.targetWeightKg!)),
+      restText(context, first.restSeconds),
     ];
     return parts.join(' · ');
   }

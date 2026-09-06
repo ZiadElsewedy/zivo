@@ -35,26 +35,41 @@ class StoredMedia {
 /// documents directory directly.
 ///
 /// The store copies imported bytes into the app's own documents directory
-/// under `media/{kind}/{id}.{ext}` and hands back a *relative* path. Callers
-/// persist that relative path; [resolve] turns it back into an absolute [File]
-/// on demand, so files survive the app-container path changes that break
+/// under `media/{owner}/{kind}/{id}.{ext}` and hands back a *relative* path.
+/// Callers persist that relative path; [resolve] turns it back into an absolute
+/// [File] on demand, so files survive the app-container path changes that break
 /// stored absolute paths on iOS.
+///
+/// The `{owner}` segment scopes bytes to the ZIVO account that captured them.
+/// Two accounts used on one device previously shared a single flat namespace,
+/// which made an account's media impossible to identify (or clean up) on disk
+/// and left the id as the only thing preventing a collision. Refs are opaque
+/// and self-describing, so paths written before this segment existed keep
+/// resolving unchanged — see [resolve].
 abstract interface class MediaStore {
-  /// Copies the file at [sourcePath] into the store under [kind], keyed by
-  /// [id] (the owning entity supplies a stable id so re-imports overwrite in
-  /// place rather than orphaning). Returns the stored file's metadata.
+  /// Copies the file at [sourcePath] into the store under [owner] and [kind],
+  /// keyed by [id] (the owning entity supplies a stable id so re-imports
+  /// overwrite in place rather than orphaning). Returns the stored file's
+  /// metadata.
+  ///
+  /// [owner] is the ZIVO account uid the bytes belong to. It becomes a path
+  /// segment, so an implementation must treat it as untrusted input.
   Future<StoredMedia> importFile({
     required String sourcePath,
     required MediaKind kind,
     required String id,
+    required String owner,
   });
 
   /// Resolves a stored [ref] to an absolute [File].
   ///
-  /// [ref] is normally a store-relative path (`media/moments/x.jpg`) joined to
-  /// the (async-discovered) documents directory. For backward compatibility
-  /// with media captured before this module existed, an absolute path is
-  /// returned as-is. Returns null for a null/empty ref.
+  /// [ref] is normally a store-relative path (`media/{owner}/moments/x.jpg`)
+  /// joined to the (async-discovered) documents directory. Refs carry their own
+  /// layout, so an unscoped `media/moments/x.jpg` written before the owner
+  /// segment existed resolves exactly as it always did — nothing on disk or in
+  /// Firestore needs rewriting. For backward compatibility with media captured
+  /// before this module existed at all, an absolute path is returned as-is.
+  /// Returns null for a null/empty ref.
   ///
   /// Async because discovering the documents directory is async; the store
   /// caches it after the first call, so later resolves are effectively instant.

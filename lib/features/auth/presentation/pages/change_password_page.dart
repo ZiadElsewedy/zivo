@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import 'package:flutter/services.dart';
 
@@ -91,7 +92,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           ..showSnackBar(
             SnackBar(
               content: Text(
-                'Password updated.',
+                l(context).authPasswordUpdated,
                 style: AppText.meta.copyWith(color: TrainColors.ink),
               ),
               backgroundColor: TrainColors.raisedStrong,
@@ -132,10 +133,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const RiseIn(
+                      RiseIn(
                         child: AuthHeader(
-                          title: 'Change password',
-                          aside: 'Confirm it’s you, then choose a new one.',
+                          title: l(context).settingsChangePassword,
+                          aside: l(context).authChangePasswordSubtitle,
                         ),
                       ),
                       const SizedBox(height: 34),
@@ -148,10 +149,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const AuthSectionLabel('Confirm it’s you'),
+                            AuthSectionLabel(l(context).authConfirmItsYou),
                             AuthTextField(
                               controller: _current,
-                              hint: 'Current password',
+                              hint: l(context).authCurrentPassword,
                               icon: Icons.lock_outline_rounded,
                               enabled: !_saving,
                               obscureText: true,
@@ -168,10 +169,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const AuthSectionLabel('New password'),
+                            AuthSectionLabel(l(context).authNewPassword),
                             AuthTextField(
                               controller: _password,
-                              hint: 'New password',
+                              hint: l(context).authNewPassword,
                               icon: Icons.lock_outline_rounded,
                               enabled: !_saving,
                               obscureText: true,
@@ -184,7 +185,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                             const SizedBox(height: 10),
                             AuthTextField(
                               controller: _confirm,
-                              hint: 'Confirm new password',
+                              hint: l(context).authConfirmNewPassword,
                               icon: Icons.lock_outline_rounded,
                               enabled: !_saving,
                               obscureText: true,
@@ -213,7 +214,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 delay: const Duration(milliseconds: 150),
                 child: AuthFooterBar(
                   child: AuthActionButton(
-                    label: 'Update password',
+                    label: l(context).authUpdatePassword,
                     background: TrainColors.ember,
                     loading: _saving,
                     enabled: !_saving && _canSubmit,

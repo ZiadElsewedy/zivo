@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/async_action.dart';
 import '../../../../core/widgets/pressable_scale.dart';
@@ -51,18 +52,24 @@ class UpNextWorkoutCard extends StatefulWidget {
 
 class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
     with AsyncAction<UpNextWorkoutCard> {
+  /// The card's own CTA — the day the rotation says is due, resuming into an
+  /// active session for it when there is one.
+  Future<void> _start() =>
+      _startSession(widget.day, widget.plan, widget.resumable);
+
   /// Guarded because it PUSHES: the route takes a frame or two to cover the
   /// card, and an impatient second tap on Start pushed a second live session
   /// on top of the first — two sessions autosaving the same day, with the one
   /// underneath revealed on the way back.
-  Future<void> _start([WorkoutDay? dayOverride]) => runAction(#start, () async {
-    final day = dayOverride ?? widget.day;
-    final resume = dayOverride == null ? widget.resumable : null;
+  Future<void> _startSession(
+    WorkoutDay day,
+    WorkoutPlan plan,
+    LiveSession? resume,
+  ) => runAction(#start, () async {
     HapticFeedback.mediumImpact();
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            LiveSessionPage(day: day, plan: widget.plan, resume: resume),
+        builder: (_) => LiveSessionPage(day: day, plan: plan, resume: resume),
       ),
     );
   });
@@ -79,15 +86,31 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
 
   /// The "Change Workout" picker — any other day of the split, started
   /// directly on pick (the same one-tap contract as the main CTA).
+  ///
+  /// On [ChangeWorkoutMode.swap] (the default) the picked day and the day that
+  /// was due trade places in the rotation FIRST, so the displaced day comes up
+  /// next instead of losing its turn — without that, finishing out of order
+  /// advances the cursor past what was trained and quietly drops a day from
+  /// the cycle. The swap is written before the session starts, so the card
+  /// behind it already reads the new rotation and an abandoned session still
+  /// leaves the cycle whole.
   Future<void> _changeWorkout() async {
     HapticFeedback.selectionClick();
+    final plans = AppScope.of(context).workoutPlans;
     final selection = await showChangeWorkoutSheet(
       context,
       plan: widget.plan,
       activeSession: widget.resumable,
     );
     if (!mounted || selection == null) return;
-    await _start(selection.day);
+    var plan = widget.plan;
+    final due = plan.nextDay;
+    if (selection.swaps && due != null && due.id != selection.day.id) {
+      plan = plan.swapDays(due.id, selection.day.id);
+      await plans.savePlan(plan);
+      if (!mounted) return;
+    }
+    await _startSession(selection.day, plan, selection.resumable);
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/widgets/google_g_mark.dart';
 import 'auth_action_button.dart';
@@ -33,7 +34,7 @@ class SocialAuthButtons extends StatelessWidget {
       children: [
         if (showApple) ...[
           AuthActionButton(
-            label: 'Sign in with Apple',
+            label: l(context).authSignInWithApple,
             icon: const Icon(Icons.apple, size: 22, color: Colors.black),
             background: Colors.white,
             foreground: Colors.black,
@@ -44,7 +45,7 @@ class SocialAuthButtons extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         AuthActionButton(
-          label: 'Continue with Google',
+          label: l(context).authContinueWithGoogle,
           icon: const GoogleGMark(size: 20),
           background: TrainColors.raised,
           foreground: TrainColors.ink,

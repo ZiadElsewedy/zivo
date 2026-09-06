@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/media/domain/media_object.dart';
 import '../../../../core/media/presentation/media_image.dart';
@@ -144,7 +145,7 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
         await moments.remove(moment.id);
         await media.deleteMedia(id: moment.id, ref: moment.imagePath);
       }(),
-      failureMessage: "Couldn't delete that moment.",
+      failureMessage: l(context).momentDeleteFailed,
     );
     await _loadMedia();
   }
@@ -156,7 +157,7 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
       tint: TrainColors.momentsTint,
       floatingActionButton: TrainFab(
         icon: AppIcons.camera,
-        semanticLabel: 'New moment',
+        semanticLabel: l(context).momentNewTitle,
         onTap: _newMoment,
       ),
       child: Column(
@@ -164,10 +165,10 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
             child: TrainPageHeader(
-              title: 'Moments',
+              title: l(context).momentsTitle,
               action: TrainHeaderAction(
                 icon: AppIcons.backupNow,
-                semanticLabel: 'Storage & Sync',
+                semanticLabel: l(context).storageTitle,
                 accent: TrainColors.green,
                 onTap: () async {
                   await Navigator.of(context).push(
@@ -190,7 +191,7 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
                   return const LoadingStateView();
                 }
                 if (all.isEmpty) {
-                  return const _MomentsEmptyState(title: 'Nothing logged yet');
+                  return _MomentsEmptyState(title: l(context).momentsEmptyTitle);
                 }
                 final filtered = all.where(_matches).toList(growable: false);
                 final photos = filtered
@@ -264,11 +265,11 @@ class _MomentsTimelinePageState extends State<MomentsTimelinePage> {
   }
 
   String _emptyLabel() => switch (_filter) {
-    MomentFilter.camera => 'No camera photos yet.',
-    MomentFilter.library => 'Nothing from your library yet.',
-    MomentFilter.photos => 'No photos yet.',
-    MomentFilter.notes => 'No notes yet.',
-    MomentFilter.all => 'Nothing else logged yet',
+    MomentFilter.camera => l(context).momentsEmptyCamera,
+    MomentFilter.library => l(context).momentsEmptyLibrary,
+    MomentFilter.photos => l(context).momentsEmptyPhotos,
+    MomentFilter.notes => l(context).momentsEmptyNotes,
+    MomentFilter.all => l(context).momentsEmptyOther,
   };
 }
 
@@ -359,8 +360,7 @@ class _MomentsEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 9),
             Text(
-              'Snap a lift, a meal, or a scale reading — moments attach to '
-              'the session you were in.',
+              l(context).momentsEmptyBody,
               textAlign: TextAlign.center,
               style: TrainType.ui(
                 size: 12.5,
@@ -399,7 +399,7 @@ class _GalleryTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Container(
             color: const Color(0x0BFFFFFF),
-            child: hasPhoto ? _photo(context) : _captionTile(),
+            child: hasPhoto ? _photo(context) : _captionTile(context),
           ),
         ),
       ),
@@ -441,7 +441,7 @@ class _GalleryTile extends StatelessWidget {
     );
   }
 
-  Widget _captionTile() {
+  Widget _captionTile(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -457,7 +457,7 @@ class _GalleryTile extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
-                moment.caption.isEmpty ? 'Untitled' : moment.caption,
+                moment.caption.isEmpty ? l(context).momentUntitled : moment.caption,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: TrainType.ui(

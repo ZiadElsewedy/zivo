@@ -353,6 +353,19 @@ service cloud.firestore {
       allow delete: if canWrite(userId);
     }
 
+    // Remote backup copies that outlived the media they belonged to: a photo
+    // deleted while its cloud account was disconnected leaves its file id here
+    // so the deletion can be completed the next time that account connects.
+    // Owner only, like the media registry it shadows — and deliberately its own
+    // collection, so a tombstone can never be read back as a media record.
+    match /users/{userId}/mediaTombstones/{mediaId} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && request.resource.data.driveFileId is string
+        && request.resource.data.schemaVersion is int;
+      allow delete: if canWrite(userId);
+    }
+
     // Per-account settings (media/storage preferences at settings/media, the
     // Ask reply-style preference at settings/ai). Deliberately NOT pinned to a
     // field vocabulary: this is the one place whose shape is meant to grow with

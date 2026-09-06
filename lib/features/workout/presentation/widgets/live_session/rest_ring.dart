@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../../../core/util/bidi.dart';
 import 'package:flutter/services.dart';
 import '../../../../../core/motion/springs.dart';
 import '../../../../../core/theme/train_tokens.dart';
@@ -178,7 +179,7 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
             child: Align(
               alignment: const Alignment(0, 0.44),
               child: Text(
-                l(context).liveRestPlanned(formatRest(widget.total)),
+                l(context).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
                 style: TrainType.mono(
                   size: 9,
                   weight: FontWeight.w500,

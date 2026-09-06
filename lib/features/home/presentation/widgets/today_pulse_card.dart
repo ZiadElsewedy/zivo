@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -126,11 +127,12 @@ class _TrainedRing extends StatelessWidget {
 
         final String sub;
         if (done != null) {
-          sub =
-              '${done.label.toUpperCase()} · '
-              '${done.duration.inMinutes} MIN';
+          sub = l(context).pulseTrainedFor(
+            done.label.toUpperCase(),
+            done.duration.inMinutes,
+          );
         } else if (midSession != null) {
-          sub = '${midSession.dayLabel.toUpperCase()} · UNDER WAY';
+          sub = l(context).pulseUnderWay(midSession.dayLabel.toUpperCase());
         } else {
           sub = l(context).pulseNotYetToday;
         }
@@ -249,7 +251,11 @@ class _VolumeRing extends StatelessWidget {
           label: l(context).pulseVolume,
           sub: change == null
               ? l(context).pulseFirstWeek
-              : '${change >= 0 ? '+' : ''}${change.round()}% WoW',
+              // Pinned: "+4%" is a sign, digits and a percent — all neutral
+              // or numeric — so in Arabic it rendered as "4%+", moving the
+              // sign off the number it qualifies.
+              : '${ltrFor(context, '${change >= 0 ? '+' : ''}${change.round()}%')}'
+                    ' ${l(context).pulseWeekOverWeek}',
           subColor: change == null
               ? null
               : TrainColors.ember.withValues(alpha: 0.75),
@@ -376,7 +382,7 @@ class _StreakRow extends StatelessWidget {
         Flexible(
           child: hasStreak
               ? Text(
-                  '$streak-day streak',
+                  l(context).pulseStreakDays(streak),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TrainType.ui(
@@ -403,7 +409,7 @@ class _StreakRow extends StatelessWidget {
           child: Text(
             weekTotal == 0
                 ? l(context).pulseNoSessionsYet
-                : '$weekTotal SESSION${weekTotal == 1 ? '' : 'S'} · LAST 7 DAYS',
+                : l(context).pulseSessionsLast7(weekTotal),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
@@ -556,7 +562,10 @@ class _WeightRow extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          '${down ? '−' : '+'}$kg',
+          // Same reason as the volume delta above: a leading − or + is a
+          // neutral character and drifts to the far side of the figure in an
+          // RTL paragraph, turning "−1.2" into "1.2−".
+          ltrFor(context, '${down ? '−' : '+'}$kg'),
           style: TrainType.mono(
             size: 15,
             tracking: -0.02,
@@ -567,7 +576,7 @@ class _WeightRow extends StatelessWidget {
         // A delta always states its own baseline (identity §7), and the unit
         // stays smaller and dimmer than the value it belongs to.
         Text(
-          'KG · ${trend.spanDays}D',
+          l(context).pulseWeightSpan(trend.spanDays),
           style: TrainType.caption(
             size: 9,
             tracking: 0.12,

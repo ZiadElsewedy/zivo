@@ -120,6 +120,16 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `deleteSplit()` re-pointing).
 - Home's Training card and the Workout page read the **same** `watchActivePlan()` →
   `plan.nextDay` source, so they stay in sync — don't add a separate Home workout source.
+- **Training out of rotation defaults to a SWAP, not a skip.** `advanceToAfterDay`
+  moves the recommendation past whatever was actually trained, so starting an
+  out-of-order day costs the due day its turn. `showChangeWorkoutSheet` therefore
+  carries a `ChangeWorkoutMode` toggle: **swap** (default) trades the two days'
+  `order` via `WorkoutPlan.swapDays` *before* the session starts, so the
+  displaced day comes up next and the cycle still covers every day exactly once;
+  **skip** is the old drop-it behaviour. The cursor is not touched by a swap — it
+  stores an `order`, so it keeps pointing at the same position. `slot` stays with
+  its day (identity, not position — the editor's reorder doesn't reassign it
+  either).
 - Import DTOs live under `workout/domain/` (moved off `ai/domain/`) — keep them here.
 - **Warm-up and rest are the SAME screen — now literally one widget.** They were two
   builders the docs asked you to keep identical; they are `CountdownPhase`

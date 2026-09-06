@@ -14,7 +14,7 @@ import '../../domain/session_status.dart';
 import '../../domain/up_next_selection.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
-import '../../domain/workout_plan_format.dart';
+import '../workout_labels.dart';
 import '../widgets/staggered_reveal.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import 'live_session_page.dart';
@@ -409,7 +409,7 @@ class _TodaySection extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              workoutDayMeta(day),
+              workoutDayMetaText(context, day),
               style: AppText.meta.copyWith(color: TrainColors.ink4),
             ),
             const SizedBox(height: 18),
@@ -451,7 +451,7 @@ class _ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sets = [...exercise.sets]..sort((a, b) => a.order.compareTo(b.order));
-    final setLines = collapsedSetSummaries(sets);
+    final setLines = collapsedSetSummaryTexts(context, sets);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -475,7 +475,7 @@ class _ExerciseCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                plannedExerciseMeta(exercise),
+                plannedExerciseMetaText(context, exercise),
                 style: AppText.meta.copyWith(color: TrainColors.green),
               ),
             ],
@@ -619,7 +619,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                       const SizedBox(width: 10),
                     ],
                     Text(
-                      workoutDayMeta(day),
+                      workoutDayMetaText(context, day),
                       style: AppText.meta.copyWith(color: TrainColors.ink4),
                     ),
                     const SizedBox(width: 6),
@@ -664,7 +664,7 @@ class _BrowseDayCardState extends State<_BrowseDayCard> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        plannedExerciseMeta(exercise),
+                                        plannedExerciseMetaText(context, exercise),
                                         style: AppText.meta.copyWith(
                                           color: TrainColors.ink4,
                                           fontSize: 12,

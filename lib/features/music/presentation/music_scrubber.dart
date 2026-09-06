@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../core/util/bidi.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/motion/springs.dart';
@@ -295,7 +296,7 @@ class _MusicScrubberState extends State<MusicScrubber>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_format(fraction), style: _timecode),
-                Text('-${_format(remainingFraction)}', style: _timecode),
+                Text(ltrFor(context, '-${_format(remainingFraction)}'), style: _timecode),
               ],
             ),
           ],

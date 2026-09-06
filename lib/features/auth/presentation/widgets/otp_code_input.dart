@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -89,7 +90,7 @@ class _OtpCodeInputState extends State<OtpCodeInput>
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '${widget.length}-digit verification code',
+      label: l(context).authOtpFieldLabel(widget.length),
       textField: true,
       value: widget.controller.text,
       child: GestureDetector(

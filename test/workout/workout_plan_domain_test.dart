@@ -54,14 +54,14 @@ void main() {
       expect(a.kind, RepTargetKind.fixed);
       expect(a.min, 10);
       expect(a.max, 10);
-      expect(repTargetLabel(a), '10');
+      expect(repTargetFigure(a), '10');
     });
 
     test('range carries distinct min/max and is value-equal', () {
       const a = RepTarget.range(8, 12);
       const b = RepTarget.range(8, 12);
       expect(a, b);
-      expect(repTargetLabel(a), '8–12');
+      expect(repTargetFigure(a), '8–12');
     });
 
     test('toFailure carries no min/max and is value-equal', () {
@@ -70,7 +70,6 @@ void main() {
       expect(a, b);
       expect(a.min, isNull);
       expect(a.max, isNull);
-      expect(repTargetLabel(a), 'To failure');
     });
 
     test('different kinds or bounds are not equal', () {
@@ -88,91 +87,52 @@ void main() {
     });
   });
 
-  group('setSummary', () {
-    test('omits the weight when unset', () {
-      final s = _set(repTarget: const RepTarget.fixed(10), restSeconds: 90);
-      expect(setSummary(s), '10 reps · rest 1:30');
-    });
-
-    test('includes an integer weight without a trailing .0', () {
-      final s = _set(repTarget: const RepTarget.fixed(10), restSeconds: 120, targetWeightKg: 60);
-      expect(setSummary(s), '10 reps · 60kg · rest 2:00');
-    });
-
-    test('keeps a fractional weight', () {
-      final s = _set(repTarget: const RepTarget.fixed(8), restSeconds: 90, targetWeightKg: 22.5);
-      expect(setSummary(s), '8 reps · 22.5kg · rest 1:30');
-    });
-
-    test('formats a range target', () {
-      final s = _set(repTarget: const RepTarget.range(8, 12), restSeconds: 90);
-      expect(setSummary(s), '8–12 reps · rest 1:30');
-    });
-
-    test('formats a to-failure target without the "reps" suffix', () {
-      final s = _set(repTarget: const RepTarget.toFailure(), restSeconds: 45);
-      expect(setSummary(s), 'To failure · rest 0:45');
-    });
-  });
-
-  group('collapsedSetSummaries', () {
-    test('collapses identical sets into a single "N ×" line', () {
+  // The prose these used to assert ("10 reps · rest 1:30", "3 × 8–10 · rest
+  // 1:30") moved to `workout_labels_test.dart` when it moved out of `domain/`:
+  // it is language, and it now has to be asserted in a locale. What stays here
+  // is the part that is genuinely domain logic — which sets get collapsed
+  // together, and in what order.
+  group('collapsedSetGroups', () {
+    test('collapses identical consecutive sets into one group', () {
       final sets = [
         _set(order: 0, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
         _set(order: 1, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
         _set(order: 2, repTarget: const RepTarget.range(8, 10), restSeconds: 90),
       ];
-      expect(collapsedSetSummaries(sets), ['3 × 8–10 · rest 1:30']);
+      final groups = collapsedSetGroups(sets);
+      expect(groups, hasLength(1));
+      expect(groups.single, hasLength(3));
     });
 
-    test('includes weight in the collapsed line when set', () {
-      final sets = [
-        _set(order: 0, repTarget: const RepTarget.fixed(10), restSeconds: 120, targetWeightKg: 60),
-        _set(order: 1, repTarget: const RepTarget.fixed(10), restSeconds: 120, targetWeightKg: 60),
-      ];
-      expect(collapsedSetSummaries(sets), ['2 × 10 · 60kg · rest 2:00']);
-    });
-
-    test('starts a new line only where a set actually differs (a heavier last set)', () {
+    test('a differing weight or target starts a new group', () {
       final sets = [
         _set(order: 0, repTarget: const RepTarget.range(8, 10), restSeconds: 90, targetWeightKg: 40),
         _set(order: 1, repTarget: const RepTarget.range(8, 10), restSeconds: 90, targetWeightKg: 40),
         _set(order: 2, repTarget: const RepTarget.range(6, 8), restSeconds: 90, targetWeightKg: 45),
       ];
-      expect(collapsedSetSummaries(sets), [
-        '2 × 8–10 · 40kg · rest 1:30',
-        '1 × 6–8 · 45kg · rest 1:30',
-      ]);
+      expect(collapsedSetGroups(sets).map((g) => g.length), [2, 1]);
     });
 
-    test('every set differing yields one line per set, same as setSummary would', () {
+    test('every set differing yields one group per set', () {
       final sets = [
         _set(order: 0, repTarget: const RepTarget.fixed(12), restSeconds: 60),
         _set(order: 1, repTarget: const RepTarget.fixed(10), restSeconds: 75),
         _set(order: 2, repTarget: const RepTarget.toFailure(), restSeconds: 90),
       ];
-      expect(collapsedSetSummaries(sets), [
-        '1 × 12 · rest 1:00',
-        '1 × 10 · rest 1:15',
-        '1 × To failure · rest 1:30',
-      ]);
+      expect(collapsedSetGroups(sets).map((g) => g.length), [1, 1, 1]);
     });
 
-    test('a non-adjacent repeat of the same spec is NOT re-merged (order-sensitive grouping)', () {
+    test('a non-adjacent repeat of the same spec is NOT re-merged', () {
       final sets = [
         _set(order: 0, repTarget: const RepTarget.fixed(10), restSeconds: 90),
         _set(order: 1, repTarget: const RepTarget.fixed(8), restSeconds: 90),
         _set(order: 2, repTarget: const RepTarget.fixed(10), restSeconds: 90),
       ];
-      expect(collapsedSetSummaries(sets), [
-        '1 × 10 · rest 1:30',
-        '1 × 8 · rest 1:30',
-        '1 × 10 · rest 1:30',
-      ]);
+      expect(collapsedSetGroups(sets).map((g) => g.first.repTarget.min), [10, 8, 10]);
     });
 
-    test('empty sets list yields no lines', () {
-      expect(collapsedSetSummaries(const []), isEmpty);
+    test('empty sets list yields no groups', () {
+      expect(collapsedSetGroups(const []), isEmpty);
     });
   });
 
@@ -220,37 +180,6 @@ void main() {
       expect(renamed.muscleGroup, e.muscleGroup);
       expect(renamed.defaultRestSeconds, e.defaultRestSeconds);
       expect(renamed.sets, e.sets);
-    });
-
-    test('plannedExerciseMeta pluralises sets and appends the muscle group', () {
-      final e = PlannedExercise(
-        id: 'e1',
-        name: 'Bench Press',
-        order: 0,
-        muscleGroup: 'Chest',
-        defaultRestSeconds: 90,
-        sets: [_set(order: 0), _set(order: 1), _set(order: 2), _set(order: 3)],
-      );
-      expect(plannedExerciseMeta(e), '4 sets · Chest');
-    });
-
-    test('plannedExerciseMeta uses the singular and omits an absent muscle group', () {
-      final e = PlannedExercise(id: 'e1', name: 'Plank', order: 0, defaultRestSeconds: 60, sets: [_set()]);
-      expect(plannedExerciseMeta(e), '1 set');
-    });
-  });
-
-  group('workoutDayMeta', () {
-    test('pluralises exercises', () {
-      final e = PlannedExercise(id: 'e1', name: 'A', order: 0, defaultRestSeconds: 90, sets: const []);
-      final day = _day(exercises: [e, e]);
-      expect(workoutDayMeta(day), '2 exercises');
-    });
-
-    test('uses the singular for one exercise', () {
-      final e = PlannedExercise(id: 'e1', name: 'A', order: 0, defaultRestSeconds: 90, sets: const []);
-      final day = _day(exercises: [e]);
-      expect(workoutDayMeta(day), '1 exercise');
     });
   });
 
@@ -388,6 +317,98 @@ void main() {
       expect(advanced.id, plan.id);
       expect(advanced.name, plan.name);
       expect(advanced.days, plan.days);
+    });
+  });
+
+  group('WorkoutPlan.swapDays', () {
+    test('trades the two days\' rotation positions and leaves the cursor alone', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      final swapped = plan.swapDays('legs', 'arms');
+
+      // The cursor is an `order`, so it now resolves to the day that MOVED
+      // into position 0 — Arms is what gets trained today.
+      expect(swapped.cycleCursor, 0);
+      expect(swapped.nextDay?.id, 'arms');
+      expect(swapped.days.firstWhere((d) => d.id == 'arms').order, 0);
+      expect(swapped.days.firstWhere((d) => d.id == 'legs').order, 1);
+      expect(swapped.days.firstWhere((d) => d.id == 'chest').order, 2);
+    });
+
+    test('the displaced day comes up next, so no day loses its turn', () {
+      // The whole point: Legs was due, Arms is trained instead, and finishing
+      // Arms must put Legs back in front — not skip it the way a bare
+      // advanceToAfterDay would.
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      final afterArms = plan.swapDays('legs', 'arms').advanceToAfterDay('arms');
+      expect(afterArms.nextDay?.id, 'legs');
+
+      final afterLegs = afterArms.advanceToAfterDay('legs');
+      expect(afterLegs.nextDay?.id, 'chest');
+
+      // ...and without the swap, Legs is what gets dropped.
+      expect(plan.advanceToAfterDay('arms').nextDay?.id, 'chest');
+    });
+
+    test('keeps each day\'s slot letter — slot is identity, order is position', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final plan = _plan(days: [legs, arms], cycleCursor: 0);
+
+      final swapped = plan.swapDays('legs', 'arms');
+
+      expect(swapped.days.firstWhere((d) => d.id == 'arms').slot, 'B');
+      expect(swapped.days.firstWhere((d) => d.id == 'legs').slot, 'A');
+    });
+
+    test('swapping a day with a non-cursor day still keeps every day in the cycle', () {
+      final legs = _day(id: 'legs', slot: 'A', label: 'Legs', order: 0);
+      final arms = _day(id: 'arms', slot: 'B', label: 'Arms', order: 1);
+      final chest = _day(id: 'chest', slot: 'C', label: 'Chest', order: 2);
+      final plan = _plan(days: [legs, arms, chest], cycleCursor: 0);
+
+      var next = plan.swapDays('legs', 'chest');
+      expect(next.nextDay?.id, 'chest');
+
+      final trained = <String>[];
+      for (var i = 0; i < 3; i++) {
+        final day = next.nextDay!;
+        trained.add(day.id);
+        next = next.advanceToAfterDay(day.id);
+      }
+
+      expect(trained, ['chest', 'arms', 'legs']);
+    });
+
+    test('the same id twice, or an unknown id, is a no-op', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 0);
+
+      expect(identical(plan.swapDays('a', 'a'), plan), isTrue);
+      expect(identical(plan.swapDays('a', 'gone'), plan), isTrue);
+      expect(identical(plan.swapDays('gone', 'a'), plan), isTrue);
+    });
+
+    test('is pure and preserves other fields', () {
+      final dayA = _day(id: 'a', slot: 'A', order: 0);
+      final dayB = _day(id: 'b', slot: 'B', order: 1);
+      final plan = _plan(days: [dayA, dayB], cycleCursor: 0);
+
+      final swapped = plan.swapDays('a', 'b');
+
+      expect(plan.days.first.order, 0); // untouched
+      expect(swapped.id, plan.id);
+      expect(swapped.name, plan.name);
+      expect(swapped.status, plan.status);
+      expect(swapped.createdAt, plan.createdAt);
     });
   });
 

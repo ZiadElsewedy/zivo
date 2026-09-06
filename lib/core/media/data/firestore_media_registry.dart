@@ -4,6 +4,7 @@ import '../../firebase/uid_source.dart';
 import '../domain/media_kind.dart';
 import '../domain/media_object.dart';
 import '../domain/media_registry.dart';
+import 'in_memory_media_registry.dart' show needsBackup;
 
 /// The real [MediaRegistry], backed by Firestore's `users/{uid}/media`
 /// subcollection. Stores only metadata — the file bytes live in the local
@@ -21,6 +22,13 @@ class FirestoreMediaRegistry implements MediaRegistry {
   CollectionReference<Map<String, dynamic>> _media(String uid) =>
       _firestore.collection('users').doc(uid).collection('media');
 
+  /// Deliberately a sibling collection, not a flag on a media doc: a tombstone
+  /// must never surface in `getAll()` (the gallery's metadata join) or in a
+  /// sync pass, and a separate collection makes that structural rather than a
+  /// filter every future read has to remember.
+  CollectionReference<Map<String, dynamic>> _tombstones(String uid) =>
+      _firestore.collection('users').doc(uid).collection('mediaTombstones');
+
   String _requireUid() {
     final uid = uidSource.currentUid();
     if (uid == null) {
@@ -29,9 +37,22 @@ class FirestoreMediaRegistry implements MediaRegistry {
     return uid;
   }
 
+  /// Writes the record under **the signed-in account**, never under whatever
+  /// owner the caller happened to pass. Routing writes by `object.ownerUid`
+  /// while every read routes by the current uid meant a capture taken during a
+  /// momentary auth gap wrote to an unroutable path, was rejected by the rules,
+  /// and left a photo with no registry record at all — metadata-less bytes
+  /// here, and an unresolvable image on every other device.
   @override
   Future<void> put(MediaObject object) {
-    return _media(object.ownerUid).doc(object.id).set({
+    final uid = _requireUid();
+    if (object.ownerUid != uid) {
+      throw StateError(
+        'FirestoreMediaRegistry: refusing to write media ${object.id} owned by '
+        '"${object.ownerUid}" as "$uid".',
+      );
+    }
+    return _media(uid).doc(object.id).set({
       'kind': object.kind.name,
       'relativePath': object.relativePath,
       'mimeType': object.mimeType,
@@ -46,7 +67,10 @@ class FirestoreMediaRegistry implements MediaRegistry {
       // already-stored docs; the domain fields are provider-neutral.
       'drive': object.remoteBackup.name,
       'driveFileId': object.remoteId,
-      'schemaVersion': 1,
+      // Which Drive account `driveFileId` lives in. Added in schema 2; absent
+      // on older docs, where it reads as "unknown" rather than as this one.
+      'driveAccountKey': object.remoteAccountKey,
+      'schemaVersion': 2,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -81,15 +105,16 @@ class FirestoreMediaRegistry implements MediaRegistry {
   }
 
   @override
-  Future<List<MediaObject>> pendingBackups() async {
+  Future<List<MediaObject>> pendingBackups({String? forAccountKey}) async {
     final uid = _requireUid();
-    // Drive not yet done is the primary work list; the whole set is small
-    // (personal media), so a full read + in-memory filter is fine and avoids a
-    // composite index.
+    // Drive not yet done (or done against another account) is the primary work
+    // list; the whole set is small (personal media), so a full read + in-memory
+    // filter is fine and avoids a composite index — and the account-relative
+    // clause could not be expressed as a Firestore query anyway.
     final snap = await _media(uid).get();
     return snap.docs
         .map((d) => _fromDoc(uid, d.id, d.data()))
-        .where((m) => m.remoteBackup != BackupState.done || m.gallery == BackupState.failed)
+        .where((m) => needsBackup(m, forAccountKey))
         .toList(growable: false);
   }
 
@@ -97,6 +122,39 @@ class FirestoreMediaRegistry implements MediaRegistry {
   Future<void> remove(String id) async {
     final uid = _requireUid();
     await _media(uid).doc(id).delete();
+  }
+
+  @override
+  Future<void> addTombstone(MediaTombstone tombstone) async {
+    final uid = _requireUid();
+    await _tombstones(uid).doc(tombstone.mediaId).set({
+      'driveFileId': tombstone.remoteId,
+      'driveAccountKey': tombstone.remoteAccountKey,
+      'deletedAt': Timestamp.fromDate(tombstone.deletedAt),
+      'schemaVersion': 1,
+    });
+  }
+
+  @override
+  Future<List<MediaTombstone>> tombstones() async {
+    final uid = _requireUid();
+    final snap = await _tombstones(uid).get();
+    return snap.docs.map((d) {
+      final data = d.data();
+      final deletedAt = data['deletedAt'];
+      return MediaTombstone(
+        mediaId: d.id,
+        remoteId: data['driveFileId'] as String? ?? '',
+        remoteAccountKey: data['driveAccountKey'] as String?,
+        deletedAt: deletedAt is Timestamp ? deletedAt.toDate() : DateTime.now(),
+      );
+    }).where((t) => t.remoteId.isNotEmpty).toList(growable: false);
+  }
+
+  @override
+  Future<void> removeTombstone(String mediaId) async {
+    final uid = _requireUid();
+    await _tombstones(uid).doc(mediaId).delete();
   }
 
   MediaObject _fromDoc(String uid, String id, Map<String, dynamic> data) {
@@ -116,6 +174,7 @@ class FirestoreMediaRegistry implements MediaRegistry {
       gallery: _stateFrom(data['gallery']),
       remoteBackup: _stateFrom(data['drive']),
       remoteId: data['driveFileId'] as String?,
+      remoteAccountKey: data['driveAccountKey'] as String?,
     );
   }
 

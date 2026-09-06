@@ -6,7 +6,7 @@ import '../../../../../../core/util/parse.dart';
 import '../../../../../../l10n/l10n.dart';
 import '../../../../domain/progression.dart';
 import '../../../../domain/rep_target.dart';
-import '../../../../domain/workout_plan_format.dart';
+import '../../../workout_labels.dart';
 import '../../../controllers/live_session_controller.dart';
 import '../../staggered_reveal.dart';
 import '../goal_block.dart';
@@ -49,7 +49,7 @@ class RunningPhase extends StatelessWidget {
     final target = set.target;
     final targetText = target.kind == RepTargetKind.toFailure
         ? null
-        : '${repTargetLabel(target)} reps';
+        : l(context).workoutRepsSpec(repTargetText(context, target));
     final previousSet = controller.previousSetFor(exercise, set);
     final goal = computeGoal(
       target: target,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/util/bidi.dart';
 import '../../../../../core/motion/springs.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
@@ -257,7 +258,7 @@ class GoalBlock extends StatelessWidget {
                 Expanded(
                   child: GoalStatCell(
                     label: l(context).liveRest,
-                    value: formatRest(restSeconds),
+                    value: ltrFor(context, formatRest(restSeconds)),
                     valueKey: const Key('rest-label'),
                     inset: true,
                   ),

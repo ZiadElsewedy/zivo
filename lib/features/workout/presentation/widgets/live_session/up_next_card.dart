@@ -5,7 +5,7 @@ import '../../../../../core/widgets/train_chrome.dart';
 import '../../../domain/logged_set.dart';
 import '../../../domain/rest_policy.dart';
 import '../../../domain/session_exercise.dart';
-import '../../../domain/workout_plan_format.dart';
+import '../../workout_labels.dart';
 import '../../../../music/domain/music_connection.dart';
 import '../../../../music/domain/music_controller.dart';
 import '../../../../music/domain/now_playing.dart';
@@ -68,7 +68,7 @@ class UpNextCard extends StatelessWidget {
     }
 
     final workingIndex = workingSetIndexOf(exercise, set);
-    final reps = repTargetLabel(set.target);
+    final reps = repTargetText(context, set.target);
     final weight = set.targetWeightKg;
     return TrainCard(
       radius: 20,

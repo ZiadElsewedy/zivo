@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/util/bidi.dart';
 import 'package:flutter/services.dart';
 import '../../../../../core/motion/springs.dart';
 import '../../../../../core/theme/app_icons.dart';
@@ -119,7 +120,7 @@ class SessionHeader extends StatelessWidget {
                   // construction (Azeret Mono), so ticking seconds don't
                   // shuffle the row.
                   Text(
-                    formatElapsed(elapsed),
+                    ltrFor(context, formatElapsed(elapsed)),
                     key: const Key('elapsed-timer'),
                     style: TrainType.mono(
                       size: 18,

@@ -30,6 +30,7 @@ import '../widgets/add_workout_sheet.dart';
 import 'workout_plan_edit_page.dart';
 import 'workout_progress_page.dart';
 import 'workout_stats_pages.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../l10n/l10n.dart';
 import 'package:intl/intl.dart';
 
@@ -174,7 +175,9 @@ class WorkoutDashboardPage extends StatelessWidget {
                             // itself.
                             TrainSectionLabel(
                               l(context).workoutTraining,
-                              trailing: '${stats.sessionsThisWeek} THIS WEEK',
+                              trailing: l(
+                                context,
+                              ).workoutThisWeekCount(stats.sessionsThisWeek),
                             ),
                             const SizedBox(height: 11),
                             _StatsGrid(stats: stats, sessions: sessions),
@@ -189,7 +192,10 @@ class WorkoutDashboardPage extends StatelessWidget {
                           children: [
                             TrainSectionLabel(
                               l(context).workoutBodyweight,
-                              trailing: _weightDeltaCaption(weightTrend),
+                              trailing: _weightDeltaCaption(
+                                context,
+                                weightTrend,
+                              ),
                               trailingColor: _weightDeltaColor(weightTrend),
                             ),
                             const SizedBox(height: 11),
@@ -253,7 +259,7 @@ Future<void> _showLogWeightSheet(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Log today's weight",
+                l(context).workoutLogTodaysWeight,
                 style: AppText.cardTitle.copyWith(color: TrainColors.ink),
               ),
               const SizedBox(height: 18),
@@ -353,8 +359,7 @@ Future<void> _showLogWeightSheet(
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: TrainColors.raised,
                           content: Text(
-                            "Couldn't save that weigh-in — check your "
-                            'connection and try again.',
+                            l(context).workoutWeighInFailed,
                             style: AppText.body.copyWith(
                               color: TrainColors.ink,
                               fontSize: 13.5,
@@ -782,7 +787,7 @@ class _DashboardErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "Couldn't load this.",
+              l(context).errorCouldntLoad,
               style: AppText.aside.copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
@@ -822,7 +827,7 @@ class _NoPlanState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              "Import a PDF or photo and I'll turn it into a real split, or build one from scratch.",
+              l(context).workoutNoPlanImportHint,
               style: AppText.body.copyWith(color: TrainColors.ink3),
               textAlign: TextAlign.center,
             ),
@@ -938,7 +943,7 @@ String _shortDate(DateTime d, [String? localeName]) {
 /// The BODYWEIGHT section's trailing caption — a delta always states its own
 /// baseline (identity §7), so it carries the window with it. Null (no
 /// caption) until there are two readings in the window to compare.
-String? _weightDeltaCaption(WeightTrend trend) {
+String? _weightDeltaCaption(BuildContext context, WeightTrend trend) {
   final change = trend.changeKgOverWindow;
   if (change == null) return null;
   final sign = change > 0
@@ -946,7 +951,11 @@ String? _weightDeltaCaption(WeightTrend trend) {
       : change < 0
       ? '−'
       : '';
-  return '$sign${_trimNumber(change.abs())} KG · 30D';
+  // The signed figure is pinned: a leading + or − is bidi-neutral and drifts
+  // to the far side of the number in Arabic, turning "−1.2" into "1.2−".
+  return l(context).workoutWeightDeltaWindow(
+    ltrFor(context, '$sign${_trimNumber(change.abs())}'),
+  );
 }
 
 /// Losing reads green, gaining ember — the same state/attention split the

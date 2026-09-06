@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-04 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-06 · **Active branch:** `core-edits`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,238 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **The Arabic copy pass finished the app-facing surfaces** (2026-09-06, on
+  `core-edits`). **1144 keys** in both languages, up from 344 — the en/ar gap
+  test is green and every `@description` is filled in.
+  - **Done this pass:** Storage & Sync, the whole of **auth** (settings, sign-in,
+    sign-up, verify-email, forgot/change password, delete-account, the password
+    checklist), **moments** (capture, timeline, viewer, the photo-metadata
+    sheet), **music** (player, compact strip, lozenge), the **workout
+    drill-downs** (session details, splits, dashboard, plan editor, exercise
+    sheet, workout capture), the **import/describe flows** (file picking,
+    backend error mapping, progress lines, the add-a-plan sheet), plus the
+    Today pulse card, expenses list and the diet leftovers.
+  - **Three more domain→presentation splits**, all the same shape as
+    `workout_labels.dart`: `PasswordRule` now carries a **`PasswordRuleId`** with
+    its sentences in `presentation/password_rule_labels.dart`; `CaptureSource`
+    lost its `label` getter to `core/media/presentation/capture_source_labels.dart`
+    (it is persisted by `name`, so it is an id); and `importProgressLine` takes an
+    **`ImportItemKind`** instead of an English `itemNoun` it pluralised by
+    appending an "s" — which Arabic cannot do. A `domain/` enum that is written
+    to Firestore must never carry copy.
+  - **Bidi pins went in with the strings, not after them.** Every composed
+    numeric run these screens show is now wrapped: session clocks and rest
+    countdowns, the `12/15` sets ratio, `RPE 8.5`, photo dimensions and file
+    sizes, `UTC+03:00`, the `-2:41` track countdown, signed weight/volume
+    deltas, and the `~1270` kcal figures. User-typed text — plan names, split
+    names, section headings out of an imported PDF, a moment's location —
+    is wrapped with **first-strong** `isolate()` instead, because its direction
+    is the user's to decide, not ours.
+  - **English copy is unchanged.** Two regressions caught by the suite proved
+    the rule worth stating: keying a string is not licence to reword it
+    ("3 tries left" had become "3 attempts left"; an import caption lost its
+    " total"). `ltrFor` is a no-op under LTR for the same reason.
+  - **New test helper:** `test/support/bidi_finders.dart` →
+    `findTextIgnoringBidi`, for asserting on a string composed from user data.
+    Plain app copy should keep using `find.text`, which stays stricter.
+  - **Owner check wanted:** ~365 new Arabic strings are mine, not a native
+    speaker's. The plural forms especially — Arabic's dual and few/many
+    categories are used throughout (`مجموعتان`, `صورتان`, `{count} صور` vs
+    `{count} صورة`) and are easy to get subtly wrong.
+  - **The privacy policy is translated too** (owner's call, after I flagged the
+    legal risk). All 15 sections + the four "short version" bullets, at
+    [`privacy_page.dart`](../lib/features/auth/presentation/pages/privacy_page.dart).
+    `kPrivacySections` was a `const` list of English and is now
+    **`privacySections(BuildContext)`**; `_SectionBlock` takes its index rather
+    than looking itself up by `indexOf`, which a per-locale list breaks. The
+    revision date is a `DateTime` run through `formatFullDateLong`, so it reads
+    "August 25, 2026" / "٢٥ أغسطس ٢٠٢٦" instead of an English month baked into
+    a translated sentence, and the contact address is a placeholder wrapped in
+    `isolate()` so bidi cannot break it apart around the `@`.
+    `test/auth/privacy_page_l10n_test.dart` asserts both languages have the
+    same 15 sections with the same bullet counts, that no Arabic section is
+    left in English (allowing the proper nouns), and that the address survives.
+    - **⚠ OWNER ACTION — two of them.** (1) **zzivo.com/privacy still shows the
+      English-only policy.** The file's own doc comment says the app and the web
+      page are one document and must be updated together; they are now out of
+      sync until the public page carries the Arabic. (2) **This is a legal
+      document translated by an AI, not a lawyer or a native speaker.** It is a
+      faithful rendering of the English as far as I can make it, but the
+      consent it describes is a legal instrument and should be reviewed before
+      it ships to Arabic users.
+  - **Still English:** roughly 230 literals, nearly all of them numeric
+    interpolations the bidi pass has already handled rather than prose —
+    plus `exercise_analysis_page`, `workout_stats_pages` and
+    `workout_progress_page`, whose remaining strings are chart axis labels
+    and units.
+
+- **Arabic RTL: the bottom bar, the Hub, and the bidi rule that was missing**
+  (2026-09-06, on `core-edits`). Three separate bugs, one root cause each.
+  - **The nav capsule was mirrored.** `ZivoBottomBar` drew its tabs in a `Row`
+    (which reverses under RTL) but positioned the ember capsule with
+    `Positioned(left:)` (which does not), so in Arabic the capsule sat under the
+    mirror image of the selected tab — tapping اليوم lit حسابي. Now
+    `PositionedDirectional(start:)`, defined against the same axis as the row.
+  - **Tab order is now pinned LTR in every language** — Today · Hub · Ask · You,
+    left to right, **at the owner's explicit call**. This is a deliberate
+    exception to platform mirroring (iOS/Android both mirror a tab bar under
+    RTL): the reasoning is that the four destinations are a fixed row of
+    hardware-like buttons a thumb learns by position, and moving them because
+    the language changed costs more than reading order gains. Implemented as one
+    `Directionality(textDirection: ltr)` around the strip's *geometry* only —
+    labels are still Arabic and still shape RTL. Deleting that one widget
+    reverts to mirroring; the capsule needs no change either way.
+    `test/shell/bottom_bar_rtl_test.dart` covers capsule/tab agreement in both
+    languages and pins the order decision so a later RTL sweep can't "fix" it by
+    accident.
+  - **New rule — `core/util/bidi.dart`, and it is not a translation gap.**
+    A line like `3 × 8–10 · rest 1:30` is digits and bidi-*neutral* characters
+    end to end, so an Arabic paragraph laid it out right-to-left and it rendered
+    as `rest 1:30 · 10–8 × 3`: the pre-workout screen was advertising a rep range
+    of **10–8**. No `.arb` key fixes that — the same thing happens inside a
+    perfectly translated sentence. Three tools now: **`ltrFor(context, s)`** for a
+    composed numeric run (a no-op under LTR, so English strings stay
+    byte-identical — that gate matters, an unconditional wrap splits
+    `rest 3:00` for every `find.textContaining` in the suite); **`isolate(s)`**
+    (first-strong) for text ZIVO did not write — a plan name, an exercise name —
+    whose direction is the user's, not ours; and **`stripBidi`** for tests.
+    Applied to every planned-set spec, the Today pulse card's signed deltas
+    (`+4%` was rendering as `4%+`), and the day-details caption.
+  - **`workout_plan_format.dart` split.** Grouping stayed in `domain/`
+    (`collapsedSetGroups` returns groups, not prose); every reader-facing string
+    moved to **`presentation/workout_labels.dart`**, which takes a `BuildContext`
+    — same shape as `diet_labels.dart`. `weightText` joined `workout_format.dart`
+    rather than becoming a second home for how a weight is written. Six call
+    sites follow; `workout_labels_test.dart` asserts the English wording is
+    byte-for-byte unchanged **and** that Arabic keeps `8–10` ascending and
+    isolated.
+  - **The Hub speaks Arabic.** Its title, the Connected band label, all four tile
+    stat lines and both service states were hardcoded English — which in RTL did
+    not merely stay English, it scrambled (`0 of 3 · 1270 kcal` rendered as
+    `OF 3 · 1270 KCAL 0`). ~25 new keys, `hubMomentsCount`/`workoutSetCount` as
+    real ICU plurals with Arabic's dual form.
+  - **Owner check wanted:** the ~25 new Arabic strings are mine, not a native
+    speaker's. `مجموعتان`/`تمارين`/`حتى الفشل`/`أسبوعيًا` especially.
+  - **Still English + still scrambling in Arabic** (the remaining copy pass, now
+    the *bigger* half of the RTL problem since untranslated text actively
+    reorders): workout drill-downs (analysis, stats, history, splits, PDF import,
+    plan editor, session details), auth, moments, music, and the exercise-name
+    column on every workout surface.
+
+- **The Hub's Drive row follows the connection instead of remembering it**
+  (2026-09-06, on `core-edits`). Connecting Google Drive left the Hub's Connected
+  band reading "NOT CONNECTED" until the app restarted: the row was a one-shot
+  `FutureBuilder`, and the Hub is a tab inside the shell's `IndexedStack` — built
+  once, never rebuilt on tab switch or on return from Storage & Sync.
+  `MediaService` now publishes `backupConnected` (a `ValueNotifier`, updated by
+  every path that decides the answer, including the cross-account fail-closed
+  check), and the row watches it, seeds itself with one read on mount, and
+  re-reads on return from Storage & Sync — so a manual refresh control on that
+  band would have nothing left to do. `test/hub/hub_drive_row_test.dart` connects
+  the service without rebuilding the page and asserts the row moves.
+
+- **Changing today's workout can now SWAP instead of skip — the cycle closes**
+  (2026-09-06, on `core-edits`). Training out of rotation cost a day its turn:
+  finishing advances the cursor **past what was actually trained**
+  (`advanceToAfterDay`), so picking Arms while Legs was due left Legs dropped
+  from the cycle and a week meant to cover the whole body didn't.
+  - The change-workout sheet now asks a second question — **Swap** (default) or
+    **Skip** — above the day list, with a line naming what happens to the due
+    day. The one-tap-starts contract is untouched: the toggle only decides what
+    happens to the day the pick displaced.
+  - **Swap** is `WorkoutPlan.swapDays(aId, bId)`: the two days trade `order`
+    and the cursor is deliberately *not* moved (it stores an `order`, so it
+    keeps pointing at the same position, which now holds the picked day).
+    `slot` stays with its day — it is identity ("Day B is Arms"), not position,
+    matching what the editor's drag-reorder already does. Written to the repo
+    **before** the session starts, so the card behind reads the new rotation
+    and an abandoned session still leaves the cycle whole.
+  - **Skip** is the old behaviour, kept for days you genuinely want to drop.
+  - Fixed alongside: the sheet computed a `resumable` session for the
+    in-progress day, showed its "In progress" badge, popped it — and the caller
+    threw it away, starting a *second* session over the first. Picking that day
+    now resumes.
+  - Domain rules in `test/workout/workout_plan_domain_test.dart`, the flow (both
+    modes + the resume fix) in `test/home/today_page_test.dart`.
+
+- **Drive backup is account-aware — a file id now carries the account that minted
+  it** (2026-09-06, on `core-edits`). Production bug: a photo backed up to Drive
+  account #1 became permanently unreachable after the user connected Drive #2 —
+  the Moment, caption and date all survived, the image did not.
+  - **Root cause.** `MediaObject` stored `remoteId` and nothing saying *which*
+    Drive account issued it, while the module's only ownership gate
+    (`_backupConnectionValidForCurrentAccount`) compares **ZIVO uids** — which
+    do not change when the Drive account does. The check passed, and Drive #1's
+    ids went on being issued against Drive #2.
+  - **Why it never healed.** Reads returned `cloudOnly` ("on its way") for bytes
+    that were never coming; `pendingBackups()` filtered out anything marked
+    `done`, so "Back up now" said *"Everything is already backed up"* over an
+    empty Drive #2 folder, leaving the local copy as the only copy; and every
+    retry passed the stale id as `replaceRemoteId`, which 404'd with **no
+    fallback to `files.create`** — a permanently poisoned record.
+  - **The fix stores the pair and makes "backed up" a claim about a
+    destination.** `MediaObject.remoteAccountKey` beside `remoteId` (Firestore
+    `driveAccountKey`, `schemaVersion` **2**); `MediaBackupProvider` gains
+    `liveAccountKey`/`connectedAccountKey()`, a required `expectedAccountKey` on
+    download+deleteRemote and `replaceInAccountKey` on upload — enforced at the
+    **seam**, so no call site can forget and a mid-flight account swap fails
+    loudly; `pendingBackups({forAccountKey})` so connecting a new account
+    re-protects the whole library from local bytes; `files.create` fallback;
+    `restoreSession` refuses an account other than the recorded one; new
+    `MediaAvailability.otherAccount` (no self-retry — it cannot succeed);
+    resolution caches dropped on connect/disconnect/uid change.
+  - **`FirestoreMediaRegistry.put` now files under the signed-in uid or throws**
+    (it routed writes by a caller-supplied owner while every read used the
+    current uid), and the Moments capture screen no longer substitutes a
+    `'local'` placeholder owner when signed out.
+  - **Migration is additive and lazy.** An absent key means *unknown*; unknown is
+    never treated as equal to the connected account, but gets the benefit of the
+    doubt once and is stamped by the first transfer that actually works. No batch
+    job and **no rules change** — the media rule pins only `relativePath` +
+    `schemaVersion`.
+  - **A file deleted inside Drive now recovers instead of pulsing forever**
+    (follow-up, same day). `download` returns a `RemoteFetch` (`bytes` / `gone` /
+    `unavailable`) instead of nullable bytes, so a definite **404/410** is told
+    apart from a dropped connection. On `gone` the dead reference is cleared
+    (`clearRemote`) and the record drops to `BackupState.failed`, which puts it
+    back on the work list — so any device still holding the local bytes
+    re-uploads it on the next backup. **403 is deliberately not treated as
+    gone** (it covers rate limits, and mass-dropping references under load
+    would be far worse than a slow retry), and a timeout never is. **Only the
+    account that holds an id may declare it dead:** a 404 against a record with
+    no recorded account is ambiguous — deleted, or filed in the Drive the user
+    just left — so it keeps its reference (reconnecting the old account still
+    recovers the photo) and only drops to `failed`.
+  - **A deleted photo no longer strands its cloud copy.** `deleteMedia` used to
+    look up the remote id only when a session was live — precisely the case
+    where it did NOT need preserving — so deleting a Moment while the holding
+    account was disconnected dropped the row and left the file in the user's
+    Drive with nothing able to name it again. Now the coordinates survive as a
+    **`MediaTombstone`** (new owner-only `users/{uid}/mediaTombstones`
+    collection + rule + rules tests), and `sweepPendingRemoteDeletions()`
+    finishes the job from `connectBackup` and at the head of `backupNow`.
+    Tombstones for other accounts are left untouched for whenever those
+    reconnect.
+  - **Storage & Sync names the photos an account switch left behind** — a count
+    plus both routes out (Back up now for the ones still on this device,
+    reconnect for the rest). The status banner no longer counts a copy in an
+    unreachable account as "backed up", because to this account it isn't.
+  - **Local bytes are scoped to the account that captured them.** The store
+    wrote every file to a flat `media/{kind}/{id}.{ext}`, shared by every ZIVO
+    account used on the device — the id was the only thing preventing a
+    collision, and an account's media could not be identified on disk. New
+    imports go to `media/{owner}/{kind}/{id}.{ext}` (the owner sanitised to one
+    safe path segment). **Nothing is migrated:** a ref is opaque and
+    self-describing, so unscoped paths already in `Moment.imagePath` /
+    `UserProfile.photoPath` resolve exactly as before. Rewriting them would mean
+    touching every Firestore doc holding one, and a single miss recreates the
+    unresolvable-photo bug this whole arc exists to remove.
+  - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
+    drives a fake where **files belong to one account**, so a cross-account read
+    404s naturally instead of by scripting; reverting the fix puts four of its
+    scenarios red, and [`media_availability_ui_test.dart`](../test/core/media/media_availability_ui_test.dart)
+    pins the read-side states. **1176 dart + 137 rules tests green.**
 
 - **The diet feature is localized** (2026-09-04, on `core-edits`). Fifth and
   largest piece of the l10n push — the feature had **264** hardcoded literals,
@@ -1111,6 +1343,43 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **Media bytes are scoped by owner on disk.** `LocalMediaStore` wrote to a
+  flat `media/{kind}/{id}.{ext}` shared across every account on the device. New imports
+  use `media/{owner}/{kind}/{id}.{ext}`, with the owner sanitised to one safe path
+  segment (a hostile value cannot escape the store, an empty one gets `_shared`). Reads
+  are layout-agnostic, so the unscoped refs already sitting in Firestore keep resolving —
+  no file is moved and no stored ref is rewritten, deliberately. 1176 dart tests green.
+- 2026-09-06 — **Deleted photos no longer strand a Drive copy; Storage & Sync explains an
+  account switch.** `deleteMedia` read the remote id only when a session was live, so
+  deleting while the holding account was disconnected discarded the only pointer and left
+  the file in the user's Drive forever (a privacy issue, since they deleted it). Added
+  `MediaTombstone` + `users/{uid}/mediaTombstones` (rule + rules tests) and
+  `sweepPendingRemoteDeletions()`, run on connect and at the head of `backupNow`. The
+  Storage & Sync card now counts photos reachable only from another Google account and
+  names both routes out. 1172 dart + 137 rules tests green.
+- 2026-09-06 — **Only the owning account may declare a file id dead.** Follow-up to the
+  deletion fix: it discarded a reference on ANY 404, which for a record with no recorded
+  account (i.e. every record predating `driveAccountKey` — all existing data) destroyed
+  the only pointer to a copy still sitting in the account the user had switched away
+  from. Now a 404 is conclusive only when the id is attributed to the account that
+  answered; otherwise the record keeps its id, drops to `failed` so local bytes
+  re-upload, and reads `otherAccount`. 1166 dart tests green.
+- 2026-09-06 — **A photo deleted from Drive no longer pulses forever.** `download`
+  collapsed a hard 404 and a network blip into one null, so a deleted file read as
+  `cloudOnly` ("on its way") indefinitely while its record still claimed `done`, which
+  `pendingBackups` skipped — nothing could ever restore it. `download` now returns
+  `RemoteFetch` (bytes/gone/unavailable); a confirmed 404/410 clears the reference and
+  marks the record `failed` so a device holding the bytes re-uploads it. Transport
+  errors and 403s are never treated as deletions. 1164 dart tests green.
+- 2026-09-06 — **Drive account switch no longer strands photos.** `remoteId` had no
+  companion account key, so after disconnecting Drive #1 and connecting Drive #2 every
+  old file id was reissued against the wrong account (blank image, `cloudOnly` forever)
+  and `pendingBackups` skipped them as `done` (Drive #2 never got the back catalogue —
+  real loss on reinstall). Added `MediaObject.remoteAccountKey` + `driveAccountKey`
+  (schema 2), moved the account check onto the `MediaBackupProvider` seam, made
+  `pendingBackups` destination-relative, added the `files.create` fallback and the
+  `otherAccount` read state. Additive lazy migration, no rules change. 1160 dart tests
+  green.
 - 2026-09-03 — **Fixed bogus per-exercise strength % (e.g. "+2750%").** Root cause:
   `classify` fell back to a rep-count "score" when a lift's early sessions had no
   logged weight, then divided a later estimated-1RM (kg) by it — mixing scales. Fix

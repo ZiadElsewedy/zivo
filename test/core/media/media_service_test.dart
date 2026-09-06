@@ -23,9 +23,15 @@ class _ThrowingRegistry implements MediaRegistry {
   @override
   Future<List<MediaObject>> getAll() async => const [];
   @override
-  Future<List<MediaObject>> pendingBackups() async => const [];
+  Future<List<MediaObject>> pendingBackups({String? forAccountKey}) async => const [];
   @override
   Future<void> remove(String id) async {}
+  @override
+  Future<void> addTombstone(MediaTombstone tombstone) async {}
+  @override
+  Future<List<MediaTombstone>> tombstones() async => const [];
+  @override
+  Future<void> removeTombstone(String mediaId) async {}
 }
 
 /// Records every gallery-copy call and returns a scripted result.
@@ -83,7 +89,7 @@ void main() {
         ownerUid: 'u1',
       );
 
-      expect(ref, 'media/moments/m1.jpg');
+      expect(ref, 'media/u1/moments/m1.jpg');
       // `capture` returns at the durable LOCAL copy and registers on a
       // background tail (see its doc) — the registry assertions below are
       // about that tail, so wait for it.
@@ -131,7 +137,7 @@ void main() {
         ownerUid: 'u1',
       );
 
-      expect(ref, 'media/moments/m1.jpg');
+      expect(ref, 'media/u1/moments/m1.jpg');
       expect((await storeImpl.resolve(ref))!.existsSync(), isTrue);
     });
 

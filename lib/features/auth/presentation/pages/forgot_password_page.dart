@@ -7,6 +7,7 @@ import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/back_chip.dart';
 import '../../../../core/widgets/rise_in.dart';
+import '../../../../l10n/l10n.dart';
 import '../../domain/otp_result.dart';
 import '../../domain/password_policy.dart';
 import '../widgets/auth_action_button.dart';
@@ -113,7 +114,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> _sendCode({bool resend = false}) async {
     if (_sending || (resend && _cooldown > 0)) return;
     if (!_validEmail) {
-      setState(() => _errorText = "That email address doesn't look right.");
+      setState(() => _errorText = l(context).authEmailLooksWrong);
       return;
     }
     final auth = AppScope.of(context).auth;
@@ -130,7 +131,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       case OtpSendSuccess(:final cooldownSeconds):
         _goToCodeStep();
         _startCooldown(cooldownSeconds);
-        if (resend) _toast('A new code is on its way.');
+        if (resend) _toast(l(context).authCodeSent);
       case OtpSendCooldown(:final retryAfterSeconds):
         _goToCodeStep();
         _startCooldown(retryAfterSeconds);
@@ -179,14 +180,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       case OtpVerifyInvalid(:final attemptsRemaining):
         _failCode(
           attemptsRemaining != null && attemptsRemaining > 0
-              ? 'That code isn’t right. $attemptsRemaining ${attemptsRemaining == 1 ? 'try' : 'tries'} left.'
-              : 'That code isn’t right.',
+              ? l(context).authCodeWrongWithAttempts(attemptsRemaining)
+              : l(context).authCodeWrong,
         );
       case OtpVerifyExpired():
-        _failCode('That code has expired. Send a new one.');
+        _failCode(l(context).authCodeExpired);
       case OtpVerifyTooManyAttempts(:final retryAfterSeconds):
         if (retryAfterSeconds != null) _startCooldown(retryAfterSeconds);
-        _failCode('Too many attempts. Send a new code.');
+        _failCode(l(context).authCodeTooManyAttempts);
       case OtpVerifyFailed(:final failure):
         setState(() => _errorText = failure.message);
     }
@@ -288,11 +289,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const RiseIn(
+        RiseIn(
           child: AuthHeader(
-            title: 'Reset your password',
-            aside:
-                'Enter your account email and we’ll send you a 6-digit code.',
+            title: l(context).authResetTitle,
+            aside: l(context).authResetSubtitle,
           ),
         ),
         const SizedBox(height: 34),
@@ -300,7 +300,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           delay: const Duration(milliseconds: 70),
           child: AuthTextField(
             controller: _email,
-            hint: 'Email',
+            hint: l(context).authEmail,
             icon: Icons.mail_outline_rounded,
             enabled: !_sending,
             // Raise the keyboard on arrival: there is exactly one thing to do
@@ -322,7 +322,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       delay: const Duration(milliseconds: 120),
       child: AuthFooterBar(
         child: AuthActionButton(
-          label: 'Send code',
+          label: l(context).authSendCode,
           background: TrainColors.ember,
           loading: _sending,
           enabled: !_sending && _validEmail,
@@ -338,10 +338,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       children: [
         RiseIn(
           child: AuthHeader(
-            title: 'Enter the code',
+            title: l(context).authEnterCode,
             asideSpan: TextSpan(
               children: [
-                const TextSpan(text: 'Enter the 6-digit code we sent to\n'),
+                TextSpan(text: l(context).authCodeSentTo),
                 TextSpan(
                   text: _email.text.trim(),
                   style: AuthHeader.asideStyle.copyWith(
@@ -349,7 +349,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const TextSpan(text: ', then choose a new password.'),
+                TextSpan(text: l(context).authThenChoosePassword),
               ],
             ),
           ),
@@ -376,10 +376,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AuthSectionLabel('New password'),
+              AuthSectionLabel(l(context).authNewPassword),
               AuthTextField(
                 controller: _password,
-                hint: 'New password',
+                hint: l(context).authNewPassword,
                 icon: Icons.lock_outline_rounded,
                 enabled: !_verifying,
                 obscureText: true,
@@ -390,7 +390,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               const SizedBox(height: 10),
               AuthTextField(
                 controller: _confirm,
-                hint: 'Confirm password',
+                hint: l(context).authConfirmPassword,
                 icon: Icons.lock_outline_rounded,
                 enabled: !_verifying,
                 obscureText: true,
@@ -421,7 +421,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       child: AuthFooterBar(
         secondary: Center(child: _resendLine()),
         child: AuthActionButton(
-          label: 'Reset password',
+          label: l(context).authResetPassword,
           background: TrainColors.ember,
           loading: _verifying,
           enabled: !_verifying && _canReset,
@@ -436,13 +436,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget _resendLine() {
     if (_sending) {
       return Text(
-        'Sending…',
+        l(context).authSending,
         style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
     if (_cooldown > 0) {
       return Text(
-        'Resend code in ${_cooldown}s',
+        l(context).authResendIn(_cooldown),
         style: AppText.meta.copyWith(color: TrainColors.ink3),
       );
     }
@@ -452,9 +452,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         TextSpan(
           style: AppText.body,
           children: [
-            const TextSpan(text: 'Didn’t get it?  '),
+            TextSpan(text: l(context).authDidntGetIt),
             TextSpan(
-              text: 'Resend code',
+              text: l(context).authResendCode,
               style: AppText.button.copyWith(
                 fontSize: 14.5,
                 color: TrainColors.ember,

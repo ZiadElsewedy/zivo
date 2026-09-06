@@ -205,8 +205,8 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
             children: [
               CaptureTopBar(
                 title: _c.isEditing
-                    ? (widget.asSplit ? 'Edit split' : 'Edit workout plan')
-                    : (widget.asSplit ? 'New split' : 'New workout plan'),
+                    ? (widget.asSplit ? l(context).planEditSplitTitle : l(context).planEditPlanTitle)
+                    : (widget.asSplit ? l(context).planNewSplitTitle : l(context).planNewPlanTitle),
                 onClose: () => Navigator.of(context).maybePop(),
                 titleColor: TrainColors.ink2,
                 iconColor: TrainColors.ink2,
@@ -217,8 +217,8 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
                         icon: Icons.delete_outline_rounded,
                         onTap: _delete,
                         semanticLabel: widget.asSplit
-                            ? 'Delete split'
-                            : 'Delete plan',
+                            ? l(context).planDeleteSplit
+                            : l(context).planDeletePlan,
                         iconColor: TrainColors.ember,
                         chipColor: TrainColors.glassStrong,
                       )
@@ -241,7 +241,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
                   decoration: InputDecoration(
                     isCollapsed: true,
                     border: InputBorder.none,
-                    hintText: 'Plan name',
+                    hintText: l(context).planName,
                     hintStyle: TrainType.ui(
                       size: 24,
                       weight: FontWeight.w800,
@@ -288,7 +288,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
                           if (i == _c.days.length) {
                             return PlanAddButton(
                               key: const ValueKey('add-day-button'),
-                              label: 'Add day',
+                              label: l(context).planAddDay,
                               onTap: _addDay,
                             );
                           }
@@ -366,7 +366,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
                   MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
                 ),
                 child: PillButton(
-                  label: 'Save plan',
+                  label: l(context).planSave,
                   icon: Icons.check_rounded,
                   color: TrainColors.ember,
                   enabled: _c.canSave && !actionInFlight,

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -88,16 +89,16 @@ class _MomentCapturePageState extends State<MomentCapturePage>
         actions: [
           CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(sheetContext, ImageSource.camera),
-            child: const Text('Take Photo'),
+            child: Text(l(context).momentTakePhoto),
           ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(sheetContext, ImageSource.gallery),
-            child: const Text('Choose from Library'),
+            child: Text(l(context).momentChooseFromLibrary),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(sheetContext),
-          child: const Text('Cancel'),
+          child: Text(l(context).actionCancel),
         ),
       ),
     );
@@ -138,14 +139,14 @@ class _MomentCapturePageState extends State<MomentCapturePage>
       compressQuality: 92,
       uiSettings: [
         IOSUiSettings(
-          title: 'Edit Photo',
-          doneButtonTitle: 'Done',
-          cancelButtonTitle: 'Cancel',
+          title: l(context).momentEditPhoto,
+          doneButtonTitle: l(context).actionDone,
+          cancelButtonTitle: l(context).actionCancel,
           aspectRatioLockEnabled: false,
           resetAspectRatioEnabled: true,
         ),
         AndroidUiSettings(
-          toolbarTitle: 'Edit Photo',
+          toolbarTitle: l(context).momentEditPhoto,
           toolbarColor: TrainColors.base,
           toolbarWidgetColor: TrainColors.ink,
           backgroundColor: TrainColors.base,
@@ -203,10 +204,30 @@ class _MomentCapturePageState extends State<MomentCapturePage>
   Future<void> _commit() async {
     final scope = AppScope.of(context);
     final navigator = Navigator.of(context);
+    // Resolved before the awaits below: `deferWrite` reports this message long
+    // after the page has popped, so it cannot read a context that is gone.
+    final saveFailed = l(context).momentSaveFailed;
     final moments = scope.moments;
     final media = scope.requireMedia;
     final initial = widget.initial;
     final id = initial?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
+
+    // Every write below is owner-scoped, so without a signed-in account there
+    // is nothing coherent to write. Bailing here rather than substituting a
+    // placeholder owner is deliberate: a capture filed under an owner no query
+    // can match lands its bytes on disk with no registry record, which reads
+    // as a Moment whose photo is permanently unresolvable on every other
+    // device. Fail the save honestly and keep the screen, so nothing is lost.
+    final ownerUid = scope.auth.currentUser?.uid;
+    if (ownerUid == null) {
+      deferWrite(
+        Future<void>.error(
+          StateError('MomentCapturePage: no signed-in account to save under.'),
+        ),
+        failureMessage: l(context).momentSaveFailed,
+      );
+      return;
+    }
     // Preserve the original capture time on edit; only stamp `now` when new.
     final takenAt = initial?.takenAt ?? DateTime.now();
 
@@ -221,7 +242,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
         sourcePath: tempPath,
         kind: MediaKind.moment,
         id: id,
-        ownerUid: scope.auth.currentUser?.uid ?? 'local',
+        ownerUid: ownerUid,
         source: _pickedSource,
         capturedAt: takenAt,
       );
@@ -255,7 +276,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
           await media.deleteMedia(id: initial.id, ref: initial.imagePath);
         }
       }(),
-      failureMessage: 'Couldn\'t save that moment.',
+      failureMessage: saveFailed,
     );
 
     navigator.pop(moment);
@@ -277,7 +298,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
           await media.deleteMedia(id: initial.id, ref: initial.imagePath);
         }
       }(),
-      failureMessage: 'Couldn\'t delete that moment.',
+      failureMessage: l(context).momentDeleteFailed,
     );
     Navigator.of(context).pop();
   });
@@ -291,14 +312,14 @@ class _MomentCapturePageState extends State<MomentCapturePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CaptureTopBar(
-              title: _editing ? 'Edit moment' : 'New moment',
+              title: _editing ? l(context).momentEditTitle : l(context).momentNewTitle,
               onClose: () => Navigator.of(context).maybePop(),
               trailing: _editing
                   ? CaptureIconButton(
                       key: const Key('moment-delete'),
                       icon: Icons.delete_outline_rounded,
                       onTap: _delete,
-                      semanticLabel: 'Delete moment',
+                      semanticLabel: l(context).momentDeleteAction,
                       iconColor: TrainColors.ember,
                     )
                   : null,
@@ -327,7 +348,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Say something…',
+                  hintText: l(context).momentNoteHint,
                   hintStyle: AppText.cardTitle.copyWith(
                     fontSize: 22,
                     color: TrainColors.ink3,
@@ -344,7 +365,7 @@ class _MomentCapturePageState extends State<MomentCapturePage>
                 MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 8,
               ),
               child: PillButton(
-                label: _editing ? 'Save moment' : 'Add moment',
+                label: _editing ? l(context).momentSave : l(context).momentAdd,
                 icon: _editing ? Icons.check_rounded : Icons.add_rounded,
                 enabled: _canSave && !actionInFlight,
                 busy: isRunning(#save),
@@ -412,7 +433,7 @@ class _PhotoArea extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Add a photo',
+                    l(context).momentAddPhoto,
                     style: AppText.body.copyWith(color: TrainColors.ink3),
                   ),
                 ],
@@ -447,17 +468,21 @@ class _PhotoArea extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            _PhotoAction(icon: AppIcons.crop, label: 'Edit', onTap: onEdit),
+            _PhotoAction(
+              icon: AppIcons.crop,
+              label: l(context).actionEdit,
+              onTap: onEdit,
+            ),
             const SizedBox(width: 10),
             _PhotoAction(
               icon: AppIcons.retake,
-              label: 'Retake',
+              label: l(context).momentRetake,
               onTap: onRetake,
             ),
             const SizedBox(width: 10),
             _PhotoAction(
               icon: AppIcons.trash,
-              label: 'Remove',
+              label: l(context).momentRemove,
               onTap: onRemove,
               tint: TrainColors.ember,
             ),

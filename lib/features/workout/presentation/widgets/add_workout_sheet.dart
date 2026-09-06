@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/scope/app_scope.dart';
@@ -57,34 +58,33 @@ class _AddWorkoutSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Add a training plan', style: AppText.rowTitle),
+          Text(l(context).addPlanTitle, style: AppText.rowTitle),
           const SizedBox(height: 4),
           Text(
-            'However your split arrives, it lands in the same editor to review '
-            'before anything is saved.',
+            l(context).addPlanBody,
             style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
           ),
           const SizedBox(height: 18),
           AddPlanRouteTile(
             routeKey: const Key('add-workout-document'),
             icon: Icons.description_outlined,
-            label: 'PDF or photo',
-            detail: "A coach's plan, a screenshot, a photo of a page",
+            label: l(context).addPlanPdfTitle,
+            detail: l(context).addPlanPdfBody,
             onTap: () => _open(context, const WorkoutImportPage()),
           ),
           if (hasRecorder)
             AddPlanRouteTile(
               routeKey: const Key('add-workout-dictate'),
               icon: Icons.mic_none_rounded,
-              label: 'Say it out loud',
-              detail: 'Describe your split and ZIVO writes it down',
+              label: l(context).addPlanVoiceTitle,
+              detail: l(context).addPlanVoiceBody,
               onTap: () => _open(context, const WorkoutDescribePage()),
             ),
           AddPlanRouteTile(
             routeKey: const Key('add-workout-type'),
             icon: Icons.notes_rounded,
-            label: 'Type it out',
-            detail: 'Write your split in a few lines',
+            label: l(context).addPlanTypeTitle,
+            detail: l(context).addPlanTypeBody,
             onTap: () => _open(
               context,
               const WorkoutDescribePage(startRecording: false),
@@ -93,8 +93,8 @@ class _AddWorkoutSheet extends StatelessWidget {
           AddPlanRouteTile(
             routeKey: const Key('add-workout-manual'),
             icon: Icons.edit_outlined,
-            label: 'Build by hand',
-            detail: 'Add days and exercises yourself',
+            label: l(context).addPlanManualTitle,
+            detail: l(context).addPlanManualBody,
             onTap: () =>
                 _open(context, const WorkoutPlanEditPage(asSplit: true)),
             last: true,

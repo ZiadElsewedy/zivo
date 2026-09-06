@@ -47,6 +47,8 @@ const valid = {
   bodyWeightEntries: { weightKg: 82.5, loggedAt: ts(), schemaVersion: 1 },
   aiConversations: { title: 'Chat', schemaVersion: 1 },
   expenseCategories: { label: 'Subs', iconId: 'bills' },
+  media: { relativePath: 'media/moments/m1.jpg', driveFileId: 'f1', driveAccountKey: 'acc-1', schemaVersion: 2 },
+  mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -64,6 +66,8 @@ const invalid = {
   // `emoji` was the pre-migration field name; a doc still shaped that way is
   // missing `iconId` and must be rejected.
   expenseCategories: { label: 'Subs', emoji: '🧾', hue: 'iris' }, // no iconId
+  media: { relativePath: 'media/moments/m1.jpg' }, // missing schemaVersion
+  mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
 };
 
 const collections = Object.keys(valid);

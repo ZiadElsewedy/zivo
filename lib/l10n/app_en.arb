@@ -426,6 +426,105 @@
   "@hubNoMomentsYet": {
     "description": "Hub tile subtitle when no moments exist."
   },
+  "pulseWeekOverWeek": "WoW",
+  "@pulseWeekOverWeek": {
+    "description": "Today's Volume ring: the change is week-over-week. Short by design — it sits under a figure in a small ring."
+  },
+  "hubTitle": "Hub",
+  "@hubTitle": {
+    "description": "The Hub tab's display title."
+  },
+  "hubConnected": "Connected",
+  "@hubConnected": {
+    "description": "Section label over the band of services ZIVO talks to (Spotify, Google Drive)."
+  },
+  "hubWorkoutResume": "{day} · resume",
+  "@hubWorkoutResume": {
+    "description": "Hub workout tile: a session on this day is in progress and can be resumed.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "hubWorkoutUpNext": "{day} · up next",
+  "@hubWorkoutUpNext": {
+    "description": "Hub workout tile: the plan day that comes next.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "hubDietStat": "{eaten} of {total} · {kcal} kcal",
+  "@hubDietStat": {
+    "description": "Hub diet tile: meals eaten out of the day's total, and the calories left. {kcal} already carries a leading ~ when the figure is an estimate.",
+    "placeholders": {
+      "eaten": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "hubExpensesStat": "{amount} this week",
+  "@hubExpensesStat": {
+    "description": "Hub expenses tile: what has been spent this week, already formatted with its currency.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "hubMomentsCount": "{count, plural, =1{1 moment} other{{count} moments}}",
+  "@hubMomentsCount": {
+    "description": "Hub moments tile: how many moments have been captured.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectedBackingUp": "Backing up",
+  "@connectedBackingUp": {
+    "description": "Hub Connected band: Google Drive is connected and photos are being backed up to it."
+  },
+  "connectedNotConnected": "Not connected",
+  "@connectedNotConnected": {
+    "description": "Hub Connected band: this service has not been connected on this device."
+  },
+  "connectedConnected": "Connected",
+  "@connectedConnected": {
+    "description": "Hub Connected band: Spotify is connected but nothing is playing."
+  },
+  "connectedPlaying": "Playing",
+  "@connectedPlaying": {
+    "description": "Hub Connected band: Spotify is playing a track."
+  },
+  "connectedPaused": "Paused",
+  "@connectedPaused": {
+    "description": "Hub Connected band: Spotify is connected and paused."
+  },
+  "connectedConnecting": "Connecting…",
+  "@connectedConnecting": {
+    "description": "Hub Connected band: a connection attempt is in flight."
+  },
+  "connectedCouldntConnect": "Couldn’t connect",
+  "@connectedCouldntConnect": {
+    "description": "Hub Connected band: the service refused the connection."
+  },
+  "connectedPremiumRequired": "Premium required",
+  "@connectedPremiumRequired": {
+    "description": "Hub Connected band: Spotify needs a Premium account to control playback."
+  },
+  "connectedInstallSpotify": "Install Spotify",
+  "@connectedInstallSpotify": {
+    "description": "Hub Connected band: the Spotify app is not on this phone."
+  },
   "comingNext": "Coming next.",
   "@comingNext": {
     "description": "Placeholder on a module that isn't built yet."
@@ -801,6 +900,34 @@
   "workoutChangeWorkout": "Change workout",
   "@workoutChangeWorkout": {
     "description": "Title of the day-picker sheet."
+  },
+  "workoutChangeSwap": "Swap",
+  "@workoutChangeSwap": {
+    "description": "Day-picker mode: the picked day trades places with the day that was due, so nothing leaves the cycle."
+  },
+  "workoutChangeSkip": "Skip",
+  "@workoutChangeSkip": {
+    "description": "Day-picker mode: train the picked day and let the day that was due drop out of this cycle."
+  },
+  "workoutChangeSwapNote": "{day} takes the slot you pick — the cycle stays whole.",
+  "@workoutChangeSwapNote": {
+    "description": "Explains the Swap mode, naming the day that was due.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Legs"
+      }
+    }
+  },
+  "workoutChangeSkipNote": "{day} is skipped this cycle.",
+  "@workoutChangeSkipNote": {
+    "description": "Explains the Skip mode, naming the day that was due.",
+    "placeholders": {
+      "day": {
+        "type": "String",
+        "example": "Legs"
+      }
+    }
   },
   "workoutDayLabel": "Day {slot} · {label}",
   "@workoutDayLabel": {
@@ -2423,6 +2550,68 @@
   "@workoutSetDropsetShort": {
       "description": "One-letter marker on a drop set. Kept latin in both languages, as a symbol."
   },
+  "workoutRepsSpec": "{reps} reps",
+  "@workoutRepsSpec": {
+      "description": "A planned set described by its rep target, which may be a range (\"8–10 reps\") rather than a single number.",
+      "placeholders": {
+          "reps": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSetCount": "{count, plural, =1{1 set} other{{count} sets}}",
+  "@workoutSetCount": {
+      "description": "How many sets a planned exercise has, e.g. \"3 sets\"."
+  },
+  "workoutToFailure": "To failure",
+  "@workoutToFailure": {
+      "description": "A set with no rep target — taken until no more reps are possible."
+  },
+  "workoutRestFor": "rest {time}",
+  "@workoutRestFor": {
+      "description": "The rest window in a planned set's spec line, e.g. \"rest 1:30\". Lower case: it sits mid-line after a separator.",
+      "placeholders": {
+          "time": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutSetsBy": "{count} × {reps}",
+  "@workoutSetsBy": {
+      "description": "The head of a collapsed set line — how many sets at what rep target, e.g. \"3 × 8–10\". The × is a symbol in both languages.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          },
+          "reps": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutPlanDayMeta": "{plan} · {exercises}",
+  "@workoutPlanDayMeta": {
+      "description": "Caption under a workout day's title: which plan it belongs to and how many exercises it holds.",
+      "placeholders": {
+          "plan": {
+              "type": "String"
+          },
+          "exercises": {
+              "type": "String"
+          }
+      }
+  },
+  "workoutExerciseMeta": "{sets} · {muscleGroup}",
+  "@workoutExerciseMeta": {
+      "description": "A planned exercise's meta line: its set count and the muscle group it trains.",
+      "placeholders": {
+          "sets": {
+              "type": "String"
+          },
+          "muscleGroup": {
+              "type": "String"
+          }
+      }
+  },
   "workoutSetFailureShort": "F",
   "@workoutSetFailureShort": {
       "description": "One-letter marker on a set taken to failure. Kept latin in both languages, as a symbol."
@@ -4030,5 +4219,1759 @@
   "dateYesterdayLower": "yesterday",
   "@dateYesterdayLower": {
       "description": "Lower-case \"yesterday\", for dropping mid-sentence."
+  },
+  "mediaCapturedOnAnotherDevice": "Captured on another device",
+  "@mediaCapturedOnAnotherDevice": {
+      "description": "Shown on a photo tile whose bytes are not on this device and were never backed up anywhere."
+  },
+  "mediaOnAnotherBackupAccount": "In another Drive account",
+  "@mediaOnAnotherBackupAccount": {
+      "description": "Shown on a photo tile that is backed up to a Google Drive account this device is not connected to."
+  },
+  "storageTitle": "Storage & Sync",
+  "@storageTitle": {
+      "description": "Title of the screen that answers where your photos live."
+  },
+  "storageSectionBackup": "BACKUP & SYNC",
+  "@storageSectionBackup": {
+      "description": "Section label over the Google Drive card. Upper case in English by design."
+  },
+  "storageSectionInstant": "INSTANT SYNC",
+  "@storageSectionInstant": {
+      "description": "Section label over the auto-upload switch."
+  },
+  "storageSectionDevicePhotos": "DEVICE PHOTOS",
+  "@storageSectionDevicePhotos": {
+      "description": "Section label over the save-to-system-Photos switch."
+  },
+  "storageUploadToDrive": "Upload to Drive",
+  "@storageUploadToDrive": {
+      "description": "Switch: upload each capture to Drive as it is taken."
+  },
+  "storageSaveToPhotos": "Save to Photos",
+  "@storageSaveToPhotos": {
+      "description": "Switch: also copy each capture into the phone's own photo library."
+  },
+  "storageAccountNote": "Each ZIVO account keeps its own photos in its own Drive folder, so accounts never mix — even if they use the same Google Drive.",
+  "@storageAccountNote": {
+      "description": "Footnote explaining per-account isolation inside one Google Drive."
+  },
+  "storageOnThisDevice": "On this device",
+  "@storageOnThisDevice": {
+      "description": "Title of the card describing local storage, which is always on."
+  },
+  "storageLocalFirst": "Your photos are saved here first, always.",
+  "@storageLocalFirst": {
+      "description": "Local storage card subtitle when there are no photos yet."
+  },
+  "storageSavedHere": "{count, plural, =1{1 photo saved here.} other{{count} photos saved here.}}",
+  "@storageSavedHere": {
+      "description": "Local storage card subtitle: how many photos are on this device.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "storageConnectDrive": "Connect Google Drive",
+  "@storageConnectDrive": {
+      "description": "Primary button that starts the interactive Drive sign-in."
+  },
+  "storageBackUpNow": "Back up now",
+  "@storageBackUpNow": {
+      "description": "Button that uploads every not-yet-backed-up photo."
+  },
+  "storageSync": "Sync",
+  "@storageSync": {
+      "description": "Button that downloads photos backed up from another device."
+  },
+  "storageDisconnect": "Disconnect",
+  "@storageDisconnect": {
+      "description": "Button that clears this device's Drive connection."
+  },
+  "storageUnavailableInBuild": "Unavailable in this build",
+  "@storageUnavailableInBuild": {
+      "description": "Drive card subtitle when the build ships without a backup provider."
+  },
+  "storageConnectedOnDevice": "Connected on this device",
+  "@storageConnectedOnDevice": {
+      "description": "Drive card subtitle when connected but the account email is unknown."
+  },
+  "storageNotConnectedOnDevice": "Not connected on this device",
+  "@storageNotConnectedOnDevice": {
+      "description": "Drive card subtitle when this device has no connection."
+  },
+  "storageConnectFailed": "Couldn’t connect Google Drive.",
+  "@storageConnectFailed": {
+      "description": "Toast when the interactive connect was cancelled or failed."
+  },
+  "storageConnectedToast": "Google Drive connected on this device.",
+  "@storageConnectedToast": {
+      "description": "Toast after a successful connect."
+  },
+  "storageDisconnectedToast": "Google Drive disconnected on this device.",
+  "@storageDisconnectedToast": {
+      "description": "Toast after disconnecting."
+  },
+  "storageAlreadyBackedUp": "Everything is already backed up.",
+  "@storageAlreadyBackedUp": {
+      "description": "Toast when Back up now found nothing to upload."
+  },
+  "storageNothingNew": "Nothing new to download.",
+  "@storageNothingNew": {
+      "description": "Toast when Sync found nothing to fetch."
+  },
+  "storageBackedUpToast": "{count, plural, =1{Backed up 1 photo to Drive.} other{Backed up {count} photos to Drive.}}",
+  "@storageBackedUpToast": {
+      "description": "Toast reporting how many photos were uploaded.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "storageDownloadedToast": "{count, plural, =1{Downloaded 1 photo from Drive.} other{Downloaded {count} photos from Drive.}}",
+  "@storageDownloadedToast": {
+      "description": "Toast reporting how many photos were downloaded.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "storageOtherAccountTitle": "{count, plural, =1{1 photo in another Google account} other{{count} photos in another Google account}}",
+  "@storageOtherAccountTitle": {
+      "description": "Notice title: photos whose only cloud copy is in a Drive account this device is not signed into.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "storageOtherAccountBody": "Backed up before you switched accounts. Back up now copies the ones still on this device; for the rest, reconnect that account.",
+  "@storageOtherAccountBody": {
+      "description": "Notice body explaining the two ways out of an account switch."
+  },
+  "storageBackingUp": "Backing up…",
+  "@storageBackingUp": {
+      "description": "Live banner title while an upload run is in flight."
+  },
+  "storageSyncing": "Syncing…",
+  "@storageSyncing": {
+      "description": "Live banner title while a download run is in flight."
+  },
+  "storageCheckingPhotos": "Checking your photos…",
+  "@storageCheckingPhotos": {
+      "description": "Live banner subtitle before the run knows how many photos it will move."
+  },
+  "storageProgressCount": "{done} of {total} {total, plural, =1{photo} other{photos}}",
+  "@storageProgressCount": {
+      "description": "Live banner subtitle: how far through the run we are.",
+      "placeholders": {
+          "done": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "storageNothingYetTitle": "Nothing to back up yet",
+  "@storageNothingYetTitle": {
+      "description": "Status banner title when the library is empty."
+  },
+  "storageNothingYetBody": "Photos you add will back up here.",
+  "@storageNothingYetBody": {
+      "description": "Status banner subtitle when the library is empty."
+  },
+  "storageAllBackedUpTitle": "All backed up",
+  "@storageAllBackedUpTitle": {
+      "description": "Status banner title when every photo is safe in Drive."
+  },
+  "storageAllSafeBody": "{count, plural, =1{1 photo is safe in Google Drive.} other{{count} photos are safe in Google Drive.}}",
+  "@storageAllSafeBody": {
+      "description": "Status banner subtitle when everything is backed up.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "storagePartialTitle": "{backedUp} of {total} backed up",
+  "@storagePartialTitle": {
+      "description": "Status banner title when some photos still need uploading.",
+      "placeholders": {
+          "backedUp": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "storagePendingBody": "{count, plural, =1{1 photo is waiting to back up.} other{{count} photos are waiting to back up.}}",
+  "@storagePendingBody": {
+      "description": "Status banner subtitle counting the photos still to upload.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "sessionNoExercises": "No exercises logged.",
+  "@sessionNoExercises": {
+      "description": "Session details: the session finished with nothing recorded in it."
+  },
+  "sessionDetailsTitle": "Session details",
+  "@sessionDetailsTitle": {
+      "description": "Title of the page showing one logged workout session."
+  },
+  "sessionDeleteAction": "Delete session",
+  "@sessionDeleteAction": {
+      "description": "Accessibility label on the delete action in the session details header."
+  },
+  "sessionStatusCompleted": "Completed",
+  "@sessionStatusCompleted": {
+      "description": "Session status: the workout was finished."
+  },
+  "sessionStatusActive": "In progress",
+  "@sessionStatusActive": {
+      "description": "Session status: the workout is still running."
+  },
+  "sessionStatusAbandoned": "Not completed",
+  "@sessionStatusAbandoned": {
+      "description": "Session status: the workout was left unfinished."
+  },
+  "sessionStatDuration": "Duration",
+  "@sessionStatDuration": {
+      "description": "Session details hero stat: how long the workout took."
+  },
+  "sessionStatTime": "Time",
+  "@sessionStatTime": {
+      "description": "Session details hero stat: the clock range the workout ran over."
+  },
+  "sessionStatExercises": "Exercises",
+  "@sessionStatExercises": {
+      "description": "Session details hero stat: how many exercises the session held."
+  },
+  "sessionStatSetsDone": "Sets done",
+  "@sessionStatSetsDone": {
+      "description": "Session details hero stat: completed sets out of the planned total."
+  },
+  "sessionSetNumber": "Set {index}",
+  "@sessionSetNumber": {
+      "description": "Label on one row of a logged exercise, numbering the set.",
+      "placeholders": {
+          "index": {
+              "type": "int"
+          }
+      }
+  },
+  "sessionSetSkipped": "Skipped",
+  "@sessionSetSkipped": {
+      "description": "Marker on a set the user skipped rather than performed."
+  },
+  "sessionSetRpe": "RPE {value}",
+  "@sessionSetRpe": {
+      "description": "Rate of Perceived Exertion badge on a logged set. RPE is a training term and stays latin in Arabic.",
+      "placeholders": {
+          "value": {
+              "type": "String"
+          }
+      }
+  },
+  "sessionSetWeightByReps": "{weight} × {reps}",
+  "@sessionSetWeightByReps": {
+      "description": "A logged set stated as weight by repetitions, e.g. \"60kg × 8\". Both sides are already formatted.",
+      "placeholders": {
+          "weight": {
+              "type": "String"
+          },
+          "reps": {
+              "type": "String"
+          }
+      }
+  },
+  "sessionSetRepsOnly": "{reps, plural, =1{1 rep} other{{reps} reps}}",
+  "@sessionSetRepsOnly": {
+      "description": "A logged bodyweight set, stated by repetitions alone.",
+      "placeholders": {
+          "reps": {
+              "type": "int"
+          }
+      }
+  },
+  "sessionSetRepsUnknown": "{reps} reps",
+  "@sessionSetRepsUnknown": {
+      "description": "A logged set whose rep figure is a symbol rather than a number (AMRAP, or an em dash when nothing was recorded).",
+      "placeholders": {
+          "reps": {
+              "type": "String"
+          }
+      }
+  },
+  "sessionTimeRange": "{start}–{end}",
+  "@sessionTimeRange": {
+      "description": "The clock range a session ran over, e.g. \"18:04–19:12\".",
+      "placeholders": {
+          "start": {
+              "type": "String"
+          },
+          "end": {
+              "type": "String"
+          }
+      }
+  },
+  "splitsTitle": "Splits",
+  "@splitsTitle": {
+      "description": "Title of the page listing every training split."
+  },
+  "splitNewAction": "New split",
+  "@splitNewAction": {
+      "description": "Accessibility label on the button that creates a split."
+  },
+  "splitCopyName": "{name} copy",
+  "@splitCopyName": {
+      "description": "The name given to a duplicated split. Becomes the stored plan name, so it is written in the language the user duplicated it in.",
+      "placeholders": {
+          "name": {
+              "type": "String"
+          }
+      }
+  },
+  "splitDayCount": "{count, plural, =1{1 day} other{{count} days}}",
+  "@splitDayCount": {
+      "description": "How many days a split rotates through.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "splitMeta": "{days} · {exercises}",
+  "@splitMeta": {
+      "description": "A split row's meta line: its day count and its total exercise count.",
+      "placeholders": {
+          "days": {
+              "type": "String"
+          },
+          "exercises": {
+              "type": "String"
+          }
+      }
+  },
+  "splitSetActive": "Set as active",
+  "@splitSetActive": {
+      "description": "Action that makes this split the one in play."
+  },
+  "actionDuplicate": "Duplicate",
+  "@actionDuplicate": {
+      "description": "Action that copies an item."
+  },
+  "splitActiveBadge": "Active",
+  "@splitActiveBadge": {
+      "description": "Badge on the split currently in play."
+  },
+  "splitsEmptyTitle": "No splits yet.",
+  "@splitsEmptyTitle": {
+      "description": "Empty state on the splits page."
+  },
+  "splitsEmptyBody": "Tap + to build your first one.",
+  "@splitsEmptyBody": {
+      "description": "Empty state subtitle pointing at the create button."
+  },
+  "workoutThisWeekCount": "{count} THIS WEEK",
+  "@workoutThisWeekCount": {
+      "description": "Trailing caption on the Training section: sessions done this week. Upper case in English by design.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutLogTodaysWeight": "Log today's weight",
+  "@workoutLogTodaysWeight": {
+      "description": "Title of the card that records a weigh-in."
+  },
+  "workoutWeighInFailed": "Couldn't save that weigh-in — check your connection and try again.",
+  "@workoutWeighInFailed": {
+      "description": "Snack bar when a weigh-in could not be written."
+  },
+  "workoutNoPlanImportHint": "Import a PDF or photo and I'll turn it into a real split, or build one from scratch.",
+  "@workoutNoPlanImportHint": {
+      "description": "Empty state under \"no plan yet\", offering the two ways to get one. ZIVO speaking in the first person."
+  },
+  "workoutWeightDeltaWindow": "{delta} KG · 30D",
+  "@workoutWeightDeltaWindow": {
+      "description": "Trailing caption on the Bodyweight section: the signed change over the last 30 days. A delta always states its own window.",
+      "placeholders": {
+          "delta": {
+              "type": "String"
+          }
+      }
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+      "description": "Title of the settings page."
+  },
+  "settingsSectionApp": "App",
+  "@settingsSectionApp": {
+      "description": "Settings section holding app-wide preferences."
+  },
+  "settingsSectionAccount": "Account",
+  "@settingsSectionAccount": {
+      "description": "Settings section holding account actions."
+  },
+  "settingsSectionMusic": "Music",
+  "@settingsSectionMusic": {
+      "description": "Settings section for the Spotify connection."
+  },
+  "settingsSectionMedia": "Media",
+  "@settingsSectionMedia": {
+      "description": "Settings section for photo storage and backup."
+  },
+  "settingsTheme": "Theme",
+  "@settingsTheme": {
+      "description": "Settings row: the app theme."
+  },
+  "settingsThemeDark": "Dark",
+  "@settingsThemeDark": {
+      "description": "The only theme ZIVO ships, stated as the current value."
+  },
+  "settingsVersion": "Version",
+  "@settingsVersion": {
+      "description": "Settings row: the app version."
+  },
+  "settingsBuild": "Build",
+  "@settingsBuild": {
+      "description": "Settings row: which build configuration is running."
+  },
+  "settingsPrivacyPolicy": "Privacy policy",
+  "@settingsPrivacyPolicy": {
+      "description": "Settings row opening the privacy policy."
+  },
+  "settingsChangePassword": "Change password",
+  "@settingsChangePassword": {
+      "description": "Settings row opening the change-password flow."
+  },
+  "settingsDeleteAccount": "Delete account",
+  "@settingsDeleteAccount": {
+      "description": "Settings row opening the delete-account flow."
+  },
+  "settingsSignOut": "Sign out",
+  "@settingsSignOut": {
+      "description": "Button that ends the session on this device."
+  },
+  "settingsVersionLine": "Version {version} ({build})",
+  "@settingsVersionLine": {
+      "description": "Footer line stating the running version and build number.",
+      "placeholders": {
+          "version": {
+              "type": "String"
+          },
+          "build": {
+              "type": "String"
+          }
+      }
+  },
+  "settingsVersionValue": "{version} ({build})",
+  "@settingsVersionValue": {
+      "description": "The version row’s value: version and build number.",
+      "placeholders": {
+          "version": {
+              "type": "String"
+          },
+          "build": {
+              "type": "String"
+          }
+      }
+  },
+  "settingsStorageSync": "Storage & sync",
+  "@settingsStorageSync": {
+      "description": "Settings row opening the Storage & Sync screen."
+  },
+  "settingsStorageSyncValue": "Photos · Drive",
+  "@settingsStorageSyncValue": {
+      "description": "Value beside the Storage & sync row, naming what it covers."
+  },
+  "connectedConnectedPaused": "CONNECTED · PAUSED",
+  "@connectedConnectedPaused": {
+      "description": "Settings: Spotify is connected and playback is paused. Upper case in English by design."
+  },
+  "connectedConnectedPlaying": "CONNECTED · PLAYING",
+  "@connectedConnectedPlaying": {
+      "description": "Settings: Spotify is connected and playing."
+  },
+  "authEmail": "Email",
+  "@authEmail": {
+      "description": "Label on the email field."
+  },
+  "authPassword": "Password",
+  "@authPassword": {
+      "description": "Label on the password field."
+  },
+  "authNameOptional": "Name (optional)",
+  "@authNameOptional": {
+      "description": "Label on the optional display-name field at sign-up."
+  },
+  "authConfirmPassword": "Confirm password",
+  "@authConfirmPassword": {
+      "description": "Label on the field that repeats a new password."
+  },
+  "authNewPassword": "New password",
+  "@authNewPassword": {
+      "description": "Label on the new-password field."
+  },
+  "authCurrentPassword": "Current password",
+  "@authCurrentPassword": {
+      "description": "Label on the field confirming the existing password."
+  },
+  "authConfirmNewPassword": "Confirm new password",
+  "@authConfirmNewPassword": {
+      "description": "Label on the field repeating the new password."
+  },
+  "authSignIn": "Sign in",
+  "@authSignIn": {
+      "description": "Button that signs an existing user in."
+  },
+  "authCreateAccount": "Create account",
+  "@authCreateAccount": {
+      "description": "Button that registers a new user."
+  },
+  "authForgotPassword": "Forgot password?",
+  "@authForgotPassword": {
+      "description": "Link to the password reset flow."
+  },
+  "authHaveAccount": "Already have an account?  ",
+  "@authHaveAccount": {
+      "description": "Prompt beside the link that switches to sign-in. Trailing spaces separate it from the link."
+  },
+  "authNewToZivo": "New to ZIVO?  ",
+  "@authNewToZivo": {
+      "description": "Prompt beside the link that switches to sign-up."
+  },
+  "authTitleSignUp": "Make your space.",
+  "@authTitleSignUp": {
+      "description": "Hero line above the sign-up form."
+  },
+  "authTitleSignIn": "Your whole day, in one place.",
+  "@authTitleSignIn": {
+      "description": "Hero line above the sign-in form, and the splash tagline."
+  },
+  "authSignInWithApple": "Sign in with Apple",
+  "@authSignInWithApple": {
+      "description": "Apple sign-in button. Apple requires this exact wording per locale."
+  },
+  "authContinueWithGoogle": "Continue with Google",
+  "@authContinueWithGoogle": {
+      "description": "Google sign-in button."
+  },
+  "authPasswordUpdated": "Password updated.",
+  "@authPasswordUpdated": {
+      "description": "Toast after the password was changed from within the app."
+  },
+  "authPasswordUpdatedSignIn": "Password updated. Sign in with your new password.",
+  "@authPasswordUpdatedSignIn": {
+      "description": "Message on the sign-in screen after a password reset completes."
+  },
+  "authShowField": "Show {label}",
+  "@authShowField": {
+      "description": "Accessibility label on the reveal toggle of an obscured field.",
+      "placeholders": {
+          "label": {
+              "type": "String"
+          }
+      }
+  },
+  "authHideField": "Hide {label}",
+  "@authHideField": {
+      "description": "Accessibility label on the hide toggle of a revealed field.",
+      "placeholders": {
+          "label": {
+              "type": "String"
+          }
+      }
+  },
+  "authOtpFieldLabel": "{length}-digit verification code",
+  "@authOtpFieldLabel": {
+      "description": "Accessibility label on the one-time-code input.",
+      "placeholders": {
+          "length": {
+              "type": "int"
+          }
+      }
+  },
+  "authCodeWrongWithAttempts": "{count, plural, =1{That code isn’t right. 1 try left.} other{That code isn’t right. {count} tries left.}}",
+  "@authCodeWrongWithAttempts": {
+      "description": "Wrong verification code, naming how many tries remain.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "authCodeWrong": "That code isn’t right.",
+  "@authCodeWrong": {
+      "description": "Wrong verification code, with no attempt count to show."
+  },
+  "authCodeExpired": "That code has expired. Send a new one.",
+  "@authCodeExpired": {
+      "description": "The verification code timed out."
+  },
+  "authCodeTooManyAttempts": "Too many attempts. Send a new code.",
+  "@authCodeTooManyAttempts": {
+      "description": "The user exhausted their code attempts."
+  },
+  "authCodeSent": "A new code is on its way.",
+  "@authCodeSent": {
+      "description": "Confirmation that a fresh verification code was sent."
+  },
+  "authSending": "Sending…",
+  "@authSending": {
+      "description": "The resend request is in flight."
+  },
+  "authResendIn": "Resend code in {seconds}s",
+  "@authResendIn": {
+      "description": "Cooldown before another code may be requested.",
+      "placeholders": {
+          "seconds": {
+              "type": "int"
+          }
+      }
+  },
+  "authResendCode": "Resend code",
+  "@authResendCode": {
+      "description": "Link that requests a fresh code."
+  },
+  "authDidntGetIt": "Didn’t get it?  ",
+  "@authDidntGetIt": {
+      "description": "Prompt beside the resend link. Trailing spaces separate it from the link."
+  },
+  "authResetTitle": "Reset your password",
+  "@authResetTitle": {
+      "description": "Title of the password reset screen."
+  },
+  "authResetSubtitle": "Enter your account email and we’ll send you a 6-digit code.",
+  "@authResetSubtitle": {
+      "description": "Subtitle of the password reset screen."
+  },
+  "authSendCode": "Send code",
+  "@authSendCode": {
+      "description": "Button that emails a reset code."
+  },
+  "authEnterCode": "Enter the code",
+  "@authEnterCode": {
+      "description": "Title of the step where the emailed code is typed in."
+  },
+  "authCodeSentTo": "Enter the 6-digit code we sent to\n",
+  "@authCodeSentTo": {
+      "description": "Lead-in before the masked email address. Ends with a newline so the address sits on its own line."
+  },
+  "authThenChoosePassword": ", then choose a new password.",
+  "@authThenChoosePassword": {
+      "description": "Tail after the masked email address on the reset screen."
+  },
+  "authResetPassword": "Reset password",
+  "@authResetPassword": {
+      "description": "Button that commits the new password."
+  },
+  "authEmailLooksWrong": "That email address doesn't look right.",
+  "@authEmailLooksWrong": {
+      "description": "Validation message for a malformed email address."
+  },
+  "authVerifyTitle": "Verify your email",
+  "@authVerifyTitle": {
+      "description": "Title of the email verification screen."
+  },
+  "authVerify": "Verify",
+  "@authVerify": {
+      "description": "Button that submits the verification code."
+  },
+  "authUseAnotherAccount": "Use another account",
+  "@authUseAnotherAccount": {
+      "description": "Link that signs out of the unverified account so another can be used."
+  },
+  "authChangePasswordSubtitle": "Confirm it’s you, then choose a new one.",
+  "@authChangePasswordSubtitle": {
+      "description": "Subtitle of the change-password screen."
+  },
+  "authConfirmItsYou": "Confirm it’s you",
+  "@authConfirmItsYou": {
+      "description": "Section title over the current-password field."
+  },
+  "authUpdatePassword": "Update password",
+  "@authUpdatePassword": {
+      "description": "Button that commits the password change."
+  },
+  "authDeleteAccountBody": "This permanently deletes your account and everything in it — workouts, diet, moments, expenses, and profile. This cannot be undone.",
+  "@authDeleteAccountBody": {
+      "description": "Body of the delete-account confirmation sheet."
+  },
+  "authDeleteConfirmPassword": "Enter your password to confirm",
+  "@authDeleteConfirmPassword": {
+      "description": "Label on the reauthentication field before deletion."
+  },
+  "authDeleteMyAccount": "Delete my account",
+  "@authDeleteMyAccount": {
+      "description": "The button that actually deletes the account."
+  },
+  "authPasswordStrength": "Password strength",
+  "@authPasswordStrength": {
+      "description": "Label over the password strength meter."
+  },
+  "authPasswordStrong": "Strong",
+  "@authPasswordStrong": {
+      "description": "Password strength: every rule met."
+  },
+  "authPasswordAlmost": "Almost",
+  "@authPasswordAlmost": {
+      "description": "Password strength: most rules met."
+  },
+  "authPasswordWeak": "Weak",
+  "@authPasswordWeak": {
+      "description": "Password strength: few rules met."
+  },
+  "authPasswordsMatch": "Passwords match",
+  "@authPasswordsMatch": {
+      "description": "The confirmation field matches the password."
+  },
+  "authPasswordsDontMatch": "Passwords don't match",
+  "@authPasswordsDontMatch": {
+      "description": "The confirmation field does not match the password."
+  },
+  "authRuleState": "{rule}: {state}",
+  "@authRuleState": {
+      "description": "Accessibility label pairing a password rule with whether it is satisfied.",
+      "placeholders": {
+          "rule": {
+              "type": "String"
+          },
+          "state": {
+              "type": "String"
+          }
+      }
+  },
+  "authRuleMet": "met",
+  "@authRuleMet": {
+      "description": "A password rule the current password satisfies."
+  },
+  "authRuleNotMet": "not met",
+  "@authRuleNotMet": {
+      "description": "A password rule the current password fails."
+  },
+  "authRuleMinLength": "At least 8 characters",
+  "@authRuleMinLength": {
+      "description": "Password rule: minimum length."
+  },
+  "authRuleMinLengthShort": "8+ characters",
+  "@authRuleMinLengthShort": {
+      "description": "Chip-sized form of the minimum-length rule."
+  },
+  "authRuleUppercase": "One uppercase letter",
+  "@authRuleUppercase": {
+      "description": "Password rule: at least one capital letter."
+  },
+  "authRuleUppercaseShort": "Uppercase",
+  "@authRuleUppercaseShort": {
+      "description": "Chip-sized form of the uppercase rule."
+  },
+  "authRuleLowercase": "One lowercase letter",
+  "@authRuleLowercase": {
+      "description": "Password rule: at least one lowercase letter."
+  },
+  "authRuleLowercaseShort": "Lowercase",
+  "@authRuleLowercaseShort": {
+      "description": "Chip-sized form of the lowercase rule."
+  },
+  "authRuleNumber": "One number",
+  "@authRuleNumber": {
+      "description": "Password rule: at least one digit."
+  },
+  "authRuleNumberShort": "Number",
+  "@authRuleNumberShort": {
+      "description": "Chip-sized form of the number rule."
+  },
+  "settingsPermanent": "PERMANENT",
+  "@settingsPermanent": {
+      "description": "Value beside Delete account, stating its consequence before the tap. Upper case in English by design."
+  },
+  "momentTakePhoto": "Take Photo",
+  "@momentTakePhoto": {
+      "description": "Action sheet: use the camera."
+  },
+  "momentChooseFromLibrary": "Choose from Library",
+  "@momentChooseFromLibrary": {
+      "description": "Action sheet: pick an existing photo."
+  },
+  "momentEditPhoto": "Edit Photo",
+  "@momentEditPhoto": {
+      "description": "Title of the built-in crop/rotate editor."
+  },
+  "momentEditTitle": "Edit moment",
+  "@momentEditTitle": {
+      "description": "Header when an existing moment is open for editing."
+  },
+  "momentNewTitle": "New moment",
+  "@momentNewTitle": {
+      "description": "Header when a moment is being created."
+  },
+  "momentDeleteAction": "Delete moment",
+  "@momentDeleteAction": {
+      "description": "Accessibility label on the delete action."
+  },
+  "momentNoteHint": "Say something…",
+  "@momentNoteHint": {
+      "description": "Placeholder in the moment’s note field."
+  },
+  "momentSave": "Save moment",
+  "@momentSave": {
+      "description": "Commits an edit to an existing moment."
+  },
+  "momentAdd": "Add moment",
+  "@momentAdd": {
+      "description": "Commits a newly created moment."
+  },
+  "momentAddPhoto": "Add a photo",
+  "@momentAddPhoto": {
+      "description": "Empty photo slot on the capture screen."
+  },
+  "momentRetake": "Retake",
+  "@momentRetake": {
+      "description": "Replaces the attached photo."
+  },
+  "momentRemove": "Remove",
+  "@momentRemove": {
+      "description": "Detaches the photo from the moment."
+  },
+  "momentSaveFailed": "Couldn't save that moment.",
+  "@momentSaveFailed": {
+      "description": "Error when a moment could not be written."
+  },
+  "momentDeleteFailed": "Couldn't delete that moment.",
+  "@momentDeleteFailed": {
+      "description": "Error when a moment could not be removed."
+  },
+  "momentsTitle": "Moments",
+  "@momentsTitle": {
+      "description": "Title of the moments timeline."
+  },
+  "momentsFilterAll": "All",
+  "@momentsFilterAll": {
+      "description": "Timeline filter: everything."
+  },
+  "momentsFilterPhotos": "Photos",
+  "@momentsFilterPhotos": {
+      "description": "Timeline filter: moments with a photo."
+  },
+  "momentsFilterNotes": "Notes",
+  "@momentsFilterNotes": {
+      "description": "Timeline filter: moments that are text only."
+  },
+  "momentsFilterCamera": "Camera",
+  "@momentsFilterCamera": {
+      "description": "Timeline filter: photos taken in the app."
+  },
+  "momentsFilterLibrary": "Library",
+  "@momentsFilterLibrary": {
+      "description": "Timeline filter: photos picked from the phone."
+  },
+  "momentsEmptyTitle": "Nothing logged yet",
+  "@momentsEmptyTitle": {
+      "description": "Timeline empty state title."
+  },
+  "momentsEmptyBody": "Snap a lift, a meal, or a scale reading — moments attach to the session you were in.",
+  "@momentsEmptyBody": {
+      "description": "Timeline empty state body explaining what a moment is for."
+  },
+  "momentsEmptyCamera": "No camera photos yet.",
+  "@momentsEmptyCamera": {
+      "description": "Empty state for the Camera filter."
+  },
+  "momentsEmptyLibrary": "Nothing from your library yet.",
+  "@momentsEmptyLibrary": {
+      "description": "Empty state for the Library filter."
+  },
+  "momentsEmptyPhotos": "No photos yet.",
+  "@momentsEmptyPhotos": {
+      "description": "Empty state for the Photos filter."
+  },
+  "momentsEmptyNotes": "No notes yet.",
+  "@momentsEmptyNotes": {
+      "description": "Empty state for the Notes filter."
+  },
+  "momentsEmptyOther": "Nothing else logged yet",
+  "@momentsEmptyOther": {
+      "description": "Empty state for the remaining filter."
+  },
+  "momentUntitled": "Untitled",
+  "@momentUntitled": {
+      "description": "Stand-in for a moment with no note, in the timeline."
+  },
+  "momentUntitledFull": "Untitled moment",
+  "@momentUntitledFull": {
+      "description": "Stand-in for a moment with no note, in the photo viewer."
+  },
+  "momentPhotoInfo": "Photo info",
+  "@momentPhotoInfo": {
+      "description": "Opens the photo metadata sheet."
+  },
+  "momentPhotoPosition": "{index} of {total}",
+  "@momentPhotoPosition": {
+      "description": "Which photo of the set is on screen in the viewer.",
+      "placeholders": {
+          "index": {
+              "type": "int"
+          },
+          "total": {
+              "type": "int"
+          }
+      }
+  },
+  "metaDate": "Date",
+  "@metaDate": {
+      "description": "Photo metadata row: the capture date."
+  },
+  "metaTime": "Time",
+  "@metaTime": {
+      "description": "Photo metadata row: the capture time."
+  },
+  "metaTimeZone": "Time zone",
+  "@metaTimeZone": {
+      "description": "Photo metadata row: the capture time zone."
+  },
+  "metaCapturedWith": "Captured with",
+  "@metaCapturedWith": {
+      "description": "Photo metadata row: the camera or device used."
+  },
+  "metaDimensions": "Dimensions",
+  "@metaDimensions": {
+      "description": "Photo metadata row: pixel width and height."
+  },
+  "metaFileSize": "File size",
+  "@metaFileSize": {
+      "description": "Photo metadata row: how large the file is."
+  },
+  "metaType": "Type",
+  "@metaType": {
+      "description": "Photo metadata row: the file format."
+  },
+  "metaLocation": "Location",
+  "@metaLocation": {
+      "description": "Photo metadata row: where it was taken."
+  },
+  "metaBackup": "Backup",
+  "@metaBackup": {
+      "description": "Photo metadata row: where the cloud copy lives."
+  },
+  "metaOnThisDevice": "On this device",
+  "@metaOnThisDevice": {
+      "description": "Backup state: local only."
+  },
+  "metaInPhotos": "Photos",
+  "@metaInPhotos": {
+      "description": "Backup state: also copied to the system photo library."
+  },
+  "metaNotBackedUp": "Not backed up yet",
+  "@metaNotBackedUp": {
+      "description": "Backup state: no cloud copy exists."
+  },
+  "metaInDriveTapToDownload": "In Google Drive — tap to download",
+  "@metaInDriveTapToDownload": {
+      "description": "Backup state: the only copy is remote and can be fetched."
+  },
+  "captureSourceCamera": "Camera",
+  "@captureSourceCamera": {
+      "description": "How a photo was captured: with the in-app camera."
+  },
+  "captureSourceLibrary": "Photo Library",
+  "@captureSourceLibrary": {
+      "description": "How a photo was captured: picked from the phone’s library."
+  },
+  "captureSourceUnknown": "Unknown",
+  "@captureSourceUnknown": {
+      "description": "How a photo was captured: not recorded."
+  },
+  "musicNowPlaying": "NOW PLAYING",
+  "@musicNowPlaying": {
+      "description": "Eyebrow over the full-screen player. Upper case in English by design."
+  },
+  "musicClosePlayer": "Close player",
+  "@musicClosePlayer": {
+      "description": "Accessibility label on the player’s dismiss control."
+  },
+  "musicReadOnly": "Playing on another device — controls are read-only here.",
+  "@musicReadOnly": {
+      "description": "Notice when playback is on a remote Spotify device this app can only observe."
+  },
+  "musicPreviousTrack": "Previous track",
+  "@musicPreviousTrack": {
+      "description": "Accessibility label on the previous-track control."
+  },
+  "musicNextTrack": "Next track",
+  "@musicNextTrack": {
+      "description": "Accessibility label on the next-track control."
+  },
+  "musicShuffleOn": "Shuffle on",
+  "@musicShuffleOn": {
+      "description": "Accessibility state: shuffle is enabled."
+  },
+  "musicShuffleOff": "Shuffle off",
+  "@musicShuffleOff": {
+      "description": "Accessibility state: shuffle is disabled."
+  },
+  "musicRepeatOff": "Repeat off",
+  "@musicRepeatOff": {
+      "description": "Accessibility state: repeat is disabled."
+  },
+  "musicRepeatAll": "Repeat all",
+  "@musicRepeatAll": {
+      "description": "Accessibility state: repeat the whole context."
+  },
+  "musicRepeatOne": "Repeat one",
+  "@musicRepeatOne": {
+      "description": "Accessibility state: repeat the current track."
+  },
+  "musicAuthFailed": "Spotify didn't authorize the connection. Make sure you're signed in to Spotify, then try again.",
+  "@musicAuthFailed": {
+      "description": "Error when Spotify refused the authorization handshake."
+  },
+  "musicTryAgain": "Try again",
+  "@musicTryAgain": {
+      "description": "Retries a failed Spotify connection."
+  },
+  "musicPremiumRequired": "Spotify Premium is required to control playback here.",
+  "@musicPremiumRequired": {
+      "description": "Error when the account cannot control playback remotely."
+  },
+  "musicConnectPrompt": "Connect Spotify to see what's playing.",
+  "@musicConnectPrompt": {
+      "description": "Prompt on the player before Spotify has ever been connected."
+  },
+  "musicConnectSpotify": "Connect Spotify",
+  "@musicConnectSpotify": {
+      "description": "Starts the Spotify connection flow."
+  },
+  "musicTimeLeft": "{time} LEFT",
+  "@musicTimeLeft": {
+      "description": "How much of the track remains, beside the artist on the compact strip. Upper case in English by design.",
+      "placeholders": {
+          "time": {
+              "type": "String"
+          }
+      }
+  },
+  "musicStripMeta": "{artist} · {remaining}",
+  "@musicStripMeta": {
+      "description": "Compact strip subtitle: the artist and how much time is left.",
+      "placeholders": {
+          "artist": {
+              "type": "String"
+          },
+          "remaining": {
+              "type": "String"
+          }
+      }
+  },
+  "musicNowPlayingSemantics": "Now playing: {title} by {artist}. Open the player.",
+  "@musicNowPlayingSemantics": {
+      "description": "Accessibility summary of the now-playing strip.",
+      "placeholders": {
+          "title": {
+              "type": "String"
+          },
+          "artist": {
+              "type": "String"
+          }
+      }
+  },
+  "musicBatteryPercent": "{percent}%",
+  "@musicBatteryPercent": {
+      "description": "Battery level of the Spotify playback device.",
+      "placeholders": {
+          "percent": {
+              "type": "int"
+          }
+      }
+  },
+  "importCouldntReadFile": "Couldn't read that file.",
+  "@importCouldntReadFile": {
+      "description": "Error when the chosen file could not be opened."
+  },
+  "importFileTooLarge": "That file is too large — please choose one under 7 MB.",
+  "@importFileTooLarge": {
+      "description": "Error when the chosen file exceeds the upload limit."
+  },
+  "importSaveFailed": "Couldn't save that split — check your connection and try again.",
+  "@importSaveFailed": {
+      "description": "Error when the imported split could not be written."
+  },
+  "importReviewTitle": "Review import",
+  "@importReviewTitle": {
+      "description": "Header while the extracted plan is being checked."
+  },
+  "importPlanTitle": "Import Plan",
+  "@importPlanTitle": {
+      "description": "Header of the import screen."
+  },
+  "importSelectTitle": "Select your training plan",
+  "@importSelectTitle": {
+      "description": "Title of the file-picking step."
+  },
+  "importSelectBody": "Choose a PDF or a photo of your plan and I'll map it into a real, editable split.",
+  "@importSelectBody": {
+      "description": "Body of the file-picking step. ZIVO speaking in the first person."
+  },
+  "importChooseDifferentFile": "Choose a different file",
+  "@importChooseDifferentFile": {
+      "description": "Retries the import with another file."
+  },
+  "importStartOver": "Start over",
+  "@importStartOver": {
+      "description": "Abandons the current import."
+  },
+  "importNotAPlan": "This doesn't look like a workout plan",
+  "@importNotAPlan": {
+      "description": "Shown when extraction found nothing plan-shaped in the file."
+  },
+  "importGoBackAndEdit": "Go back and edit",
+  "@importGoBackAndEdit": {
+      "description": "Returns to the previous step of the import."
+  },
+  "importHeresWhatIFound": "HERE'S WHAT I FOUND",
+  "@importHeresWhatIFound": {
+      "description": "Eyebrow over the extracted plan preview. ZIVO speaking. Upper case in English by design."
+  },
+  "importDoingIt": "Importing…",
+  "@importDoingIt": {
+      "description": "The import is in flight."
+  },
+  "importThisSplit": "Import this split",
+  "@importThisSplit": {
+      "description": "Commits the extracted plan."
+  },
+  "importEditBefore": "Edit before importing",
+  "@importEditBefore": {
+      "description": "Opens the plan editor on the extracted plan."
+  },
+  "importDayHeading": "Day {slot} · {label}",
+  "@importDayHeading": {
+      "description": "Heading over one day in the import preview.",
+      "placeholders": {
+          "slot": {
+              "type": "String"
+          },
+          "label": {
+              "type": "String"
+          }
+      }
+  },
+  "importNoExercisesForDay": "No exercises found for this day.",
+  "@importNoExercisesForDay": {
+      "description": "A day in the extracted plan that came back empty."
+  },
+  "importComplete": "Import complete",
+  "@importComplete": {
+      "description": "Title of the success step."
+  },
+  "importSummary": "\"{name}\" added to your splits — {days}, {exercises}.",
+  "@importSummary": {
+      "description": "Success summary naming the plan and what it contains.",
+      "placeholders": {
+          "name": {
+              "type": "String"
+          },
+          "days": {
+              "type": "String"
+          },
+          "exercises": {
+              "type": "String"
+          }
+      }
+  },
+  "importPlanShape": "{days} · {exercises} total",
+  "@importPlanShape": {
+      "description": "Preview caption: how many days and exercises the extracted plan holds.",
+      "placeholders": {
+          "days": {
+              "type": "String"
+          },
+          "exercises": {
+              "type": "String"
+          }
+      }
+  },
+  "importBuildManually": "build the split manually.",
+  "@importBuildManually": {
+      "description": "Tail of the sentence offering the manual route instead of importing."
+  },
+  "exerciseEditTitle": "Edit exercise",
+  "@exerciseEditTitle": {
+      "description": "Header when editing an existing exercise."
+  },
+  "exerciseAddTitle": "Add exercise",
+  "@exerciseAddTitle": {
+      "description": "Header when adding an exercise, and the button that does it."
+  },
+  "exerciseName": "Name",
+  "@exerciseName": {
+      "description": "Label on the exercise name field."
+  },
+  "exerciseNameHint": "Bench Press",
+  "@exerciseNameHint": {
+      "description": "Example exercise name shown as a hint."
+  },
+  "exerciseMuscleGroup": "Muscle group (optional)",
+  "@exerciseMuscleGroup": {
+      "description": "Label on the muscle group field."
+  },
+  "exerciseMuscleGroupHint": "Chest",
+  "@exerciseMuscleGroupHint": {
+      "description": "Example muscle group shown as a hint."
+  },
+  "exerciseSets": "Sets",
+  "@exerciseSets": {
+      "description": "Label on the set-count field."
+  },
+  "exerciseRepTarget": "REP TARGET",
+  "@exerciseRepTarget": {
+      "description": "Section label over the rep target options. Upper case in English by design."
+  },
+  "exerciseTargetFixed": "Fixed",
+  "@exerciseTargetFixed": {
+      "description": "Rep target mode: a single number."
+  },
+  "exerciseTargetRange": "Range",
+  "@exerciseTargetRange": {
+      "description": "Rep target mode: a min and a max."
+  },
+  "exerciseMinReps": "Min reps",
+  "@exerciseMinReps": {
+      "description": "Label on the lower bound of a rep range."
+  },
+  "exerciseMaxReps": "Max reps",
+  "@exerciseMaxReps": {
+      "description": "Label on the upper bound of a rep range."
+  },
+  "exerciseReps": "Reps",
+  "@exerciseReps": {
+      "description": "Label on the rep-count field."
+  },
+  "exerciseWeightKg": "Weight (kg)",
+  "@exerciseWeightKg": {
+      "description": "Label on the target weight field."
+  },
+  "exerciseSaveChanges": "Save changes",
+  "@exerciseSaveChanges": {
+      "description": "Commits an edit to an existing exercise."
+  },
+  "workoutCaptureSaveFailed": "Couldn't save that workout.",
+  "@workoutCaptureSaveFailed": {
+      "description": "Error when a logged workout could not be written."
+  },
+  "workoutCaptureDeleteFailed": "Couldn't delete that workout.",
+  "@workoutCaptureDeleteFailed": {
+      "description": "Error when a logged workout could not be removed."
+  },
+  "workoutCaptureEditTitle": "Edit workout",
+  "@workoutCaptureEditTitle": {
+      "description": "Header when editing a logged workout."
+  },
+  "workoutCaptureNewTitle": "New workout",
+  "@workoutCaptureNewTitle": {
+      "description": "Header when logging a new workout."
+  },
+  "workoutCaptureDelete": "Delete workout",
+  "@workoutCaptureDelete": {
+      "description": "Accessibility label on the delete action."
+  },
+  "workoutCaptureNameHint": "Name this session",
+  "@workoutCaptureNameHint": {
+      "description": "Placeholder for the session name."
+  },
+  "workoutCaptureSave": "Save workout",
+  "@workoutCaptureSave": {
+      "description": "Commits the logged workout."
+  },
+  "workoutCaptureNoExercises": "No exercises yet.",
+  "@workoutCaptureNoExercises": {
+      "description": "Empty state in the workout capture list."
+  },
+  "workoutCaptureExerciseName": "Exercise name",
+  "@workoutCaptureExerciseName": {
+      "description": "Label on the exercise name field in capture."
+  },
+  "workoutCaptureRemove": "Remove",
+  "@workoutCaptureRemove": {
+      "description": "Removes an exercise row from the logged workout."
+  },
+  "importAppCheckDebug": "The app couldn't verify itself (App Check). Register this build's debug token in the Firebase console, then try again.",
+  "@importAppCheckDebug": {
+      "description": "Debug-build App Check failure, naming the exact fix for a developer."
+  },
+  "importAppCheckFailed": "Couldn't verify this app install. Please try again in a moment.",
+  "@importAppCheckFailed": {
+      "description": "Release-build App Check failure, without the developer detail."
+  },
+  "importServiceUnavailable": "The import service isn't available right now — please try again later.",
+  "@importServiceUnavailable": {
+      "description": "The backend import callable is missing or undeployed. Nothing is wrong with the file."
+  },
+  "importNetworkProblem": "Network problem reaching the import service — check your connection and try again.",
+  "@importNetworkProblem": {
+      "description": "A timeout or transport failure reaching the import backend."
+  },
+  "importCouldntRead": "Couldn't read that plan — try a clearer photo or PDF, or {manualFallback}",
+  "@importCouldntRead": {
+      "description": "Generic extraction failure. {manualFallback} is the \"…or build it manually\" tail, which differs per importer.",
+      "placeholders": {
+          "manualFallback": {
+              "type": "String"
+          }
+      }
+  },
+  "importUnsupportedFileType": "Unsupported file type: {extension}",
+  "@importUnsupportedFileType": {
+      "description": "The picked file is not a PDF or an image. Developer-facing detail carried in a thrown error.",
+      "placeholders": {
+          "extension": {
+              "type": "String"
+          }
+      }
+  },
+  "describeMicNeeded": "ZIVO needs microphone access to take this down. You can type it instead.",
+  "@describeMicNeeded": {
+      "description": "Shown when microphone permission is refused during a voice description."
+  },
+  "describeRecordFailed": "Couldn't start recording. You can type it instead.",
+  "@describeRecordFailed": {
+      "description": "The recorder failed to start."
+  },
+  "describeNothingRecorded": "Nothing was recorded. Try again, or type it instead.",
+  "@describeNothingRecorded": {
+      "description": "The recording came back empty."
+  },
+  "describeYourDescription": "Your description",
+  "@describeYourDescription": {
+      "description": "Section label over the transcribed text."
+  },
+  "describeCheckWords": "Check the words before you continue — a mis-heard detail becomes a number downstream.",
+  "@describeCheckWords": {
+      "description": "Warning that a transcription error propagates into the generated plan."
+  },
+  "describeSayItInstead": "Say it instead",
+  "@describeSayItInstead": {
+      "description": "Switches from typing to voice."
+  },
+  "describeAddMoreByVoice": "Add more by voice",
+  "@describeAddMoreByVoice": {
+      "description": "Appends another voice segment."
+  },
+  "describeWritingItDown": "Writing it down…",
+  "@describeWritingItDown": {
+      "description": "Transcription is in flight."
+  },
+  "describeListening": "Listening",
+  "@describeListening": {
+      "description": "The recorder is capturing audio."
+  },
+  "describeDiscard": "Discard",
+  "@describeDiscard": {
+      "description": "Throws away the current recording."
+  },
+  "importReadingDocument": "Reading the document…",
+  "@importReadingDocument": {
+      "description": "Status line while the file is being parsed."
+  },
+  "importFoundNamed": "Found \"{name}\"…",
+  "@importFoundNamed": {
+      "description": "Status line naming the plan the extractor recognised.",
+      "placeholders": {
+          "name": {
+              "type": "String"
+          }
+      }
+  },
+  "importAnalyzing": "Analyzing your plan",
+  "@importAnalyzing": {
+      "description": "Title of the analysing step."
+  },
+  "importBuildManuallyInstead": "Build manually instead",
+  "@importBuildManuallyInstead": {
+      "description": "Abandons the import and opens the empty editor."
+  },
+  "importSectionItems": "{section} · {items}",
+  "@importSectionItems": {
+      "description": "Status line pairing the section being read with how many items are in it.",
+      "placeholders": {
+          "section": {
+              "type": "String"
+          },
+          "items": {
+              "type": "String"
+          }
+      }
+  },
+  "importItemCountDay": "{count, plural, =1{1 day} other{{count} days}}",
+  "@importItemCountDay": {
+      "description": "How many days the extractor has read so far.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "importItemCountMeal": "{count, plural, =1{1 meal} other{{count} meals}}",
+  "@importItemCountMeal": {
+      "description": "How many meals the extractor has read so far.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "workoutDescribeTitleVoice": "Describe your training",
+  "@workoutDescribeTitleVoice": {
+      "description": "Title when describing a split by voice."
+  },
+  "workoutDescribeTitleType": "Type it out",
+  "@workoutDescribeTitleType": {
+      "description": "Title when typing a split out."
+  },
+  "workoutDescribeBody": "Say or write your split — the days, the exercises, and the sets and reps for each. ZIVO turns it into a real, editable split you review before anything is saved.",
+  "@workoutDescribeBody": {
+      "description": "Explains what to say or write when describing a split."
+  },
+  "workoutDescribeExample": "Example: \"Day A is push — bench press 4 sets of 8, incline dumbbell press 3 by 10, then cable flyes 3 by 15. Day B is pull…\"",
+  "@workoutDescribeExample": {
+      "description": "A worked example of the level of detail to give."
+  },
+  "workoutDescribeHint": "Day A is push…",
+  "@workoutDescribeHint": {
+      "description": "Placeholder in the split description field."
+  },
+  "workoutDescribeSubmit": "Turn this into a split",
+  "@workoutDescribeSubmit": {
+      "description": "Sends the description off to be turned into a plan."
+  },
+  "workoutDescribeDoneTalking": "Done talking",
+  "@workoutDescribeDoneTalking": {
+      "description": "Stops the voice recording."
+  },
+  "addPlanTitle": "Add a training plan",
+  "@addPlanTitle": {
+      "description": "Title of the sheet offering the four ways to add a plan."
+  },
+  "addPlanBody": "However your split arrives, it lands in the same editor to review before anything is saved.",
+  "@addPlanBody": {
+      "description": "Reassurance that every route ends in the same review step."
+  },
+  "addPlanPdfTitle": "PDF or photo",
+  "@addPlanPdfTitle": {
+      "description": "Route: import a document."
+  },
+  "addPlanPdfBody": "A coach's plan, a screenshot, a photo of a page",
+  "@addPlanPdfBody": {
+      "description": "Examples of documents that can be imported."
+  },
+  "addPlanVoiceTitle": "Say it out loud",
+  "@addPlanVoiceTitle": {
+      "description": "Route: describe the plan by voice."
+  },
+  "addPlanVoiceBody": "Describe your split and ZIVO writes it down",
+  "@addPlanVoiceBody": {
+      "description": "What the voice route does."
+  },
+  "addPlanTypeTitle": "Type it out",
+  "@addPlanTypeTitle": {
+      "description": "Route: type the plan in prose."
+  },
+  "addPlanTypeBody": "Write your split in a few lines",
+  "@addPlanTypeBody": {
+      "description": "What the typing route does."
+  },
+  "addPlanManualTitle": "Build by hand",
+  "@addPlanManualTitle": {
+      "description": "Route: use the editor directly."
+  },
+  "addPlanManualBody": "Add days and exercises yourself",
+  "@addPlanManualBody": {
+      "description": "What the manual route does."
+  },
+  "importItemCountExercise": "{count, plural, =1{1 exercise} other{{count} exercises}}",
+  "@importItemCountExercise": {
+      "description": "How many exercises the extractor has read so far.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "importItemCountGeneric": "{count, plural, =1{1 item} other{{count} items}}",
+  "@importItemCountGeneric": {
+      "description": "How many items the extractor has read so far, when the kind is not known.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "pulseTrainedFor": "{day} · {minutes} MIN",
+  "@pulseTrainedFor": {
+      "description": "Today's Trained ring: which day was trained and for how long. Upper case in English by design.",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          },
+          "minutes": {
+              "type": "int"
+          }
+      }
+  },
+  "pulseUnderWay": "{day} · UNDER WAY",
+  "@pulseUnderWay": {
+      "description": "Today's Trained ring: a session for this day is in progress.",
+      "placeholders": {
+          "day": {
+              "type": "String"
+          }
+      }
+  },
+  "pulseStreakDays": "{count, plural, =1{1-day streak} other{{count}-day streak}}",
+  "@pulseStreakDays": {
+      "description": "Momentum: consecutive days trained.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "pulseSessionsLast7": "{count, plural, =1{1 SESSION · LAST 7 DAYS} other{{count} SESSIONS · LAST 7 DAYS}}",
+  "@pulseSessionsLast7": {
+      "description": "Momentum: how many sessions in the trailing week. Upper case in English by design.",
+      "placeholders": {
+          "count": {
+              "type": "int"
+          }
+      }
+  },
+  "pulseWeightSpan": "KG · {days}D",
+  "@pulseWeightSpan": {
+      "description": "Bodyweight delta caption: the unit and the window it is measured over.",
+      "placeholders": {
+          "days": {
+              "type": "int"
+          }
+      }
+  },
+  "expenseSpentToday": "{amount} SPENT TODAY",
+  "@expenseSpentToday": {
+      "description": "Header caption on the expenses list. Upper case in English by design.",
+      "placeholders": {
+          "amount": {
+              "type": "String"
+          }
+      }
+  },
+  "expenseAmountWithCurrency": "{amount} {currency}",
+  "@expenseAmountWithCurrency": {
+      "description": "A money figure and its currency code.",
+      "placeholders": {
+          "amount": {
+              "type": "String"
+          },
+          "currency": {
+              "type": "String"
+          }
+      }
+  },
+  "expenseRowMeta": "{time} · {category}",
+  "@expenseRowMeta": {
+      "description": "An expense row’s meta line: when it was logged and what it was for.",
+      "placeholders": {
+          "time": {
+              "type": "String"
+          },
+          "category": {
+              "type": "String"
+          }
+      }
+  },
+  "planEditSplitTitle": "Edit split",
+  "@planEditSplitTitle": {
+      "description": "Header when editing an existing split."
+  },
+  "planEditPlanTitle": "Edit workout plan",
+  "@planEditPlanTitle": {
+      "description": "Header when editing the active plan."
+  },
+  "planNewSplitTitle": "New split",
+  "@planNewSplitTitle": {
+      "description": "Header when creating a split."
+  },
+  "planNewPlanTitle": "New workout plan",
+  "@planNewPlanTitle": {
+      "description": "Header when creating the active plan."
+  },
+  "planDeleteSplit": "Delete split",
+  "@planDeleteSplit": {
+      "description": "Accessibility label on the split delete action."
+  },
+  "planDeletePlan": "Delete plan",
+  "@planDeletePlan": {
+      "description": "Accessibility label on the plan delete action."
+  },
+  "planName": "Plan name",
+  "@planName": {
+      "description": "Label on the plan name field."
+  },
+  "privacyTitle": "Privacy",
+  "@privacyTitle": {
+      "description": "Title of the privacy policy page."
+  },
+  "privacyIntro": "How ZIVO handles your data.\nLast updated {date}.",
+  "@privacyIntro": {
+      "description": "Subtitle under the privacy title, carrying the revision date.",
+      "placeholders": {
+          "date": {
+              "type": "String"
+          }
+      }
+  },
+  "privacyOverviewLabel": "OVERVIEW",
+  "@privacyOverviewLabel": {
+      "description": "Privacy section label. Upper case in English by design."
+  },
+  "privacyOverviewBody": "ZIVO is a private, personal application for organizing the parts of your day — moments, workouts, diet, expenses, and more — in one calm place. This policy explains what ZIVO stores, how it is used, and the choices you have.",
+  "@privacyOverviewBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortLabel": "THE SHORT VERSION",
+  "@privacyShortLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyShortBullet1": "Your content is private to your account and never sold or shared for ads.",
+  "@privacyShortBullet1": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet2": "ZIVO does not use your data or your content to train third-party models.",
+  "@privacyShortBullet2": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet3": "Backups live in your own Google Drive, under your own control.",
+  "@privacyShortBullet3": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyShortBullet4": "You can delete your content at any time, from inside the app.",
+  "@privacyShortBullet4": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyAccountLabel": "ACCOUNT & AUTHENTICATION",
+  "@privacyAccountLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyAccountBody": "ZIVO uses Firebase Authentication to sign you in, with Apple, Google, or email/password as sign-in options. Depending on the method you choose, ZIVO receives basic account details such as your name, email address, and a unique account identifier. That identifier is what keeps every piece of your data scoped to your account only.",
+  "@privacyAccountBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyOtpLabel": "EMAIL VERIFICATION CODES",
+  "@privacyOtpLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyOtpBody": "If you sign in with email, ZIVO sends a short verification code to confirm your address. Codes are hashed before storage, expire within minutes, and are used for nothing beyond verifying that the address is yours.",
+  "@privacyOtpBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyContentLabel": "YOUR CONTENT",
+  "@privacyContentLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyContentBody": "Everything you create in ZIVO — moments, workout plans and sessions, diet plans and entries, expense logs, body-weight entries, and profile details — is stored in your account so the app can show it back to you across your devices. It is private to you and not visible to other users.",
+  "@privacyContentBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyPhotosLabel": "PHOTOS & LOCAL STORAGE",
+  "@privacyPhotosLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyPhotosBody": "Where a feature lets you attach a photo (such as Moments or your profile), ZIVO accesses your photo library only when you pick or capture an image. Media lives first on your device; cloud backup happens only through the backup target you explicitly choose.",
+  "@privacyPhotosBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyAskLabel": "AI ASSISTANT (“ASK”)",
+  "@privacyAskLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyAskBody": "Ask is an opt-in assistant that can answer questions about your own data — your workouts, meals, and spending. When you send a message, the relevant context is processed by the model provider solely to answer you. Conversations are stored privately in your account so history works across devices, and are never used to train third-party models.",
+  "@privacyAskBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySpotifyLabel": "SPOTIFY",
+  "@privacySpotifyLabel": {
+      "description": "Privacy section label. The brand name stays latin in both languages."
+  },
+  "privacySpotifyBody": "The music feature connects to your own Spotify account when you ask it to. ZIVO uses Spotify’s official SDK to control playback and read what’s currently playing. You can disconnect at any time, from Settings.",
+  "@privacySpotifyBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyMetadataLabel": "ACCOUNT & SECURITY METADATA",
+  "@privacyMetadataLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyMetadataBody": "To keep your account safe and supportable, ZIVO keeps a small record of authentication events — when your account was created, when you last signed in and how, and when verification emails were sent. This metadata is security bookkeeping: it is never sold, shared, or used for advertising.",
+  "@privacyMetadataBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyDriveLabel": "GOOGLE DRIVE BACKUP",
+  "@privacyDriveLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyDriveBody": "Backup is optional and, if enabled, runs against your own Google Drive — using Google’s most restrictive drive.file scope, which lets ZIVO see and manage only the files it created itself. ZIVO never requests broad access to your Drive, and your files remain under your control there.",
+  "@privacyDriveBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySharingLabel": "DATA SHARING",
+  "@privacySharingLabel": {
+      "description": "Privacy section label."
+  },
+  "privacySharingBody": "ZIVO does not sell or rent personal data. Data is processed only by the infrastructure needed to run the app — Google Firebase (authentication, database, functions) — plus the integrations you explicitly enable: your own Google Drive and your own Spotify account.",
+  "@privacySharingBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyRetentionLabel": "RETENTION & DELETION",
+  "@privacyRetentionLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyRetentionBody": "Your content is retained until you delete it or delete your account. Files in your own Google Drive stay there until you remove them, and Drive access can be revoked at any time — from Settings or from your Google Account’s third-party access page.",
+  "@privacyRetentionBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacySecurityLabel": "SECURITY",
+  "@privacySecurityLabel": {
+      "description": "Privacy section label."
+  },
+  "privacySecurityBody": "Access is enforced end-to-end: Firebase Authentication for identity and Firestore security rules so only your authenticated account can read or write your data. Verification codes are stored only as salted hashes. Data is encrypted in transit.",
+  "@privacySecurityBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyChangesLabel": "CHANGES TO THIS POLICY",
+  "@privacyChangesLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyChangesBody": "This policy may be updated as features evolve. The “last updated” date always reflects the most recent revision.",
+  "@privacyChangesBody": {
+      "description": "A section of the privacy policy. This is a legal document: it must stay a faithful statement of the English, not a loose paraphrase."
+  },
+  "privacyContactLabel": "CONTACT",
+  "@privacyContactLabel": {
+      "description": "Privacy section label."
+  },
+  "privacyContactBody": "Questions about privacy or your data can be sent to {email}.",
+  "@privacyContactBody": {
+      "description": "Privacy section: how to reach the owner. The address is a placeholder so it is never translated or reordered.",
+      "placeholders": {
+          "email": {
+              "type": "String"
+          }
+      }
   }
 }

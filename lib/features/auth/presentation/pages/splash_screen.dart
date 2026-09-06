@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/motion/springs.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -78,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen>
               const ZivoLoadingBar(width: 120),
               const SizedBox(height: 20),
               Text(
-                'your whole day, in one place',
+                l(context).authTitleSignIn,
                 style: AppText.meta.copyWith(
                   color: TrainColors.ink3,
                   fontWeight: FontWeight.w500,

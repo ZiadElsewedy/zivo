@@ -27,11 +27,22 @@ class _FakeDrive implements MediaBackupProvider {
   String? uploadId;
   List<int>? downloadBytes;
 
+  /// Which Google account this fake speaks for — file ids only resolve inside
+  /// the account that minted them.
+  String accountKey = 'acc-1';
+
   final List<String> uploaded = [];
   final List<String> downloaded = [];
 
   @override
   bool get hasLiveSession => liveSession;
+
+  @override
+  String? get liveAccountKey => liveSession ? accountKey : null;
+
+  @override
+  Future<String?> connectedAccountKey() async =>
+      deviceConnected ? accountKey : null;
 
   @override
   Future<bool> isDeviceConnected() async => deviceConnected;
@@ -70,19 +81,25 @@ class _FakeDrive implements MediaBackupProvider {
     required String mimeType,
     required String accountFolder,
     String? replaceRemoteId,
+    String? replaceInAccountKey,
   }) async {
     uploaded.add(fileName);
     return uploadId;
   }
 
+  /// Set to have the fake answer "no such file" (a 404) rather than failing.
+  bool reportGone = false;
+
   @override
-  Future<List<int>?> download(String fileId) async {
+  Future<RemoteFetch> download(String fileId, {required String expectedAccountKey}) async {
     downloaded.add(fileId);
-    return downloadBytes;
+    if (reportGone) return const RemoteFetch.gone();
+    final bytes = downloadBytes;
+    return bytes == null ? const RemoteFetch.unavailable() : RemoteFetch.bytes(bytes);
   }
 
   @override
-  Future<bool> deleteRemote(String remoteId) async => true;
+  Future<bool> deleteRemote(String remoteId, {required String expectedAccountKey}) async => true;
 }
 
 void main() {

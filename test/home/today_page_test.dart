@@ -311,6 +311,80 @@ void main() {
   );
 
   testWidgets(
+    'picking another day SWAPS it with the day that was due, so the displaced '
+    'day comes up next instead of losing its turn',
+    (tester) async {
+      await tallView(tester);
+      // Cursor 0 = "Full Arm" (d); "Legs" (d2) sits behind it at order 1.
+      final plans = _FixedPlanRepository(_planWithTwoDays());
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: plans,
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const Key('training-change')));
+      await _settle(tester);
+
+      // Swap is the default — the sheet says what it will do with the due day.
+      expect(find.text('Full Arm takes the slot you pick — the cycle stays whole.'), findsOneWidget);
+
+      await tester.tap(find.text('Legs').last);
+      await _settle(tester);
+
+      expect(find.byType(LiveSessionPage), findsOneWidget);
+
+      // The two days traded rotation positions BEFORE the session started, so
+      // Legs is what's due now and Full Arm is next — nothing dropped out.
+      final saved = plans.activePlan!;
+      expect(saved.nextDay?.id, 'd2');
+      expect(saved.days.firstWhere((d) => d.id == 'd2').order, 0);
+      expect(saved.days.firstWhere((d) => d.id == 'd').order, 1);
+      // Finishing Legs must now hand the cycle back to Full Arm.
+      expect(saved.advanceToAfterDay('d2').nextDay?.id, 'd');
+    },
+  );
+
+  testWidgets(
+    'Skip mode trains the picked day and leaves the rotation untouched — the '
+    'due day loses this cycle, which is the whole point of the other mode',
+    (tester) async {
+      await tallView(tester);
+      final plans = _FixedPlanRepository(_planWithTwoDays());
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: plans,
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const Key('training-change')));
+      await _settle(tester);
+      await tester.tap(find.byKey(const Key('change-mode-skip')));
+      await _settle(tester);
+
+      expect(find.text('Full Arm is skipped this cycle.'), findsOneWidget);
+
+      await tester.tap(find.text('Legs').last);
+      await _settle(tester);
+
+      expect(find.byType(LiveSessionPage), findsOneWidget);
+
+      final saved = plans.activePlan!;
+      expect(saved.days.firstWhere((d) => d.id == 'd').order, 0);
+      expect(saved.days.firstWhere((d) => d.id == 'd2').order, 1);
+      expect(saved.nextDay?.id, 'd');
+    },
+  );
+
+  testWidgets(
     'tapping the card body (outside the CTA) opens the day details page',
     (tester) async {
       await tallView(tester);
@@ -369,6 +443,43 @@ void main() {
       expect(find.text('Resume workout'), findsOneWidget);
       expect(find.text('Full Arm'), findsNothing);
       expect(find.text('Start workout'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'picking the day that already has a session RESUMES it — the sheet marks '
+    'it "In progress", so it must not start a second session over it',
+    (tester) async {
+      await tallView(tester);
+      final plan = _planWithTwoDays();
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(
+        LiveSession.start(
+          plan.days.firstWhere((d) => d.id == 'd2'),
+          id: 'active-legs',
+          planId: plan.id,
+          now: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const TodayPage(),
+          diet: InMemoryDietRepository(),
+          workoutPlans: _FixedPlanRepository(plan),
+          workoutSessions: sessions,
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const Key('training-change')));
+      await _settle(tester);
+      await tester.tap(find.text('Legs').last);
+      await _settle(tester);
+
+      final page = tester.widget<LiveSessionPage>(find.byType(LiveSessionPage));
+      expect(page.day.id, 'd2');
+      expect(page.resume?.id, 'active-legs');
     },
   );
 

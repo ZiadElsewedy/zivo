@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_spacing.dart';
@@ -276,7 +277,9 @@ class _RevealToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: revealed ? 'Hide $label' : 'Show $label',
+      label: revealed
+          ? l(context).authHideField(label)
+          : l(context).authShowField(label),
       child: InkWell(
         onTap: enabled ? onTap : null,
         customBorder: const CircleBorder(),

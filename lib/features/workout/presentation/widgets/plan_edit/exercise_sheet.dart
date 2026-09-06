@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../../../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 import '../../../../../core/motion/springs.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
@@ -137,20 +138,20 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
   @override
   Widget build(BuildContext context) {
     return SheetShell(
-      title: _editing ? 'Edit exercise' : 'Add exercise',
+      title: _editing ? l(context).exerciseEditTitle : l(context).exerciseAddTitle,
       children: [
         LabeledField(
           fieldKey: const Key('exercise-name-field'),
-          label: 'Name',
+          label: l(context).exerciseName,
           controller: _name,
-          hint: 'Bench Press',
+          hint: l(context).exerciseNameHint,
           autofocus: !_editing,
         ),
         const SizedBox(height: 14),
         LabeledField(
-          label: 'Muscle group (optional)',
+          label: l(context).exerciseMuscleGroup,
           controller: _muscle,
-          hint: 'Chest',
+          hint: l(context).exerciseMuscleGroupHint,
         ),
         const SizedBox(height: 16),
         Row(
@@ -158,7 +159,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
           children: [
             SizedBox(
               width: 76,
-              child: PlanNumberField(label: 'Sets', controller: _sets),
+              child: PlanNumberField(label: l(context).exerciseSets, controller: _sets),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -166,7 +167,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'REP TARGET',
+                    l(context).exerciseRepTarget,
                     style: TrainType.mono(
                       size: 10.5,
                       tracking: 0.06,
@@ -183,7 +184,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
                     children: [
                       PressableScale(
                         child: SelectChip(
-                          label: 'Fixed',
+                          label: l(context).exerciseTargetFixed,
                           selected: _mode == RepMode.fixed,
                           onTap: () {
                             HapticFeedback.selectionClick();
@@ -193,7 +194,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
                       ),
                       PressableScale(
                         child: SelectChip(
-                          label: 'Range',
+                          label: l(context).exerciseTargetRange,
                           selected: _mode == RepMode.range,
                           onTap: () {
                             HapticFeedback.selectionClick();
@@ -203,7 +204,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
                       ),
                       PressableScale(
                         child: SelectChip(
-                          label: 'To failure',
+                          label: l(context).workoutToFailure,
                           selected: _mode == RepMode.toFailure,
                           onTap: () {
                             HapticFeedback.selectionClick();
@@ -224,7 +225,9 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
             children: [
               Expanded(
                 child: PlanNumberField(
-                  label: _mode == RepMode.range ? 'Min reps' : 'Reps',
+                  label: _mode == RepMode.range
+                      ? l(context).exerciseMinReps
+                      : l(context).exerciseReps,
                   controller: _reps,
                 ),
               ),
@@ -232,7 +235,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: PlanNumberField(
-                    label: 'Max reps',
+                    label: l(context).exerciseMaxReps,
                     controller: _repsMax,
                   ),
                 ),
@@ -253,7 +256,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: PlanNumberField(
-                label: 'Weight (kg)',
+                label: l(context).exerciseWeightKg,
                 controller: _weight,
                 hint: '—',
               ),
@@ -262,7 +265,7 @@ class _ExerciseSheetState extends State<ExerciseSheet> {
         ),
         const SizedBox(height: 22),
         PillButton(
-          label: _editing ? 'Save changes' : 'Add exercise',
+          label: _editing ? l(context).exerciseSaveChanges : l(context).exerciseAddTitle,
           icon: _editing ? Icons.check_rounded : Icons.add_rounded,
           color: TrainColors.ember,
           enabled: _canAdd,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../../l10n/l10n.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -84,7 +85,7 @@ class _AuthPageState extends State<AuthPage> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            'Password updated. Sign in with your new password.',
+            l(context).authPasswordUpdatedSignIn,
             style: AppText.meta.copyWith(color: TrainColors.ink),
           ),
           backgroundColor: TrainColors.raisedStrong,
@@ -158,8 +159,8 @@ class _AuthPageState extends State<AuthPage> {
                           child: Text(
                             key: ValueKey(_isSignUp),
                             _isSignUp
-                                ? 'Make your space.'
-                                : 'Your whole day, in one place.',
+                                ? l(context).authTitleSignUp
+                                : l(context).authTitleSignIn,
                             style: AppText.aside,
                           ),
                         ),
@@ -229,7 +230,7 @@ class _AuthPageState extends State<AuthPage> {
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: Text(
-                            'Forgot password?',
+                            l(context).authForgotPassword,
                             style: AppText.meta.copyWith(
                               color: TrainColors.ink2,
                             ),
@@ -277,11 +278,11 @@ class _AuthPageState extends State<AuthPage> {
                             children: [
                               TextSpan(
                                 text: _isSignUp
-                                    ? 'Already have an account?  '
-                                    : 'New to ZIVO?  ',
+                                    ? l(context).authHaveAccount
+                                    : l(context).authNewToZivo,
                               ),
                               TextSpan(
-                                text: _isSignUp ? 'Sign in' : 'Create account',
+                                text: _isSignUp ? l(context).authSignIn : l(context).authCreateAccount,
                                 style: AppText.button.copyWith(
                                   fontSize: 14.5,
                                   color: TrainColors.ember,

@@ -26,17 +26,17 @@ void main() {
   }
 
   group('LocalMediaStore.importFile', () {
-    test('copies bytes under media/{folder}/{id}.{ext} and returns a '
+    test('copies bytes under media/{owner}/{folder}/{id}.{ext} and returns a '
         'forward-slashed relative path', () async {
       final src = makeSource('pick.PNG', [1, 2, 3, 4]);
 
       final stored = await store.importFile(
         sourcePath: src.path,
         kind: MediaKind.moment,
-        id: 'abc',
+        id: 'abc', owner: 'u1',
       );
 
-      expect(stored.relativePath, 'media/moments/abc.png');
+      expect(stored.relativePath, 'media/u1/moments/abc.png');
       expect(stored.byteSize, 4);
       expect(stored.mimeType, 'image/png');
       expect(stored.contentHash, isNotEmpty);
@@ -48,16 +48,16 @@ void main() {
       await store.importFile(
         sourcePath: makeSource('a.jpg', [1]).path,
         kind: MediaKind.avatar,
-        id: 'user1',
+        id: 'user1', owner: 'u1',
       );
       final second = await store.importFile(
         sourcePath: makeSource('b.jpg', [9, 9]).path,
         kind: MediaKind.avatar,
-        id: 'user1',
+        id: 'user1', owner: 'u1',
       );
 
       expect(second.file.readAsBytesSync(), [9, 9]);
-      final dir = Directory('${root.path}/media/avatars');
+      final dir = Directory('${root.path}/media/u1/avatars');
       expect(dir.listSync().whereType<File>().length, 1);
     });
 
@@ -65,19 +65,79 @@ void main() {
       final stored = await store.importFile(
         sourcePath: makeSource('noext', [0]).path,
         kind: MediaKind.moment,
-        id: 'x',
+        id: 'x', owner: 'u1',
       );
-      expect(stored.relativePath, 'media/moments/x.jpg');
+      expect(stored.relativePath, 'media/u1/moments/x.jpg');
       expect(stored.mimeType, 'image/jpeg');
     });
   });
 
+  group('owner scoping', () {
+    test('two accounts capturing the same id keep separate files', () async {
+      final a = await store.importFile(
+        sourcePath: makeSource('a.jpg', [1]).path,
+        kind: MediaKind.moment,
+        id: 'same-id',
+        owner: 'userA',
+      );
+      final b = await store.importFile(
+        sourcePath: makeSource('b.jpg', [2]).path,
+        kind: MediaKind.moment,
+        id: 'same-id',
+        owner: 'userB',
+      );
+
+      expect(a.relativePath, isNot(b.relativePath));
+      expect(a.file.readAsBytesSync(), [1]);
+      expect(b.file.readAsBytesSync(), [2],
+          reason: 'one account must not overwrite the other');
+    });
+
+    test('an owner that is not a safe path segment cannot escape the store',
+        () async {
+      final stored = await store.importFile(
+        sourcePath: makeSource('x.jpg', [3]).path,
+        kind: MediaKind.moment,
+        id: 'e1',
+        owner: '../../etc',
+      );
+
+      expect(stored.relativePath, 'media/etc/moments/e1.jpg');
+      expect(stored.file.path, startsWith(root.path));
+    });
+
+    test('an empty owner falls back to a named segment, never the media root',
+        () async {
+      final stored = await store.importFile(
+        sourcePath: makeSource('y.jpg', [4]).path,
+        kind: MediaKind.moment,
+        id: 'e2',
+        owner: '',
+      );
+
+      expect(stored.relativePath, 'media/_shared/moments/e2.jpg');
+    });
+  });
+
   group('LocalMediaStore.resolve', () {
+    test('still resolves an unscoped ref written before owner scoping', () async {
+      // Exactly what sits in `Moment.imagePath` on every pre-existing record.
+      const legacy = 'media/moments/old.jpg';
+      final file = await store.writeBytes(legacy, [8, 8, 8]);
+      expect(file.existsSync(), isTrue);
+
+      final resolved = await store.resolve(legacy);
+      expect(resolved!.existsSync(), isTrue);
+      expect(resolved.readAsBytesSync(), [8, 8, 8]);
+      expect(resolved.path, endsWith('media/moments/old.jpg'),
+          reason: 'no file is moved and no stored ref is rewritten');
+    });
+
     test('maps a relative ref back to an absolute file under the root', () async {
       final stored = await store.importFile(
         sourcePath: makeSource('p.jpg', [7]).path,
         kind: MediaKind.moment,
-        id: 'id7',
+        id: 'id7', owner: 'u1',
       );
       final resolved = await store.resolve(stored.relativePath);
       expect(resolved, isNotNull);
@@ -102,7 +162,7 @@ void main() {
       final stored = await store.importFile(
         sourcePath: makeSource('d.jpg', [1]).path,
         kind: MediaKind.moment,
-        id: 'del',
+        id: 'del', owner: 'u1',
       );
       expect(stored.file.existsSync(), isTrue);
       await store.delete(stored.relativePath);

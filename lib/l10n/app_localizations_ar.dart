@@ -313,6 +313,77 @@ class AppLocalizationsAr extends AppLocalizations {
   String get hubNoMomentsYet => 'لا توجد لحظات بعد';
 
   @override
+  String get pulseWeekOverWeek => 'أسبوعيًا';
+
+  @override
+  String get hubTitle => 'الأقسام';
+
+  @override
+  String get hubConnected => 'المتصل';
+
+  @override
+  String hubWorkoutResume(String day) {
+    return '$day · استئناف';
+  }
+
+  @override
+  String hubWorkoutUpNext(String day) {
+    return '$day · التالي';
+  }
+
+  @override
+  String hubDietStat(int eaten, int total, String kcal) {
+    return '$eaten من $total · $kcal سعرة';
+  }
+
+  @override
+  String hubExpensesStat(String amount) {
+    return '$amount هذا الأسبوع';
+  }
+
+  @override
+  String hubMomentsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count لحظة',
+      many: '$count لحظة',
+      few: '$count لحظات',
+      two: 'لحظتان',
+      one: 'لحظة واحدة',
+      zero: 'لا لحظات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get connectedBackingUp => 'يتم النسخ الاحتياطي';
+
+  @override
+  String get connectedNotConnected => 'غير متصل';
+
+  @override
+  String get connectedConnected => 'متصل';
+
+  @override
+  String get connectedPlaying => 'قيد التشغيل';
+
+  @override
+  String get connectedPaused => 'متوقف مؤقتًا';
+
+  @override
+  String get connectedConnecting => 'جارٍ الاتصال…';
+
+  @override
+  String get connectedCouldntConnect => 'تعذّر الاتصال';
+
+  @override
+  String get connectedPremiumRequired => 'يتطلب Premium';
+
+  @override
+  String get connectedInstallSpotify => 'ثبّت Spotify';
+
+  @override
   String get comingNext => 'قريبًا.';
 
   @override
@@ -559,6 +630,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutChangeWorkout => 'تغيير التمرين';
+
+  @override
+  String get workoutChangeSwap => 'تبديل';
+
+  @override
+  String get workoutChangeSkip => 'تخطّي';
+
+  @override
+  String workoutChangeSwapNote(String day) {
+    return '$day يأخذ مكان اليوم الذي تختاره — تبقى الدورة كاملة.';
+  }
+
+  @override
+  String workoutChangeSkipNote(String day) {
+    return 'سيُتخطّى $day في هذه الدورة.';
+  }
 
   @override
   String workoutDayLabel(String slot, String label) {
@@ -1717,6 +1804,49 @@ class AppLocalizationsAr extends AppLocalizations {
   String get workoutSetDropsetShort => 'D';
 
   @override
+  String workoutRepsSpec(String reps) {
+    return '$reps تكرار';
+  }
+
+  @override
+  String workoutSetCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مجموعة',
+      many: '$count مجموعة',
+      few: '$count مجموعات',
+      two: 'مجموعتان',
+      one: 'مجموعة واحدة',
+      zero: 'لا مجموعات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutToFailure => 'حتى الفشل';
+
+  @override
+  String workoutRestFor(String time) {
+    return 'راحة $time';
+  }
+
+  @override
+  String workoutSetsBy(int count, String reps) {
+    return '$count × $reps';
+  }
+
+  @override
+  String workoutPlanDayMeta(String plan, String exercises) {
+    return '$plan · $exercises';
+  }
+
+  @override
+  String workoutExerciseMeta(String sets, String muscleGroup) {
+    return '$sets · $muscleGroup';
+  }
+
+  @override
   String get workoutSetFailureShort => 'F';
 
   @override
@@ -2849,4 +2979,1378 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dateYesterdayLower => 'أمس';
+
+  @override
+  String get mediaCapturedOnAnotherDevice => 'التُقطت على جهاز آخر';
+
+  @override
+  String get mediaOnAnotherBackupAccount => 'في حساب Drive آخر';
+
+  @override
+  String get storageTitle => 'التخزين والمزامنة';
+
+  @override
+  String get storageSectionBackup => 'النسخ والمزامنة';
+
+  @override
+  String get storageSectionInstant => 'المزامنة الفورية';
+
+  @override
+  String get storageSectionDevicePhotos => 'صور الجهاز';
+
+  @override
+  String get storageUploadToDrive => 'الرفع إلى Drive';
+
+  @override
+  String get storageSaveToPhotos => 'حفظ في الصور';
+
+  @override
+  String get storageAccountNote =>
+      'كل حساب ZIVO يحتفظ بصوره في مجلد Drive خاص به، فلا تختلط الحسابات أبدًا — حتى لو استخدمت نفس حساب Google Drive.';
+
+  @override
+  String get storageOnThisDevice => 'على هذا الجهاز';
+
+  @override
+  String get storageLocalFirst => 'صورك محفوظة هنا أولًا، دائمًا.';
+
+  @override
+  String storageSavedHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صورة محفوظة هنا.',
+      many: '$count صورة محفوظة هنا.',
+      few: '$count صور محفوظة هنا.',
+      two: 'صورتان محفوظتان هنا.',
+      one: 'صورة واحدة محفوظة هنا.',
+      zero: 'لا صور محفوظة هنا.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storageConnectDrive => 'وصّل Google Drive';
+
+  @override
+  String get storageBackUpNow => 'انسخ الآن';
+
+  @override
+  String get storageSync => 'مزامنة';
+
+  @override
+  String get storageDisconnect => 'فصل';
+
+  @override
+  String get storageUnavailableInBuild => 'غير متاح في هذه النسخة';
+
+  @override
+  String get storageConnectedOnDevice => 'متصل على هذا الجهاز';
+
+  @override
+  String get storageNotConnectedOnDevice => 'غير متصل على هذا الجهاز';
+
+  @override
+  String get storageConnectFailed => 'تعذّر الاتصال بـ Google Drive.';
+
+  @override
+  String get storageConnectedToast => 'تم توصيل Google Drive على هذا الجهاز.';
+
+  @override
+  String get storageDisconnectedToast => 'تم فصل Google Drive عن هذا الجهاز.';
+
+  @override
+  String get storageAlreadyBackedUp => 'كل شيء منسوخ احتياطيًا بالفعل.';
+
+  @override
+  String get storageNothingNew => 'لا جديد للتنزيل.';
+
+  @override
+  String storageBackedUpToast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم نسخ $count صورة إلى Drive.',
+      many: 'تم نسخ $count صورة إلى Drive.',
+      few: 'تم نسخ $count صور إلى Drive.',
+      two: 'تم نسخ صورتين إلى Drive.',
+      one: 'تم نسخ صورة واحدة إلى Drive.',
+      zero: 'لم تُنسخ أي صور.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storageDownloadedToast(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم تنزيل $count صورة من Drive.',
+      many: 'تم تنزيل $count صورة من Drive.',
+      few: 'تم تنزيل $count صور من Drive.',
+      two: 'تم تنزيل صورتين من Drive.',
+      one: 'تم تنزيل صورة واحدة من Drive.',
+      zero: 'لم تُنزّل أي صور.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storageOtherAccountTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صورة في حساب Google آخر',
+      many: '$count صورة في حساب Google آخر',
+      few: '$count صور في حساب Google آخر',
+      two: 'صورتان في حساب Google آخر',
+      one: 'صورة واحدة في حساب Google آخر',
+      zero: 'لا صور في حساب Google آخر',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storageOtherAccountBody =>
+      'نُسخت قبل تبديل الحسابات. «انسخ الآن» ينسخ ما زال موجودًا على هذا الجهاز؛ أما الباقي فأعد توصيل ذلك الحساب.';
+
+  @override
+  String get storageBackingUp => 'جارٍ النسخ…';
+
+  @override
+  String get storageSyncing => 'جارٍ المزامنة…';
+
+  @override
+  String get storageCheckingPhotos => 'جارٍ فحص صورك…';
+
+  @override
+  String storageProgressCount(int done, int total) {
+    return '$done من $total صورة';
+  }
+
+  @override
+  String get storageNothingYetTitle => 'لا شيء للنسخ بعد';
+
+  @override
+  String get storageNothingYetBody => 'الصور التي تضيفها ستُنسخ هنا.';
+
+  @override
+  String get storageAllBackedUpTitle => 'كل شيء منسوخ';
+
+  @override
+  String storageAllSafeBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صورة في أمان داخل Google Drive.',
+      many: '$count صورة في أمان داخل Google Drive.',
+      few: '$count صور في أمان داخل Google Drive.',
+      two: 'صورتان في أمان داخل Google Drive.',
+      one: 'صورة واحدة في أمان داخل Google Drive.',
+      zero: 'لا صور بعد.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String storagePartialTitle(int backedUp, int total) {
+    return '$backedUp من $total منسوخة';
+  }
+
+  @override
+  String storagePendingBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صورة في انتظار النسخ.',
+      many: '$count صورة في انتظار النسخ.',
+      few: '$count صور في انتظار النسخ.',
+      two: 'صورتان في انتظار النسخ.',
+      one: 'صورة واحدة في انتظار النسخ.',
+      zero: 'لا صور في الانتظار.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionNoExercises => 'لم تُسجَّل أي تمارين.';
+
+  @override
+  String get sessionDetailsTitle => 'تفاصيل الجلسة';
+
+  @override
+  String get sessionDeleteAction => 'حذف الجلسة';
+
+  @override
+  String get sessionStatusCompleted => 'مكتملة';
+
+  @override
+  String get sessionStatusActive => 'جارية';
+
+  @override
+  String get sessionStatusAbandoned => 'غير مكتملة';
+
+  @override
+  String get sessionStatDuration => 'المدة';
+
+  @override
+  String get sessionStatTime => 'الوقت';
+
+  @override
+  String get sessionStatExercises => 'التمارين';
+
+  @override
+  String get sessionStatSetsDone => 'المجموعات المنجزة';
+
+  @override
+  String sessionSetNumber(int index) {
+    return 'المجموعة $index';
+  }
+
+  @override
+  String get sessionSetSkipped => 'متخطاة';
+
+  @override
+  String sessionSetRpe(String value) {
+    return 'RPE $value';
+  }
+
+  @override
+  String sessionSetWeightByReps(String weight, String reps) {
+    return '$weight × $reps';
+  }
+
+  @override
+  String sessionSetRepsOnly(int reps) {
+    String _temp0 = intl.Intl.pluralLogic(
+      reps,
+      locale: localeName,
+      other: '$reps تكرار',
+      many: '$reps تكرارًا',
+      few: '$reps تكرارات',
+      two: 'تكراران',
+      one: 'تكرار واحد',
+      zero: 'لا تكرارات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionSetRepsUnknown(String reps) {
+    return '$reps تكرار';
+  }
+
+  @override
+  String sessionTimeRange(String start, String end) {
+    return '$start–$end';
+  }
+
+  @override
+  String get splitsTitle => 'الجداول';
+
+  @override
+  String get splitNewAction => 'جدول جديد';
+
+  @override
+  String splitCopyName(String name) {
+    return 'نسخة من $name';
+  }
+
+  @override
+  String splitDayCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      many: '$count يومًا',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+      zero: 'لا أيام',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String splitMeta(String days, String exercises) {
+    return '$days · $exercises';
+  }
+
+  @override
+  String get splitSetActive => 'اجعله النشط';
+
+  @override
+  String get actionDuplicate => 'تكرار';
+
+  @override
+  String get splitActiveBadge => 'نشط';
+
+  @override
+  String get splitsEmptyTitle => 'لا توجد جداول بعد.';
+
+  @override
+  String get splitsEmptyBody => 'اضغط + لبناء أول جدول لك.';
+
+  @override
+  String workoutThisWeekCount(int count) {
+    return '$count هذا الأسبوع';
+  }
+
+  @override
+  String get workoutLogTodaysWeight => 'سجّل وزن اليوم';
+
+  @override
+  String get workoutWeighInFailed =>
+      'تعذّر حفظ الوزن — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get workoutNoPlanImportHint =>
+      'استورد ملف PDF أو صورة وسأحوّلها إلى جدول حقيقي، أو ابنِ واحدًا من الصفر.';
+
+  @override
+  String workoutWeightDeltaWindow(String delta) {
+    return '$delta كجم · ٣٠ يومًا';
+  }
+
+  @override
+  String get settingsTitle => 'الإعدادات';
+
+  @override
+  String get settingsSectionApp => 'التطبيق';
+
+  @override
+  String get settingsSectionAccount => 'الحساب';
+
+  @override
+  String get settingsSectionMusic => 'الموسيقى';
+
+  @override
+  String get settingsSectionMedia => 'الوسائط';
+
+  @override
+  String get settingsTheme => 'المظهر';
+
+  @override
+  String get settingsThemeDark => 'داكن';
+
+  @override
+  String get settingsVersion => 'الإصدار';
+
+  @override
+  String get settingsBuild => 'النسخة';
+
+  @override
+  String get settingsPrivacyPolicy => 'سياسة الخصوصية';
+
+  @override
+  String get settingsChangePassword => 'تغيير كلمة المرور';
+
+  @override
+  String get settingsDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get settingsSignOut => 'تسجيل الخروج';
+
+  @override
+  String settingsVersionLine(String version, String build) {
+    return 'الإصدار $version ($build)';
+  }
+
+  @override
+  String settingsVersionValue(String version, String build) {
+    return '$version ($build)';
+  }
+
+  @override
+  String get settingsStorageSync => 'التخزين والمزامنة';
+
+  @override
+  String get settingsStorageSyncValue => 'الصور · Drive';
+
+  @override
+  String get connectedConnectedPaused => 'متصل · متوقف مؤقتًا';
+
+  @override
+  String get connectedConnectedPlaying => 'متصل · قيد التشغيل';
+
+  @override
+  String get authEmail => 'البريد الإلكتروني';
+
+  @override
+  String get authPassword => 'كلمة المرور';
+
+  @override
+  String get authNameOptional => 'الاسم (اختياري)';
+
+  @override
+  String get authConfirmPassword => 'تأكيد كلمة المرور';
+
+  @override
+  String get authNewPassword => 'كلمة المرور الجديدة';
+
+  @override
+  String get authCurrentPassword => 'كلمة المرور الحالية';
+
+  @override
+  String get authConfirmNewPassword => 'تأكيد كلمة المرور الجديدة';
+
+  @override
+  String get authSignIn => 'تسجيل الدخول';
+
+  @override
+  String get authCreateAccount => 'إنشاء حساب';
+
+  @override
+  String get authForgotPassword => 'نسيت كلمة المرور؟';
+
+  @override
+  String get authHaveAccount => 'لديك حساب بالفعل؟  ';
+
+  @override
+  String get authNewToZivo => 'جديد على ZIVO؟  ';
+
+  @override
+  String get authTitleSignUp => 'اصنع مساحتك.';
+
+  @override
+  String get authTitleSignIn => 'يومك كله، في مكان واحد.';
+
+  @override
+  String get authSignInWithApple => 'تسجيل الدخول عبر Apple';
+
+  @override
+  String get authContinueWithGoogle => 'المتابعة عبر Google';
+
+  @override
+  String get authPasswordUpdated => 'تم تحديث كلمة المرور.';
+
+  @override
+  String get authPasswordUpdatedSignIn =>
+      'تم تحديث كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.';
+
+  @override
+  String authShowField(String label) {
+    return 'إظهار $label';
+  }
+
+  @override
+  String authHideField(String label) {
+    return 'إخفاء $label';
+  }
+
+  @override
+  String authOtpFieldLabel(int length) {
+    return 'رمز تحقق من $length أرقام';
+  }
+
+  @override
+  String authCodeWrongWithAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'الرمز غير صحيح. بقيت $count محاولة.',
+      many: 'الرمز غير صحيح. بقيت $count محاولة.',
+      few: 'الرمز غير صحيح. بقيت $count محاولات.',
+      two: 'الرمز غير صحيح. بقيت محاولتان.',
+      one: 'الرمز غير صحيح. بقيت محاولة واحدة.',
+      zero: 'الرمز غير صحيح. لا محاولات متبقية.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get authCodeWrong => 'الرمز غير صحيح.';
+
+  @override
+  String get authCodeExpired => 'انتهت صلاحية الرمز. أرسل رمزًا جديدًا.';
+
+  @override
+  String get authCodeTooManyAttempts =>
+      'محاولات كثيرة جدًا. أرسل رمزًا جديدًا.';
+
+  @override
+  String get authCodeSent => 'رمز جديد في الطريق.';
+
+  @override
+  String get authSending => 'جارٍ الإرسال…';
+
+  @override
+  String authResendIn(int seconds) {
+    return 'إعادة الإرسال خلال $seconds ث';
+  }
+
+  @override
+  String get authResendCode => 'إعادة إرسال الرمز';
+
+  @override
+  String get authDidntGetIt => 'لم يصلك؟  ';
+
+  @override
+  String get authResetTitle => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get authResetSubtitle => 'أدخل بريد حسابك وسنرسل لك رمزًا من 6 أرقام.';
+
+  @override
+  String get authSendCode => 'إرسال الرمز';
+
+  @override
+  String get authEnterCode => 'أدخل الرمز';
+
+  @override
+  String get authCodeSentTo =>
+      'أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى\n';
+
+  @override
+  String get authThenChoosePassword => '، ثم اختر كلمة مرور جديدة.';
+
+  @override
+  String get authResetPassword => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get authEmailLooksWrong => 'يبدو أن البريد الإلكتروني غير صحيح.';
+
+  @override
+  String get authVerifyTitle => 'تأكيد بريدك الإلكتروني';
+
+  @override
+  String get authVerify => 'تأكيد';
+
+  @override
+  String get authUseAnotherAccount => 'استخدام حساب آخر';
+
+  @override
+  String get authChangePasswordSubtitle =>
+      'أكّد هويتك، ثم اختر كلمة مرور جديدة.';
+
+  @override
+  String get authConfirmItsYou => 'أكّد هويتك';
+
+  @override
+  String get authUpdatePassword => 'تحديث كلمة المرور';
+
+  @override
+  String get authDeleteAccountBody =>
+      'سيؤدي هذا إلى حذف حسابك وكل ما فيه نهائيًا — التمارين والتغذية واللحظات والمصروفات والملف الشخصي. لا يمكن التراجع عن هذا.';
+
+  @override
+  String get authDeleteConfirmPassword => 'أدخل كلمة المرور للتأكيد';
+
+  @override
+  String get authDeleteMyAccount => 'احذف حسابي';
+
+  @override
+  String get authPasswordStrength => 'قوة كلمة المرور';
+
+  @override
+  String get authPasswordStrong => 'قوية';
+
+  @override
+  String get authPasswordAlmost => 'شبه قوية';
+
+  @override
+  String get authPasswordWeak => 'ضعيفة';
+
+  @override
+  String get authPasswordsMatch => 'كلمتا المرور متطابقتان';
+
+  @override
+  String get authPasswordsDontMatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String authRuleState(String rule, String state) {
+    return '$rule: $state';
+  }
+
+  @override
+  String get authRuleMet => 'مستوفاة';
+
+  @override
+  String get authRuleNotMet => 'غير مستوفاة';
+
+  @override
+  String get authRuleMinLength => '٨ أحرف على الأقل';
+
+  @override
+  String get authRuleMinLengthShort => '٨+ أحرف';
+
+  @override
+  String get authRuleUppercase => 'حرف كبير واحد';
+
+  @override
+  String get authRuleUppercaseShort => 'حرف كبير';
+
+  @override
+  String get authRuleLowercase => 'حرف صغير واحد';
+
+  @override
+  String get authRuleLowercaseShort => 'حرف صغير';
+
+  @override
+  String get authRuleNumber => 'رقم واحد';
+
+  @override
+  String get authRuleNumberShort => 'رقم';
+
+  @override
+  String get settingsPermanent => 'نهائي';
+
+  @override
+  String get momentTakePhoto => 'التقاط صورة';
+
+  @override
+  String get momentChooseFromLibrary => 'اختيار من المعرض';
+
+  @override
+  String get momentEditPhoto => 'تعديل الصورة';
+
+  @override
+  String get momentEditTitle => 'تعديل اللحظة';
+
+  @override
+  String get momentNewTitle => 'لحظة جديدة';
+
+  @override
+  String get momentDeleteAction => 'حذف اللحظة';
+
+  @override
+  String get momentNoteHint => 'قل شيئًا…';
+
+  @override
+  String get momentSave => 'حفظ اللحظة';
+
+  @override
+  String get momentAdd => 'إضافة لحظة';
+
+  @override
+  String get momentAddPhoto => 'أضف صورة';
+
+  @override
+  String get momentRetake => 'إعادة الالتقاط';
+
+  @override
+  String get momentRemove => 'إزالة';
+
+  @override
+  String get momentSaveFailed => 'تعذّر حفظ تلك اللحظة.';
+
+  @override
+  String get momentDeleteFailed => 'تعذّر حذف تلك اللحظة.';
+
+  @override
+  String get momentsTitle => 'اللحظات';
+
+  @override
+  String get momentsFilterAll => 'الكل';
+
+  @override
+  String get momentsFilterPhotos => 'الصور';
+
+  @override
+  String get momentsFilterNotes => 'الملاحظات';
+
+  @override
+  String get momentsFilterCamera => 'الكاميرا';
+
+  @override
+  String get momentsFilterLibrary => 'المعرض';
+
+  @override
+  String get momentsEmptyTitle => 'لم يُسجَّل شيء بعد';
+
+  @override
+  String get momentsEmptyBody =>
+      'صوّر تمرينًا أو وجبة أو قراءة ميزان — ترتبط اللحظات بالجلسة التي كنت فيها.';
+
+  @override
+  String get momentsEmptyCamera => 'لا صور من الكاميرا بعد.';
+
+  @override
+  String get momentsEmptyLibrary => 'لا شيء من معرضك بعد.';
+
+  @override
+  String get momentsEmptyPhotos => 'لا صور بعد.';
+
+  @override
+  String get momentsEmptyNotes => 'لا ملاحظات بعد.';
+
+  @override
+  String get momentsEmptyOther => 'لم يُسجَّل شيء آخر بعد';
+
+  @override
+  String get momentUntitled => 'بلا عنوان';
+
+  @override
+  String get momentUntitledFull => 'لحظة بلا عنوان';
+
+  @override
+  String get momentPhotoInfo => 'معلومات الصورة';
+
+  @override
+  String momentPhotoPosition(int index, int total) {
+    return '$index من $total';
+  }
+
+  @override
+  String get metaDate => 'التاريخ';
+
+  @override
+  String get metaTime => 'الوقت';
+
+  @override
+  String get metaTimeZone => 'المنطقة الزمنية';
+
+  @override
+  String get metaCapturedWith => 'التُقطت بواسطة';
+
+  @override
+  String get metaDimensions => 'الأبعاد';
+
+  @override
+  String get metaFileSize => 'حجم الملف';
+
+  @override
+  String get metaType => 'النوع';
+
+  @override
+  String get metaLocation => 'الموقع';
+
+  @override
+  String get metaBackup => 'النسخ الاحتياطي';
+
+  @override
+  String get metaOnThisDevice => 'على هذا الجهاز';
+
+  @override
+  String get metaInPhotos => 'الصور';
+
+  @override
+  String get metaNotBackedUp => 'لم يُنسخ احتياطيًا بعد';
+
+  @override
+  String get metaInDriveTapToDownload => 'في Google Drive — اضغط للتنزيل';
+
+  @override
+  String get captureSourceCamera => 'الكاميرا';
+
+  @override
+  String get captureSourceLibrary => 'معرض الصور';
+
+  @override
+  String get captureSourceUnknown => 'غير معروف';
+
+  @override
+  String get musicNowPlaying => 'قيد التشغيل الآن';
+
+  @override
+  String get musicClosePlayer => 'إغلاق المشغّل';
+
+  @override
+  String get musicReadOnly =>
+      'التشغيل على جهاز آخر — عناصر التحكم هنا للعرض فقط.';
+
+  @override
+  String get musicPreviousTrack => 'المقطع السابق';
+
+  @override
+  String get musicNextTrack => 'المقطع التالي';
+
+  @override
+  String get musicShuffleOn => 'التشغيل العشوائي مفعّل';
+
+  @override
+  String get musicShuffleOff => 'التشغيل العشوائي متوقف';
+
+  @override
+  String get musicRepeatOff => 'التكرار متوقف';
+
+  @override
+  String get musicRepeatAll => 'تكرار الكل';
+
+  @override
+  String get musicRepeatOne => 'تكرار المقطع';
+
+  @override
+  String get musicAuthFailed =>
+      'لم يصرّح Spotify بالاتصال. تأكد من تسجيل دخولك إلى Spotify ثم حاول مرة أخرى.';
+
+  @override
+  String get musicTryAgain => 'حاول مرة أخرى';
+
+  @override
+  String get musicPremiumRequired =>
+      'يتطلب التحكم في التشغيل هنا اشتراك Spotify Premium.';
+
+  @override
+  String get musicConnectPrompt => 'وصّل Spotify لترى ما يعمل الآن.';
+
+  @override
+  String get musicConnectSpotify => 'وصّل Spotify';
+
+  @override
+  String musicTimeLeft(String time) {
+    return 'بقي $time';
+  }
+
+  @override
+  String musicStripMeta(String artist, String remaining) {
+    return '$artist · $remaining';
+  }
+
+  @override
+  String musicNowPlayingSemantics(String title, String artist) {
+    return 'قيد التشغيل الآن: $title لـ $artist. افتح المشغّل.';
+  }
+
+  @override
+  String musicBatteryPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get importCouldntReadFile => 'تعذّرت قراءة ذلك الملف.';
+
+  @override
+  String get importFileTooLarge =>
+      'هذا الملف كبير جدًا — اختر ملفًا أصغر من 7 ميجابايت.';
+
+  @override
+  String get importSaveFailed =>
+      'تعذّر حفظ الجدول — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get importReviewTitle => 'مراجعة الاستيراد';
+
+  @override
+  String get importPlanTitle => 'استيراد جدول';
+
+  @override
+  String get importSelectTitle => 'اختر جدول تدريبك';
+
+  @override
+  String get importSelectBody =>
+      'اختر ملف PDF أو صورة لجدولك وسأحوّله إلى جدول حقيقي قابل للتعديل.';
+
+  @override
+  String get importChooseDifferentFile => 'اختر ملفًا آخر';
+
+  @override
+  String get importStartOver => 'ابدأ من جديد';
+
+  @override
+  String get importNotAPlan => 'لا يبدو هذا كجدول تدريب';
+
+  @override
+  String get importGoBackAndEdit => 'ارجع وعدّل';
+
+  @override
+  String get importHeresWhatIFound => 'هذا ما وجدته';
+
+  @override
+  String get importDoingIt => 'جارٍ الاستيراد…';
+
+  @override
+  String get importThisSplit => 'استورد هذا الجدول';
+
+  @override
+  String get importEditBefore => 'عدّل قبل الاستيراد';
+
+  @override
+  String importDayHeading(String slot, String label) {
+    return 'اليوم $slot · $label';
+  }
+
+  @override
+  String get importNoExercisesForDay => 'لم يُعثر على تمارين لهذا اليوم.';
+
+  @override
+  String get importComplete => 'اكتمل الاستيراد';
+
+  @override
+  String importSummary(String name, String days, String exercises) {
+    return 'تمت إضافة «$name» إلى جداولك — $days، $exercises.';
+  }
+
+  @override
+  String importPlanShape(String days, String exercises) {
+    return '$days · $exercises إجمالًا';
+  }
+
+  @override
+  String get importBuildManually => 'ابنِ الجدول يدويًا.';
+
+  @override
+  String get exerciseEditTitle => 'تعديل التمرين';
+
+  @override
+  String get exerciseAddTitle => 'إضافة تمرين';
+
+  @override
+  String get exerciseName => 'الاسم';
+
+  @override
+  String get exerciseNameHint => 'بنش بريس';
+
+  @override
+  String get exerciseMuscleGroup => 'المجموعة العضلية (اختياري)';
+
+  @override
+  String get exerciseMuscleGroupHint => 'الصدر';
+
+  @override
+  String get exerciseSets => 'المجموعات';
+
+  @override
+  String get exerciseRepTarget => 'هدف التكرارات';
+
+  @override
+  String get exerciseTargetFixed => 'ثابت';
+
+  @override
+  String get exerciseTargetRange => 'نطاق';
+
+  @override
+  String get exerciseMinReps => 'أقل تكرارات';
+
+  @override
+  String get exerciseMaxReps => 'أكثر تكرارات';
+
+  @override
+  String get exerciseReps => 'التكرارات';
+
+  @override
+  String get exerciseWeightKg => 'الوزن (كجم)';
+
+  @override
+  String get exerciseSaveChanges => 'حفظ التغييرات';
+
+  @override
+  String get workoutCaptureSaveFailed => 'تعذّر حفظ ذلك التمرين.';
+
+  @override
+  String get workoutCaptureDeleteFailed => 'تعذّر حذف ذلك التمرين.';
+
+  @override
+  String get workoutCaptureEditTitle => 'تعديل التمرين';
+
+  @override
+  String get workoutCaptureNewTitle => 'تمرين جديد';
+
+  @override
+  String get workoutCaptureDelete => 'حذف التمرين';
+
+  @override
+  String get workoutCaptureNameHint => 'سمِّ هذه الجلسة';
+
+  @override
+  String get workoutCaptureSave => 'حفظ التمرين';
+
+  @override
+  String get workoutCaptureNoExercises => 'لا تمارين بعد.';
+
+  @override
+  String get workoutCaptureExerciseName => 'اسم التمرين';
+
+  @override
+  String get workoutCaptureRemove => 'إزالة';
+
+  @override
+  String get importAppCheckDebug =>
+      'تعذّر على التطبيق التحقق من نفسه (App Check). سجّل رمز التصحيح لهذه النسخة في وحدة تحكم Firebase ثم حاول مرة أخرى.';
+
+  @override
+  String get importAppCheckFailed =>
+      'تعذّر التحقق من تثبيت التطبيق. حاول مرة أخرى بعد قليل.';
+
+  @override
+  String get importServiceUnavailable =>
+      'خدمة الاستيراد غير متاحة الآن — حاول لاحقًا.';
+
+  @override
+  String get importNetworkProblem =>
+      'مشكلة في الشبكة أثناء الوصول إلى خدمة الاستيراد — تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String importCouldntRead(String manualFallback) {
+    return 'تعذّرت قراءة هذا الجدول — جرّب صورة أو ملف PDF أوضح، أو $manualFallback';
+  }
+
+  @override
+  String importUnsupportedFileType(String extension) {
+    return 'نوع ملف غير مدعوم: $extension';
+  }
+
+  @override
+  String get describeMicNeeded =>
+      'يحتاج ZIVO إلى إذن الميكروفون لتدوين هذا. يمكنك الكتابة بدلًا من ذلك.';
+
+  @override
+  String get describeRecordFailed =>
+      'تعذّر بدء التسجيل. يمكنك الكتابة بدلًا من ذلك.';
+
+  @override
+  String get describeNothingRecorded =>
+      'لم يُسجَّل شيء. حاول مرة أخرى، أو اكتبه بدلًا من ذلك.';
+
+  @override
+  String get describeYourDescription => 'وصفك';
+
+  @override
+  String get describeCheckWords =>
+      'راجع الكلمات قبل المتابعة — التفصيل الذي يُسمع خطأً يصبح رقمًا لاحقًا.';
+
+  @override
+  String get describeSayItInstead => 'قلها بدلًا من ذلك';
+
+  @override
+  String get describeAddMoreByVoice => 'أضف المزيد بالصوت';
+
+  @override
+  String get describeWritingItDown => 'جارٍ التدوين…';
+
+  @override
+  String get describeListening => 'يستمع';
+
+  @override
+  String get describeDiscard => 'تجاهل';
+
+  @override
+  String get importReadingDocument => 'جارٍ قراءة المستند…';
+
+  @override
+  String importFoundNamed(String name) {
+    return 'تم العثور على «$name»…';
+  }
+
+  @override
+  String get importAnalyzing => 'جارٍ تحليل جدولك';
+
+  @override
+  String get importBuildManuallyInstead => 'ابنِ يدويًا بدلًا من ذلك';
+
+  @override
+  String importSectionItems(String section, String items) {
+    return '$section · $items';
+  }
+
+  @override
+  String importItemCountDay(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      many: '$count يومًا',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+      zero: 'لا أيام',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importItemCountMeal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count وجبة',
+      many: '$count وجبة',
+      few: '$count وجبات',
+      two: 'وجبتان',
+      one: 'وجبة واحدة',
+      zero: 'لا وجبات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutDescribeTitleVoice => 'صف تدريبك';
+
+  @override
+  String get workoutDescribeTitleType => 'اكتبه';
+
+  @override
+  String get workoutDescribeBody =>
+      'قل أو اكتب جدولك — الأيام والتمارين والمجموعات والتكرارات لكل منها. يحوّله ZIVO إلى جدول حقيقي قابل للتعديل تراجعه قبل أن يُحفظ أي شيء.';
+
+  @override
+  String get workoutDescribeExample =>
+      'مثال: «اليوم A دفع — بنش بريس 4 مجموعات من 8، بريس مائل بالدمبل 3 في 10، ثم كابل فلاي 3 في 15. اليوم B سحب…»';
+
+  @override
+  String get workoutDescribeHint => 'اليوم A دفع…';
+
+  @override
+  String get workoutDescribeSubmit => 'حوّل هذا إلى جدول';
+
+  @override
+  String get workoutDescribeDoneTalking => 'انتهيت من الكلام';
+
+  @override
+  String get addPlanTitle => 'أضف جدول تدريب';
+
+  @override
+  String get addPlanBody =>
+      'مهما كانت طريقة إدخال جدولك، فإنه يصل إلى المحرر نفسه لمراجعته قبل أن يُحفظ أي شيء.';
+
+  @override
+  String get addPlanPdfTitle => 'ملف PDF أو صورة';
+
+  @override
+  String get addPlanPdfBody => 'جدول من مدرب، لقطة شاشة، صورة لصفحة';
+
+  @override
+  String get addPlanVoiceTitle => 'قلها بصوت عالٍ';
+
+  @override
+  String get addPlanVoiceBody => 'صف جدولك وسيدوّنه ZIVO';
+
+  @override
+  String get addPlanTypeTitle => 'اكتبه';
+
+  @override
+  String get addPlanTypeBody => 'اكتب جدولك في بضعة أسطر';
+
+  @override
+  String get addPlanManualTitle => 'ابنِ يدويًا';
+
+  @override
+  String get addPlanManualBody => 'أضف الأيام والتمارين بنفسك';
+
+  @override
+  String importItemCountExercise(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تمرين',
+      many: '$count تمرينًا',
+      few: '$count تمارين',
+      two: 'تمرينان',
+      one: 'تمرين واحد',
+      zero: 'لا تمارين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importItemCountGeneric(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عنصر',
+      many: '$count عنصرًا',
+      few: '$count عناصر',
+      two: 'عنصران',
+      one: 'عنصر واحد',
+      zero: 'لا عناصر',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseTrainedFor(String day, int minutes) {
+    return '$day · $minutes دقيقة';
+  }
+
+  @override
+  String pulseUnderWay(String day) {
+    return '$day · جارية';
+  }
+
+  @override
+  String pulseStreakDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'سلسلة $count يوم',
+      many: 'سلسلة $count يومًا',
+      few: 'سلسلة $count أيام',
+      two: 'سلسلة يومين',
+      one: 'سلسلة يوم واحد',
+      zero: 'لا سلسلة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseSessionsLast7(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count جلسة · آخر ٧ أيام',
+      many: '$count جلسة · آخر ٧ أيام',
+      few: '$count جلسات · آخر ٧ أيام',
+      two: 'جلستان · آخر ٧ أيام',
+      one: 'جلسة واحدة · آخر ٧ أيام',
+      zero: 'لا جلسات · آخر ٧ أيام',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pulseWeightSpan(int days) {
+    return 'كجم · $days يوم';
+  }
+
+  @override
+  String expenseSpentToday(String amount) {
+    return '$amount أُنفقت اليوم';
+  }
+
+  @override
+  String expenseAmountWithCurrency(String amount, String currency) {
+    return '$amount $currency';
+  }
+
+  @override
+  String expenseRowMeta(String time, String category) {
+    return '$time · $category';
+  }
+
+  @override
+  String get planEditSplitTitle => 'تعديل الجدول';
+
+  @override
+  String get planEditPlanTitle => 'تعديل خطة التمرين';
+
+  @override
+  String get planNewSplitTitle => 'جدول جديد';
+
+  @override
+  String get planNewPlanTitle => 'خطة تمرين جديدة';
+
+  @override
+  String get planDeleteSplit => 'حذف الجدول';
+
+  @override
+  String get planDeletePlan => 'حذف الخطة';
+
+  @override
+  String get planName => 'اسم الخطة';
+
+  @override
+  String get privacyTitle => 'الخصوصية';
+
+  @override
+  String privacyIntro(String date) {
+    return 'كيف يتعامل ZIVO مع بياناتك.\nآخر تحديث $date.';
+  }
+
+  @override
+  String get privacyOverviewLabel => 'نظرة عامة';
+
+  @override
+  String get privacyOverviewBody =>
+      'ZIVO تطبيق شخصي وخاص لتنظيم أجزاء يومك — اللحظات والتمارين والتغذية والمصروفات وغيرها — في مكان واحد هادئ. توضّح هذه السياسة ما يخزّنه ZIVO، وكيف يُستخدم، والخيارات المتاحة لك.';
+
+  @override
+  String get privacyShortLabel => 'النسخة المختصرة';
+
+  @override
+  String get privacyShortBullet1 =>
+      'محتواك خاص بحسابك ولا يُباع أو يُشارك لأغراض الإعلانات أبدًا.';
+
+  @override
+  String get privacyShortBullet2 =>
+      'لا يستخدم ZIVO بياناتك أو محتواك لتدريب نماذج تابعة لجهات خارجية.';
+
+  @override
+  String get privacyShortBullet3 =>
+      'تُحفظ النسخ الاحتياطية في حساب Google Drive الخاص بك، وتحت سيطرتك أنت.';
+
+  @override
+  String get privacyShortBullet4 =>
+      'يمكنك حذف محتواك في أي وقت، من داخل التطبيق.';
+
+  @override
+  String get privacyAccountLabel => 'الحساب وتسجيل الدخول';
+
+  @override
+  String get privacyAccountBody =>
+      'يستخدم ZIVO خدمة Firebase Authentication لتسجيل دخولك، مع خيارات Apple أو Google أو البريد الإلكتروني وكلمة المرور. وبحسب الطريقة التي تختارها، يتلقّى ZIVO تفاصيل أساسية عن الحساب مثل اسمك وبريدك الإلكتروني ومعرّف حساب فريد. هذا المعرّف هو ما يبقي كل جزء من بياناتك مقصورًا على حسابك وحده.';
+
+  @override
+  String get privacyOtpLabel => 'رموز التحقق بالبريد الإلكتروني';
+
+  @override
+  String get privacyOtpBody =>
+      'إذا سجّلت الدخول بالبريد الإلكتروني، يرسل ZIVO رمز تحقق قصيرًا لتأكيد عنوانك. تُشفَّر الرموز قبل تخزينها، وتنتهي صلاحيتها خلال دقائق، ولا تُستخدم لأي غرض سوى التأكد من أن العنوان يخصّك.';
+
+  @override
+  String get privacyContentLabel => 'محتواك';
+
+  @override
+  String get privacyContentBody =>
+      'كل ما تنشئه في ZIVO — اللحظات وخطط التمارين والجلسات وخطط التغذية وسجلاتها وسجلات المصروفات وقياسات الوزن وتفاصيل الملف الشخصي — يُخزَّن في حسابك ليتمكن التطبيق من عرضه عليك عبر أجهزتك. وهو خاص بك ولا يظهر لمستخدمين آخرين.';
+
+  @override
+  String get privacyPhotosLabel => 'الصور والتخزين المحلي';
+
+  @override
+  String get privacyPhotosBody =>
+      'حيثما تتيح لك ميزة إرفاق صورة (مثل اللحظات أو ملفك الشخصي)، لا يصل ZIVO إلى معرض صورك إلا عندما تختار صورة أو تلتقطها. تُحفظ الوسائط أولًا على جهازك؛ ولا يحدث النسخ الاحتياطي السحابي إلا عبر وجهة النسخ التي تختارها صراحةً.';
+
+  @override
+  String get privacyAskLabel => 'المساعد الذكي («اسأل»)';
+
+  @override
+  String get privacyAskBody =>
+      '«اسأل» مساعد اختياري يمكنه الإجابة عن أسئلة تخص بياناتك أنت — تمارينك ووجباتك ومصروفاتك. عند إرسالك رسالة، يعالج مزوّد النموذج السياق ذا الصلة لغرض الإجابة عليك فقط. تُحفظ المحادثات بشكل خاص في حسابك ليعمل السجل عبر أجهزتك، ولا تُستخدم أبدًا لتدريب نماذج تابعة لجهات خارجية.';
+
+  @override
+  String get privacySpotifyLabel => 'SPOTIFY';
+
+  @override
+  String get privacySpotifyBody =>
+      'تتصل ميزة الموسيقى بحساب Spotify الخاص بك عندما تطلب ذلك. يستخدم ZIVO حزمة تطوير Spotify الرسمية للتحكم في التشغيل ومعرفة ما يعمل حاليًا. ويمكنك فصل الاتصال في أي وقت من الإعدادات.';
+
+  @override
+  String get privacyMetadataLabel => 'بيانات الحساب والأمان';
+
+  @override
+  String get privacyMetadataBody =>
+      'للحفاظ على أمان حسابك وإمكانية دعمه، يحتفظ ZIVO بسجل صغير لأحداث تسجيل الدخول — متى أُنشئ حسابك، ومتى وكيف سجّلت الدخول آخر مرة، ومتى أُرسلت رسائل التحقق. هذه البيانات هي سجلّ أمني لا غير: لا تُباع ولا تُشارك ولا تُستخدم للإعلانات أبدًا.';
+
+  @override
+  String get privacyDriveLabel => 'النسخ الاحتياطي على GOOGLE DRIVE';
+
+  @override
+  String get privacyDriveBody =>
+      'النسخ الاحتياطي اختياري، وإذا فعّلته فإنه يعمل على حساب Google Drive الخاص بك — مستخدمًا نطاق drive.file، وهو أضيق نطاقات Google، والذي يتيح لـ ZIVO رؤية وإدارة الملفات التي أنشأها بنفسه فقط. لا يطلب ZIVO أبدًا صلاحية وصول واسعة إلى Drive، وتبقى ملفاتك هناك تحت سيطرتك.';
+
+  @override
+  String get privacySharingLabel => 'مشاركة البيانات';
+
+  @override
+  String get privacySharingBody =>
+      'لا يبيع ZIVO بياناتك الشخصية ولا يؤجّرها. تُعالَج البيانات فقط بواسطة البنية التحتية اللازمة لتشغيل التطبيق — Google Firebase (تسجيل الدخول وقاعدة البيانات والوظائف) — إضافةً إلى التكاملات التي تفعّلها صراحةً: حساب Google Drive الخاص بك وحساب Spotify الخاص بك.';
+
+  @override
+  String get privacyRetentionLabel => 'الاحتفاظ والحذف';
+
+  @override
+  String get privacyRetentionBody =>
+      'يُحتفظ بمحتواك حتى تحذفه أو تحذف حسابك. تبقى الملفات الموجودة في حساب Google Drive الخاص بك هناك حتى تزيلها، ويمكن إلغاء صلاحية الوصول إلى Drive في أي وقت — من الإعدادات أو من صفحة وصول الجهات الخارجية في حساب Google الخاص بك.';
+
+  @override
+  String get privacySecurityLabel => 'الأمان';
+
+  @override
+  String get privacySecurityBody =>
+      'يُفرَض التحكم في الوصول من طرف إلى طرف: Firebase Authentication للهوية، وقواعد أمان Firestore بحيث لا يستطيع قراءة بياناتك أو الكتابة فيها إلا حسابك بعد تسجيل دخوله. تُخزَّن رموز التحقق على هيئة تجزئات مملّحة فقط. وتُشفَّر البيانات أثناء نقلها.';
+
+  @override
+  String get privacyChangesLabel => 'التغييرات على هذه السياسة';
+
+  @override
+  String get privacyChangesBody =>
+      'قد تُحدَّث هذه السياسة مع تطوّر الميزات. ويعكس تاريخ «آخر تحديث» دائمًا أحدث مراجعة.';
+
+  @override
+  String get privacyContactLabel => 'التواصل';
+
+  @override
+  String privacyContactBody(String email) {
+    return 'يمكن إرسال الأسئلة المتعلقة بالخصوصية أو ببياناتك إلى $email.';
+  }
 }

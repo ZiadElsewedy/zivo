@@ -125,7 +125,11 @@ class _DietImportPageState extends State<DietImportPage> {
       final lines = _generatingStatusLines(context);
       return lines[_analyzingStatusIndex % lines.length];
     }
-    return importProgressLine(_progress, itemNoun: 'item');
+    return importProgressLine(
+      context,
+      _progress,
+      itemKind: ImportItemKind.item,
+    );
   }
 
   /// Only generation cycles now. Import's line moves when the model does.
@@ -266,6 +270,7 @@ class _DietImportPageState extends State<DietImportPage> {
       setState(() {
         _phase = _ImportPhase.error;
         _errorMessage = importErrorMessage(
+          context,
           error,
           manualFallback: strings.dietBuildManually,
         );

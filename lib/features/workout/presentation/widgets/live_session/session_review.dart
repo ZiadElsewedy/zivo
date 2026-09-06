@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/util/bidi.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
@@ -105,7 +106,9 @@ class ReviewSetRow extends StatelessWidget {
                 ),
               ),
               Text(
-                skipped ? l(context).liveSkipped : formatSetActuals(set),
+                skipped
+                    ? l(context).liveSkipped
+                    : ltrFor(context, formatSetActuals(set)),
                 style: AppText.meta.copyWith(
                   color: skipped ? TrainColors.ink3 : TrainColors.ink2,
                   fontWeight: skipped ? FontWeight.w600 : FontWeight.w500,

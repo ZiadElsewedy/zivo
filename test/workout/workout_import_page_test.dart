@@ -18,6 +18,7 @@ import 'package:zivo/features/workout/domain/workout_import_outcome.dart';
 import 'package:zivo/features/workout/domain/workout_import_result.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_import_page.dart';
 
+import '../support/bidi_finders.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
@@ -513,7 +514,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Push · 3 exercises'), findsOneWidget);
+      expect(findTextIgnoringBidi('Push · 3 exercises'), findsOneWidget);
       // Past the AnimatedSwitcher's cross-fade, which legitimately keeps the
       // outgoing line on screen for 220ms.
       await tester.pump(const Duration(milliseconds: 300));
@@ -528,7 +529,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Pull · 7 exercises'), findsOneWidget);
+      expect(findTextIgnoringBidi('Pull · 7 exercises'), findsOneWidget);
 
       ai.finish();
       await tester.pump();
@@ -570,7 +571,7 @@ void main() {
 
     ai.emit(const ImportProgress(sections: ['Push'], items: 1));
     await tester.pump();
-    expect(find.text('Push · 1 exercise'), findsOneWidget);
+    expect(findTextIgnoringBidi('Push · 1 exercise'), findsOneWidget);
 
     ai.finish();
     await tester.pump();
