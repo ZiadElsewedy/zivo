@@ -87,10 +87,15 @@ class _FakeDrive implements MediaBackupProvider {
     return uploadId;
   }
 
+  /// Set to have the fake answer "no such file" (a 404) rather than failing.
+  bool reportGone = false;
+
   @override
-  Future<List<int>?> download(String fileId, {required String expectedAccountKey}) async {
+  Future<RemoteFetch> download(String fileId, {required String expectedAccountKey}) async {
     downloaded.add(fileId);
-    return downloadBytes;
+    if (reportGone) return const RemoteFetch.gone();
+    final bytes = downloadBytes;
+    return bytes == null ? const RemoteFetch.unavailable() : RemoteFetch.bytes(bytes);
   }
 
   @override

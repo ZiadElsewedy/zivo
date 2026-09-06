@@ -9,6 +9,39 @@ class BackupAccount {
   final String email;
 }
 
+/// The outcome of asking a provider for a backed-up file's bytes.
+///
+/// The three cases exist because "no bytes" is not one situation, and the read
+/// side behaves oppositely across them: a blip should be retried quietly and
+/// self-heals, while a file the provider has confirmed is **gone** will never
+/// arrive no matter how long the tile waits. Collapsing both into a null return
+/// is what left a photo deleted from Drive pulsing "on its way" forever, its
+/// record still marked backed-up so no retry would ever re-upload it.
+final class RemoteFetch {
+  /// The bytes arrived.
+  const RemoteFetch.bytes(List<int> this.data) : gone = false;
+
+  /// The provider answered definitively: no such file in that account. The
+  /// stored reference is dead and should be dropped, not retried.
+  const RemoteFetch.gone()
+      : data = null,
+        gone = true;
+
+  /// No answer — offline, throttled, auth expired, anything transient. The
+  /// reference is still presumed good; back off and try later.
+  const RemoteFetch.unavailable()
+      : data = null,
+        gone = false;
+
+  final List<int>? data;
+
+  /// Whether the provider confirmed the remote copy no longer exists. Only
+  /// ever true when the provider *knows* — never inferred from a timeout.
+  final bool gone;
+
+  bool get hasBytes => data != null && data!.isNotEmpty;
+}
+
 /// The provider-agnostic seam for remote media backup + restore. Google Drive
 /// is one implementation; a future provider (iCloud, Dropbox, …) implements the
 /// same interface and is injected in its place — the `MediaService`, Moments,
@@ -98,13 +131,19 @@ abstract interface class MediaBackupProvider {
   });
 
   /// Downloads a backed-up file's bytes by its remote id. Requires a live
-  /// session (caller ensures it). Returns null on failure.
+  /// session (caller ensures it).
   ///
   /// [expectedAccountKey] is the account [remoteId] was minted in; the call is
   /// refused without touching the network when the live session belongs to a
   /// different account, so a stale reference can never be silently resolved
   /// against whichever account happens to be connected now.
-  Future<List<int>?> download(String remoteId, {required String expectedAccountKey});
+  ///
+  /// Returns a [RemoteFetch] rather than nullable bytes so the caller can tell
+  /// a file that is **gone** from one that is merely unreachable right now.
+  /// Implementations must only report [RemoteFetch.gone] on a definite answer
+  /// from the provider (an HTTP 404/410), never on a timeout or a transport
+  /// error — a false "gone" discards a good reference.
+  Future<RemoteFetch> download(String remoteId, {required String expectedAccountKey});
 
   /// Deletes the remote copy for [remoteId] (best-effort). Requires a live
   /// session (caller ensures it). Returns whether the deletion succeeded —

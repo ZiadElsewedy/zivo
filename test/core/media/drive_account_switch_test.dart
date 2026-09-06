@@ -130,13 +130,22 @@ class _MultiAccountDrive implements MediaBackupProvider {
     return id;
   }
 
+  /// When true, the account answers "no such file" definitively (a 404) rather
+  /// than going quiet — the difference between a deleted file and a bad line.
+  bool answersDefinitively = true;
+
   @override
-  Future<List<int>?> download(String remoteId, {required String expectedAccountKey}) async {
+  Future<RemoteFetch> download(String remoteId,
+      {required String expectedAccountKey}) async {
     final key = _liveKey;
-    if (key == null) return null;
+    if (key == null) return const RemoteFetch.unavailable();
     downloadAttempts.add('$key/$remoteId');
-    if (expectedAccountKey != key) return null;
-    return _filesFor(key)[remoteId];
+    if (expectedAccountKey != key) return const RemoteFetch.unavailable();
+    final bytes = _filesFor(key)[remoteId];
+    if (bytes != null) return RemoteFetch.bytes(bytes);
+    return answersDefinitively
+        ? const RemoteFetch.gone()
+        : const RemoteFetch.unavailable();
   }
 
   @override
@@ -249,6 +258,89 @@ void main() {
       expect(resolution.hasBytes, isFalse);
       expect((await registry.get('m1'))!.remoteAccountKey, isNull,
           reason: 'a failed fetch proves nothing about where the file lives');
+    });
+  });
+
+  group('a file deleted inside Drive', () {
+    test('stops being reported as arriving, and the dead reference is dropped',
+        () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      await deleteLocalBytes();
+
+      // The user tidies their Drive and removes the file by hand.
+      drive.files['drive-1']!.remove(remoteId);
+
+      final resolution = await service.resolveWithStatus(ref);
+
+      expect(resolution.availability, MediaAvailability.nowhere,
+          reason: 'a deleted file is not "on its way"');
+      final record = await registry.get('m1');
+      expect(record!.remoteId, isNull, reason: 'the reference is dead');
+      expect(record.remoteAccountKey, isNull);
+      expect(record.remoteBackup, BackupState.failed);
+    });
+
+    test('re-enters the backup work list so a device holding the bytes '
+        'restores it', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      drive.files['drive-1']!.remove(remoteId);
+
+      // A read is what discovers the deletion; the local copy is still here,
+      // which is exactly the device that can put it back.
+      final localBytes = (await store.resolve(ref))!.readAsBytesSync();
+      await deleteLocalBytes();
+      await service.resolveWithStatus(ref);
+      await store.writeBytes(ref, localBytes); // this device still had it
+
+      expect(await service.backupNow(), 1,
+          reason: 'a photo whose backup was deleted needs backing up again');
+      expect(drive.files['drive-1'], hasLength(1));
+
+      final record = await registry.get('m1');
+      expect(record!.remoteBackup, BackupState.done);
+      expect(record.remoteAccountKey, 'drive-1');
+      expect(drive.files['drive-1']!.containsKey(record.remoteId), isTrue);
+    });
+
+    test('a network failure is NOT mistaken for a deletion', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      await deleteLocalBytes();
+
+      // The file is still in Drive; the line is down, so no answer comes back.
+      drive.answersDefinitively = false;
+      drive.files['drive-1']!.remove(remoteId);
+
+      final resolution = await service.resolveWithStatus(ref);
+
+      expect(resolution.availability, MediaAvailability.cloudOnly,
+          reason: 'silence means try again later, not "it is gone"');
+      final record = await registry.get('m1');
+      expect(record!.remoteId, remoteId,
+          reason: 'a good reference must survive a bad connection');
+      expect(record.remoteBackup, BackupState.done);
+    });
+
+    test('Sync drops references Drive says are gone instead of retrying them '
+        'every run', () async {
+      await service.connectBackup();
+      await captureAndSettle('m1');
+      final remoteId = (await registry.get('m1'))!.remoteId!;
+      await deleteLocalBytes();
+      drive.files['drive-1']!.remove(remoteId);
+
+      expect(await service.syncFromBackup(), 0);
+      expect((await registry.get('m1'))!.remoteId, isNull);
+
+      // Second run has nothing left to ask for.
+      drive.downloadAttempts.clear();
+      expect(await service.syncFromBackup(), 0);
+      expect(drive.downloadAttempts, isEmpty);
     });
   });
 

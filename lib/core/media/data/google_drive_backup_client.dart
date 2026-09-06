@@ -212,10 +212,13 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
   }
 
   @override
-  Future<List<int>?> download(String fileId, {required String expectedAccountKey}) async {
-    if (liveAccountKey != expectedAccountKey) return null;
+  Future<RemoteFetch> download(String fileId,
+      {required String expectedAccountKey}) async {
+    if (liveAccountKey != expectedAccountKey) {
+      return const RemoteFetch.unavailable();
+    }
     final headers = await _headers();
-    if (headers == null) return null;
+    if (headers == null) return const RemoteFetch.unavailable();
 
     final client = _BearerClient(headers);
     try {
@@ -228,13 +231,30 @@ class GoogleDriveBackupClient implements MediaBackupProvider {
       await for (final chunk in media.stream) {
         chunks.addAll(chunk);
       }
-      return chunks;
+      return RemoteFetch.bytes(chunks);
+    } on drive.DetailedApiRequestError catch (e) {
+      // Drive answered, and the answer was "there is no such file here". We
+      // already know the session is on the right account, so this is the file
+      // being deleted or permanently purged — not a permissions accident.
+      // Anything else (429, 5xx, an expired token) is transient by comparison.
+      return _isGone(e.status)
+          ? const RemoteFetch.gone()
+          : const RemoteFetch.unavailable();
     } catch (_) {
-      return null;
+      // No answer at all — offline, DNS, a socket reset. Never `gone`:
+      // discarding a good reference because the network hiccuped would lose
+      // the only pointer to a file that is still sitting in Drive.
+      return const RemoteFetch.unavailable();
     } finally {
       client.close();
     }
   }
+
+  /// 404 (not found) and 410 (gone) are Drive's definitive "it isn't there"
+  /// answers. 403 is deliberately excluded: it covers rate limits and quota as
+  /// well as permissions, and treating a throttle as a deletion would drop
+  /// references en masse exactly when the app is under load.
+  static bool _isGone(int? status) => status == 404 || status == 410;
 
   @override
   Future<bool> deleteRemote(String fileId, {required String expectedAccountKey}) async {

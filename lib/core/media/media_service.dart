@@ -372,12 +372,19 @@ class MediaService {
     // the same ref always share ONE future — no isolate-level lock needed.
     final fetch =
         _fetches.putIfAbsent(ref, () => _downloadToStore(ref, object!));
-    await fetch;
+    final outcome = await fetch;
     final fetched = _resolvedFiles[ref];
     if (fetched != null && await fetched.exists()) {
       return MediaResolution(MediaAvailability.onDevice, file: fetched);
     }
-    return const MediaResolution(MediaAvailability.cloudOnly);
+    // The fetch's own verdict, not a blanket `cloudOnly`: a copy the provider
+    // confirmed is gone must not be reported as arriving, or the tile pulses
+    // for a file that no longer exists.
+    return MediaResolution(
+      outcome == MediaAvailability.onDevice
+          ? MediaAvailability.cloudOnly
+          : outcome,
+    );
   }
 
   // ---- Resolution pipeline internals --------------------------------------
@@ -391,7 +398,7 @@ class MediaService {
   /// Shared in-flight downloads keyed by ref. Map operations between awaits
   /// are atomic within an isolate, so concurrent callers always observe a
   /// consistent view without an explicit lock.
-  final Map<String, Future<void>> _fetches = {};
+  final Map<String, Future<MediaAvailability>> _fetches = {};
   int _activeFetches = 0;
   final List<Completer<void>> _fetchWaiters = [];
 
@@ -426,7 +433,12 @@ class MediaService {
         DateTime.now().difference(last) < _fetchFailureBackoff;
   }
 
-  Future<void> _downloadToStore(String ref, MediaObject object) async {
+  /// Fetches one ref's bytes and reports what the attempt established:
+  /// [MediaAvailability.onDevice] on success, [MediaAvailability.nowhere] when
+  /// the provider confirmed the remote copy is gone (the dead reference is
+  /// dropped and the record re-enters the backup work list), and
+  /// [MediaAvailability.cloudOnly] for everything transient.
+  Future<MediaAvailability> _downloadToStore(String ref, MediaObject object) async {
     // Respect the parallelism cap: beyond it, waiters queue FIFO and proceed
     // as slots free up.
     if (_activeFetches >= _maxParallelFetches) {
@@ -445,10 +457,21 @@ class MediaService {
       if (live == null || expected != live) throw const _FetchUnavailable();
 
       // `expected == live` here, and `live` is the promoted non-null one.
-      final bytes =
+      final fetched =
           await provider.download(object.remoteId!, expectedAccountKey: live);
-      if (bytes == null || bytes.isEmpty) throw const _FetchUnavailable();
-      final file = await store.writeBytes(ref, bytes);
+
+      // The copy is confirmed gone — the user deleted it from Drive, or it was
+      // purged from the trash. Drop the dead reference so reads stop promising
+      // bytes that will never arrive, and mark the record outstanding so any
+      // device that still holds the local file re-uploads it on the next
+      // backup. That is the whole recovery path: nothing else can restore it.
+      if (fetched.gone) {
+        await _forgetRemoteCopy(object);
+        return MediaAvailability.nowhere;
+      }
+
+      if (!fetched.hasBytes) throw const _FetchUnavailable();
+      final file = await store.writeBytes(ref, fetched.data!);
       _rememberResolved(ref, file);
       _lastFetchFailure.remove(ref);
 
@@ -458,14 +481,39 @@ class MediaService {
       if (object.remoteAccountKey == null) {
         unawaited(_stampRemoteAccount(object, live));
       }
+      return MediaAvailability.onDevice;
     } catch (_) {
       _lastFetchFailure[ref] = DateTime.now();
+      return MediaAvailability.cloudOnly;
     } finally {
       _activeFetches--;
       _fetches.remove(ref);
       if (_fetchWaiters.isNotEmpty) {
         _fetchWaiters.removeAt(0).complete();
       }
+    }
+  }
+
+  /// Drops a remote reference the provider has confirmed is gone, and puts the
+  /// record back on the backup work list.
+  ///
+  /// Clearing the id is the point: keeping it would leave every later read
+  /// dereferencing a file that does not exist, and — because the record still
+  /// claimed [BackupState.done] — `pendingBackups` would keep skipping the one
+  /// operation that could restore it. [BackupState.failed] with no id is the
+  /// honest description of "we had a copy, it is gone, push it again from
+  /// whichever device still has the bytes".
+  Future<void> _forgetRemoteCopy(MediaObject object) async {
+    try {
+      final latest = await registry.get(object.id) ?? object;
+      // Something re-uploaded while this fetch was in flight; that newer
+      // reference is not the one we just proved dead.
+      if (latest.remoteId != object.remoteId) return;
+      await registry.put(
+        latest.copyWith(remoteBackup: BackupState.failed, clearRemote: true),
+      );
+    } catch (_) {
+      // Best-effort: the read still reports `nowhere`, so nothing pulses.
     }
   }
 
@@ -783,10 +831,15 @@ class MediaService {
         onProgress?.call(++done, total);
         continue;
       }
-      final bytes =
+      final result =
           await provider.download(object.remoteId!, expectedAccountKey: expected);
-      if (bytes != null && bytes.isNotEmpty) {
-        await store.writeBytes(object.relativePath, bytes);
+      if (result.gone) {
+        // Same treatment as a failed passive read: drop the dead reference so
+        // this Sync — and every later one — stops asking for a file Drive has
+        // already told us is not there.
+        await _forgetRemoteCopy(object);
+      } else if (result.hasBytes) {
+        await store.writeBytes(object.relativePath, result.data!);
         if (object.remoteAccountKey == null) {
           await _stampRemoteAccount(object, expected);
         }

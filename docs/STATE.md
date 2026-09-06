@@ -108,9 +108,15 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     doubt once and is stamped by the first transfer that actually works. No batch
     job and **no rules change** — the media rule pins only `relativePath` +
     `schemaVersion`.
-  - **Still open:** a file deleted *inside* Drive still reads `cloudOnly`
-    forever. Separating a hard 404 from a transport error needs the provider to
-    surface the status, which `download`'s `List<int>?` cannot carry.
+  - **A file deleted inside Drive now recovers instead of pulsing forever**
+    (follow-up, same day). `download` returns a `RemoteFetch` (`bytes` / `gone` /
+    `unavailable`) instead of nullable bytes, so a definite **404/410** is told
+    apart from a dropped connection. On `gone` the dead reference is cleared
+    (`clearRemote`) and the record drops to `BackupState.failed`, which puts it
+    back on the work list — so any device still holding the local bytes
+    re-uploads it on the next backup. **403 is deliberately not treated as
+    gone** (it covers rate limits, and mass-dropping references under load
+    would be far worse than a slow retry), and a timeout never is.
   - New [`test/core/media/drive_account_switch_test.dart`](../test/core/media/drive_account_switch_test.dart)
     drives a fake where **files belong to one account**, so a cross-account read
     404s naturally instead of by scripting; reverting the fix puts four of its
@@ -1154,6 +1160,13 @@ helper scrolls first, and replaced 31 hand-patched `tester.drag(...)` workaround
 ---
 
 ### Update log (newest first — one line per session)
+- 2026-09-06 — **A photo deleted from Drive no longer pulses forever.** `download`
+  collapsed a hard 404 and a network blip into one null, so a deleted file read as
+  `cloudOnly` ("on its way") indefinitely while its record still claimed `done`, which
+  `pendingBackups` skipped — nothing could ever restore it. `download` now returns
+  `RemoteFetch` (bytes/gone/unavailable); a confirmed 404/410 clears the reference and
+  marks the record `failed` so a device holding the bytes re-uploads it. Transport
+  errors and 403s are never treated as deletions. 1164 dart tests green.
 - 2026-09-06 — **Drive account switch no longer strands photos.** `remoteId` had no
   companion account key, so after disconnecting Drive #1 and connecting Drive #2 every
   old file id was reissued against the wrong account (blank image, `cloudOnly` forever)
