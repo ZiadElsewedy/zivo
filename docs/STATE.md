@@ -51,7 +51,8 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   systems, meeting on 14 files (`today_page.dart` included). Now **three families, named in
   exactly one file** (`train_tokens.dart`): Manrope = text/prose/titles/chrome, Azeret Mono =
   numbers/timers/micro-labels (tabular, never prose), Instrument Serif italic = ZIVO
-  speaking. `AppText` survives as the **named ladder** built on those builders — its ~500
+  speaking — **italic in Latin only**; see the Arabic pass below for why RTL gets the
+  same face upright. `AppText` survives as the **named ladder** built on those builders — its ~500
   call sites are untouched — because `AppText.rowTitle` (what a thing *is*) and
   `TrainType.mono(size: 54)` (a size) answer different questions. `GoogleFonts` is called in
   one file. Deliberate visual changes: display steps up one weight, `body` w400→w500 (45%
@@ -72,6 +73,61 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Ask reads properly in Arabic** (2026-09-07, on `feature/sleep`). A pass
+  over the Ask screen after the owner shot it in Arabic. Same lesson as the
+  sleep bugs above — the suite asserts in English, where most of this is a
+  no-op — so every fix landed with a test that pumps `Locale('ar')`.
+  - **A message now reads in ITS OWN language, not the app's.** The worst one:
+    ZIVO answering in English inside an Arabic UI inherited the app's RTL
+    paragraph, so the reply right-aligned and its closing full stop was laid
+    out at the paragraph's end — the LEFT edge: `.answer using your real ZIVO
+    data`. Direction for a whole block is a property of the **content**, so
+    `bidi.dart` gained `directionOf`/`directionOfFor` (first-strong, falling
+    back to the ambient direction) and each bubble asks its own text. This is
+    the paragraph-level counterpart to the existing `isolate`/`ltrFor`, which
+    are for a run *inside* a sentence; it also fixes which end
+    `TextOverflow.ellipsis` eats, so a Latin track title stopped truncating as
+    `…Fixture Track Th`. The bubble's *side* still follows the UI — that says
+    who is speaking, not what language they said it in.
+  - **Media controls do not mirror.** The now-playing strip's transport had
+    flipped to `next · ⏸ · previous` while the glyphs (painted, not flipped)
+    kept pointing their own way, so the pair aimed away from each other with
+    the two actions swapped under the thumb; the playhead drained right-to-left
+    as the track advanced. Both are pinned LTR now — a track's timeline runs
+    one way in every language. Same reasoning the nav island already documents
+    for opting out of mirroring. This is shell chrome, so it lands app-wide.
+  - **Three English strings were still hardcoded on this screen.** The
+    reply-style menu (`Concise/Balanced/Detailed`) came from `domain/`, which
+    is Flutter-free and so has no context to translate from — moved to
+    `presentation/ai_labels.dart`, the split `diet_labels.dart` already uses.
+    `timeAgo`'s four words (`now`, `5m`, `3h`, `2d`) were literals in a shared
+    util; it now takes a context, which touched its 4 callers in workout and
+    moments. And a proposal chip printed the gateway's raw `"eaten"`/`"not
+    eaten"` — read as a flag now, worded by the app.
+  - **The physical-edge bugs**, all `EdgeInsets`/`Alignment` that should have
+    been directional: the composer's hint had no leading inset in Arabic (18px
+    of padding sat on the trailing side); the header's wide screen inset went
+    to the buttons and the narrow one to the title; the user bubble's tail
+    corner stayed bottom-right while the pill moved to the left edge, pointing
+    into the middle of the screen; the swipe-to-delete reveal put its bin on
+    the side the `endToStart` swipe never uncovers; and the thinking rail's
+    slow-turn line indented from the wrong edge.
+  - **ZIVO's voice loses its slant in Arabic** (owner's call). Instrument Serif
+    is Latin-only, so asking it for italic over Arabic got no Arabic italic —
+    there is none, and no such tradition — and the shaper **synthesised** the
+    slant onto the system's upright fallback. The greeting was rendering as an
+    obliqued أهلًا. `TrainType.serifVoice(context, …)` drops the italic when
+    the paragraph is RTL; the gate is direction rather than a language list,
+    since Hebrew, Farsi and Urdu are in the same position. Arabic keeps the
+    serif — one reserved face, still only where ZIVO speaks, just upright.
+    English is byte-identical. This made `AppText.aside` take a `BuildContext`
+    (alone on that ladder), which rippled to its 24 call sites and
+    `AuthHeader.asideStyle`. **Giving Arabic a voice marker of its own means an
+    Arabic display face — a fourth family, so an ADR** (ADR-009).
+  - **Not done:** the mixed greeting picks one style for the whole line, so
+    "ZIVO" inside the Arabic sentence goes upright too — a `TextStyle` applies
+    to the whole span. Splitting it would need `Text.rich` per script.
 
 - **Sleep landed as a full feature** (2026-09-07, on `feature/sleep`). Reads
   Apple Health / Health Connect, logs by hand, and carries **provenance on
