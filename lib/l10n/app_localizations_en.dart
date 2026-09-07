@@ -4818,5 +4818,89 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sleepUnitHour => 'h';
 
   @override
+  String get sleepAboutTitle => 'How Sleep works';
+
+  @override
+  String get sleepAboutIntro =>
+      'Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.';
+
+  @override
+  String get sleepAboutSessionTitle => 'What a sleep session is';
+
+  @override
+  String get sleepAboutSessionBody =>
+      'Tapping “I\'m going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I\'m awake”, those two moments become the night, marked as logged by you.';
+
+  @override
+  String get sleepAboutTrackedTitle => 'What ZIVO reads';
+
+  @override
+  String sleepAboutTrackedBody(String provider) {
+    return 'Each time you open this screen ZIVO re-reads $provider and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.';
+  }
+
+  @override
+  String get sleepAboutSourcesTitle => 'Every number says where it came from';
+
+  @override
+  String get sleepAboutSourcesBody =>
+      '“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.';
+
+  @override
+  String get sleepAboutWeekTitle => 'Why some figures are blank';
+
+  @override
+  String get sleepAboutWeekBody =>
+      'An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.';
+
+  @override
+  String get sleepAboutLimitsTitle => 'What it will not do';
+
+  @override
+  String get sleepAboutLimitsBody =>
+      'There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.';
+
+  @override
+  String get sleepAboutDone => 'Got it';
+
+  @override
+  String get sleepSessionOpen => 'Sleeping';
+
+  @override
+  String get sleepMarkSoFar => 'So far';
+
+  @override
+  String get sleepMarkJustNow => 'Just now';
+
+  @override
+  String get sleepMarkHint =>
+      'Tap “I\'m awake” when you get up — that is when the night is recorded.';
+
+  @override
+  String get sleepLoadFailedTitle => 'Couldn\'t load your sleep';
+
+  @override
+  String get sleepLoadFailedBody =>
+      'ZIVO couldn\'t read the nights it has already saved. Check your connection and try again.';
+
+  @override
+  String get sleepRetry => 'Try again';
+
+  @override
+  String get sleepLoading => 'Loading your sleep';
+
+  @override
+  String sleepGateProgress(int have, int need) {
+    return '$have of $need nights';
+  }
+
+  @override
+  String get sleepVsLastWeek => 'vs last week';
+
+  @override
+  String get sleepMarkFailed =>
+      'Couldn\'t save that just now. Check your connection and try again.';
+
+  @override
   String get sleepUnitMinute => 'm';
 }

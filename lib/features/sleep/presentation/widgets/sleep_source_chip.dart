@@ -17,8 +17,8 @@ import '../sleep_labels.dart';
 /// the second half, so a measured night and a typed one are distinguishable
 /// before the words are read:
 ///
-/// * measured → violet, the hue this screen owns
-/// * recorded (platform, unattributed) → violet, dimmed
+/// * measured → the Sleep blue, the hue this screen owns
+/// * recorded (platform, unattributed) → the same blue, dimmed
 /// * logged by you / estimate → neutral ink, no hue
 ///
 /// The hue is deliberately spent on measurement rather than on "sleep": giving
@@ -42,8 +42,8 @@ class SleepSourceChip extends StatelessWidget {
     final measured = provenance.method.isMeasured;
     final platform = provenance.method == SleepMethod.platformDerived;
     final color = measured
-        ? TrainColors.violetGlyph
-        : (platform ? TrainColors.violet : TrainColors.ink3);
+        ? TrainColors.sleepGlyph
+        : (platform ? TrainColors.sleepAccent : TrainColors.ink3);
 
     final label = Text(
       sleepSourceChipText(context, provenance),
@@ -63,7 +63,7 @@ class SleepSourceChip extends StatelessWidget {
         vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: measured ? TrainColors.violetWash : TrainColors.glass,
+        color: measured ? TrainColors.sleepWash : TrainColors.glass,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: TrainColors.hairline),
       ),

@@ -8016,6 +8016,150 @@ abstract class AppLocalizations {
   /// **'h'**
   String get sleepUnitHour;
 
+  /// Title of the sheet behind the header's info button — what the feature does and what it refuses to claim.
+  ///
+  /// In en, this message translates to:
+  /// **'How Sleep works'**
+  String get sleepAboutTitle;
+
+  /// Opening line of the how-it-works sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.'**
+  String get sleepAboutIntro;
+
+  /// How-it-works heading: the manual log.
+  ///
+  /// In en, this message translates to:
+  /// **'What a sleep session is'**
+  String get sleepAboutSessionTitle;
+
+  /// How-it-works body: what opening and closing a manual sleep mark actually does. Names both buttons so the sentence matches the screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tapping “I\'m going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I\'m awake”, those two moments become the night, marked as logged by you.'**
+  String get sleepAboutSessionBody;
+
+  /// How-it-works heading: the automatic half.
+  ///
+  /// In en, this message translates to:
+  /// **'What ZIVO reads'**
+  String get sleepAboutTrackedTitle;
+
+  /// How-it-works body: the health-store read. The provider is the platform's own store name.
+  ///
+  /// In en, this message translates to:
+  /// **'Each time you open this screen ZIVO re-reads {provider} and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.'**
+  String sleepAboutTrackedBody(String provider);
+
+  /// How-it-works heading: provenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Every number says where it came from'**
+  String get sleepAboutSourcesTitle;
+
+  /// How-it-works body: what the source chip means, and why sources are chosen rather than merged.
+  ///
+  /// In en, this message translates to:
+  /// **'“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.'**
+  String get sleepAboutSourcesBody;
+
+  /// How-it-works heading: the gates on weekly figures.
+  ///
+  /// In en, this message translates to:
+  /// **'Why some figures are blank'**
+  String get sleepAboutWeekTitle;
+
+  /// How-it-works body: why a weekly figure can be empty.
+  ///
+  /// In en, this message translates to:
+  /// **'An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.'**
+  String get sleepAboutWeekBody;
+
+  /// How-it-works heading: the deliberate limits.
+  ///
+  /// In en, this message translates to:
+  /// **'What it will not do'**
+  String get sleepAboutLimitsTitle;
+
+  /// How-it-works body: no score, no grade.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.'**
+  String get sleepAboutLimitsBody;
+
+  /// Dismisses the how-it-works sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get sleepAboutDone;
+
+  /// Label on the card shown while a sleep session is open.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleeping'**
+  String get sleepSessionOpen;
+
+  /// Caption under the elapsed time of an open sleep session.
+  ///
+  /// In en, this message translates to:
+  /// **'So far'**
+  String get sleepMarkSoFar;
+
+  /// Elapsed time of a sleep session opened less than a minute ago, where a duration would read as zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get sleepMarkJustNow;
+
+  /// Explains that an open session becomes a night only when it is closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap “I\'m awake” when you get up — that is when the night is recorded.'**
+  String get sleepMarkHint;
+
+  /// Shown when the saved-nights stream failed, as opposed to the health store being unreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your sleep'**
+  String get sleepLoadFailedTitle;
+
+  /// Body for a failed read of stored nights.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO couldn\'t read the nights it has already saved. Check your connection and try again.'**
+  String get sleepLoadFailedBody;
+
+  /// Re-opens the storage streams after a failed read.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get sleepRetry;
+
+  /// Accessibility label for the placeholder shown while last night is still loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading your sleep'**
+  String get sleepLoading;
+
+  /// Compact caption under a weekly figure that has not passed its gate: how many nights exist against how many it needs.
+  ///
+  /// In en, this message translates to:
+  /// **'{have} of {need} nights'**
+  String sleepGateProgress(int have, int need);
+
+  /// Label above the week-over-week comparison sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'vs last week'**
+  String get sleepVsLastWeek;
+
+  /// A manual sleep action (opening or closing a session) failed to persist.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that just now. Check your connection and try again.'**
+  String get sleepMarkFailed;
+
   /// The minutes unit in a sleep duration. See sleepUnitHour.
   ///
   /// In en, this message translates to:

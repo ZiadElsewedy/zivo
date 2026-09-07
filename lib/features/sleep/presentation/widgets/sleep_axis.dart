@@ -119,7 +119,7 @@ class _GridPainter extends CustomPainter {
     // The target lines read as goalposts: adherence becomes something you see
     // rather than something you compute from two numbers in your head.
     final target = Paint()
-      ..color = TrainColors.violet.withValues(alpha: 0.38)
+      ..color = TrainColors.sleepAccent.withValues(alpha: 0.38)
       ..strokeWidth = 1;
     for (final minutes in [targetBedtime, targetWake]) {
       if (minutes == null) continue;

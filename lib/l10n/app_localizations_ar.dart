@@ -4909,5 +4909,89 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sleepUnitHour => 'س';
 
   @override
+  String get sleepAboutTitle => 'كيف يعمل قسم النوم';
+
+  @override
+  String get sleepAboutIntro =>
+      'النوم مُدخَل تعافٍ يخدم تدريبك. إليك بالضبط ما يفعله ZIVO به، وما لن يدّعيه.';
+
+  @override
+  String get sleepAboutSessionTitle => 'ما هي جلسة النوم';
+
+  @override
+  String get sleepAboutSessionBody =>
+      'الضغط على «سأنام الآن» يفتح جلسة فقط — لا مؤقّت يعمل ولا هاتفك ينصت. وعندما تضغط «استيقظت» يتحوّل هذان الوقتان إلى ليلة مسجَّلة باسمك.';
+
+  @override
+  String get sleepAboutTrackedTitle => 'ماذا يقرأ ZIVO';
+
+  @override
+  String sleepAboutTrackedBody(String provider) {
+    return 'في كل مرة تفتح فيها هذه الشاشة يعيد ZIVO قراءة $provider ويبني الأسبوع الماضي من جديد: متى نمت، ومتى استيقظت، وكم نمت فعليًا، وأي استيقاظ بينهما.';
+  }
+
+  @override
+  String get sleepAboutSourcesTitle => 'كل رقم يذكر مصدره';
+
+  @override
+  String get sleepAboutSourcesBody =>
+      '«مقيس» يعني أن ساعة سجّلته، و«سجّلته بنفسك» يعني أنك أو تطبيقًا آخر أدخله يدويًا. وعند اختلاف مصدرين يختار ZIVO أحدهما ويحتفظ بالآخر — ولا يحسب متوسطًا بينهما لينتج ليلة لم ينمها أحد.';
+
+  @override
+  String get sleepAboutWeekTitle => 'لماذا تبقى بعض الأرقام فارغة';
+
+  @override
+  String get sleepAboutWeekBody =>
+      'المتوسط على ليلة واحدة ليس متوسطًا. تبقى أرقام الأسبوع فارغة حتى تتوفر ليالٍ كافية، ويوضح كل رقم كم ليلة ينقصه.';
+
+  @override
+  String get sleepAboutLimitsTitle => 'ما لن يفعله';
+
+  @override
+  String get sleepAboutLimitsBody =>
+      'لا توجد درجة للنوم ولا سلسلة أيام. يستطيع ZIVO أن يخبرك كم نمت وكم كان جدولك منتظمًا، لكنه لا يستطيع أن يخبرك إن كانت الليلة جيدة.';
+
+  @override
+  String get sleepAboutDone => 'فهمت';
+
+  @override
+  String get sleepSessionOpen => 'نائم';
+
+  @override
+  String get sleepMarkSoFar => 'حتى الآن';
+
+  @override
+  String get sleepMarkJustNow => 'الآن';
+
+  @override
+  String get sleepMarkHint =>
+      'اضغط «استيقظت» عندما تستيقظ — عندها تُسجَّل الليلة.';
+
+  @override
+  String get sleepLoadFailedTitle => 'تعذّر تحميل بيانات نومك';
+
+  @override
+  String get sleepLoadFailedBody =>
+      'تعذّر على ZIVO قراءة الليالي المحفوظة بالفعل. تحقّق من اتصالك ثم أعد المحاولة.';
+
+  @override
+  String get sleepRetry => 'أعد المحاولة';
+
+  @override
+  String get sleepLoading => 'جارٍ تحميل بيانات نومك';
+
+  @override
+  String sleepGateProgress(int have, int need) {
+    return '$have من $need ليالٍ';
+  }
+
+  @override
+  String get sleepVsLastWeek => 'مقارنة بالأسبوع الماضي';
+
+  @override
+  String get sleepMarkFailed =>
+      'تعذّر الحفظ الآن. تحقّق من اتصالك ثم أعد المحاولة.';
+
+  @override
   String get sleepUnitMinute => 'د';
 }

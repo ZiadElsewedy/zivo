@@ -35,7 +35,8 @@ enforce it, and none of them is a convention someone has to remember:
 | `data/health_sleep_source.dart` | HealthKit + Health Connect, via the `health` package |
 | `data/sleep_night_codec.dart` | the Firestore wire format — the durability boundary |
 | `presentation/sleep_labels.dart` | **the copy contract** |
-| `presentation/pages/sleep_page.dart` | the whole screen: last night · week · insights |
+| `presentation/pages/sleep_page.dart` | the whole screen: tonight · last night · week · insights, over a docked action |
+| `presentation/widgets/sleep_about_sheet.dart` | what the feature does, for a user who has never seen it |
 
 ## Wiring
 
@@ -77,3 +78,24 @@ enforce it, and none of them is a convention someone has to remember:
 - Android's `health` package does not expose Health Connect's
   `Metadata.device.type`, so `deviceKind` is `unknown` there and tiering falls
   to `kWearableProviderPrefixes` + `recordingMethod`.
+- **The state a tap creates must be visible from where the tap happened.**
+  "I'm going to sleep" used to be the last widget in the scroll and the open
+  session rendered *in its place*, at the bottom of a page long enough to push
+  the result below the fold — so the screen's only control looked inert. The
+  action is docked below the list now and the session is announced at the top
+  (`_SessionCard`), so one tap changes two places and neither can be
+  off-screen. `sleep_page_test.dart` asserts the card's *position*, not just
+  its presence.
+- **Every repository subscription carries an `onError`.** `_hasLoaded` used to
+  flip only in the data handler, so a refused read left the headline rendering
+  its not-yet-loaded placeholder for the life of the screen, with the week and
+  the insights below it looking healthy. `SleepController.loadFailed` is the
+  third state, and `retryLoad` **re-subscribes** — a Firestore snapshot
+  listener that errored is finished, so re-reading the health store alone
+  would fix nothing.
+- **Nothing on this screen takes `TrainColors.violet` directly.** Sleep has its
+  own three tones (`sleepAccent`/`sleepGlyph`/`sleepWash`) — same hue, walked
+  toward blue so the night screen is not the assistant's lavender. ADR-010's
+  amendment has the reasoning.
+- **The insights section is Manrope, not `AppText.aside`.** The one sanctioned
+  exception to ADR-009's italic-serif rule; the note is in that ADR.

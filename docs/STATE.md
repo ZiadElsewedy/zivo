@@ -74,6 +74,72 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **The Sleep page redesigned, and two of its silences fixed** (2026-09-07, on
+  `claude/sleep-page-redesign`). Owner review of the shipped screen: "the
+  overall visual quality feels poor", the one control appeared to do nothing,
+  and the feature was not self-explanatory. Four of the five findings turned
+  out to have a mechanism behind them rather than a taste problem.
+  - **Tapping "I'm going to sleep" really did look inert.** The pill was the
+    last widget in the scroll and the open session rendered *in its place* —
+    at the bottom of a page long enough to push the result below the fold. So
+    the button you just pressed scrolled out of view and a line of grey text
+    took its place where nobody was looking. The action is **docked** below
+    the list now, and the session it opens is announced at the **top** of the
+    scroll as its own card (elapsed so far, since when, and what actually
+    records the night). One tap, two visible changes, neither off-screen.
+    `sleep_page_test.dart` asserts the card's *position* relative to the week
+    — presence alone would have passed on the old layout too.
+  - **A read that failed rendered as nothing at all.** `SleepController`'s
+    three subscriptions carried no `onError`, and `hasLoaded` only ever
+    flipped in the nights *data* handler — so a refused Firestore read (or an
+    undecodable snapshot) left the headline showing its not-yet-loaded
+    placeholder **forever**: a silent 120px void between the title and the
+    week, with everything below it looking perfectly healthy. There is now a
+    third state (`loadFailed`) with its own card and a retry that
+    **re-subscribes** — an errored snapshot listener is finished, so
+    re-reading the health store alone would have fixed nothing — and the
+    loading state is a skeleton rather than a gap. Covered by a repository
+    whose `watchNights()` errors.
+  - **The green button.** The header's targets action sat on
+    `TrainHeaderAction`'s *default* accent, which is green — training's hue —
+    on a screen that measures neither training nor money, and it was the only
+    warm thing on a cool page. Sleep also borrowed `violet`/`violetGlyph`
+    wholesale, i.e. Ask's lavender. Sleep now has three tones of its own
+    (`sleepAccent`/`sleepGlyph`/`sleepWash`) at ~225° against Ask's ~242°, and
+    a cooler screen wash. **Same hue, walked toward blue — not a fifth hue**,
+    so ADR-006's table is untouched; ADR-010 carries the amendment.
+  - **The italic serif is out of the insights section** (owner decision).
+    `AppText.aside` at 21px italic over a paragraph on near-black was the
+    least readable text on the screen, and it was carrying the screen's
+    conclusions. That section is Manrope now. **Sleep only** — the ~25 other
+    `aside` call sites are untouched and ADR-009's rule stands, with this
+    logged there as its one exception.
+  - **The rest of the redesign.** Sections are cards (hairline over a top-lit
+    gradient — the house depth language) instead of content floating on the
+    raw background; the three weekly figures went from three near-identical
+    full-width grey sentences ("Not enough nights yet — 0 of 3", three times)
+    to a three-up strip where a gated figure is an em dash over "0 of 3
+    nights", with the window's own n moved once into the section label; the
+    week-over-week line is labelled so it stops reading as a fourth stray
+    figure; and "Why this number" / "Edit this night" are glass pills at a
+    real touch target rather than 13px coloured captions.
+  - **New: a "How Sleep works" sheet** behind an info button in the header —
+    what a session is, what ZIVO reads and when, why every number names its
+    source, why some figures are deliberately blank, and that there is no
+    score. Sleep is the one feature here whose behaviour is not guessable from
+    its screen: a tap opens something that records nothing until a second tap
+    closes it.
+  - **Coverage:** 76 sleep tests (up from 74), the whole suite green (1300),
+    `flutter analyze` clean, 27 new ARB keys in both languages.
+  - **⚠ OWNER ACTION.** The two symptoms above are consistent with
+    `firestore.rules` **not being deployed** for the sleep collections — a
+    denied read on `sleepNights` produces exactly the blank headline, and a
+    denied write on `sleepSettings/main` produces exactly the "nothing
+    happens" tap. The rules and their tests are in the repo and have been
+    since the feature landed. Worth running `firebase deploy --only
+    firestore:rules` and re-checking; the client now *reports* both failures
+    instead of swallowing them, so it will say so if that is what it is.
+
 - **Spotify syncs automatically; it no longer *launches* automatically** (2026-09-07,
   owner report). Opening ZIVO dragged the Spotify app on screen and started playing —
   and quitting Spotify just made it come back, so the only way to stop it was

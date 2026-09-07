@@ -34,9 +34,7 @@ class SleepController extends ChangeNotifier {
     _targets = repository.currentTargets;
     _openMark = repository.currentOpenMark;
 
-    _nightsSub = repository.watchNights().listen(_onNights);
-    _targetsSub = repository.watchTargets().listen(_onTargets);
-    _markSub = repository.watchOpenMark().listen(_onMark);
+    _subscribe();
     service.syncState.addListener(_onSyncState);
   }
 
@@ -52,16 +50,42 @@ class SleepController extends ChangeNotifier {
   SleepTargets? _targets;
   SleepMark? _openMark;
   bool _hasLoaded = false;
+  bool _loadFailed = false;
 
   List<SleepNight> get nights => _nights;
   SleepTargets? get targets => _targets;
   SleepMark? get openMark => _openMark;
+
+  /// How long the open session has been running, or null when none is open.
+  ///
+  /// Computed on read rather than ticked. A periodic timer would buy a live
+  /// second hand and cost the page a frame every tick forever — for a figure
+  /// whose smallest unit is a minute, on a screen whose whole point is that
+  /// nothing is being measured while it is open.
+  Duration? get openMarkElapsed {
+    final mark = _openMark;
+    if (mark == null) return null;
+    final elapsed = _now().toUtc().difference(mark.atUtc);
+    return elapsed.isNegative ? Duration.zero : elapsed;
+  }
   SleepSyncState get syncState => service.syncState.value;
 
   /// Whether the first snapshot has arrived. Distinguishes "still loading"
   /// from "loaded and empty", which must render as two different screens —
   /// a spinner and an honest empty state are not interchangeable.
   bool get hasLoaded => _hasLoaded;
+
+  /// The nights stream ended in an error — storage refused the read, or the
+  /// snapshot could not be decoded.
+  ///
+  /// It has its own flag because the alternative is what this screen used to
+  /// do: nothing. [_onNights] was the only thing that ever set [_hasLoaded],
+  /// and the subscription carried no `onError`, so a refused read left the
+  /// page rendering its not-yet-loaded placeholder **forever** — a silent
+  /// 120px void where the headline belongs, with the week and the insights
+  /// below it looking perfectly healthy. A screen may say it is loading, and
+  /// it may say it failed; it may not sit between the two with no way out.
+  bool get loadFailed => _loadFailed;
 
   /// Last night's record, or null when there is none.
   ///
@@ -122,6 +146,19 @@ class SleepController extends ChangeNotifier {
 
   Future<void> refresh({int? days}) => service.sync(days: days);
 
+  /// Re-open the repository streams after [loadFailed], and re-read the
+  /// platform store.
+  ///
+  /// Re-subscribing is what makes the button worth showing: a Firestore
+  /// snapshot listener that errors is *finished*, so re-reading the health
+  /// store alone would leave the screen exactly as broken as it was.
+  Future<void> retryLoad() async {
+    _loadFailed = false;
+    _subscribe();
+    notifyListeners();
+    await service.sync();
+  }
+
   Future<void> requestAccess() async {
     await service.source.requestAuthorization();
     await service.sync(days: SleepService.backfillDays);
@@ -158,6 +195,23 @@ class SleepController extends ChangeNotifier {
     super.dispose();
   }
 
+  void _subscribe() {
+    _nightsSub?.cancel();
+    _targetsSub?.cancel();
+    _markSub?.cancel();
+    // Every one of these carries an `onError`. A repository stream that fails
+    // is a state this screen has to be able to render, and an unhandled
+    // stream error is not one — it goes to the zone, where in a release build
+    // nobody sees it and the UI is left waiting on an event that will never
+    // come.
+    _nightsSub = repository.watchNights().listen(_onNights, onError: _onError);
+    _targetsSub = repository.watchTargets().listen(
+      _onTargets,
+      onError: _onError,
+    );
+    _markSub = repository.watchOpenMark().listen(_onMark, onError: _onError);
+  }
+
   /// [count] consecutive sleep-days ending [offsetDays] before today, oldest
   /// first, with absent days present as empty nights.
   List<SleepNight> _window(int count, {int offsetDays = 0}) {
@@ -192,6 +246,14 @@ class SleepController extends ChangeNotifier {
 
   void _onMark(SleepMark? mark) {
     _openMark = mark;
+    notifyListeners();
+  }
+
+  void _onError(Object error, StackTrace stackTrace) {
+    // Loaded, and the answer is "we could not read it" — which is a screen,
+    // where "not loaded yet" is a spinner that never stops.
+    _hasLoaded = true;
+    _loadFailed = true;
     notifyListeners();
   }
 

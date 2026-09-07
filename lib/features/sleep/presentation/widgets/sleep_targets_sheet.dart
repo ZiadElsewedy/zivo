@@ -97,8 +97,8 @@ class _SleepTargetsSheetState extends State<_SleepTargetsSheet>
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: TrainColors.violet,
-                    foregroundColor: const Color(0xFF0B0A14),
+                    backgroundColor: TrainColors.sleepAccent,
+                    foregroundColor: TrainColors.sleepOnAccent,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -222,7 +222,7 @@ class _Step extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     onPressed: onTap,
-    icon: Icon(icon, size: 18, color: TrainColors.violetGlyph),
+    icon: Icon(icon, size: 18, color: TrainColors.sleepGlyph),
     tooltip: semanticLabel,
     visualDensity: VisualDensity.compact,
   );

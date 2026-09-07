@@ -138,5 +138,12 @@ respect but the family. They inherit `caption`'s `height: 1`, which tightens the
 3. **Mono means "this is a number."** Never set prose in Azeret Mono.
 4. **The italic serif is ZIVO speaking.** Not a section header, not a marketing line, not a
    headline that isn't the assistant. Spending it elsewhere is spending the distinction.
+   - **One exception, by owner decision (2026-09-07): the Sleep page's insights.** They had
+     `AppText.aside`, and at 21px italic over a full paragraph on near-black it was the
+     least readable text on the screen — carrying the sentences that are the screen's
+     conclusions. That section now sets in Manrope. The rule above is unchanged everywhere
+     else; the distinction to notice is that Sleep's insights **report** ("your nights
+     averaged 7h 04m") rather than speak. If the model tier ever replaces that wording with
+     something in ZIVO's own voice, the face is worth revisiting.
 5. **Weight, not a new face, is how you get emphasis.** Manrope runs 200–800; that range is
    the whole display vocabulary.
