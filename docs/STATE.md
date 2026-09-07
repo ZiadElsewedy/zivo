@@ -105,6 +105,21 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     sleep_insights.js` on the server, `groundedNumerals` again on the client.
     Beneath it is a deterministic tier that is always available, so the
     feature never needs a model round trip to say something true.
+  - **Three more bugs, found by running it on a simulator rather than by the
+    suite** (same day). The worst was the Arabic hero rendering `س12د7`:
+    `sleepDurationText` pinned the localized string with `ltrFor`, but
+    `7س 12د` is not a composed numeric run — `س`/`د` are abbreviated words,
+    strong RTL, so forcing LTR interleaved the two number+unit pairs.
+    `core/util/bidi.dart` already states the rule; the pinning is gone from
+    every string carrying translated words, and clock times keep theirs.
+    The Today glance was over-stuffed and ellipsised **both** the source chip
+    and the delta, leaving a duration with no provenance — the delta moved to
+    the Sleep page. The week figures wrapped `16س`/`51د` onto two lines. And a
+    full week against an empty previous one read "not enough nights yet —
+    5 of 5"; it now reports the weaker week. **The suite was blind to all of
+    it**: the widget tests assert on English, where `ltrFor` is a deliberate
+    no-op. `test/sleep/sleep_labels_test.dart` now pins the rule in both
+    languages.
   - **Two regressions worth remembering.** (1) `SleepService.syncState` is a
     `ValueNotifier`, not a stream: a fast sync emitted its terminal state into
     the window between `listen()` and an `async*` generator subscribing, so an
@@ -112,7 +127,7 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     test that boots the real `ZivoApp` now injects `sleep:`/`sleepSource:` —
     the Firestore default resolves its uid through FirebaseAuth at
     construction, and `rtl_layout_test` hung for ten minutes on it.
-  - **Coverage:** 67 sleep tests (sessionizer, resolver, circular stats,
+  - **Coverage:** 74 sleep tests (sessionizer, resolver, circular stats,
     gates, codec round-trip, the numeral gate, and the page's *claims* — that
     a typed night says "You logged" and never "Asleep"), plus 9 new Firestore
     rules tests and 15 backend tests. `flutter analyze` clean; the Android

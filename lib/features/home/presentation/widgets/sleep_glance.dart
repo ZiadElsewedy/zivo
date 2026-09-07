@@ -65,7 +65,6 @@ class _SleepGlanceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = night.main!;
-    final delta = sleepDurationDeltaText(context, night);
 
     return GestureDetector(
       onTap: () => Navigator.of(
@@ -80,33 +79,27 @@ class _SleepGlanceRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.m - 1),
             Text(
               sleepDurationText(context, session.asleepDuration),
+              maxLines: 1,
+              softWrap: false,
               style: AppText.amount.copyWith(color: TrainColors.ink),
             ),
             Text(
               '  ·  ',
               style: AppText.amount.copyWith(color: TrainColors.ink3),
             ),
+            // The source, and only the source. The target delta was here too
+            // and the row could not hold both — on a 402pt screen in Arabic
+            // BOTH ellipsised, which hid the method and left a duration with
+            // no provenance. That is the one thing this row may not do, so the
+            // delta went back to the Sleep page where it has room.
             Flexible(
               child: Text(
-                // The source, always. Falls back to the delta only when there
-                // is no room for both — never the other way round.
                 sleepSourceChipText(context, session.provenance),
                 style: AppText.meta.copyWith(color: TrainColors.ink3),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (delta != null) ...[
-              const SizedBox(width: AppSpacing.s),
-              Flexible(
-                child: Text(
-                  delta,
-                  style: AppText.meta.copyWith(color: TrainColors.ink4),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
             const SizedBox(width: AppSpacing.xs),
             const Icon(
               Icons.chevron_right_rounded,

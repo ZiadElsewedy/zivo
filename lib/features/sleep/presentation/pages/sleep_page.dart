@@ -223,7 +223,7 @@ class _LastNight extends StatelessWidget {
           if (night.naps.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.s),
             Text(
-              ltrFor(context, strings.sleepNapCount(night.naps.length)),
+              strings.sleepNapCount(night.naps.length),
               style: AppText.meta.copyWith(color: TrainColors.ink3),
             ),
           ],
@@ -344,12 +344,9 @@ class _Week extends StatelessWidget {
           label: strings.sleepWeekOnTarget,
           value: metrics.nightsOnTargetBedtime == null
               ? null
-              : ltrFor(
-                  context,
-                  strings.sleepOnTargetRatio(
-                    metrics.nightsOnTargetBedtime!,
-                    metrics.nightCount,
-                  ),
+              : strings.sleepOnTargetRatio(
+                  metrics.nightsOnTargetBedtime!,
+                  metrics.nightCount,
                 ),
           have: metrics.nightCount,
           need: SleepGates.minNightsForAverage,
@@ -408,16 +405,26 @@ class _Figure extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: AppSpacing.s),
           if (value == null)
             Flexible(
               child: Text(
-                ltrFor(context, strings.sleepInsufficientFor(have, need)),
+                strings.sleepInsufficientFor(have, need),
                 textAlign: TextAlign.end,
                 style: AppText.meta.copyWith(color: TrainColors.ink4),
               ),
             )
           else
-            Text(value!, style: AppText.amount.copyWith(fontSize: 20)),
+            // Never wrapped: "6h 51m" broken across two lines reads as two
+            // numbers, and in Arabic it broke into `16س` / `51د` — which looks
+            // like a different figure entirely.
+            Text(
+              value!,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              style: AppText.amount.copyWith(fontSize: 20),
+            ),
         ],
       ),
     );
@@ -437,8 +444,13 @@ class _WeekComparison extends StatelessWidget {
     final delta = comparison.deltaMinutes;
 
     final text = switch (comparison.verdict) {
+      // The WEAKER of the two weeks, not the current one. A comparison needs
+      // both halves, so reporting "5 of 5" because this week is full while
+      // last week is empty tells the reader nothing and reads as a bug.
       SleepComparisonVerdict.insufficientData => strings.sleepInsufficientFor(
-        comparison.currentNights,
+        comparison.currentNights < comparison.previousNights
+            ? comparison.currentNights
+            : comparison.previousNights,
         SleepGates.minNightsPerWeekForComparison,
       ),
       SleepComparisonVerdict.unchanged => strings.sleepWeekUnchanged,
@@ -531,7 +543,7 @@ class _Insight extends StatelessWidget {
         if (!insufficient) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            ltrFor(context, l(context).sleepInsightBasis(draft.nightCount)),
+            l(context).sleepInsightBasis(draft.nightCount),
             style: AppText.sectionLabel.copyWith(
               color: TrainColors.ink4,
               fontSize: 10,

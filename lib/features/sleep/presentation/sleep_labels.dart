@@ -34,18 +34,25 @@ import '../domain/sleep_provenance.dart';
 import '../domain/sleep_session.dart';
 import '../domain/sleep_targets.dart';
 
-/// "6h 52m", "48m", "8h". Pinned so Arabic cannot reverse it.
+/// "6h 52m", "48m", "8h".
+///
+/// **Deliberately not pinned with `ltrFor`.** That was the first attempt and it
+/// rendered `7س 12د` as `س12د7` on device. `core/util/bidi.dart` says why:
+/// `ltrFor` is for a composed run of digits and *neutral* punctuation, and the
+/// Arabic form is not one — `س` and `د` are abbreviated words, strong RTL
+/// characters, so forcing the run left-to-right interleaves the two
+/// number+unit pairs backwards. A translated label is real text with a real
+/// direction and must be left alone; the unit words carry the direction here.
 String sleepDurationText(BuildContext context, Duration duration) {
   final total = duration.inMinutes.abs();
   final hours = total ~/ 60;
   final minutes = total % 60;
   final strings = l(context);
-  final text = hours == 0
+  return hours == 0
       ? strings.sleepDurationM(minutes)
       : (minutes == 0
             ? strings.sleepDurationH(hours)
             : strings.sleepDurationHm(hours, minutes));
-  return ltrFor(context, text);
 }
 
 /// A minute count as a duration, for deltas and variability figures.
@@ -213,12 +220,16 @@ String? sleepBedtimeDeltaText(BuildContext context, SleepNight night) {
 
 /// "6 of 7 nights" — the denominator is never dropped. A figure without its n
 /// is a claim without its evidence.
+///
+/// Unpinned for the same reason as [sleepDurationText]: the Arabic form is a
+/// sentence ("٦ من ٧ ليالٍ"), not a numeric run.
 String sleepNightsOfText(BuildContext context, int count, int total) =>
-    ltrFor(context, l(context).sleepNightsOf(count, total));
+    l(context).sleepNightsOf(count, total);
 
-/// "±48 min" — a variability figure.
+/// "±48 min" — a variability figure. The `±` is neutral and the duration
+/// inside carries its own direction, so this needs no pinning either.
 String sleepVariabilityText(BuildContext context, double minutes) =>
-    ltrFor(context, l(context).sleepVariability(sleepMinutesText(context, minutes)));
+    l(context).sleepVariability(sleepMinutesText(context, minutes));
 
 /// A percentage, pinned. Only ever called where the underlying value is
 /// non-null — "not tracked" is a different string, not `0%`.
