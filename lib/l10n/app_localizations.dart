@@ -2066,6 +2066,48 @@ abstract class AppLocalizations {
   /// **'No days yet.'**
   String get planNoDays;
 
+  /// The short letter or number identifying a training day within a split (A, B, 1, 2).
+  ///
+  /// In en, this message translates to:
+  /// **'Slot'**
+  String get planDaySlot;
+
+  /// Example slot value shown in the empty field.
+  ///
+  /// In en, this message translates to:
+  /// **'A'**
+  String get planDaySlotHint;
+
+  /// The training day's name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get planDayLabel;
+
+  /// Placeholder for a day's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Day label (optional)'**
+  String get planDayLabelHint;
+
+  /// Free-text notes on a training day; may be left blank.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes (optional)'**
+  String get planDayNotesOptional;
+
+  /// Caption under the shortest recorded session's duration.
+  ///
+  /// In en, this message translates to:
+  /// **'shortest'**
+  String get workoutShortestSession;
+
+  /// Caption under the longest recorded session's duration.
+  ///
+  /// In en, this message translates to:
+  /// **'longest'**
+  String get workoutLongestSession;
+
   /// Adds a day to the plan.
   ///
   /// In en, this message translates to:
@@ -2095,12 +2137,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every day'**
   String get planEveryDay;
-
-  /// Placeholder for a day's name.
-  ///
-  /// In en, this message translates to:
-  /// **'Day label (optional)'**
-  String get planDayLabelHint;
 
   /// Placeholder for a meal's name.
   ///
@@ -2209,6 +2245,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save food'**
   String get logSaveFood;
+
+  /// Caption under a consumed figure: the number came from food the user logged.
+  ///
+  /// In en, this message translates to:
+  /// **'logged by you'**
+  String get dietBasisLogged;
+
+  /// Caption under a consumed figure: the number is the plan's expectation for meals ticked off, not a measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'from ticked meals, not weighed'**
+  String get dietBasisTicked;
+
+  /// Caption under a consumed figure when nothing has been logged.
+  ///
+  /// In en, this message translates to:
+  /// **'nothing logged yet'**
+  String get dietBasisNothing;
+
+  /// Register of one coach finding: a plain statement of fact.
+  ///
+  /// In en, this message translates to:
+  /// **'Observation'**
+  String get dietFindingObservation;
+
+  /// Register of one coach finding: a worked-out reading of the numbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis'**
+  String get dietFindingAnalysis;
+
+  /// Register of one coach finding: something to consider doing.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get dietFindingSuggestion;
+
+  /// Register of one coach finding: something that needs attention.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get dietFindingWarning;
+
+  /// Register of one coach finding: encouragement.
+  ///
+  /// In en, this message translates to:
+  /// **'Going well'**
+  String get dietFindingGoingWell;
+
+  /// Register of one coach finding: a clarification.
+  ///
+  /// In en, this message translates to:
+  /// **'Worth knowing'**
+  String get dietFindingWorthKnowing;
 
   /// Marks a meal as eaten.
   ///
@@ -3211,6 +3301,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'To failure'**
   String get workoutToFailure;
+
+  /// The bulk control that sets one rest value on every exercise in a plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Default rest'**
+  String get planDefaultRest;
+
+  /// The bulk-rest row, showing the value it would apply. {time} is a clock duration like 1:30.
+  ///
+  /// In en, this message translates to:
+  /// **'Default rest · {time}'**
+  String planDefaultRestValue(String time);
+
+  /// Explains that the bulk rest is a starting point, not a lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.'**
+  String get planDefaultRestNote;
+
+  /// Applies the chosen rest to every exercise in the plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Set all'**
+  String get planSetAll;
 
   /// The rest window in a planned set's spec line, e.g. "rest 1:30". Lower case: it sits mid-line after a separator.
   ///
@@ -4315,6 +4429,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{quantity} {unit}'**
   String dietQuantityUnit(String quantity, String unit);
+
+  /// Today's diet glance: calories remaining, measured against the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal left of target'**
+  String dietKcalLeftOfTarget(String kcal);
+
+  /// Today's diet glance: calories remaining, measured against the day's plan total. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal left of plan'**
+  String dietKcalLeftOfPlan(String kcal);
+
+  /// Today's diet glance: calories past the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal over target'**
+  String dietKcalOverTarget(String kcal);
 
   /// How many of today's planned meals have been ticked.
   ///

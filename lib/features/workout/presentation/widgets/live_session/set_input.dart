@@ -9,6 +9,7 @@ import '../../../../../core/util/parse.dart';
 import '../../../../../l10n/l10n.dart';
 import 'live_session_format.dart';
 import 'phases/phase_scaffold.dart';
+import '../../../../../core/util/bidi.dart';
 
 /// Every tappable thing that belongs to the reps/weight cluster shares this
 /// tap-region group: the two fields, their four ± buttons and the quick-load
@@ -274,12 +275,12 @@ class QuickWeightRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.s),
           QuickWeightChip(
-            label: '+${trimWeight(stepKg)}',
+            label: ltrFor(context, '+${trimWeight(stepKg)}'),
             onTap: () => onPick(baseWeight + stepKg),
           ),
           const SizedBox(width: AppSpacing.s),
           QuickWeightChip(
-            label: '−${trimWeight(stepKg)}',
+            label: ltrFor(context, '−${trimWeight(stepKg)}'),
             onTap: () => onPick(baseWeight - stepKg),
           ),
         ],

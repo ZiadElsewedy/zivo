@@ -1607,6 +1607,34 @@
   "@planNoDays": {
     "description": "Empty state in the plan editor."
   },
+  "planDaySlot": "Slot",
+  "@planDaySlot": {
+      "description": "The short letter or number identifying a training day within a split (A, B, 1, 2)."
+  },
+  "planDaySlotHint": "A",
+  "@planDaySlotHint": {
+      "description": "Example slot value shown in the empty field."
+  },
+  "planDayLabel": "Label",
+  "@planDayLabel": {
+      "description": "The training day's name field."
+  },
+  "planDayLabelHint": "Push / Pull / Legs",
+  "@planDayLabelHint": {
+      "description": "Example day names shown in the empty label field."
+  },
+  "planDayNotesOptional": "Notes (optional)",
+  "@planDayNotesOptional": {
+      "description": "Free-text notes on a training day; may be left blank."
+  },
+  "workoutShortestSession": "shortest",
+  "@workoutShortestSession": {
+      "description": "Caption under the shortest recorded session's duration."
+  },
+  "workoutLongestSession": "longest",
+  "@workoutLongestSession": {
+      "description": "Caption under the longest recorded session's duration."
+  },
   "planAddDay": "Add day",
   "@planAddDay": {
     "description": "Adds a day to the plan."
@@ -1708,6 +1736,42 @@
   "logSaveFood": "Save food",
   "@logSaveFood": {
     "description": "Saves a custom food."
+  },
+  "dietBasisLogged": "logged by you",
+  "@dietBasisLogged": {
+    "description": "Caption under a consumed figure: the number came from food the user logged."
+  },
+  "dietBasisTicked": "from ticked meals, not weighed",
+  "@dietBasisTicked": {
+    "description": "Caption under a consumed figure: the number is the plan's expectation for meals ticked off, not a measurement."
+  },
+  "dietBasisNothing": "nothing logged yet",
+  "@dietBasisNothing": {
+    "description": "Caption under a consumed figure when nothing has been logged."
+  },
+  "dietFindingObservation": "Observation",
+  "@dietFindingObservation": {
+    "description": "Register of one coach finding: a plain statement of fact."
+  },
+  "dietFindingAnalysis": "Analysis",
+  "@dietFindingAnalysis": {
+    "description": "Register of one coach finding: a worked-out reading of the numbers."
+  },
+  "dietFindingSuggestion": "Suggestion",
+  "@dietFindingSuggestion": {
+    "description": "Register of one coach finding: something to consider doing."
+  },
+  "dietFindingWarning": "Warning",
+  "@dietFindingWarning": {
+    "description": "Register of one coach finding: something that needs attention."
+  },
+  "dietFindingGoingWell": "Going well",
+  "@dietFindingGoingWell": {
+    "description": "Register of one coach finding: encouragement."
+  },
+  "dietFindingWorthKnowing": "Worth knowing",
+  "@dietFindingWorthKnowing": {
+    "description": "Register of one coach finding: a clarification."
   },
   "dietEaten": "Eaten",
   "@dietEaten": {
@@ -2570,6 +2634,23 @@
   "workoutToFailure": "To failure",
   "@workoutToFailure": {
       "description": "A set with no rep target — taken until no more reps are possible."
+  },
+  "planDefaultRest": "Default rest",
+  "@planDefaultRest": {
+      "description": "The bulk control that sets one rest value on every exercise in a plan."
+  },
+  "planDefaultRestValue": "Default rest · {time}",
+  "@planDefaultRestValue": {
+      "description": "The bulk-rest row, showing the value it would apply. {time} is a clock duration like 1:30.",
+      "placeholders": { "time": { "type": "String" } }
+  },
+  "planDefaultRestNote": "Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.",
+  "@planDefaultRestNote": {
+      "description": "Explains that the bulk rest is a starting point, not a lock."
+  },
+  "planSetAll": "Set all",
+  "@planSetAll": {
+      "description": "Applies the chosen rest to every exercise in the plan."
   },
   "workoutRestFor": "rest {time}",
   "@workoutRestFor": {
@@ -3555,6 +3636,21 @@
               "type": "String"
           }
       }
+  },
+  "dietKcalLeftOfTarget": "{kcal} kcal left of target",
+  "@dietKcalLeftOfTarget": {
+      "description": "Today's diet glance: calories remaining, measured against the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
+  },
+  "dietKcalLeftOfPlan": "{kcal} kcal left of plan",
+  "@dietKcalLeftOfPlan": {
+      "description": "Today's diet glance: calories remaining, measured against the day's plan total. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
+  },
+  "dietKcalOverTarget": "{kcal} kcal over target",
+  "@dietKcalOverTarget": {
+      "description": "Today's diet glance: calories past the user's own daily target. {kcal} already carries a leading ~ when the figure rests on estimates.",
+      "placeholders": { "kcal": { "type": "String" } }
   },
   "dietMealsEaten": "{eaten} of {total} meals eaten",
   "@dietMealsEaten": {

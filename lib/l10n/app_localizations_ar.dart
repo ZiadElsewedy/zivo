@@ -1103,6 +1103,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get planNoDays => 'لا توجد أيام بعد.';
 
   @override
+  String get planDaySlot => 'الرمز';
+
+  @override
+  String get planDaySlotHint => 'A';
+
+  @override
+  String get planDayLabel => 'الاسم';
+
+  @override
+  String get planDayLabelHint => 'اسم اليوم (اختياري)';
+
+  @override
+  String get planDayNotesOptional => 'ملاحظات (اختياري)';
+
+  @override
+  String get workoutShortestSession => 'الأقصر';
+
+  @override
+  String get workoutLongestSession => 'الأطول';
+
+  @override
   String get planAddDay => 'أضف يومًا';
 
   @override
@@ -1116,9 +1137,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get planEveryDay => 'كل يوم';
-
-  @override
-  String get planDayLabelHint => 'اسم اليوم (اختياري)';
 
   @override
   String get planMealNameHint => 'اسم الوجبة';
@@ -1175,6 +1193,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get logSaveFood => 'حفظ الطعام';
+
+  @override
+  String get dietBasisLogged => 'سجّلتها بنفسك';
+
+  @override
+  String get dietBasisTicked => 'من وجبات مؤشَّرة، غير موزونة';
+
+  @override
+  String get dietBasisNothing => 'لم يُسجَّل شيء بعد';
+
+  @override
+  String get dietFindingObservation => 'ملاحظة';
+
+  @override
+  String get dietFindingAnalysis => 'تحليل';
+
+  @override
+  String get dietFindingSuggestion => 'اقتراح';
+
+  @override
+  String get dietFindingWarning => 'تنبيه';
+
+  @override
+  String get dietFindingGoingWell => 'يسير على ما يرام';
+
+  @override
+  String get dietFindingWorthKnowing => 'جدير بالمعرفة';
 
   @override
   String get dietEaten => 'أُكلت';
@@ -1828,6 +1873,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutToFailure => 'حتى الفشل';
+
+  @override
+  String get planDefaultRest => 'الراحة الافتراضية';
+
+  @override
+  String planDefaultRestValue(String time) {
+    return 'الراحة الافتراضية · $time';
+  }
+
+  @override
+  String get planDefaultRestNote =>
+      'يضبط راحة كل تمرين في هذه الخطة على هذه القيمة. وتعديل تمرين واحد بعدها يظل يتجاوزها على حدة.';
+
+  @override
+  String get planSetAll => 'ضبط الكل';
 
   @override
   String workoutRestFor(String time) {
@@ -2519,6 +2579,21 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String dietQuantityUnit(String quantity, String unit) {
     return '$quantity $unit';
+  }
+
+  @override
+  String dietKcalLeftOfTarget(String kcal) {
+    return 'بقي $kcal سعرة من هدفك';
+  }
+
+  @override
+  String dietKcalLeftOfPlan(String kcal) {
+    return 'بقي $kcal سعرة من الخطة';
+  }
+
+  @override
+  String dietKcalOverTarget(String kcal) {
+    return 'تجاوزت هدفك بـ $kcal سعرة';
   }
 
   @override

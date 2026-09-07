@@ -170,7 +170,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                consumedBasisShortLabel(state.consumed.basis).toUpperCase(),
+                consumedBasisShortText(context, state.consumed.basis).toUpperCase(),
                 key: const Key('consumed-basis'),
                 style: TrainType.caption(
                   size: 8.5,

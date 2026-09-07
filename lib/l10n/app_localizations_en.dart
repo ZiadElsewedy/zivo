@@ -1105,6 +1105,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get planNoDays => 'No days yet.';
 
   @override
+  String get planDaySlot => 'Slot';
+
+  @override
+  String get planDaySlotHint => 'A';
+
+  @override
+  String get planDayLabel => 'Label';
+
+  @override
+  String get planDayLabelHint => 'Day label (optional)';
+
+  @override
+  String get planDayNotesOptional => 'Notes (optional)';
+
+  @override
+  String get workoutShortestSession => 'shortest';
+
+  @override
+  String get workoutLongestSession => 'longest';
+
+  @override
   String get planAddDay => 'Add day';
 
   @override
@@ -1118,9 +1139,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planEveryDay => 'Every day';
-
-  @override
-  String get planDayLabelHint => 'Day label (optional)';
 
   @override
   String get planMealNameHint => 'Meal name';
@@ -1177,6 +1195,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logSaveFood => 'Save food';
+
+  @override
+  String get dietBasisLogged => 'logged by you';
+
+  @override
+  String get dietBasisTicked => 'from ticked meals, not weighed';
+
+  @override
+  String get dietBasisNothing => 'nothing logged yet';
+
+  @override
+  String get dietFindingObservation => 'Observation';
+
+  @override
+  String get dietFindingAnalysis => 'Analysis';
+
+  @override
+  String get dietFindingSuggestion => 'Suggestion';
+
+  @override
+  String get dietFindingWarning => 'Warning';
+
+  @override
+  String get dietFindingGoingWell => 'Going well';
+
+  @override
+  String get dietFindingWorthKnowing => 'Worth knowing';
 
   @override
   String get dietEaten => 'Eaten';
@@ -1809,6 +1854,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutToFailure => 'To failure';
+
+  @override
+  String get planDefaultRest => 'Default rest';
+
+  @override
+  String planDefaultRestValue(String time) {
+    return 'Default rest · $time';
+  }
+
+  @override
+  String get planDefaultRestNote =>
+      'Sets every exercise in this plan to this rest. Editing one exercise afterward still overrides it individually.';
+
+  @override
+  String get planSetAll => 'Set all';
 
   @override
   String workoutRestFor(String time) {
@@ -2491,6 +2551,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String dietQuantityUnit(String quantity, String unit) {
     return '$quantity $unit';
+  }
+
+  @override
+  String dietKcalLeftOfTarget(String kcal) {
+    return '$kcal kcal left of target';
+  }
+
+  @override
+  String dietKcalLeftOfPlan(String kcal) {
+    return '$kcal kcal left of plan';
+  }
+
+  @override
+  String dietKcalOverTarget(String kcal) {
+    return '$kcal kcal over target';
   }
 
   @override

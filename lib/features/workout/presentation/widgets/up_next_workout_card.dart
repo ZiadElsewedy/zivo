@@ -15,6 +15,7 @@ import '../pages/workout_day_details_page.dart';
 import 'change_workout_sheet.dart';
 import 'workout_start_sheet.dart' show CardScale;
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 
 /// The "up next" training card — the day due next in the active plan's
 /// rotation, built to the workout-tracking design handoff: a green slab with
@@ -223,7 +224,11 @@ class _UpNextWorkoutCardState extends State<UpNextWorkoutCard>
                     stats: [
                       ('${day.exerciseCount}', l(context).workoutExercises),
                       ('${plannedSetCount(day)}', l(context).workoutSets),
-                      if (minutes > 0) ('~$minutes', l(context).workoutMinutes),
+                      if (minutes > 0)
+                        (
+                          ltrFor(context, '~$minutes'),
+                          l(context).workoutMinutes,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 22),

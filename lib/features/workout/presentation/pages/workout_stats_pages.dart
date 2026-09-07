@@ -527,7 +527,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                   Expanded(
                     child: StatHeroValue(
                       value: formatDurationShort(context, durations.first),
-                      label: 'shortest',
+                      label: l(context).workoutShortestSession,
                       accent: TrainColors.green,
                     ),
                   ),
@@ -535,7 +535,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                   Expanded(
                     child: StatHeroValue(
                       value: formatDurationShort(context, durations.last),
-                      label: 'longest',
+                      label: l(context).workoutLongestSession,
                       accent: TrainColors.green,
                     ),
                   ),

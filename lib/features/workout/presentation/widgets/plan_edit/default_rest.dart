@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../../capture/presentation/widgets/capture_widgets.dart';
+import '../../../../../core/util/bidi.dart';
+import '../../../../../l10n/l10n.dart';
 import '../../../domain/workout_plan_format.dart';
 import 'exercise_sheet.dart';
 import 'plan_edit_chrome.dart';
@@ -40,7 +42,9 @@ class DefaultRestRow extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Default rest · ${restLabel(seconds)}',
+                    l(
+                      context,
+                    ).planDefaultRestValue(ltrFor(context, restLabel(seconds))),
                     style: TrainType.ui(
                       size: 15,
                       weight: FontWeight.w600,
@@ -50,7 +54,7 @@ class DefaultRestRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Set all',
+                  l(context).planSetAll,
                   style: TrainType.mono(
                     size: 10.5,
                     weight: FontWeight.w600,
@@ -91,11 +95,10 @@ class _DefaultRestSheetState extends State<DefaultRestSheet> {
   @override
   Widget build(BuildContext context) {
     return SheetShell(
-      title: 'Default rest',
+      title: l(context).planDefaultRest,
       children: [
         Text(
-          'Sets every exercise in this plan to this rest. Editing one exercise '
-          'afterward still overrides it individually.',
+          l(context).planDefaultRestNote,
           style: TrainType.ui(
             size: 13.5,
             weight: FontWeight.w400,
@@ -107,7 +110,7 @@ class _DefaultRestSheetState extends State<DefaultRestSheet> {
         RestPicker(initialSeconds: _seconds, onChanged: (v) => _seconds = v),
         const SizedBox(height: 22),
         PillButton(
-          label: 'Set all',
+          label: l(context).planSetAll,
           icon: Icons.check_rounded,
           color: TrainColors.ember,
           enabled: true,

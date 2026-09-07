@@ -22,6 +22,7 @@ import '../widgets/media_backup_section.dart';
 import '../widgets/delete_account_sheet.dart';
 import '../../../../core/widgets/settings_row.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 
 /// Settings — appearance, music, about (with the privacy policy), and sign
 /// out. Split from [ProfilePage] the way most apps separate "who you are"
@@ -451,7 +452,7 @@ class _MusicSection extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    _remaining(playing),
+                                    ltrFor(context, _remaining(playing)),
                                     style: TrainType.mono(
                                       size: 10,
                                       color: const Color(0x59F4F4F0),

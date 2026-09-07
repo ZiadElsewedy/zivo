@@ -432,7 +432,13 @@ class TrainListCard extends StatelessWidget {
           for (var i = 0; i < rows.length; i++) ...[
             if (i > 0)
               const Padding(
-                padding: EdgeInsets.only(left: TrainListRow.dividerInset),
+                // Directional: the inset clears the row's LEADING icon
+                // column, and that column is on the right in Arabic — a
+                // physical `left` ran the hairline under the icons and
+                // stopped it short of the text it is meant to start at.
+                padding: EdgeInsetsDirectional.only(
+                  start: TrainListRow.dividerInset,
+                ),
                 child: Divider(
                   height: 1,
                   thickness: 1,

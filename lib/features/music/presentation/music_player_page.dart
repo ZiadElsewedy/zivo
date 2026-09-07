@@ -612,7 +612,14 @@ class _Controls extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = playing.hasControl;
     final repeat = playing.repeatMode;
-    return Row(
+    // Pinned LTR, like the lozenge's transport and the scrubber below it:
+    // these controls point along the track's timeline, which runs the same
+    // way in every language, and the glyphs are painted rather than flipped.
+    // Mirroring the row alone put the right-pointing "next" arrow to the left
+    // of the left-pointing "previous" one. Labels inside stay translated.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _IconControl(
@@ -672,6 +679,7 @@ class _Controls extends StatelessWidget {
           },
         ),
       ],
+      ),
     );
   }
 }

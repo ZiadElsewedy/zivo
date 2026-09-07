@@ -257,7 +257,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                   ),
                 const SizedBox(height: 10),
                 PlanAddButton(
-                  label: 'Add exercise',
+                  label: l(context).exerciseAddTitle,
                   onTap: widget.onAddExercise,
                   compact: true,
                 ),

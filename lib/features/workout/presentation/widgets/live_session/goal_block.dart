@@ -441,7 +441,7 @@ class _ProgressVerdictBadgeState extends State<ProgressVerdictBadge>
     final pct = comparison.overallChangePercent.round();
     final label = comparison.verdict == ProgressVerdict.matched
         ? word
-        : '$word ${pct > 0 ? '+' : ''}$pct%';
+        : '$word ${ltrFor(context, '${pct > 0 ? '+' : ''}$pct%')}';
 
     return AnimatedBuilder(
       animation: _scale,

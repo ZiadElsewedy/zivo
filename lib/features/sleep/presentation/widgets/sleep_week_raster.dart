@@ -50,7 +50,9 @@ class SleepWeekRaster extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: _labelWidth),
+          // Reserves the weekday-label gutter, which sits on the leading
+          // edge — the right one in Arabic.
+          padding: const EdgeInsetsDirectional.only(start: _labelWidth),
           child: const SleepAxisLabels(),
         ),
         const SizedBox(height: AppSpacing.xs),

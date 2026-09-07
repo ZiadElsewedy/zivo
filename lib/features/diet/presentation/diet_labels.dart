@@ -5,6 +5,7 @@ import '../domain/analysis/maintenance_calibration.dart';
 import '../domain/body_measures.dart';
 import '../domain/diet_format.dart';
 import '../domain/diet_goal.dart';
+import '../domain/coaching/finding.dart';
 import '../domain/diet_source.dart';
 import '../domain/diet_state.dart';
 import '../domain/nutrition/food_reference.dart';
@@ -143,4 +144,34 @@ String dietSourceText(BuildContext context, DietSource source) =>
       DietSource.photo => l(context).dietSourcePhoto,
       DietSource.dictated => l(context).dietSourceDictated,
       DietSource.generated => l(context).dietSourceGenerated,
+    };
+
+/// The qualifier under a consumed figure — "logged by you" vs "from ticked
+/// meals, not weighed" — at caption length.
+///
+/// `consumedBasisShortLabel` stays in `domain/`: the coaching engine splices
+/// the long form into generated English prose, and the two must not drift.
+/// This is the screen's half. Short, but never softer — a basis line that
+/// shrinks into meaninglessness is worse than none, because it looks like the
+/// number was qualified.
+String consumedBasisShortText(BuildContext context, ConsumedBasis basis) =>
+    switch (basis) {
+      ConsumedBasis.logged => l(context).dietBasisLogged,
+      ConsumedBasis.tickedPlanMeals => l(context).dietBasisTicked,
+      ConsumedBasis.nothingLogged => l(context).dietBasisNothing,
+    };
+
+/// What the coach's register is called on screen — the word that stops six
+/// findings reading as one flat stream.
+///
+/// `findingKindLabel` stays in `domain/` for the engine's own English; this is
+/// what the card shows.
+String findingKindText(BuildContext context, FindingKind kind) =>
+    switch (kind) {
+      FindingKind.observation => l(context).dietFindingObservation,
+      FindingKind.analysis => l(context).dietFindingAnalysis,
+      FindingKind.recommendation => l(context).dietFindingSuggestion,
+      FindingKind.warning => l(context).dietFindingWarning,
+      FindingKind.encouragement => l(context).dietFindingGoingWell,
+      FindingKind.clarification => l(context).dietFindingWorthKnowing,
     };

@@ -292,12 +292,24 @@ class _MusicScrubberState extends State<MusicScrubber>
               },
             ),
             const SizedBox(height: 6),
-            Row(
+            // The track above is positioned physically (Alignment.centerLeft,
+            // Positioned.left, and a fraction taken from a raw dx), so it fills
+            // left-to-right in every language — correct for a timeline. These
+            // two labels are what it fills BETWEEN, so they have to stay on the
+            // same ends: mirrored, elapsed sat under the full end of the bar
+            // and remaining under the empty one.
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_format(fraction), style: _timecode),
-                Text(ltrFor(context, '-${_format(remainingFraction)}'), style: _timecode),
+                Text(
+                  ltrFor(context, '-${_format(remainingFraction)}'),
+                  style: _timecode,
+                ),
               ],
+              ),
             ),
           ],
         );
