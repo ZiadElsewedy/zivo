@@ -1,4 +1,4 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 import 'train_tokens.dart';
 
@@ -122,7 +122,12 @@ abstract final class AppText {
   /// purpose: the italic serif is ZIVO's speaking voice, and it was split
   /// across two families (Fraunces here, Instrument Serif there) with the
   /// reserved one used *once* in the whole app. One voice, one face.
-  static TextStyle aside = TrainType.serif(
+  ///
+  /// It takes a [BuildContext] — alone in this ladder — because it is the one
+  /// step whose *style* is not universal: the italic is a Latin convention and
+  /// gets synthesised onto Arabic as a slant. See [TrainType.serifVoice].
+  static TextStyle aside(BuildContext context) => TrainType.serifVoice(
+    context,
     size: 21,
     height: 1.32,
     color: TrainColors.ink2,

@@ -1713,6 +1713,10 @@
   "@dietEaten": {
     "description": "Marks a meal as eaten."
   },
+  "dietNotEaten": "Not eaten",
+  "@dietNotEaten": {
+    "description": "A meal marked back to not eaten, on ZIVO's confirmation card."
+  },
   "adoptSaveAsTarget": "Save as my target",
   "@adoptSaveAsTarget": {
     "description": "Accepts the plan's own daily figure as the target."
@@ -2717,6 +2721,37 @@
   "askReplyStyle": "Reply style",
   "@askReplyStyle": {
       "description": "Opens the picker for how long or detailed ZIVO's replies should be."
+  },
+  "timeAgoNow": "now",
+  "@timeAgoNow": {
+      "description": "Compact relative timestamp for something that happened under a minute ago."
+  },
+  "timeAgoMinutes": "{minutes}m",
+  "@timeAgoMinutes": {
+      "description": "Compact relative timestamp in minutes, e.g. 5m.",
+      "placeholders": { "minutes": { "type": "int" } }
+  },
+  "timeAgoHours": "{hours}h",
+  "@timeAgoHours": {
+      "description": "Compact relative timestamp in hours, e.g. 3h.",
+      "placeholders": { "hours": { "type": "int" } }
+  },
+  "timeAgoDays": "{days}d",
+  "@timeAgoDays": {
+      "description": "Compact relative timestamp in days, e.g. 2d.",
+      "placeholders": { "days": { "type": "int" } }
+  },
+  "askReplyStyleConcise": "Concise",
+  "@askReplyStyleConcise": {
+      "description": "Reply-style option: short, to-the-point answers."
+  },
+  "askReplyStyleBalanced": "Balanced",
+  "@askReplyStyleBalanced": {
+      "description": "Reply-style option: the default reply length."
+  },
+  "askReplyStyleDetailed": "Detailed",
+  "@askReplyStyleDetailed": {
+      "description": "Reply-style option: longer, fuller answers."
   },
   "askChats": "Chats",
   "@askChats": {
@@ -6637,5 +6672,13 @@
   "sleepInsightTrendDown": "Over the last few weeks your nights have been getting shorter.",
   "@sleepInsightTrendDown": {
     "description": "Deterministic insight: a falling Theil-Sen slope."
+  },
+  "sleepUnitHour": "h",
+  "@sleepUnitHour": {
+    "description": "The hours unit in a sleep duration. Rendered as its own smaller span beside the number, never inside the mono run — Azeret Mono has no Arabic, so an interpolated Arabic letter falls back to a system face with different metrics."
+  },
+  "sleepUnitMinute": "m",
+  "@sleepUnitMinute": {
+    "description": "The minutes unit in a sleep duration. See sleepUnitHour."
   }
 }

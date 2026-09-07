@@ -470,7 +470,7 @@ class _GalleryTile extends StatelessWidget {
             ),
           ),
           Text(
-            timeAgo(moment.takenAt, now).toUpperCase(),
+            timeAgo(context, moment.takenAt, now).toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TrainType.caption(

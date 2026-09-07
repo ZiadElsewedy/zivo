@@ -12,8 +12,5 @@ const kDefaultResponseStyle = 'balanced';
 String validResponseStyle(String? style) =>
     kResponseStyles.contains(style) ? style! : kDefaultResponseStyle;
 
-String responseStyleLabel(String style) => switch (style) {
-  'concise' => 'Concise',
-  'detailed' => 'Detailed',
-  _ => 'Balanced',
-};
+// The style's *word* is not here: it is copy, and copy needs a locale. See
+// `presentation/ai_labels.dart` — `responseStyleText(context, style)`.

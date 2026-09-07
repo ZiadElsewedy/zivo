@@ -2216,6 +2216,12 @@ abstract class AppLocalizations {
   /// **'Eaten'**
   String get dietEaten;
 
+  /// A meal marked back to not eaten, on ZIVO's confirmation card.
+  ///
+  /// In en, this message translates to:
+  /// **'Not eaten'**
+  String get dietNotEaten;
+
   /// Accepts the plan's own daily figure as the target.
   ///
   /// In en, this message translates to:
@@ -3331,6 +3337,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reply style'**
   String get askReplyStyle;
+
+  /// Compact relative timestamp for something that happened under a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get timeAgoNow;
+
+  /// Compact relative timestamp in minutes, e.g. 5m.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String timeAgoMinutes(int minutes);
+
+  /// Compact relative timestamp in hours, e.g. 3h.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String timeAgoHours(int hours);
+
+  /// Compact relative timestamp in days, e.g. 2d.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d'**
+  String timeAgoDays(int days);
+
+  /// Reply-style option: short, to-the-point answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Concise'**
+  String get askReplyStyleConcise;
+
+  /// Reply-style option: the default reply length.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get askReplyStyleBalanced;
+
+  /// Reply-style option: longer, fuller answers.
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed'**
+  String get askReplyStyleDetailed;
 
   /// Header of the conversation list sheet.
   ///
@@ -7829,6 +7877,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Over the last few weeks your nights have been getting shorter.'**
   String get sleepInsightTrendDown;
+
+  /// The hours unit in a sleep duration. Rendered as its own smaller span beside the number, never inside the mono run — Azeret Mono has no Arabic, so an interpolated Arabic letter falls back to a system face with different metrics.
+  ///
+  /// In en, this message translates to:
+  /// **'h'**
+  String get sleepUnitHour;
+
+  /// The minutes unit in a sleep duration. See sleepUnitHour.
+  ///
+  /// In en, this message translates to:
+  /// **'m'**
+  String get sleepUnitMinute;
 }
 
 class _AppLocalizationsDelegate

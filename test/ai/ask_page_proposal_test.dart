@@ -10,6 +10,7 @@ import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dar
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
 
+import '../support/bidi_finders.dart';
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 
@@ -132,8 +133,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Diet plan'), findsOneWidget);
-    expect(find.text('Lunch'), findsOneWidget);
-    expect(find.text('eaten'), findsOneWidget);
+    // The meal's name is the user's own plan's wording — isolated, so it is
+    // found blind to the directional marks around it.
+    expect(findTextIgnoringBidi('Lunch'), findsOneWidget);
+    // The chip's word is now the app's own copy, not the gateway's raw
+    // "eaten"/"not eaten" flag.
+    expect(find.text('Eaten'), findsOneWidget);
   });
 
   testWidgets('a log_food proposal renders the food card with the amount', (
@@ -163,8 +168,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Log food'), findsOneWidget);
-    expect(find.text('Chicken breast'), findsOneWidget); // the headline
-    expect(find.text('Chicken breast · 200 g'), findsOneWidget); // the chip
+    expect(findTextIgnoringBidi('Chicken breast'), findsOneWidget); // headline
+    expect(
+      findTextIgnoringBidi('Chicken breast · 200 g'),
+      findsOneWidget,
+    ); // the chip
     expect(find.byKey(const Key('proposal-confirm')), findsOneWidget);
   });
 
@@ -193,8 +201,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2 foods'), findsOneWidget); // the headline
-    expect(find.text('Egg · 2 piece'), findsOneWidget);
-    expect(find.text('Rice · 150 g'), findsOneWidget);
+    expect(findTextIgnoringBidi('Egg · 2 piece'), findsOneWidget);
+    expect(findTextIgnoringBidi('Rice · 150 g'), findsOneWidget);
     expect(find.text('500 kcal'), findsOneWidget); // the total chip
   });
 

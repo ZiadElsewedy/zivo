@@ -161,7 +161,7 @@ class _AuthPageState extends State<AuthPage> {
                             _isSignUp
                                 ? l(context).authTitleSignUp
                                 : l(context).authTitleSignIn,
-                            style: AppText.aside,
+                            style: AppText.aside(context),
                           ),
                         ),
                       ],

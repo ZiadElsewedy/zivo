@@ -57,7 +57,7 @@ class SessionDetailsPage extends StatelessWidget {
           if (session.exercises.isEmpty)
             Text(
               l(context).sessionNoExercises,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
             )
           else
             for (final (i, exercise) in session.exercises.indexed)

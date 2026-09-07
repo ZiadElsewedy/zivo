@@ -15,6 +15,11 @@ import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
 
+import 'package:zivo/features/sleep/domain/sleep_night.dart';
+import 'package:zivo/features/sleep/domain/sleep_provenance.dart';
+import 'package:zivo/features/sleep/domain/sleep_session.dart';
+import 'package:zivo/features/sleep/domain/sleep_targets.dart';
+
 import 'support/fake_auth_repository.dart';
 import 'support/fake_profile_repository.dart';
 
@@ -36,10 +41,102 @@ void main() {
     // the signed-in uid through FirebaseAuth at construction, so booting
     // the real app root without it reaches Firebase in a test that has
     // none.
-    sleep: InMemorySleepRepository(),
-    sleepSource: const UnsupportedSleepSource(),
+    sleep: _previewSleep(),
+    sleepSource: HealthSleepSource(),
     auth: auth,
     profiles: FakeProfileRepository(),
     music: FakeMusicController(),
   ));
+}
+
+/// PREVIEW DATA — fabricated, reachable only from this throwaway entrypoint.
+InMemorySleepRepository _previewSleep() {
+  final repo = InMemorySleepRepository();
+  final now = DateTime.now();
+  final day = DateTime(now.year, now.month, now.day);
+
+  SleepSession s({
+    required int daysAgo,
+    required int bedHour,
+    required int bedMinute,
+    required int wakeHour,
+    required int wakeMinute,
+    required SleepMethod method,
+    required String provider,
+    bool staged = false,
+  }) {
+    final wake = DateTime(day.year, day.month, day.day - daysAgo,
+        wakeHour, wakeMinute);
+    final bed = DateTime(
+        day.year, day.month, day.day - daysAgo - (bedHour >= 12 ? 1 : 0),
+        bedHour, bedMinute);
+    final off = bed.timeZoneOffset.inMinutes;
+    return SleepSession(
+      id: 'preview-$daysAgo',
+      startAt: bed.toUtc(),
+      endAt: wake.toUtc(),
+      startOffsetMinutes: off,
+      endOffsetMinutes: off,
+      inBedStartAt:
+          staged ? bed.subtract(const Duration(minutes: 22)).toUtc() : null,
+      inBedEndAt: staged ? wake.toUtc() : null,
+      stages: staged
+          ? [
+              SleepStageSegment(startAt: bed.toUtc(),
+                  endAt: bed.add(const Duration(hours: 2)).toUtc(),
+                  stage: SleepStage.light),
+              SleepStageSegment(
+                  startAt: bed.add(const Duration(hours: 2)).toUtc(),
+                  endAt: bed.add(const Duration(hours: 3, minutes: 20)).toUtc(),
+                  stage: SleepStage.deep),
+            ]
+          : const [],
+      provenance: SleepProvenance(
+        method: method,
+        providerId: method == SleepMethod.userReported
+            ? SleepProvenance.manualProviderId
+            : 'com.apple.health',
+        providerName: provider,
+        deviceKind: method == SleepMethod.measuredWearable
+            ? SleepDeviceKind.watch
+            : SleepDeviceKind.unknown,
+        recordingMethod: method == SleepMethod.userReported
+            ? SleepRecordingMethod.manual
+            : SleepRecordingMethod.automatic,
+        confidence: confidenceFor(method: method, hasStages: staged,
+            completeness: 1, sourceCount: 1),
+        completeness: 1,
+        rawRefs: const [],
+        ingestedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  SleepNight n(int daysAgo, SleepSession? main) => SleepNight(
+    sleepDay: DateTime(day.year, day.month, day.day - daysAgo),
+    main: main,
+    resolution:
+        main == null ? SleepResolution.none : SleepResolution.soleSource,
+    targets: SleepTargets.defaults,
+  );
+
+  repo.upsertNights([
+    n(0, s(daysAgo: 0, bedHour: 23, bedMinute: 47, wakeHour: 6, wakeMinute: 59,
+        method: SleepMethod.measuredWearable, provider: 'Apple Watch',
+        staged: true)),
+    n(1, s(daysAgo: 1, bedHour: 0, bedMinute: 34, wakeHour: 7, wakeMinute: 12,
+        method: SleepMethod.measuredWearable, provider: 'Apple Watch',
+        staged: true)),
+    n(2, s(daysAgo: 2, bedHour: 23, bedMinute: 10, wakeHour: 6, wakeMinute: 40,
+        method: SleepMethod.platformDerived, provider: 'Pillow')),
+    n(3, null),
+    n(4, s(daysAgo: 4, bedHour: 1, bedMinute: 5, wakeHour: 8, wakeMinute: 20,
+        method: SleepMethod.userReported, provider: 'You')),
+    n(5, s(daysAgo: 5, bedHour: 22, bedMinute: 50, wakeHour: 6, wakeMinute: 30,
+        method: SleepMethod.measuredWearable, provider: 'Apple Watch',
+        staged: true)),
+    n(6, null),
+  ]);
+  repo.saveTargets(SleepTargets.defaults);
+  return repo;
 }

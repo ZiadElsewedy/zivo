@@ -344,7 +344,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 TextSpan(text: l(context).authCodeSentTo),
                 TextSpan(
                   text: _email.text.trim(),
-                  style: AuthHeader.asideStyle.copyWith(
+                  style: AuthHeader.asideStyle(context).copyWith(
                     color: TrainColors.ink,
                     fontWeight: FontWeight.w600,
                   ),

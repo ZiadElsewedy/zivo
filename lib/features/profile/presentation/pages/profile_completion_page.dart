@@ -146,7 +146,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                     const SizedBox(height: 10),
                     Text(
                       l(context).profileCompleteSubtitle,
-                      style: AppText.aside,
+                      style: AppText.aside(context),
                     ),
                   ],
                 ),

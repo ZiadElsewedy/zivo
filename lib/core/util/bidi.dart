@@ -25,6 +25,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart' show Bidi;
 
 /// U+2066 LEFT-TO-RIGHT ISOLATE.
 const String _lri = '\u2066';
@@ -83,3 +84,33 @@ String stripBidi(String text) => text
     .replaceAll(_lri, '')
     .replaceAll(_fsi, '')
     .replaceAll(_pdi, '');
+
+/// The direction [text] would choose for itself — the direction of its first
+/// strong character, or [fallback] when it has none (digits, punctuation and
+/// emoji are not strong, and a string of nothing else has no opinion).
+///
+/// [isolate] is the *inline* version of this idea: it hands one run its own
+/// direction and lets the sentence around it keep the paragraph's. This is the
+/// **paragraph** version, for a string that is not inside a sentence but *is*
+/// the whole block — a chat message, a track title on its own line.
+///
+/// There, direction decides more than word order. It decides which edge the
+/// text hangs off, where a trailing full stop lands, and which end
+/// `TextOverflow.ellipsis` eats. Left to the UI's locale, an English reply in
+/// an Arabic app comes out right-aligned with its final `.` flung to the far
+/// side of the last line, and a Latin track title truncates as
+/// `…Fixture Track Th` — the ellipsis chewing the end it is standing at the
+/// wrong side of. Neither is a translation gap: the words are fine and the
+/// paragraph simply took the app's direction instead of the text's.
+///
+/// Pass the surrounding [Directionality] as [fallback] so a directionless
+/// string keeps behaving exactly as it does today.
+TextDirection directionOf(String text, {required TextDirection fallback}) {
+  if (Bidi.startsWithRtl(text)) return TextDirection.rtl;
+  if (Bidi.startsWithLtr(text)) return TextDirection.ltr;
+  return fallback;
+}
+
+/// [directionOf] with the ambient [Directionality] as the fallback.
+TextDirection directionOfFor(BuildContext context, String text) =>
+    directionOf(text, fallback: Directionality.of(context));

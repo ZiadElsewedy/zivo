@@ -21,6 +21,7 @@ import '../sleep_insight_labels.dart';
 import '../sleep_labels.dart';
 import '../widgets/sleep_axis.dart';
 import '../widgets/sleep_bar.dart';
+import '../widgets/sleep_duration_text.dart';
 import '../widgets/sleep_edit_night_sheet.dart';
 import '../widgets/sleep_source_chip.dart';
 import '../widgets/sleep_targets_sheet.dart';
@@ -166,9 +167,9 @@ class _LastNight extends StatelessWidget {
           const SizedBox(height: AppSpacing.s),
 
           // The figure, and — always, never optionally — where it came from.
-          Text(
-            sleepDurationText(context, session.asleepDuration),
-            style: AppText.heroNumber,
+          SleepDurationText(
+            duration: session.asleepDuration,
+            size: 58,
           ),
           const SizedBox(height: AppSpacing.s),
           Row(
@@ -323,7 +324,13 @@ class _Week extends StatelessWidget {
           label: strings.sleepWeekAverage,
           value: metrics.meanDurationMinutes == null
               ? null
-              : sleepMinutesText(context, metrics.meanDurationMinutes!),
+              : SleepDurationText(
+                  duration: Duration(
+                    minutes: metrics.meanDurationMinutes!.round(),
+                  ),
+                  size: 22,
+                  weight: FontWeight.w400,
+                ),
           have: metrics.nightCount,
           need: SleepGates.minNightsForAverage,
           caption: sleepNightsOfText(
@@ -336,7 +343,25 @@ class _Week extends StatelessWidget {
           label: strings.sleepWeekConsistency,
           value: metrics.midpointSdMinutes == null
               ? null
-              : sleepVariabilityText(context, metrics.midpointSdMinutes!),
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '±',
+                      style: AppText.amount.copyWith(
+                        fontSize: 18,
+                        color: TrainColors.ink2,
+                      ),
+                    ),
+                    SleepDurationText(
+                      duration: Duration(
+                        minutes: metrics.midpointSdMinutes!.round(),
+                      ),
+                      size: 22,
+                      weight: FontWeight.w400,
+                    ),
+                  ],
+                ),
           have: metrics.nightCount,
           need: SleepGates.minNightsForVariability,
         ),
@@ -344,9 +369,13 @@ class _Week extends StatelessWidget {
           label: strings.sleepWeekOnTarget,
           value: metrics.nightsOnTargetBedtime == null
               ? null
-              : strings.sleepOnTargetRatio(
-                  metrics.nightsOnTargetBedtime!,
-                  metrics.nightCount,
+              : Text(
+                  strings.sleepOnTargetRatio(
+                    metrics.nightsOnTargetBedtime!,
+                    metrics.nightCount,
+                  ),
+                  maxLines: 1,
+                  style: AppText.amount.copyWith(fontSize: 20),
                 ),
           have: metrics.nightCount,
           need: SleepGates.minNightsForAverage,
@@ -373,7 +402,10 @@ class _Figure extends StatelessWidget {
   });
 
   final String label;
-  final String? value;
+
+  /// Null when the figure's gate has not passed. Durations pass a
+  /// [SleepDurationText] so the unit stays out of the mono run.
+  final Widget? value;
   final int have;
   final int need;
   final String? caption;
@@ -415,16 +447,7 @@ class _Figure extends StatelessWidget {
               ),
             )
           else
-            // Never wrapped: "6h 51m" broken across two lines reads as two
-            // numbers, and in Arabic it broke into `16س` / `51د` — which looks
-            // like a different figure entirely.
-            Text(
-              value!,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.visible,
-              style: AppText.amount.copyWith(fontSize: 20),
-            ),
+            value!,
         ],
       ),
     );
@@ -534,7 +557,7 @@ class _Insight extends StatelessWidget {
       children: [
         Text(
           text,
-          style: AppText.aside.copyWith(
+          style: AppText.aside(context).copyWith(
             color: insufficient ? TrainColors.ink3 : TrainColors.ink,
           ),
         ),

@@ -265,7 +265,7 @@ class _OverallCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             analysis.summaryDetail,
-            style: AppText.aside.copyWith(fontSize: 16, color: TrainColors.ink2),
+            style: AppText.aside(context).copyWith(fontSize: 16, color: TrainColors.ink2),
           ),
         ],
       ),
@@ -760,7 +760,7 @@ class _ErrorState extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 l(context).errorCouldntLoad,
-                style: AppText.aside.copyWith(color: TrainColors.ink2),
+                style: AppText.aside(context).copyWith(color: TrainColors.ink2),
                 textAlign: TextAlign.center,
               ),
             ],

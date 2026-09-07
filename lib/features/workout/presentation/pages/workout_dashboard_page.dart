@@ -680,7 +680,7 @@ class _WeightCard extends StatelessWidget {
                 latest == null
                     ? l(context).weighInStartTrend
                     : l(context).weighInOneMore(
-                        timeAgo(latest.loggedAt, DateTime.now()),
+                        timeAgo(context, latest.loggedAt, DateTime.now()),
                       ),
                 style: TrainType.ui(
                   size: 12.5,
@@ -788,7 +788,7 @@ class _DashboardErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),

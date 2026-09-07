@@ -121,7 +121,7 @@ class EmptyAsk extends StatelessWidget {
                     child: Text(
                       l(context).askGreeting,
                       textAlign: TextAlign.center,
-                      style: TrainType.serif(size: 36, height: 1),
+                      style: TrainType.serifVoice(context, size: 36, height: 1),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -150,7 +150,9 @@ class EmptyAsk extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final (index, prompt) in _suggestions(context).indexed)
+                        for (final (index, prompt) in _suggestions(
+                          context,
+                        ).indexed)
                           Padding(
                             padding: EdgeInsets.only(top: index == 0 ? 0 : 9),
                             child: RiseIn(

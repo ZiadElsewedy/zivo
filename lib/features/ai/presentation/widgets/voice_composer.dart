@@ -103,13 +103,13 @@ class VoiceComposer extends StatelessWidget {
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOutCubic,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   switchInCurve: Curves.easeOut,
                   switchOutCurve: Curves.easeIn,
                   layoutBuilder: (currentChild, previousChildren) => Stack(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     children: [...previousChildren, ?currentChild],
                   ),
                   transitionBuilder: (child, animation) =>
@@ -176,7 +176,7 @@ class _IdleBar extends StatelessWidget {
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(left: 18),
+              padding: const EdgeInsetsDirectional.only(start: 18),
               child: TextField(
                 controller: controller,
                 textInputAction: TextInputAction.send,

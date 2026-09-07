@@ -179,7 +179,7 @@ class _EmptyState extends StatelessWidget {
                   ? l(context).dietNoPlanYetHeadline
                   : l(context).dietNotFollowingHeadline,
               key: const Key('diet-empty-headline'),
-              style: AppText.aside,
+              style: AppText.aside(context),
             ),
             const SizedBox(height: 6),
             Text(

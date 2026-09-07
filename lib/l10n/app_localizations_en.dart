@@ -1182,6 +1182,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dietEaten => 'Eaten';
 
   @override
+  String get dietNotEaten => 'Not eaten';
+
+  @override
   String get adoptSaveAsTarget => 'Save as my target';
 
   @override
@@ -1893,6 +1896,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askReplyStyle => 'Reply style';
+
+  @override
+  String get timeAgoNow => 'now';
+
+  @override
+  String timeAgoMinutes(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String timeAgoHours(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String timeAgoDays(int days) {
+    return '${days}d';
+  }
+
+  @override
+  String get askReplyStyleConcise => 'Concise';
+
+  @override
+  String get askReplyStyleBalanced => 'Balanced';
+
+  @override
+  String get askReplyStyleDetailed => 'Detailed';
 
   @override
   String get askChats => 'Chats';
@@ -4708,4 +4738,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sleepInsightTrendDown =>
       'Over the last few weeks your nights have been getting shorter.';
+
+  @override
+  String get sleepUnitHour => 'h';
+
+  @override
+  String get sleepUnitMinute => 'm';
 }

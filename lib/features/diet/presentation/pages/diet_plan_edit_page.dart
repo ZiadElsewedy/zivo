@@ -323,7 +323,7 @@ class _EmptyDays extends StatelessWidget {
             color: TrainColors.ink3,
           ),
           const SizedBox(height: 12),
-          Text(l(context).planNoDays, style: AppText.aside),
+          Text(l(context).planNoDays, style: AppText.aside(context)),
           const SizedBox(height: 14),
           _AddButton(label: l(context).planAddDay, onTap: onAdd),
         ],

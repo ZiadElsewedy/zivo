@@ -101,7 +101,7 @@ class _NoPlans extends StatelessWidget {
       child: Text(
         l(context).dietNoPlansYet,
         key: const Key('plans-empty'),
-        style: AppText.aside,
+        style: AppText.aside(context),
         textAlign: TextAlign.center,
       ),
     ),

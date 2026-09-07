@@ -4,6 +4,7 @@ import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
 import '../../../domain/ai_pending_action.dart';
+import '../../../../../core/util/bidi.dart';
 import '../../../../../l10n/l10n.dart';
 
 /// The ADR-003 confirmation card: an assistant proposal the user confirms or
@@ -258,20 +259,25 @@ class ProposalCard extends StatelessWidget {
     final f = action.fields;
     switch (action.kind) {
       case 'create_expense':
-        return '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim();
+        return ltrFor(
+          context,
+          '${f['amount'] ?? ''} ${f['currency'] ?? ''}'.trim(),
+        );
       case 'edit_expense':
       case 'delete_expense':
         final target = f['target'];
         return (target is String && target.trim().isNotEmpty)
-            ? target
+            ? isolate(target)
             : action.summary;
       case 'mark_meal_eaten':
-        return '${f['meal'] ?? ''}'.trim();
+        return isolate('${f['meal'] ?? ''}'.trim());
       case 'log_food':
         final items = f['items'];
         if (items is List && items.length == 1 && items.first is Map) {
           final name = (items.first as Map)['name'];
-          if (name is String && name.trim().isNotEmpty) return name.trim();
+          if (name is String && name.trim().isNotEmpty) {
+            return isolate(name.trim());
+          }
         }
         final count = f['count'];
         if (count is int && count > 0) return l(context).askFoodCount(count);
@@ -279,6 +285,19 @@ class ProposalCard extends StatelessWidget {
       default:
         return action.summary;
     }
+  }
+
+  /// The "changed to X" prefix on an edit chip.
+  ///
+  /// Two things go wrong if this stays the literal `'→ $value'`. The arrow is
+  /// bidi-neutral, so in an Arabic card it is laid out in the paragraph's
+  /// direction and ends up trailing the value it is supposed to introduce; and
+  /// it still points right, away from the reading direction, so it reads as
+  /// "60.00 EGP →" — the new value pointing at nothing. The glyph follows the
+  /// paragraph and [ltrFor] keeps the amount itself from coming apart.
+  String _changeTo(BuildContext context, String value) {
+    final arrow = Directionality.of(context) == TextDirection.rtl ? '←' : '→';
+    return '$arrow ${ltrFor(context, value)}';
   }
 
   /// A quantity like 2.0 → "2", 1.5 → "1.5" — plan/log amounts arrive as JSON
@@ -305,30 +324,44 @@ class ProposalCard extends StatelessWidget {
         final amount = f['amount'];
         if (amount != null) {
           chips.add(
-            _chip(AppIcons.expenses, '→ $amount ${f['currency'] ?? ''}'.trim()),
+            _chip(
+              AppIcons.expenses,
+              _changeTo(context, '$amount ${f['currency'] ?? ''}'.trim()),
+            ),
           );
         }
         if (f['category'] != null) {
-          chips.add(_chip(AppIcons.tag, '→ ${f['category']}'));
+          chips.add(
+            _chip(AppIcons.tag, _changeTo(context, '${f['category']}')),
+          );
         }
         if (f['note'] != null) {
-          chips.add(_chip(AppIcons.caption, '→ ${f['note']}'));
+          chips.add(
+            _chip(AppIcons.caption, _changeTo(context, '${f['note']}')),
+          );
         }
       case 'delete_expense':
         final amount = f['amount'];
         if (amount != null) {
           chips.add(
-            _chip(AppIcons.expenses, '$amount ${f['currency'] ?? ''}'.trim()),
+            _chip(
+              AppIcons.expenses,
+              ltrFor(context, '$amount ${f['currency'] ?? ''}'.trim()),
+            ),
           );
         }
         if (f['category'] != null) {
           chips.add(_chip(AppIcons.tag, f['category'].toString()));
         }
       case 'mark_meal_eaten':
+        // `state` arrives from the gateway as the English "eaten"/"not eaten"
+        // (mutations.js) — a server-side value, not copy, so it is read as a
+        // flag here and the WORD comes from the app's own strings.
+        final eaten = f['state'] != 'not eaten';
         chips.add(
           _chip(
-            f['state'] == 'eaten' ? AppIcons.success : AppIcons.close,
-            f['state']?.toString() ?? 'eaten',
+            eaten ? AppIcons.success : AppIcons.close,
+            eaten ? l(context).dietEaten : l(context).dietNotEaten,
           ),
         );
       case 'log_food':
@@ -339,7 +372,12 @@ class ProposalCard extends StatelessWidget {
             final name = raw['name']?.toString() ?? '';
             final amount = '${_qty(raw['quantity'])} ${raw['unit'] ?? ''}'
                 .trim();
-            final label = amount.isEmpty ? name : '$name · $amount';
+            // A food name is text ZIVO did not write, so it decides its own
+            // direction; the quantity is a composed run and is pinned. Without
+            // both, "Chicken · 200 g" comes apart in an Arabic card.
+            final label = amount.isEmpty
+                ? isolate(name)
+                : '${isolate(name)} · ${ltrFor(context, amount)}';
             if (label.isNotEmpty) chips.add(_chip(AppIcons.diet, label));
           }
         }

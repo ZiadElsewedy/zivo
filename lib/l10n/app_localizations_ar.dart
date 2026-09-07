@@ -1180,6 +1180,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dietEaten => 'أُكلت';
 
   @override
+  String get dietNotEaten => 'لم تُؤكل';
+
+  @override
   String get adoptSaveAsTarget => 'احفظه كهدفي';
 
   @override
@@ -1912,6 +1915,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get askReplyStyle => 'أسلوب الرد';
+
+  @override
+  String get timeAgoNow => 'الآن';
+
+  @override
+  String timeAgoMinutes(int minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String timeAgoHours(int hours) {
+    return '$hours س';
+  }
+
+  @override
+  String timeAgoDays(int days) {
+    return '$days ي';
+  }
+
+  @override
+  String get askReplyStyleConcise => 'موجز';
+
+  @override
+  String get askReplyStyleBalanced => 'متوازن';
+
+  @override
+  String get askReplyStyleDetailed => 'مفصّل';
 
   @override
   String get askChats => 'المحادثات';
@@ -4799,4 +4829,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get sleepInsightTrendDown =>
       'خلال الأسابيع الماضية أصبحت لياليك أقصر.';
+
+  @override
+  String get sleepUnitHour => 'س';
+
+  @override
+  String get sleepUnitMinute => 'د';
 }

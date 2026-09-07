@@ -6,6 +6,7 @@ import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/theme/train_tokens.dart';
+import '../../../../../core/util/bidi.dart';
 import '../../../../../core/util/time_ago.dart';
 import '../../../../../core/widgets/pressable_scale.dart';
 import '../../../../../core/widgets/zivo_sheet.dart';
@@ -210,7 +211,7 @@ class _SessionsSheetState extends State<SessionsSheet> {
                       ),
                       child: Text(
                         l(context).askNoChats,
-                        style: AppText.aside.copyWith(color: TrainColors.ink2),
+                        style: AppText.aside(context).copyWith(color: TrainColors.ink2),
                       ),
                     );
                   }
@@ -239,14 +240,13 @@ class _SessionsSheetState extends State<SessionsSheet> {
                                 HapticFeedback.mediumImpact();
                               }
                             },
-                            confirmDismiss: (_) =>
-                                confirmDeleteChat(
-                                  context,
-                                  displayConversationTitle(
-                                    context,
-                                    conversation.title,
-                                  ),
-                                ),
+                            confirmDismiss: (_) => confirmDeleteChat(
+                              context,
+                              displayConversationTitle(
+                                context,
+                                conversation.title,
+                              ),
+                            ),
                             onDismissed: (_) => _performDelete(conversation),
                             child: SessionRow(
                               conversation: conversation,
@@ -384,7 +384,7 @@ class SheetAction extends StatelessWidget {
   }
 }
 
-/// The red trailing reveal shown as a chat row is swiped left to delete —
+/// The red trailing reveal shown as a chat row is swiped away to delete —
 /// the confirm dialog ([confirmDeleteChat]) still gates the actual delete.
 class DeleteChatSwipeBackground extends StatelessWidget {
   const DeleteChatSwipeBackground({super.key});
@@ -392,7 +392,11 @@ class DeleteChatSwipeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      alignment: Alignment.centerRight,
+      // The row is dismissed `endToStart`, so the reveal belongs at the END
+      // edge — which is the LEFT one under RTL. Pinned to `centerRight`, the
+      // Arabic swipe uncovered a bare red panel while the bin sat on the far
+      // side, still hidden under the row.
+      alignment: AlignmentDirectional.centerEnd,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: TrainColors.ember.withValues(alpha: 0.16),
@@ -472,19 +476,34 @@ class SessionRow extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  displayConversationTitle(context, conversation.title),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowTitle.copyWith(
-                    color: isActive ? TrainColors.ink : TrainColors.ink2,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final title = displayConversationTitle(
+                      context,
+                      conversation.title,
+                    );
+                    return Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      // The title is the user's own words, or the first line of
+                      // their own message — it picks its own direction so a long
+                      // one truncates at its end rather than its beginning.
+                      textDirection: directionOfFor(context, title),
+                      textAlign: TextAlign.start,
+                      style: AppText.rowTitle.copyWith(
+                        color: isActive ? TrainColors.ink : TrainColors.ink2,
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 10),
               Text(
-                timeAgo(conversation.updatedAt, DateTime.now()),
+                timeAgo(context, conversation.updatedAt, DateTime.now()),
                 style: AppText.meta.copyWith(color: TrainColors.ink3),
               ),
               if (isActive) ...[

@@ -43,7 +43,7 @@ class EmptyStateView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Text(message, style: AppText.aside, textAlign: TextAlign.center),
+        child: Text(message, style: AppText.aside(context), textAlign: TextAlign.center),
       ),
     );
   }
@@ -76,7 +76,7 @@ class ErrorStateView extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               message ?? l(context).errorCouldntLoad,
-              style: AppText.aside,
+              style: AppText.aside(context),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),

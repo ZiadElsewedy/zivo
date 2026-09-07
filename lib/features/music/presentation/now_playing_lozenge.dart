@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/train_tokens.dart';
+import '../../../core/util/bidi.dart';
 import '../../../core/widgets/pressable_scale.dart';
 import '../../../core/widgets/train_chrome.dart';
 import '../../../l10n/l10n.dart';
@@ -279,48 +280,69 @@ class _Strip extends StatelessWidget {
                 Expanded(
                   child: _Body(controller: controller, playing: playing),
                 ),
-                _Transport(
-                  enabled: playing.hasControl,
-                  semanticLabel: l(context).musicPrevious,
-                  onTap: controller.previous,
-                  width: 32,
-                  // The next glyph turned around — one painter, so the pair
-                  // can never drift apart visually.
-                  child: Transform.rotate(
-                    angle: 3.14159,
-                    child: const TrainPlayGlyph(
-                      color: Color(0xBFF4F4F0),
-                      size: 10.5,
-                      bar: true,
-                    ),
-                  ),
-                ),
-                _Transport(
-                  enabled: playing.hasControl,
-                  semanticLabel: playing.isPaused
-                      ? l(context).musicPlay
-                      : l(context).musicPause,
-                  onTap: () =>
-                      playing.isPaused ? controller.play() : controller.pause(),
-                  // The one control that is bigger and coloured: it is the
-                  // one you reach for without looking.
-                  width: 38,
-                  child: playing.isPaused
-                      ? const TrainPlayGlyph(color: TrainColors.green, size: 13)
-                      : const TrainPauseGlyph(
-                          color: TrainColors.green,
-                          size: 13,
+                // Transport controls do NOT mirror. They point along the
+                // track's timeline, which runs one way in every language, and
+                // the glyphs are painted rather than flipped — so a mirrored
+                // ROW put the right-pointing "next" arrow on the left of the
+                // left-pointing "previous" one, a pair aiming away from each
+                // other with the two actions swapped under the thumb. Pinning
+                // the cluster is the platform convention (and matches the
+                // `Directionality` the nav island already takes for the same
+                // reason). Each label inside is still a translated string.
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Transport(
+                        enabled: playing.hasControl,
+                        semanticLabel: l(context).musicPrevious,
+                        onTap: controller.previous,
+                        width: 32,
+                        // The next glyph turned around — one painter, so the
+                        // pair can never drift apart visually.
+                        child: Transform.rotate(
+                          angle: 3.14159,
+                          child: const TrainPlayGlyph(
+                            color: Color(0xBFF4F4F0),
+                            size: 10.5,
+                            bar: true,
+                          ),
                         ),
-                ),
-                _Transport(
-                  enabled: playing.hasControl,
-                  semanticLabel: l(context).musicNext,
-                  onTap: controller.next,
-                  width: 32,
-                  child: const TrainPlayGlyph(
-                    color: Color(0xBFF4F4F0),
-                    size: 10.5,
-                    bar: true,
+                      ),
+                      _Transport(
+                        enabled: playing.hasControl,
+                        semanticLabel: playing.isPaused
+                            ? l(context).musicPlay
+                            : l(context).musicPause,
+                        onTap: () => playing.isPaused
+                            ? controller.play()
+                            : controller.pause(),
+                        // The one control that is bigger and coloured: it is
+                        // the one you reach for without looking.
+                        width: 38,
+                        child: playing.isPaused
+                            ? const TrainPlayGlyph(
+                                color: TrainColors.green,
+                                size: 13,
+                              )
+                            : const TrainPauseGlyph(
+                                color: TrainColors.green,
+                                size: 13,
+                              ),
+                      ),
+                      _Transport(
+                        enabled: playing.hasControl,
+                        semanticLabel: l(context).musicNext,
+                        onTap: controller.next,
+                        width: 32,
+                        child: const TrainPlayGlyph(
+                          color: Color(0xBFF4F4F0),
+                          size: 10.5,
+                          bar: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -366,7 +388,11 @@ class _Playhead extends StatelessWidget {
             ? 0.0
             : (position.inMilliseconds / total).clamp(0.0, 1.0);
         return FractionallySizedBox(
-          alignment: AlignmentDirectional.centerStart,
+          // Left-to-right in every language, for the same reason the transport
+          // above it doesn't mirror: this is elapsed track time, and a song
+          // does not play backwards in Arabic. `centerStart` had it filling
+          // from the right edge and draining leftward as the track advanced.
+          alignment: Alignment.centerLeft,
           widthFactor: progress,
           child: Container(
             height: 1.5,
@@ -402,11 +428,19 @@ class _Body extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
+              // A track title and an artist are text ZIVO did not write, and
+              // each is a paragraph of its own here rather than a run inside a
+              // sentence — so each picks its own direction. Left on the UI's,
+              // an English title in an Arabic build truncated from the wrong
+              // end and rendered as "…Fixture Track Th", the ellipsis eating
+              // the side the name actually starts at.
               Flexible(
                 child: Text(
                   playing.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textDirection: directionOfFor(context, playing.title),
+                  textAlign: TextAlign.start,
                   style: TrainType.ui(
                     size: 12,
                     weight: FontWeight.w700,
@@ -420,6 +454,8 @@ class _Body extends StatelessWidget {
                   playing.artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textDirection: directionOfFor(context, playing.artist),
+                  textAlign: TextAlign.start,
                   style: TrainType.mono(
                     size: 9.5,
                     tracking: 0.02,

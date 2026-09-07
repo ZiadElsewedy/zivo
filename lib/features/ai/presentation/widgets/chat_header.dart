@@ -7,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../domain/ai_response_style.dart';
+import '../ai_labels.dart';
 import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
@@ -44,7 +45,11 @@ class ChatHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      // Directional: the wide inset belongs to the TITLE's edge and the
+      // narrow one to the buttons', whichever side of the screen each lands
+      // on. Pinned to left/right, Arabic got them swapped — the title crowded
+      // against the screen edge while the button cluster sat inset from it.
+      padding: const EdgeInsetsDirectional.fromSTEB(
         AppSpacing.screen,
         AppSpacing.base,
         AppSpacing.s + 4,
@@ -208,7 +213,7 @@ class _ReplyStyleMenu extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    responseStyleLabel(style),
+                    responseStyleText(context, style),
                     style: AppText.rowTitle.copyWith(
                       fontSize: 15,
                       fontWeight: style == responseStyle

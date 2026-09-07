@@ -34,26 +34,49 @@ import '../domain/sleep_provenance.dart';
 import '../domain/sleep_session.dart';
 import '../domain/sleep_targets.dart';
 
-/// "6h 52m", "48m", "8h".
+/// A duration split into its number/unit pairs — `[(7, "h"), (12, "m")]`.
+///
+/// The split is the point. Azeret Mono carries no Arabic, so `7س 12د` built as
+/// one mono string falls back to a system face for `س` and `د` alone: two
+/// typefaces inside one figure, with different weights and vertical metrics,
+/// which at hero size reads as broken rather than as a duration. ZIVO's own
+/// answer to this is everywhere already — `TrainStatTile` keeps `value` and
+/// `unit` apart, and the You header renders `12.9` over `الإجمالي` rather than
+/// interpolating the word.
+///
+/// So the number stays in mono and the unit is rendered beside it in the text
+/// face ([SleepDurationText]). English gains from the same treatment: a
+/// lighter, smaller `h`/`m` is how a hero duration is set.
+List<(String, String)> sleepDurationParts(
+  BuildContext context,
+  Duration duration,
+) {
+  final strings = l(context);
+  final total = duration.inMinutes.abs();
+  final hours = total ~/ 60;
+  final minutes = total % 60;
+
+  if (hours == 0) return [('$minutes', strings.sleepUnitMinute)];
+  if (minutes == 0) return [('$hours', strings.sleepUnitHour)];
+  return [
+    ('$hours', strings.sleepUnitHour),
+    ('$minutes', strings.sleepUnitMinute),
+  ];
+}
+
+/// "6h 52m", "48m", "8h" — the plain-string form, for a chip, a sentence, or a
+/// semantics label, where there is no room to set the units separately.
 ///
 /// **Deliberately not pinned with `ltrFor`.** That was the first attempt and it
 /// rendered `7س 12د` as `س12د7` on device. `core/util/bidi.dart` says why:
 /// `ltrFor` is for a composed run of digits and *neutral* punctuation, and the
 /// Arabic form is not one — `س` and `د` are abbreviated words, strong RTL
 /// characters, so forcing the run left-to-right interleaves the two
-/// number+unit pairs backwards. A translated label is real text with a real
-/// direction and must be left alone; the unit words carry the direction here.
-String sleepDurationText(BuildContext context, Duration duration) {
-  final total = duration.inMinutes.abs();
-  final hours = total ~/ 60;
-  final minutes = total % 60;
-  final strings = l(context);
-  return hours == 0
-      ? strings.sleepDurationM(minutes)
-      : (minutes == 0
-            ? strings.sleepDurationH(hours)
-            : strings.sleepDurationHm(hours, minutes));
-}
+/// number+unit pairs backwards.
+String sleepDurationText(BuildContext context, Duration duration) => [
+  for (final (value, unit) in sleepDurationParts(context, duration))
+    '$value$unit',
+].join(' ');
 
 /// A minute count as a duration, for deltas and variability figures.
 String sleepMinutesText(BuildContext context, num minutes) =>

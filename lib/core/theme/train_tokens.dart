@@ -1,4 +1,4 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Design tokens for the **workout-tracking surfaces** — Today, the live
@@ -308,17 +308,50 @@ abstract final class TrainType {
   /// italic serif (Fraunces) doing the same job at 24 call sites while this
   /// one was used at exactly one. `AppText.aside` is now this face, so the
   /// per-screen quiet line and ZIVO's own greeting are one voice.
+  /// **Prefer [serifVoice]**, which asks the language whether the italic is
+  /// even a thing. Use this directly only where there is no [BuildContext] and
+  /// the script is known to be Latin.
   static TextStyle serif({
     required double size,
     Color color = const Color(0xFFF9F9F5),
     double height = 1.25,
     double tracking = -0.01,
+    bool italic = true,
   }) => GoogleFonts.instrumentSerif(
     fontSize: size,
-    fontStyle: FontStyle.italic,
+    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
     letterSpacing: tracking * size,
     height: height,
     color: color,
+  );
+
+  /// [serif], with the italic dropped where the script has no such thing.
+  ///
+  /// Instrument Serif covers Latin only. Asking it for italic over Arabic text
+  /// does not fall back to an Arabic italic — there is no such face, and no
+  /// such tradition — so the shaper takes the system's upright Arabic fallback
+  /// and **slants it synthetically**. ZIVO's greeting rendered as an obliqued
+  /// أهلًا، which is not a voice: it is the artefact a Latin styling rule
+  /// leaves behind on a script that never had the distinction. Every RTL script
+  /// the app could reach (Arabic, Hebrew, Farsi, Urdu) is in the same position,
+  /// so the gate is the paragraph's direction rather than a list of languages.
+  ///
+  /// What the voice keeps in Arabic is the serif itself — still one reserved
+  /// face, still used only where ZIVO speaks, just upright. Giving Arabic a
+  /// voice marker of its own means an Arabic display face, which is a fourth
+  /// family and therefore an ADR (see ADR-009).
+  static TextStyle serifVoice(
+    BuildContext context, {
+    required double size,
+    Color color = const Color(0xFFF9F9F5),
+    double height = 1.25,
+    double tracking = -0.01,
+  }) => serif(
+    size: size,
+    color: color,
+    height: height,
+    tracking: tracking,
+    italic: Directionality.of(context) != TextDirection.rtl,
   );
 
   /// The handoff's caption pattern: 9–10px mono, uppercase, wide tracking.

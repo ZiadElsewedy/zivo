@@ -398,7 +398,7 @@ class _SplitsErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -449,7 +449,7 @@ class _SplitsEmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               l(context).splitsEmptyTitle,
-              style: AppText.aside.copyWith(color: TrainColors.ink2),
+              style: AppText.aside(context).copyWith(color: TrainColors.ink2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),

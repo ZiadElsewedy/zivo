@@ -198,7 +198,10 @@ void main() {
   ) async {
     await _pump(tester, method: SleepMethod.measuredWearable);
 
-    expect(findTextIgnoringBidi('7h 12m'), findsOneWidget);
+    // The hero is set as rich text — number in mono, unit in the text face —
+    // so the composed duration lives on its semantics label, which is also
+    // exactly what a screen reader is handed.
+    expect(find.bySemanticsLabel('7h 12m'), findsOneWidget);
     expect(findTextIgnoringBidi('Asleep 11:47 PM'), findsOneWidget);
     // The source chip is not optional chrome — a duration without it is the
     // claim this feature exists to refuse.
@@ -244,6 +247,8 @@ void main() {
 
     expect(findTextIgnoringBidi('0h 0m'), findsNothing);
     expect(findTextIgnoringBidi('0m'), findsNothing);
+    expect(find.bySemanticsLabel('0h 0m'), findsNothing);
+    expect(find.bySemanticsLabel('0m'), findsNothing);
   });
 
   testWidgets(

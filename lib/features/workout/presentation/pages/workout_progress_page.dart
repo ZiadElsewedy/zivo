@@ -869,11 +869,11 @@ class _RecentSessionRow extends StatelessWidget {
                       Text(
                         session.status == SessionStatus.completed
                             ? l(context).workoutAgoWithDuration(
-                                timeAgo(session.startedAt, now),
+                                timeAgo(context, session.startedAt, now),
                                 formatDurationShort(context, session.elapsed),
                               )
                             : l(context).workoutAgo(
-                                timeAgo(session.startedAt, now),
+                                timeAgo(context, session.startedAt, now),
                               ),
                         style: TrainType.mono(
                           size: 10.5,

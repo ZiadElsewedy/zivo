@@ -68,7 +68,7 @@ class _ThinkingRailState extends State<ThinkingRail>
                     : const Duration(milliseconds: 220),
                 switchInCurve: Curves.easeOut,
                 layoutBuilder: (currentChild, previousChildren) => Stack(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   children: [...previousChildren, ?currentChild],
                 ),
                 child: Text(
@@ -86,11 +86,17 @@ class _ThinkingRailState extends State<ThinkingRail>
           AnimatedSize(
             duration: still ? Duration.zero : const Duration(milliseconds: 240),
             curve: Curves.easeOutCubic,
-            alignment: Alignment.topLeft,
+            alignment: AlignmentDirectional.topStart,
             child: widget.slow
                 ? Padding(
                     key: const ValueKey('slow'),
-                    padding: const EdgeInsets.only(left: 19, top: 4),
+                    // Indented past the orb, on whichever side the orb
+                    // is — the reassurance sits under the label, not
+                    // hanging off the opposite edge.
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 19,
+                      top: 4,
+                    ),
                     child: Text(
                       l(context).askStillWorking,
                       style: AppText.meta.copyWith(

@@ -558,7 +558,7 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                       title: session.dayLabel,
                       subtitle:
                           '${formatMonthDay(context, session.startedAt)} · '
-                          '${l(context).workoutAgo(timeAgo(session.startedAt, DateTime.now()))}',
+                          '${l(context).workoutAgo(timeAgo(context, session.startedAt, DateTime.now()))}',
                       trailing: formatDurationShort(context, session.elapsed),
                       accent: TrainColors.green,
                     ),
@@ -617,7 +617,7 @@ class WorkoutStartTimesPage extends StatelessWidget {
                       title: formatClockTime(context, session.startedAt),
                       subtitle:
                           '${session.dayLabel} · ${formatMonthDay(context, session.startedAt)}',
-                      trailing: timeAgo(session.startedAt, DateTime.now()),
+                      trailing: timeAgo(context, session.startedAt, DateTime.now()),
                       accent: TrainColors.green,
                     ),
                   ),

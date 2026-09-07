@@ -353,6 +353,7 @@
   "logFoodName": "الاسم",
   "logSaveFood": "حفظ الطعام",
   "dietEaten": "أُكلت",
+  "dietNotEaten": "لم تُؤكل",
   "adoptSaveAsTarget": "احفظه كهدفي",
   "addDietPdfOrPhoto": "ملف أو صورة",
   "addDietPdfOrPhotoDetail": "خطة أخصائي التغذية، أو صورة لها.",
@@ -539,6 +540,13 @@
   "askNewChat": "محادثة جديدة",
   "askChatHistory": "سجل المحادثات",
   "askReplyStyle": "أسلوب الرد",
+  "timeAgoNow": "الآن",
+  "timeAgoMinutes": "{minutes} د",
+  "timeAgoHours": "{hours} س",
+  "timeAgoDays": "{days} ي",
+  "askReplyStyleConcise": "موجز",
+  "askReplyStyleBalanced": "متوازن",
+  "askReplyStyleDetailed": "مفصّل",
   "askChats": "المحادثات",
   "askNoChats": "لا توجد محادثات بعد.",
   "askNameItHint": "سمِّها لتجدها لاحقًا — أو اتركها فارغة وستأخذ اسمها من أول رسالة.",
@@ -1286,5 +1294,7 @@
   "sleepInsightIrregular": "تفاوت توقيت نومك بمقدار {amount} خلال الأسبوع.",
   "sleepInsightAdherence": "التزمت بموعد نومك المستهدف في {count} من {total} ليالٍ.",
   "sleepInsightTrendUp": "خلال الأسابيع الماضية أصبحت لياليك أطول.",
-  "sleepInsightTrendDown": "خلال الأسابيع الماضية أصبحت لياليك أقصر."
+  "sleepInsightTrendDown": "خلال الأسابيع الماضية أصبحت لياليك أقصر.",
+  "sleepUnitHour": "س",
+  "sleepUnitMinute": "د"
 }
