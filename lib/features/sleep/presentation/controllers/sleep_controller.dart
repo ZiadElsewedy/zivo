@@ -8,7 +8,9 @@ import '../../domain/sleep_night.dart';
 import '../../domain/sleep_repository.dart';
 import '../../domain/sleep_service.dart';
 import '../../domain/sleep_source.dart';
+import '../../domain/sleep_stage_breakdown.dart';
 import '../../domain/sleep_targets.dart';
+import '../../domain/sleep_window.dart';
 
 /// The Sleep screens' document ([ADR-008](../../../../../docs/DECISIONS/ADR-008-presentation-controllers.md)).
 ///
@@ -87,17 +89,50 @@ class SleepController extends ChangeNotifier {
   /// it may say it failed; it may not sit between the two with no way out.
   bool get loadFailed => _loadFailed;
 
-  /// Last night's record, or null when there is none.
+  /// Today's sleep-day — the date the user woke up on this morning.
   ///
-  /// "Last night" is the most recent night **that has data**, not simply the
-  /// newest row: a night with nothing in it is stored so the week can show a
-  /// gap, and surfacing it as the headline would put an empty state on a
-  /// screen that has perfectly good data from the night before.
-  SleepNight? get lastNight {
-    for (final night in _nights) {
-      if (night.hasData) return night;
-    }
-    return null;
+  /// The anchor every window here is measured from. Named because the
+  /// noon-to-noon rule in `sleep_resolver.dart` makes "today" mean something
+  /// specific and non-obvious: the night of the 8th is the sleep you woke up
+  /// from on the 8th, so today's row is last night's sleep.
+  DateTime get today => SleepWindow.dayOf(_now());
+
+  /// The most recent night **that has data**, or null when there is none.
+  ///
+  /// Not simply the newest row: an empty night is stored so the week can draw
+  /// its gap, and surfacing one as the headline would put an empty state on a
+  /// screen with perfectly good data from the night before.
+  ///
+  /// Deliberately *not* called `lastNight`. It is only last night when
+  /// [latestNightAgeDays] is 0 or 1 — see [isLatestNightStale].
+  SleepNight? get latestNight => SleepWindow.latestWithData(_nights);
+
+  /// Whole days between [latestNight] and today; null when there is no night.
+  ///
+  /// `0` is the night we woke from this morning, `1` is the night before.
+  int? get latestNightAgeDays {
+    final night = latestNight;
+    if (night == null) return null;
+    return SleepWindow.ageInDays(night, _now());
+  }
+
+  /// Whether [latestNight] is old enough that calling it "last night" would be
+  /// false.
+  ///
+  /// The screen used to headline the newest night it could find with the words
+  /// "Last night" and no date, so a user who had not worn their watch for five
+  /// days was shown a five-day-old figure as though it were this morning's.
+  /// That is the single most misleading thing this feature could do — a real
+  /// number, correctly computed, attached to the wrong night — and it is
+  /// indistinguishable from the app simply not updating.
+  bool get isLatestNightStale => (latestNightAgeDays ?? 0) > 1;
+
+  /// The stage composition of [latestNight], or null when the source did not
+  /// stage it. See [SleepStageBreakdown] for what "did not stage it" covers.
+  SleepStageBreakdown? get latestNightStages {
+    final session = latestNight?.main;
+    if (session == null) return null;
+    return SleepStageBreakdown.forSession(session);
   }
 
   /// The seven sleep-days ending today, oldest first, with missing days filled
@@ -105,23 +140,57 @@ class SleepController extends ChangeNotifier {
   ///
   /// The fill is what lets the raster draw a gap. Dropping absent days would
   /// close the week up and hide exactly the thing the chart exists to show.
-  List<SleepNight> get week => _window(7);
+  List<SleepNight> get week => weekEndingOn(today);
 
   /// The seven days before [week] — the comparison half.
-  List<SleepNight> get previousWeek => _window(7, offsetDays: 7);
+  List<SleepNight> get previousWeek =>
+      weekEndingOn(today.subtract(const Duration(days: 7)));
 
-  SleepWindowMetrics get weekMetrics =>
-      SleepMetrics.forWindow(week, windowNights: 7, targets: _targets);
+  /// The seven sleep-days ending on [lastDay], oldest first.
+  ///
+  /// Public because the weekly page pages backwards through history with it,
+  /// and doing that arithmetic there would fork the definition of a week
+  /// between two screens. `SleepWindow` is the one implementation.
+  List<SleepNight> weekEndingOn(DateTime lastDay) => SleepWindow.daysEndingOn(
+    _nights,
+    lastDay: lastDay,
+    count: 7,
+    targets: _targets,
+  );
 
-  SleepWindowMetrics get previousWeekMetrics =>
-      SleepMetrics.forWindow(previousWeek, windowNights: 7, targets: _targets);
+  /// Metrics for any window — the weekly page's historical weeks included.
+  SleepWindowMetrics metricsFor(List<SleepNight> nights) =>
+      SleepMetrics.forWindow(
+        nights,
+        windowNights: nights.length,
+        targets: _targets,
+      );
+
+  SleepWindowMetrics get weekMetrics => metricsFor(week);
+
+  SleepWindowMetrics get previousWeekMetrics => metricsFor(previousWeek);
+
+  /// Mean stage composition across [nights], or null when too few are staged.
+  SleepStageAverages? stageAveragesFor(List<SleepNight> nights) =>
+      SleepStageAverages.forWindow(nights);
 
   SleepComparison get comparison => SleepMetrics.compare(
     current: weekMetrics,
     previous: previousWeekMetrics,
   );
 
-  SleepTrend get trend => SleepMetrics.trend(_window(28));
+  SleepTrend get trend => SleepMetrics.trend(
+    SleepWindow.daysEndingOn(
+      _nights,
+      lastDay: today,
+      count: trendWindowNights,
+      targets: _targets,
+    ),
+  );
+
+  /// The run a trend is read over. Four weeks, which is the shortest window
+  /// that can satisfy `SleepGates.minDaysSpanForTrend` at all.
+  static const int trendWindowNights = 28;
 
   /// The typed input the AI layer is allowed to see — computed figures only,
   /// plus the explicit list of what failed its gate and must not be discussed.
@@ -145,6 +214,14 @@ class SleepController extends ChangeNotifier {
       syncState.authorization != SleepAuthorization.unknown;
 
   Future<void> refresh({int? days}) => service.sync(days: days);
+
+  /// The refresh the page runs when it opens and when the app comes forward.
+  ///
+  /// Throttled in the service rather than here, so the Sleep page, Today and
+  /// the Hub share one budget instead of three. A user who wakes up, opens
+  /// ZIVO, sees Today, then taps into Sleep should trigger **one** read of the
+  /// health store, not two.
+  Future<void> refreshIfStale() => service.syncIfStale();
 
   /// Re-open the repository streams after [loadFailed], and re-read the
   /// platform store.
@@ -211,27 +288,6 @@ class SleepController extends ChangeNotifier {
     );
     _markSub = repository.watchOpenMark().listen(_onMark, onError: _onError);
   }
-
-  /// [count] consecutive sleep-days ending [offsetDays] before today, oldest
-  /// first, with absent days present as empty nights.
-  List<SleepNight> _window(int count, {int offsetDays = 0}) {
-    final now = _now();
-    final today = DateTime(now.year, now.month, now.day);
-    final byDay = {
-      for (final night in _nights) _dayKey(night.sleepDay): night,
-    };
-
-    return [
-      for (var i = count - 1; i >= 0; i--)
-        () {
-          final day = today.subtract(Duration(days: i + offsetDays));
-          return byDay[_dayKey(day)] ??
-              SleepNight.empty(day, targets: _targets);
-        }(),
-    ];
-  }
-
-  static String _dayKey(DateTime day) => '${day.year}-${day.month}-${day.day}';
 
   void _onNights(List<SleepNight> nights) {
     _nights = nights;

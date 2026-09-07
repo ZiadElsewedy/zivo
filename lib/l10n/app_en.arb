@@ -6885,5 +6885,226 @@
   "sleepUnitMinute": "m",
   "@sleepUnitMinute": {
     "description": "The minutes unit in a sleep duration. See sleepUnitHour."
+  },
+  "sleepNightsAgo": "{count, plural, =2{2 nights ago} other{{count} nights ago}}",
+  "@sleepNightsAgo": {
+    "description": "Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepStaleNotice": "Nothing has been recorded since. This is your most recent night, not last night.",
+  "@sleepStaleNotice": {
+    "description": "Shown under the headline when the most recent night is more than a day old, so a real figure is not mistaken for this morning's."
+  },
+  "sleepStagesTitle": "Stages",
+  "@sleepStagesTitle": {
+    "description": "Section label above the sleep-stage breakdown of a single night."
+  },
+  "sleepStagesUnavailable": "{provider} recorded when you slept, but not which stages.",
+  "@sleepStagesUnavailable": {
+    "description": "Shown in place of the stage breakdown when the source measured the night without grading it. Names the source so the absence is attributable.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepStagesPartial": "Staged for {amount} of the night.",
+  "@sleepStagesPartial": {
+    "description": "Caption under a stage breakdown that covers less than the whole session, so the shares are not read as covering all of it.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepTimingTitle": "Timing",
+  "@sleepTimingTitle": {
+    "description": "Section label above the bed-to-wake chart for a single night."
+  },
+  "sleepDetailTitle": "Detail",
+  "@sleepDetailTitle": {
+    "description": "Section label above the measured detail rows of a night (time in bed, efficiency, interruptions)."
+  },
+  "sleepAgainstTargetTitle": "Against your target",
+  "@sleepAgainstTargetTitle": {
+    "description": "Section label above the actual-versus-target lines for a night."
+  },
+  "sleepContextLonger": "{amount} longer than your average of {average}.",
+  "@sleepContextLonger": {
+    "description": "One line of context putting last night against the recent average. Only shown when the average passed its gate.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextShorter": "{amount} shorter than your average of {average}.",
+  "@sleepContextShorter": {
+    "description": "See sleepContextLonger.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextTypical": "About your usual — you average {average}.",
+  "@sleepContextTypical": {
+    "description": "Context line when last night is within the noise floor of the recent average.",
+    "placeholders": {
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepContextBasis": "Over {count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepContextBasis": {
+    "description": "The n behind the comparison-to-average line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepHistoryTitle": "Sleep history",
+  "@sleepHistoryTitle": {
+    "description": "Title of the weekly/history page, and the label of the row that opens it."
+  },
+  "sleepHistorySubtitle": "Your weeks, night by night",
+  "@sleepHistorySubtitle": {
+    "description": "Second line of the row on the Sleep page that opens the history view."
+  },
+  "sleepWeekRange": "{start} – {end}",
+  "@sleepWeekRange": {
+    "description": "The date span of the week being shown on the history page.",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWeekCurrent": "This week",
+  "@sleepWeekCurrent": {
+    "description": "Label for the seven days ending today on the history page."
+  },
+  "sleepWeekEarlier": "Earlier week",
+  "@sleepWeekEarlier": {
+    "description": "Accessibility label for the control that pages back one week on the history page."
+  },
+  "sleepWeekLater": "Later week",
+  "@sleepWeekLater": {
+    "description": "Accessibility label for the control that pages forward one week on the history page."
+  },
+  "sleepWeekEmpty": "No nights were recorded in this week.",
+  "@sleepWeekEmpty": {
+    "description": "Empty state for a week on the history page that contains no data at all."
+  },
+  "sleepWeekNightsTitle": "Every night",
+  "@sleepWeekNightsTitle": {
+    "description": "Section label above the day-by-day list on the history page."
+  },
+  "sleepWeekTypicalTitle": "Typical night",
+  "@sleepWeekTypicalTitle": {
+    "description": "Section label above the week's average duration, bedtime and wake time."
+  },
+  "sleepWeekMedian": "Median",
+  "@sleepWeekMedian": {
+    "description": "Label for the week's median sleep duration, shown beside the mean."
+  },
+  "sleepWeekBedtime": "Bedtime",
+  "@sleepWeekBedtime": {
+    "description": "Label for the week's typical (circular mean) bedtime."
+  },
+  "sleepWeekWake": "Wake",
+  "@sleepWeekWake": {
+    "description": "Label for the week's typical (circular mean) wake time."
+  },
+  "sleepWeekCompositionTitle": "Typical composition",
+  "@sleepWeekCompositionTitle": {
+    "description": "Section label above the week's average sleep-stage split."
+  },
+  "sleepWeekCompositionBasis": "Averaged over {count, plural, =1{1 staged night} other{{count} staged nights}}",
+  "@sleepWeekCompositionBasis": {
+    "description": "The n behind the weekly stage averages — counted over nights that carried stage detail, not all nights.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepWeekNoStages": "No night this week carried stage detail.",
+  "@sleepWeekNoStages": {
+    "description": "Shown in place of the weekly stage split when too few nights were staged."
+  },
+  "sleepTrendTitle": "Longer run",
+  "@sleepTrendTitle": {
+    "description": "Section label above the multi-week trend on the history page."
+  },
+  "sleepTrendRising": "Your nights have been getting longer.",
+  "@sleepTrendRising": {
+    "description": "Trend direction over the last four weeks."
+  },
+  "sleepTrendFalling": "Your nights have been getting shorter.",
+  "@sleepTrendFalling": {
+    "description": "Trend direction over the last four weeks."
+  },
+  "sleepTrendFlat": "Your nights have held steady.",
+  "@sleepTrendFlat": {
+    "description": "Trend direction when the slope is inside the flat band — a finding, not a failure to find one."
+  },
+  "sleepTrendBasis": "{count} nights across {days} days",
+  "@sleepTrendBasis": {
+    "description": "The evidence behind the trend statement.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTrendNeedMore": "A trend needs {need} nights across {days} days. You have {have}.",
+  "@sleepTrendNeedMore": {
+    "description": "Shown instead of a trend when the gate has not passed, naming exactly what would open it.",
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNightRowNoData": "Nothing recorded",
+  "@sleepNightRowNoData": {
+    "description": "The value of a day row on the history page for a day with no sleep record."
+  },
+  "sleepNightRowRange": "{start} → {end}",
+  "@sleepNightRowRange": {
+    "description": "Bed and wake clock times on one day row of the history page.",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
   }
 }

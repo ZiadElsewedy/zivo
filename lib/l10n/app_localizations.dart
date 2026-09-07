@@ -8165,6 +8165,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'m'**
   String get sleepUnitMinute;
+
+  /// Headline label when the most recent recorded night is not last night. Never used for 0 or 1, which say 'Last night' instead.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =2{2 nights ago} other{{count} nights ago}}'**
+  String sleepNightsAgo(int count);
+
+  /// Shown under the headline when the most recent night is more than a day old, so a real figure is not mistaken for this morning's.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been recorded since. This is your most recent night, not last night.'**
+  String get sleepStaleNotice;
+
+  /// Section label above the sleep-stage breakdown of a single night.
+  ///
+  /// In en, this message translates to:
+  /// **'Stages'**
+  String get sleepStagesTitle;
+
+  /// Shown in place of the stage breakdown when the source measured the night without grading it. Names the source so the absence is attributable.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} recorded when you slept, but not which stages.'**
+  String sleepStagesUnavailable(String provider);
+
+  /// Caption under a stage breakdown that covers less than the whole session, so the shares are not read as covering all of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Staged for {amount} of the night.'**
+  String sleepStagesPartial(String amount);
+
+  /// Section label above the bed-to-wake chart for a single night.
+  ///
+  /// In en, this message translates to:
+  /// **'Timing'**
+  String get sleepTimingTitle;
+
+  /// Section label above the measured detail rows of a night (time in bed, efficiency, interruptions).
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get sleepDetailTitle;
+
+  /// Section label above the actual-versus-target lines for a night.
+  ///
+  /// In en, this message translates to:
+  /// **'Against your target'**
+  String get sleepAgainstTargetTitle;
+
+  /// One line of context putting last night against the recent average. Only shown when the average passed its gate.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} longer than your average of {average}.'**
+  String sleepContextLonger(String amount, String average);
+
+  /// See sleepContextLonger.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} shorter than your average of {average}.'**
+  String sleepContextShorter(String amount, String average);
+
+  /// Context line when last night is within the noise floor of the recent average.
+  ///
+  /// In en, this message translates to:
+  /// **'About your usual — you average {average}.'**
+  String sleepContextTypical(String average);
+
+  /// The n behind the comparison-to-average line.
+  ///
+  /// In en, this message translates to:
+  /// **'Over {count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepContextBasis(int count);
+
+  /// Title of the weekly/history page, and the label of the row that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep history'**
+  String get sleepHistoryTitle;
+
+  /// Second line of the row on the Sleep page that opens the history view.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weeks, night by night'**
+  String get sleepHistorySubtitle;
+
+  /// The date span of the week being shown on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} – {end}'**
+  String sleepWeekRange(String start, String end);
+
+  /// Label for the seven days ending today on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get sleepWeekCurrent;
+
+  /// Accessibility label for the control that pages back one week on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier week'**
+  String get sleepWeekEarlier;
+
+  /// Accessibility label for the control that pages forward one week on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Later week'**
+  String get sleepWeekLater;
+
+  /// Empty state for a week on the history page that contains no data at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No nights were recorded in this week.'**
+  String get sleepWeekEmpty;
+
+  /// Section label above the day-by-day list on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Every night'**
+  String get sleepWeekNightsTitle;
+
+  /// Section label above the week's average duration, bedtime and wake time.
+  ///
+  /// In en, this message translates to:
+  /// **'Typical night'**
+  String get sleepWeekTypicalTitle;
+
+  /// Label for the week's median sleep duration, shown beside the mean.
+  ///
+  /// In en, this message translates to:
+  /// **'Median'**
+  String get sleepWeekMedian;
+
+  /// Label for the week's typical (circular mean) bedtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get sleepWeekBedtime;
+
+  /// Label for the week's typical (circular mean) wake time.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake'**
+  String get sleepWeekWake;
+
+  /// Section label above the week's average sleep-stage split.
+  ///
+  /// In en, this message translates to:
+  /// **'Typical composition'**
+  String get sleepWeekCompositionTitle;
+
+  /// The n behind the weekly stage averages — counted over nights that carried stage detail, not all nights.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged over {count, plural, =1{1 staged night} other{{count} staged nights}}'**
+  String sleepWeekCompositionBasis(int count);
+
+  /// Shown in place of the weekly stage split when too few nights were staged.
+  ///
+  /// In en, this message translates to:
+  /// **'No night this week carried stage detail.'**
+  String get sleepWeekNoStages;
+
+  /// Section label above the multi-week trend on the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer run'**
+  String get sleepTrendTitle;
+
+  /// Trend direction over the last four weeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have been getting longer.'**
+  String get sleepTrendRising;
+
+  /// Trend direction over the last four weeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have been getting shorter.'**
+  String get sleepTrendFalling;
+
+  /// Trend direction when the slope is inside the flat band — a finding, not a failure to find one.
+  ///
+  /// In en, this message translates to:
+  /// **'Your nights have held steady.'**
+  String get sleepTrendFlat;
+
+  /// The evidence behind the trend statement.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} nights across {days} days'**
+  String sleepTrendBasis(int count, int days);
+
+  /// Shown instead of a trend when the gate has not passed, naming exactly what would open it.
+  ///
+  /// In en, this message translates to:
+  /// **'A trend needs {need} nights across {days} days. You have {have}.'**
+  String sleepTrendNeedMore(int have, int need, int days);
+
+  /// The value of a day row on the history page for a day with no sleep record.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded'**
+  String get sleepNightRowNoData;
+
+  /// Bed and wake clock times on one day row of the history page.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} → {end}'**
+  String sleepNightRowRange(String start, String end);
 }
 
 class _AppLocalizationsDelegate

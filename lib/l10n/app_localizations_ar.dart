@@ -4994,4 +4994,154 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sleepUnitMinute => 'د';
+
+  @override
+  String sleepNightsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'قبل $count ليالٍ',
+      two: 'قبل ليلتين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepStaleNotice =>
+      'لم يُسجَّل شيء منذ ذلك الحين. هذه أحدث ليلة لديك، وليست ليلة أمس.';
+
+  @override
+  String get sleepStagesTitle => 'المراحل';
+
+  @override
+  String sleepStagesUnavailable(String provider) {
+    return 'سجّل $provider وقت نومك، لكن دون تحديد مراحله.';
+  }
+
+  @override
+  String sleepStagesPartial(String amount) {
+    return 'المراحل مسجَّلة لـ $amount من الليلة.';
+  }
+
+  @override
+  String get sleepTimingTitle => 'التوقيت';
+
+  @override
+  String get sleepDetailTitle => 'التفاصيل';
+
+  @override
+  String get sleepAgainstTargetTitle => 'مقارنة بهدفك';
+
+  @override
+  String sleepContextLonger(String amount, String average) {
+    return 'أطول بـ $amount من متوسطك البالغ $average.';
+  }
+
+  @override
+  String sleepContextShorter(String amount, String average) {
+    return 'أقصر بـ $amount من متوسطك البالغ $average.';
+  }
+
+  @override
+  String sleepContextTypical(String average) {
+    return 'قريبة من المعتاد — متوسطك $average.';
+  }
+
+  @override
+  String sleepContextBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ليالٍ',
+      two: 'ليلتين',
+      one: 'ليلة واحدة',
+    );
+    return 'على مدى $_temp0';
+  }
+
+  @override
+  String get sleepHistoryTitle => 'سجل النوم';
+
+  @override
+  String get sleepHistorySubtitle => 'أسابيعك، ليلةً بليلة';
+
+  @override
+  String sleepWeekRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get sleepWeekCurrent => 'هذا الأسبوع';
+
+  @override
+  String get sleepWeekEarlier => 'الأسبوع السابق';
+
+  @override
+  String get sleepWeekLater => 'الأسبوع التالي';
+
+  @override
+  String get sleepWeekEmpty => 'لم تُسجَّل أي ليلة في هذا الأسبوع.';
+
+  @override
+  String get sleepWeekNightsTitle => 'كل ليلة';
+
+  @override
+  String get sleepWeekTypicalTitle => 'الليلة المعتادة';
+
+  @override
+  String get sleepWeekMedian => 'الوسيط';
+
+  @override
+  String get sleepWeekBedtime => 'وقت النوم';
+
+  @override
+  String get sleepWeekWake => 'الاستيقاظ';
+
+  @override
+  String get sleepWeekCompositionTitle => 'التركيب المعتاد';
+
+  @override
+  String sleepWeekCompositionBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ليالٍ مسجَّلة المراحل',
+      two: 'ليلتين مسجَّلتي المراحل',
+      one: 'ليلة واحدة مسجَّلة المراحل',
+    );
+    return 'بمتوسط $_temp0';
+  }
+
+  @override
+  String get sleepWeekNoStages => 'لم تحمل أي ليلة هذا الأسبوع تفاصيل المراحل.';
+
+  @override
+  String get sleepTrendTitle => 'على المدى الأطول';
+
+  @override
+  String get sleepTrendRising => 'ليالي نومك تزداد طولًا.';
+
+  @override
+  String get sleepTrendFalling => 'ليالي نومك تزداد قِصرًا.';
+
+  @override
+  String get sleepTrendFlat => 'ليالي نومك ثابتة.';
+
+  @override
+  String sleepTrendBasis(int count, int days) {
+    return '$count ليالٍ على مدى $days يومًا';
+  }
+
+  @override
+  String sleepTrendNeedMore(int have, int need, int days) {
+    return 'يحتاج الاتجاه إلى $need ليلة على مدى $days يومًا. لديك $have.';
+  }
+
+  @override
+  String get sleepNightRowNoData => 'لا شيء مسجَّل';
+
+  @override
+  String sleepNightRowRange(String start, String end) {
+    return '$start → $end';
+  }
 }

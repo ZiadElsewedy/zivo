@@ -4903,4 +4903,152 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sleepUnitMinute => 'm';
+
+  @override
+  String sleepNightsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights ago',
+      two: '2 nights ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepStaleNotice =>
+      'Nothing has been recorded since. This is your most recent night, not last night.';
+
+  @override
+  String get sleepStagesTitle => 'Stages';
+
+  @override
+  String sleepStagesUnavailable(String provider) {
+    return '$provider recorded when you slept, but not which stages.';
+  }
+
+  @override
+  String sleepStagesPartial(String amount) {
+    return 'Staged for $amount of the night.';
+  }
+
+  @override
+  String get sleepTimingTitle => 'Timing';
+
+  @override
+  String get sleepDetailTitle => 'Detail';
+
+  @override
+  String get sleepAgainstTargetTitle => 'Against your target';
+
+  @override
+  String sleepContextLonger(String amount, String average) {
+    return '$amount longer than your average of $average.';
+  }
+
+  @override
+  String sleepContextShorter(String amount, String average) {
+    return '$amount shorter than your average of $average.';
+  }
+
+  @override
+  String sleepContextTypical(String average) {
+    return 'About your usual — you average $average.';
+  }
+
+  @override
+  String sleepContextBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return 'Over $_temp0';
+  }
+
+  @override
+  String get sleepHistoryTitle => 'Sleep history';
+
+  @override
+  String get sleepHistorySubtitle => 'Your weeks, night by night';
+
+  @override
+  String sleepWeekRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get sleepWeekCurrent => 'This week';
+
+  @override
+  String get sleepWeekEarlier => 'Earlier week';
+
+  @override
+  String get sleepWeekLater => 'Later week';
+
+  @override
+  String get sleepWeekEmpty => 'No nights were recorded in this week.';
+
+  @override
+  String get sleepWeekNightsTitle => 'Every night';
+
+  @override
+  String get sleepWeekTypicalTitle => 'Typical night';
+
+  @override
+  String get sleepWeekMedian => 'Median';
+
+  @override
+  String get sleepWeekBedtime => 'Bedtime';
+
+  @override
+  String get sleepWeekWake => 'Wake';
+
+  @override
+  String get sleepWeekCompositionTitle => 'Typical composition';
+
+  @override
+  String sleepWeekCompositionBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count staged nights',
+      one: '1 staged night',
+    );
+    return 'Averaged over $_temp0';
+  }
+
+  @override
+  String get sleepWeekNoStages => 'No night this week carried stage detail.';
+
+  @override
+  String get sleepTrendTitle => 'Longer run';
+
+  @override
+  String get sleepTrendRising => 'Your nights have been getting longer.';
+
+  @override
+  String get sleepTrendFalling => 'Your nights have been getting shorter.';
+
+  @override
+  String get sleepTrendFlat => 'Your nights have held steady.';
+
+  @override
+  String sleepTrendBasis(int count, int days) {
+    return '$count nights across $days days';
+  }
+
+  @override
+  String sleepTrendNeedMore(int have, int need, int days) {
+    return 'A trend needs $need nights across $days days. You have $have.';
+  }
+
+  @override
+  String get sleepNightRowNoData => 'Nothing recorded';
+
+  @override
+  String sleepNightRowRange(String start, String end) {
+    return '$start → $end';
+  }
 }

@@ -47,6 +47,16 @@ class SleepService {
   /// whole picture for a day to settle it correctly.
   static const int refreshDays = 7;
 
+  /// The shortest gap between two automatic syncs.
+  ///
+  /// Used by [syncIfStale], which is what the app's resume handler calls.
+  /// Foregrounding is a frequent event — a notification glance, an app switch,
+  /// unlocking the phone — and reading the whole health store on every one of
+  /// them would spend battery re-deriving a night that has not changed. Ten
+  /// minutes is short enough that coming back to ZIVO after waking up always
+  /// re-reads, and long enough that flicking between apps does not.
+  static const Duration minAutoSyncInterval = Duration(minutes: 10);
+
   /// Where the last sync got to.
   ///
   /// A [ValueNotifier] rather than a stream, and that is load-bearing. A
@@ -61,17 +71,93 @@ class SleepService {
   final ValueNotifier<SleepSyncState> syncState =
       ValueNotifier<SleepSyncState>(const SleepSyncState.idle());
 
+  /// The sync currently running, so concurrent callers join it. See [sync].
+  Future<void>? _inFlight;
+
+  /// When the last sync *started*. Drives [syncIfStale]'s throttle.
+  DateTime? _lastSyncAt;
+
+  /// Whether this process has already reached back [backfillDays].
+  ///
+  /// One deep read per launch is the budget: it is what fills the windows the
+  /// longer metrics need, and repeating it on every refresh would re-read
+  /// ninety nights to learn about one.
+  bool _backfilled = false;
+
+  /// How far back a routine `sync()` reaches.
+  ///
+  /// **This is the fix for a gate that could never open.** Every automatic
+  /// sync passed no `days` and so read [refreshDays] — one week — while
+  /// `SleepGates.minNightsForTrend` needs fourteen nights spread over
+  /// twenty-one days, and the week-over-week comparison needs two full weeks.
+  /// [backfillDays] was only ever reached from `requestAccess`, so a user who
+  /// granted health access outside ZIVO (or granted it before an update)
+  /// accumulated history a week at a time and the trend insight was
+  /// unreachable in practice — not gated, *unreachable*, which looks from the
+  /// outside exactly like a broken feature.
+  ///
+  /// So the first sync of each process reaches [backfillDays] whenever stored
+  /// history is shorter than that window, and every sync after it is the cheap
+  /// seven-day pass.
+  int _routineWindowDays() {
+    if (_backfilled) return refreshDays;
+    _backfilled = true;
+    final stored = repository.current;
+    if (stored.isEmpty) return backfillDays;
+    final oldest = stored
+        .map((night) => night.sleepDay)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final covered = _now().difference(oldest).inDays;
+    // A week of slack: history that reaches almost to the backfill horizon is
+    // already as deep as a backfill would make it.
+    return covered >= backfillDays - refreshDays ? refreshDays : backfillDays;
+  }
+
   /// Reads the platform store and writes resolved nights.
   ///
   /// Never throws: every failure becomes a [SleepSyncState] the UI can render,
   /// because "we could not look" and "we looked and found nothing" are
   /// different sentences and only one of them is the user's problem to fix.
-  Future<void> sync({int? days}) async {
-    if (syncState.value.status == SleepSyncStatus.syncing) return;
+  ///
+  /// **Concurrent calls join the sync already running** rather than returning
+  /// immediately. They used to return a completed future the instant one was
+  /// in flight, which meant pull-to-refresh dropped its spinner in the same
+  /// frame it appeared and [SleepController.retryLoad] reported success before
+  /// the read it was waiting on had started — both showing "done" for work
+  /// that had not happened.
+  Future<void> sync({int? days}) {
+    final running = _inFlight;
+    if (running != null) return running;
+    final future = _sync(days: days);
+    _inFlight = future;
+    return future.whenComplete(() => _inFlight = null);
+  }
+
+  /// Syncs only if it has been at least [minAutoSyncInterval] since the last
+  /// one — the entry point for automatic refreshes (app launch, app resume).
+  ///
+  /// This is what stops the rest of the app showing a night from three days
+  /// ago. Today's sleep glance and the Hub's sleep card read the Firestore
+  /// mirror directly, and *nothing outside the Sleep page ever triggered a
+  /// read of the health store*, so a user who never opened Sleep saw whatever
+  /// was written the last time they did — for as long as that took.
+  Future<void> syncIfStale({int? days}) {
+    final last = _lastSyncAt;
+    if (last != null && _now().difference(last) < minAutoSyncInterval) {
+      return Future.value();
+    }
+    return sync(days: days);
+  }
+
+  Future<void> _sync({int? days}) async {
     _emit(const SleepSyncState(status: SleepSyncStatus.syncing));
 
     final now = _now();
-    final window = Duration(days: days ?? refreshDays);
+    _lastSyncAt = now;
+    final window = Duration(days: days ?? _routineWindowDays());
+    // An explicit deep read (the one `requestAccess` does) counts as the
+    // process's backfill; otherwise the next routine sync would do it again.
+    if (window.inDays >= backfillDays) _backfilled = true;
     final from = now.subtract(window);
 
     try {

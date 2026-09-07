@@ -266,8 +266,28 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
         _media.disconnectBackup();
       }
       _prevUid = uid;
+      // A signed-in user is the precondition for a sleep sync: the repository
+      // writes under `users/{uid}` and throws without one. This is also the
+      // *only* automatic sleep read at launch — see [_syncSleep].
+      if (uid != null) _syncSleep();
     });
   }
+
+  /// Read the health store, throttled, whenever the app has reason to think
+  /// last night has changed.
+  ///
+  /// Sleep used to be read from exactly one place: `SleepPage`'s
+  /// `didChangeDependencies`. Everything else in the app — Today's sleep
+  /// glance, the Hub's sleep card — renders the Firestore mirror, which only
+  /// ever changes when something writes to it. So a user who opened ZIVO in
+  /// the morning saw the night from whenever they last opened the *Sleep*
+  /// page, days old, with nothing on screen admitting it. That is not a
+  /// caching bug to paper over with a refresh button; it is a missing trigger,
+  /// and this is the trigger.
+  ///
+  /// [SleepService.syncIfStale] carries the throttle, so signing in, resuming,
+  /// and opening the page in quick succession cost one read between them.
+  void _syncSleep() => unawaited(_sleepService.syncIfStale());
 
   /// Reattach to the music player every time the app comes forward.
   ///
@@ -286,6 +306,11 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_music.reconnectIfLinked());
+      // The night that matters most is the one that ended while ZIVO was in
+      // the background. A watch writes it to the health store minutes after
+      // the user wakes, and without this the app can only learn about it by
+      // being killed and relaunched.
+      if (_auth.currentUser != null) _syncSleep();
     }
   }
 
