@@ -195,7 +195,10 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                       duration: const Duration(milliseconds: 150),
                       opacity: _error == null ? 0 : 1,
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 10, left: 4),
+                        padding: const EdgeInsetsDirectional.only(
+                          top: 10,
+                          start: 4,
+                        ),
                         child: Row(
                           children: [
                             const Icon(

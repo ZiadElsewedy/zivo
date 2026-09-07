@@ -146,8 +146,8 @@ class SpotifyStrip extends StatelessWidget {
                 duration: const Duration(milliseconds: 420),
                 curve: Curves.easeOut,
                 padding: _isFull
-                    ? const EdgeInsets.fromLTRB(13, 12, 15, 12)
-                    : const EdgeInsets.fromLTRB(11, 10, 14, 10),
+                    ? const EdgeInsetsDirectional.fromSTEB(13, 12, 15, 12)
+                    : const EdgeInsetsDirectional.fromSTEB(11, 10, 14, 10),
                 decoration: BoxDecoration(
                   color: Color.lerp(
                     _isFull ? TrainColors.glass : const Color(0x08FFFFFF),
@@ -660,8 +660,10 @@ class _StripArtwork extends StatelessWidget {
             ),
           // The brand mark, breaking the tile's top-left corner so it reads as
           // a source badge rather than as part of the cover.
-          Positioned(
-            left: -3,
+          // The source badge breaks the tile's LEADING corner, which mirrors
+          // with the layout — the mark itself is never redrawn or recoloured.
+          PositionedDirectional(
+            start: -3,
             top: -3,
             child: Container(
               padding: const EdgeInsets.all(2),
@@ -702,11 +704,14 @@ class _SwapOnTrack extends StatelessWidget {
       // Both tracks share the row for one beat mid-swap; without this the
       // outgoing one drags the row's height/width around as it leaves.
       layoutBuilder: (current, previous) => Stack(
-        alignment: Alignment.centerLeft,
+        alignment: AlignmentDirectional.centerStart,
         children: [
           ...previous.map(
             (c) => Positioned.fill(
-              child: Align(alignment: Alignment.centerLeft, child: c),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: c,
+              ),
             ),
           ),
           ?current,

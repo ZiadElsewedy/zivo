@@ -275,26 +275,33 @@ class _AmountDisplay extends StatelessWidget {
           style: AppText.sectionLabel.copyWith(letterSpacing: 1.0),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              digits.isEmpty ? '0' : digits,
-              style: AppText.heroNumber.copyWith(
-                color: digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
+        // Pinned LTR: this is a number being typed, and the caret belongs
+        // after the last digit entered. Mirrored, the row put the caret
+        // on the far side of the figure, reading as though the typing ran
+        // backwards.
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                digits.isEmpty ? '0' : digits,
+                style: AppText.heroNumber.copyWith(
+                  color: digits.isEmpty ? TrainColors.ink3 : TrainColors.ink,
+                ),
               ),
-            ),
-            Container(
-              width: 3,
-              height: 52,
-              margin: const EdgeInsets.only(left: 5),
-              decoration: BoxDecoration(
-                color: TrainColors.amber,
-                borderRadius: BorderRadius.circular(2),
+              Container(
+                width: 3,
+                height: 52,
+                margin: const EdgeInsets.only(left: 5),
+                decoration: BoxDecoration(
+                  color: TrainColors.amber,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

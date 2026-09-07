@@ -294,7 +294,7 @@ class ExerciseRow extends StatelessWidget {
           onTap: onEdit,
           borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 4, 10),
             decoration: BoxDecoration(
               color: TrainColors.glassStrong,
               borderRadius: BorderRadius.circular(14),

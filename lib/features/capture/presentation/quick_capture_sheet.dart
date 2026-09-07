@@ -43,7 +43,7 @@ class _QuickCaptureSheet extends StatelessWidget {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 6),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 6),
             child: Text(l(context).captureTitle, style: AppText.cardTitle),
           ),
           _Option(

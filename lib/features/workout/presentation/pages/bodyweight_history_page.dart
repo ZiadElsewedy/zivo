@@ -77,7 +77,10 @@ class BodyweightHistoryPage extends StatelessWidget {
                         ),
                         if (latest != null)
                           Padding(
-                            padding: const EdgeInsets.only(left: 7, bottom: 7),
+                            padding: const EdgeInsetsDirectional.only(
+                              start: 7,
+                              bottom: 7,
+                            ),
                             child: Text(
                               l(context).workoutUnitKg,
                               style: TrainType.mono(

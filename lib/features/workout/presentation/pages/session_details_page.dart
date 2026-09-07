@@ -362,7 +362,7 @@ class _ExerciseDetailCard extends StatelessWidget {
           for (final (i, set) in exercise.sets.indexed) ...[
             if (i > 0)
               Container(
-                margin: const EdgeInsets.only(left: 26, bottom: 10),
+                margin: const EdgeInsetsDirectional.only(start: 26, bottom: 10),
                 height: 1,
                 color: TrainColors.hairline,
               ),

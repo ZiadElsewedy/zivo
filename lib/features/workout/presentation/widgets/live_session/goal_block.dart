@@ -133,7 +133,7 @@ class GoalBlock extends StatelessWidget {
           // operator wrap away from its operands.
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -356,7 +356,7 @@ class GoalStatCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: inset ? 16 : 0),
+      padding: EdgeInsetsDirectional.only(start: inset ? 16 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -584,7 +584,7 @@ class _LogEntryRow extends StatelessWidget {
     final fromPlan = entry.origin == FoodLogOrigin.plannedMeal;
     return Container(
       key: Key('log-entry-${entry.id}'),
-      padding: const EdgeInsets.fromLTRB(15, 11, 9, 11),
+      padding: const EdgeInsetsDirectional.fromSTEB(15, 11, 9, 11),
       decoration: BoxDecoration(
         color: const Color(0x0BFFFFFF),
         borderRadius: BorderRadius.circular(14),

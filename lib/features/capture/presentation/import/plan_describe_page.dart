@@ -315,7 +315,7 @@ class _PlanDescribePageState extends State<PlanDescribePage> {
                   if (_recorderAvailable) ...[
                     const SizedBox(height: 12),
                     Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: AlignmentDirectional.centerStart,
                       child: TextButton.icon(
                         key: Key('${widget.keyPrefix}-record-again'),
                         onPressed: _startRecording,

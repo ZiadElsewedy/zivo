@@ -120,7 +120,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               const Padding(
                 padding: EdgeInsets.fromLTRB(22, 6, 22, 0),
                 child: Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   // BackChip centres itself inside whatever box it's given
                   // (it's built for an AppBar leading slot), so it needs a
                   // chip-sized one to sit on the content's left margin.
@@ -238,7 +238,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         duration: const Duration(milliseconds: 150),
         opacity: _error == null ? 0 : 1,
         child: Padding(
-          padding: const EdgeInsets.only(top: 10, left: 4),
+          padding: const EdgeInsetsDirectional.only(top: 10, start: 4),
           child: Row(
             children: [
               const Icon(

@@ -770,7 +770,7 @@ class _InsightRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 11, 14, 11),
       decoration: BoxDecoration(
         color: TrainColors.glass,
         borderRadius: BorderRadius.circular(AppRadius.chip * 2),

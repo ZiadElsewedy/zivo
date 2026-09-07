@@ -679,7 +679,7 @@ class _DayDistributionRow extends StatelessWidget {
               children: [
                 Container(height: 7, color: TrainColors.hairline),
                 FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   widthFactor: fraction.clamp(0.06, 1.0),
                   child: Container(
                     height: 7,

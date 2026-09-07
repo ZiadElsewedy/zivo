@@ -233,7 +233,7 @@ class ProfilePage extends StatelessWidget {
                 // nothing but the single way out to Settings.
                 RiseIn(
                   child: Align(
-                    alignment: Alignment.centerRight,
+                    alignment: AlignmentDirectional.centerEnd,
                     child: TrainCircleButton(
                       semanticLabel: l(context).profileSettings,
                       onTap: () => Navigator.of(context).push(
@@ -702,8 +702,8 @@ class _Avatar extends StatelessWidget {
               ),
               disc,
               if (onTap != null)
-                Positioned(
-                  right: 2,
+                PositionedDirectional(
+                  end: 2,
                   bottom: 2,
                   child: Container(
                     width: 26,
@@ -1188,7 +1188,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
               Center(child: const ZivoSheetHandle()),
               const SizedBox(height: 16),
               Padding(
-                padding: const EdgeInsets.only(left: 2, bottom: 12),
+                padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
                 child: Text(widget.title, style: AppText.cardTitle),
               ),
               TextField(

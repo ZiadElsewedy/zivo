@@ -512,7 +512,8 @@ class _DeleteSwipeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      alignment: Alignment.centerRight,
+      // `endToStart` uncovers the END edge — the left one in Arabic.
+      alignment: AlignmentDirectional.centerEnd,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         color: TrainColors.ember.withValues(alpha: 0.16),

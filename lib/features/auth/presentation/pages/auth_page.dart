@@ -216,7 +216,7 @@ class _AuthPageState extends State<AuthPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Align(
-                        alignment: Alignment.centerRight,
+                        alignment: AlignmentDirectional.centerEnd,
                         child: TextButton(
                           onPressed: _inFlight == AuthAction.none
                               ? _openForgotPassword

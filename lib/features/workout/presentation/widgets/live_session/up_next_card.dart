@@ -254,7 +254,7 @@ class _SessionMusicStatus extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: actionable ? () => controller.connect() : null,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+            padding: const EdgeInsetsDirectional.fromSTEB(11, 10, 14, 10),
             decoration: BoxDecoration(
               color: const Color(0x08FFFFFF),
               borderRadius: BorderRadius.circular(16),

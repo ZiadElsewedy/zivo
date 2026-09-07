@@ -175,7 +175,7 @@ class SheetShell extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.only(left: 2, bottom: 12),
+              padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
               child: Text(
                 title,
                 style: TrainType.ui(

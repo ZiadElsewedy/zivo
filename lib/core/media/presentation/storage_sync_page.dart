@@ -259,7 +259,7 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 6, bottom: 9),
+                          padding: const EdgeInsetsDirectional.only(start: 6, bottom: 9),
                           child: Text(
                             l(context).storageSectionBackup,
                             style: AppText.sectionLabel,

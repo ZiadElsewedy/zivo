@@ -906,9 +906,9 @@ class _ConnectionState extends StatelessWidget {
     return Column(
       children: [
         Align(
-          alignment: Alignment.topLeft,
+          alignment: AlignmentDirectional.topStart,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 0, 0),
+            padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 0, 0),
             child: TrainCircleButton(
               semanticLabel: l(context).musicClosePlayer,
               onTap: () => Navigator.of(context).pop(),

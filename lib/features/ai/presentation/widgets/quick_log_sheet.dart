@@ -424,7 +424,7 @@ class _LevelBar extends StatelessWidget {
     return SizedBox(
       height: 30,
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: AlignmentDirectional.centerStart,
         child: AnimatedContainer(
           duration: still ? Duration.zero : const Duration(milliseconds: 90),
           curve: Curves.easeOut,

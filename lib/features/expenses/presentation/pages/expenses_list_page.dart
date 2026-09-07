@@ -709,8 +709,9 @@ class _ExpenseRow extends StatelessWidget {
       key: Key('expense-row-${expense.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        // `endToStart` uncovers the END edge — the left one in Arabic.
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsetsDirectional.only(end: 20),
         color: TrainColors.ember.withValues(alpha: 0.14),
         child: const Icon(AppIcons.trash, size: 19, color: TrainColors.ember),
       ),
@@ -781,7 +782,7 @@ class _ExpenseRow extends StatelessWidget {
           ),
           if (!last)
             const Padding(
-              padding: EdgeInsets.only(left: 32),
+              padding: EdgeInsetsDirectional.only(start: 32),
               child: Divider(
                 height: 1,
                 thickness: 1,

@@ -108,10 +108,35 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     string all lay out perfectly. The new tests assert *position* (previous is
     left of next) and *content* (no English in an Arabic tree) instead — the
     transport one is verified to fail without its fix.
-  - **Not swept:** ~65 `Alignment.center*`/`Positioned` sites were not audited
-    one by one; most are legitimately physical (inside a `Stack`). The
-    `EdgeInsets.only(left: 2, bottom: 12)` section-label indent repeats at ~8
-    sites and is still physical — 2px, so wrong but invisible.
+  - **The alignment sites were then swept too** (same day), all ~65 audited
+    individually. About half were `LinearGradient(begin: topLeft, end:
+    bottomRight)` — decorative diagonal sheen, deliberately left physical, as
+    a gradient carries no reading order. Of the rest, seventeen `Align`s were
+    genuinely leading/trailing chrome and moved to `AlignmentDirectional`: back
+    chips on three auth screens and the live session, the profile's Settings
+    button, "forgot password", the full player's close button, two generic
+    progress fills (a *task* bar mirrors, unlike a media playhead), and two
+    more swipe-to-delete reveals with the identical bug the sessions sheet had
+    — `endToStart` paired with a physical `centerRight`, so the bin sat on the
+    side the swipe never uncovers. Three `Positioned` badges (the avatar's
+    camera, a stat tile's sparkline, the Spotify mark) became
+    `PositionedDirectional`; twelve asymmetric `EdgeInsets.fromLTRB` and
+    nineteen `EdgeInsets.only(left:/right:)` became directional, including one
+    more divider inset on the expenses list.
+  - **Two more surfaces needed pinning, not mirroring.** The expense and wallet
+    amount entries are `[digits][caret]` rows: mirrored, the caret landed on
+    the far side of the figure, reading as though typing ran backwards. Both
+    are now `Directionality(ltr)`, for the same reason the transports are.
+  - **Two more English leaks, both with ARB keys that already existed** and
+    were simply never read: the Moments filter bar (All/Photos/Notes/Camera/
+    Library) and — found in the same pass — a moment's caption inheriting the
+    UI direction, so an English note in an Arabic gallery right-aligned with
+    its full stop at the start of the last line. Captions now use
+    `directionOfFor`, like chat messages and track titles.
+  - **Still deliberately physical**, each with a comment saying why: the
+    scrubber's track (raw `dx`, `Positioned.left`), the lozenge playhead, the
+    rest ring's fractional-seconds suffix (it trails an always-LTR numeral),
+    and every decorative gradient.
 
 - **Ask reads properly in Arabic** (2026-09-07, on `feature/sleep`). A pass
   over the Ask screen after the owner shot it in Arabic. Same lesson as the

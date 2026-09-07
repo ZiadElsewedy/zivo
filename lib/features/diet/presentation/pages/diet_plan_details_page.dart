@@ -307,7 +307,7 @@ class _NoTargetCard extends StatelessWidget {
           if (planKcal != null) ...[
             const SizedBox(height: 10),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: TextButton(
                 key: const Key('adopt-plan-target'),
                 onPressed: () async {

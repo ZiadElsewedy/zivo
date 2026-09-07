@@ -12,6 +12,7 @@ import '../../domain/moment.dart';
 import '../moment_metadata.dart';
 import '../../../../core/widgets/zivo_confirm.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/util/bidi.dart';
 
 /// A full-screen, swipeable, pinch-zoomable photo viewer — the "open a photo"
 /// half of the gallery. Swipe left/right between photos, pinch or double-tap to
@@ -406,14 +407,21 @@ class _BottomBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Text(
-                      moment.caption.isEmpty
-                          ? l(context).momentUntitledFull
-                          : moment.caption,
-                      style: AppText.cardTitle.copyWith(
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
+                    child: Builder(
+                      builder: (context) {
+                        final caption = moment.caption.isEmpty
+                            ? l(context).momentUntitledFull
+                            : moment.caption;
+                        return Text(
+                          caption,
+                          textDirection: directionOfFor(context, caption),
+                          textAlign: TextAlign.start,
+                          style: AppText.cardTitle.copyWith(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   _GlyphButton(
@@ -430,7 +438,7 @@ class _BottomBar extends StatelessWidget {
                     : CrossFadeState.showFirst,
                 firstChild: const SizedBox(width: double.infinity),
                 secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 14, right: 8),
+                  padding: const EdgeInsetsDirectional.only(top: 14, end: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

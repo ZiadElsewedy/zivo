@@ -173,7 +173,7 @@ class SessionBackChip extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(999),
         child: Padding(
-          padding: const EdgeInsets.only(top: 8, right: 12, bottom: 2),
+          padding: const EdgeInsetsDirectional.only(top: 8, end: 12, bottom: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

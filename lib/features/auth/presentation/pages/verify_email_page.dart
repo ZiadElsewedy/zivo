@@ -209,7 +209,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     // Not the house BackChip: leaving here isn't "back", it
                     // abandons a half-created session, so the affordance says
                     // what it actually does.
@@ -372,7 +372,7 @@ class _UseAnotherAccountChip extends StatelessWidget {
             child: InkWell(
               onTap: enabled ? onTap : null,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 9, 15, 9),
+                padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 15, 9),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

@@ -168,7 +168,7 @@ class _RuleChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 240),
         curve: AppMotion.ease,
-        padding: const EdgeInsets.fromLTRB(7, 4, 9, 4),
+        padding: const EdgeInsetsDirectional.fromSTEB(7, 4, 9, 4),
         decoration: BoxDecoration(
           color: met ? TrainColors.greenWash : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.pill),

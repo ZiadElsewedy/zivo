@@ -102,10 +102,10 @@ class _ZivoLoadingBarState extends State<ZivoLoadingBar>
     );
   }
 
-  /// Determinate: the fill grows from the left edge, following the spring.
+  /// Determinate: the fill grows from the leading edge, following the spring.
   Widget _fillLight(Widget? child) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: AlignmentDirectional.centerStart,
       child: FractionallySizedBox(
         widthFactor: _c.value.clamp(0.0, 1.0),
         child: child,
@@ -149,8 +149,10 @@ class _Light extends StatelessWidget {
     return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+          // The ramp travels with the fill, so its bright end stays at the
+          // edge the bar is growing from in either direction.
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
           colors: [
             Color(0x00FF5A1F), // transparent ember
             TrainColors.ember,

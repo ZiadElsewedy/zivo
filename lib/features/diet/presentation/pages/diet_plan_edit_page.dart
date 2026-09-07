@@ -611,7 +611,7 @@ class _DaySheetState extends State<_DaySheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddDay, style: AppText.cardTitle),
           ),
           Wrap(
@@ -720,7 +720,7 @@ class _MealSheetState extends State<_MealSheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddMeal, style: AppText.cardTitle),
           ),
           TextField(
@@ -839,7 +839,7 @@ class _FoodItemSheetState extends State<_FoodItemSheet> {
           Center(child: const ZivoSheetHandle()),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 12),
+            padding: const EdgeInsetsDirectional.only(start: 2, bottom: 12),
             child: Text(l(context).planAddFoodItem, style: AppText.cardTitle),
           ),
           TextField(

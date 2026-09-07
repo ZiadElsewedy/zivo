@@ -41,7 +41,7 @@ class AddPlanRouteTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(
               children: [
                 Icon(icon, size: 19, color: TrainColors.ink2),

@@ -253,7 +253,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                             // the handoff had nothing there.
                             if (_c.session.previousResolvedSet != null)
                               Align(
-                                alignment: Alignment.centerLeft,
+                                alignment: AlignmentDirectional.centerStart,
                                 child: SessionBackChip(
                                   key: const Key('back-chip'),
                                   onTap: _c.back,

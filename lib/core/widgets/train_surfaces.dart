@@ -545,8 +545,8 @@ class TrainStatTile extends StatelessWidget {
             ],
           ),
           if (chart != null)
-            Positioned(
-              right: 0,
+            PositionedDirectional(
+              end: 0,
               bottom: 2,
               child: IgnorePointer(child: chart!),
             ),
@@ -886,7 +886,10 @@ class TrainBar extends StatelessWidget {
         height: height,
         color: const Color(0x14FFFFFF),
         child: Align(
-          alignment: Alignment.centerLeft,
+          // A generic progress fill grows from the START edge (unlike a media
+          // playhead, which is pinned to a timeline) — so it fills rightward
+          // in English and leftward in Arabic.
+          alignment: AlignmentDirectional.centerStart,
           child: animate
               ? TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: target),
