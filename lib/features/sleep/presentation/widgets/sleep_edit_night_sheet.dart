@@ -121,8 +121,8 @@ class _SleepEditNightSheetState extends State<_SleepEditNightSheet>
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: TrainColors.violet,
-                    foregroundColor: const Color(0xFF0B0A14),
+                    backgroundColor: TrainColors.sleepAccent,
+                    foregroundColor: TrainColors.sleepOnAccent,
                     disabledBackgroundColor: TrainColors.glassStrong,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
@@ -218,7 +218,7 @@ class _PickRow extends StatelessWidget {
             value,
             style: AppText.amount.copyWith(
               fontSize: 18,
-              color: TrainColors.violetGlyph,
+              color: TrainColors.sleepGlyph,
             ),
           ),
         ],

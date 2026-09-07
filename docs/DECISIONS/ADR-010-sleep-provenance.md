@@ -87,6 +87,17 @@ assist to manual logging — never as a data source.
   for. Within Sleep the hue marks **measurement**, not "sleep": a typed guess
   gets neutral ink, because giving it the same colour as a wrist sensor would
   undo in one glance what the pipeline is for.
+  - **Amended 2026-09-07 — Sleep takes the blue end of that hue.** The screen
+    borrowed `violet`/`violetGlyph` directly, which is Ask's lavender at ~242°,
+    and a night screen dressed in the assistant's colour read as the assistant.
+    Sleep now has three named tones of its own — `sleepAccent` / `sleepGlyph` /
+    `sleepWash`, at ~225° — and nothing on the screen takes `violet` directly.
+    Still one hue, walked toward blue; the four-hue table is unchanged, so this
+    is a shade rather than an ADR-006 amendment. The header's targets button was
+    the visible cost of not having done this: it sat on `TrainHeaderAction`'s
+    default **green** accent — training's colour — on a screen that measures
+    neither training nor money, and it was the only warm thing on an otherwise
+    cool page.
 - **No correlations, in v1 or probably ever** as originally imagined. At n≈30
   nights, one user, no controls and confounded variables, a scan across
   candidate pairs surfaces spurious findings faster than real ones. If they

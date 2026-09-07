@@ -6773,6 +6773,115 @@
   "@sleepUnitHour": {
     "description": "The hours unit in a sleep duration. Rendered as its own smaller span beside the number, never inside the mono run — Azeret Mono has no Arabic, so an interpolated Arabic letter falls back to a system face with different metrics."
   },
+  "sleepAboutTitle": "How Sleep works",
+  "@sleepAboutTitle": {
+    "description": "Title of the sheet behind the header's info button — what the feature does and what it refuses to claim."
+  },
+  "sleepAboutIntro": "Sleep is a recovery input to your training. Here is exactly what ZIVO does with it, and what it will not claim.",
+  "@sleepAboutIntro": {
+    "description": "Opening line of the how-it-works sheet."
+  },
+  "sleepAboutSessionTitle": "What a sleep session is",
+  "@sleepAboutSessionTitle": {
+    "description": "How-it-works heading: the manual log."
+  },
+  "sleepAboutSessionBody": "Tapping “I'm going to sleep” opens a session and nothing else — no timer runs and your phone is not listening. When you tap “I'm awake”, those two moments become the night, marked as logged by you.",
+  "@sleepAboutSessionBody": {
+    "description": "How-it-works body: what opening and closing a manual sleep mark actually does. Names both buttons so the sentence matches the screen."
+  },
+  "sleepAboutTrackedTitle": "What ZIVO reads",
+  "@sleepAboutTrackedTitle": {
+    "description": "How-it-works heading: the automatic half."
+  },
+  "sleepAboutTrackedBody": "Each time you open this screen ZIVO re-reads {provider} and rebuilds the last week: when you fell asleep, when you woke, how long you were actually asleep, and any time awake in between.",
+  "@sleepAboutTrackedBody": {
+    "description": "How-it-works body: the health-store read. The provider is the platform's own store name.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepAboutSourcesTitle": "Every number says where it came from",
+  "@sleepAboutSourcesTitle": {
+    "description": "How-it-works heading: provenance."
+  },
+  "sleepAboutSourcesBody": "“Measured” means a watch recorded it. “Logged by you” means you or an app typed it. When two sources disagree ZIVO picks one and keeps the other — it never averages them into a night nobody slept.",
+  "@sleepAboutSourcesBody": {
+    "description": "How-it-works body: what the source chip means, and why sources are chosen rather than merged."
+  },
+  "sleepAboutWeekTitle": "Why some figures are blank",
+  "@sleepAboutWeekTitle": {
+    "description": "How-it-works heading: the gates on weekly figures."
+  },
+  "sleepAboutWeekBody": "An average over one night is not an average. Weekly figures stay blank until enough nights exist, and each one shows how many it still needs.",
+  "@sleepAboutWeekBody": {
+    "description": "How-it-works body: why a weekly figure can be empty."
+  },
+  "sleepAboutLimitsTitle": "What it will not do",
+  "@sleepAboutLimitsTitle": {
+    "description": "How-it-works heading: the deliberate limits."
+  },
+  "sleepAboutLimitsBody": "There is no sleep score and no streak. ZIVO can tell you how long you slept and how steady your schedule is; it cannot tell you whether the night was good.",
+  "@sleepAboutLimitsBody": {
+    "description": "How-it-works body: no score, no grade."
+  },
+  "sleepAboutDone": "Got it",
+  "@sleepAboutDone": {
+    "description": "Dismisses the how-it-works sheet."
+  },
+  "sleepSessionOpen": "Sleeping",
+  "@sleepSessionOpen": {
+    "description": "Label on the card shown while a sleep session is open."
+  },
+  "sleepMarkSoFar": "So far",
+  "@sleepMarkSoFar": {
+    "description": "Caption under the elapsed time of an open sleep session."
+  },
+  "sleepMarkJustNow": "Just now",
+  "@sleepMarkJustNow": {
+    "description": "Elapsed time of a sleep session opened less than a minute ago, where a duration would read as zero."
+  },
+  "sleepMarkHint": "Tap “I'm awake” when you get up — that is when the night is recorded.",
+  "@sleepMarkHint": {
+    "description": "Explains that an open session becomes a night only when it is closed."
+  },
+  "sleepLoadFailedTitle": "Couldn't load your sleep",
+  "@sleepLoadFailedTitle": {
+    "description": "Shown when the saved-nights stream failed, as opposed to the health store being unreadable."
+  },
+  "sleepLoadFailedBody": "ZIVO couldn't read the nights it has already saved. Check your connection and try again.",
+  "@sleepLoadFailedBody": {
+    "description": "Body for a failed read of stored nights."
+  },
+  "sleepRetry": "Try again",
+  "@sleepRetry": {
+    "description": "Re-opens the storage streams after a failed read."
+  },
+  "sleepLoading": "Loading your sleep",
+  "@sleepLoading": {
+    "description": "Accessibility label for the placeholder shown while last night is still loading."
+  },
+  "sleepGateProgress": "{have} of {need} nights",
+  "@sleepGateProgress": {
+    "description": "Compact caption under a weekly figure that has not passed its gate: how many nights exist against how many it needs.",
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepVsLastWeek": "vs last week",
+  "@sleepVsLastWeek": {
+    "description": "Label above the week-over-week comparison sentence."
+  },
+  "sleepMarkFailed": "Couldn't save that just now. Check your connection and try again.",
+  "@sleepMarkFailed": {
+    "description": "A manual sleep action (opening or closing a session) failed to persist."
+  },
   "sleepUnitMinute": "m",
   "@sleepUnitMinute": {
     "description": "The minutes unit in a sleep duration. See sleepUnitHour."

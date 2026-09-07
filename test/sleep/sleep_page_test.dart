@@ -8,9 +8,11 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
 import 'package:zivo/features/sleep/domain/sleep_night.dart';
 import 'package:zivo/features/sleep/domain/sleep_provenance.dart';
+import 'package:zivo/features/sleep/domain/sleep_repository.dart';
 import 'package:zivo/features/sleep/domain/sleep_service.dart';
 import 'package:zivo/features/sleep/domain/sleep_session.dart';
 import 'package:zivo/features/sleep/domain/sleep_source.dart';
+import 'package:zivo/features/sleep/domain/sleep_targets.dart';
 import 'package:zivo/features/sleep/presentation/pages/sleep_page.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
@@ -288,9 +290,13 @@ void main() {
       (tester) async {
     await _pump(tester, method: SleepMethod.measuredWearable);
 
-    // One night is below every window gate: the week's figures must say so
-    // rather than averaging a single night into a "weekly average".
-    expect(findTextIgnoringBidi('Not enough nights yet — 1 of 3'), findsWidgets);
+    // One night is below every window gate: the week's three figures must say
+    // so rather than averaging a single night into a "weekly average". Each
+    // renders an em dash where its value would be, over the count that would
+    // unlock it — average and on-target need three nights, consistency five.
+    expect(findTextIgnoringBidi('—'), findsNWidgets(3));
+    expect(findTextIgnoringBidi('1 of 3 nights'), findsNWidgets(2));
+    expect(findTextIgnoringBidi('1 of 5 nights'), findsOneWidget);
     expect(
       findTextIgnoringBidi('No conclusion can be drawn from the nights '
           'recorded so far.'),
@@ -308,4 +314,101 @@ void main() {
     expect(repository.currentOpenMark, isNotNull);
     expect(findTextIgnoringBidi("I'm awake"), findsOneWidget);
   });
+
+  testWidgets('opening a session announces it at the top of the page, not '
+      'only on the button', (tester) async {
+    // The regression this guards: the open state used to render where the
+    // button had been, at the very bottom of a page long enough to push it
+    // below the fold — so the one control on the screen looked inert. The
+    // session card is above the week, which is above the insights, so
+    // asserting its position asserts that it is in the part of the scroll the
+    // user is already looking at.
+    await _pump(tester);
+
+    await tester.tap(findTextIgnoringBidi("I'm going to sleep"));
+    await tester.pumpAndSettle();
+
+    // Section labels are set upper-case by `TrainSectionLabel`.
+    expect(findTextIgnoringBidi('SLEEPING'), findsOneWidget);
+    expect(findTextIgnoringBidi('Just now'), findsOneWidget);
+    expect(
+      tester.getTopLeft(findTextIgnoringBidi('SLEEPING')).dy,
+      lessThan(tester.getTopLeft(findTextIgnoringBidi('THIS WEEK')).dy),
+    );
+  });
+
+  testWidgets('a storage read that fails says so, instead of loading forever',
+      (tester) async {
+    // The controller's nights subscription used to carry no `onError`, and
+    // `hasLoaded` only ever flipped in its data handler — so a refused read
+    // left the headline rendering its not-yet-loaded placeholder for the life
+    // of the screen, with the week and the insights below it looking fine.
+    // A silent permanent void is the one thing this screen may not be.
+    final repository = _FailingSleepRepository();
+    final service = SleepService(
+      repository: repository,
+      source: _FakeSource(available: false),
+    );
+
+    await tester.pumpWidget(
+      AppScope(
+        auth: FakeAuthRepository(),
+        profiles: FakeProfileRepository(),
+        expenses: InMemoryExpenseRepository(),
+        moments: InMemoryMomentRepository(),
+        workouts: InMemoryWorkoutRepository(),
+        workoutPlans: InMemoryWorkoutPlanRepository(),
+        workoutSessions: InMemoryWorkoutSessionRepository(),
+        diet: InMemoryDietRepository(),
+        ai: FakeAiRepository(),
+        sleep: repository,
+        sleepService: service,
+        child: const MaterialApp(home: SleepPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(findTextIgnoringBidi("Couldn't load your sleep"), findsOneWidget);
+    expect(findTextIgnoringBidi('Try again'), findsOneWidget);
+    // And it still does not invent a night to fill the space.
+    expect(findTextIgnoringBidi('0h 0m'), findsNothing);
+  });
+}
+
+/// A repository whose stored nights cannot be read — a denied Firestore rule,
+/// or a snapshot that would not decode.
+class _FailingSleepRepository implements SleepRepository {
+  @override
+  List<SleepNight> get current => const [];
+
+  @override
+  SleepTargets? get currentTargets => null;
+
+  @override
+  SleepMark? get currentOpenMark => null;
+
+  @override
+  Stream<List<SleepNight>> watchNights() =>
+      Stream<List<SleepNight>>.error(StateError('permission-denied'));
+
+  @override
+  Stream<SleepTargets?> watchTargets() => const Stream<SleepTargets?>.empty();
+
+  @override
+  Stream<SleepMark?> watchOpenMark() => const Stream<SleepMark?>.empty();
+
+  @override
+  Future<void> saveTargets(SleepTargets targets) async {}
+
+  @override
+  Future<void> upsertNights(List<SleepNight> nights) async {}
+
+  @override
+  Future<void> removeNight(DateTime sleepDay) async {}
+
+  @override
+  Future<void> openMark(SleepMark mark) async {}
+
+  @override
+  Future<void> clearOpenMark() async {}
 }

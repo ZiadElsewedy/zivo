@@ -207,19 +207,47 @@ abstract final class TrainColors {
 
   /// `110% 42% at 50% 2%` — Sleep, the night screen.
   ///
-  /// Violet, by the owner's decision (ADR-010), extending the hue this palette
-  /// already gives it: `violet` is documented above as what "the Today
-  /// header's do-not-disturb/night chip carries". Sleep is the full expression
-  /// of that association rather than a new meaning — the alternative was a
-  /// fifth hue, which ADR-006's four-hue system does not have room for.
-  /// Deeper and cooler than [askTint] so the two violet screens are not
-  /// mistaken for each other.
+  /// The **blue end of the violet hue**, by the owner's decision (ADR-010,
+  /// amended 2026-09-07). `violet` is documented above as what "the Today
+  /// header's do-not-disturb/night chip carries", and Sleep is the full
+  /// expression of that association rather than a new meaning — the
+  /// alternative was a fifth hue, which ADR-006's four-hue system does not
+  /// have room for. Sleep sits at ~225° where Ask sits at ~242°, so the two
+  /// screens on this hue read as night and assistant rather than as each
+  /// other. See [sleepAccent].
   static const sleepTint = RadialGradient(
     center: Alignment(0, -0.96),
     radius: 1.1,
-    colors: [Color(0xFF15142A), Color(0xFF0A0A10), base],
+    colors: [Color(0xFF111A31), Color(0xFF090B11), base],
     stops: [0.0, 0.55, 1.0],
   );
+
+  // ---- Sleep ----
+  // Sleep's own three tones, rather than the bare `violet`/`violetGlyph` the
+  // screen used to borrow. Same hue family, walked toward blue: a night
+  // screen dressed in lavender read as "assistant", and the one green control
+  // on it (the header's targets button, on `TrainHeaderAction`'s default
+  // accent) read as "training" on a screen that measures neither.
+  //
+  // Not a fifth hue — a *shade* of the fourth, which is why it lives here as
+  // three named tones instead of a new entry in the hue table. Anything on
+  // the Sleep screen that carries the hue takes one of these; nothing on it
+  // takes `violet` directly.
+
+  /// The Sleep accent: fills, the primary pill, a measured night's bar.
+  /// Light enough to carry near-black label ink, which is the house pattern
+  /// for a primary pill on this ground.
+  static const sleepAccent = Color(0xFF7C9CFF);
+
+  /// A step lighter — glyphs, links, chip text, and any hue-carrying mark
+  /// that sits on the page rather than on the accent.
+  static const sleepGlyph = Color(0xFF9FB6FF);
+
+  /// The label ink on a filled [sleepAccent] surface.
+  static const sleepOnAccent = Color(0xFF080C1A);
+
+  /// The 14% wash behind a tinted Sleep chip or icon tile.
+  static const sleepWash = Color(0x247C9CFF);
 
   /// `110% 36% at 50% 2%` — Settings, the coolest of the set.
   static const settingsTint = RadialGradient(

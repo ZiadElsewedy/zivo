@@ -409,7 +409,7 @@ class _SleepTile extends StatelessWidget {
           return _ModuleCard(
             image: 'assets/hub/sleep.jpg',
             icon: AppIcons.sleep,
-            accent: TrainColors.violet,
+            accent: TrainColors.sleepAccent,
             label: l(context).hubSleep,
             stat: stat,
             onTap: () => Navigator.of(

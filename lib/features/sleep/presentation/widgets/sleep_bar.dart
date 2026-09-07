@@ -88,7 +88,7 @@ class _SleepBarPainter extends CustomPainter {
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, radius),
-        Paint()..color = TrainColors.violet.withValues(alpha: 0.14),
+        Paint()..color = TrainColors.sleepAccent.withValues(alpha: 0.14),
       );
     }
 
@@ -102,11 +102,11 @@ class _SleepBarPainter extends CustomPainter {
 
     switch (fill) {
       case SleepBarFill.solid:
-        canvas.drawRRect(rrect, Paint()..color = TrainColors.violetGlyph);
+        canvas.drawRRect(rrect, Paint()..color = TrainColors.sleepGlyph);
       case SleepBarFill.muted:
         canvas.drawRRect(
           rrect,
-          Paint()..color = TrainColors.violet.withValues(alpha: 0.55),
+          Paint()..color = TrainColors.sleepAccent.withValues(alpha: 0.55),
         );
       case SleepBarFill.outlined:
         _outline(canvas, rrect);
@@ -139,7 +139,7 @@ class _SleepBarPainter extends CustomPainter {
     Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = TrainColors.violetGlyph.withValues(alpha: 0.75),
+      ..color = TrainColors.sleepGlyph.withValues(alpha: 0.75),
   );
 
   /// Diagonal stripes — the visual shorthand for "provisional".
@@ -147,7 +147,7 @@ class _SleepBarPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(rrect);
     final paint = Paint()
-      ..color = TrainColors.violet.withValues(alpha: 0.5)
+      ..color = TrainColors.sleepAccent.withValues(alpha: 0.5)
       ..strokeWidth = 1;
     final bounds = rrect.outerRect;
     for (var x = bounds.left - bounds.height; x < bounds.right; x += 5) {

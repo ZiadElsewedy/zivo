@@ -26,6 +26,15 @@ class AppIcons {
   static const moments = LucideIcons.images;
   static const sleep = LucideIcons.moon;
 
+  // Sleep. The moon above is the module's mark; these are the Sleep screen's
+  // own vocabulary — the header's two actions and the how-it-works sheet.
+  static const sleepTargets = LucideIcons.target;
+  static const sleepSync = LucideIcons.refreshCw;
+  static const sleepSources = LucideIcons.badgeCheck;
+  static const sleepWeek = LucideIcons.calendarRange;
+  static const sleepNoGrade = LucideIcons.ban;
+  static const sleepWoke = LucideIcons.sunrise;
+
   // Training analytics & sessions.
   static const analysis = LucideIcons.chartNoAxesCombined;
   static const trendUp = LucideIcons.trendingUp;
