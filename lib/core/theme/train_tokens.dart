@@ -205,6 +205,22 @@ abstract final class TrainColors {
     stops: [0.0, 0.55, 1.0],
   );
 
+  /// `110% 42% at 50% 2%` — Sleep, the night screen.
+  ///
+  /// Violet, by the owner's decision (ADR-010), extending the hue this palette
+  /// already gives it: `violet` is documented above as what "the Today
+  /// header's do-not-disturb/night chip carries". Sleep is the full expression
+  /// of that association rather than a new meaning — the alternative was a
+  /// fifth hue, which ADR-006's four-hue system does not have room for.
+  /// Deeper and cooler than [askTint] so the two violet screens are not
+  /// mistaken for each other.
+  static const sleepTint = RadialGradient(
+    center: Alignment(0, -0.96),
+    radius: 1.1,
+    colors: [Color(0xFF15142A), Color(0xFF0A0A10), base],
+    stops: [0.0, 0.55, 1.0],
+  );
+
   /// `110% 36% at 50% 2%` — Settings, the coolest of the set.
   static const settingsTint = RadialGradient(
     center: Alignment(0, -0.96),

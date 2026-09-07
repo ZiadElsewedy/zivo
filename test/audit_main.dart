@@ -9,6 +9,8 @@
 // Delete this file when the audit is done.
 import 'package:flutter/material.dart';
 import 'package:zivo/app/app.dart';
+import 'package:zivo/features/sleep/data/health_sleep_source.dart';
+import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
 import 'package:zivo/features/music/data/fake_music_controller.dart';
@@ -27,6 +29,13 @@ void main() {
   );
   runApp(
     ZivoApp(
+      // Sleep, like every other repository here, is injected rather than
+      // left to ZivoApp's default — which is Firestore-backed and resolves
+      // the signed-in uid through FirebaseAuth at construction, so booting
+      // the real app root without it reaches Firebase in a test that has
+      // none.
+      sleep: InMemorySleepRepository(),
+      sleepSource: const UnsupportedSleepSource(),
       auth: FakeAuthRepository(initial: const Authenticated(user)),
       profiles: FakeProfileRepository(),
       music: FakeMusicController(),

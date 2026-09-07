@@ -24,6 +24,7 @@ class AppIcons {
   static const diet = LucideIcons.utensilsCrossed;
   static const expenses = LucideIcons.wallet;
   static const moments = LucideIcons.images;
+  static const sleep = LucideIcons.moon;
 
   // Training analytics & sessions.
   static const analysis = LucideIcons.chartNoAxesCombined;

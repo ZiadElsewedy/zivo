@@ -342,6 +342,51 @@ service cloud.firestore {
       allow delete: if canWrite(userId);
     }
 
+    // Sleep nights: one document per sleep-day, keyed `yyyy-MM-dd`.
+    //
+    // The key being derived rather than random is what makes syncing
+    // idempotent across the user's devices (docs/SLEEP_SYSTEM.md §9), so the
+    // id shape is validated here too — a random id would mean two documents
+    // for one night and a duplicate the client never reconciles.
+    //
+    // `main` is deliberately allowed to be null: a night with no data is a
+    // real, stored state ("nothing was recorded"), and the week view needs it
+    // to draw a gap rather than closing up and hiding the absence.
+    //
+    // `allow delete` is split out from create/update for the reason recorded
+    // on the expenses block above: on a delete `request.resource.data` is
+    // null, so a combined `allow write` carrying field checks silently denies
+    // every delete. Sleep needs deletes to work — that is how a night removed
+    // in Apple Health or Health Connect is withdrawn here.
+    match /users/{userId}/sleepNights/{sleepDay} {
+      allow read: if isOwner(userId);
+      allow create, update: if canWrite(userId)
+        && sleepDay.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.sleepDay is timestamp
+        && request.resource.data.resolution is string
+        && request.resource.data.naps is list
+        && request.resource.data.alternates is list
+        && (request.resource.data.main == null
+            || request.resource.data.main is map);
+      allow delete: if canWrite(userId);
+    }
+
+    // Sleep settings: one document per user (users/{userId}/sleepSettings/main)
+    // holding the bedtime/wake/duration targets and the open manual sleep mark
+    // — the half-logged "I'm going to sleep" that has no wake time yet, and so
+    // is deliberately not a night.
+    match /users/{userId}/sleepSettings/{docId} {
+      allow read: if isOwner(userId);
+      allow write: if canWrite(userId)
+        && (!('targets' in request.resource.data.keys())
+            || request.resource.data.targets == null
+            || request.resource.data.targets is map)
+        && (!('openMark' in request.resource.data.keys())
+            || request.resource.data.openMark == null
+            || request.resource.data.openMark is map);
+    }
+
     // Media registry: metadata for each app-captured media file (never the
     // bytes — those live locally / in the user's chosen backup target). Owner
     // only. Rules do not cascade from /users/{userId}, so this is explicit.

@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zivo/app/app.dart';
+import 'package:zivo/features/sleep/data/health_sleep_source.dart';
+import 'package:zivo/features/sleep/data/in_memory_sleep_repository.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
 import 'package:zivo/features/auth/domain/auth_user.dart';
@@ -58,6 +60,13 @@ void main() {
 
     await tester.pumpWidget(
       ZivoApp(
+        // Sleep, like every other repository here, is injected rather than
+        // left to ZivoApp's default — which is Firestore-backed and resolves
+        // the signed-in uid through FirebaseAuth at construction, so booting
+        // the real app root without it reaches Firebase in a test that has
+        // none.
+        sleep: InMemorySleepRepository(),
+        sleepSource: const UnsupportedSleepSource(),
         auth: FakeAuthRepository(
           initial: const Authenticated(AuthUser(uid: 'test-uid')),
         ),

@@ -7181,6 +7181,654 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Questions about privacy or your data can be sent to {email}.'**
   String privacyContactBody(String email);
+
+  /// The Sleep feature's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get sleepTitle;
+
+  /// Hub tile caption above last night's figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get sleepHubSubtitle;
+
+  /// Section label for the most recent night.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get sleepLastNight;
+
+  /// Empty state title when we know the store is readable and empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sleep recorded'**
+  String get sleepNoDataTitle;
+
+  /// Empty state body when the store is readable and genuinely empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Log a night yourself, or connect a device that tracks sleep.'**
+  String get sleepNoDataBody;
+
+  /// Empty state title when we cannot confirm we were allowed to read. Must never claim the user has no sleep data.
+  ///
+  /// In en, this message translates to:
+  /// **'No sleep data visible to ZIVO'**
+  String get sleepNotVisibleTitle;
+
+  /// Explains that an empty read can mean a refused permission. Named because Apple deliberately hides read denial.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} doesn\'t say whether an app was refused access, so this may mean permission is off rather than that there\'s nothing there.'**
+  String sleepNotVisibleBody(String provider);
+
+  /// Empty state title when the platform confirmed a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIVO can\'t read your sleep'**
+  String get sleepPermissionDeniedTitle;
+
+  /// Body when the platform confirmed a refusal.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Sleep access in {provider} to see nights measured by your watch or another app.'**
+  String sleepPermissionDeniedBody(String provider);
+
+  /// Shown when the host has no health provider at all.
+  ///
+  /// In en, this message translates to:
+  /// **'No health app on this device'**
+  String get sleepUnavailableTitle;
+
+  /// Reassures that manual logging still works with no health provider.
+  ///
+  /// In en, this message translates to:
+  /// **'You can still log nights yourself.'**
+  String get sleepUnavailableBody;
+
+  /// Android refused reads beyond 30 days.
+  ///
+  /// In en, this message translates to:
+  /// **'Older nights need history access in {provider}.'**
+  String sleepHistoryUnavailable(String provider);
+
+  /// A sync failed for an unclassified reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read sleep just now.'**
+  String get sleepSyncFailed;
+
+  /// Button that opens the health permission prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect {provider}'**
+  String sleepConnect(String provider);
+
+  /// Apple's health store, as Apple names it.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Health'**
+  String get sleepProviderApple;
+
+  /// Google's health store. Not translated — it is a product name.
+  ///
+  /// In en, this message translates to:
+  /// **'Health Connect'**
+  String get sleepProviderHealthConnect;
+
+  /// The provider name on a night the user logged themselves.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get sleepProviderYou;
+
+  /// Opens a user-reported sleep mark.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'m going to sleep'**
+  String get sleepGoingToSleep;
+
+  /// Closes an open sleep mark into a night.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'m awake'**
+  String get sleepImAwake;
+
+  /// Shown while a sleep mark is open and not yet closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleeping since {time}'**
+  String sleepMarkOpenSince(String time);
+
+  /// Discards an open sleep mark without creating a night.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sleeping after all'**
+  String get sleepMarkCancel;
+
+  /// Opens the manual correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this night'**
+  String get sleepEditNight;
+
+  /// Explains that an edit overrides rather than erases the measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Your correction is saved as your own, and the measured times are kept.'**
+  String get sleepEditHint;
+
+  /// Sleep onset from a sensor measurement. States it plainly.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep {time}'**
+  String sleepOnsetMeasured(String time);
+
+  /// Sleep onset from a platform record we cannot attribute to a sensor. Deliberately weaker than 'Asleep'.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep recorded {time}'**
+  String sleepOnsetPlatform(String time);
+
+  /// Sleep onset the user reported. Never phrased as a detection.
+  ///
+  /// In en, this message translates to:
+  /// **'You logged {time}'**
+  String sleepOnsetReported(String time);
+
+  /// Sleep onset inferred from device behaviour. Hedged, and rounded to the quarter hour.
+  ///
+  /// In en, this message translates to:
+  /// **'Likely asleep around {time}'**
+  String sleepOnsetEstimated(String time);
+
+  /// Wake time from a sensor measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Awake {time}'**
+  String sleepWakeMeasured(String time);
+
+  /// Wake time from an unattributed platform record.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake recorded {time}'**
+  String sleepWakePlatform(String time);
+
+  /// Wake time the user reported.
+  ///
+  /// In en, this message translates to:
+  /// **'You logged {time}'**
+  String sleepWakeReported(String time);
+
+  /// Wake time inferred from device behaviour.
+  ///
+  /// In en, this message translates to:
+  /// **'Likely awake around {time}'**
+  String sleepWakeEstimated(String time);
+
+  /// A device-activity timestamp. Never re-worded into a sleep claim.
+  ///
+  /// In en, this message translates to:
+  /// **'Last phone use {time}'**
+  String sleepLastPhoneUse(String time);
+
+  /// Badge for a sensor measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured'**
+  String get sleepMethodMeasured;
+
+  /// Badge for a platform record of unknown sensor origin.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get sleepMethodRecorded;
+
+  /// Badge for a user-reported night.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged by you'**
+  String get sleepMethodLogged;
+
+  /// Badge for an inferred night.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate'**
+  String get sleepMethodEstimated;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'High confidence'**
+  String get sleepConfidenceHigh;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium confidence'**
+  String get sleepConfidenceMedium;
+
+  /// Confidence badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Low confidence'**
+  String get sleepConfidenceLow;
+
+  /// The source chip under every sleep figure. Provider first, then how it was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} · {method}'**
+  String sleepSourceChip(String provider, String method);
+
+  /// Label for time actually asleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep'**
+  String get sleepDurationLabel;
+
+  /// Label for time in bed.
+  ///
+  /// In en, this message translates to:
+  /// **'In bed'**
+  String get sleepTimeInBedLabel;
+
+  /// Label for asleep divided by time in bed.
+  ///
+  /// In en, this message translates to:
+  /// **'Efficiency'**
+  String get sleepEfficiencyLabel;
+
+  /// Shown where efficiency cannot be computed. Never a percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tracked'**
+  String get sleepEfficiencyUnknown;
+
+  /// Awake bouts inside a night.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No interruptions} =1{1 interruption} other{{count} interruptions}}'**
+  String sleepInterruptionCount(int count);
+
+  /// Short episodes outside the main sleep.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 nap} other{{count} naps}}'**
+  String sleepNapCount(int count);
+
+  /// Annotates a night spanning a DST transition.
+  ///
+  /// In en, this message translates to:
+  /// **'This night crossed a clock change, so its length differs from the times shown.'**
+  String get sleepSpansDstNote;
+
+  /// Title of the targets sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Your targets'**
+  String get sleepTargetsTitle;
+
+  /// Target bedtime field.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get sleepTargetBedtime;
+
+  /// Target wake time field.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake'**
+  String get sleepTargetWake;
+
+  /// Target sleep duration field.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep length'**
+  String get sleepTargetDuration;
+
+  /// States that targets are a reference, not a grade.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for the target line and nothing else — ZIVO never scores a night.'**
+  String get sleepTargetsHint;
+
+  /// Shown where a target delta would go before targets are set.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a target to see how your nights compare.'**
+  String get sleepNoTargets;
+
+  /// Slept longer than the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than your {target} target'**
+  String sleepDeltaLonger(String amount, String target);
+
+  /// Slept less than the target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} less than your {target} target'**
+  String sleepDeltaShorter(String amount, String target);
+
+  /// Slept within rounding of the target.
+  ///
+  /// In en, this message translates to:
+  /// **'On your {target} target'**
+  String sleepDeltaOnTarget(String target);
+
+  /// Went to bed later than target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} later than your target bedtime'**
+  String sleepBedtimeLater(String amount);
+
+  /// Went to bed earlier than target.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} earlier than your target bedtime'**
+  String sleepBedtimeEarlier(String amount);
+
+  /// Bedtime landed within tolerance.
+  ///
+  /// In en, this message translates to:
+  /// **'On your target bedtime'**
+  String get sleepBedtimeOnTarget;
+
+  /// Opens the provenance sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this number?'**
+  String get sleepWhyTitle;
+
+  /// Resolution explanation: no contest.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one source had this night.'**
+  String get sleepWhySole;
+
+  /// Resolution explanation: better method tier.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because it was measured rather than entered or estimated.'**
+  String get sleepWhyMethod;
+
+  /// Resolution explanation: better coverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because more of the night was actually recorded.'**
+  String get sleepWhyCoverage;
+
+  /// Resolution explanation: richer stage data.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen because it included sleep stages.'**
+  String get sleepWhyDetail;
+
+  /// Resolution explanation: user override.
+  ///
+  /// In en, this message translates to:
+  /// **'You set this night yourself.'**
+  String get sleepWhyOverride;
+
+  /// Shows how far an alternate source disagrees. Never averaged away.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} recorded a different time — {amount} apart.'**
+  String sleepDisagreement(String provider, String amount);
+
+  /// Share of the night backed by real samples.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded coverage'**
+  String get sleepCoverageLabel;
+
+  /// Names the writing app.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded by {provider}'**
+  String sleepRecordedBy(String provider);
+
+  /// Switches the night to an alternate source.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this one instead'**
+  String get sleepUseThisInstead;
+
+  /// Weekly view title.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get sleepWeekTitle;
+
+  /// Weekly average duration label.
+  ///
+  /// In en, this message translates to:
+  /// **'Average'**
+  String get sleepWeekAverage;
+
+  /// Weekly midpoint variability label.
+  ///
+  /// In en, this message translates to:
+  /// **'Consistency'**
+  String get sleepWeekConsistency;
+
+  /// Weekly bedtime adherence label.
+  ///
+  /// In en, this message translates to:
+  /// **'On target'**
+  String get sleepWeekOnTarget;
+
+  /// How many nights a figure rests on. Always shown beside it.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepNightsCounted(int count);
+
+  /// Nights with data out of the window's length.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} nights'**
+  String sleepNightsOf(int count, int total);
+
+  /// Variability figure, e.g. ±48 min.
+  ///
+  /// In en, this message translates to:
+  /// **'±{amount}'**
+  String sleepVariability(String amount);
+
+  /// Nights on target out of nights with data.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total}'**
+  String sleepOnTargetRatio(int count, int total);
+
+  /// Label on a night with nothing recorded. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get sleepNoData;
+
+  /// Shown where a gated figure would go.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough nights yet'**
+  String get sleepInsufficient;
+
+  /// Shown where a gated figure would go, with how far off it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough nights yet — {have} of {need}'**
+  String sleepInsufficientFor(int have, int need);
+
+  /// Week-over-week difference inside the noise floor. A real finding, not a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'About the same as last week'**
+  String get sleepWeekUnchanged;
+
+  /// Week-over-week improvement past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than last week'**
+  String sleepWeekImproved(String amount);
+
+  /// Week-over-week decline past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} less than last week'**
+  String sleepWeekDeclined(String amount);
+
+  /// Section label above generated insights.
+  ///
+  /// In en, this message translates to:
+  /// **'What this means'**
+  String get sleepInsightsTitle;
+
+  /// While insights are being generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your nights…'**
+  String get sleepInsightsPending;
+
+  /// Shown when the fact sheet is too thin for any claim.
+  ///
+  /// In en, this message translates to:
+  /// **'No conclusion can be drawn from the nights recorded so far.'**
+  String get sleepInsightsUnavailable;
+
+  /// Provenance footnote under a generated insight.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on {count, plural, =1{1 night} other{{count} nights}}'**
+  String sleepInsightBasis(int count);
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get sleepStageLight;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep'**
+  String get sleepStageDeep;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'REM'**
+  String get sleepStageRem;
+
+  /// Sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Awake'**
+  String get sleepStageAwake;
+
+  /// Sleep stage with no grading available.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep'**
+  String get sleepStageAsleep;
+
+  /// Bed-occupancy state, not a sleep stage.
+  ///
+  /// In en, this message translates to:
+  /// **'In bed'**
+  String get sleepStageInBed;
+
+  /// Shown in place of a stage breakdown when the source has none.
+  ///
+  /// In en, this message translates to:
+  /// **'Stages aren\'t available from this source.'**
+  String get sleepNoStages;
+
+  /// A duration in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String sleepDurationHm(int hours, int minutes);
+
+  /// A duration under an hour.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String sleepDurationM(int minutes);
+
+  /// A whole number of hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String sleepDurationH(int hours);
+
+  /// Hub module card label for Sleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get hubSleep;
+
+  /// Hub Sleep card stat before any night is recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'No nights yet'**
+  String get hubNoSleepYet;
+
+  /// Deterministic insight: the window's average sleep length.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve averaged {amount} a night.'**
+  String sleepInsightDuration(String amount);
+
+  /// Deterministic insight: week-over-week improvement past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} more than the week before.'**
+  String sleepInsightWeekBetter(String amount);
+
+  /// Deterministic insight: week-over-week decline past the noise floor.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} less than the week before.'**
+  String sleepInsightWeekWorse(String amount);
+
+  /// Deterministic insight: the difference is inside the noise floor, which is a finding rather than a failure to find one.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s about the same as the week before.'**
+  String get sleepInsightWeekSame;
+
+  /// Deterministic insight: low midpoint variability.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sleep timing held steady, varying by {amount}.'**
+  String sleepInsightConsistent(String amount);
+
+  /// Deterministic insight: high midpoint variability.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sleep timing moved around by {amount} across the week.'**
+  String sleepInsightIrregular(String amount);
+
+  /// Deterministic insight: bedtime adherence.
+  ///
+  /// In en, this message translates to:
+  /// **'You hit your target bedtime on {count} of {total} nights.'**
+  String sleepInsightAdherence(int count, int total);
+
+  /// Deterministic insight: a rising Theil-Sen slope. Direction only, because a slope in minutes per night is not a figure a reader can use.
+  ///
+  /// In en, this message translates to:
+  /// **'Over the last few weeks your nights have been getting longer.'**
+  String get sleepInsightTrendUp;
+
+  /// Deterministic insight: a falling Theil-Sen slope.
+  ///
+  /// In en, this message translates to:
+  /// **'Over the last few weeks your nights have been getting shorter.'**
+  String get sleepInsightTrendDown;
 }
 
 class _AppLocalizationsDelegate

@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-06 · **Active branch:** `core-edits`
+**Last updated:** 2026-09-07 · **Active branch:** `feature/sleep`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -72,6 +72,70 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Sleep landed as a full feature** (2026-09-07, on `feature/sleep`). Reads
+  Apple Health / Health Connect, logs by hand, and carries **provenance on
+  every number**. Design + the platform research behind it:
+  [`SLEEP_SYSTEM.md`](SLEEP_SYSTEM.md); the decisions:
+  [ADR-010](DECISIONS/ADR-010-sleep-provenance.md).
+  - **The four platform facts that shaped it**, all verified against vendor
+    docs rather than assumed: HealthKit has **no sleep session** (it stores
+    overlapping samples; `sleep_sessionizer.dart` stitches them, Health
+    Connect records skip it); **an iPhone with no watch produces no sleep data
+    at all** since iOS 18 removed time-in-bed tracking, which is why manual
+    logging is core and not a fallback; **iOS never discloses a denied read**,
+    so the UI may never say "you have no sleep data"; and **iOS Screen Time
+    cannot leave its report extension's sandbox**, so device activity is an
+    Android-only signal and is deliberately out of v1.
+  - **Ranking is on method, never on provider.** "Apple Health data" is not a
+    tier — Apple Health *contains* hand-typed entries — so `methodFor` tests
+    the platform's manual flag **before** any device signal. Tier 4 routinely
+    arrives wearing tier 1's device metadata.
+  - **Choose, never merge.** Two providers disagreeing about one night is
+    settled by picking one and keeping the rest as alternates; the night
+    detail sheet shows the disagreement. An averaged night is one nobody
+    measured.
+  - **Circular statistics.** The arithmetic mean of 23:40 and 00:20 is noon;
+    `circularMeanMinutes` is now the only sanctioned way to average a clock
+    time in this codebase. Trends use Theil–Sen so one all-nighter cannot flip
+    a fortnight.
+  - **The AI interprets, never computes.** It gets a fact sheet of finished
+    numbers plus an explicit list of what it may not discuss, and every
+    numeral it writes is checked against that sheet — `functions/ai/
+    sleep_insights.js` on the server, `groundedNumerals` again on the client.
+    Beneath it is a deterministic tier that is always available, so the
+    feature never needs a model round trip to say something true.
+  - **Two regressions worth remembering.** (1) `SleepService.syncState` is a
+    `ValueNotifier`, not a stream: a fast sync emitted its terminal state into
+    the window between `listen()` and an `async*` generator subscribing, so an
+    "unavailable" host rendered the "nothing recorded yet" screen. (2) Every
+    test that boots the real `ZivoApp` now injects `sleep:`/`sleepSource:` —
+    the Firestore default resolves its uid through FirebaseAuth at
+    construction, and `rtl_layout_test` hung for ten minutes on it.
+  - **Coverage:** 67 sleep tests (sessionizer, resolver, circular stats,
+    gates, codec round-trip, the numeral gate, and the page's *claims* — that
+    a typed night says "You logged" and never "Asleep"), plus 9 new Firestore
+    rules tests and 15 backend tests. `flutter analyze` clean; the Android
+    release build compiles.
+  - **⚠ OWNER ACTIONS — five.**
+    1. **`minSdk` rose 23 → 26** (`android/app/build.gradle.kts`). Health
+       Connect's client requires it and the manifest merger fails below it.
+       Drops Android 6.0–7.1. Reversible only by dropping Android sleep.
+    2. **New dependency: `health: ^13.3.1`.** Justified in `pubspec.yaml` and
+       ADR-010; the migration trigger to a native layer is background delivery.
+    3. **iOS needs the HealthKit capability enabled in Xcode** — the
+       entitlement is in `Runner.entitlements`, but the capability has to be
+       added to the App ID in the developer portal, which needs your account.
+    4. **Play Console health-permissions declaration** is required before an
+       Android build using `READ_SLEEP` can ship.
+    5. **`assets/hub/sleep.jpg` does not exist** — the Hub card falls back to
+       a violet wash, which is correct but not the design. Add the photo.
+  - **Not done (deliberate, listed in SLEEP_SYSTEM §20):** background delivery
+    on either platform, the Android Sleep API estimate path, Samsung Health
+    Data SDK (needs a partnership), sleep-adjacent metrics (HR/HRV/SpO2/temp),
+    naps in metrics, and correlations. `functions/ai/sleep_insights.js` is
+    written and tested but **not yet wired to a callable** — the client runs
+    the deterministic tier until it is.
 
 - **The Arabic copy pass finished the app-facing surfaces** (2026-09-06, on
   `core-edits`). **1144 keys** in both languages, up from 344 — the en/ar gap

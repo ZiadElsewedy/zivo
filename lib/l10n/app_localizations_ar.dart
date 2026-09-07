@@ -4353,4 +4353,450 @@ class AppLocalizationsAr extends AppLocalizations {
   String privacyContactBody(String email) {
     return 'يمكن إرسال الأسئلة المتعلقة بالخصوصية أو ببياناتك إلى $email.';
   }
+
+  @override
+  String get sleepTitle => 'النوم';
+
+  @override
+  String get sleepHubSubtitle => 'الليلة الماضية';
+
+  @override
+  String get sleepLastNight => 'الليلة الماضية';
+
+  @override
+  String get sleepNoDataTitle => 'لا يوجد نوم مسجَّل';
+
+  @override
+  String get sleepNoDataBody =>
+      'سجِّل ليلة بنفسك، أو اربط جهازًا يتتبّع النوم.';
+
+  @override
+  String get sleepNotVisibleTitle => 'لا تظهر لـ ZIVO أي بيانات نوم';
+
+  @override
+  String sleepNotVisibleBody(String provider) {
+    return 'لا يوضّح $provider ما إذا كان قد رُفض وصول أحد التطبيقات، لذا قد يعني هذا أن الإذن غير مفعّل لا أنه لا توجد بيانات.';
+  }
+
+  @override
+  String get sleepPermissionDeniedTitle => 'لا يستطيع ZIVO قراءة نومك';
+
+  @override
+  String sleepPermissionDeniedBody(String provider) {
+    return 'اسمح بالوصول إلى النوم في $provider لرؤية الليالي التي يقيسها ساعتك أو تطبيق آخر.';
+  }
+
+  @override
+  String get sleepUnavailableTitle => 'لا يوجد تطبيق صحة على هذا الجهاز';
+
+  @override
+  String get sleepUnavailableBody => 'لا يزال بإمكانك تسجيل الليالي بنفسك.';
+
+  @override
+  String sleepHistoryUnavailable(String provider) {
+    return 'تحتاج الليالي الأقدم إلى إذن السجل في $provider.';
+  }
+
+  @override
+  String get sleepSyncFailed => 'تعذّرت قراءة النوم الآن.';
+
+  @override
+  String sleepConnect(String provider) {
+    return 'اربط $provider';
+  }
+
+  @override
+  String get sleepProviderApple => 'صحة Apple';
+
+  @override
+  String get sleepProviderHealthConnect => 'Health Connect';
+
+  @override
+  String get sleepProviderYou => 'أنت';
+
+  @override
+  String get sleepGoingToSleep => 'سأنام الآن';
+
+  @override
+  String get sleepImAwake => 'استيقظت';
+
+  @override
+  String sleepMarkOpenSince(String time) {
+    return 'نائم منذ $time';
+  }
+
+  @override
+  String get sleepMarkCancel => 'لم أنم بعد كل شيء';
+
+  @override
+  String get sleepEditNight => 'تعديل هذه الليلة';
+
+  @override
+  String get sleepEditHint =>
+      'يُحفظ تصحيحك باسمك، وتبقى الأوقات المقيسة محفوظة.';
+
+  @override
+  String sleepOnsetMeasured(String time) {
+    return 'نام $time';
+  }
+
+  @override
+  String sleepOnsetPlatform(String time) {
+    return 'سُجِّل النوم $time';
+  }
+
+  @override
+  String sleepOnsetReported(String time) {
+    return 'سجّلت $time';
+  }
+
+  @override
+  String sleepOnsetEstimated(String time) {
+    return 'غالبًا نام حوالي $time';
+  }
+
+  @override
+  String sleepWakeMeasured(String time) {
+    return 'استيقظ $time';
+  }
+
+  @override
+  String sleepWakePlatform(String time) {
+    return 'سُجِّل الاستيقاظ $time';
+  }
+
+  @override
+  String sleepWakeReported(String time) {
+    return 'سجّلت $time';
+  }
+
+  @override
+  String sleepWakeEstimated(String time) {
+    return 'غالبًا استيقظ حوالي $time';
+  }
+
+  @override
+  String sleepLastPhoneUse(String time) {
+    return 'آخر استخدام للهاتف $time';
+  }
+
+  @override
+  String get sleepMethodMeasured => 'مقيس';
+
+  @override
+  String get sleepMethodRecorded => 'مسجَّل';
+
+  @override
+  String get sleepMethodLogged => 'سجّلته بنفسك';
+
+  @override
+  String get sleepMethodEstimated => 'تقدير';
+
+  @override
+  String get sleepConfidenceHigh => 'ثقة عالية';
+
+  @override
+  String get sleepConfidenceMedium => 'ثقة متوسطة';
+
+  @override
+  String get sleepConfidenceLow => 'ثقة منخفضة';
+
+  @override
+  String sleepSourceChip(String provider, String method) {
+    return '$provider · $method';
+  }
+
+  @override
+  String get sleepDurationLabel => 'مدة النوم';
+
+  @override
+  String get sleepTimeInBedLabel => 'في السرير';
+
+  @override
+  String get sleepEfficiencyLabel => 'الكفاءة';
+
+  @override
+  String get sleepEfficiencyUnknown => 'غير متتبَّع';
+
+  @override
+  String sleepInterruptionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count انقطاعًا',
+      few: '$count انقطاعات',
+      two: 'انقطاعان',
+      one: 'انقطاع واحد',
+      zero: 'بلا انقطاعات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count قيلولة',
+      few: '$count قيلولات',
+      two: 'قيلولتان',
+      one: 'قيلولة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepSpansDstNote =>
+      'عبَرت هذه الليلة تغييرًا في الساعة، لذا تختلف مدتها عن الأوقات المعروضة.';
+
+  @override
+  String get sleepTargetsTitle => 'أهدافك';
+
+  @override
+  String get sleepTargetBedtime => 'موعد النوم';
+
+  @override
+  String get sleepTargetWake => 'موعد الاستيقاظ';
+
+  @override
+  String get sleepTargetDuration => 'مدة النوم';
+
+  @override
+  String get sleepTargetsHint =>
+      'تُستخدم لخط الهدف فقط — لا يمنح ZIVO أي تقييم لليلة.';
+
+  @override
+  String get sleepNoTargets => 'حدّد هدفًا لترى كيف تقارَن لياليك.';
+
+  @override
+  String sleepDeltaLonger(String amount, String target) {
+    return '$amount أكثر من هدفك $target';
+  }
+
+  @override
+  String sleepDeltaShorter(String amount, String target) {
+    return '$amount أقل من هدفك $target';
+  }
+
+  @override
+  String sleepDeltaOnTarget(String target) {
+    return 'مطابق لهدفك $target';
+  }
+
+  @override
+  String sleepBedtimeLater(String amount) {
+    return '$amount بعد موعد نومك المستهدف';
+  }
+
+  @override
+  String sleepBedtimeEarlier(String amount) {
+    return '$amount قبل موعد نومك المستهدف';
+  }
+
+  @override
+  String get sleepBedtimeOnTarget => 'مطابق لموعد نومك المستهدف';
+
+  @override
+  String get sleepWhyTitle => 'لماذا هذا الرقم؟';
+
+  @override
+  String get sleepWhySole => 'مصدر واحد فقط سجّل هذه الليلة.';
+
+  @override
+  String get sleepWhyMethod => 'اختير لأنه مقيس لا مُدخَل أو مُقدَّر.';
+
+  @override
+  String get sleepWhyCoverage =>
+      'اختير لأن جزءًا أكبر من الليلة كان مسجَّلًا فعليًا.';
+
+  @override
+  String get sleepWhyDetail => 'اختير لأنه تضمّن مراحل النوم.';
+
+  @override
+  String get sleepWhyOverride => 'أنت ضبطت هذه الليلة بنفسك.';
+
+  @override
+  String sleepDisagreement(String provider, String amount) {
+    return 'سجّل $provider وقتًا مختلفًا — بفارق $amount.';
+  }
+
+  @override
+  String get sleepCoverageLabel => 'التغطية المسجَّلة';
+
+  @override
+  String sleepRecordedBy(String provider) {
+    return 'سجّله $provider';
+  }
+
+  @override
+  String get sleepUseThisInstead => 'استخدم هذا بدلًا منه';
+
+  @override
+  String get sleepWeekTitle => 'هذا الأسبوع';
+
+  @override
+  String get sleepWeekAverage => 'المتوسط';
+
+  @override
+  String get sleepWeekConsistency => 'الانتظام';
+
+  @override
+  String get sleepWeekOnTarget => 'ضمن الهدف';
+
+  @override
+  String sleepNightsCounted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ليلة',
+      few: '$count ليالٍ',
+      two: 'ليلتان',
+      one: 'ليلة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNightsOf(int count, int total) {
+    return '$count من $total ليالٍ';
+  }
+
+  @override
+  String sleepVariability(String amount) {
+    return '±$amount';
+  }
+
+  @override
+  String sleepOnTargetRatio(int count, int total) {
+    return '$count من $total';
+  }
+
+  @override
+  String get sleepNoData => 'لا بيانات';
+
+  @override
+  String get sleepInsufficient => 'لا توجد ليالٍ كافية بعد';
+
+  @override
+  String sleepInsufficientFor(int have, int need) {
+    return 'لا توجد ليالٍ كافية بعد — $have من $need';
+  }
+
+  @override
+  String get sleepWeekUnchanged => 'تقريبًا كما الأسبوع الماضي';
+
+  @override
+  String sleepWeekImproved(String amount) {
+    return '$amount أكثر من الأسبوع الماضي';
+  }
+
+  @override
+  String sleepWeekDeclined(String amount) {
+    return '$amount أقل من الأسبوع الماضي';
+  }
+
+  @override
+  String get sleepInsightsTitle => 'ماذا يعني هذا';
+
+  @override
+  String get sleepInsightsPending => 'تجري قراءة لياليك…';
+
+  @override
+  String get sleepInsightsUnavailable =>
+      'لا يمكن استخلاص نتيجة من الليالي المسجَّلة حتى الآن.';
+
+  @override
+  String sleepInsightBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ليلة',
+      few: '$count ليالٍ',
+      two: 'ليلتين',
+      one: 'ليلة واحدة',
+    );
+    return 'بناءً على $_temp0';
+  }
+
+  @override
+  String get sleepStageLight => 'خفيف';
+
+  @override
+  String get sleepStageDeep => 'عميق';
+
+  @override
+  String get sleepStageRem => 'حركة العين السريعة';
+
+  @override
+  String get sleepStageAwake => 'مستيقظ';
+
+  @override
+  String get sleepStageAsleep => 'نائم';
+
+  @override
+  String get sleepStageInBed => 'في السرير';
+
+  @override
+  String get sleepNoStages => 'المراحل غير متاحة من هذا المصدر.';
+
+  @override
+  String sleepDurationHm(int hours, int minutes) {
+    return '$hoursس $minutesد';
+  }
+
+  @override
+  String sleepDurationM(int minutes) {
+    return '$minutesد';
+  }
+
+  @override
+  String sleepDurationH(int hours) {
+    return '$hoursس';
+  }
+
+  @override
+  String get hubSleep => 'النوم';
+
+  @override
+  String get hubNoSleepYet => 'لا توجد ليالٍ بعد';
+
+  @override
+  String sleepInsightDuration(String amount) {
+    return 'بلغ متوسط نومك $amount في الليلة.';
+  }
+
+  @override
+  String sleepInsightWeekBetter(String amount) {
+    return 'هذا $amount أكثر من الأسبوع السابق.';
+  }
+
+  @override
+  String sleepInsightWeekWorse(String amount) {
+    return 'هذا $amount أقل من الأسبوع السابق.';
+  }
+
+  @override
+  String get sleepInsightWeekSame => 'هذا تقريبًا كما الأسبوع السابق.';
+
+  @override
+  String sleepInsightConsistent(String amount) {
+    return 'ظل توقيت نومك ثابتًا، بتفاوت $amount.';
+  }
+
+  @override
+  String sleepInsightIrregular(String amount) {
+    return 'تفاوت توقيت نومك بمقدار $amount خلال الأسبوع.';
+  }
+
+  @override
+  String sleepInsightAdherence(int count, int total) {
+    return 'التزمت بموعد نومك المستهدف في $count من $total ليالٍ.';
+  }
+
+  @override
+  String get sleepInsightTrendUp => 'خلال الأسابيع الماضية أصبحت لياليك أطول.';
+
+  @override
+  String get sleepInsightTrendDown =>
+      'خلال الأسابيع الماضية أصبحت لياليك أقصر.';
 }

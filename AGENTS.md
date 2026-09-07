@@ -106,6 +106,7 @@ repos, provides `AppScope`, dark `MaterialApp`, `home: AuthGate`).
 | **hub** | Module launcher tab | [`lib/features/hub/`](lib/features/hub/FEATURE.md) | — |
 | **shell** | 4-tab scaffold (Today · Hub · Ask · You) + floating bottom bar + capture FAB | [`lib/features/shell/`](lib/features/shell/FEATURE.md) | — |
 | **capture** | Quick-capture sheet + shared capture widgets | [`lib/features/capture/`](lib/features/capture/FEATURE.md) | — |
+| **sleep** | Apple Health / Health Connect sleep + manual logging, with provenance on every number — training recovery | [`lib/features/sleep/`](lib/features/sleep/FEATURE.md) | [SLEEP_SYSTEM.md](docs/SLEEP_SYSTEM.md), [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) |
 | **device** | Pedometer step counter (Today's Move ring) | [`lib/features/device/`](lib/features/device/FEATURE.md) | — |
 
 **Shared / cross-cutting (`lib/core/`):**
@@ -187,10 +188,12 @@ launcher file; those are kept to a one-line pointer here so there is a single so
 | [`docs/STATE.md`](docs/STATE.md) | **Current state — read every session** | live |
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Deep architecture/conventions reference | reference |
 | [`docs/WORKOUT_SYSTEM.md`](docs/WORKOUT_SYSTEM.md) | Splits · sessions · progression engine | reference |
+| [`docs/SLEEP_SYSTEM.md`](docs/SLEEP_SYSTEM.md) | **Sleep: platform capability research + the provenance/accuracy design** | reference |
 | [`docs/UX_BLUEPRINT.md`](docs/UX_BLUEPRINT.md) | Interaction/screen blueprints | design intent |
 | [`docs/ZIVO-brand-system.md`](docs/ZIVO-brand-system.md) | Motion · tone · meaning identity (colour superseded by ADR-006, type by ADR-009) | reference |
 | [`docs/PLAN.md`](docs/PLAN.md) | Long-term milestone plan | aspirational |
 | [`docs/DECISIONS/`](docs/DECISIONS) | Architecture decision records (ADRs) | reference |
 | [`docs/DECISIONS/ADR-008-presentation-controllers.md`](docs/DECISIONS/ADR-008-presentation-controllers.md) | **When a page gets a controller, and the rules that keep the seam honest** | reference |
 | [`docs/DECISIONS/ADR-009-one-type-system.md`](docs/DECISIONS/ADR-009-one-type-system.md) | **Three typefaces, one system — what `AppText` and `TrainType` are each for** | reference |
+| [`docs/DECISIONS/ADR-010-sleep-provenance.md`](docs/DECISIONS/ADR-010-sleep-provenance.md) | **Why every sleep number carries how it was produced, and what that forbids** | reference |
 | [`docs/build_configurations.md`](docs/build_configurations.md) | Build configs + dart-defines | reference |

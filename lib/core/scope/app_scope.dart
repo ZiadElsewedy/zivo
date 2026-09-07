@@ -7,6 +7,8 @@ import '../../features/ai/domain/ai_repository.dart';
 import '../../features/auth/domain/auth_activity_repository.dart';
 import '../../features/auth/domain/auth_repository.dart';
 import '../../features/profile/domain/profile_repository.dart';
+import '../../features/sleep/domain/sleep_repository.dart';
+import '../../features/sleep/domain/sleep_service.dart';
 import '../../features/diet/domain/diet_repository.dart';
 import '../../features/diet/domain/nutrition/food_resolver.dart';
 import '../../features/device/steps/step_counter.dart';
@@ -43,6 +45,8 @@ class AppScope extends InheritedWidget {
     required this.ai,
     this.recorder,
     this.stepCounter,
+    this.sleep,
+    this.sleepService,
     this.media,
     this.music,
     this.locale,
@@ -111,6 +115,31 @@ class AppScope extends InheritedWidget {
   /// a step sensor. Optional for the same reason [recorder] is: tests that
   /// don't exercise the dashboard shouldn't need one.
   final StepCounterService? stepCounter;
+
+  /// Sleep nights + targets. Optional for the same reason [bodyWeight] is:
+  /// most widget tests never open Sleep. Read it through [requireSleep].
+  final SleepRepository? sleep;
+
+  /// The sleep ingest pipeline (platform read → sessionize → resolve → store)
+  /// and manual logging. Paired with [sleep] — production wires both or
+  /// neither. Read it through [requireSleepService].
+  final SleepService? sleepService;
+
+  /// The sleep repository, asserting it was provided. Use from the Sleep page
+  /// and Today's sleep glance — production always wires it.
+  SleepRepository get requireSleep {
+    assert(sleep != null, 'AppScope.sleep was not provided to this scope');
+    return sleep!;
+  }
+
+  /// The sleep service, asserting it was provided.
+  SleepService get requireSleepService {
+    assert(
+      sleepService != null,
+      'AppScope.sleepService was not provided to this scope',
+    );
+    return sleepService!;
+  }
 
   /// The composer's voice-note recorder, asserting it was provided. Use from
   /// the Ask page's mic button — production always wires it.
@@ -235,6 +264,8 @@ class AppScope extends InheritedWidget {
       ai != oldWidget.ai ||
       recorder != oldWidget.recorder ||
       stepCounter != oldWidget.stepCounter ||
+      sleep != oldWidget.sleep ||
+      sleepService != oldWidget.sleepService ||
       media != oldWidget.media ||
       music != oldWidget.music ||
       locale != oldWidget.locale;

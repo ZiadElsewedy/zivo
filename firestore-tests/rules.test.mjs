@@ -49,6 +49,7 @@ const valid = {
   expenseCategories: { label: 'Subs', iconId: 'bills' },
   media: { relativePath: 'media/moments/m1.jpg', driveFileId: 'f1', driveAccountKey: 'acc-1', schemaVersion: 2 },
   mediaTombstones: { driveFileId: 'f1', driveAccountKey: 'acc-1', deletedAt: ts(), schemaVersion: 1 },
+  sleepSettings: { schemaVersion: 1, targets: { bedtimeMinutes: 1380, wakeMinutes: 420, durationMinutes: 480 } },
 };
 
 // Each violates exactly one validation clause of its collection's write rule.
@@ -68,6 +69,7 @@ const invalid = {
   expenseCategories: { label: 'Subs', emoji: '🧾', hue: 'iris' }, // no iconId
   media: { relativePath: 'media/moments/m1.jpg' }, // missing schemaVersion
   mediaTombstones: { driveFileId: 123, schemaVersion: 1 }, // driveFileId not a string
+  sleepSettings: { schemaVersion: 1, targets: 'nope' }, // targets not a map
 };
 
 const collections = Object.keys(valid);
@@ -181,6 +183,101 @@ describe('workoutMeta active-split pointer allows a null id', () => {
   it('owner can write { activeSplitId: null } to clear the pointer', async () => {
     await assertSucceeds(
       setDoc(doc(ownerDb(), collPath(OWNER, 'workoutMeta')), { activeSplitId: null }),
+    );
+  });
+});
+
+// Sleep nights are keyed by SLEEP-DAY (`yyyy-MM-dd`), not by a generated id —
+// that is the cross-device dedup mechanism (docs/SLEEP_SYSTEM.md §9), so the
+// id shape is part of the contract and is enforced in rules. The generic loop
+// above writes to `doc1`, which this collection must reject, hence its own
+// block.
+describe('users/{uid}/sleepNights ownership + validation', () => {
+  const night = () => ({
+    schemaVersion: 1,
+    sleepDay: ts(),
+    main: { id: 's1', startAt: ts(), endAt: ts() },
+    naps: [],
+    alternates: [],
+    resolution: 'soleSource',
+  });
+  const path = (uid, id = '2026-01-01') => `users/${uid}/sleepNights/${id}`;
+
+  it('owner can create a night keyed by its sleep-day and read it back', async () => {
+    const db = ownerDb();
+    await assertSucceeds(setDoc(doc(db, path(OWNER)), night()));
+    await assertSucceeds(getDoc(doc(db, path(OWNER))));
+  });
+
+  it('a random document id is rejected', async () => {
+    // A random id would mean two documents for one night and a duplicate the
+    // client never reconciles.
+    await assertFails(setDoc(doc(ownerDb(), path(OWNER, 'doc1')), night()));
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER, '2026-1-1')), night()),
+    );
+  });
+
+  it('a night with no main sleep is allowed', async () => {
+    // "Nothing was recorded" is a real, stored state — the week view needs it
+    // to draw a gap rather than closing up and hiding the absence.
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), main: null }),
+    );
+  });
+
+  it('owner cannot write a malformed night', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), naps: 'nope' }),
+    );
+    await assertFails(
+      setDoc(doc(ownerDb(), path(OWNER)), { ...night(), main: 'nope' }),
+    );
+  });
+
+  it('a different signed-in user cannot read or write it', async () => {
+    await seed(path(OWNER), night());
+    await assertFails(getDoc(doc(otherDb(), path(OWNER))));
+    await assertFails(setDoc(doc(otherDb(), path(OWNER)), night()));
+  });
+
+  it('unauthenticated cannot write it', async () => {
+    await assertFails(setDoc(doc(anonDb(), path(OWNER)), night()));
+  });
+
+  it('owner can delete a night', async () => {
+    // Load-bearing: this is how a night deleted in Apple Health or Health
+    // Connect is withdrawn here. A combined `allow write` carrying the field
+    // checks above would silently deny it.
+    await seed(path(OWNER), night());
+    await assertSucceeds(deleteDoc(doc(ownerDb(), path(OWNER))));
+  });
+});
+
+describe('users/{uid}/sleepSettings holds targets and the open mark', () => {
+  const path = `users/${OWNER}/sleepSettings/main`;
+
+  it('owner can write an open manual sleep mark', async () => {
+    await assertSucceeds(
+      setDoc(doc(ownerDb(), path), {
+        schemaVersion: 1,
+        openMark: { id: 'open', atUtc: ts(), offsetMinutes: 180 },
+      }),
+    );
+  });
+
+  it('owner can clear the open mark with a null', async () => {
+    // Clearing is a null write, not a delete — the same document also holds
+    // the targets, which must survive.
+    await seed(path, { schemaVersion: 1, openMark: { id: 'open', atUtc: ts() } });
+    await assertSucceeds(
+      updateDoc(doc(ownerDb(), path), { openMark: null }),
+    );
+  });
+
+  it('a malformed mark is rejected', async () => {
+    await assertFails(
+      setDoc(doc(ownerDb(), path), { schemaVersion: 1, openMark: 'nope' }),
     );
   });
 });

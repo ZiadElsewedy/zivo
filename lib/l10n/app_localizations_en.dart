@@ -4267,4 +4267,445 @@ class AppLocalizationsEn extends AppLocalizations {
   String privacyContactBody(String email) {
     return 'Questions about privacy or your data can be sent to $email.';
   }
+
+  @override
+  String get sleepTitle => 'Sleep';
+
+  @override
+  String get sleepHubSubtitle => 'Last night';
+
+  @override
+  String get sleepLastNight => 'Last night';
+
+  @override
+  String get sleepNoDataTitle => 'No sleep recorded';
+
+  @override
+  String get sleepNoDataBody =>
+      'Log a night yourself, or connect a device that tracks sleep.';
+
+  @override
+  String get sleepNotVisibleTitle => 'No sleep data visible to ZIVO';
+
+  @override
+  String sleepNotVisibleBody(String provider) {
+    return '$provider doesn\'t say whether an app was refused access, so this may mean permission is off rather than that there\'s nothing there.';
+  }
+
+  @override
+  String get sleepPermissionDeniedTitle => 'ZIVO can\'t read your sleep';
+
+  @override
+  String sleepPermissionDeniedBody(String provider) {
+    return 'Allow Sleep access in $provider to see nights measured by your watch or another app.';
+  }
+
+  @override
+  String get sleepUnavailableTitle => 'No health app on this device';
+
+  @override
+  String get sleepUnavailableBody => 'You can still log nights yourself.';
+
+  @override
+  String sleepHistoryUnavailable(String provider) {
+    return 'Older nights need history access in $provider.';
+  }
+
+  @override
+  String get sleepSyncFailed => 'Couldn\'t read sleep just now.';
+
+  @override
+  String sleepConnect(String provider) {
+    return 'Connect $provider';
+  }
+
+  @override
+  String get sleepProviderApple => 'Apple Health';
+
+  @override
+  String get sleepProviderHealthConnect => 'Health Connect';
+
+  @override
+  String get sleepProviderYou => 'You';
+
+  @override
+  String get sleepGoingToSleep => 'I\'m going to sleep';
+
+  @override
+  String get sleepImAwake => 'I\'m awake';
+
+  @override
+  String sleepMarkOpenSince(String time) {
+    return 'Sleeping since $time';
+  }
+
+  @override
+  String get sleepMarkCancel => 'Not sleeping after all';
+
+  @override
+  String get sleepEditNight => 'Edit this night';
+
+  @override
+  String get sleepEditHint =>
+      'Your correction is saved as your own, and the measured times are kept.';
+
+  @override
+  String sleepOnsetMeasured(String time) {
+    return 'Asleep $time';
+  }
+
+  @override
+  String sleepOnsetPlatform(String time) {
+    return 'Sleep recorded $time';
+  }
+
+  @override
+  String sleepOnsetReported(String time) {
+    return 'You logged $time';
+  }
+
+  @override
+  String sleepOnsetEstimated(String time) {
+    return 'Likely asleep around $time';
+  }
+
+  @override
+  String sleepWakeMeasured(String time) {
+    return 'Awake $time';
+  }
+
+  @override
+  String sleepWakePlatform(String time) {
+    return 'Wake recorded $time';
+  }
+
+  @override
+  String sleepWakeReported(String time) {
+    return 'You logged $time';
+  }
+
+  @override
+  String sleepWakeEstimated(String time) {
+    return 'Likely awake around $time';
+  }
+
+  @override
+  String sleepLastPhoneUse(String time) {
+    return 'Last phone use $time';
+  }
+
+  @override
+  String get sleepMethodMeasured => 'Measured';
+
+  @override
+  String get sleepMethodRecorded => 'Recorded';
+
+  @override
+  String get sleepMethodLogged => 'Logged by you';
+
+  @override
+  String get sleepMethodEstimated => 'Estimate';
+
+  @override
+  String get sleepConfidenceHigh => 'High confidence';
+
+  @override
+  String get sleepConfidenceMedium => 'Medium confidence';
+
+  @override
+  String get sleepConfidenceLow => 'Low confidence';
+
+  @override
+  String sleepSourceChip(String provider, String method) {
+    return '$provider · $method';
+  }
+
+  @override
+  String get sleepDurationLabel => 'Asleep';
+
+  @override
+  String get sleepTimeInBedLabel => 'In bed';
+
+  @override
+  String get sleepEfficiencyLabel => 'Efficiency';
+
+  @override
+  String get sleepEfficiencyUnknown => 'Not tracked';
+
+  @override
+  String sleepInterruptionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count interruptions',
+      one: '1 interruption',
+      zero: 'No interruptions',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count naps',
+      one: '1 nap',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sleepSpansDstNote =>
+      'This night crossed a clock change, so its length differs from the times shown.';
+
+  @override
+  String get sleepTargetsTitle => 'Your targets';
+
+  @override
+  String get sleepTargetBedtime => 'Bedtime';
+
+  @override
+  String get sleepTargetWake => 'Wake';
+
+  @override
+  String get sleepTargetDuration => 'Sleep length';
+
+  @override
+  String get sleepTargetsHint =>
+      'Used for the target line and nothing else — ZIVO never scores a night.';
+
+  @override
+  String get sleepNoTargets => 'Set a target to see how your nights compare.';
+
+  @override
+  String sleepDeltaLonger(String amount, String target) {
+    return '$amount more than your $target target';
+  }
+
+  @override
+  String sleepDeltaShorter(String amount, String target) {
+    return '$amount less than your $target target';
+  }
+
+  @override
+  String sleepDeltaOnTarget(String target) {
+    return 'On your $target target';
+  }
+
+  @override
+  String sleepBedtimeLater(String amount) {
+    return '$amount later than your target bedtime';
+  }
+
+  @override
+  String sleepBedtimeEarlier(String amount) {
+    return '$amount earlier than your target bedtime';
+  }
+
+  @override
+  String get sleepBedtimeOnTarget => 'On your target bedtime';
+
+  @override
+  String get sleepWhyTitle => 'Why this number?';
+
+  @override
+  String get sleepWhySole => 'Only one source had this night.';
+
+  @override
+  String get sleepWhyMethod =>
+      'Chosen because it was measured rather than entered or estimated.';
+
+  @override
+  String get sleepWhyCoverage =>
+      'Chosen because more of the night was actually recorded.';
+
+  @override
+  String get sleepWhyDetail => 'Chosen because it included sleep stages.';
+
+  @override
+  String get sleepWhyOverride => 'You set this night yourself.';
+
+  @override
+  String sleepDisagreement(String provider, String amount) {
+    return '$provider recorded a different time — $amount apart.';
+  }
+
+  @override
+  String get sleepCoverageLabel => 'Recorded coverage';
+
+  @override
+  String sleepRecordedBy(String provider) {
+    return 'Recorded by $provider';
+  }
+
+  @override
+  String get sleepUseThisInstead => 'Use this one instead';
+
+  @override
+  String get sleepWeekTitle => 'This week';
+
+  @override
+  String get sleepWeekAverage => 'Average';
+
+  @override
+  String get sleepWeekConsistency => 'Consistency';
+
+  @override
+  String get sleepWeekOnTarget => 'On target';
+
+  @override
+  String sleepNightsCounted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sleepNightsOf(int count, int total) {
+    return '$count of $total nights';
+  }
+
+  @override
+  String sleepVariability(String amount) {
+    return '±$amount';
+  }
+
+  @override
+  String sleepOnTargetRatio(int count, int total) {
+    return '$count of $total';
+  }
+
+  @override
+  String get sleepNoData => 'No data';
+
+  @override
+  String get sleepInsufficient => 'Not enough nights yet';
+
+  @override
+  String sleepInsufficientFor(int have, int need) {
+    return 'Not enough nights yet — $have of $need';
+  }
+
+  @override
+  String get sleepWeekUnchanged => 'About the same as last week';
+
+  @override
+  String sleepWeekImproved(String amount) {
+    return '$amount more than last week';
+  }
+
+  @override
+  String sleepWeekDeclined(String amount) {
+    return '$amount less than last week';
+  }
+
+  @override
+  String get sleepInsightsTitle => 'What this means';
+
+  @override
+  String get sleepInsightsPending => 'Reading your nights…';
+
+  @override
+  String get sleepInsightsUnavailable =>
+      'No conclusion can be drawn from the nights recorded so far.';
+
+  @override
+  String sleepInsightBasis(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nights',
+      one: '1 night',
+    );
+    return 'Based on $_temp0';
+  }
+
+  @override
+  String get sleepStageLight => 'Light';
+
+  @override
+  String get sleepStageDeep => 'Deep';
+
+  @override
+  String get sleepStageRem => 'REM';
+
+  @override
+  String get sleepStageAwake => 'Awake';
+
+  @override
+  String get sleepStageAsleep => 'Asleep';
+
+  @override
+  String get sleepStageInBed => 'In bed';
+
+  @override
+  String get sleepNoStages => 'Stages aren\'t available from this source.';
+
+  @override
+  String sleepDurationHm(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String sleepDurationM(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String sleepDurationH(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String get hubSleep => 'Sleep';
+
+  @override
+  String get hubNoSleepYet => 'No nights yet';
+
+  @override
+  String sleepInsightDuration(String amount) {
+    return 'You\'ve averaged $amount a night.';
+  }
+
+  @override
+  String sleepInsightWeekBetter(String amount) {
+    return 'That\'s $amount more than the week before.';
+  }
+
+  @override
+  String sleepInsightWeekWorse(String amount) {
+    return 'That\'s $amount less than the week before.';
+  }
+
+  @override
+  String get sleepInsightWeekSame =>
+      'That\'s about the same as the week before.';
+
+  @override
+  String sleepInsightConsistent(String amount) {
+    return 'Your sleep timing held steady, varying by $amount.';
+  }
+
+  @override
+  String sleepInsightIrregular(String amount) {
+    return 'Your sleep timing moved around by $amount across the week.';
+  }
+
+  @override
+  String sleepInsightAdherence(int count, int total) {
+    return 'You hit your target bedtime on $count of $total nights.';
+  }
+
+  @override
+  String get sleepInsightTrendUp =>
+      'Over the last few weeks your nights have been getting longer.';
+
+  @override
+  String get sleepInsightTrendDown =>
+      'Over the last few weeks your nights have been getting shorter.';
 }

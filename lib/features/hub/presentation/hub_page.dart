@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/scope/app_scope.dart';
+import '../../sleep/domain/sleep_night.dart';
+import '../../sleep/presentation/pages/sleep_page.dart';
+import '../../sleep/presentation/sleep_labels.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/train_tokens.dart';
@@ -110,6 +113,7 @@ class HubPage extends StatelessWidget {
                       _DietTile(),
                       _ExpensesTile(),
                       _MomentsTile(),
+                      _SleepTile(),
                     ],
                   ),
                   const _ConnectedSection(),
@@ -364,6 +368,53 @@ class _MomentsTile extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const MomentsTimelinePage()),
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Sleep — last night's duration, with how it was known.
+///
+/// The stat carries the **method**, not just the figure, for the same reason
+/// every sleep surface does: "7h 12m" alone is a claim ZIVO cannot stand
+/// behind without saying where it came from (`docs/SLEEP_SYSTEM.md` §11). The
+/// card is violet, the hue this palette already gives the night (ADR-010).
+class _SleepTile extends StatelessWidget {
+  const _SleepTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final sleep = scope.sleep;
+    return RiseIn(
+      delay: const Duration(milliseconds: 250),
+      child: StreamBuilder<List<SleepNight>>(
+        stream: sleep?.watchNights(),
+        initialData: sleep?.current ?? const <SleepNight>[],
+        builder: (context, snapshot) {
+          final nights = snapshot.data ?? const <SleepNight>[];
+          SleepNight? last;
+          for (final night in nights) {
+            if (night.hasData) {
+              last = night;
+              break;
+            }
+          }
+          final stat = last == null
+              ? l(context).hubNoSleepYet
+              : '${sleepDurationText(context, last.main!.asleepDuration)} · '
+                    '${sleepMethodLabel(context, last.main!.provenance.method)}';
+          return _ModuleCard(
+            image: 'assets/hub/sleep.jpg',
+            icon: AppIcons.sleep,
+            accent: TrainColors.violet,
+            label: l(context).hubSleep,
+            stat: stat,
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SleepPage())),
           );
         },
       ),

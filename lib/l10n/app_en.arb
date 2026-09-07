@@ -5973,5 +5973,669 @@
               "type": "String"
           }
       }
+  },
+  "sleepTitle": "Sleep",
+  "@sleepTitle": {
+    "description": "The Sleep feature's title."
+  },
+  "sleepHubSubtitle": "Last night",
+  "@sleepHubSubtitle": {
+    "description": "Hub tile caption above last night's figure."
+  },
+  "sleepLastNight": "Last night",
+  "@sleepLastNight": {
+    "description": "Section label for the most recent night."
+  },
+  "sleepNoDataTitle": "No sleep recorded",
+  "@sleepNoDataTitle": {
+    "description": "Empty state title when we know the store is readable and empty."
+  },
+  "sleepNoDataBody": "Log a night yourself, or connect a device that tracks sleep.",
+  "@sleepNoDataBody": {
+    "description": "Empty state body when the store is readable and genuinely empty."
+  },
+  "sleepNotVisibleTitle": "No sleep data visible to ZIVO",
+  "@sleepNotVisibleTitle": {
+    "description": "Empty state title when we cannot confirm we were allowed to read. Must never claim the user has no sleep data."
+  },
+  "sleepNotVisibleBody": "{provider} doesn't say whether an app was refused access, so this may mean permission is off rather than that there's nothing there.",
+  "@sleepNotVisibleBody": {
+    "description": "Explains that an empty read can mean a refused permission. Named because Apple deliberately hides read denial.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepPermissionDeniedTitle": "ZIVO can't read your sleep",
+  "@sleepPermissionDeniedTitle": {
+    "description": "Empty state title when the platform confirmed a refusal."
+  },
+  "sleepPermissionDeniedBody": "Allow Sleep access in {provider} to see nights measured by your watch or another app.",
+  "@sleepPermissionDeniedBody": {
+    "description": "Body when the platform confirmed a refusal.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepUnavailableTitle": "No health app on this device",
+  "@sleepUnavailableTitle": {
+    "description": "Shown when the host has no health provider at all."
+  },
+  "sleepUnavailableBody": "You can still log nights yourself.",
+  "@sleepUnavailableBody": {
+    "description": "Reassures that manual logging still works with no health provider."
+  },
+  "sleepHistoryUnavailable": "Older nights need history access in {provider}.",
+  "@sleepHistoryUnavailable": {
+    "description": "Android refused reads beyond 30 days.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepSyncFailed": "Couldn't read sleep just now.",
+  "@sleepSyncFailed": {
+    "description": "A sync failed for an unclassified reason."
+  },
+  "sleepConnect": "Connect {provider}",
+  "@sleepConnect": {
+    "description": "Button that opens the health permission prompt.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepProviderApple": "Apple Health",
+  "@sleepProviderApple": {
+    "description": "Apple's health store, as Apple names it."
+  },
+  "sleepProviderHealthConnect": "Health Connect",
+  "@sleepProviderHealthConnect": {
+    "description": "Google's health store. Not translated — it is a product name."
+  },
+  "sleepProviderYou": "You",
+  "@sleepProviderYou": {
+    "description": "The provider name on a night the user logged themselves."
+  },
+  "sleepGoingToSleep": "I'm going to sleep",
+  "@sleepGoingToSleep": {
+    "description": "Opens a user-reported sleep mark."
+  },
+  "sleepImAwake": "I'm awake",
+  "@sleepImAwake": {
+    "description": "Closes an open sleep mark into a night."
+  },
+  "sleepMarkOpenSince": "Sleeping since {time}",
+  "@sleepMarkOpenSince": {
+    "description": "Shown while a sleep mark is open and not yet closed.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepMarkCancel": "Not sleeping after all",
+  "@sleepMarkCancel": {
+    "description": "Discards an open sleep mark without creating a night."
+  },
+  "sleepEditNight": "Edit this night",
+  "@sleepEditNight": {
+    "description": "Opens the manual correction sheet."
+  },
+  "sleepEditHint": "Your correction is saved as your own, and the measured times are kept.",
+  "@sleepEditHint": {
+    "description": "Explains that an edit overrides rather than erases the measurement."
+  },
+  "sleepOnsetMeasured": "Asleep {time}",
+  "@sleepOnsetMeasured": {
+    "description": "Sleep onset from a sensor measurement. States it plainly.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetPlatform": "Sleep recorded {time}",
+  "@sleepOnsetPlatform": {
+    "description": "Sleep onset from a platform record we cannot attribute to a sensor. Deliberately weaker than 'Asleep'.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetReported": "You logged {time}",
+  "@sleepOnsetReported": {
+    "description": "Sleep onset the user reported. Never phrased as a detection.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnsetEstimated": "Likely asleep around {time}",
+  "@sleepOnsetEstimated": {
+    "description": "Sleep onset inferred from device behaviour. Hedged, and rounded to the quarter hour.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeMeasured": "Awake {time}",
+  "@sleepWakeMeasured": {
+    "description": "Wake time from a sensor measurement.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakePlatform": "Wake recorded {time}",
+  "@sleepWakePlatform": {
+    "description": "Wake time from an unattributed platform record.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeReported": "You logged {time}",
+  "@sleepWakeReported": {
+    "description": "Wake time the user reported.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWakeEstimated": "Likely awake around {time}",
+  "@sleepWakeEstimated": {
+    "description": "Wake time inferred from device behaviour.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepLastPhoneUse": "Last phone use {time}",
+  "@sleepLastPhoneUse": {
+    "description": "A device-activity timestamp. Never re-worded into a sleep claim.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepMethodMeasured": "Measured",
+  "@sleepMethodMeasured": {
+    "description": "Badge for a sensor measurement."
+  },
+  "sleepMethodRecorded": "Recorded",
+  "@sleepMethodRecorded": {
+    "description": "Badge for a platform record of unknown sensor origin."
+  },
+  "sleepMethodLogged": "Logged by you",
+  "@sleepMethodLogged": {
+    "description": "Badge for a user-reported night."
+  },
+  "sleepMethodEstimated": "Estimate",
+  "@sleepMethodEstimated": {
+    "description": "Badge for an inferred night."
+  },
+  "sleepConfidenceHigh": "High confidence",
+  "@sleepConfidenceHigh": {
+    "description": "Confidence badge."
+  },
+  "sleepConfidenceMedium": "Medium confidence",
+  "@sleepConfidenceMedium": {
+    "description": "Confidence badge."
+  },
+  "sleepConfidenceLow": "Low confidence",
+  "@sleepConfidenceLow": {
+    "description": "Confidence badge."
+  },
+  "sleepSourceChip": "{provider} · {method}",
+  "@sleepSourceChip": {
+    "description": "The source chip under every sleep figure. Provider first, then how it was produced.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDurationLabel": "Asleep",
+  "@sleepDurationLabel": {
+    "description": "Label for time actually asleep."
+  },
+  "sleepTimeInBedLabel": "In bed",
+  "@sleepTimeInBedLabel": {
+    "description": "Label for time in bed."
+  },
+  "sleepEfficiencyLabel": "Efficiency",
+  "@sleepEfficiencyLabel": {
+    "description": "Label for asleep divided by time in bed."
+  },
+  "sleepEfficiencyUnknown": "Not tracked",
+  "@sleepEfficiencyUnknown": {
+    "description": "Shown where efficiency cannot be computed. Never a percentage."
+  },
+  "sleepInterruptionCount": "{count, plural, =0{No interruptions} =1{1 interruption} other{{count} interruptions}}",
+  "@sleepInterruptionCount": {
+    "description": "Awake bouts inside a night.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNapCount": "{count, plural, =1{1 nap} other{{count} naps}}",
+  "@sleepNapCount": {
+    "description": "Short episodes outside the main sleep.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepSpansDstNote": "This night crossed a clock change, so its length differs from the times shown.",
+  "@sleepSpansDstNote": {
+    "description": "Annotates a night spanning a DST transition."
+  },
+  "sleepTargetsTitle": "Your targets",
+  "@sleepTargetsTitle": {
+    "description": "Title of the targets sheet."
+  },
+  "sleepTargetBedtime": "Bedtime",
+  "@sleepTargetBedtime": {
+    "description": "Target bedtime field."
+  },
+  "sleepTargetWake": "Wake",
+  "@sleepTargetWake": {
+    "description": "Target wake time field."
+  },
+  "sleepTargetDuration": "Sleep length",
+  "@sleepTargetDuration": {
+    "description": "Target sleep duration field."
+  },
+  "sleepTargetsHint": "Used for the target line and nothing else — ZIVO never scores a night.",
+  "@sleepTargetsHint": {
+    "description": "States that targets are a reference, not a grade."
+  },
+  "sleepNoTargets": "Set a target to see how your nights compare.",
+  "@sleepNoTargets": {
+    "description": "Shown where a target delta would go before targets are set."
+  },
+  "sleepDeltaLonger": "{amount} more than your {target} target",
+  "@sleepDeltaLonger": {
+    "description": "Slept longer than the target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDeltaShorter": "{amount} less than your {target} target",
+  "@sleepDeltaShorter": {
+    "description": "Slept less than the target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepDeltaOnTarget": "On your {target} target",
+  "@sleepDeltaOnTarget": {
+    "description": "Slept within rounding of the target.",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeLater": "{amount} later than your target bedtime",
+  "@sleepBedtimeLater": {
+    "description": "Went to bed later than target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeEarlier": "{amount} earlier than your target bedtime",
+  "@sleepBedtimeEarlier": {
+    "description": "Went to bed earlier than target.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepBedtimeOnTarget": "On your target bedtime",
+  "@sleepBedtimeOnTarget": {
+    "description": "Bedtime landed within tolerance."
+  },
+  "sleepWhyTitle": "Why this number?",
+  "@sleepWhyTitle": {
+    "description": "Opens the provenance sheet."
+  },
+  "sleepWhySole": "Only one source had this night.",
+  "@sleepWhySole": {
+    "description": "Resolution explanation: no contest."
+  },
+  "sleepWhyMethod": "Chosen because it was measured rather than entered or estimated.",
+  "@sleepWhyMethod": {
+    "description": "Resolution explanation: better method tier."
+  },
+  "sleepWhyCoverage": "Chosen because more of the night was actually recorded.",
+  "@sleepWhyCoverage": {
+    "description": "Resolution explanation: better coverage."
+  },
+  "sleepWhyDetail": "Chosen because it included sleep stages.",
+  "@sleepWhyDetail": {
+    "description": "Resolution explanation: richer stage data."
+  },
+  "sleepWhyOverride": "You set this night yourself.",
+  "@sleepWhyOverride": {
+    "description": "Resolution explanation: user override."
+  },
+  "sleepDisagreement": "{provider} recorded a different time — {amount} apart.",
+  "@sleepDisagreement": {
+    "description": "Shows how far an alternate source disagrees. Never averaged away.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepCoverageLabel": "Recorded coverage",
+  "@sleepCoverageLabel": {
+    "description": "Share of the night backed by real samples."
+  },
+  "sleepRecordedBy": "Recorded by {provider}",
+  "@sleepRecordedBy": {
+    "description": "Names the writing app.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepUseThisInstead": "Use this one instead",
+  "@sleepUseThisInstead": {
+    "description": "Switches the night to an alternate source."
+  },
+  "sleepWeekTitle": "This week",
+  "@sleepWeekTitle": {
+    "description": "Weekly view title."
+  },
+  "sleepWeekAverage": "Average",
+  "@sleepWeekAverage": {
+    "description": "Weekly average duration label."
+  },
+  "sleepWeekConsistency": "Consistency",
+  "@sleepWeekConsistency": {
+    "description": "Weekly midpoint variability label."
+  },
+  "sleepWeekOnTarget": "On target",
+  "@sleepWeekOnTarget": {
+    "description": "Weekly bedtime adherence label."
+  },
+  "sleepNightsCounted": "{count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepNightsCounted": {
+    "description": "How many nights a figure rests on. Always shown beside it.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNightsOf": "{count} of {total} nights",
+  "@sleepNightsOf": {
+    "description": "Nights with data out of the window's length.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepVariability": "±{amount}",
+  "@sleepVariability": {
+    "description": "Variability figure, e.g. ±48 min.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepOnTargetRatio": "{count} of {total}",
+  "@sleepOnTargetRatio": {
+    "description": "Nights on target out of nights with data.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepNoData": "No data",
+  "@sleepNoData": {
+    "description": "Label on a night with nothing recorded. Never a zero."
+  },
+  "sleepInsufficient": "Not enough nights yet",
+  "@sleepInsufficient": {
+    "description": "Shown where a gated figure would go."
+  },
+  "sleepInsufficientFor": "Not enough nights yet — {have} of {need}",
+  "@sleepInsufficientFor": {
+    "description": "Shown where a gated figure would go, with how far off it is.",
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepWeekUnchanged": "About the same as last week",
+  "@sleepWeekUnchanged": {
+    "description": "Week-over-week difference inside the noise floor. A real finding, not a failure."
+  },
+  "sleepWeekImproved": "{amount} more than last week",
+  "@sleepWeekImproved": {
+    "description": "Week-over-week improvement past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepWeekDeclined": "{amount} less than last week",
+  "@sleepWeekDeclined": {
+    "description": "Week-over-week decline past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightsTitle": "What this means",
+  "@sleepInsightsTitle": {
+    "description": "Section label above generated insights."
+  },
+  "sleepInsightsPending": "Reading your nights…",
+  "@sleepInsightsPending": {
+    "description": "While insights are being generated."
+  },
+  "sleepInsightsUnavailable": "No conclusion can be drawn from the nights recorded so far.",
+  "@sleepInsightsUnavailable": {
+    "description": "Shown when the fact sheet is too thin for any claim."
+  },
+  "sleepInsightBasis": "Based on {count, plural, =1{1 night} other{{count} nights}}",
+  "@sleepInsightBasis": {
+    "description": "Provenance footnote under a generated insight.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepStageLight": "Light",
+  "@sleepStageLight": {
+    "description": "Sleep stage."
+  },
+  "sleepStageDeep": "Deep",
+  "@sleepStageDeep": {
+    "description": "Sleep stage."
+  },
+  "sleepStageRem": "REM",
+  "@sleepStageRem": {
+    "description": "Sleep stage."
+  },
+  "sleepStageAwake": "Awake",
+  "@sleepStageAwake": {
+    "description": "Sleep stage."
+  },
+  "sleepStageAsleep": "Asleep",
+  "@sleepStageAsleep": {
+    "description": "Sleep stage with no grading available."
+  },
+  "sleepStageInBed": "In bed",
+  "@sleepStageInBed": {
+    "description": "Bed-occupancy state, not a sleep stage."
+  },
+  "sleepNoStages": "Stages aren't available from this source.",
+  "@sleepNoStages": {
+    "description": "Shown in place of a stage breakdown when the source has none."
+  },
+  "sleepDurationHm": "{hours}h {minutes}m",
+  "@sleepDurationHm": {
+    "description": "A duration in hours and minutes.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepDurationM": "{minutes}m",
+  "@sleepDurationM": {
+    "description": "A duration under an hour.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepDurationH": "{hours}h",
+  "@sleepDurationH": {
+    "description": "A whole number of hours.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "hubSleep": "Sleep",
+  "@hubSleep": {
+    "description": "Hub module card label for Sleep."
+  },
+  "hubNoSleepYet": "No nights yet",
+  "@hubNoSleepYet": {
+    "description": "Hub Sleep card stat before any night is recorded."
+  },
+  "sleepInsightDuration": "You've averaged {amount} a night.",
+  "@sleepInsightDuration": {
+    "description": "Deterministic insight: the window's average sleep length.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekBetter": "That's {amount} more than the week before.",
+  "@sleepInsightWeekBetter": {
+    "description": "Deterministic insight: week-over-week improvement past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekWorse": "That's {amount} less than the week before.",
+  "@sleepInsightWeekWorse": {
+    "description": "Deterministic insight: week-over-week decline past the noise floor.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightWeekSame": "That's about the same as the week before.",
+  "@sleepInsightWeekSame": {
+    "description": "Deterministic insight: the difference is inside the noise floor, which is a finding rather than a failure to find one."
+  },
+  "sleepInsightConsistent": "Your sleep timing held steady, varying by {amount}.",
+  "@sleepInsightConsistent": {
+    "description": "Deterministic insight: low midpoint variability.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightIrregular": "Your sleep timing moved around by {amount} across the week.",
+  "@sleepInsightIrregular": {
+    "description": "Deterministic insight: high midpoint variability.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepInsightAdherence": "You hit your target bedtime on {count} of {total} nights.",
+  "@sleepInsightAdherence": {
+    "description": "Deterministic insight: bedtime adherence.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepInsightTrendUp": "Over the last few weeks your nights have been getting longer.",
+  "@sleepInsightTrendUp": {
+    "description": "Deterministic insight: a rising Theil-Sen slope. Direction only, because a slope in minutes per night is not a figure a reader can use."
+  },
+  "sleepInsightTrendDown": "Over the last few weeks your nights have been getting shorter.",
+  "@sleepInsightTrendDown": {
+    "description": "Deterministic insight: a falling Theil-Sen slope."
   }
 }

@@ -11,6 +11,28 @@
     <!-- Today's step counter (pedometer / `lib/features/device/steps`).
          Android 10+ gates the step sensor behind this runtime permission. -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Sleep (lib/features/sleep). READ ONLY: ZIVO never writes to Health
+         Connect, so no WRITE_SLEEP. READ_HEALTH_DATA_HISTORY is what allows
+         the 90-day backfill — without it Health Connect ERRORS on any read
+         older than 30 days rather than returning less. Both are runtime
+         permissions granted in Health Connect's own UI, not ours.
+         Background reads (READ_HEALTH_DATA_IN_BACKGROUND) are deliberately
+         not requested yet: nothing reads while backgrounded until the
+         observer work lands (docs/SLEEP_SYSTEM.md §20), and asking for a
+         permission we do not use is a permission we cannot justify. -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+
+    <!-- Health Connect resolves this to decide which apps can request health
+         permissions at all; on Android 13 and below it also needs the
+         queries entry so the client can see the Health Connect APK. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
+
     <application
         android:label="zivo"
         android:name="${applicationName}"
@@ -36,6 +58,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Health Connect's "why does this app want my data?" link, and
+                 its Android 14+ framework equivalent. Both point at the app's
+                 own launcher activity; Health Connect will not show the
+                 permission sheet for an app that declares neither. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
             <!-- Spotify redirect URI (lib/features/music) — App Remote's
                  actual Android auth flow is Activity-result based (handled
                  by spotify_sdk's plugin itself, no intent-filter needed for
@@ -55,6 +84,17 @@
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

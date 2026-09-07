@@ -43,6 +43,12 @@ import '../features/diet/domain/diet_repository.dart';
 import '../features/diet/domain/nutrition/composite_food_resolver.dart';
 import '../features/diet/domain/nutrition/food_resolver.dart';
 import '../features/device/steps/step_counter.dart';
+import '../features/sleep/data/firestore_sleep_repository.dart';
+import '../features/sleep/data/health_sleep_source.dart';
+import '../features/sleep/data/in_memory_sleep_repository.dart';
+import '../features/sleep/domain/sleep_repository.dart';
+import '../features/sleep/domain/sleep_service.dart';
+import '../features/sleep/domain/sleep_source.dart';
 import '../features/expenses/data/firestore_category_repository.dart';
 import '../features/expenses/data/firestore_expense_repository.dart';
 import '../features/expenses/data/firestore_wallet_repository.dart';
@@ -95,6 +101,8 @@ class ZivoApp extends StatefulWidget {
     this.activity,
     this.expenses,
     this.stepCounter,
+    this.sleep,
+    this.sleepSource,
     this.wallet,
     this.expenseCategories,
     this.moments,
@@ -132,6 +140,13 @@ class ZivoApp extends StatefulWidget {
   final AiRepository? ai;
   final AudioRecorderService? recorder;
   final StepCounterService? stepCounter;
+
+  /// Overridable so tests can drive Sleep without Firestore.
+  final SleepRepository? sleep;
+
+  /// Overridable so tests can drive Sleep without HealthKit / Health Connect.
+  final SleepSource? sleepSource;
+
   final MediaService? media;
   final MediaPreferencesRepository? mediaPreferences;
   final MusicController? music;
@@ -193,6 +208,22 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   late final StepCounterService? _stepCounter =
       widget.stepCounter ??
       (deviceHasStepSensor ? PedometerStepCounterService() : null);
+
+  late final SleepRepository _sleep = widget.sleep ?? _defaultSleep();
+
+  /// The platform health seam. Only where a health store can exist (iOS /
+  /// Android); every other host gets [UnsupportedSleepSource], which is not an
+  /// error path — sleep still works there through manual logging.
+  late final SleepSource _sleepSource =
+      widget.sleepSource ??
+      (HealthSleepSource.isSupportedHost
+          ? HealthSleepSource()
+          : const UnsupportedSleepSource());
+
+  late final SleepService _sleepService = SleepService(
+    repository: _sleep,
+    source: _sleepSource,
+  );
 
   // Media is local-first: the byte store is always the on-device documents
   // directory, independent of the Firestore flag. Only the *metadata* registry
@@ -293,6 +324,10 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       ? FirestoreExpenseRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryExpenseRepository();
 
+  SleepRepository _defaultSleep() => _useFirestore
+      ? FirestoreSleepRepository(uidSource: UidSource.firebaseAuth())
+      : InMemorySleepRepository();
+
   WalletRepository _defaultWallet() => _useFirestore
       ? FirestoreWalletRepository(uidSource: UidSource.firebaseAuth())
       : InMemoryWalletRepository();
@@ -360,6 +395,8 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       ai: _ai,
       recorder: _recorder,
       stepCounter: _stepCounter,
+      sleep: _sleep,
+      sleepService: _sleepService,
       media: _media,
       music: _music,
       locale: _locale,

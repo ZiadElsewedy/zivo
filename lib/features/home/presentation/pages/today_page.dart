@@ -33,6 +33,7 @@ import '../../../../l10n/l10n.dart';
 import '../header_builder.dart';
 import '../widgets/common.dart';
 import '../widgets/diet_glance.dart';
+import '../widgets/sleep_glance.dart';
 import '../widgets/today_pulse_card.dart';
 import '../../../workout/presentation/widgets/up_next_workout_card.dart';
 import '../../../shell/presentation/widgets/bottom_chrome.dart';
@@ -175,6 +176,12 @@ class _TodayPageState extends State<TodayPage> {
                   const RiseIn(
                     delay: Duration(milliseconds: 350),
                     child: _DietSection(),
+                  ),
+                  // Sleep hides itself when there is no night to report,
+                  // rather than showing a zero — see SleepGlanceSection.
+                  const RiseIn(
+                    delay: Duration(milliseconds: 420),
+                    child: SleepGlanceSection(),
                   ),
                 ],
               ),
