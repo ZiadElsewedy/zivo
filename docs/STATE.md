@@ -74,6 +74,45 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **…and then the same sweep across the rest of the app** (2026-09-07). The
+  Ask pass produced five recurring shapes; each was grepped for app-wide and
+  the hits confirmed on a simulator in Arabic before being touched.
+  - **The list divider inset was wrong on every card in the app.**
+    `TrainListRow.dividerInset` was applied as a physical `left`, so in Arabic
+    the hairline ran *under* the leading icon column and stopped short of the
+    title it is documented to start at. One-line fix in `train_surfaces.dart`
+    and `settings_row.dart`; visible on Settings, You, and every list surface.
+  - **Four more composed runs were never pinned**: `~21` rendered `21~` on
+    Today's next-workout card, `-2:47` rendered `2:47-` on Settings' Spotify
+    card, and the live session's ± weight chips and progress percentage the
+    same. `ltrFor` on the numeric skeleton only — the translated word beside it
+    stays unpinned, per `core/util/bidi.dart`.
+  - **Media controls do not mirror, everywhere** — not just the nav lozenge.
+    The four `spotify_strip` densities and the full player's transport had the
+    identical flip, and the scrubber's timecodes sat under the wrong ends of a
+    bar that is positioned physically (raw `dx`, `Positioned.left`) and so
+    always ran left-to-right. Track titles across the music surfaces now pick
+    their own direction.
+  - **English still on Arabic screens.** Today's diet glance was two
+    interpolated sentences — and the meals half already had an ARB key the
+    widget never read. Also the whole default-rest control on plan edit, the
+    add-day sheet, `shortest`/`longest` on the session-length page, and two
+    `domain/` label functions (`consumedBasisShortLabel`, `findingKindLabel`)
+    rendered straight onto the diet plan and Today's Read cards. The domain
+    halves stay where they are — the coaching engine splices them into
+    generated English prose — and got presentation twins in `diet_labels.dart`.
+  - **The standing guard has a hole worth knowing about.**
+    `test/shell/rtl_layout_test.dart` boots the whole app in both languages and
+    fails on any layout error, which is why none of this was caught: not one of
+    these bugs throws. A mirrored control, a backwards run and an untranslated
+    string all lay out perfectly. The new tests assert *position* (previous is
+    left of next) and *content* (no English in an Arabic tree) instead — the
+    transport one is verified to fail without its fix.
+  - **Not swept:** ~65 `Alignment.center*`/`Positioned` sites were not audited
+    one by one; most are legitimately physical (inside a `Stack`). The
+    `EdgeInsets.only(left: 2, bottom: 12)` section-label indent repeats at ~8
+    sites and is still physical — 2px, so wrong but invisible.
+
 - **Ask reads properly in Arabic** (2026-09-07, on `feature/sleep`). A pass
   over the Ask screen after the owner shot it in Arabic. Same lesson as the
   sleep bugs above — the suite asserts in English, where most of this is a
