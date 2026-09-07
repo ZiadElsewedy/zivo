@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart' show MissingPluginException, PlatformException, Uint8List;
 import 'package:spotify_sdk/enums/repeat_mode_enum.dart' as sdk;
 import 'package:spotify_sdk/models/connection_status.dart';
@@ -26,21 +27,63 @@ import 'spotify_link_store.dart';
 ///
 /// Auth note: Spotify's Authorization Code with PKCE flow needs no client
 /// secret (unlike the older Authorization Code flow), so it's safe to run
-/// entirely on-device — `connectToSpotifyRemote` handles the PKCE exchange
-/// internally given just a `clientId` + `redirectUrl`.
+/// entirely on-device — the SDK handles the PKCE exchange internally given
+/// just a `clientId` + `redirectUrl`.
 ///
 /// App Remote requires the Spotify app installed + a Premium account, and
 /// does NOT work on the iOS Simulator (real device only). The dashboard app
 /// must also be in "Development mode" with the testing account added under
 /// User Management, or auth fails outright.
+///
+/// ## Sync automatically; never launch automatically
+///
+/// **The app attaches to a Spotify that is already playing. It never opens
+/// one that isn't.** That distinction is the whole shape of this class, and
+/// it is not decoration — it is the difference between two SDK calls that
+/// both read as "connect":
+///
+/// - [_authorize] — `getAccessToken` → the native `authorizeAndPlayURI`.
+///   Opens the Spotify app and starts playback. Only ever runs from a user's
+///   own tap on Connect.
+/// - [_attach] — `connectToSpotifyRemote(accessToken:)` → the native
+///   `SPTAppRemote.connect`. Attaches to a running Spotify and **fails
+///   harmlessly when Spotify isn't running** (the header is explicit: "If the
+///   Spotify app is not running you will need to use authorizeAndPlayURI: to
+///   wake it up"). Every automatic attempt — launch, resume, the one retry —
+///   goes through this and only this.
+///
+/// The app used to call the first one automatically, so opening ZIVO dragged
+/// Spotify open and started music the user hadn't asked for, and quitting
+/// Spotify just made it come back. Silent attach needs a token, which is why
+/// [SpotifyLinkStore] keeps one; with no token stored, an automatic attempt
+/// does nothing at all rather than falling back to the launching path.
+///
+/// Android has no such split: its `connectToSpotify` ignores the token and
+/// binds to the Spotify service without forcing playback or foregrounding the
+/// app, so [_attach] and [_authorize] are the same call there. See
+/// [_silentAttachNeedsToken].
 class SpotifyMusicController implements MusicController {
-  SpotifyMusicController({SpotifyLinkStore? links})
-    : _links = links ?? SpotifyLinkStore() {
+  SpotifyMusicController({SpotifyLinkStore? links, bool? silentAttachNeedsToken})
+    : _links = links ?? SpotifyLinkStore(),
+      _silentAttachNeedsToken =
+          silentAttachNeedsToken ?? defaultTargetPlatform == TargetPlatform.iOS {
     _watchAudioRoute();
+    _watchConnectionStatus();
     unawaited(_restoreLink());
   }
 
   final SpotifyLinkStore _links;
+
+  /// Whether a silent [_attach] on this platform needs a stored access token —
+  /// true on iOS, where the tokenless call is the one that opens Spotify and
+  /// starts playing. It doubles as "the user's Connect must go through
+  /// `getAccessToken` so we capture a token for next time", because those are
+  /// two faces of the same platform fact.
+  ///
+  /// Injectable so a test can exercise either platform's path without a device
+  /// (and so `defaultTargetPlatform` — macOS under `flutter test` — doesn't
+  /// silently pick the Android branch).
+  final bool _silentAttachNeedsToken;
 
   final _nowPlayingController = StreamController<NowPlaying?>.broadcast();
   final _connectionController = StreamController<MusicConnection>.broadcast();
@@ -52,24 +95,47 @@ class SpotifyMusicController implements MusicController {
   AudioOutput? _output;
   bool _linked = false;
 
-  /// The backoff timer for an automatic retry, and how many have run since
+  /// The App Remote access token, restored from [SpotifyLinkStore] at launch
+  /// and refreshed by every user-initiated [connect]. Null means the only way
+  /// in on iOS is the authorizing call — so nothing automatic is attempted.
+  String? _token;
+
+  /// The single silent retry after a drop, and whether it has been spent since
   /// the last successful connection.
   Timer? _retryTimer;
-  int _retries = 0;
+  bool _retried = false;
 
-  /// Escalating waits between silent reconnect attempts. App Remote drops for
-  /// ordinary reasons — the Spotify app was swapped out, the phone slept, the
-  /// service restarted — and most of those recover on the first or second
-  /// try; the tail is there so a genuinely absent player (Spotify force-quit)
-  /// costs a handful of cheap attempts rather than a permanent poll. The list
-  /// also bounds the run: past its end we stop and wait for the next resume
-  /// (or the user's tap), because something is wrong that retrying won't fix.
-  static const _retryDelays = <Duration>[
-    Duration(seconds: 2),
-    Duration(seconds: 5),
-    Duration(seconds: 12),
-    Duration(seconds: 30),
-  ];
+  /// One short retry, then stop. App Remote drops for ordinary reasons — the
+  /// Spotify app was swapped out, the socket died on resume — and those
+  /// recover immediately or not at all. The old escalating chain (2s → 5s →
+  /// 12s → 30s) existed because each attempt could re-launch Spotify and
+  /// therefore had to be worth the interruption; a silent attach costs
+  /// nothing, but it also can't conjure a player that the user has closed.
+  /// When the user quits Spotify, the app stops syncing and stays stopped —
+  /// the next attempt is the next resume, or their tap.
+  static const _retryDelay = Duration(seconds: 2);
+
+  /// How long a user-initiated [_authorize] may sit unresolved before we call
+  /// it dead.
+  ///
+  /// The native `authorizeAndPlayURI` reports "Spotify isn't installed" to a
+  /// callback the `getAccessToken` path never set (a `spotify_sdk` 3.0.2 bug:
+  /// it answers `connectionResult`, which only the `connectToSpotify` path
+  /// assigns), so that one case hangs instead of failing. Every other outcome
+  /// — authorized, refused, connection error — resolves the future or arrives
+  /// on the connection-status channel. Hence the timeout, and hence
+  /// [MusicConnection.noSpotifyApp] as its verdict: a missing Spotify app is
+  /// the only thing that realistically reaches it. If it ever fires on a user
+  /// who simply lingered in Spotify, the status channel corrects it the moment
+  /// they come back — [_watchConnectionStatus] runs for the controller's whole
+  /// life, not just inside a connect.
+  static const _authorizeTimeout = Duration(seconds: 30);
+
+  /// How long a silent [_attach] may sit unresolved. The native side is
+  /// supposed to fail its delegate promptly when Spotify isn't running, and in
+  /// practice does — this only exists so a handshake that answers neither way
+  /// can't strand the strip on "Connecting…" forever.
+  static const _attachTimeout = Duration(seconds: 15);
 
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<ConnectionStatus>? _connectionStatusSub;
@@ -115,20 +181,21 @@ class SpotifyMusicController implements MusicController {
   @override
   bool get isLinked => _linked;
 
-  /// Reads this device's stored consent and, if it has one, immediately tries
-  /// to reattach. This is what makes the app "already connected" when it
-  /// opens over a Spotify that is already playing: no tap, no prompt — the
-  /// authorization happened once, and it is still good.
+  /// Reads this device's stored consent and token and, if it has both, tries a
+  /// silent attach. This is what makes the app "already connected" when it
+  /// opens over a Spotify that is already playing: no tap, no prompt, and —
+  /// critically — no Spotify appearing on screen if it wasn't already running.
   Future<void> _restoreLink() async {
-    bool linked;
+    SpotifyLink link;
     try {
-      linked = await _links.isLinked();
+      link = await _links.read();
     } catch (_) {
-      linked = false; // no prefs (a test host, a fresh install) = not linked
+      link = SpotifyLink.none; // no prefs (a test host, a fresh install)
     }
-    if (!linked) return;
+    _token = link.accessToken;
+    if (!link.linked) return;
     _setLinked(true);
-    await connect();
+    await _attach();
   }
 
   void _setLinked(bool value) {
@@ -150,8 +217,39 @@ class SpotifyMusicController implements MusicController {
   }
 
   void _setConnection(MusicConnection state) {
+    if (_connectionState == state) return;
     _connectionState = state;
-    _connectionController.add(state);
+    if (!_connectionController.isClosed) _connectionController.add(state);
+  }
+
+  /// Watches the App Remote connection for the controller's whole lifetime,
+  /// rather than only from inside a successful connect.
+  ///
+  /// This channel is the single truth about connectedness: it reports the
+  /// handshake, and it reports the later drop when the user quits Spotify. It
+  /// is registered natively at plugin attach on both platforms, so subscribing
+  /// before the first connect is safe — and it means an attach that resolves
+  /// late (or a state we misread) is corrected rather than stuck.
+  void _watchConnectionStatus() {
+    try {
+      _connectionStatusSub = SpotifySdk.subscribeConnectionStatus().listen(
+        (status) {
+          if (status.connected) {
+            _onConnected();
+          } else {
+            // A drop, not a decision — the Spotify app was swapped out or
+            // quit. Publish it and let [_failed] decide whether one quiet
+            // retry is worth trying.
+            _failed(_mapErrorCode(status.errorCode));
+          }
+        },
+        // A host with no native side (the simulator, a test) errors on listen;
+        // the controller just stays disconnected, same as it always did.
+        onError: (Object _) {},
+      );
+    } on Exception {
+      // Same: nothing to watch here, and nothing to report.
+    }
   }
 
   @override
@@ -161,16 +259,100 @@ class SpotifyMusicController implements MusicController {
         _connectionState == MusicConnection.connected) {
       return;
     }
-    // A resume is a fresh chance, so the previous run's exhausted budget
-    // shouldn't hold it back.
-    _retries = 0;
-    await connect();
+    // A resume is a fresh chance, so the previous run's spent retry shouldn't
+    // hold it back.
+    _retried = false;
+    await _attach();
   }
 
+  /// **User-initiated.** The one path allowed to open Spotify and ask for
+  /// authorization — every automatic attempt goes through [_attach] instead.
+  ///
+  /// Even here, attaching is tried first when there's a token to try it with.
+  /// The most common tap on this is *Reconnect* after an ordinary drop, and if
+  /// Spotify is still running that costs one silent handshake instead of a
+  /// round trip out to Spotify's UI and back. Only when there is nothing to
+  /// attach to does the user's tap become an authorization.
   @override
   Future<void> connect() async {
     if (_connectionState == MusicConnection.connecting ||
         _connectionState == MusicConnection.connected) {
+      return;
+    }
+    _retryTimer?.cancel();
+    _retried = false;
+    if (!_silentAttachNeedsToken) {
+      await _attach(force: true);
+      return;
+    }
+    if (_token != null) {
+      await _attach();
+      if (_connectionState == MusicConnection.connected) return;
+      // Authorizing can't install Spotify; don't spend 30s finding that out.
+      if (_connectionState == MusicConnection.noSpotifyApp) return;
+      // The attach failed, so we're about to authorize instead — the queued
+      // silent retry would only race that.
+      _retryTimer?.cancel();
+      _retried = false;
+    }
+    await _authorize();
+  }
+
+  /// The authorizing connect: opens Spotify, authorizes, and hands back the
+  /// access token that makes every later attach silent.
+  ///
+  /// `getAccessToken` is used rather than `connectToSpotifyRemote` because it
+  /// is the only call in `spotify_sdk` that *returns* the token — and it
+  /// resolves from the native `appRemoteDidEstablishConnection`, so a token in
+  /// hand is itself proof the App Remote connection is up. That's why success
+  /// goes straight to [_onConnected] instead of waiting on the status channel.
+  Future<void> _authorize() async {
+    _setConnection(MusicConnection.connecting);
+    String token;
+    try {
+      token = await SpotifySdk.getAccessToken(
+        clientId: spotifyClientId,
+        redirectUrl: spotifyRedirectUri,
+      ).timeout(_authorizeTimeout);
+    } on TimeoutException {
+      _failed(MusicConnection.noSpotifyApp); // see [_authorizeTimeout]
+      return;
+    } on PlatformException catch (e) {
+      _failed(_mapErrorCode(e.code));
+      return;
+    } on MissingPluginException {
+      // The native side isn't wired up on this platform — reads the same as
+      // "can't connect" to the UI, not a crash.
+      _failed(MusicConnection.disconnected);
+      return;
+    }
+    // `getAccessToken` stringifies whatever the native side hands back, so an
+    // absent token arrives as the word "null" rather than as an error.
+    if (token.isEmpty || token == 'null') {
+      _failed(MusicConnection.authFailed);
+      return;
+    }
+    _token = token;
+    unawaited(_links.setAccessToken(token).catchError((Object _) {}));
+    _onConnected();
+  }
+
+  /// The silent attach: joins a Spotify that is already running, and fails
+  /// without a trace when there is nothing to join.
+  ///
+  /// [force] marks the user's own Connect on a platform where attach and
+  /// authorize are the same call (Android), so it may run with no token.
+  Future<void> _attach({bool force = false}) async {
+    if (_connectionState == MusicConnection.connecting ||
+        _connectionState == MusicConnection.connected) {
+      return;
+    }
+    final token = _token;
+    if (_silentAttachNeedsToken && token == null && !force) {
+      // Nothing to attach with, and the alternative would put Spotify on
+      // screen. Stay where we are — the strip offers Connect, and that tap is
+      // the user's to make.
+      _setConnection(MusicConnection.disconnected);
       return;
     }
     _retryTimer?.cancel();
@@ -179,31 +361,43 @@ class SpotifyMusicController implements MusicController {
       final connected = await SpotifySdk.connectToSpotifyRemote(
         clientId: spotifyClientId,
         redirectUrl: spotifyRedirectUri,
-      );
+        accessToken: token,
+      ).timeout(_attachTimeout);
       if (!connected) {
         _failed(MusicConnection.disconnected);
         return;
       }
+    } on TimeoutException {
+      // Nothing answered. Don't sit on "Connecting…" — call it down and let
+      // the status channel promote us if the handshake lands late.
+      _failed(MusicConnection.disconnected);
+      return;
     } on PlatformException catch (e) {
       _failed(_mapErrorCode(e.code));
       return;
     } on MissingPluginException {
-      // The native side isn't wired up on this platform (e.g. running on
-      // an unsupported target) — reads the same as "can't connect" to the
-      // UI, not a crash.
       _failed(MusicConnection.disconnected);
       return;
     }
+    _onConnected();
+  }
 
+  /// Everything that follows a live connection, from either path and from the
+  /// status channel — so it has to be idempotent.
+  void _onConnected() {
+    _retryTimer?.cancel();
+    _retried = false;
     _setConnection(MusicConnection.connected);
     // Connecting IS the consent. From here the app reattaches on its own at
-    // every launch and resume, and the user never sees Connect again unless
-    // they explicitly disconnect.
-    _retries = 0;
+    // every launch and resume — silently — and the user never sees Connect
+    // again unless they explicitly disconnect or the token lapses.
     _setLinked(true);
     unawaited(_links.setLinked(true).catchError((Object _) {}));
+    _subscribePlayerState();
+  }
 
-    unawaited(_playerStateSub?.cancel());
+  void _subscribePlayerState() {
+    if (_playerStateSub != null) return; // already live; don't stack listeners
     _playerStateSub = SpotifySdk.subscribePlayerState().listen(
       (state) async {
         final track = state.track;
@@ -239,88 +433,75 @@ class SpotifyMusicController implements MusicController {
           // this app having control when it doesn't.
           hasControl: true,
         );
-        _nowPlayingController.add(_current);
+        if (!_nowPlayingController.isClosed) _nowPlayingController.add(_current);
         if (artwork == null && track.imageUri.raw.isNotEmpty) {
           unawaited(_fetchArtworkAndRepublish(track));
         }
       },
       onError: (Object error) {
-        if (error is PlatformException) _setConnection(_mapErrorCode(error.code));
+        if (error is PlatformException) _failed(_mapErrorCode(error.code));
       },
     );
-
-    // Catches a LATER disconnect (Spotify app closed, connection dropped) —
-    // the try/catch above only covers the initial handshake.
-    unawaited(_connectionStatusSub?.cancel());
-    _connectionStatusSub = SpotifySdk.subscribeConnectionStatus().listen((status) {
-      if (status.connected) {
-        if (_connectionState != MusicConnection.connected) {
-          _setConnection(MusicConnection.connected);
-        }
-        _retries = 0;
-        _retryTimer?.cancel();
-      } else {
-        // A drop, not a decision. On a linked device this is the case the
-        // whole feature exists for — Spotify was swapped out, the socket
-        // died — so schedule a silent retry rather than leaving the user
-        // staring at a dead strip.
-        _failed(_mapErrorCode(status.errorCode));
-      }
-    });
   }
 
-  /// Publishes a failed/lost connection and, where retrying could plausibly
-  /// help, queues the next silent attempt.
+  /// Publishes a failed or lost connection, drops the track it was carrying,
+  /// and — where a silent retry could plausibly help — queues exactly one.
   ///
-  /// [MusicConnection.authFailed] and [MusicConnection.noSpotifyApp] are
-  /// deliberately terminal: the first can put an authorization sheet in front
-  /// of the user and the second cannot succeed at all, so hammering either
-  /// would be worse than the dead strip. Both surface a tappable affordance
-  /// instead (see `NowPlayingLozenge`) — retrying those is the user's call.
+  /// [MusicConnection.authFailed] and [MusicConnection.noSpotifyApp] never
+  /// retry: the first needs a fresh authorization (which is the user's tap to
+  /// give, since granting one puts Spotify on screen) and the second cannot
+  /// succeed at all. Both surface a tappable affordance instead — see
+  /// `NowPlayingLozenge`.
   void _failed(MusicConnection state) {
+    unawaited(_playerStateSub?.cancel());
+    _playerStateSub = null;
+    if (_current != null) {
+      _current = null;
+      if (!_nowPlayingController.isClosed) _nowPlayingController.add(null);
+    }
     _setConnection(state);
-    if (!_linked) return;
+    if (!_linked || _retried) return;
     if (state == MusicConnection.authFailed ||
         state == MusicConnection.noSpotifyApp) {
       return;
     }
-    if (_retries >= _retryDelays.length) return;
-    final delay = _retryDelays[_retries++];
+    // No token means the retry would be a no-op on iOS; don't schedule one.
+    if (_silentAttachNeedsToken && _token == null) return;
+    _retried = true;
     _retryTimer?.cancel();
-    _retryTimer = Timer(delay, () {
+    _retryTimer = Timer(_retryDelay, () {
       if (_connectionState == MusicConnection.connected) return;
-      unawaited(connect());
+      unawaited(_attach());
     });
   }
 
   /// Explicit, user-initiated: this **unlinks** the device as well as closing
-  /// the connection, so nothing reconnects behind the user's back after they
-  /// asked it to stop.
+  /// the connection — consent and stored token both go — so nothing
+  /// reconnects behind the user's back after they asked it to stop.
   @override
   Future<void> disconnect() async {
     _retryTimer?.cancel();
-    _retries = 0;
+    _retried = false;
+    _token = null;
     _setLinked(false);
-    unawaited(_links.setLinked(false).catchError((Object _) {}));
+    unawaited(_links.clear().catchError((Object _) {}));
     await _playerStateSub?.cancel();
-    await _connectionStatusSub?.cancel();
     _playerStateSub = null;
-    _connectionStatusSub = null;
     try {
       await SpotifySdk.disconnect();
     } on Exception {
       // Best-effort — we're tearing down our own state regardless.
     }
     _current = null;
-    _nowPlayingController.add(null);
+    if (!_nowPlayingController.isClosed) _nowPlayingController.add(null);
     _setConnection(MusicConnection.disconnected);
   }
 
   // The four controls below swallow their own errors deliberately: a stale
   // connection failing here will already have been (or will shortly be)
-  // caught by the `subscribeConnectionStatus()` listener in `connect()`,
-  // which is the single source of truth the UI reacts to — duplicating
-  // that reaction per-control would just race it.
+  // caught by the `subscribeConnectionStatus()` listener in
+  // [_watchConnectionStatus], which is the single source of truth the UI
+  // reacts to — duplicating that reaction per-control would just race it.
 
   @override
   Future<void> play() async {
@@ -436,7 +617,7 @@ class SpotifyMusicController implements MusicController {
     final current = _current;
     if (current == null || current.trackId != track.uri) return;
     _current = current.copyWith(artworkBytes: bytes);
-    _nowPlayingController.add(_current);
+    if (!_nowPlayingController.isClosed) _nowPlayingController.add(_current);
   }
 
   Future<Uint8List?> _artworkFor(Track track) async {
@@ -461,6 +642,11 @@ class SpotifyMusicController implements MusicController {
   /// `SpotifyRemoteServiceException`, `SpotifyDisconnectedException` (from
   /// `spotify_sdk`'s Android plugin source — there's no public error-code
   /// list in its docs).
+  ///
+  /// Everything unrecognised — including iOS's numeric `SPTError` codes, which
+  /// is what a silent attach against a *closed* Spotify comes back as — falls
+  /// to [MusicConnection.disconnected]. That is the right landing spot: the
+  /// strip reads "Reconnect Spotify" and waits for a tap.
   ///
   /// `UserNotAuthorizedException` used to map to [MusicConnection.needsPremium]
   /// — that was wrong. It means the app/account wasn't AUTHORIZED (in

@@ -276,9 +276,12 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// phone sleeps — so "connected at launch" is not a state that survives
   /// normal use. Without this the user came back to a dead strip and had to
   /// find a Connect button, which is precisely the friction this removes.
-  /// The call is a no-op on a device that has never linked, so it can never
-  /// raise an authorization prompt nobody asked for (see
-  /// [MusicController.reconnectIfLinked]).
+  ///
+  /// This is a *sync*, not a launch: [MusicController.reconnectIfLinked] joins
+  /// a player that is already running and does nothing at all otherwise — no
+  /// Spotify appearing on screen, no playback the user didn't start, no
+  /// authorization prompt. It is also a no-op on a device that has never
+  /// linked.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {

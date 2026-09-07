@@ -68,14 +68,22 @@ abstract class MusicController {
   bool get isLinked;
 
   /// Starts (or retries) connecting to the underlying player. A no-op if
-  /// already connected/connecting. **User-initiated**: it may present the
-  /// player's authorization UI, and success links this device.
+  /// already connected/connecting. **User-initiated**, and the only method
+  /// here allowed to be: it may present the player's authorization UI and
+  /// bring the player app to the foreground, and success links this device.
   Future<void> connect();
 
-  /// Connects only if this device [isLinked] — the silent attempt the app
-  /// makes at launch and on every resume, so a user who already said yes
-  /// once never presses Connect again. A no-op on an unlinked device, so it
-  /// can never surface an authorization prompt the user didn't ask for.
+  /// Attaches to the player **if it is already running**, and only if this
+  /// device [isLinked] — the silent attempt the app makes at launch and on
+  /// every resume, so a user who already said yes once never presses Connect
+  /// again.
+  ///
+  /// Silent is a hard requirement, not a nicety: this must never open the
+  /// player app, start playback, or raise an authorization prompt. A user who
+  /// opens ZIVO without wanting music gets nothing; a user who opens it over a
+  /// Spotify that is already playing gets the strip, live, with no tap. An
+  /// implementation that cannot attach without launching must do **nothing**
+  /// here rather than fall back to [connect].
   Future<void> reconnectIfLinked();
 
   /// Tears down the connection AND unlinks the device — [connection] emits

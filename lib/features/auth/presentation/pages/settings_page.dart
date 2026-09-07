@@ -468,10 +468,12 @@ class _MusicSection extends StatelessWidget {
                   ),
                 ),
                 // The way OUT. Connecting links this device, and a linked
-                // device reconnects itself at every launch and resume (see
-                // [MusicController.isLinked]) — so there has to be somewhere
-                // to say "stop doing that", and this card is the one surface
-                // that owns the connection rather than the playback.
+                // device re-attaches itself at every launch and resume (see
+                // [MusicController.isLinked]) — silently, and only to a
+                // Spotify that is already running, but still something the
+                // user is entitled to stop. This card is the one surface that
+                // owns the connection rather than the playback, so the switch
+                // lives here.
                 StreamBuilder<bool>(
                   stream: controller.linked,
                   initialData: controller.isLinked,

@@ -74,6 +74,30 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 
 ## Recently landed (verified in code on `version-1`)
 
+- **Spotify syncs automatically; it no longer *launches* automatically** (2026-09-07,
+  owner report). Opening ZIVO dragged the Spotify app on screen and started playing —
+  and quitting Spotify just made it come back, so the only way to stop it was
+  Settings → Disconnect. Cause: `spotify_sdk` spells two different things "connect", and
+  the auto-reconnect at launch/resume/backoff was calling the wrong one.
+  `connectToSpotifyRemote()` with no access token becomes iOS's `authorizeAndPlayURI`,
+  which opens Spotify **and starts playback**; with a token it becomes
+  `SPTAppRemote.connect`, which attaches to a running Spotify and fails harmlessly when
+  there isn't one. `SpotifyMusicController` now keeps the two apart: every automatic
+  attempt takes the silent path and **does nothing at all** when it has no token to take
+  it with, while the authorizing path is reachable only from the user's own Connect tap
+  (which itself tries the silent attach first). The token that makes silence possible is
+  persisted by `SpotifyLinkStore`, whose doc no longer claims to hold no credential —
+  see it for what the token is (App Remote scope, ~1h, no refresh token) and the
+  Keychain upgrade path if that bar needs raising. Also: the connection-status channel is
+  now subscribed for the controller's lifetime rather than only inside a successful
+  connect (so a late or missed handshake self-corrects), a drop clears the track it was
+  carrying, and the 2s→5s→12s→30s backoff is one 2s retry — a silent attach can't
+  conjure a player the user has closed. Net behaviour: **Spotify playing → ZIVO syncs
+  with no tap; Spotify closed → ZIVO stays disconnected; close Spotify → ZIVO stops
+  syncing; Connect Spotify is a button.** Held by
+  `test/music/spotify_music_controller_test.dart`, which asserts on the platform channel
+  because both spellings look identical from Dart.
+
 - **…and then the same sweep across the rest of the app** (2026-09-07). The
   Ask pass produced five recurring shapes; each was grepped for app-wide and
   the hits confirmed on a simulator in Arabic before being touched.
