@@ -617,7 +617,11 @@ class WorkoutStartTimesPage extends StatelessWidget {
                       title: formatClockTime(context, session.startedAt),
                       subtitle:
                           '${session.dayLabel} · ${formatMonthDay(context, session.startedAt)}',
-                      trailing: timeAgo(context, session.startedAt, DateTime.now()),
+                      trailing: timeAgo(
+                        context,
+                        session.startedAt,
+                        DateTime.now(),
+                      ),
                       accent: TrainColors.green,
                     ),
                   ),

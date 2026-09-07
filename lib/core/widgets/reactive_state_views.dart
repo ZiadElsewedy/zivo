@@ -43,7 +43,11 @@ class EmptyStateView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Text(message, style: AppText.aside(context), textAlign: TextAlign.center),
+        child: Text(
+          message,
+          style: AppText.aside(context),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }

@@ -233,10 +233,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                                 TextSpan(text: l(context).authCodeSentTo),
                                 TextSpan(
                                   text: _maskedEmail,
-                                  style: AuthHeader.asideStyle(context).copyWith(
-                                    color: TrainColors.ink,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: AuthHeader.asideStyle(context)
+                                      .copyWith(
+                                        color: TrainColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ],
                             ),

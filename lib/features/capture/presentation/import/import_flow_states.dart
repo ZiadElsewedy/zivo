@@ -287,10 +287,9 @@ class ImportErrorState extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 detail!,
-                style: AppText.aside(context).copyWith(
-                  color: TrainColors.ink3,
-                  fontSize: 11,
-                ),
+                style: AppText.aside(
+                  context,
+                ).copyWith(color: TrainColors.ink3, fontSize: 11),
                 textAlign: TextAlign.center,
               ),
             ],
