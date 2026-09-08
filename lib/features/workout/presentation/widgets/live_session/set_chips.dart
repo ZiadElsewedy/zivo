@@ -154,7 +154,11 @@ class _SetChipState extends State<SetChip> with SingleTickerProviderStateMixin {
           fill: TrainColors.ember.withValues(alpha: 0.12),
           border: TrainColors.ember.withValues(alpha: 0.35),
           label: TrainColors.emberPale.withValues(alpha: 0.9),
-          value: Colors.white,
+          // `inkPlain`, not `Colors.white`: this chip's fill is a 12% ember
+          // wash, which is near-black on one skin and near-*white* on the
+          // other — so its value has to be the page's ink, exactly like the
+          // done chip beside it. (On dark the two differ by 11/255.)
+          value: TrainColors.inkPlain,
         ),
         SetChipStatus.upcoming => (
           fill: TrainColors.glassSoft,
