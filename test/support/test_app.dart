@@ -21,7 +21,10 @@ import 'package:zivo/features/moments/domain/moment_repository.dart';
 import 'package:zivo/features/music/domain/music_controller.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_training_day_mark_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/training_day_mark_repository.dart';
+import 'package:zivo/features/workout/domain/workout_session_repository.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_profile_repository.dart';
@@ -67,6 +70,8 @@ Widget wrapWithScope(
   MediaService? media,
   MusicController? music,
   MomentRepository? moments,
+  WorkoutSessionRepository? workoutSessions,
+  TrainingDayMarkRepository? trainingDayMarks,
   Locale? locale,
   Brightness brightness = Brightness.dark,
 }) {
@@ -80,7 +85,8 @@ Widget wrapWithScope(
     moments: moments ?? InMemoryMomentRepository(),
     workouts: InMemoryWorkoutRepository(),
     workoutPlans: InMemoryWorkoutPlanRepository(),
-    workoutSessions: InMemoryWorkoutSessionRepository(),
+    workoutSessions: workoutSessions ?? InMemoryWorkoutSessionRepository(),
+    trainingDayMarks: trainingDayMarks ?? InMemoryTrainingDayMarkRepository(),
     diet: InMemoryDietRepository(),
     ai: FakeAiRepository(),
     music: music ?? InertMusicController(),

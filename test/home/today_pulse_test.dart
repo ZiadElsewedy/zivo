@@ -5,27 +5,50 @@ import 'package:zivo/features/home/domain/today_pulse.dart';
 import 'package:zivo/features/home/presentation/widgets/today_pulse_card.dart'
     show formatSteps;
 import 'package:zivo/features/workout/domain/live_session.dart';
+import 'package:zivo/features/workout/domain/planned_exercise.dart';
+import 'package:zivo/features/workout/domain/rep_target.dart';
 import 'package:zivo/features/workout/domain/workout_day.dart';
+import 'package:zivo/features/workout/domain/set_type.dart';
+import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/l10n/app_localizations_en.dart';
 import 'package:zivo/l10n/app_localizations_ar.dart';
 import 'package:zivo/l10n/app_localizations.dart';
 
-/// A minimal day [LiveSession.start] needs — no exercises, it only reads
-/// id/label.
+/// A day with ONE working set, because the streak's bar is a completed
+/// working set — a session built from a day with no exercises reads to a human
+/// like a trained day and is not one.
 const WorkoutDay _day = WorkoutDay(
   id: 'd',
   slot: 'A',
   label: 'Pull',
   order: 0,
-  exercises: [],
+  exercises: [
+    PlannedExercise(
+      id: 'bench',
+      name: 'Bench Press',
+      muscleGroup: 'Chest',
+      order: 0,
+      defaultRestSeconds: 90,
+      sets: [
+        PlannedSet(
+          order: 0,
+          repTarget: RepTarget.fixed(8),
+          restSeconds: 90,
+          type: SetType.working,
+        ),
+      ],
+    ),
+  ],
 );
 
-/// Builds a COMPLETED session on [day] (at [hour], default 18:00).
+/// Builds a COMPLETED session on [day] (at [hour], default 18:00), with its
+/// one set actually performed.
 LiveSession _done(DateTime day, {int hour = 18, String id = 's'}) {
   final start = DateTime(day.year, day.month, day.day, hour);
-  return LiveSession.start(_day, id: id, planId: 'p', now: start).complete(
-    now: start.add(const Duration(minutes: 45)),
-  );
+  final done = start.add(const Duration(minutes: 45));
+  return LiveSession.start(_day, id: id, planId: 'p', now: start)
+      .markSetDone('bench', 'bench-s0', now: done, actualReps: 8, actualWeightKg: 60)
+      .complete(now: done);
 }
 
 void main() {
@@ -71,21 +94,27 @@ void main() {
     });
   });
 
+  // Today reads the ONE streak engine (`workout/domain/training_streak.dart`)
+  // rather than walking the calendar itself — these assert the delegation and
+  // the rule it delegates to. The rule's own edges are covered exhaustively in
+  // `test/workout/training_streak_test.dart`.
   group('trainingStreakDays', () {
-    test('counts consecutive days ending today', () {
+    test('counts the trained days in the current run', () {
       final sessions = [
-        _done(now),
-        _done(now.subtract(const Duration(days: 1))),
-        _done(now.subtract(const Duration(days: 2))),
-        _done(now.subtract(const Duration(days: 5))), // gap breaks it
+        _done(now, id: 'a'),
+        _done(now.subtract(const Duration(days: 1)), id: 'b'),
+        _done(now.subtract(const Duration(days: 2)), id: 'c'),
+        // Four days after the one above it — past the allowance, so the run
+        // starts here rather than continuing.
+        _done(now.subtract(const Duration(days: 6)), id: 'd'),
       ];
       expect(trainingStreakDays(sessions, now), 3);
     });
 
     test("today's missing workout doesn't break yesterday's streak", () {
       final sessions = [
-        _done(now.subtract(const Duration(days: 1))),
-        _done(now.subtract(const Duration(days: 2))),
+        _done(now.subtract(const Duration(days: 1)), id: 'a'),
+        _done(now.subtract(const Duration(days: 2)), id: 'b'),
       ];
       expect(
         trainingStreakDays(sessions, now),
@@ -94,13 +123,28 @@ void main() {
       );
     });
 
-    test('a rest day before an unstarted today ends the streak honestly', () {
+    test('two rest days do not break it — that is the whole rule', () {
       final sessions = [
-        _done(now.subtract(const Duration(days: 2))),
-        _done(now.subtract(const Duration(days: 3))),
+        _done(now.subtract(const Duration(days: 2)), id: 'a'),
+        _done(now.subtract(const Duration(days: 3)), id: 'b'),
       ];
-      // The streak ran two days ago; yesterday had nothing → done growing.
+      expect(trainingStreakDays(sessions, now), 2);
+    });
+
+    test('a gap past the allowance does end it', () {
+      final sessions = [
+        _done(now.subtract(const Duration(days: 4)), id: 'a'),
+        _done(now.subtract(const Duration(days: 5)), id: 'b'),
+      ];
       expect(trainingStreakDays(sessions, now), 0);
+    });
+
+    test('a warm-up-only session is not a trained day', () {
+      final start = now.subtract(const Duration(days: 1));
+      final warmupOnly = LiveSession.start(_day, id: 'w', planId: 'p', now: start)
+          .markSetSkipped('bench', 'bench-s0', now: start)
+          .complete(now: start.add(const Duration(minutes: 20)));
+      expect(trainingStreakDays([warmupOnly], now), 0);
     });
   });
 

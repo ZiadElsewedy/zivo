@@ -296,6 +296,20 @@ class AppScope extends InheritedWidget {
     return scope!;
   }
 
+  /// The scope if there is one, null otherwise — for a screen that is meant to
+  /// render standalone from data it was handed, and reaches for the scope only
+  /// to sharpen what it shows (a user threshold, a preference). Such a screen
+  /// must degrade to a sensible default rather than assert, or it stops being
+  /// standalone. Anything that genuinely needs a repository uses [of].
+  static AppScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppScope>();
+
+  /// [maxSessionDuration] read through [maybeOf] — the account's own setting
+  /// where there is a scope with one, the default otherwise.
+  static Duration maxSessionDurationOf(BuildContext context) =>
+      maybeOf(context)?.maxSessionDuration ??
+      WorkoutSettings.defaults.maxSessionDuration;
+
   @override
   bool updateShouldNotify(AppScope oldWidget) =>
       auth != oldWidget.auth ||

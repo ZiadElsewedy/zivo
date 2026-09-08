@@ -27,7 +27,9 @@ import '../workout_format.dart';
 /// its own row with actual reps/weight, RPE, and a clear completed/skipped
 /// marker. Reads only the [LiveSession] handed to it — no streams, no
 /// repository access; the session is already resolved by whoever pushed
-/// this page.
+/// this page. The one thing it reaches out for is the account's maximum
+/// session length, read through `AppScope.maxSessionDurationOf` so a scope-less
+/// host still renders — and the repository, only inside an action's callback.
 class SessionDetailsPage extends StatelessWidget {
   const SessionDetailsPage({required this.session, super.key});
 
@@ -129,7 +131,10 @@ class _DurationProvenanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final max = AppScope.of(context).maxSessionDuration;
+    // `maybeOf`: this page is documented as renderable from the session it
+    // was handed, and a threshold it can default is not a reason to start
+    // requiring a scope.
+    final max = AppScope.maxSessionDurationOf(context);
     final usable = session.hasUsableDuration(max);
     return TrainListCard(
       rows: [

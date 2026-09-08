@@ -322,9 +322,12 @@ class LiveSessionController extends ChangeNotifier {
   /// while the session is explicitly paused, so backgrounding while paused
   /// can't sneak the clock back to life.
   void onAppResumed() {
+    // The fold runs FIRST, while `_restEndsAt` still holds the rest that was
+    // running when the app went away — `_resyncRestOnResume` clears an expired
+    // one, and the fold needs to know a rest was legitimately counting down.
+    _foldBackgroundGapIntoPauses();
     _resyncRestOnResume();
     _resyncWarmupOnResume();
-    _foldBackgroundGapIntoPauses();
     _tickElapsed();
   }
 

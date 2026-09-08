@@ -17,6 +17,7 @@
 | `workout_import_page.dart` | AI import → review UI, for a document (PDF/photo) **or** a dictated/typed description via `WorkoutImportInput` (pairs with `functions/ai/workout_import.js`). Was `workout_pdf_import_page.dart`. |
 | `workout_describe_page.dart` | Say-it / type-it route — a thin wrapper over the shared `capture/presentation/import/plan_describe_page.dart` |
 | `widgets/add_workout_sheet.dart` | `showAddWorkoutSheet` — the one doorway (document · say it · type it · build by hand); every entry point (hub, Today, split editor) opens it |
+| `workout_settings_page.dart` | Training settings — the configurable maximum session length |
 | `bodyweight_history_page.dart` | Body-weight log + trend |
 | `workout_capture_page.dart`, `workout_day_details_page.dart` | Quick capture + day drill-in |
 
@@ -52,6 +53,8 @@ opens and the remove animations; widgets are in `widgets/plan_edit/`.
 - **`WorkoutSessionRepository`** — logged live sessions (in-memory variant can seed dev data via `dev_analysis_seed.dart`).
 - **`WorkoutRepository`** — logged workouts.
 - **`BodyWeightRepository`** — body-weight entries.
+- **`WorkoutSettingsRepository`** — the account's training preferences (`users/{uid}/settings/workout`); currently the **maximum session length** (default 3h) that decides when a still-running session counts as one left open. [ADR-012](../../../docs/DECISIONS/ADR-012-streaks-and-session-duration.md)
+- **`TrainingDayMarkRepository`** — one doc per calendar day (`trainingDayMarks/{yyyy-MM-dd}`): a missed-day **reason** (context only) and/or a spent streak **restore**. Deliberately NOT sessions — see the gotcha below.
 
 Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
 [`lib/app/app.dart`](../../app/app.dart), exposed via `AppScope` (`workouts`,
@@ -63,6 +66,16 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   `exercise.dart`, `muscle_group.dart`, `rep_target.dart`, `rest_policy.dart`, `set_type.dart`.
 - Live session: `live_session.dart`, `session_exercise.dart`, `set_log.dart`,
   `session_phase.dart`, `session_status.dart`, and `live_session_to_workout_log.dart`.
+- **Streak engine: `training_streak.dart`** — the ONE answer to "what is my
+  streak", read by both the Workout hub and Today (`today_pulse.dart`
+  delegates). Rule: a day counts once it has a **completed working set**, and
+  the streak survives a gap of up to `kStreakMaxGapDays` (3) calendar days.
+  Restores bridge a gap without adding a trained day; missed-day reasons are
+  context and never move the number. All day maths goes through
+  `core/util/calendar.dart`.
+- **Session lifecycle extras: `session_maintenance.dart`** — the sweep that
+  closes sessions left open, wired at app root (sign-in + resume) like
+  `SleepService`, and deferring to whatever session a live screen has open.
 - Progression/analysis: `progression.dart`, `day_progress_analysis.dart`,
   `progress_comparison.dart`, `weight_trend.dart`, `up_next_selection.dart`,
   `training_dashboard_stats.dart`.
@@ -130,6 +143,41 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`, wired in
   stores an `order`, so it keeps pointing at the same position. `slot` stays with
   its day (identity, not position — the editor's reorder doesn't reassign it
   either).
+- **Never do calendar maths with `Duration`.** `Duration(days: 1)` is 24
+  absolute hours; a calendar day on a DST transition is 23 or 25. Both old
+  streak engines walked the calendar that way and zeroed themselves twice a
+  year in `Africa/Cairo`. Use `core/util/calendar.dart`
+  (`addCalendarDays`/`calendarDaysBetween`/`startOfWeek`), which is DST-proof by
+  construction, and `test/core/calendar_test.dart` finds the ambient zone's
+  real transitions to prove it.
+- **One bucket instant: `completedAt ?? startedAt`.** Every engine uses it —
+  `workout_analytics.dart`, `training_streak.dart`, `today_pulse.dart`,
+  `functions/ai/workout_analytics.js`. `training_dashboard_stats.dart` was the
+  lone holdout on `startedAt`, which is exactly how the hub and Today came to
+  show two different streaks for the same history.
+- **A restore is not a workout, and that is enforced by where it lives.** Streak
+  restores are `TrainingDayMark`s in their own collection, never synthetic
+  `LiveSession`s. As a session it would have to be filtered out of ~15 call
+  sites and every one written afterwards; as its own collection the guarantee is
+  structural. Don't "simplify" it into the session store.
+- **A left-open session is closed at its last logged set, never capped.**
+  `LiveSession.autoClose` ends at `lastActivityAt` (derived from
+  `LoggedSet.resolvedAt`), or records `DurationSource.unknown` when there is no
+  evidence to close at. A capped duration is a fabricated number that still
+  lands in the average — the exact thing being protected against. Staleness
+  needs BOTH past-the-maximum AND `kStaleInactivityGrace` of silence, so a real
+  workout running long is never closed under someone mid-set.
+- **Nothing about closing or correcting a session may touch a set.** `autoClose`,
+  `finishEarly` and `correctDuration` leave pending sets pending — no reps, no
+  load, not marked skipped. Every counter downstream already ignores a pending
+  set, which is why "Finish now" was safe to add the moment there was a button
+  for it. Regression-tested in `session_duration_test.dart` and
+  `session_maintenance_test.dart`.
+- **A session that recorded work is VOIDED, not deleted** (`SessionStatus.voided`
+  + a `VoidReason`). It keeps its row in History and stops counting everywhere.
+  Hard delete survives only for a session with no completed set — the same rule
+  `LiveSessionController.leave` already applied. The asymmetry is the point:
+  wrong data can be corrected, history cannot be curated.
 - Import DTOs live under `workout/domain/` (moved off `ai/domain/`) — keep them here.
 - **Warm-up and rest are the SAME screen — now literally one widget.** They were two
   builders the docs asked you to keep identical; they are `CountdownPhase`

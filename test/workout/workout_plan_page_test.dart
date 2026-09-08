@@ -318,7 +318,10 @@ void main() {
           planId: plan.id,
           dayId: 'a', // matches the up-next day (cursor 0 → Day A)
           dayLabel: 'Push',
-          startedAt: DateTime(2026, 1, 1),
+          // Started just now: an ACTIVE session, not one left open — a
+          // session pinned to a fixed past date is stale by the time the
+          // test runs, and the page rightly passes it over.
+          startedAt: DateTime.now(),
           status: SessionStatus.active,
           exercises: const [
             SessionExercise(
@@ -352,6 +355,58 @@ void main() {
   );
 
   testWidgets(
+    'a session left open days ago does NOT hijack Up Next — the due day is offered instead',
+    (tester) async {
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      final plan = _compactPlan();
+      await plans.savePlan(plan);
+
+      final sessions = InMemoryWorkoutSessionRepository();
+      await sessions.saveSession(
+        LiveSession(
+          id: 'left-open',
+          planId: plan.id,
+          dayId: 'a',
+          dayLabel: 'Push',
+          // Started three days ago and never closed. It used to go on
+          // offering itself as "Resume" forever, in place of the day the
+          // rotation actually had due.
+          startedAt: DateTime.now().subtract(const Duration(days: 3)),
+          status: SessionStatus.active,
+          exercises: const [
+            SessionExercise(
+              id: 'e1',
+              exerciseId: 'e1',
+              name: 'Bench Press',
+              restSeconds: 120,
+              sets: [
+                LoggedSet(
+                  id: 'e1-s0',
+                  target: RepTarget.range(6, 8),
+                  outcome: SetOutcome.completed,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          child: const WorkoutPlanPage(),
+          plansOverride: plans,
+          sessionsOverride: sessions,
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Resume workout'), findsNothing);
+      expect(find.text('Start workout'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'shows Resume for the active session\'s own day even when it differs from the '
     'rotation\'s next-due day (regression: Home and Workout tab used to drift apart here)',
     (tester) async {
@@ -369,7 +424,10 @@ void main() {
           planId: plan.id,
           dayId: 'c',
           dayLabel: 'Legs',
-          startedAt: DateTime(2026, 1, 1),
+          // Started just now: an ACTIVE session, not one left open — a
+          // session pinned to a fixed past date is stale by the time the
+          // test runs, and the page rightly passes it over.
+          startedAt: DateTime.now(),
           status: SessionStatus.active,
           exercises: const [],
         ),
@@ -409,7 +467,7 @@ void main() {
         planId: 'some-other-plan',
         dayId: 'a',
         dayLabel: 'Push',
-        startedAt: DateTime(2026, 1, 1),
+        startedAt: DateTime.now(),
         status: SessionStatus.active,
         exercises: const [],
       ),

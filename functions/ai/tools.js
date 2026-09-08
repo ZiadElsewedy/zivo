@@ -377,16 +377,38 @@ const EXPENSES_TOOL = {
 };
 
 /**
- * A session's actual duration in minutes (active time, pauses excluded).
+ * A session's actual duration in minutes (active time, pauses excluded), or
+ * null when it is not a number the app stands behind.
+ *
+ * Mirrors `LiveSession.elapsed` + `hasUsableDuration` on the Dart side, and
+ * must keep mirroring them: a coach that quotes a nineteen-hour workout the
+ * app itself is holding out of its averages is worse than one that says
+ * nothing about duration. A user correction wins; a duration marked `unknown`,
+ * or longer than any plausible session, is withheld rather than reported.
  * @param {!Object} s
  * @return {?number}
  */
 function sessionDurationMinutes(s) {
+  if (typeof s.correctedDurationMinutes === "number") {
+    return s.correctedDurationMinutes;
+  }
+  if (s.durationSource === "unknown") return null;
   if (!s.completedAt || !s.startedAt) return null;
   const ms = s.completedAt.getTime() - s.startedAt.getTime() -
     (s.pausedAccumMs || 0);
-  return ms > 0 ? Math.round(ms / 60000) : 0;
+  if (ms <= 0) return 0;
+  const minutes = Math.round(ms / 60000);
+  return minutes > MAX_PLAUSIBLE_SESSION_MINUTES ? null : minutes;
 }
+
+/**
+ * The upper bound past which a session duration is not reported to the model.
+ * Deliberately generous — the client's own threshold is a user setting this
+ * layer cannot see, so this is a backstop against the absurd, not a
+ * re-implementation of that rule.
+ * @const {number}
+ */
+const MAX_PLAUSIBLE_SESSION_MINUTES = 12 * 60;
 
 const WORKOUTS_TOOL = {
   name: "get_workouts",

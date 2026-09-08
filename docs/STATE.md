@@ -133,6 +133,60 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     `sleep_week_page_test`); whole suite green (1338).
   - **Not verified on device** — owner is testing it.
 
+- **The streak became one engine with a rule, and a session's duration became a
+  measurement** (2026-09-08, on `feature/theme-modes`).
+  [ADR-012](DECISIONS/ADR-012-streaks-and-session-duration.md) has the full
+  reasoning; the short version:
+  - **Two streak engines disagreed, and both broke on DST.**
+    `training_dashboard_stats.dart` bucketed by `startedAt`,
+    `today_pulse.dart` by `completedAt ?? startedAt`, and both walked the
+    calendar with `Duration(days: 1)`. Verified in `Africa/Cairo`: stepping
+    back from `2026-04-25 00:00` lands on `2026-04-23 23:00`, skipping 24 April
+    entirely — **the day streak zeroed itself twice a year**. Now one engine
+    (`workout/domain/training_streak.dart`, Today delegates) over
+    `core/util/calendar.dart`, which is DST-proof by construction.
+  - **The rule changed from "every day" to "at least every 3 days"**
+    (`kStreakMaxGapDays`). A day counts on one **completed working set**, so a
+    partly-logged session counts in full — and counts whether or not Finish was
+    ever tapped. Two sessions in a day are one day.
+  - **Missed-day reasons and streak restores** land in a new
+    `trainingDayMarks/{yyyy-MM-dd}` collection. A reason is context and never
+    moves the number; a restore bridges a gap, is rationed (1 per 30 days,
+    reaching back 7), adds no trained day, and is excluded from the all-time
+    best. Kept out of the sessions store on purpose.
+  - **`LoggedSet.resolvedAt`** makes duration a measurement. A session left
+    open is closed at its last logged set (real 62 minutes, not 19 hours),
+    never capped, and records `DurationSource.unknown` rather than guessing when
+    there is nothing to close at. Staleness needs past-the-maximum AND 30 min of
+    silence, so a genuinely long workout is never closed mid-set.
+  - **The maximum is a user setting** (`settings/workout`, default 3h, clamped
+    30 min–12 h), with a Training settings page under Workout → More.
+  - **Implausible durations are excluded and flagged, not averaged.** The
+    drill-down says "over 23 of 24"; correcting one is an amendment
+    (`correctedDurationMinutes` + `DurationSource`) that never rewrites the
+    timestamps and structurally cannot touch a set.
+  - **Finish now** ends a session with sets outstanding — pending sets stay
+    pending, nothing is invented. Background time past the grace window is
+    folded into `pausedAccumMs` instead of counting as training.
+  - **A stale session no longer hijacks Up Next**, and `SessionMaintenance`
+    (wired at app root on sign-in + resume, like `SleepService`) closes it —
+    deferring to whatever session a live screen has open.
+  - **A session that recorded work is voided, not deleted** (`SessionStatus.voided`
+    + `VoidReason`). Swipe-to-delete in History and Delete on Session details are
+    gone; hard delete survives only for a session with nothing logged.
+  - **Backend mirrors the gate**: `functions/ai/tools.js` honours a correction
+    and withholds an implausible/unknown duration from the coach.
+  - Cover: Flutter analyze clean; new suites `test/core/calendar_test.dart` (19,
+    incl. a DST group that discovers the ambient zone's real transitions),
+    `test/workout/training_streak_test.dart` (39), `session_duration_test.dart`
+    (37), `session_maintenance_test.dart` (13), plus Finish-now and
+    background-clock groups in `live_session_controller_test.dart`. Rules suite
+    **167** green (new `trainingDayMarks` block + `voided`/corrected-duration
+    validation). Functions **442** green.
+  - **Owner action:** `firestore.rules` changed — needs a deploy
+    (`trainingDayMarks` is denied by the catch-all until then, so restores and
+    missed-day reasons will fail to save on device).
+
 - **The Sleep page redesigned, and two of its silences fixed** (2026-09-07, on
   `claude/sleep-page-redesign`). Owner review of the shipped screen: "the
   overall visual quality feels poor", the one control appeared to do nothing,
@@ -1570,6 +1624,18 @@ auth/profile, home/Today, hub, capture, device (steps)**.
 > against the code before assuming otherwise.
 
 ## Owner action items (blockers only the owner can clear — not code bugs)
+
+- **Rules deploy for the streak/session-duration work (2026-09-08):**
+  `firebase deploy --only firestore:rules` (owner creds). Until it ships, the
+  catch-all denies the new `users/{uid}/trainingDayMarks` collection, so a
+  streak restore or a missed-day reason will fail to save on device (it surfaces
+  as a deferred-write toast, nothing is lost locally). The same deploy adds
+  `voided` to the allowed `workoutSessions` statuses and the bounds on
+  `correctedDurationMinutes` — **voiding a session and correcting a duration
+  will be rejected until then.** No functions change is required for this, but
+  `functions/ai/tools.js` + `store.js` also changed (the coach now honours a
+  corrected duration and withholds an implausible one), so a
+  `firebase deploy --only functions` is worth pairing with it.
 
 - **Live Session screen-wake — a dependency decision, not a bug.** The phone still
   sleeps mid-set during a guided session: the app never asks the OS to keep the screen

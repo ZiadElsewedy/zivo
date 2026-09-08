@@ -1,7 +1,10 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/domain/workout.dart';
+import 'package:zivo/features/workout/domain/workout_repository.dart';
 import 'package:zivo/features/workout/domain/live_session.dart';
 import 'package:zivo/features/workout/domain/logged_set.dart';
 import 'package:zivo/features/workout/domain/planned_exercise.dart';
@@ -34,6 +37,8 @@ void main() {
   });
 
   _carryForwardTests();
+  _finishNowTests();
+  _backgroundClockTests();
 
   test('a day with no sets settles straight into completed', () {
     final c = _controller(
@@ -460,3 +465,209 @@ LiveSession _startedSession() => LiveSession.start(
   planId: 'p1',
   now: DateTime(2026, 3, 1, 9),
 );
+
+// ---------------------------------------------------------------------------
+
+/// FINISH NOW — the exit that was missing, and the promise it has to keep.
+void _finishNowTests() {
+  group('finishNow', () {
+    test('ends the session at now, with sets still pending', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final sessions = InMemoryWorkoutSessionRepository();
+      final c = _controller(sessions: sessions, now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+
+      c.reps.text = '8';
+      c.weight.text = '60';
+      clock = clock.add(const Duration(minutes: 12));
+      c.setDone(reducedMotion: true);
+
+      clock = clock.add(const Duration(minutes: 36));
+      final workouts = _RecordingWorkoutRepository();
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+
+      expect(c.finishNow(workouts: workouts, plans: plans), isTrue);
+
+      expect(c.session.status, SessionStatus.completed);
+      expect(c.session.completedAt, clock);
+      expect(c.session.elapsed, const Duration(minutes: 48));
+      expect(c.session.durationSource, DurationSource.measured);
+    });
+
+    test('logs NOTHING the user did not — no sets, weights or completions', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+
+      final totalSets = c.session.totalSets;
+      c.reps.text = '8';
+      c.weight.text = '60';
+      clock = clock.add(const Duration(minutes: 5));
+      c.setDone(reducedMotion: true);
+
+      clock = clock.add(const Duration(minutes: 20));
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      c.finishNow(workouts: _RecordingWorkoutRepository(), plans: plans);
+
+      expect(c.session.completedSetCount, 1);
+      expect(c.session.totalSets, totalSets, reason: 'no set was added');
+      expect(
+        c.session.allSets.where((s) => s.skipped),
+        isEmpty,
+        reason: 'a pending set is NOT a skipped one — skipping is a choice',
+      );
+      for (final set in c.session.allSets.where((s) => s.pending)) {
+        expect(set.actualReps, isNull);
+        expect(set.actualWeightKg, isNull);
+        expect(set.resolvedAt, isNull);
+      }
+    });
+
+    test('the finished session still counts as a day trained', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+      c.reps.text = '8';
+      c.weight.text = '60';
+      clock = clock.add(const Duration(minutes: 5));
+      c.setDone(reducedMotion: true);
+
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      c.finishNow(workouts: _RecordingWorkoutRepository(), plans: plans);
+
+      expect(c.session.hasCompletedWorkingSet, isTrue);
+    });
+
+    test('refuses a second call while the first is in flight', () {
+      final c = _controller();
+      addTearDown(c.dispose);
+      c.start();
+      final plans = InMemoryWorkoutPlanRepository();
+      addTearDown(plans.dispose);
+      final workouts = _RecordingWorkoutRepository();
+
+      expect(c.finishNow(workouts: workouts, plans: plans), isTrue);
+      expect(c.finishNow(workouts: workouts, plans: plans), isFalse);
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+
+/// The background clock — the fix at the source for the nineteen-hour session.
+void _backgroundClockTests() {
+  group('time spent in the background', () {
+    test('a long absence is folded into the paused total, not into training', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+      c.reps.text = '8';
+      c.weight.text = '60';
+      clock = clock.add(const Duration(minutes: 30));
+      c.setDone(reducedMotion: true);
+
+      // Phone locked, user goes home, opens the app the next morning.
+      c.onAppPaused();
+      clock = clock.add(const Duration(hours: 14));
+      c.onAppResumed();
+
+      // The workout was 30 minutes; the app was away for 14 hours. What
+      // survives is those 30 minutes plus the grace window — the app does not
+      // claim to know the user left the moment the screen went off, so the
+      // first `kStaleInactivityGrace` of any absence is still counted as
+      // training. Everything past it is not.
+      expect(
+        c.session.activeElapsed(now: clock),
+        const Duration(minutes: 30) + kStaleInactivityGrace,
+      );
+      expect(
+        c.session.pausedAccum,
+        const Duration(hours: 14) - kStaleInactivityGrace,
+      );
+    });
+
+    test('a glance at a notification is not deducted from the workout', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+
+      c.onAppPaused();
+      clock = clock.add(const Duration(seconds: 40));
+      c.onAppResumed();
+
+      expect(
+        c.session.pausedAccum,
+        Duration.zero,
+        reason: 'inside the grace window — the user is still in the gym',
+      );
+    });
+
+    test('a rest that was counting down while away is not deducted', () async {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+      c.endWarmup();
+      c.reps.text = '8';
+      c.weight.text = '60';
+      c.setDone(reducedMotion: true);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.restRemaining, isNotNull, reason: 'a rest is running');
+
+      // Phone locked through the rest and a little after — all of it is the
+      // workout, so none of it should be deducted.
+      c.onAppPaused();
+      clock = clock.add(const Duration(minutes: 2));
+      c.onAppResumed();
+
+      expect(c.session.pausedAccum, Duration.zero);
+    });
+
+    test('a resume with no preceding pause changes nothing', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+      clock = clock.add(const Duration(hours: 5));
+
+      c.onAppResumed();
+
+      expect(c.session.pausedAccum, Duration.zero);
+    });
+
+    test('an explicitly paused session is left to its own pause bookkeeping', () {
+      var clock = DateTime(2026, 3, 1, 10);
+      final c = _controller(now: () => clock);
+      addTearDown(c.dispose);
+      c.start();
+      c.togglePause();
+      final pausedAt = c.session.pausedAt;
+
+      c.onAppPaused();
+      clock = clock.add(const Duration(hours: 6));
+      c.onAppResumed();
+
+      expect(c.session.pausedAt, pausedAt, reason: 'still the same open pause');
+      expect(c.session.pausedAccumMs, 0, reason: 'not double-counted');
+    });
+  });
+}
+
+/// A [WorkoutRepository] that only needs to accept a write.
+class _RecordingWorkoutRepository implements WorkoutRepository {
+  final List<Workout> added = [];
+
+  @override
+  Future<void> add(Workout workout) async => added.add(workout);
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}

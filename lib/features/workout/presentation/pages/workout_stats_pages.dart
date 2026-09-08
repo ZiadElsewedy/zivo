@@ -10,6 +10,7 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../../../core/util/bidi.dart';
+import '../../../../core/util/calendar.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../../domain/training_day_mark.dart';
 import '../../domain/training_day_mark_repository.dart';
@@ -392,6 +393,9 @@ class WorkoutStreakPage extends StatelessWidget {
               now: now,
               marks: marks,
             );
+            final rows = streak.days.isNotEmpty
+                ? streak.days
+                : _recentDays(sessions: sessions, marks: marks, now: now);
             return StatDrillDownScaffold(
               title: l(context).workoutDayStreak,
               children: [
@@ -411,10 +415,16 @@ class WorkoutStreakPage extends StatelessWidget {
                   accent: TrainColors.green,
                 ),
                 const SizedBox(height: 18),
-                if (streak.days.isNotEmpty)
+                // When a run is going, these are its days. When it has just
+                // broken there IS no run — and that is precisely the moment
+                // the restore exists for, so the page falls back to the last
+                // week of days rather than an empty card with nothing to tap.
+                // A dead end here would make the whole restore feature
+                // unreachable exactly when it is wanted.
+                if (rows.isNotEmpty)
                   TrainListCard(
                     rows: [
-                      for (final (i, day) in streak.days.indexed)
+                      for (final (i, day) in rows.indexed)
                         RiseIn(
                           delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
                           child: _StreakDayRow(
@@ -439,6 +449,41 @@ class WorkoutStreakPage extends StatelessWidget {
       },
     );
   }
+}
+
+/// The last week of calendar days, newest first — the fallback list shown when
+/// there is no run, so a broken streak still offers the days a restore could
+/// be spent on and the days a reason could be written against.
+///
+/// Reaches exactly as far back as a restore may
+/// ([kRestoreReachDays]); showing days that cannot be acted on would be a list
+/// of dead rows.
+List<StreakDay> _recentDays({
+  required List<LiveSession> sessions,
+  required List<TrainingDayMark> marks,
+  required DateTime now,
+}) {
+  final counts = trainedDayCounts(sessions);
+  final marksByDay = {for (final m in marks) startOfDay(m.day): m};
+  return [
+    for (var i = 0; i <= kRestoreReachDays; i++)
+      () {
+        final day = addCalendarDays(now, -i);
+        final mark = marksByDay[day];
+        final trained = counts.containsKey(day);
+        return StreakDay(
+          day: day,
+          kind: trained
+              ? StreakDayKind.trained
+              : (mark?.restored ?? false
+                    ? StreakDayKind.restored
+                    : StreakDayKind.rest),
+          sessionCount: counts[day] ?? 0,
+          reason: mark?.reason,
+          note: mark?.note,
+        );
+      }(),
+  ];
 }
 
 /// The rule, and how much room is left in it — the two things that make the

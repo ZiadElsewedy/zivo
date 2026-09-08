@@ -126,15 +126,23 @@ class WorkoutHistoryPage extends StatelessWidget {
                             key: ValueKey(session.id),
                             direction: DismissDirection.endToStart,
                             background: const _VoidSwipeBackground(),
-                            confirmDismiss: (_) => showVoidSessionSheet(
-                              context,
-                              session: session,
-                              repository: sessions,
-                              now: DateTime.now(),
-                            ),
-                            // The row is not removed: the void is a state
-                            // change, and the stream rebuilds it in place.
-                            onDismissed: (_) {},
+                            // Always returns false — the swipe OPENS the void
+                            // flow, it never dismisses. A void is a state
+                            // change, so the row stays and the stream rebuilds
+                            // it in its voided form; letting the Dismissible
+                            // complete would leave a dismissed widget in a
+                            // tree that still contains it (and Flutter
+                            // asserts on exactly that) for as long as the
+                            // write took to come back.
+                            confirmDismiss: (_) async {
+                              await showVoidSessionSheet(
+                                context,
+                                session: session,
+                                repository: sessions,
+                                now: DateTime.now(),
+                              );
+                              return false;
+                            },
                             child: _SessionHistoryRow(
                               session: session,
                               now: now,

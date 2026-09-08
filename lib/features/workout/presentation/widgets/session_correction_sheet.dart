@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/deferred_write.dart';
@@ -32,11 +33,15 @@ Future<void> showDurationCorrectionSheet(
   required LiveSession session,
   required WorkoutSessionRepository repository,
 }) {
+  final max = AppScope.maxSessionDurationOf(context);
+  // Prefilled with a number worth starting from: an existing correction, or the
+  // measurement when the measurement is one we'd have used anyway. A session
+  // that ran nineteen hours starts BLANK — offering "1140" as the suggestion
+  // would be the app proposing the very figure it is asking to be rid of.
   final controller = TextEditingController(
-    text: session.correctedDurationMinutes?.toString() ??
-        (session.hasUsableDuration(const Duration(hours: 24))
-            ? session.elapsed.inMinutes.toString()
-            : ''),
+    text:
+        session.correctedDurationMinutes?.toString() ??
+        (session.hasUsableDuration(max) ? session.elapsed.inMinutes.toString() : ''),
   );
 
   return showZivoSheet<void>(
