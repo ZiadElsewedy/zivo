@@ -353,7 +353,10 @@ class _SessionCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x1F7C9CFF), TrainColors.sleepAccent.withValues(alpha: 0.04)],
+            colors: [
+              Color(0x1F7C9CFF),
+              TrainColors.sleepAccent.withValues(alpha: 0.04),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -510,7 +513,10 @@ class _LastNightCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x1A7C9CFF), TrainColors.sleepAccent.withValues(alpha: 0.03)],
+          colors: [
+            Color(0x1A7C9CFF),
+            TrainColors.sleepAccent.withValues(alpha: 0.03),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1400,7 +1406,11 @@ class _ActionDock extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [TrainColors.base.withValues(alpha: 0), TrainColors.base, TrainColors.base],
+          colors: [
+            TrainColors.base.withValues(alpha: 0),
+            TrainColors.base,
+            TrainColors.base,
+          ],
           stops: [0.0, 0.55, 1.0],
         ),
       ),

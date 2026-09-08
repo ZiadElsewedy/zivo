@@ -92,11 +92,11 @@ class ImportSelectingState extends StatelessWidget {
     required this.subtitle,
     Color? accent,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _accent = accent;
 
   final String title;
@@ -144,12 +144,14 @@ class ImportAnalyzingState extends StatelessWidget {
     Color? accent,
     Color? chipColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
-  }) : _accent = accent, _chipColor = chipColor;
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _accent = accent,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final String statusLine;
   final Color? _accent;
@@ -214,11 +216,11 @@ class ImportRejectedState extends StatelessWidget {
     required this.onBuildManually,
     Color? retryColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _retryColor = retryColor;
 
   final String title;
@@ -293,11 +295,11 @@ class ImportErrorState extends StatelessWidget {
     this.detail,
     Color? retryColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _retryColor = retryColor;
 
   final String message;

@@ -410,11 +410,7 @@ class _SafetyNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            size: 17,
-            color: TrainColors.ember,
-          ),
+          Icon(Icons.info_outline_rounded, size: 17, color: TrainColors.ember),
           const SizedBox(width: 11),
           Expanded(
             child: Text(

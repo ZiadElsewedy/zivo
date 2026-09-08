@@ -79,7 +79,8 @@ void main() {
     await tester.pumpWidget(host(controller));
     await tester.pumpAndSettle();
 
-    Color ground() => tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
+    Color ground() =>
+        tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
 
     expect(ground(), ZivoPalette.dark.base);
 

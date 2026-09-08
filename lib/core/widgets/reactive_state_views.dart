@@ -72,11 +72,7 @@ class ErrorStateView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink3,
-            ),
+            Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink3),
             const SizedBox(height: 12),
             Text(
               message ?? l(context).errorCouldntLoad,

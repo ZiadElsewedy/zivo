@@ -296,7 +296,10 @@ class ExerciseHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainCaption(l(context).liveNow, color: TrainColors.ember.withValues(alpha: 0.8)),
+        TrainCaption(
+          l(context).liveNow,
+          color: TrainColors.ember.withValues(alpha: 0.8),
+        ),
         const SizedBox(height: 11),
         // Capped at two lines. Real movement names run long ("Seated
         // Dumbbell Incline Rear Delt Fly"), and at 34pt with no cap a third

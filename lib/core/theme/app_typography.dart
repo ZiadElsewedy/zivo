@@ -72,17 +72,11 @@ abstract final class AppText {
     color: TrainColors.ink3,
   );
 
-  static TextStyle get hueLabel => TrainType.caption(
-    size: 11,
-    tracking: 0.1,
-    weight: FontWeight.w700,
-  );
+  static TextStyle get hueLabel =>
+      TrainType.caption(size: 11, tracking: 0.1, weight: FontWeight.w700);
 
-  static TextStyle get tabLabel => TrainType.caption(
-    size: 9.5,
-    tracking: 0.063,
-    weight: FontWeight.w600,
-  );
+  static TextStyle get tabLabel =>
+      TrainType.caption(size: 9.5, tracking: 0.063, weight: FontWeight.w600);
 
   static TextStyle get rowTitle => TrainType.ui(
     size: 16.5,
@@ -115,11 +109,8 @@ abstract final class AppText {
     color: TrainColors.ink,
   );
 
-  static TextStyle get button => TrainType.ui(
-    size: 14,
-    weight: FontWeight.w700,
-    color: TrainColors.ink,
-  );
+  static TextStyle get button =>
+      TrainType.ui(size: 14, weight: FontWeight.w700, color: TrainColors.ink);
 
   // ---- Aside (Instrument Serif italic) ----
 

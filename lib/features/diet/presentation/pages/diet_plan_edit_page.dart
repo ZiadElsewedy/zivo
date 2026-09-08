@@ -317,11 +317,7 @@ class _EmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.restaurant_rounded,
-            size: 30,
-            color: TrainColors.ink3,
-          ),
+          Icon(Icons.restaurant_rounded, size: 30, color: TrainColors.ink3),
           const SizedBox(height: 12),
           Text(l(context).planNoDays, style: AppText.aside(context)),
           const SizedBox(height: 14),

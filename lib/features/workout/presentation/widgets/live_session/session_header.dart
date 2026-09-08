@@ -127,9 +127,7 @@ class SessionHeader extends StatelessWidget {
                       weight: FontWeight.w400,
                       tracking: -0.01,
                       height: 1,
-                      color: isPaused
-                          ? TrainColors.ink3
-                          : TrainColors.inkPlain,
+                      color: isPaused ? TrainColors.ink3 : TrainColors.inkPlain,
                     ),
                   ),
                 ],

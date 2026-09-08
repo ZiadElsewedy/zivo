@@ -26,12 +26,14 @@ class AuthBackdrop extends StatelessWidget {
     this.alignment = const Alignment(-0.55, -0.9),
     this.intensity = 1,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
-  }) : _hue = hue, _base = base;
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _hue = hue,
+       // ignore: prefer_initializing_formals
+       _base = base;
 
   final Widget child;
 

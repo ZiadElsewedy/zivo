@@ -433,11 +433,7 @@ class _RecordingBarState extends State<_RecordingBar>
                 child: IconButton(
                   key: const Key('composer-cancel-recording'),
                   onPressed: widget.onCancel,
-                  icon: Icon(
-                    AppIcons.close,
-                    size: 20,
-                    color: TrainColors.ink3,
-                  ),
+                  icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
                   tooltip: l(context).askDiscardRecording,
                 ),
               ),
@@ -536,7 +532,11 @@ class _RecordDot extends StatelessWidget {
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: TrainColors.ember.withValues(alpha: 0.33), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(
+            color: TrainColors.ember.withValues(alpha: 0.33),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
         ],
       ),
     );
@@ -649,11 +649,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
             child: IconButton(
               key: const Key('composer-cancel-transcribing'),
               onPressed: widget.onCancel,
-              icon: Icon(
-                AppIcons.close,
-                size: 20,
-                color: TrainColors.ink3,
-              ),
+              icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
               tooltip: l(context).askDiscardVoiceNote,
             ),
           ),

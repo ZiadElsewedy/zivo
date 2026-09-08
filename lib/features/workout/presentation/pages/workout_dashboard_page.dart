@@ -758,10 +758,7 @@ class _DashboardLoadingState extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            TrainColors.ink2,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(TrainColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -780,11 +777,7 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink3,
-            ),
+            Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink3),
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
@@ -815,10 +808,7 @@ class _NoPlanState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _PhaseIconLike(
-              icon: AppIcons.workout,
-              color: TrainColors.green,
-            ),
+            _PhaseIconLike(icon: AppIcons.workout, color: TrainColors.green),
             const SizedBox(height: 18),
             Text(
               l(context).workoutNoPlanYet,

@@ -226,11 +226,7 @@ class _ReplyStyleMenu extends StatelessWidget {
                   ),
                 ),
                 if (style == responseStyle)
-                  Icon(
-                    AppIcons.check,
-                    size: 15,
-                    color: TrainColors.violet,
-                  ),
+                  Icon(AppIcons.check, size: 15, color: TrainColors.violet),
               ],
             ),
           ),

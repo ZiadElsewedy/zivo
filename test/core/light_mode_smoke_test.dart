@@ -13,15 +13,12 @@ import '../support/test_app.dart';
 double _luminance(Color c) {
   double channel(double v) =>
       v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
-  return 0.2126 * channel(c.r) +
-      0.7152 * channel(c.g) +
-      0.0722 * channel(c.b);
+  return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
 }
 
 /// Unicode private-use areas — where an icon font puts its glyphs.
 bool _isGlyph(int rune) =>
-    (rune >= 0xE000 && rune <= 0xF8FF) ||
-    (rune >= 0xF0000 && rune <= 0x10FFFD);
+    (rune >= 0xE000 && rune <= 0xF8FF) || (rune >= 0xF0000 && rune <= 0x10FFFD);
 
 double _contrast(Color ink, Color over) {
   final a = ink.a;
@@ -75,7 +72,8 @@ void main() {
       expect(
         _contrast(color, ground.base),
         greaterThan(1.35),
-        reason: '$screen: "$label" is invisible on the light ground '
+        reason:
+            '$screen: "$label" is invisible on the light ground '
             '(${color.toARGB32().toRadixString(16)})',
       );
     }

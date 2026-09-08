@@ -55,11 +55,7 @@ class PlanEmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.fitness_center_rounded,
-            size: 30,
-            color: TrainColors.ink4,
-          ),
+          Icon(Icons.fitness_center_rounded, size: 30, color: TrainColors.ink4),
           const SizedBox(height: 12),
           Text(
             'No days yet.',

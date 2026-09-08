@@ -368,10 +368,7 @@ class _SplitsLoadingState extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            TrainColors.ink2,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(TrainColors.ink2, BlendMode.srcIn),
           child: Lottie.asset('assets/loading.json', fit: BoxFit.contain),
         ),
       ),
@@ -390,11 +387,7 @@ class _SplitsErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: TrainColors.ink4,
-            ),
+            Icon(Icons.cloud_off_rounded, size: 30, color: TrainColors.ink4),
             const SizedBox(height: 12),
             Text(
               l(context).errorCouldntLoad,
@@ -440,11 +433,7 @@ class _SplitsEmptyState extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(
-                AppIcons.splits,
-                size: 28,
-                color: TrainColors.green,
-              ),
+              child: Icon(AppIcons.splits, size: 28, color: TrainColors.green),
             ),
             const SizedBox(height: 16),
             Text(

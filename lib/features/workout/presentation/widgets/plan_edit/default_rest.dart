@@ -34,11 +34,7 @@ class DefaultRestRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.timer_outlined,
-                  size: 18,
-                  color: TrainColors.green,
-                ),
+                Icon(Icons.timer_outlined, size: 18, color: TrainColors.green),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

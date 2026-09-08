@@ -21,12 +21,16 @@ class CaptureTopBar extends StatelessWidget {
     Color? iconColor,
     Color? chipColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
-  }) : _titleColor = titleColor, _iconColor = iconColor, _chipColor = chipColor;
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _titleColor = titleColor,
+       // ignore: prefer_initializing_formals
+       _iconColor = iconColor,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final String title;
   final VoidCallback onClose;
@@ -109,12 +113,14 @@ class CaptureIconButton extends StatelessWidget {
     Color? iconColor,
     Color? chipColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
-  }) : _iconColor = iconColor, _chipColor = chipColor;
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
+  }) : _iconColor = iconColor,
+       // ignore: prefer_initializing_formals
+       _chipColor = chipColor;
 
   final IconData icon;
   final VoidCallback onTap;
@@ -186,11 +192,11 @@ class PillButton extends StatelessWidget {
     Color? color,
     this.textColor = Colors.white,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _color = color;
 
   final String label;

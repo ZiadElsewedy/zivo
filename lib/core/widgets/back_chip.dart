@@ -53,11 +53,7 @@ class BackChip extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: TrainColors.hairlineStrong),
                 ),
-                child: Icon(
-                  AppIcons.back,
-                  size: 18,
-                  color: TrainColors.ink2,
-                ),
+                child: Icon(AppIcons.back, size: 18, color: TrainColors.ink2),
               ),
             ),
           ),

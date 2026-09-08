@@ -563,10 +563,7 @@ class SpotifyStrip extends StatelessWidget {
     );
   }
 
-  static final _timecode = TrainType.mono(
-    size: 9,
-    color: TrainColors.ink3,
-  );
+  static final _timecode = TrainType.mono(size: 9, color: TrainColors.ink3);
 }
 
 /// The album-art tile with the Spotify mark on its corner.
