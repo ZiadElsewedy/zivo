@@ -595,22 +595,25 @@ class _LastNightCard extends StatelessWidget {
             _Context(controller: controller, session: session),
 
             const SizedBox(height: AppSpacing.base),
-            Row(
+            // `Wrap`, not `Row`. As two `Flexible` children these split the
+            // width evenly, so the longer label lost the difference to an
+            // ellipsis — "Why this number?" rendered as "Why this numb…",
+            // which is a question the reader now has about the button. Each
+            // pill sizes to its own label, and the second drops to a new line
+            // on a phone too narrow for both.
+            Wrap(
+              spacing: AppSpacing.s,
+              runSpacing: AppSpacing.s,
               children: [
-                Flexible(
-                  child: _QuietAction(
-                    label: l(context).sleepWhyTitle,
-                    icon: AppIcons.info,
-                    onTap: () => showSleepWhySheet(context, night),
-                  ),
+                _QuietAction(
+                  label: l(context).sleepWhyTitle,
+                  icon: AppIcons.info,
+                  onTap: () => showSleepWhySheet(context, night),
                 ),
-                const SizedBox(width: AppSpacing.s),
-                Flexible(
-                  child: _QuietAction(
-                    label: l(context).sleepEditNight,
-                    icon: AppIcons.edit,
-                    onTap: () => _edit(context, night),
-                  ),
+                _QuietAction(
+                  label: l(context).sleepEditNight,
+                  icon: AppIcons.edit,
+                  onTap: () => _edit(context, night),
                 ),
               ],
             ),
