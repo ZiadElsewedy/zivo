@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../domain/body_weight_entry.dart';
@@ -27,14 +28,12 @@ class BodyweightHistoryPage extends StatelessWidget {
           return StatDrillDownScaffold(
             title: l(context).workoutBodyweight,
             children: [
+              // The shared error view, not a bare line of text: a failed read
+              // says what failed, why it might have, and looks the same here
+              // as it does on every other stream-backed surface.
               SizedBox(
                 height: 200,
-                child: Center(
-                  child: Text(
-                    l(context).workoutBodyweightLoadError,
-                    style: const TextStyle(color: TrainColors.ink4),
-                  ),
-                ),
+                child: ErrorStateView(message: l(context).workoutBodyweightLoadError),
               ),
             ],
           );
@@ -136,18 +135,29 @@ class BodyweightHistoryPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            for (final (i, entry) in entries.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: RiseIn(
-                  delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                  child: _WeighInRow(
-                    entry: entry,
-                    previous: i + 1 < entries.length ? entries[i + 1] : null,
-                  ),
-                ),
+            if (entries.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              TrainSectionLabel(l(context).workoutBodyweightAllWeighIns),
+              const SizedBox(height: 12),
+              // A weigh-in history is a column of one number repeated — the
+              // one shape that must NOT be drawn as a stack of separate
+              // bordered cards, because the frames end up carrying more ink
+              // than the readings inside them.
+              TrainListCard(
+                rows: [
+                  for (final (i, entry) in entries.indexed)
+                    RiseIn(
+                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                      child: _WeighInRow(
+                        entry: entry,
+                        previous: i + 1 < entries.length
+                            ? entries[i + 1]
+                            : null,
+                      ),
+                    ),
+                ],
               ),
+            ],
           ],
         );
       },
@@ -168,58 +178,56 @@ class _WeighInRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final delta = previous == null ? null : entry.weightKg - previous!.weightKg;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TrainColors.hairline),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      _trimKg(entry.weightKg),
-                      style: TrainType.mono(size: 15, color: TrainColors.ink),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      l(context).workoutUnitKg,
-                      style: TrainType.caption(
-                        size: 8.5,
-                        tracking: 0.14,
-                        color: TrainColors.ink4,
-                      ),
-                    ),
-                  ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                _trimKg(entry.weightKg),
+                style: TrainType.mono(size: 15, color: TrainColors.ink),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                l(context).workoutUnitKg,
+                style: TrainType.caption(
+                  size: 8.5,
+                  tracking: 0.14,
+                  color: TrainColors.ink4,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  formatMonthDayCaps(context, entry.loggedAt),
-                  style: TrainType.mono(
-                    size: 9.5,
-                    tracking: 0.08,
-                    color: const Color(0x59F4F4F0),
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            formatMonthDayCaps(context, entry.loggedAt),
+            style: TrainType.mono(
+              size: 9.5,
+              tracking: 0.08,
+              color: const Color(0x59F4F4F0),
             ),
           ),
-          if (delta != null && (delta.abs() >= 0.05))
-            Text(
-              '${delta > 0 ? '+' : '−'}${_trimKg(delta.abs())}',
-              style: TrainType.mono(
-                size: 13,
-                color: delta > 0 ? TrainColors.ember : TrainColors.green,
-              ),
-            ),
+          const SizedBox(width: 12),
+          // The delta column keeps a fixed width so the readings above and
+          // below it stay in one line rather than each finding their own.
+          SizedBox(
+            width: 44,
+            child: delta != null && delta.abs() >= 0.05
+                ? Text(
+                    '${delta > 0 ? '+' : '−'}${_trimKg(delta.abs())}',
+                    textAlign: TextAlign.end,
+                    style: TrainType.mono(
+                      size: 13,
+                      color: delta > 0
+                          ? TrainColors.ember
+                          : TrainColors.green,
+                    ),
+                  )
+                : null,
+          ),
         ],
       ),
     );

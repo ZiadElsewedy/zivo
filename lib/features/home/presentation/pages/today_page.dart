@@ -8,6 +8,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/util/bidi.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -108,13 +109,12 @@ class _TodayPageState extends State<TodayPage> {
       decoration: const BoxDecoration(gradient: TrainColors.todayTint),
       child: Stack(
         children: [
-          // The handoff allows exactly one soft radial glow per screen — a
-          // green bloom off the top-right corner, breathing slowly.
-          const Positioned(
-            top: -90,
-            right: -70,
-            child: _AuraBlob(color: TrainColors.green, size: 280),
-          ),
+          // One soft radial glow per screen, and on Today that glow is
+          // [TrainColors.todayTint] — the wash this very `DecoratedBox` is
+          // painting. A second bloom used to sit over it from the opposite
+          // corner, so the screen the handoff describes as having exactly one
+          // glow was lit from both the top-left and the top-right at once.
+          //
           // The status-bar inset belongs to the LIST's padding, not to a
           // SizedBox above it: as a fixed band outside the viewport it shrank
           // the scrollable area by the inset on every device and pinned a
@@ -188,38 +188,6 @@ class _TodayPageState extends State<TodayPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color for atmosphere behind the header — the
-/// quiet "energy" glow behind a premium dashboard. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.16),
-              color.withValues(alpha: 0.0),
-            ],
-            stops: const [0.0, 0.7],
-          ),
-        ),
       ),
     );
   }
@@ -602,8 +570,8 @@ class _TrainingEmptyFallback extends StatelessWidget {
   }
 }
 
-/// The Training section's own empty-state card: same card surface, gradient
-/// icon-chip and pill-CTA language as the rest of Today (and the Workout
+/// The Training section's own empty-state card: the same flat glass surface,
+/// single-hue icon tile and pill CTA as the rest of Today (and the Workout
 /// tab's no-plan state), with both ways forward one tap away.
 class _NoPlanTrainingCard extends StatelessWidget {
   const _NoPlanTrainingCard();
@@ -722,9 +690,12 @@ class _EmptySplitCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                // Green, like the no-plan card directly above this one.
+                // These are the same card about the same thing — a training
+                // plan you can't start yet — and they were amber and green.
                 const TrainIconTile(
                   icon: AppIcons.planDoc,
-                  accent: TrainColors.amber,
+                  accent: TrainColors.green,
                   size: 44,
                   iconSize: 19,
                   radius: 14,
@@ -732,7 +703,7 @@ class _EmptySplitCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '${plan.name} has no days',
+                    l(context).todayEmptySplitTitle(isolate(plan.name)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowTitle.copyWith(
@@ -758,7 +729,7 @@ class _EmptySplitCard extends StatelessWidget {
               child: PillButton(
                 label: l(context).todayEditSplit,
                 icon: Icons.edit_rounded,
-                color: TrainColors.amber,
+                color: TrainColors.green,
                 enabled: true,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -777,9 +748,7 @@ class _EmptySplitCard extends StatelessWidget {
   }
 }
 
-/// The tinted gradient icon chip shared by both Training empty cards — the
-/// same visual unit the Workout tab's phase states use, so the flows read
-/// as one product.
+/// Today's first-run card: the two ways into real data, side by side,
 /// instead of a bare empty line — two taps to real data, not a wizard.
 class _GetStartedCard extends StatelessWidget {
   const _GetStartedCard();
@@ -810,7 +779,7 @@ class _GetStartedCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              "Import a plan or log a spend — Zivo builds Today from there.",
+              l(context).todayGetStartedBody,
               style: AppText.body.copyWith(
                 color: TrainColors.ink2,
                 fontSize: 14,
@@ -875,7 +844,7 @@ class _GetStartedAction extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
             color: TrainColors.raisedStrong,
-            borderRadius: BorderRadius.circular(AppRadius.chip * 2),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,7 +915,7 @@ class _DietSection extends StatelessWidget {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SectionHeader('Diet'),
+                      SectionHeader(l(context).dietTitle),
                       DietGlanceRow(
                         eaten: summary.eaten,
                         total: summary.total,

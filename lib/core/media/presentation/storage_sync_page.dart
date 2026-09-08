@@ -8,6 +8,7 @@ import '../../widgets/google_drive_mark.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/rise_in.dart';
 import '../../widgets/settings_row.dart';
+import '../../widgets/train_surfaces.dart';
 import '../../util/bidi.dart';
 import '../../widgets/zivo_toast.dart';
 import '../../../l10n/l10n.dart';
@@ -21,9 +22,16 @@ import '../../theme/train_tokens.dart';
 /// you connect **on this device**. Connecting is explicit here and nowhere
 /// else, so opening Moments or taking a photo never triggers a sign-in.
 ///
-/// Presented in the house dashboard language — atmospheric backdrop, editorial
-/// title, staggered entrance — so a pushed detail page still feels native to
-/// the app rather than a settings afterthought.
+/// Presented in the house pushed-page language — [TrainScreen] under the
+/// Settings wash, the 36px back circle beside a Manrope 800/27 title, and the
+/// staggered entrance — so this reads as the same app as the page that opened
+/// it.
+///
+/// It used to paint a warm radial wash of its own (one that lived in no token
+/// file), float a green glow blob over it, and stack a one-off back chip above
+/// a 30px title. [PrivacyPage] carried a byte-identical copy of all three,
+/// under different class names. Both are on the shared chrome now, so the
+/// wash comes from `TrainColors` and the screen keeps to its one glow.
 class StorageSyncPage extends StatefulWidget {
   const StorageSyncPage({super.key});
 
@@ -212,41 +220,17 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
   @override
   Widget build(BuildContext context) {
     final prefsRepo = _media.preferences;
-    return Scaffold(
-      backgroundColor: TrainColors.base,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF231B14), TrainColors.base, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _AuraBlob(color: TrainColors.green, size: 200),
-            ),
-            SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
+    return TrainScreen(
+      tint: TrainColors.settingsTint,
+      child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  12,
+                  AppSpacing.screen,
+                  TrainBottomInset.of(context),
+                ),
                 children: [
-                  RiseIn(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _BackButton(),
-                        const SizedBox(height: 20),
-                        Text(
-                          l(context).storageTitle,
-                          style: AppText.greeting.copyWith(fontSize: 30),
-                        ),
-                      ],
-                    ),
-                  ),
+                  TrainPageHeader(title: l(context).storageTitle),
                   const SizedBox(height: 22),
                   RiseIn(
                     delay: const Duration(milliseconds: 50),
@@ -258,14 +242,17 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // The same label rhythm [SettingsSectionCard] gives
+                        // the two sections below this one. It used to be a
+                        // hand-rolled line at a 6px start inset and an 9px
+                        // gap, so three consecutive section labels on one
+                        // screen sat at two different indents.
                         Padding(
-                          padding: const EdgeInsetsDirectional.only(start: 6, bottom: 9),
-                          child: Text(
+                          padding: const EdgeInsets.only(bottom: 11),
+                          child: TrainSectionLabel(
                             l(context).storageSectionBackup,
-                            style: AppText.sectionLabel,
                           ),
                         ),
-
                         _DriveCard(
                           supported: _media.supportsBackup,
                           connected: _connected,
@@ -306,11 +293,15 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               // one says the same thing twice and steals the
                               // width the title needs.
                               value: '',
-                              accent: TrainColors.amber,
+                              // Violet, like every other Settings row and like
+                              // the Drive card above. This row was amber —
+                              // money's hue — and the one below it was ember,
+                              // which Settings reserves for Delete account.
+                              accent: TrainColors.violetGlyph,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.autoUploadToDrive,
-                                activeThumbColor: TrainColors.ember,
+                                activeThumbColor: TrainColors.violet,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(
@@ -339,11 +330,11 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               icon: AppIcons.photos,
                               title: l(context).storageSaveToPhotos,
                               value: '',
-                              accent: TrainColors.ember,
+                              accent: TrainColors.violetGlyph,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.saveToPhotos,
-                                activeThumbColor: TrainColors.ember,
+                                activeThumbColor: TrainColors.violet,
                                 onChanged: _busy
                                     ? null
                                     : (v) => prefsRepo.save(
@@ -369,71 +360,6 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A soft, blurred wash of color floating behind the content — the quiet
-/// "energy" glow shared across the app's surfaces. Purely decorative.
-class _AuraBlob extends StatelessWidget {
-  const _AuraBlob({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // A radial gradient, not an ImageFiltered blur — visually the
-          // same soft glow at a fraction of the GPU cost, which matters
-          // during page transitions (blur layers repaint per frame).
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The pushed-page back affordance — the same 38px chip language as the
-/// Settings header.
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Tooltip(
-        message: l(context).actionBack,
-        child: InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: TrainColors.raisedStrong,
-              shape: BoxShape.circle,
-              border: Border.all(color: TrainColors.hairlineStrong),
-            ),
-            child: const Icon(AppIcons.back, size: 18, color: TrainColors.ink2),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -453,37 +379,18 @@ class _DeviceCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  TrainColors.green.withValues(alpha: 0.30),
-                  TrainColors.green.withValues(alpha: 0.10),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: TrainColors.green.withValues(alpha: 0.18),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: TrainColors.green.withValues(alpha: 0.30),
-                  blurRadius: 22,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Icon(
-              AppIcons.check,
-              size: 22,
-              color: TrainColors.green,
-            ),
+          // The flat single-hue tile, matching the Drive card directly below
+          // it. This was a saturated green gradient chip under a coloured
+          // drop shadow — the two treatments the design system rules out by
+          // name: gradient chips (identity §8, the reason `SettingsRow` gave
+          // up its own) and any shadow that isn't the bloom under a primary
+          // action.
+          const TrainIconTile(
+            icon: AppIcons.check,
+            accent: TrainColors.green,
+            size: 46,
+            iconSize: 22,
+            radius: 14,
           ),
           const SizedBox(width: 14),
           Expanded(

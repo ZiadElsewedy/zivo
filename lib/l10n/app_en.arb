@@ -587,6 +587,13 @@
   "@todayBuildManually": {
     "description": "Secondary action on Today's empty training card."
   },
+  "todayEmptySplitTitle": "{plan} has no days",
+  "@todayEmptySplitTitle": {
+    "description": "Title of Today's card for a plan that exists but has no training days. {plan} is the plan's own name.",
+    "placeholders": {
+      "plan": { "type": "String" }
+    }
+  },
   "todayEmptySplitBody": "Add training days and exercises to this split and it will show up here, ready to start.",
   "@todayEmptySplitBody": {
     "description": "Shown when a plan exists but has no days yet."
@@ -596,6 +603,10 @@
     "description": "Action that opens the plan editor."
   },
   "todayGetStarted": "Get started",
+  "todayGetStartedBody": "Import a plan or log a spend — ZIVO builds Today from there.",
+  "@todayGetStartedBody": {
+    "description": "Body line under Today's first-run heading, naming the two ways in."
+  },
   "@todayGetStarted": {
     "description": "Heading above Today's first-run shortcuts."
   },
@@ -854,6 +865,10 @@
     "description": "Shown when the rotation has nothing queued."
   },
   "workoutFullCycle": "Full cycle",
+  "workoutMoreSection": "More",
+  "@workoutMoreSection": {
+      "description": "Section label over the Workout plan page's drill-down rows (Splits, Analysis, History)."
+  },
   "@workoutFullCycle": {
     "description": "Heading above the whole rotation."
   },
@@ -2022,6 +2037,10 @@
       }
   },
   "workoutBodyweightEmpty": "Log your first weigh-in to start the trend.",
+  "workoutBodyweightAllWeighIns": "All weigh-ins",
+  "@workoutBodyweightAllWeighIns": {
+      "description": "Section label over the full list of logged weigh-ins, newest first."
+  },
   "@workoutBodyweightEmpty": {
       "description": "Empty state on the body-weight history page."
   },
@@ -4188,6 +4207,10 @@
   "dietWhatsInIt": "What’s in it",
   "@dietWhatsInIt": {
       "description": "Section label over a meal's items."
+  },
+  "dietSupplementMark": "Supplement",
+  "@dietSupplementMark": {
+      "description": "Marks the meal-detail screen as a supplement rather than food. A small caption beside the calorie figure."
   },
   "dietNoItemsListed": "No items listed for this meal.",
   "@dietNoItemsListed": {

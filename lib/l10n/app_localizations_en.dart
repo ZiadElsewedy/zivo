@@ -424,6 +424,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayBuildManually => 'Build manually instead';
 
   @override
+  String todayEmptySplitTitle(String plan) {
+    return '$plan has no days';
+  }
+
+  @override
   String get todayEmptySplitBody =>
       'Add training days and exercises to this split and it will show up here, ready to start.';
 
@@ -432,6 +437,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayGetStarted => 'Get started';
+
+  @override
+  String get todayGetStartedBody =>
+      'Import a plan or log a spend — ZIVO builds Today from there.';
 
   @override
   String get todayImportWorkoutPlan => 'Import a\nworkout plan';
@@ -595,6 +604,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workoutFullCycle => 'Full cycle';
+
+  @override
+  String get workoutMoreSection => 'More';
 
   @override
   String get workoutAnyDayNote =>
@@ -1403,6 +1415,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get workoutBodyweightEmpty =>
       'Log your first weigh-in to start the trend.';
+
+  @override
+  String get workoutBodyweightAllWeighIns => 'All weigh-ins';
 
   @override
   String get workoutThisWeekCaps => 'THIS WEEK';
@@ -2936,6 +2951,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dietWhatsInIt => 'What’s in it';
+
+  @override
+  String get dietSupplementMark => 'Supplement';
 
   @override
   String get dietNoItemsListed => 'No items listed for this meal.';

@@ -854,6 +854,12 @@ abstract class AppLocalizations {
   /// **'Build manually instead'**
   String get todayBuildManually;
 
+  /// Title of Today's card for a plan that exists but has no training days. {plan} is the plan's own name.
+  ///
+  /// In en, this message translates to:
+  /// **'{plan} has no days'**
+  String todayEmptySplitTitle(String plan);
+
   /// Shown when a plan exists but has no days yet.
   ///
   /// In en, this message translates to:
@@ -871,6 +877,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get started'**
   String get todayGetStarted;
+
+  /// Body line under Today's first-run heading, naming the two ways in.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a plan or log a spend — ZIVO builds Today from there.'**
+  String get todayGetStartedBody;
 
   /// First-run shortcut. The line break is deliberate — it sits in a narrow tile.
   ///
@@ -1141,6 +1153,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full cycle'**
   String get workoutFullCycle;
+
+  /// Section label over the Workout plan page's drill-down rows (Splits, Analysis, History).
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get workoutMoreSection;
 
   /// Note under the rotation, telling the user they aren't locked to the suggested day.
   ///
@@ -2617,6 +2635,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Log your first weigh-in to start the trend.'**
   String get workoutBodyweightEmpty;
+
+  /// Section label over the full list of logged weigh-ins, newest first.
+  ///
+  /// In en, this message translates to:
+  /// **'All weigh-ins'**
+  String get workoutBodyweightAllWeighIns;
 
   /// Group header over the current week in the session history. Set in caps in English.
   ///
@@ -5021,6 +5045,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What’s in it'**
   String get dietWhatsInIt;
+
+  /// Marks the meal-detail screen as a supplement rather than food. A small caption beside the calorie figure.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplement'**
+  String get dietSupplementMark;
 
   /// Empty state on a meal with no items.
   ///

@@ -3,9 +3,11 @@ import '../../../../core/util/bidi.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/money.dart';
 import '../../../../core/widgets/pressable_scale.dart';
+import '../../../../core/widgets/train_chrome.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../../core/widgets/rise_in.dart';
@@ -197,11 +199,11 @@ class _DayCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: TrainColors.hairline),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         child: Column(
           children: [
             for (var i = 0; i < expenses.length; i++)
@@ -609,13 +611,8 @@ class _CategoryBreakdown extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 11),
-        Container(
+        TrainCard(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-          decoration: BoxDecoration(
-            gradient: TrainColors.cardGradient,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: TrainColors.hairline),
-          ),
           child: Column(
             children: [
               for (var i = 0; i < rows.length; i++)

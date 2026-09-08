@@ -152,8 +152,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
         TrainSectionLabel(l(context).dietTodaySoFar),
         const SizedBox(height: 11),
         TrainCard(
-          radius: 20,
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -196,8 +195,7 @@ class _DietPlanDetailsPageState extends State<DietPlanDetailsPage> {
           TrainSectionLabel(l(context).dietMacrosToday),
           const SizedBox(height: 11),
           TrainCard(
-            radius: 20,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             child: Column(
               children: [
                 for (final macro in macroBars)
@@ -741,12 +739,15 @@ class _CalibrationLine extends StatelessWidget {
   }
 }
 
-/// The hue that owns each macro, so a target-driven bar and a plan-driven one
-/// never disagree about which colour protein is.
+/// The tone that owns each macro, so a target-driven bar and a plan-driven one
+/// never disagree about which one protein is.
+///
+/// One hue, three luminances — see the macro ramp in `train_tokens.dart` for
+/// why these are not three separate colours.
 Color _macroColor(MacroKind kind) => switch (kind) {
-  MacroKind.protein => TrainColors.green,
-  MacroKind.carbs => TrainColors.violetGlyph,
-  MacroKind.fat => TrainColors.amber,
+  MacroKind.protein => TrainColors.macroProtein,
+  MacroKind.carbs => TrainColors.macroCarbs,
+  MacroKind.fat => TrainColors.macroFat,
 };
 
 /// One macro: a mono caption and its `eaten/target` figure on one line, with

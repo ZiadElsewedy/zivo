@@ -570,8 +570,7 @@ class _LifetimeStats extends StatelessWidget {
         final months = _monthsSince(user.createdAt);
 
         return TrainCard(
-          radius: 20,
-          padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 4),
           child: TrainStatStrip(
             items: [
               TrainStat('$completed', l(context).profileStatSessions),

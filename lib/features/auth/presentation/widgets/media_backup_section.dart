@@ -21,7 +21,10 @@ class MediaBackupSection extends StatelessWidget {
           icon: AppIcons.backupNow,
           title: l(context).settingsStorageSync,
           value: l(context).settingsStorageSyncValue,
-          accent: TrainColors.green,
+          // Violet like every other row on this page — Settings rows are
+          // system/meta, and green means training. This was the one green
+          // tile in a violet column.
+          accent: TrainColors.violetGlyph,
           last: true,
           onTap: () => Navigator.of(
             context,

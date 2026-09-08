@@ -47,8 +47,7 @@ class UpNextCard extends StatelessWidget {
       // Everything's resolved — rest is the last thing between here and the
       // summary.
       return TrainCard(
-        radius: 20,
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         gradient: TrainColors.cardGradient,
         child: Row(
           children: [
@@ -71,8 +70,7 @@ class UpNextCard extends StatelessWidget {
     final reps = repTargetText(context, set.target);
     final weight = set.targetWeightKg;
     return TrainCard(
-      radius: 20,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       gradient: TrainColors.cardGradient,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

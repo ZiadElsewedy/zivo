@@ -29,6 +29,8 @@ import 'package:zivo/features/workout/domain/workout_set.dart';
 import 'package:zivo/features/workout/presentation/pages/live_session_page.dart';
 import 'package:zivo/features/workout/presentation/pages/workout_plan_page.dart';
 
+import '../support/bidi_finders.dart';
+
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/inert_music_controller.dart';
@@ -186,9 +188,11 @@ void main() {
 
     // The cursor points at Day A (order 0) → Push is up next.
     expect(find.text('UP NEXT'), findsOneWidget);
-    expect(find.text('Day A · Push'), findsWidgets); // today header + browse card
-    expect(find.text('Bench Press'), findsOneWidget); // only the today section is expanded
-    expect(find.text('Test Split'), findsOneWidget); // plan name
+    // Plan and day names are user content, so they render inside directional
+    // isolates (see `bidi.dart`); the plan name is the page's mono caption.
+    expect(findTextIgnoringBidi('Day A · Push'), findsWidgets); // up next + cycle row
+    expect(findTextIgnoringBidi('Bench Press'), findsOneWidget); // only the up-next block is expanded
+    expect(findTextIgnoringBidi('TEST SPLIT'), findsOneWidget); // plan name
 
     // Sets are rendered collapsed — one line per distinct spec, "N ×" prefix
     // (Bench Press has a single set here, so "1 ×").
@@ -209,16 +213,17 @@ void main() {
     await tester.pump();
 
     // All three cycle days appear in the browse list.
-    expect(find.text('Day B · Pull'), findsOneWidget);
-    expect(find.text('Day C · Legs'), findsOneWidget);
-    // The up-next day is marked in the browse list.
-    expect(find.text('Next up'), findsOneWidget);
+    expect(findTextIgnoringBidi('Day B · Pull'), findsOneWidget);
+    expect(findTextIgnoringBidi('Day C · Legs'), findsOneWidget);
+    // The up-next day is marked in the cycle list — the house mono caption,
+    // not a filled badge.
+    expect(find.text('NEXT UP'), findsOneWidget);
 
-    // A collapsed browse day hides its exercises until tapped.
-    expect(find.text('Deadlift'), findsNothing);
-    await tester.tap(find.text('Day B · Pull'));
+    // A collapsed cycle row hides its exercises until tapped.
+    expect(findTextIgnoringBidi('Deadlift'), findsNothing);
+    await tester.tap(findTextIgnoringBidi('Day B · Pull'));
     await tester.pump();
-    expect(find.text('Deadlift'), findsOneWidget);
+    expect(findTextIgnoringBidi('Deadlift'), findsOneWidget);
 
     // And every expanded day is startable — the rotation recommends, it
     // doesn't restrict. Starting a non-"Next up" day opens the live session
@@ -271,19 +276,29 @@ void main() {
     expect(find.text('No workout plan yet'), findsNothing);
   });
 
-  testWidgets('history is reachable from the AppBar action', (tester) async {
+  testWidgets('the drill-downs the app bar used to hold are labelled rows at '
+      'the foot of the page, and they still go where they went', (tester) async {
     final plans = InMemoryWorkoutPlanRepository();
     addTearDown(plans.dispose);
 
     await tester.pumpWidget(_wrap(child: const WorkoutPlanPage(), plansOverride: plans));
     await tester.pump();
 
-    expect(find.byTooltip('History'), findsOneWidget);
-    await tester.tap(find.byTooltip('History'));
+    // Three bare icons in an AppBar became three rows that say what they are.
+    await tester.dragUntilVisible(
+      find.text('History'),
+      find.byType(ListView),
+      const Offset(0, -220),
+    );
+    await tester.pump();
+    expect(find.text('Splits'), findsOneWidget);
+    expect(find.text('Analysis'), findsOneWidget);
+
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
 
-    // The history page ("what I did") opens — its own AppBar title is
-    // unique to it and absent from the read-only plan view.
+    // The history page ("what I did") opens — its own title is unique to it
+    // and absent from the read-only plan view.
     expect(find.text('History'), findsOneWidget);
   });
 
@@ -366,15 +381,15 @@ void main() {
       await tester.pump();
 
       // The prominent card mirrors the running session's actual day...
-      expect(find.text('Day C · Legs'), findsWidgets); // today header + browse card
+      expect(findTextIgnoringBidi('Day C · Legs'), findsWidgets); // up next + cycle row
       expect(find.text('Resume workout'), findsOneWidget);
       expect(find.text('Start workout'), findsNothing);
 
-      // ...while the rotation's own "Next up" badge still marks Day A in the
-      // browse list below, since the cursor itself hasn't moved.
+      // ...while the rotation's own "next up" mark still points at Day A in
+      // the cycle list below, since the cursor itself hasn't moved.
       await tester.drag(find.byType(ListView), const Offset(0, -300));
       await tester.pump();
-      expect(find.text('Next up'), findsOneWidget);
+      expect(find.text('NEXT UP'), findsOneWidget);
     },
   );
 

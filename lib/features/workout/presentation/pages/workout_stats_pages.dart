@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../../core/util/time_ago.dart';
-import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
@@ -19,6 +19,12 @@ import '../workout_format.dart';
 /// the per-session history that produced it — sharing the hub's own green
 /// wash and handoff chrome. Every page is self-sufficient (its own
 /// [AppScope] streams), so the numbers stay live.
+///
+/// **Every list on these four pages is one card**, with the rows separated by
+/// the house hairline. They used to be a stack of individually bordered,
+/// individually rounded boxes — the same frame drawn twenty times down a page
+/// whose whole content is one number per line, so the borders carried more ink
+/// than the readings. A history is a list; a list is a card.
 /// The shared shell for the four stat drill-downs the Workout hub's tiles
 /// open — Sessions, Streak, Duration, Start times.
 ///
@@ -170,14 +176,12 @@ class WorkoutSessionsPage extends StatelessWidget {
           return StatDrillDownScaffold(
             title: l(context).workoutSessionsLabel,
             children: [
+              // The shared error view, not a bare line of text: a failed read
+              // says what failed, why it might have, and looks the same here
+              // as it does on every other stream-backed surface.
               SizedBox(
                 height: 200,
-                child: Center(
-                  child: Text(
-                    l(context).workoutSessionsLoadError,
-                    style: const TextStyle(color: TrainColors.ink4),
-                  ),
-                ),
+                child: ErrorStateView(message: l(context).workoutSessionsLoadError),
               ),
             ],
           );
@@ -211,14 +215,15 @@ class WorkoutSessionsPage extends StatelessWidget {
                 text: l(context).workoutSessionsEmpty,
               )
             else
-              for (final (i, session) in sessions.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: RiseIn(
-                    delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                    child: _SessionRow(session: session),
-                  ),
-                ),
+              TrainListCard(
+                rows: [
+                  for (final (i, session) in sessions.indexed)
+                    RiseIn(
+                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                      child: _SessionRow(session: session),
+                    ),
+                ],
+              ),
           ],
         );
       },
@@ -254,23 +259,16 @@ class _SessionRow extends StatelessWidget {
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: DateTime.now())
         : session.elapsed;
-    return PressableScale(
-      child: Material(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => SessionDetailsPage(session: session),
             ),
           ),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: TrainColors.hairline),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
             child: Row(
               children: [
                 Expanded(
@@ -340,7 +338,6 @@ class _SessionRow extends StatelessWidget {
               ],
             ),
           ),
-        ),
       ),
     );
   }
@@ -386,14 +383,15 @@ class WorkoutStreakPage extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             if (streakDays.isNotEmpty)
-              for (final (i, day) in streakDays.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: RiseIn(
-                    delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                    child: _StreakDayRow(day: day, sessions: sessions),
-                  ),
-                )
+              TrainListCard(
+                rows: [
+                  for (final (i, day) in streakDays.indexed)
+                    RiseIn(
+                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                      child: _StreakDayRow(day: day, sessions: sessions),
+                    ),
+                ],
+              )
             else
               _EmptyCard(
                 icon: Icons.local_fire_department_rounded,
@@ -417,31 +415,18 @@ class _StreakDayRow extends StatelessWidget {
     final trained = sessionsOnDay(sessions, day);
     final labels = trained.map((s) => s.dayLabel).toSet().join(' · ');
     final isToday = DateUtils.isSameDay(day, DateTime.now());
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TrainColors.hairline),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: TrainColors.ember.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: TrainColors.ember.withValues(alpha: 0.22),
-              ),
-            ),
-            child: Icon(
-              isToday ? Icons.today_rounded : Icons.check_rounded,
-              size: 16,
-              color: TrainColors.ember,
-            ),
+          // Green, not ember. A day you already trained is training state,
+          // which is green's job; ember is the committing action and the
+          // "you are here" marker, and this page's own hero figures above
+          // this list are green. One page was carrying two answers.
+          TrainIconTile(
+            icon: isToday ? Icons.today_rounded : Icons.check_rounded,
+            accent: TrainColors.green,
+            iconSize: 16,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -549,21 +534,22 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                 text: l(context).workoutDurationsEmpty,
               )
             else
-              for (final (i, session) in completed.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: RiseIn(
-                    delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                    child: _MetricRow(
-                      title: session.dayLabel,
-                      subtitle:
-                          '${formatMonthDay(context, session.startedAt)} · '
-                          '${l(context).workoutAgo(timeAgo(context, session.startedAt, DateTime.now()))}',
-                      trailing: formatDurationShort(context, session.elapsed),
-                      accent: TrainColors.green,
+              TrainListCard(
+                rows: [
+                  for (final (i, session) in completed.indexed)
+                    RiseIn(
+                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                      child: _MetricRow(
+                        title: session.dayLabel,
+                        subtitle:
+                            '${formatMonthDay(context, session.startedAt)} · '
+                            '${l(context).workoutAgo(timeAgo(context, session.startedAt, DateTime.now()))}',
+                        trailing: formatDurationShort(context, session.elapsed),
+                        accent: TrainColors.green,
+                      ),
                     ),
-                  ),
-                ),
+                ],
+              ),
           ],
         );
       },
@@ -608,24 +594,25 @@ class WorkoutStartTimesPage extends StatelessWidget {
                 text: l(context).workoutStartTimesEmpty,
               )
             else
-              for (final (i, session) in completed.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: RiseIn(
-                    delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                    child: _MetricRow(
-                      title: formatClockTime(context, session.startedAt),
-                      subtitle:
-                          '${session.dayLabel} · ${formatMonthDay(context, session.startedAt)}',
-                      trailing: timeAgo(
-                        context,
-                        session.startedAt,
-                        DateTime.now(),
+              TrainListCard(
+                rows: [
+                  for (final (i, session) in completed.indexed)
+                    RiseIn(
+                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                      child: _MetricRow(
+                        title: formatClockTime(context, session.startedAt),
+                        subtitle:
+                            '${session.dayLabel} · ${formatMonthDay(context, session.startedAt)}',
+                        trailing: timeAgo(
+                          context,
+                          session.startedAt,
+                          DateTime.now(),
+                        ),
+                        accent: TrainColors.green,
                       ),
-                      accent: TrainColors.green,
                     ),
-                  ),
-                ),
+                ],
+              ),
           ],
         );
       },
@@ -659,13 +646,8 @@ class _MetricRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TrainColors.hairline),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
       child: Row(
         children: [
           // The 4px spine the handoff uses in place of a saturated icon

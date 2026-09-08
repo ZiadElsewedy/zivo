@@ -119,11 +119,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     accent: TrainColors.violetGlyph,
                     onTap: () => showLanguageSheet(context),
                   ),
+                  // No accent, like Version and Build below it: on this page
+                  // the hue marks a row that *does* something, and Theme is a
+                  // readout (the app is dark-only). It was the one violet
+                  // tile in the section with nothing behind it to tap.
                   SettingsRow(
                     icon: AppIcons.theme,
                     title: l(context).settingsTheme,
                     value: l(context).settingsThemeDark,
-                    accent: TrainColors.violetGlyph,
                   ),
                   SettingsRow(
                     icon: AppIcons.version,
@@ -362,10 +365,15 @@ class _MusicSection extends StatelessWidget {
                                   height: 32,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: 0.14),
+                                    // TrainIconTile's own numbers — this has
+                                    // to be hand-built because it carries an
+                                    // image rather than an IconData, which is
+                                    // no reason for its plate to sit a
+                                    // percent off every other tile's.
+                                    color: accent.withValues(alpha: 0.13),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
-                                      color: accent.withValues(alpha: 0.24),
+                                      color: accent.withValues(alpha: 0.22),
                                     ),
                                   ),
                                   // Spotify's own mark, not a stand-in glyph:
@@ -439,7 +447,7 @@ class _MusicSection extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      playing.title,
+                                      isolate(playing.title),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TrainType.ui(
@@ -510,13 +518,6 @@ String _remaining(NowPlaying playing) {
   return '-${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 }
 
-/// Sign out — a **ghost pill**, deliberately not a red button.
-///
-/// The handoff's own hierarchy: ember/red is for the single committing (or
-/// irreversible) action on a screen, and on Settings that is "Delete account"
-/// two sections above. Signing out is reversible — you sign back in — so it
-/// takes the quietest shape on the page and stops competing with the one
-/// thing here you genuinely can't undo.
 /// What the Language row shows on its right. "Match my phone" when nothing is
 /// chosen — naming the *resolved* language there would look like a choice the
 /// user made, and would then be wrong the moment they travel.
@@ -530,6 +531,18 @@ String _languageValue(BuildContext context) {
   };
 }
 
+/// Sign out — a **ghost pill**, deliberately not a red button.
+///
+/// The handoff's own hierarchy: ember/red is for the single committing (or
+/// irreversible) action on a screen, and on Settings that is "Delete account"
+/// two sections above. Signing out is reversible — you sign back in — so it
+/// takes the quietest shape on the page and stops competing with the one
+/// thing here you genuinely can't undo.
+///
+/// It is [TrainGhostButton] rather than a copy of it: this used to be the
+/// whole widget written out again to add a spinner, which is why its border
+/// and label had drifted from the Disconnect pill on the same screen. The
+/// spinner lives in the shared pill now.
 class _SignOutButton extends StatelessWidget {
   const _SignOutButton({required this.loading, required this.onTap});
 
@@ -538,54 +551,17 @@ class _SignOutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      enabled: !loading,
-      scale: 0.985,
-      child: Material(
-        color: TrainColors.glass,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: loading ? null : onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            height: 54,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x1FFFFFFF)),
-            ),
-            child: loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: TrainColors.ink2,
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        AppIcons.signOut,
-                        size: 16,
-                        color: Color(0xBFF4F4F0),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        l(context).settingsSignOut,
-                        style: TrainType.ui(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          color: const Color(0xCCF4F4F0),
-                          height: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
+    return TrainGhostButton(
+      label: l(context).settingsSignOut,
+      mono: false,
+      height: 54,
+      loading: loading,
+      icon: const Icon(
+        AppIcons.signOut,
+        size: 16,
+        color: Color(0xBFF4F4F0),
       ),
+      onTap: onTap,
     );
   }
 }

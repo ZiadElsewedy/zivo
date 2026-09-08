@@ -270,6 +270,28 @@ abstract final class TrainColors {
   /// is the neutral one.
   static const sleepStageUnknown = Color(0xFF5C6478);
 
+  // ---- Diet macros ----
+  // Protein, carbs and fat, drawn as one **luminance ramp inside the training
+  // green** for the same reason the sleep stages are a ramp inside the sleep
+  // hue: they are three parts of one day's food, not three categories of
+  // equal standing that happen to share a card.
+  //
+  // They used to be green / `violetGlyph` / `amber` — three hues, two of which
+  // the palette has already spent (violet is system and meta; amber is money
+  // and nothing else, ADR-006 §2). Nothing was gained for the cost: each bar
+  // is labelled PROTEIN / CARBS / FAT and they render in a fixed order, so the
+  // hue was never the thing telling them apart.
+
+  /// Protein — the macro the coaching engine actually reasons about, so it
+  /// keeps the full training green.
+  static const macroProtein = green;
+
+  /// Carbohydrate.
+  static const macroCarbs = Color(0xFF6BE3AE);
+
+  /// Fat — the palest step on the ramp.
+  static const macroFat = Color(0xFFA9EDCE);
+
   /// `110% 36% at 50% 2%` — Settings, the coolest of the set.
   static const settingsTint = RadialGradient(
     center: Alignment(0, -0.96),

@@ -426,6 +426,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get todayBuildManually => 'أو ابنِها بنفسك';
 
   @override
+  String todayEmptySplitTitle(String plan) {
+    return '$plan بلا أيام';
+  }
+
+  @override
   String get todayEmptySplitBody =>
       'أضف أيام التمرين والتمارين إلى هذا الجدول وسيظهر هنا جاهزًا للبدء.';
 
@@ -434,6 +439,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get todayGetStarted => 'لنبدأ';
+
+  @override
+  String get todayGetStartedBody =>
+      'استورد خطة أو سجّل مصروفًا — ومن هناك يبني ZIVO صفحة اليوم.';
 
   @override
   String get todayImportWorkoutPlan => 'استورد\nخطة تمرين';
@@ -596,6 +605,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutFullCycle => 'الدورة كاملة';
+
+  @override
+  String get workoutMoreSection => 'المزيد';
 
   @override
   String get workoutAnyDayNote =>
@@ -1396,6 +1408,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get workoutBodyweightEmpty => 'سجّل أول قياس لك لتبدأ متابعة التغيّر.';
+
+  @override
+  String get workoutBodyweightAllWeighIns => 'كل القياسات';
 
   @override
   String get workoutThisWeekCaps => 'هذا الأسبوع';
@@ -2967,6 +2982,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dietWhatsInIt => 'ما بداخلها';
+
+  @override
+  String get dietSupplementMark => 'مكمّل';
 
   @override
   String get dietNoItemsListed => 'لا عناصر مدرجة لهذه الوجبة.';

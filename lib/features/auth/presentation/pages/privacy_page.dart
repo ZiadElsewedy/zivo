@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/util/date_format.dart';
-import '../../../../l10n/l10n.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/rise_in.dart';
-import '../../../../core/theme/train_tokens.dart';
+import '../../../../core/widgets/train_surfaces.dart';
+import '../../../../l10n/l10n.dart';
 
 /// One section of the privacy policy: an uppercase label, a body paragraph,
 /// and optional bullet points. Data-driven so the policy reads as one
@@ -86,73 +86,34 @@ class PrivacyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TrainColors.base,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -1.1),
-            radius: 1.15,
-            colors: [Color(0xFF231B14), TrainColors.base, Color(0xFF0E0B08)],
-            stops: [0.0, 0.52, 1.0],
-          ),
+    return TrainScreen(
+      tint: TrainColors.settingsTint,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          12,
+          AppSpacing.screen,
+          TrainBottomInset.of(context),
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Positioned(
-              top: -60,
-              right: -70,
-              child: _Glow(color: TrainColors.green, size: 200),
-            ),
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    RiseIn(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _BackButton(),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              const Icon(
-                                AppIcons.privacy,
-                                size: 26,
-                                color: TrainColors.green,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                l(context).privacyTitle,
-                                style: AppText.greeting,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            l(context).privacyIntro(
-                              formatFullDateLong(context, _lastUpdated),
-                            ),
-                            style: AppText.body.copyWith(
-                              color: TrainColors.ink3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    for (final (i, section)
-                        in privacySections(context).indexed)
-                      RiseIn(
-                        delay: Duration(milliseconds: 40 + i * 18),
-                        child: _SectionBlock(section: section, index: i),
-                      ),
-                  ],
+            TrainPageHeader(title: l(context).privacyTitle),
+            const SizedBox(height: AppSpacing.base),
+            RiseIn(
+              child: Text(
+                l(context).privacyIntro(
+                  formatFullDateLong(context, _lastUpdated),
                 ),
+                style: AppText.body.copyWith(color: TrainColors.ink3),
               ),
             ),
+            const SizedBox(height: 28),
+            for (final (i, section) in privacySections(context).indexed)
+              RiseIn(
+                delay: Duration(milliseconds: 40 + i * 18),
+                child: _SectionBlock(section: section, index: i),
+              ),
           ],
         ),
       ),
@@ -226,57 +187,3 @@ class _SectionBlock extends StatelessWidget {
 
 /// The soft glow behind the header — the settings-family backdrop, tinted to
 /// the page's pulse accent.
-class _Glow extends StatelessWidget {
-  const _Glow({required this.color, required this.size});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.14),
-              color.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The same 38px back chip as Settings — pushed pages share one affordance.
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      child: Tooltip(
-        message: l(context).actionBack,
-        child: InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: TrainColors.raisedStrong,
-              shape: BoxShape.circle,
-              border: Border.all(color: TrainColors.hairlineStrong),
-            ),
-            child: const Icon(AppIcons.back, size: 18, color: TrainColors.ink2),
-          ),
-        ),
-      ),
-    );
-  }
-}

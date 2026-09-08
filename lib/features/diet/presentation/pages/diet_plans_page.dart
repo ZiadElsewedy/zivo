@@ -154,7 +154,6 @@ class _PlanCard extends StatelessWidget {
 
     return TrainCard(
       key: Key('plan-card-${plan.id}'),
-      radius: 20,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_spacing.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 
@@ -19,7 +20,7 @@ import 'pressable_scale.dart';
 class TrainCard extends StatelessWidget {
   const TrainCard({
     required this.child,
-    this.radius = 22,
+    this.radius = AppRadius.card,
     this.padding = const EdgeInsets.all(18),
     this.gradient,
     this.border,
@@ -27,6 +28,14 @@ class TrainCard extends StatelessWidget {
   });
 
   final Widget child;
+
+  /// Defaults to [AppRadius.card] — the app's one card radius.
+  ///
+  /// It used to default to 22 while `AppRadius.card` said 20, so the design
+  /// system carried two answers to "how round is a card". Six of this
+  /// widget's own call sites were already passing `radius: 20` to override
+  /// the default back to the token, which is the drift stating itself out
+  /// loud.
   final double radius;
   final EdgeInsets padding;
 
@@ -128,6 +137,7 @@ class TrainGhostButton extends StatelessWidget {
     this.icon,
     this.height = 52,
     this.mono = true,
+    this.loading = false,
     super.key,
   });
 
@@ -139,45 +149,68 @@ class TrainGhostButton extends StatelessWidget {
   /// ±15s read as numbers (mono); "Skip" reads as a word (Manrope).
   final bool mono;
 
+  /// Swaps the label for a spinner and stops accepting taps.
+  ///
+  /// Here rather than at a call site because Settings had written this whole
+  /// widget out a second time — same glass fill, same pill, same hairline,
+  /// same pressable — purely to add a spinner to Sign out, and the copy had
+  /// drifted three values away (border `.12` vs `.10`, label 15/w700 vs
+  /// 14/w400) from the ghost pill sitting ten rows above it.
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
     return PressableScale(
+      enabled: !loading,
       scale: 0.985,
       child: Material(
         color: TrainColors.glass,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
+          onTap: loading
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap();
+                },
           child: Container(
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: const Color(0x1AFFFFFF)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[icon!, const SizedBox(width: 8)],
-                Text(
-                  label,
-                  style: mono
-                      ? TrainType.mono(
-                          size: 14,
-                          weight: FontWeight.w500,
-                          color: const Color(0xBFF4F4F0),
-                        )
-                      : TrainType.ui(
-                          size: 14,
-                          color: const Color(0xB2F4F4F0),
-                          height: 1,
-                        ),
-                ),
-              ],
-            ),
+            child: loading
+                ? const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TrainColors.ink2,
+                      ),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (icon != null) ...[icon!, const SizedBox(width: 8)],
+                      Text(
+                        label,
+                        style: mono
+                            ? TrainType.mono(
+                                size: 14,
+                                weight: FontWeight.w500,
+                                color: const Color(0xBFF4F4F0),
+                              )
+                            : TrainType.ui(
+                                size: 14,
+                                color: const Color(0xB2F4F4F0),
+                                height: 1,
+                              ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
