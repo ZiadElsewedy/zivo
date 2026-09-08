@@ -275,48 +275,52 @@ class TrainSectionLabel extends StatelessWidget {
 // Rows and tiles
 // ---------------------------------------------------------------------------
 
-/// The 32px single-hue icon tile every list row and stat tile leads with —
-/// a 13% tint of one colour behind a 22% border, radius 10. Never a
-/// multi-hue gradient chip (identity §8).
+/// The single-hue mark every list row and stat tile leads with — **a bare
+/// glyph in one colour, centred in a [size]-wide box**. Never a multi-hue
+/// gradient chip (identity §8), and as of this revision never a plate either.
+///
+/// This drew a 13% tint behind a 22% border for several revisions. The plate
+/// was the weakest thing on every page that used it: it carried no information
+/// the glyph beside it didn't already carry, and a column of tinted rectangles
+/// is the generic-app tell that the restrained sets this product is measured
+/// against — Linear, Things, Apple's own — all avoid. `SettingsRow` dropped
+/// its plate first; this is the same decision applied to the other thirteen
+/// marks so the app doesn't read plated on Hub and bare on Settings.
+///
+/// The hue stays, because here it means something: each area owns one colour
+/// (green = training, sleep's own violet, ember = the committing action), so
+/// the glyph's colour is identity, not decoration. That is exactly why the
+/// *decorative* violet came off the settings rows while these keep theirs.
 class TrainIconTile extends StatelessWidget {
   const TrainIconTile({
     required this.icon,
     required this.accent,
     this.size = 32,
-    this.iconSize = 15,
-    this.radius = 10,
-    this.fillAlpha = 0.13,
-    this.borderAlpha = 0.22,
+    this.iconSize = 19,
     super.key,
   });
 
   final IconData icon;
   final Color accent;
-  final double size;
-  final double iconSize;
-  final double radius;
 
-  /// Weight of the tinted plate behind the glyph, and of its edge.
-  ///
-  /// Exposed because the defaults are tuned for a *saturated* accent. A
-  /// near-white neutral at the same alphas reads as a flat grey block that
-  /// competes with the glyph sitting on it, so a neutral tile generally wants
-  /// a lighter plate and a larger glyph — see the Hub's module grid.
-  final double fillAlpha;
-  final double borderAlpha;
+  /// The box the glyph is centred in. Layout, not decoration — nothing is
+  /// painted at this size any more. It is kept because every page that uses
+  /// this mark was laid out around the old plate's footprint, including
+  /// [TrainListRow.dividerInset]; holding the box means the plate came off
+  /// without reflowing a single screen.
+  final double size;
+
+  /// The glyph itself. Larger than the plated era's, at every call site: a
+  /// mark with no tint behind it has to hold its column alone, the same
+  /// reason `SettingsRow` went 17 → 20 when it lost its own plate.
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: fillAlpha),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: accent.withValues(alpha: borderAlpha)),
-      ),
-      child: Icon(icon, size: iconSize, color: accent),
+      child: Center(child: Icon(icon, size: iconSize, color: accent)),
     );
   }
 }

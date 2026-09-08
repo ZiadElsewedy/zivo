@@ -490,8 +490,7 @@ class _ModuleCard extends StatelessWidget {
                                 icon: icon,
                                 accent: accent,
                                 size: 34,
-                                iconSize: 17,
-                                radius: 11,
+                                iconSize: 21,
                               ),
                               const SizedBox(width: 12),
                               Expanded(

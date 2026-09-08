@@ -62,10 +62,11 @@ dependencies:
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
   lottie: ^3.5.1
-  # Premium, consistent line-icon set used app-wide via core/theme/app_icons.
-  # (Lucide — Phosphor's package can't compile on this Flutter: it subclasses
-  # the now-final IconData.)
-  lucide_icons_flutter: ^3.0.0
+  # Premium, consistent icon set used app-wide via core/theme/app_icons (Bold
+  # weight, plus the true Fill cut for active nav tabs). `phosphor_icons` — the
+  # maintained fork — not `phosphor_flutter`, which still subclasses the
+  # now-final IconData and cannot compile on Flutter 3.43+.
+  phosphor_icons: ^3.0.1
   # Native crop/straighten/rotate editor for moment photos (iOS Photos-style
   # cropper; uCrop on Android).
   image_cropper: ^12.0.0

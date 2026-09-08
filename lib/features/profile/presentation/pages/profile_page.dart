@@ -289,7 +289,6 @@ class ProfilePage extends StatelessWidget {
                         icon: AppIcons.idCard,
                         title: l(context).profileName,
                         value: profile?.name ?? '—',
-                        accent: TrainColors.violetGlyph,
                         onTap: profile == null
                             ? null
                             : () => _editName(context, profile),
@@ -300,7 +299,6 @@ class ProfilePage extends StatelessWidget {
                         value: profile == null
                             ? '—'
                             : _formatDob(context, profile.dateOfBirth),
-                        accent: TrainColors.violetGlyph,
                         last: true,
                         onTap: profile == null
                             ? null
@@ -344,7 +342,6 @@ class ProfilePage extends StatelessWidget {
                           title: l(context).profileEmail,
                           value: '',
                           trailing: _ConnectedBadge(),
-                          accent: TrainColors.violetGlyph,
                           last: true,
                         ),
                     ],
@@ -382,8 +379,8 @@ class ProfilePage extends StatelessWidget {
   static Widget? _providerLogo(String id) => switch (id) {
     'google.com' => Image.asset(
       'assets/google/google-icon.png',
-      width: 18,
-      height: 18,
+      width: 20,
+      height: 20,
       filterQuality: FilterQuality.medium,
     ),
     _ => null,

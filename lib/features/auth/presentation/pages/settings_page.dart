@@ -116,7 +116,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: AppIcons.language,
                     title: l(context).settingsLanguage,
                     value: _languageValue(context),
-                    accent: TrainColors.violetGlyph,
                     onTap: () => showLanguageSheet(context),
                   ),
                   // No accent, like Version and Build below it: on this page
@@ -151,7 +150,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     // it is, and a restated explanation in the value
                     // column is filler, not information.
                     value: '',
-                    accent: TrainColors.violetGlyph,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -176,7 +174,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: AppIcons.key,
                       title: l(context).settingsChangePassword,
                       value: '',
-                      accent: TrainColors.violetGlyph,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -360,37 +357,32 @@ class _MusicSection extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    // `SettingsRow`'s own numbers — this has
-                                    // to be hand-built because it carries an
-                                    // image rather than an IconData, which is
-                                    // no reason for its plate to sit a
-                                    // percent off every other tile's. Fill
-                                    // only, no border, for the reason given
-                                    // on `SettingsRow`: on this ground the
-                                    // two at half strength cancelled out.
-                                    color: accent.withValues(alpha: 0.17),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  // Spotify's own mark, not a stand-in glyph:
-                                  // this row names a third-party service the
-                                  // user connects their account to, and the
-                                  // thing that makes it recognisable at a
-                                  // glance is the logo they already know. The
-                                  // equalizer bars that used to sit here read
-                                  // as a generic "music" icon — the same
-                                  // asset the now-playing strip and the
-                                  // player screen already use is the one this
-                                  // card should carry too.
-                                  child: Image.asset(
-                                    'assets/spotify/spotify-icon.png',
-                                    width: 18,
-                                    height: 18,
-                                    filterQuality: FilterQuality.medium,
+                                // `SettingsRow`'s mark column, hand-built
+                                // because this row carries an image rather
+                                // than an IconData — which is no reason for
+                                // it to sit a pixel off every other row's.
+                                // Bare, like the rest: the tinted plate that
+                                // used to sit behind it went with the others.
+                                SizedBox(
+                                  width: 24,
+                                  child: Center(
+                                    // Spotify's own mark, not a stand-in
+                                    // glyph: this row names a third-party
+                                    // service the user connects their account
+                                    // to, and the thing that makes it
+                                    // recognisable at a glance is the logo
+                                    // they already know. The equalizer bars
+                                    // that used to sit here read as a generic
+                                    // "music" icon — the same asset the
+                                    // now-playing strip and the player screen
+                                    // already use is the one this card should
+                                    // carry too.
+                                    child: Image.asset(
+                                      'assets/spotify/spotify-icon.png',
+                                      width: 20,
+                                      height: 20,
+                                      filterQuality: FilterQuality.medium,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 14),
@@ -427,8 +419,8 @@ class _MusicSection extends StatelessWidget {
                                 const SizedBox(width: 10),
                                 const Icon(
                                   AppIcons.chevron,
-                                  size: 17,
-                                  color: Color(0x4DF4F4F0),
+                                  size: 15,
+                                  color: Color(0x40F4F4F0),
                                 ),
                               ],
                             ),

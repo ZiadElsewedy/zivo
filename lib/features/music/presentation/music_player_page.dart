@@ -684,7 +684,7 @@ class _Controls extends StatelessWidget {
   }
 }
 
-/// A 52px tap target holding either a Lucide [icon] (shuffle/repeat) or a
+/// A 52px tap target holding either a stroked [icon] (shuffle/repeat) or a
 /// filled [glyph] (prev/next). [active] tints it with the track accent;
 /// [enabled] false dims and inerts it (another device owns playback).
 class _IconControl extends StatelessWidget {

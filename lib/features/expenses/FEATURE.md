@@ -29,7 +29,7 @@ Each has `firestore_*` + `in_memory_*` impls in `data/`. Cross-cutting logic:
 
 - **A category is a label + a `CategoryIcon`. No colour.** The identity spec rules emoji
   out (§4, §8), so a category stores a *semantic* icon name (`iconId` in Firestore) that
-  `category_icons.dart` resolves to a stroked Lucide glyph via `AppIcons`. Nothing in
+  `category_icons.dart` resolves to a stroked Phosphor glyph via `AppIcons`. Nothing in
   `lib/` imports the icon package except `AppIcons`; keep it that way.
 - **Don't reintroduce a per-category colour.** Categories used to carry a `CategoryHue`
   chosen from a 5-swatch picker. It was removed because the glyph already tells categories

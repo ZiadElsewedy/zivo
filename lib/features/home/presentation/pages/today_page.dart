@@ -599,8 +599,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
                   icon: AppIcons.workout,
                   accent: TrainColors.green,
                   size: 44,
-                  iconSize: 19,
-                  radius: 14,
+                  iconSize: 24,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -697,8 +696,7 @@ class _EmptySplitCard extends StatelessWidget {
                   icon: AppIcons.planDoc,
                   accent: TrainColors.green,
                   size: 44,
-                  iconSize: 19,
-                  radius: 14,
+                  iconSize: 24,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

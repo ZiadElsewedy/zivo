@@ -297,7 +297,6 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               // the Drive card above. This row was amber —
                               // money's hue — and the one below it was ember,
                               // which Settings reserves for Delete account.
-                              accent: TrainColors.violetGlyph,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.autoUploadToDrive,
@@ -330,7 +329,6 @@ class _StorageSyncPageState extends State<StorageSyncPage> {
                               icon: AppIcons.photos,
                               title: l(context).storageSaveToPhotos,
                               value: '',
-                              accent: TrainColors.violetGlyph,
                               last: true,
                               trailing: Switch.adaptive(
                                 value: prefs.saveToPhotos,
@@ -389,8 +387,7 @@ class _DeviceCard extends StatelessWidget {
             icon: AppIcons.check,
             accent: TrainColors.green,
             size: 46,
-            iconSize: 22,
-            radius: 14,
+            iconSize: 26,
           ),
           const SizedBox(width: 14),
           Expanded(

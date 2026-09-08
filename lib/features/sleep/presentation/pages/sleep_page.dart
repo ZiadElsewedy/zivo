@@ -1178,7 +1178,7 @@ class _HistoryRow extends StatelessWidget {
                 icon: AppIcons.sleepTargets,
                 accent: TrainColors.sleepGlyph,
                 size: 34,
-                iconSize: 15,
+                iconSize: 19,
               ),
               const SizedBox(width: AppSpacing.base),
               Expanded(
@@ -1344,7 +1344,7 @@ class _MessageCard extends StatelessWidget {
             icon: icon,
             accent: TrainColors.sleepGlyph,
             size: 34,
-            iconSize: 16,
+            iconSize: 20,
           ),
           const SizedBox(height: AppSpacing.base),
           Text(

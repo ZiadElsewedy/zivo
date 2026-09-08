@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/scope/app_scope.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/reactive_state_views.dart';
 import '../../../../core/util/time_ago.dart';
@@ -424,9 +425,9 @@ class _StreakDayRow extends StatelessWidget {
           // "you are here" marker, and this page's own hero figures above
           // this list are green. One page was carrying two answers.
           TrainIconTile(
-            icon: isToday ? Icons.today_rounded : Icons.check_rounded,
+            icon: isToday ? AppIcons.calendarClock : AppIcons.check,
             accent: TrainColors.green,
-            iconSize: 16,
+            iconSize: 20,
           ),
           const SizedBox(width: 14),
           Expanded(

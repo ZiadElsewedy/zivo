@@ -167,7 +167,7 @@ class _StatusHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          TrainIconTile(icon: style.icon, accent: style.color, size: 42, iconSize: 20, radius: 13),
+          TrainIconTile(icon: style.icon, accent: style.color, size: 42, iconSize: 24),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

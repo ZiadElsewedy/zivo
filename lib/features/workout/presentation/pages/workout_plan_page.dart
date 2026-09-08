@@ -171,8 +171,7 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
               icon: AppIcons.planDoc,
               accent: TrainColors.green,
               size: 46,
-              iconSize: 20,
-              radius: 14,
+              iconSize: 26,
             ),
             const SizedBox(height: AppSpacing.base),
             Text(

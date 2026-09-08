@@ -12,7 +12,7 @@ import '../../../../l10n/l10n.dart';
 
 /// The Ask screen's header: the screen title beside three uniform glass
 /// circle actions — reply style, chat history, new chat — all drawn from the
-/// app's single Lucide vocabulary so they sit consistently with every other
+/// app's single icon vocabulary so they sit consistently with every other
 /// surface.
 ///
 /// Built to the design handoff's Ask header: Manrope 800/27 title, three
@@ -96,7 +96,7 @@ class ChatHeader extends StatelessWidget {
 
 /// One uniform glass squircle in the header row. The premium treatment:
 /// a lit-from-above gradient fill (warm charcoal catching light at the top
-/// edge), hairline outline, soft contact shadow for real lift, a Lucide
+/// edge), hairline outline, soft contact shadow for real lift, an `AppIcons`
 /// glyph, instant press-down scale, and a light haptic on commit. Disabled
 /// while a turn is in flight.
 class _HeaderAction extends StatelessWidget {
