@@ -7,6 +7,8 @@ import 'package:zivo/core/media/data/in_memory_media_registry.dart';
 import 'package:zivo/core/media/data/local_media_store.dart';
 import 'package:zivo/core/media/media_service.dart';
 import 'package:zivo/core/scope/app_scope.dart';
+import 'package:zivo/core/theme/app_theme.dart';
+import 'package:zivo/core/theme/zivo_palette.dart';
 import 'package:zivo/features/ai/data/fake_ai_repository.dart';
 import 'package:zivo/features/auth/domain/auth_repository.dart';
 import 'package:zivo/features/auth/domain/auth_state.dart';
@@ -53,6 +55,11 @@ FakeAuthRepository signedInAuth({String uid = 'fake-uid'}) =>
 /// page in that language. Left null (the default), the [MaterialApp] carries no
 /// delegates and `l(context)` falls back to English — which is what the ~120
 /// existing widget tests rely on, so they are unaffected.
+///
+/// [brightness] picks the skin. It defaults to dark — what every existing test
+/// was written against — and it *sets* the process-wide palette rather than
+/// reading it, so a test that forgot to reset cannot leak into the next one
+/// (ADR-011).
 Widget wrapWithScope(
   Widget child, {
   AuthRepository? auth,
@@ -61,7 +68,10 @@ Widget wrapWithScope(
   MusicController? music,
   MomentRepository? moments,
   Locale? locale,
+  Brightness brightness = Brightness.dark,
 }) {
+  ZivoTheme.use(brightness);
+  final theme = AppTheme.of(brightness);
   return AppScope(
     media: media ?? testMediaService(),
     auth: auth ?? FakeAuthRepository(),
@@ -75,8 +85,9 @@ Widget wrapWithScope(
     ai: FakeAiRepository(),
     music: music ?? InertMusicController(),
     child: locale == null
-        ? MaterialApp(home: child)
+        ? MaterialApp(theme: theme, home: child)
         : MaterialApp(
+            theme: theme,
             locale: locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,

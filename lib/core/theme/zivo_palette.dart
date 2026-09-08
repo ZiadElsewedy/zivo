@@ -386,11 +386,17 @@ class ZivoPalette {
     // The four hues, walked down until each holds its own on paper. Same
     // families, same meanings — a training green that reads as mint on
     // near-black is simply invisible on white, so it goes deep instead.
-    green: Color(0xFF0C9A60),
-    ember: Color(0xFFE2500F),
+    //
+    // How deep is not a taste call: each of these is a *fill* as often as it
+    // is a glyph, and a fill carries a near-white label, so the binding
+    // constraint is 4.5:1 against that label rather than against the page.
+    // `zivo_palette_test.dart` holds all of them to it — the first draft of
+    // this palette put green at `#0C9A60` and the test caught it at 3.4:1.
+    green: Color(0xFF0A8351),
+    ember: Color(0xFFCE4609),
     violet: Color(0xFF5A54DB),
     violetGlyph: Color(0xFF4841C4),
-    amber: Color(0xFFA0710E),
+    amber: Color(0xFF916509),
 
     // Ink, at the higher alphas black-on-white needs (see the class doc).
     ink: Color(0xFF0E100E),
@@ -430,8 +436,8 @@ class ZivoPalette {
     onAmber: Color(0xFFFDF7EA),
     onAmberDeep: Color(0xFFFFFCF4),
 
-    emberLift: Color(0xFFF06A2A),
-    greenLift: Color(0xFF15AE72),
+    emberLift: Color(0xFFE05714),
+    greenLift: Color(0xFF12A268),
     emberPale: Color(0xFFB84A10),
 
     // Unchanged: the session slab stayed deep green (see `sessionGradient`),
@@ -441,10 +447,10 @@ class ZivoPalette {
 
     fabGradient: _fabGradientLight,
 
-    emberWash: Color(0x1FE2500F),
+    emberWash: Color(0x1FCE4609),
     violetWash: Color(0x1F5A54DB),
-    greenWash: Color(0x1F0C9A60),
-    amberWash: Color(0x1FA0710E),
+    greenWash: Color(0x1F0A8351),
+    amberWash: Color(0x1F916509),
 
     neutralMark: Color(0xFF141614),
     tabInactive: Color(0xBF141614),

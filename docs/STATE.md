@@ -7,7 +7,8 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-08 · **Active branch:** `feature/sleep`
+**Last updated:** 2026-09-08 · **Active branch:** `feature/theme-modes`
+(cut from `feature/sleep`, which is 60 commits ahead of `version-1`)
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -20,7 +21,9 @@ not a log with a chatbot bolted on. Full positioning + differentiation: [`PRODUC
 ## The app in one paragraph (current)
 
 Firebase-backed Flutter app (`USE_FIRESTORE` defaults **true**; in-memory repos are the
-offline/test fallback). **Dark theme only** (`AppTheme.dark`). Shell is a 4-tab
+offline/test fallback). **Dark and light** (`ThemeMode` — dark · light · match the
+phone; defaults to dark, device-local, [ADR-011](DECISIONS/ADR-011-light-mode.md)).
+Shell is a 4-tab
 `IndexedStack`: **Today · Hub · Ask · You** with a floating "island" bottom bar and a
 center capture FAB. Sign-in gate is [`AuthGate`](../lib/features/auth/presentation/auth_gate.dart).
 Live feature set: **workout, diet, expenses, moments, ai (Ask), music (Spotify companion),
@@ -32,6 +35,15 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   music companion. See [ADR-004](DECISIONS/ADR-004-scope-specialization.md).
 - **Removed for good (do not resurrect without the owner asking):** Schedule, Tasks,
   University, Notes (removed 2026-08-24).
+- **One design system, two skins** (dark 2026-08-29, light 2026-09-08). ADR-006's
+  *one system* stands; its *dark-only* half is superseded by
+  [ADR-011](DECISIONS/ADR-011-light-mode.md). The values live in `ZivoPalette.dark` /
+  `.light`; `TrainColors` keeps its exact API as getters over whichever is active, and
+  `ZivoTheme.use()` swaps it at the root. **The rule this adds: never cache a token** —
+  not in a field, not in a `static final`, not in `initState`. A `static` field is
+  evaluated once and pins the app to whichever skin drew first. A new colour must be
+  added to *both* palettes (the constructor requires every field, so this is a compile
+  error, not a review catch).
 - **One dark system, app-wide** (done 2026-08-29, audit C1 + the v2-flow redress). Recorded
   as [ADR-006](DECISIONS/ADR-006-one-design-system.md) — read that for the rationale and the
   rules future work must follow.
