@@ -1347,7 +1347,7 @@
   "sleepLoadFailedBody": "تعذّر على ZIVO قراءة الليالي المحفوظة بالفعل. تحقّق من اتصالك ثم أعد المحاولة.",
   "sleepRetry": "أعد المحاولة",
   "sleepLoading": "جارٍ تحميل بيانات نومك",
-  "sleepGateProgress": "{have} من {need} ليالٍ",
+  "sleepGateNeeds": "{count, plural, =1{يحتاج ليلة واحدة} =2{يحتاج ليلتين} few{يحتاج {count} ليالٍ} other{يحتاج {count} ليلة}}",
   "sleepVsLastWeek": "مقارنة بالأسبوع الماضي",
   "sleepMarkFailed": "تعذّر الحفظ الآن. تحقّق من اتصالك ثم أعد المحاولة.",
   "sleepUnitMinute": "د",

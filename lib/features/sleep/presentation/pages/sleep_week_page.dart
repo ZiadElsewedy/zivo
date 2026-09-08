@@ -421,7 +421,6 @@ class _TypicalNight extends StatelessWidget {
                                 size: 21,
                                 weight: FontWeight.w400,
                               ),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForAverage,
                       ),
                     ),
@@ -439,7 +438,6 @@ class _TypicalNight extends StatelessWidget {
                                 size: 21,
                                 weight: FontWeight.w400,
                               ),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForAverage,
                       ),
                     ),
@@ -477,7 +475,6 @@ class _TypicalNight extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForVariability,
                       ),
                     ),
@@ -493,7 +490,6 @@ class _TypicalNight extends StatelessWidget {
                       child: _Figure(
                         label: strings.sleepWeekBedtime,
                         value: _clock(context, metrics.meanBedtimeMinutes),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForAverage,
                       ),
                     ),
@@ -502,7 +498,6 @@ class _TypicalNight extends StatelessWidget {
                       child: _Figure(
                         label: strings.sleepWeekWake,
                         value: _clock(context, metrics.meanWakeMinutes),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForAverage,
                       ),
                     ),
@@ -527,7 +522,6 @@ class _TypicalNight extends StatelessWidget {
                                   color: TrainColors.ink,
                                 ),
                               ),
-                        have: metrics.nightCount,
                         need: SleepGates.minNightsForAverage,
                       ),
                     ),
@@ -557,18 +551,14 @@ class _TypicalNight extends StatelessWidget {
 /// user what would make the figure appear, where a blank column just looks
 /// broken.
 class _Figure extends StatelessWidget {
-  const _Figure({
-    required this.label,
-    required this.value,
-    required this.have,
-    required this.need,
-  });
+  const _Figure({required this.label, required this.value, required this.need});
 
   final String label;
 
   /// Null when the figure's gate has not passed.
   final Widget? value;
-  final int have;
+
+  /// How many nights this figure needs before it can be shown at all.
   final int need;
 
   @override
@@ -608,13 +598,19 @@ class _Figure extends StatelessWidget {
           const SizedBox(height: 4),
           // The slot is reserved either way so the columns keep one baseline
           // whether or not their gates have passed.
+          //
+          // It states the *requirement*, not the coverage. It used to read
+          // "1 of 3 nights" directly under a section header reading "1 of 7
+          // nights" — the same shape, six times over, for a different fact —
+          // and the card read as broken data rather than as six figures
+          // waiting on more nights.
           SizedBox(
             height: 13,
             child: gated
                 ? FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      l(context).sleepGateProgress(have, need),
+                      l(context).sleepGateNeeds(need),
                       maxLines: 1,
                       style: TrainType.caption(
                         size: 8.5,

@@ -4914,8 +4914,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sleepLoading => 'Loading your sleep';
 
   @override
-  String sleepGateProgress(int have, int need) {
-    return '$have of $need nights';
+  String sleepGateNeeds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Needs $count nights',
+      one: 'Needs 1 night',
+    );
+    return '$_temp0';
   }
 
   @override

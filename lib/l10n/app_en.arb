@@ -6893,14 +6893,11 @@
   "@sleepLoading": {
     "description": "Accessibility label for the placeholder shown while last night is still loading."
   },
-  "sleepGateProgress": "{have} of {need} nights",
-  "@sleepGateProgress": {
-    "description": "Compact caption under a weekly figure that has not passed its gate: how many nights exist against how many it needs.",
+  "sleepGateNeeds": "{count, plural, =1{Needs 1 night} other{Needs {count} nights}}",
+  "@sleepGateNeeds": {
+    "description": "Compact caption under a weekly figure that has not passed its gate: how many nights it needs before it can be shown. States the requirement, not the coverage: the section header above already says how many nights the week has, and two near-identical N-of-M-nights strings on one card read as the same fact twice.",
     "placeholders": {
-      "have": {
-        "type": "int"
-      },
-      "need": {
+      "count": {
         "type": "int"
       }
     }

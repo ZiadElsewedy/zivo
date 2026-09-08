@@ -121,13 +121,17 @@ void main() {
   testWidgets('figures below their gate show what would open them, not a '
       'number', (tester) async {
     // One night is below every window gate. The three duration figures and
-    // the two clock figures must each say how far off they are rather than
+    // the two clock figures must each say what would open them rather than
     // averaging a single night into a "typical night".
     await _pump(tester, [_night(DateTime(2026, 9, 8))]);
 
     expect(findTextIgnoringBidi('—'), findsNWidgets(6));
-    expect(findTextIgnoringBidi('1 of 3 nights'), findsNWidgets(5));
-    expect(findTextIgnoringBidi('1 of 5 nights'), findsOneWidget);
+    // The *requirement*, not the coverage. These sit directly under a section
+    // header reading "1 of 7 nights", and when they read "1 of 3 nights" the
+    // card showed the same shape seven times for two different facts.
+    expect(findTextIgnoringBidi('Needs 3 nights'), findsNWidgets(5));
+    expect(findTextIgnoringBidi('Needs 5 nights'), findsOneWidget);
+    expect(findTextIgnoringBidi('1 of 3 nights'), findsNothing);
   });
 
   testWidgets('a day with no record is a row that says so, never a zero', (

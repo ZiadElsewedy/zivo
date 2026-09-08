@@ -565,10 +565,14 @@ class ZivoPalette {
       colors: [Color(0xFFF6F0E8), Color(0xFFF8F5F1), _lightBase],
       stops: [0.0, 0.55, 1.0],
     ),
+    // Softer than the other washes rather than stronger. Sleep is the one
+    // screen whose hue covers the *whole* page, so the same density that
+    // reads as a glow behind a header read as a lavender cast over an entire
+    // screen of type.
     sleepTint: RadialGradient(
       center: Alignment(0, -0.96),
       radius: 1.1,
-      colors: [Color(0xFFE6EAF8), Color(0xFFF1F3F9), _lightBase],
+      colors: [Color(0xFFEDEFF7), Color(0xFFF5F6FA), _lightBase],
       stops: [0.0, 0.55, 1.0],
     ),
     settingsTint: RadialGradient(
@@ -581,17 +585,25 @@ class ZivoPalette {
     // Sleep's three tones flip which end of the ramp carries the label: on
     // near-black the accent is light enough to take near-black ink, on paper
     // it is deep enough to take near-white. Same relationship, mirrored.
-    sleepAccent: Color(0xFF3A5CD4),
-    sleepGlyph: Color(0xFF2E4CBE),
+    //
+    // **Muted, not just darkened.** The first pass took the dark skin's
+    // periwinkle straight down in luminance and landed on a vivid royal blue,
+    // which is a different colour doing a different job: as a full-width
+    // "I'm going to sleep" pill it read as a system CTA rather than as the
+    // night screen's one quiet control. Dropping the saturation with the
+    // luminance keeps it the *same* colour — indigo at ~230°, the blue end of
+    // the violet hue ADR-010 assigned to Sleep — and the slab stops shouting.
+    sleepAccent: Color(0xFF3F4E9E),
+    sleepGlyph: Color(0xFF34418A),
     sleepOnAccent: Color(0xFFF4F6FF),
-    sleepWash: Color(0x1F3A5CD4),
+    sleepWash: Color(0x143F4E9E),
 
     // The stage ramp keeps its direction — deeper sleep is denser ink — which
     // happens to be the one part of the palette that needed no rethinking,
     // because "denser" already meant "more ink" rather than "more light".
-    sleepStageDeep: Color(0xFF2B45B8),
-    sleepStageRem: Color(0xFF5876E0),
-    sleepStageLight: Color(0xFF93A9F0),
+    sleepStageDeep: Color(0xFF33409A),
+    sleepStageRem: Color(0xFF5C6BC4),
+    sleepStageLight: Color(0xFF9AA6DE),
     sleepStageUnknown: Color(0xFF8A90A0),
 
     macroCarbs: Color(0xFF3FB77F),

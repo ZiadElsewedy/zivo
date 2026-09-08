@@ -42,6 +42,10 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   `ZivoTheme.use()` swaps it at the root *and repaints the whole tree* — nothing is
   subscribed to the palette, so a `const` screen would otherwise keep the skin it was
   first built in (that shipped broken once; see the ADR).
+  Light also forced two fixes the dark skin was hiding: the sleep axis labelled
+  seven clock times into a chart with room for four hours, and the weekly card
+  captioned six gated figures "1 of 3 nights" under a header reading
+  "1 of 7 nights".
   **The rule this adds: never cache a token** —
   not in a field, not in a `static final`, not in `initState`. A `static` field is
   evaluated once and pins the app to whichever skin drew first. A new colour must be

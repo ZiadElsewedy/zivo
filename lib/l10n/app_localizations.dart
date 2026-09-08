@@ -8184,11 +8184,11 @@ abstract class AppLocalizations {
   /// **'Loading your sleep'**
   String get sleepLoading;
 
-  /// Compact caption under a weekly figure that has not passed its gate: how many nights exist against how many it needs.
+  /// Compact caption under a weekly figure that has not passed its gate: how many nights it needs before it can be shown. States the requirement, not the coverage: the section header above already says how many nights the week has, and two near-identical N-of-M-nights strings on one card read as the same fact twice.
   ///
   /// In en, this message translates to:
-  /// **'{have} of {need} nights'**
-  String sleepGateProgress(int have, int need);
+  /// **'{count, plural, =1{Needs 1 night} other{Needs {count} nights}}'**
+  String sleepGateNeeds(int count);
 
   /// Label above the week-over-week comparison sentence.
   ///

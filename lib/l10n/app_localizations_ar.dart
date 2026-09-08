@@ -5005,8 +5005,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sleepLoading => 'جارٍ تحميل بيانات نومك';
 
   @override
-  String sleepGateProgress(int have, int need) {
-    return '$have من $need ليالٍ';
+  String sleepGateNeeds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'يحتاج $count ليلة',
+      few: 'يحتاج $count ليالٍ',
+      two: 'يحتاج ليلتين',
+      one: 'يحتاج ليلة واحدة',
+    );
+    return '$_temp0';
   }
 
   @override

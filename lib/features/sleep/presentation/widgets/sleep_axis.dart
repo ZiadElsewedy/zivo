@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/util/bidi.dart';
 import '../../../../core/util/date_format.dart';
@@ -34,8 +33,19 @@ abstract final class SleepAxis {
     return (offset / spanMinutes).clamp(0.0, 1.0);
   }
 
-  /// The hours the axis labels: 6pm, 9pm, 12am, 3am, 6am, 9am, 12pm.
+  /// The hours the grid rules: every three, 6pm through noon.
   static const List<int> gridHours = [18, 21, 0, 3, 6, 9, 12];
+
+  /// The hours that get a *label* — every six, not every three.
+  ///
+  /// The grid can afford a rule every three hours; the axis cannot afford a
+  /// label. A clock time renders as "12:00 AM" (and as "١٢:٠٠ ص", and as
+  /// "18:00"), which is ~54pt of type. Seven of those want 378pt of width on
+  /// a chart that has ~235 on a phone, so they overlapped into an unreadable
+  /// run — `6:00 PM9:00 P1M2:00 A3M:00 AM…` — at every width the app ships on.
+  /// Four labels leave a sixth of the axis between each, which holds in every
+  /// locale, and the rules in between still carry the three-hour rhythm.
+  static const List<int> labelHours = [18, 0, 6, 12];
 }
 
 /// The axis's own labels, drawn once above a raster.
@@ -50,7 +60,7 @@ class SleepAxisLabels extends StatelessWidget {
         builder: (context, constraints) => Stack(
           clipBehavior: Clip.none,
           children: [
-            for (final hour in SleepAxis.gridHours)
+            for (final hour in SleepAxis.labelHours)
               _label(context, hour, constraints.maxWidth),
           ],
         ),
@@ -68,10 +78,15 @@ class SleepAxisLabels extends StatelessWidget {
     return Align(
       alignment: Alignment(alignment, 0),
       child: Text(
-        ltrFor(context, formatClockTime(context, DateTime(2000, 1, 1, hour))),
-        style: AppText.sectionLabel.copyWith(
-          color: TrainColors.ink4,
-          fontSize: 9,
+        ltrFor(context, formatClockHour(context, DateTime(2000, 1, 1, hour))),
+        // Built at its real size rather than `copyWith(fontSize:)` on a
+        // 12pt step: tracking is stored in logical pixels, so shrinking the
+        // face alone left 1.3pt of letter-spacing on a 9pt glyph and made
+        // every label ~20% wider than it needed to be.
+        style: TrainType.caption(
+          size: 9,
+          tracking: 0.08,
+          color: TrainColors.ink3,
         ),
       ),
     );
@@ -133,8 +148,11 @@ class _GridPainter extends CustomPainter {
     const gap = 3.0;
     var y = 0.0;
     while (y < height) {
-      canvas.drawLine(Offset(x, y), Offset(x, (y + dash).clamp(0, height)),
-          paint);
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x, (y + dash).clamp(0, height)),
+        paint,
+      );
       y += dash + gap;
     }
   }
