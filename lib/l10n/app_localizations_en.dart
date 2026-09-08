@@ -5246,16 +5246,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.';
 
   @override
-  String workoutMaxSessionValue(int hours, int minutes) {
-    return '${hours}h ${minutes}m';
-  }
-
-  @override
-  String workoutMaxSessionValueHours(int hours) {
-    return '${hours}h';
-  }
-
-  @override
   String get trainingDayMarkSaveFailed => 'Couldn\'t save that day.';
 
   @override

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/train_tokens.dart';
-import '../../../../core/util/bidi.dart';
 import '../../../../core/util/deferred_write.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../../../l10n/l10n.dart';
@@ -57,7 +56,7 @@ class WorkoutSettingsPage extends StatelessWidget {
                     TrainListRow(
                       icon: AppIcons.timer,
                       accent: TrainColors.green,
-                      label: ltrFor(context, _label(context, minutes)),
+                      label: _label(context, minutes),
                       trailing: settings.maxSessionMinutes == minutes
                           ? Icon(
                               AppIcons.check,
@@ -94,11 +93,19 @@ class WorkoutSettingsPage extends StatelessWidget {
     );
   }
 
+  /// Reuses the app's existing duration keys (`workoutDurationH`/`Hm`) rather
+  /// than minting a second pair that says the same thing.
+  ///
+  /// Deliberately NOT wrapped in `ltrFor`: in Arabic this is "3س 30د", which is
+  /// Arabic letters around numbers, not a run of digits and neutrals. An RTL
+  /// paragraph already lays it out right-to-left in the correct reading order,
+  /// and pinning it LTR would reverse it. Every other `formatDurationShort`
+  /// call site in the app leaves it alone for the same reason.
   String _label(BuildContext context, int minutes) {
     final hours = minutes ~/ 60;
     final rest = minutes % 60;
     return rest == 0
-        ? l(context).workoutMaxSessionValueHours(hours)
-        : l(context).workoutMaxSessionValue(hours, rest);
+        ? l(context).workoutDurationH('$hours')
+        : l(context).workoutDurationHm(hours, rest);
   }
 }

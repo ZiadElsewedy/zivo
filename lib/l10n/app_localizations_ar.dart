@@ -5350,16 +5350,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'التمرين الذي يستمر بعد هذه المدة دون تسجيل أي شيء لفترة يُعامل كتمرين نسيت إغلاقه. يُنهى عند آخر مجموعة سجّلتها — دون تمديد، ودون إضافة مجموعات لم تؤدِّها.';
 
   @override
-  String workoutMaxSessionValue(int hours, int minutes) {
-    return '$hoursس $minutesد';
-  }
-
-  @override
-  String workoutMaxSessionValueHours(int hours) {
-    return '$hoursس';
-  }
-
-  @override
   String get trainingDayMarkSaveFailed => 'تعذّر حفظ هذا اليوم.';
 
   @override

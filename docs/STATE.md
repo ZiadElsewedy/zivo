@@ -176,13 +176,22 @@ auth/profile, home/Today, hub, capture, device (steps)**.
     gone; hard delete survives only for a session with nothing logged.
   - **Backend mirrors the gate**: `functions/ai/tools.js` honours a correction
     and withholds an implausible/unknown duration from the coach.
-  - Cover: Flutter analyze clean; new suites `test/core/calendar_test.dart` (19,
-    incl. a DST group that discovers the ambient zone's real transitions),
-    `test/workout/training_streak_test.dart` (39), `session_duration_test.dart`
-    (37), `session_maintenance_test.dart` (13), plus Finish-now and
-    background-clock groups in `live_session_controller_test.dart`. Rules suite
-    **167** green (new `trainingDayMarks` block + `voided`/corrected-duration
-    validation). Functions **442** green.
+  - Cover: Flutter **1499** green, analyze clean. New suites:
+    `test/core/calendar_test.dart` (19 — incl. a DST group that *discovers* the
+    ambient zone's real transitions, so it is meaningful in any DST zone and
+    skips cleanly in none), `test/workout/training_streak_test.dart` (39, with
+    its own DST group), `session_duration_test.dart` (37),
+    `session_maintenance_test.dart` (13), `workout_streak_page_test.dart` (3),
+    plus Finish-now and background-clock groups in
+    `live_session_controller_test.dart` and a stale-session regression in
+    `workout_plan_page_test.dart`. Fixtures moved to the shared
+    `test/support/workout_fixtures.dart`, which gives every session a real
+    completed working set — the old `exercises: const []` sessions read like
+    trained days and are not. Rules suite **167** green (new `trainingDayMarks`
+    block + `voided`/corrected-duration validation). Functions **442** green.
+  - The three tests that boot the real `ZivoApp` now inject the two new
+    repositories, for the reason already commented there: an un-injected
+    default is Firestore-backed and reaches Firebase at construction.
   - **Owner action:** `firestore.rules` changed — needs a deploy
     (`trainingDayMarks` is denied by the catch-all until then, so restores and
     missed-day reasons will fail to save on device).

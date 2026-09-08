@@ -16,7 +16,9 @@ import 'package:zivo/features/moments/data/in_memory_moment_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_body_weight_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_plan_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_training_day_mark_repository.dart';
 import 'package:zivo/features/workout/data/in_memory_workout_session_repository.dart';
+import 'package:zivo/features/workout/data/in_memory_workout_settings_repository.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_profile_repository.dart';
@@ -62,6 +64,8 @@ void main() {
         workouts: InMemoryWorkoutRepository(),
         workoutPlans: InMemoryWorkoutPlanRepository(),
         workoutSessions: InMemoryWorkoutSessionRepository(),
+          workoutSettings: InMemoryWorkoutSettingsRepository(),
+          trainingDayMarks: InMemoryTrainingDayMarkRepository(),
         bodyWeight: InMemoryBodyWeightRepository(),
         diet: InMemoryDietRepository(),
         ai: FakeAiRepository(),

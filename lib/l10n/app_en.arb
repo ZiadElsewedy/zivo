@@ -7329,21 +7329,6 @@
   "@workoutMaxSessionBody": {
     "description": "Explains the maximum-session-length setting."
   },
-  "workoutMaxSessionValue": "{hours}h {minutes}m",
-  "@workoutMaxSessionValue": {
-    "description": "The configured maximum, as hours and minutes.",
-    "placeholders": {
-      "hours": { "type": "int" },
-      "minutes": { "type": "int" }
-    }
-  },
-  "workoutMaxSessionValueHours": "{hours}h",
-  "@workoutMaxSessionValueHours": {
-    "description": "The configured maximum, whole hours.",
-    "placeholders": {
-      "hours": { "type": "int" }
-    }
-  },
   "trainingDayMarkSaveFailed": "Couldn't save that day.",
   "@trainingDayMarkSaveFailed": {
     "description": "Toast when a missed-day reason or restore fails to save."

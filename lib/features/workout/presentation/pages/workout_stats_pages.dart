@@ -9,7 +9,6 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
-import '../../../../core/util/bidi.dart';
 import '../../../../core/util/calendar.dart';
 import '../../domain/training_dashboard_stats.dart';
 import '../../domain/training_day_mark.dart';
@@ -500,7 +499,13 @@ class _StreakRuleLine extends StatelessWidget {
     return Column(
       children: [
         Text(
-          ltrFor(context, l(context).workoutStreakRule(kStreakMaxGapDays)),
+          // NOT `ltrFor`: this is a whole sentence, and in Arabic it is Arabic
+          // prose. Pinning it left-to-right would lay the sentence out
+          // backwards to fix a problem it does not have — the lone number in
+          // it is its own run, which the bidi algorithm places correctly.
+          // `ltrFor` is for a COMPOSED numeric run ("3 × 8–10", "2h 30m"),
+          // which this is not.
+          l(context).workoutStreakRule(kStreakMaxGapDays),
           textAlign: TextAlign.center,
           style: TrainType.ui(size: 12.5, color: TrainColors.ink3),
         ),

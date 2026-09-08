@@ -1430,8 +1430,6 @@
   "workoutSettings": "إعدادات التدريب",
   "workoutMaxSessionTitle": "أقصى مدة للجلسة",
   "workoutMaxSessionBody": "التمرين الذي يستمر بعد هذه المدة دون تسجيل أي شيء لفترة يُعامل كتمرين نسيت إغلاقه. يُنهى عند آخر مجموعة سجّلتها — دون تمديد، ودون إضافة مجموعات لم تؤدِّها.",
-  "workoutMaxSessionValue": "{hours}س {minutes}د",
-  "workoutMaxSessionValueHours": "{hours}س",
   "trainingDayMarkSaveFailed": "تعذّر حفظ هذا اليوم.",
   "sessionUpdateFailed": "تعذّر تحديث هذه الجلسة.",
   "workoutSettingsSaveFailed": "تعذّر حفظ هذا الإعداد."

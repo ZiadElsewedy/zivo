@@ -8682,18 +8682,6 @@ abstract class AppLocalizations {
   /// **'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.'**
   String get workoutMaxSessionBody;
 
-  /// The configured maximum, as hours and minutes.
-  ///
-  /// In en, this message translates to:
-  /// **'{hours}h {minutes}m'**
-  String workoutMaxSessionValue(int hours, int minutes);
-
-  /// The configured maximum, whole hours.
-  ///
-  /// In en, this message translates to:
-  /// **'{hours}h'**
-  String workoutMaxSessionValueHours(int hours);
-
   /// Toast when a missed-day reason or restore fails to save.
   ///
   /// In en, this message translates to:
