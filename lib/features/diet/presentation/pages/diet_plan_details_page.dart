@@ -276,7 +276,7 @@ class _NoTargetCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.flag_outlined,
                 size: 18,
                 color: TrainColors.ink2,
@@ -295,7 +295,7 @@ class _NoTargetCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -396,7 +396,7 @@ class _TargetSummaryRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -473,7 +473,7 @@ class _BodyDataPrompt extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.straighten_rounded,
             size: 18,
             color: TrainColors.ink2,
@@ -500,7 +500,7 @@ class _BodyDataPrompt extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             size: 18,
             color: TrainColors.ink3,
@@ -870,7 +870,7 @@ class _DaySummaryCard extends StatelessWidget {
             ],
           ),
           if (meals.isNotEmpty) ...[
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 13, bottom: 12),
               child: Divider(
                 height: 1,

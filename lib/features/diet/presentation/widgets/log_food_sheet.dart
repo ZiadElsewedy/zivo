@@ -163,7 +163,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
   Widget build(BuildContext context) {
     final picked = _picked;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -203,7 +203,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
           style: AppText.rowTitle,
           decoration: zivoFieldDecoration(
             hintText: l(context).dietFoodSearchHint,
-            prefixIcon: const Icon(
+            prefixIcon: Icon(
               Icons.search_rounded,
               size: 18,
               color: TrainColors.ink3,
@@ -219,7 +219,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
         const SizedBox(height: 12),
         Expanded(
           child: _searching
-              ? const Center(
+              ? Center(
                   child: SizedBox(
                     width: 18,
                     height: 18,
@@ -417,7 +417,7 @@ class _FoodRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -605,7 +605,7 @@ class _CustomFoodSheetState extends State<_CustomFoodSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

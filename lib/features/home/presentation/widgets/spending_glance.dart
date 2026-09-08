@@ -59,7 +59,7 @@ class SpendingGlanceRow extends StatelessWidget {
               unitColor: TrainColors.ink3,
             ),
           const Spacer(),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             size: 18,
             color: TrainColors.ink3,

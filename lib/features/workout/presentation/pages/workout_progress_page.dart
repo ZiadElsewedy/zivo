@@ -454,7 +454,7 @@ class ProgressSummaryCard extends StatelessWidget {
                         tracking: 0.1,
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       AppIcons.chevron,
                       size: 16,
                       color: TrainColors.green,
@@ -486,7 +486,7 @@ class _PrCountBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
+          Icon(AppIcons.trophy, size: 13, color: TrainColors.amber),
           const SizedBox(width: 4),
           AnimatedStatValue(
             value: l(context).workoutPrCount(count),
@@ -563,7 +563,7 @@ class SplitBreakdownCard extends StatelessWidget {
                           color: TrainColors.green.withValues(alpha: 0.18),
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         AppIcons.splits,
                         size: 19,
                         color: TrainColors.green,
@@ -612,7 +612,7 @@ class SplitBreakdownCard extends StatelessWidget {
                       },
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       AppIcons.chevron,
                       color: TrainColors.ink4,
                       size: 20,
@@ -683,7 +683,7 @@ class _DayDistributionRow extends StatelessWidget {
                   widthFactor: fraction.clamp(0.06, 1.0),
                   child: Container(
                     height: 7,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF2BD99B), TrainColors.green],
                       ),
@@ -774,7 +774,7 @@ class _SeeAllLink extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(AppIcons.chevron, size: 12, color: TrainColors.ink4),
+                Icon(AppIcons.chevron, size: 12, color: TrainColors.ink4),
               ],
             ),
           ),
@@ -907,7 +907,7 @@ class _RecentSessionRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 18),
+                Icon(AppIcons.chevron, color: TrainColors.ink4, size: 18),
               ],
             ),
           ),
@@ -1020,7 +1020,7 @@ class _DestinationRow extends StatelessWidget {
               border: Border(
                 top: first
                     ? BorderSide.none
-                    : const BorderSide(color: TrainColors.hairline),
+                    : BorderSide(color: TrainColors.hairline),
               ),
             ),
             child: Row(
@@ -1078,7 +1078,7 @@ class _DestinationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(AppIcons.chevron, color: TrainColors.ink4, size: 20),
+                Icon(AppIcons.chevron, color: TrainColors.ink4, size: 20),
               ],
             ),
           ),

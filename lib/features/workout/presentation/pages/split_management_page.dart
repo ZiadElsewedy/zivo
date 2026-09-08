@@ -44,7 +44,7 @@ class SplitManagementPage extends StatelessWidget {
         onTap: () => _openNewSplitSheet(context),
       ),
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        decoration: BoxDecoration(gradient: TrainColors.hubTint),
         child: Stack(
           children: [
             SafeArea(
@@ -245,7 +245,7 @@ class _SplitTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   Icons.more_vert_rounded,
                   color: TrainColors.ink4,
                   size: 20,
@@ -362,13 +362,13 @@ class _SplitsLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
+          colorFilter: ColorFilter.mode(
             TrainColors.ink2,
             BlendMode.srcIn,
           ),
@@ -390,7 +390,7 @@ class _SplitsErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_rounded,
               size: 30,
               color: TrainColors.ink4,
@@ -440,7 +440,7 @@ class _SplitsEmptyState extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
+              child: Icon(
                 AppIcons.splits,
                 size: 28,
                 color: TrainColors.green,

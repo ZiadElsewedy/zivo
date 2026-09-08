@@ -415,7 +415,7 @@ class _PhotoArea extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [TrainColors.raised, TrainColors.raisedStrong],
@@ -426,7 +426,7 @@ class _PhotoArea extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     AppIcons.camera,
                     size: 30,
                     color: TrainColors.ink3,

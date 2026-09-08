@@ -328,7 +328,7 @@ class _DietTargetsPageState extends State<DietTargetsPage> {
                   onTap: _openCalculator,
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calculate_outlined,
                         size: 18,
                         color: TrainColors.ink2,
@@ -410,7 +410,7 @@ class _SafetyNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.info_outline_rounded,
             size: 17,
             color: TrainColors.ember,
@@ -478,7 +478,7 @@ class _CalculatorSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final stale = measures.weighInAgeDays(DateTime.now());
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

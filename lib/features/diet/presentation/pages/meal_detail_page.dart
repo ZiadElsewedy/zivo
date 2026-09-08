@@ -205,7 +205,7 @@ class _Totals extends StatelessWidget {
           ),
           if (stats.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Divider(height: 1, thickness: 1, color: TrainColors.hairline),
+            Divider(height: 1, thickness: 1, color: TrainColors.hairline),
             const SizedBox(height: 14),
             TrainStatStrip(items: stats, valueSize: 17),
           ],
@@ -349,7 +349,7 @@ class _ActionDockState extends State<_ActionDock>
         AppSpacing.screen,
         TrainBottomInset.of(context),
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         // The list scrolls under the dock; the scrim keeps a row of text from
         // ending mid-fade against the pill.
         gradient: LinearGradient(
@@ -395,7 +395,7 @@ class _ActionDockState extends State<_ActionDock>
                       label: strings.dietMarkNotEaten,
                       mono: false,
                       height: 56,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.undo_rounded,
                         size: 17,
                         color: TrainColors.ink2,

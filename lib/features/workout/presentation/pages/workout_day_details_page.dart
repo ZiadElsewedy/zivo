@@ -190,7 +190,7 @@ class _SetDot extends StatelessWidget {
       width: 5,
       height: 5,
       margin: const EdgeInsets.only(top: 2),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.green,
         shape: BoxShape.circle,
       ),

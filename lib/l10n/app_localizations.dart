@@ -5700,11 +5700,23 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get settingsTheme;
 
-  /// The only theme ZIVO ships, stated as the current value.
+  /// Theme picker option: the app's near-black skin.
   ///
   /// In en, this message translates to:
   /// **'Dark'**
   String get settingsThemeDark;
+
+  /// Theme picker option: the app's paper skin.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// Theme picker option: follow the device's light/dark setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Match my phone'**
+  String get settingsThemeSystem;
 
   /// Settings row: the app version.
   ///

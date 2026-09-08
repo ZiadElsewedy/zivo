@@ -145,7 +145,7 @@ class _TrainedRing extends StatelessWidget {
           subColor: done != null || midSession != null
               ? TrainColors.green.withValues(alpha: 0.7)
               : null,
-          glyph: const Icon(
+          glyph: Icon(
             AppIcons.workout,
             size: 24,
             color: TrainColors.green,
@@ -334,7 +334,7 @@ class MomentumSection extends StatelessWidget {
                   ],
                   if (hasWeight) ...[
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: TrainColors.hairline),
+                    Divider(height: 1, color: TrainColors.hairline),
                     const SizedBox(height: 10),
                     const _WeightRow(),
                   ],

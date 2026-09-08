@@ -115,13 +115,13 @@ class _PlanLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
+          colorFilter: ColorFilter.mode(
             TrainColors.ink2,
             BlendMode.srcIn,
           ),
@@ -167,7 +167,7 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const TrainIconTile(
+            TrainIconTile(
               icon: AppIcons.planDoc,
               accent: TrainColors.green,
               size: 46,
@@ -390,7 +390,7 @@ class _TodaySection extends StatelessWidget {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: TrainColors.green,
                     shape: BoxShape.circle,
                   ),
@@ -483,7 +483,7 @@ class _ExerciseRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!first)
-          const Divider(height: 1, thickness: 1, color: TrainColors.hairline),
+          Divider(height: 1, thickness: 1, color: TrainColors.hairline),
         Padding(
           padding: const EdgeInsets.only(top: 14, bottom: 2),
           child: Column(
@@ -595,7 +595,7 @@ class _CycleCard extends StatelessWidget {
         children: [
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0)
-              const Divider(
+              Divider(
                 height: 1,
                 thickness: 1,
                 color: TrainColors.hairline,
@@ -827,7 +827,7 @@ class _StartDayButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.play_arrow_rounded,
                     size: 16,
                     color: TrainColors.green,

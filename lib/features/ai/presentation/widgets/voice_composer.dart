@@ -433,7 +433,7 @@ class _RecordingBarState extends State<_RecordingBar>
                 child: IconButton(
                   key: const Key('composer-cancel-recording'),
                   onPressed: widget.onCancel,
-                  icon: const Icon(
+                  icon: Icon(
                     AppIcons.close,
                     size: 20,
                     color: TrainColors.ink3,
@@ -532,7 +532,7 @@ class _RecordDot extends StatelessWidget {
     return Container(
       width: 11,
       height: 11,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
@@ -649,7 +649,7 @@ class _TranscribingBarState extends State<_TranscribingBar>
             child: IconButton(
               key: const Key('composer-cancel-transcribing'),
               onPressed: widget.onCancel,
-              icon: const Icon(
+              icon: Icon(
                 AppIcons.close,
                 size: 20,
                 color: TrainColors.ink3,

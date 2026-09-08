@@ -200,7 +200,7 @@ class GoalBlock extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
+                Icon(
                   AppIcons.trendUp,
                   size: 12,
                   color: TrainColors.green,

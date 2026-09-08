@@ -3457,6 +3457,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsThemeDark => 'داكن';
 
   @override
+  String get settingsThemeLight => 'فاتح';
+
+  @override
+  String get settingsThemeSystem => 'حسب إعدادات الهاتف';
+
+  @override
   String get settingsVersion => 'الإصدار';
 
   @override

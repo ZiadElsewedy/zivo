@@ -112,7 +112,7 @@ class _SleepGlanceRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
               color: TrainColors.ink3,

@@ -146,7 +146,7 @@ class _Light extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           // The ramp travels with the fill, so its bright end stays at the

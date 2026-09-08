@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../l10n/locale_controller.dart';
+import '../theme/theme_controller.dart';
 import '../media/media_service.dart';
 import '../../features/ai/data/audio_recorder.dart';
 import '../../features/ai/domain/ai_repository.dart';
@@ -50,6 +51,7 @@ class AppScope extends InheritedWidget {
     this.media,
     this.music,
     this.locale,
+    this.theme,
     required super.child,
     super.key,
   });
@@ -202,6 +204,19 @@ class AppScope extends InheritedWidget {
     return locale!;
   }
 
+  /// The app skin (dark · light · match the phone). Optional for the same
+  /// reason [locale] is: a widget test pumping one page renders on whatever
+  /// palette is active and never needs a controller. Production always wires
+  /// one. Read it through [requireTheme] from the theme picker.
+  final ThemeController? theme;
+
+  /// The theme controller, asserting it was provided. Use from Settings'
+  /// theme picker — production always wires it.
+  ThemeController get requireTheme {
+    assert(theme != null, 'AppScope.theme was not provided to this scope');
+    return theme!;
+  }
+
   WalletRepository get requireWallet {
     assert(wallet != null, 'AppScope.wallet was not provided to this scope');
     return wallet!;
@@ -268,5 +283,6 @@ class AppScope extends InheritedWidget {
       sleepService != oldWidget.sleepService ||
       media != oldWidget.media ||
       music != oldWidget.music ||
-      locale != oldWidget.locale;
+      locale != oldWidget.locale ||
+      theme != oldWidget.theme;
 }

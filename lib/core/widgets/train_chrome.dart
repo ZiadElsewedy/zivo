@@ -66,17 +66,27 @@ class TrainPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.icon,
-    this.color = TrainColors.ember,
+    Color? color,
     this.labelColor = Colors.white,
     this.height = 60,
     this.glowAlpha = 0.32,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final String label;
   final VoidCallback onTap;
   final Widget? icon;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ember;
   final Color labelColor;
   final double height;
   final double glowAlpha;
@@ -181,7 +191,7 @@ class TrainGhostButton extends StatelessWidget {
               border: Border.all(color: const Color(0x1AFFFFFF)),
             ),
             child: loading
-                ? const Center(
+                ? Center(
                     child: SizedBox(
                       width: 18,
                       height: 18,
@@ -226,16 +236,26 @@ class TrainCircleButton extends StatelessWidget {
     required this.onTap,
     required this.semanticLabel,
     this.size = 36,
-    this.fill = TrainColors.glassStrong,
+    Color? fill,
     this.border,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _fill = fill;
 
   final Widget child;
   final VoidCallback onTap;
   final String semanticLabel;
   final double size;
-  final Color fill;
+  final Color? _fill;
+
+  /// Defaults to the active skin's `glassStrong` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get fill => _fill ?? TrainColors.glassStrong;
   final Color? border;
 
   /// The accessible minimum the visible chip is centred inside.
@@ -330,13 +350,23 @@ class TrainSegmentCaptions extends StatelessWidget {
   const TrainSegmentCaptions({
     required this.left,
     required this.right,
-    this.rightColor = TrainColors.ink4,
+    Color? rightColor,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _rightColor = rightColor;
 
   final String left;
   final String right;
-  final Color rightColor;
+  final Color? _rightColor;
+
+  /// Defaults to the active skin's `ink4` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get rightColor => _rightColor ?? TrainColors.ink4;
 
   @override
   Widget build(BuildContext context) {
@@ -515,14 +545,24 @@ class _RingPainter extends CustomPainter {
 class TrainCaption extends StatelessWidget {
   const TrainCaption(
     this.text, {
-    this.color = TrainColors.ink4,
+    Color? color,
     this.size = 9.5,
     this.tracking = 0.2,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final String text;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ink4` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ink4;
   final double size;
   final double tracking;
 

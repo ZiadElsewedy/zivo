@@ -55,7 +55,7 @@ class PlanEmptyDays extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.fitness_center_rounded,
             size: 30,
             color: TrainColors.ink4,
@@ -244,13 +244,13 @@ class LabeledField extends StatelessWidget {
           decoration: InputDecoration(
             isCollapsed: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            border: const UnderlineInputBorder(
+            border: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.hairline),
             ),
-            enabledBorder: const UnderlineInputBorder(
+            enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.hairline),
             ),
-            focusedBorder: const UnderlineInputBorder(
+            focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: TrainColors.green, width: 1.6),
             ),
             hintText: hint,

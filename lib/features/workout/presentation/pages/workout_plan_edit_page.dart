@@ -198,7 +198,7 @@ class _WorkoutPlanEditPageState extends State<WorkoutPlanEditPage>
       body: DecoratedBox(
         // The same wash the Workout hub carries — a capture flow belongs to
         // the surface that launched it, not to a flat void.
-        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        decoration: BoxDecoration(gradient: TrainColors.hubTint),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

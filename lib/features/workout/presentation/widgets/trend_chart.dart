@@ -17,12 +17,22 @@ class TrendChart extends StatelessWidget {
   const TrendChart({
     super.key,
     required this.values,
-    this.color = TrainColors.green,
+    Color? color,
     this.height = 52,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final List<double?> values;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.green;
   final double height;
 
   @override

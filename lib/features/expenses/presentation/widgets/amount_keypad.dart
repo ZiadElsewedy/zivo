@@ -38,7 +38,7 @@ class AmountKeypad extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _FnKey(
-                  child: const Icon(
+                  child: Icon(
                     Icons.backspace_outlined,
                     size: 22,
                     color: TrainColors.ink2,

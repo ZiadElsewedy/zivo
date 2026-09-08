@@ -540,7 +540,7 @@ class _TopUpButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.add, size: 12, color: TrainColors.inkPlain),
+            Icon(AppIcons.add, size: 12, color: TrainColors.inkPlain),
             const SizedBox(width: 5),
             Text(
               l(context).walletTopUp,
@@ -710,7 +710,7 @@ class _ExpenseRow extends StatelessWidget {
         alignment: AlignmentDirectional.centerEnd,
         padding: const EdgeInsetsDirectional.only(end: 20),
         color: TrainColors.ember.withValues(alpha: 0.14),
-        child: const Icon(AppIcons.trash, size: 19, color: TrainColors.ember),
+        child: Icon(AppIcons.trash, size: 19, color: TrainColors.ember),
       ),
       onDismissed: (_) => onDelete(),
       child: Column(
@@ -778,7 +778,7 @@ class _ExpenseRow extends StatelessWidget {
             ),
           ),
           if (!last)
-            const Padding(
+            Padding(
               padding: EdgeInsetsDirectional.only(start: 32),
               child: Divider(
                 height: 1,

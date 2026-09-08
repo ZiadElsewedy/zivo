@@ -27,7 +27,7 @@ class ErrorRetry extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(AppIcons.warning, size: 17, color: TrainColors.ember),
+            Icon(AppIcons.warning, size: 17, color: TrainColors.ember),
             const SizedBox(width: 11),
             Expanded(
               child: Column(

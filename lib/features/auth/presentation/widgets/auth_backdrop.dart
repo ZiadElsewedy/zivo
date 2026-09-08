@@ -21,21 +21,36 @@ import '../../../../core/theme/train_tokens.dart';
 class AuthBackdrop extends StatelessWidget {
   const AuthBackdrop({
     required this.child,
-    this.hue = TrainColors.ember,
-    this.base = TrainColors.base,
+    Color? hue,
+    Color? base,
     this.alignment = const Alignment(-0.55, -0.9),
     this.intensity = 1,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _hue = hue, _base = base;
 
   final Widget child;
 
   /// The hue of the bloom — the surface's owning colour.
-  final Color hue;
+  final Color? _hue;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get hue => _hue ?? TrainColors.ember;
 
   /// The opaque surface the bloom is cast onto. `ground` for a full screen,
   /// `card` for a sheet.
-  final Color base;
+  final Color? _base;
+
+  /// Defaults to the active skin's `base` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get base => _base ?? TrainColors.base;
 
   /// Where the light falls. Defaults to just above the header's first line.
   final Alignment alignment;

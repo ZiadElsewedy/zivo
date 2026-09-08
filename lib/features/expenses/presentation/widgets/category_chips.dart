@@ -126,7 +126,7 @@ class _AddChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
+            Icon(AppIcons.add, size: 15, color: TrainColors.ink3),
             const SizedBox(width: 5),
             Text(
               l(context).actionAdd,

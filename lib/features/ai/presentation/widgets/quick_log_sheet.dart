@@ -302,7 +302,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
     final dot = Container(
       width: 11,
       height: 11,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
@@ -328,7 +328,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
           child: IconButton(
             key: const Key('quicklog-cancel'),
             onPressed: _cancelRecording,
-            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
+            icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: l(context).askDiscardRecording,
           ),
         ),
@@ -370,7 +370,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
               _token++;
               _setPhase(_Phase.idle);
             },
-            icon: const Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
+            icon: Icon(AppIcons.close, size: 20, color: TrainColors.ink3),
             tooltip: l(context).askDiscardVoiceNote,
           ),
         ),

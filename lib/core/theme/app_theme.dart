@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'train_tokens.dart';
+import 'zivo_palette.dart';
 
 /// The ZIVO app theme.
 ///
@@ -10,15 +10,35 @@ import 'train_tokens.dart';
 /// including the cool handoff ones — so a screen only looked cool where it had
 /// explicitly overridden something.
 abstract final class AppTheme {
-  static ThemeData get dark {
+  static ThemeData get dark => _of(ZivoPalette.dark);
+
+  static ThemeData get light => _of(ZivoPalette.light);
+
+  static ThemeData of(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
+
+  /// Both skins are the *same* theme with a different palette bound to it —
+  /// there is one design system, and `MaterialApp`'s two slots are just where
+  /// Flutter wants each dressing handed in (ADR-006, ADR-011).
+  ///
+  /// This reads [ZivoPalette] directly rather than going through
+  /// `TrainColors`, because it is built to describe a skin that may not be
+  /// the active one: `MaterialApp` is handed both at once.
+  static ThemeData _of(ZivoPalette p) {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: TrainColors.base,
-      colorScheme: const ColorScheme.dark(
-        primary: TrainColors.ember,
-        surface: TrainColors.raised,
-        onSurface: TrainColors.ink,
+      brightness: p.brightness,
+      scaffoldBackgroundColor: p.base,
+      colorScheme: ColorScheme(
+        brightness: p.brightness,
+        primary: p.ember,
+        onPrimary: p.base,
+        secondary: p.green,
+        onSecondary: p.base,
+        error: p.ember,
+        onError: p.base,
+        surface: p.raised,
+        onSurface: p.ink,
       ),
       splashFactory: InkRipple.splashFactory,
     );

@@ -478,7 +478,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           padding: const EdgeInsetsDirectional.only(top: 10, start: 4),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline_rounded,
                 size: 15,
                 color: TrainColors.ember,

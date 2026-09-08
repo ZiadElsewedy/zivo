@@ -168,7 +168,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.restaurant_rounded,
               size: 30,
               color: TrainColors.ink3,
@@ -509,7 +509,7 @@ class _PlanDetailsRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
           child: Row(
             children: [
-              const Icon(Icons.tune_rounded, size: 17, color: TrainColors.ink3),
+              Icon(Icons.tune_rounded, size: 17, color: TrainColors.ink3),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -527,7 +527,7 @@ class _PlanDetailsRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: TrainColors.ink3,
@@ -556,7 +556,7 @@ class _LogFoodButton extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
       child: Row(
         children: [
-          const Icon(Icons.add_rounded, size: 18, color: TrainColors.ink2),
+          Icon(Icons.add_rounded, size: 18, color: TrainColors.ink2),
           const SizedBox(width: 11),
           Expanded(
             child: Text(l(context).dietLogSomething, style: AppText.rowTitle),
@@ -632,7 +632,7 @@ class _LogEntryRow extends StatelessWidget {
             onPressed: onRemove,
             iconSize: 17,
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.close_rounded, color: TrainColors.ink4),
+            icon: Icon(Icons.close_rounded, color: TrainColors.ink4),
             tooltip: l(context).actionRemove,
           ),
         ],
@@ -1262,7 +1262,7 @@ class _SupplementCard extends StatelessWidget {
                           MealDetailPage(meal: meal, isSupplement: true),
                     ),
                   ),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.chevron_right_rounded,
                     size: 18,
                     color: TrainColors.ink3,

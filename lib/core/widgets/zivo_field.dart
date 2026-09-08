@@ -31,8 +31,8 @@ InputDecoration zivoFieldDecoration({
   String? suffixText,
   TextStyle? suffixStyle,
   TextStyle? counterStyle,
-  Color fill = TrainColors.base,
-  Color accent = TrainColors.green,
+  Color? fill,
+  Color? accent,
   double radius = AppRadius.field,
   EdgeInsets contentPadding = const EdgeInsets.symmetric(
     vertical: 10,
@@ -41,6 +41,11 @@ InputDecoration zivoFieldDecoration({
   bool isDense = false,
   bool focusRing = true,
 }) {
+  // The two hues this decoration is built from, resolved here rather than
+  // as parameter defaults: a default has to be `const`, and a token that
+  // answers to the active skin cannot be (ADR-011).
+  final fillColor = fill ?? TrainColors.base;
+  final accentColor = accent ?? TrainColors.green;
   final shape = OutlineInputBorder(
     borderRadius: BorderRadius.circular(radius),
     borderSide: BorderSide.none,
@@ -56,7 +61,7 @@ InputDecoration zivoFieldDecoration({
     isDense: isDense,
     contentPadding: contentPadding,
     filled: true,
-    fillColor: fill,
+    fillColor: fillColor,
     border: shape,
     // The focused state is the one piece of this that isn't decoration: a
     // field the keyboard is pointed at should say so. Callers that sit inside
@@ -64,7 +69,7 @@ InputDecoration zivoFieldDecoration({
     focusedBorder: focusRing
         ? OutlineInputBorder(
             borderRadius: BorderRadius.circular(radius),
-            borderSide: BorderSide(color: accent, width: 1.4),
+            borderSide: BorderSide(color: accentColor, width: 1.4),
           )
         : shape,
   );

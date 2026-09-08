@@ -49,7 +49,7 @@ class _AddDietSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasRecorder = AppScope.of(context).recorder != null;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

@@ -139,7 +139,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                         angle: _controller.value * math.pi,
                         child: child,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.expand_more_rounded,
                         size: 22,
                         color: TrainColors.ink4,
@@ -148,7 +148,7 @@ class _DayCardState extends State<DayCard> with SingleTickerProviderStateMixin {
                     PressableScale(
                       child: IconButton(
                         onPressed: widget.onRemoveDay,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
                           size: 18,
                           color: TrainColors.ink4,
@@ -333,7 +333,7 @@ class ExerciseRow extends StatelessWidget {
                 PressableScale(
                   child: IconButton(
                     onPressed: onRemove,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close_rounded,
                       size: 16,
                       color: TrainColors.ink4,

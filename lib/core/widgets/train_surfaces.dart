@@ -205,14 +205,24 @@ class TrainHeaderAction extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.accent = TrainColors.green,
+    Color? accent,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _accent = accent;
 
   final IconData icon;
   final VoidCallback onTap;
   final String semanticLabel;
-  final Color accent;
+  final Color? _accent;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get accent => _accent ?? TrainColors.green;
 
   @override
   Widget build(BuildContext context) {
@@ -435,7 +445,7 @@ class TrainListCard extends StatelessWidget {
         children: [
           for (var i = 0; i < rows.length; i++) ...[
             if (i > 0)
-              const Padding(
+              Padding(
                 // Directional: the inset clears the row's LEADING icon
                 // column, and that column is on the right in Arabic — a
                 // physical `left` ran the hairline under the icons and
@@ -989,15 +999,25 @@ class TrainFab extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.semanticLabel,
-    this.color = TrainColors.ember,
+    Color? color,
     this.iconColor = Colors.white,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final IconData icon;
   final VoidCallback onTap;
   final String semanticLabel;
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ember;
   final Color iconColor;
 
   @override

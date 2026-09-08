@@ -3399,6 +3399,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsThemeDark => 'Dark';
 
   @override
+  String get settingsThemeLight => 'Light';
+
+  @override
+  String get settingsThemeSystem => 'Match my phone';
+
+  @override
   String get settingsVersion => 'Version';
 
   @override

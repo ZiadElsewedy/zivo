@@ -531,7 +531,7 @@ class _AddMomentTile extends StatelessWidget {
       radius: 14,
       padding: EdgeInsets.zero,
       onTap: onTap,
-      child: const Center(
+      child: Center(
         child: Icon(AppIcons.add, size: 20, color: TrainColors.ink4),
       ),
     );

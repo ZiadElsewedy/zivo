@@ -272,7 +272,7 @@ class _DobField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.cake_outlined,
                   size: 18,
                   color: TrainColors.ink3,

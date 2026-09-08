@@ -193,7 +193,7 @@ class SettingsRow extends StatelessWidget {
         // Inset hairline — starts at the title, not the card edge. Directional,
         // because "the title" is on the right under RTL.
         if (!last)
-          const Padding(
+          Padding(
             padding: EdgeInsetsDirectional.only(start: _iconColumn),
             child: Divider(
               height: 1,

@@ -121,7 +121,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(top: BorderSide(color: TrainColors.hairlineStrong)),
           ),
           // The sheet's own light is flare, not ember — the surface is tinted
@@ -153,7 +153,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                             color: TrainColors.ember.withValues(alpha: 0.28),
                           ),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           AppIcons.trash,
                           size: 19,
                           color: TrainColors.ember,
@@ -201,7 +201,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.error_outline_rounded,
                               size: 15,
                               color: TrainColors.ember,
@@ -304,7 +304,7 @@ class _SheetButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.pill),
               child: Center(
                 child: loading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(

@@ -668,7 +668,7 @@ class _DeltaStrip extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: TrainColors.hairline)),
       ),
       child: Column(
@@ -748,7 +748,7 @@ class _PrBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.trophy, size: 11, color: TrainColors.amber),
+          Icon(AppIcons.trophy, size: 11, color: TrainColors.amber),
           const SizedBox(width: 4),
           Text(
             l(context).workoutPbCaps,
@@ -845,7 +845,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
+          Icon(AppIcons.analysis, size: 22, color: TrainColors.green),
           const SizedBox(height: 12),
           Text(
             l(context).workoutExerciseEmptyTitle,

@@ -106,7 +106,7 @@ class _TodayPageState extends State<TodayPage> {
     final media = MediaQuery.of(context);
 
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: TrainColors.todayTint),
+      decoration: BoxDecoration(gradient: TrainColors.todayTint),
       child: Stack(
         children: [
           // One soft radial glow per screen, and on Today that glow is
@@ -264,7 +264,7 @@ class _QuickLogButton extends StatelessWidget {
       border: const Color(0x1AFFFFFF),
       semanticLabel: l(context).todayQuickLogVoice,
       onTap: onTap,
-      child: const Icon(AppIcons.mic, size: 16, color: TrainColors.violet),
+      child: Icon(AppIcons.mic, size: 16, color: TrainColors.violet),
     );
   }
 }
@@ -595,7 +595,7 @@ class _NoPlanTrainingCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const TrainIconTile(
+                TrainIconTile(
                   icon: AppIcons.workout,
                   accent: TrainColors.green,
                   size: 44,
@@ -692,7 +692,7 @@ class _EmptySplitCard extends StatelessWidget {
                 // Green, like the no-plan card directly above this one.
                 // These are the same card about the same thing — a training
                 // plan you can't start yet — and they were amber and green.
-                const TrainIconTile(
+                TrainIconTile(
                   icon: AppIcons.planDoc,
                   accent: TrainColors.green,
                   size: 44,

@@ -57,7 +57,7 @@ class CaptureFab extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          child: const Icon(
+          child: Icon(
             AppIcons.add,
             color: TrainColors.inkPlain,
             size: 26,

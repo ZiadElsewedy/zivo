@@ -402,7 +402,7 @@ class DeleteChatSwipeBackground extends StatelessWidget {
         color: TrainColors.ember.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(AppIcons.trash, color: TrainColors.ember),
+      child: Icon(AppIcons.trash, color: TrainColors.ember),
     );
   }
 }
@@ -429,7 +429,7 @@ class NewChatPill extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   AppIcons.chatNew,
                   size: 15,
                   color: TrainColors.violet,
@@ -508,7 +508,7 @@ class SessionRow extends StatelessWidget {
               ),
               if (isActive) ...[
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   AppIcons.success,
                   size: 16,
                   color: TrainColors.violet,

@@ -4790,7 +4790,15 @@
   },
   "settingsThemeDark": "Dark",
   "@settingsThemeDark": {
-      "description": "The only theme ZIVO ships, stated as the current value."
+      "description": "Theme picker option: the app's near-black skin."
+  },
+  "settingsThemeLight": "Light",
+  "@settingsThemeLight": {
+      "description": "Theme picker option: the app's paper skin."
+  },
+  "settingsThemeSystem": "Match my phone",
+  "@settingsThemeSystem": {
+      "description": "Theme picker option: follow the device's light/dark setting."
   },
   "settingsVersion": "Version",
   "@settingsVersion": {

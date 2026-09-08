@@ -197,7 +197,7 @@ class _SetChipState extends State<SetChip> with SingleTickerProviderStateMixin {
               ),
               if (widget.state == SetChipStatus.done) ...[
                 const SizedBox(width: 5),
-                const Icon(AppIcons.check, size: 10, color: TrainColors.green),
+                Icon(AppIcons.check, size: 10, color: TrainColors.green),
               ],
             ],
           ),

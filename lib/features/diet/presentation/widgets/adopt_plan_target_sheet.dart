@@ -99,7 +99,7 @@ class _AdoptSheetState extends State<_AdoptSheet> {
     final energy = widget.energy;
     final tilde = approx(energy.estimated);
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: TrainColors.raised,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

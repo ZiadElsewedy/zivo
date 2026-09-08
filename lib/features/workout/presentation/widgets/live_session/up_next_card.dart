@@ -264,7 +264,7 @@ class _SessionMusicStatus extends StatelessWidget {
                   width: 18,
                   height: 18,
                   child: connecting
-                      ? const CircularProgressIndicator(
+                      ? CircularProgressIndicator(
                           strokeWidth: 1.8,
                           color: TrainColors.green,
                         )

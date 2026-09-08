@@ -519,7 +519,7 @@ class _DeleteSwipeBackground extends StatelessWidget {
         color: TrainColors.ember.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Icon(AppIcons.trash, color: TrainColors.ember, size: 20),
+      child: Icon(AppIcons.trash, color: TrainColors.ember, size: 20),
     );
   }
 }
@@ -533,13 +533,13 @@ class _HistoryLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.glassStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
+          colorFilter: ColorFilter.mode(
             TrainColors.ink2,
             BlendMode.srcIn,
           ),
@@ -561,7 +561,7 @@ class _HistoryErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_rounded,
               size: 30,
               color: TrainColors.ink4,
@@ -611,7 +611,7 @@ class _HistoryEmptyState extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
+              child: Icon(
                 AppIcons.history,
                 size: 28,
                 color: TrainColors.violetGlyph,

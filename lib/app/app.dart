@@ -20,6 +20,8 @@ import '../core/media/domain/media_store.dart';
 import '../core/media/media_service.dart';
 import '../core/scope/app_scope.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_controller.dart';
+import '../core/theme/zivo_palette.dart';
 import '../core/theme/zivo_scroll_behavior.dart';
 import '../core/widgets/deferred_write_reporter.dart';
 import '../l10n/app_localizations.dart';
@@ -118,6 +120,7 @@ class ZivoApp extends StatefulWidget {
     this.mediaPreferences,
     this.music,
     this.locale,
+    this.theme,
     super.key,
   });
 
@@ -154,6 +157,10 @@ class ZivoApp extends StatefulWidget {
   /// Overridable so a test can pin the app to a locale instead of the
   /// device's.
   final LocaleController? locale;
+
+  /// Overridable so a test can pin the app to a skin instead of the stored
+  /// choice.
+  final ThemeController? theme;
 
   @override
   State<ZivoApp> createState() => _ZivoAppState();
@@ -244,6 +251,14 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
   /// blank one.
   late final LocaleController _locale = widget.locale ?? LocaleController();
 
+  /// The app skin. Constructed on the default (dark) and then asked to restore
+  /// the stored choice in [initState], for the same reason [_locale] is:
+  /// preferences are async, and blocking first paint on them would trade a
+  /// correct first frame for a blank one. The cost is that a light-mode user
+  /// can see one dark frame at launch — cheaper than an empty window, and the
+  /// swap lands before anything is legible.
+  late final ThemeController _theme = widget.theme ?? ThemeController();
+
   /// Watches the signed-in account and clears the device-local backup
   /// connection when it changes away from a signed-in account (sign-out or
   /// account switch), so account A's backup connection can never leak into
@@ -257,6 +272,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (widget.locale == null) _locale.load();
+    if (widget.theme == null) _theme.load();
     _authSub = _auth.watchAuthState().listen((_) {
       final uid = _auth.currentUser?.uid;
       if (_prevUid != null && _prevUid != uid) {
@@ -322,6 +338,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     // (a test passing its own fake) stays theirs to dispose.
     if (widget.music == null) _music.dispose();
     if (widget.locale == null) _locale.dispose();
+    if (widget.theme == null) _theme.dispose();
     super.dispose();
   }
 
@@ -428,32 +445,62 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       media: _media,
       music: _music,
       locale: _locale,
+      theme: _theme,
       // Rebuilds the whole MaterialApp on a language change, which is what
       // swaps both the strings and the text direction: `locale: null` means
       // "resolve against the device", so RTL follows from the locale itself
       // rather than from anything the screens do.
       child: ValueListenableBuilder<Locale?>(
         valueListenable: _locale.locale,
-        builder: (context, locale, _) => MaterialApp(
-          title: 'ZIVO',
-          debugShowCheckedModeBanner: false,
-          scrollBehavior: const ZivoScrollBehavior(),
-          theme: AppTheme.dark,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeMode.dark,
-          locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle.light,
-            // Local-first saves pop before their durable write lands, so the
-            // one place that can report a write that *didn't* land is above
-            // every screen — here. See core/util/deferred_write.dart.
-            child: DeferredWriteReporter(
-              child: child ?? const SizedBox.shrink(),
-            ),
-          ),
-          home: const AuthGate(),
+        // ...and on a skin change, for a related but not identical reason.
+        // `MaterialApp` can pick between `theme` and `darkTheme` on its own,
+        // but the app's colours are read by name off `TrainColors` rather
+        // than out of `Theme.of(context)` (ADR-011), so the active palette
+        // has to be swapped *before* the subtree that reads it builds — which
+        // is exactly what this builder is: it runs above every route, and a
+        // change to `_theme.mode` rebuilds all of it.
+        builder: (context, locale, _) => ValueListenableBuilder<ThemeMode>(
+          valueListenable: _theme.mode,
+          builder: (context, mode, _) {
+            // `platformBrightnessOf` is a dependency, not a read: on
+            // ThemeMode.system this is what makes the app follow the phone
+            // flipping itself at sunset without anyone touching Settings.
+            final brightness = switch (mode) {
+              ThemeMode.dark => Brightness.dark,
+              ThemeMode.light => Brightness.light,
+              ThemeMode.system => MediaQuery.platformBrightnessOf(context),
+            };
+            ZivoTheme.use(brightness);
+            final dark = brightness == Brightness.dark;
+            return MaterialApp(
+              title: 'ZIVO',
+              debugShowCheckedModeBanner: false,
+              scrollBehavior: const ZivoScrollBehavior(),
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: mode,
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) =>
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                    // The status bar reads the *content* behind it, so light
+                    // icons belong on the near-black skin and dark ones on
+                    // paper — the opposite of the skin's own name.
+                    value: dark
+                        ? SystemUiOverlayStyle.light
+                        : SystemUiOverlayStyle.dark,
+                    // Local-first saves pop before their durable write lands,
+                    // so the one place that can report a write that *didn't*
+                    // land is above every screen — here. See
+                    // core/util/deferred_write.dart.
+                    child: DeferredWriteReporter(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                  ),
+              home: const AuthGate(),
+            );
+          },
         ),
       ),
     );

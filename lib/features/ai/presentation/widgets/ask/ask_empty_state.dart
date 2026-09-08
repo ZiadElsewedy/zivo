@@ -21,7 +21,7 @@ class ZivoIdentity extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
+          Icon(AppIcons.ask, size: 13, color: TrainColors.violetGlyph),
           const SizedBox(width: 7),
           Text(
             'ZIVO',
@@ -105,7 +105,7 @@ class EmptyAsk extends StatelessWidget {
                         color: TrainColors.violetGlyph.withValues(alpha: 0.25),
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       AppIcons.ask,
                       size: 24,
                       color: TrainColors.violetGlyph,

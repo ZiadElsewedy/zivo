@@ -20,18 +20,28 @@ class SleepDurationText extends StatelessWidget {
   const SleepDurationText({
     required this.duration,
     required this.size,
-    this.color = TrainColors.ink,
+    Color? color,
     this.unitColor,
     this.weight = FontWeight.w300,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _color = color;
 
   final Duration duration;
 
   /// Size of the numerals. The unit is set from this.
   final double size;
 
-  final Color color;
+  final Color? _color;
+
+  /// Defaults to the active skin's `ink` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get color => _color ?? TrainColors.ink;
   final Color? unitColor;
   final FontWeight weight;
 

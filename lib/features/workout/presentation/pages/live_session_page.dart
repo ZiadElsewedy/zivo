@@ -486,7 +486,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
         accent: vivid,
         label: l(context).liveRest,
         pausedLabel: l(context).livePausedCaps,
-        runningGlyph: const TrainPauseGlyph(color: TrainColors.green, size: 11),
+        runningGlyph: TrainPauseGlyph(color: TrainColors.green, size: 11),
         upNextLabel: null,
         exercise: _c.session.currentExercise,
         set: _c.session.currentSet,

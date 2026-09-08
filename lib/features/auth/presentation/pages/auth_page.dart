@@ -311,7 +311,7 @@ class _OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Divider(color: TrainColors.hairline, thickness: 1),
         ),
         Padding(
@@ -321,7 +321,7 @@ class _OrDivider extends StatelessWidget {
             style: AppText.sectionLabel.copyWith(fontSize: 10.5),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Divider(color: TrainColors.hairline, thickness: 1),
         ),
       ],
@@ -345,7 +345,7 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
             size: 18,
             color: TrainColors.ember,

@@ -330,7 +330,7 @@ class _AskPageState extends State<AskPage> with TickerProviderStateMixin {
         // The chat's atmosphere: the ONE soft radial glow this screen gets
         // (identity §5), violet because violet is the assistant's own hue.
         // The two extra aura blobs are gone — one glow per screen.
-        decoration: const BoxDecoration(gradient: TrainColors.askTint),
+        decoration: BoxDecoration(gradient: TrainColors.askTint),
         child: Stack(
           children: [
             SafeArea(

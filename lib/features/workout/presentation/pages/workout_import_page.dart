@@ -306,7 +306,7 @@ class _WorkoutImportPageState extends State<WorkoutImportPage> {
       body: DecoratedBox(
         // The same wash the Workout hub carries — a capture flow belongs to
         // the surface that launched it, not to a flat void.
-        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        decoration: BoxDecoration(gradient: TrainColors.hubTint),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,7 +412,7 @@ class _PreviewState extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.auto_awesome_rounded,
                     size: 16,
                     color: TrainColors.green,
@@ -462,7 +462,7 @@ class _PreviewState extends StatelessWidget {
         ),
         Container(
           padding: const EdgeInsets.fromLTRB(22, 14, 22, 18),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: TrainColors.base,
             border: Border(top: BorderSide(color: TrainColors.hairline)),
           ),
@@ -624,7 +624,7 @@ class _DoneState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ImportPhaseIcon(
+            ImportPhaseIcon(
               icon: Icons.check_rounded,
               color: TrainColors.green,
             ),

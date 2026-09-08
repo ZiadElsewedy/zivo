@@ -32,16 +32,26 @@ class MusicScrubber extends StatefulWidget {
     required this.duration,
     required this.position,
     required this.isPaused,
-    this.accentColor = TrainColors.green,
+    Color? accentColor,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _accentColor = accentColor;
 
   final MusicController controller;
 
   /// The colour of the played track, its thumb and glow. Defaults to ember;
   /// the immersive player passes the current track's neon accent so the scrub
   /// line reacts to the artwork alongside the rest of the screen.
-  final Color accentColor;
+  final Color? _accentColor;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get accentColor => _accentColor ?? TrainColors.green;
 
   /// Identifies the current track — a change resets the bar to zero instantly
   /// instead of animating from the previous song's last position.

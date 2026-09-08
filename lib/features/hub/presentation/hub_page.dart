@@ -65,7 +65,7 @@ class HubPage extends StatelessWidget {
     return DecoratedBox(
       // The one soft radial glow this surface gets — the same green wash the
       // Workout hub and Diet carry, since this is where they're opened from.
-      decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+      decoration: BoxDecoration(gradient: TrainColors.hubTint),
       child: Stack(
         children: [
           // The page is a single top-aligned scroll view: header, then the
@@ -811,7 +811,7 @@ class _SpotifyMark extends StatelessWidget {
       height: size,
       filterQuality: FilterQuality.medium,
       errorBuilder: (context, error, stack) =>
-          const Icon(AppIcons.music, size: 16, color: TrainColors.green),
+          Icon(AppIcons.music, size: 16, color: TrainColors.green),
     );
   }
 }

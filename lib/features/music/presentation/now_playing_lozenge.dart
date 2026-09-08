@@ -132,7 +132,7 @@ class _StripSurface extends StatelessWidget {
         color: tint,
         // The one seam between the strip and the tab row. A hairline, not a
         // gap — the two read as halves of a single object.
-        border: const Border(bottom: BorderSide(color: TrainColors.hairline)),
+        border: Border(bottom: BorderSide(color: TrainColors.hairline)),
       ),
       child: child,
     );
@@ -205,7 +205,7 @@ class _StatusStrip extends StatelessWidget {
                   width: 14,
                   height: 14,
                   child: _connecting
-                      ? const CircularProgressIndicator(
+                      ? CircularProgressIndicator(
                           strokeWidth: 1.6,
                           color: TrainColors.green,
                         )
@@ -322,11 +322,11 @@ class _Strip extends StatelessWidget {
                         // the one you reach for without looking.
                         width: 38,
                         child: playing.isPaused
-                            ? const TrainPlayGlyph(
+                            ? TrainPlayGlyph(
                                 color: TrainColors.green,
                                 size: 13,
                               )
-                            : const TrainPauseGlyph(
+                            : TrainPauseGlyph(
                                 color: TrainColors.green,
                                 size: 13,
                               ),

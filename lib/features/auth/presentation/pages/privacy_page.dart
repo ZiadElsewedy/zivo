@@ -140,7 +140,7 @@ class _SectionBlock extends StatelessWidget {
       padding: EdgeInsets.only(top: index == 0 ? 0 : 18, bottom: 18),
       decoration: index == 0
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(top: BorderSide(color: TrainColors.hairline)),
             ),
       child: Column(
@@ -163,7 +163,7 @@ class _SectionBlock extends StatelessWidget {
                     margin: const EdgeInsets.only(top: 7),
                     width: 5,
                     height: 5,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: TrainColors.green,
                       shape: BoxShape.circle,
                     ),

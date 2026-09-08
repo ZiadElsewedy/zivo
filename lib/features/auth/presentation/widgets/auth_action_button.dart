@@ -30,13 +30,18 @@ class AuthActionButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.icon,
-    this.background = TrainColors.ember,
-    this.foreground = TrainColors.base,
+    Color? background,
+    Color? foreground,
     this.border,
     this.loading = false,
     this.enabled = true,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _background = background, _foreground = foreground;
 
   final String label;
 
@@ -46,8 +51,18 @@ class AuthActionButton extends StatelessWidget {
   /// empty placeholder widget still drags it off-centre by the gap's width.
   final Widget? icon;
   final VoidCallback onTap;
-  final Color background;
-  final Color foreground;
+  final Color? _background;
+
+  /// Defaults to the active skin's `ember` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get background => _background ?? TrainColors.ember;
+  final Color? _foreground;
+
+  /// Defaults to the active skin's `base` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get foreground => _foreground ?? TrainColors.base;
   final Color? border;
   final bool loading;
   final bool enabled;
@@ -81,7 +96,7 @@ class AuthActionButton extends StatelessWidget {
             // A barely-there vertical lift on the primary action: the top edge
             // catches the light, the bottom sits in it.
             gradient: lit
-                ? const LinearGradient(
+                ? LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [Color(0xFFFF6E33), TrainColors.ember],

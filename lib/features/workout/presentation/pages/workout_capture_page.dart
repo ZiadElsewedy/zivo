@@ -116,7 +116,7 @@ class _WorkoutCapturePageState extends State<WorkoutCapturePage>
       body: DecoratedBox(
         // The same wash the Workout hub carries — a capture flow belongs to
         // the surface that launched it, not to a flat void.
-        decoration: const BoxDecoration(gradient: TrainColors.hubTint),
+        decoration: BoxDecoration(gradient: TrainColors.hubTint),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,7 +214,7 @@ class _EmptyExercises extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.fitness_center_rounded,
             size: 30,
             color: TrainColors.ink4,
@@ -256,7 +256,7 @@ class _AddExerciseButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.add_rounded, size: 17, color: TrainColors.green),
+            Icon(Icons.add_rounded, size: 17, color: TrainColors.green),
             const SizedBox(width: 7),
             Text(
               l(context).exerciseAddTitle,
@@ -319,7 +319,7 @@ class _ExerciseRow extends StatelessWidget {
           ),
           IconButton(
             onPressed: onRemove,
-            icon: const Icon(
+            icon: Icon(
               Icons.close_rounded,
               size: 18,
               color: TrainColors.ink4,
@@ -432,13 +432,13 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
             decoration: InputDecoration(
               isCollapsed: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: const UnderlineInputBorder(
+              border: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              enabledBorder: const UnderlineInputBorder(
+              enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.hairline),
               ),
-              focusedBorder: const UnderlineInputBorder(
+              focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: TrainColors.green, width: 1.6),
               ),
               hintText: l(context).workoutCaptureExerciseName,

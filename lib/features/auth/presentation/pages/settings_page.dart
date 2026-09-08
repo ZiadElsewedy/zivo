@@ -6,6 +6,8 @@ import '../../../../core/l10n/language_sheet.dart';
 import '../../../../core/scope/app_scope.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/theme/theme_sheet.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../core/widgets/pressable_scale.dart';
 import '../../../../core/widgets/train_chrome.dart';
@@ -118,14 +120,17 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _languageValue(context),
                     onTap: () => showLanguageSheet(context),
                   ),
-                  // No accent, like Version and Build below it: on this page
-                  // the hue marks a row that *does* something, and Theme is a
-                  // readout (the app is dark-only). It was the one violet
-                  // tile in the section with nothing behind it to tap.
+                  // Directly under Language, and for the same reason: these
+                  // are the two rows on this page that change every other
+                  // screen. Theme was a dead readout for as long as the app
+                  // was dark-only — it now does something, so it takes an
+                  // accent and a chevron like Language does.
                   SettingsRow(
+                    key: const Key('settings-theme'),
                     icon: AppIcons.theme,
                     title: l(context).settingsTheme,
-                    value: l(context).settingsThemeDark,
+                    value: _themeValue(context),
+                    onTap: () => showThemeSheet(context),
                   ),
                   SettingsRow(
                     icon: AppIcons.version,
@@ -427,7 +432,7 @@ class _MusicSection extends StatelessWidget {
                             // The evidence line. Absent entirely when there
                             // is no track — never an empty slot.
                             if (live) ...[
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.only(top: 13, bottom: 11),
                                 child: Divider(
                                   height: 1,
@@ -513,6 +518,18 @@ String _remaining(NowPlaying playing) {
 /// What the Language row shows on its right. "Match my phone" when nothing is
 /// chosen — naming the *resolved* language there would look like a choice the
 /// user made, and would then be wrong the moment they travel.
+/// The Settings row's right-hand value: the skin the user chose, not the one
+/// currently on screen. On "match my phone" those differ, and the row is
+/// reporting the *choice* — the screen behind it is already reporting the
+/// result.
+String _themeValue(BuildContext context) {
+  final controller = AppScope.of(context).theme;
+  return themeModeLabel(
+    context,
+    controller?.mode.value ?? ThemeController.defaultMode,
+  );
+}
+
 String _languageValue(BuildContext context) {
   final chosen = AppScope.of(context).locale?.locale.value;
   final strings = l(context);

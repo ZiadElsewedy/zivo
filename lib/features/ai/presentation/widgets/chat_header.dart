@@ -186,7 +186,7 @@ class _ReplyStyleMenu extends StatelessWidget {
       elevation: 12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: TrainColors.hairline),
+        side: BorderSide(color: TrainColors.hairline),
       ),
       position: PopupMenuPosition.under,
       onSelected: onSelect,
@@ -226,7 +226,7 @@ class _ReplyStyleMenu extends StatelessWidget {
                   ),
                 ),
                 if (style == responseStyle)
-                  const Icon(
+                  Icon(
                     AppIcons.check,
                     size: 15,
                     color: TrainColors.violet,

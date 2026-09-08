@@ -383,7 +383,7 @@ class _DeviceCard extends StatelessWidget {
           // name: gradient chips (identity §8, the reason `SettingsRow` gave
           // up its own) and any shadow that isn't the bloom under a primary
           // action.
-          const TrainIconTile(
+          TrainIconTile(
             icon: AppIcons.check,
             accent: TrainColors.green,
             size: 46,
@@ -816,7 +816,7 @@ class _PrimaryButton extends StatelessWidget {
         color: Colors.transparent,
         child: Ink(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [Color(0xFFFF7038), TrainColors.ember],

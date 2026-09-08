@@ -752,13 +752,13 @@ class _DashboardLoadingState extends StatelessWidget {
       child: Container(
         width: 140,
         height: 140,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: TrainColors.raisedStrong,
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.all(10),
         child: ColorFiltered(
-          colorFilter: const ColorFilter.mode(
+          colorFilter: ColorFilter.mode(
             TrainColors.ink2,
             BlendMode.srcIn,
           ),
@@ -780,7 +780,7 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_rounded,
               size: 30,
               color: TrainColors.ink3,
@@ -815,7 +815,7 @@ class _NoPlanState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PhaseIconLike(
+            _PhaseIconLike(
               icon: AppIcons.workout,
               color: TrainColors.green,
             ),

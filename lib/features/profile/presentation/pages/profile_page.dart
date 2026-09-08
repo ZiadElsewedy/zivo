@@ -521,7 +521,7 @@ class _ConnectedBadge extends StatelessWidget {
         Container(
           width: 5,
           height: 5,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: TrainColors.green,
           ),
@@ -660,7 +660,7 @@ class _Avatar extends StatelessWidget {
       height: _size - _inset * 2,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: TrainColors.glassStrong,
       ),
@@ -1068,7 +1068,7 @@ class _AboutButton extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: primary ? 18 : 14, vertical: 9),
       decoration: primary
           ? BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [Color(0xFFFF7038), TrainColors.ember],
@@ -1207,13 +1207,13 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                     color: TrainColors.ink3,
                     fontSize: 11,
                   ),
-                  border: const UnderlineInputBorder(
+                  border: UnderlineInputBorder(
                     borderSide: BorderSide(color: TrainColors.hairline),
                   ),
-                  enabledBorder: const UnderlineInputBorder(
+                  enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: TrainColors.hairline),
                   ),
-                  focusedBorder: const UnderlineInputBorder(
+                  focusedBorder: UnderlineInputBorder(
                     borderSide: BorderSide(
                       color: TrainColors.ember,
                       width: 1.6,

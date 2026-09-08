@@ -1207,7 +1207,7 @@ class _HistoryRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.s),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 20,
                 color: TrainColors.ink3,
@@ -1394,7 +1394,7 @@ class _ActionDock extends StatelessWidget {
         AppSpacing.screen,
         TrainBottomInset.of(context),
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         // The list scrolls under the dock; the scrim is what keeps a row of
         // text from ending mid-fade against the pill.
         gradient: LinearGradient(

@@ -275,7 +275,7 @@ class SpotifyStrip extends StatelessWidget {
                     enabled: playing.hasControl,
                     semanticLabel: l(context).musicNextTrack,
                     onTap: controller.next,
-                    child: const TrainPlayGlyph(
+                    child: TrainPlayGlyph(
                       color: TrainColors.inkPlain,
                       size: 13,
                       bar: true,

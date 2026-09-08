@@ -267,7 +267,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.error_outline_rounded,
                                     size: 15,
                                     color: TrainColors.ember,
@@ -365,7 +365,7 @@ class _UseAnotherAccountChip extends StatelessWidget {
           message: l(context).authUseAnotherAccount,
           child: Material(
             color: TrainColors.raisedStrong,
-            shape: const StadiumBorder(
+            shape: StadiumBorder(
               side: BorderSide(color: TrainColors.hairlineStrong),
             ),
             clipBehavior: Clip.antiAlias,
@@ -376,7 +376,7 @@ class _UseAnotherAccountChip extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.arrow_back_rounded,
                       size: 16,
                       color: TrainColors.ink2,

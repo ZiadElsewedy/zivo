@@ -23,11 +23,16 @@ class RestRing extends StatefulWidget {
     required this.total,
     this.animate = true,
     this.accent,
-    this.hue = TrainColors.green,
+    Color? hue,
     this.onTap,
     this.isPaused = false,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _hue = hue;
 
   final Duration remaining;
   final int total;
@@ -46,7 +51,12 @@ class RestRing extends StatefulWidget {
   final Color? accent;
 
   /// The phase's colour: green while resting, ember during the warm-up.
-  final Color hue;
+  final Color? _hue;
+
+  /// Defaults to the active skin's `green` — resolved on read
+  /// rather than in the constructor, which is what lets the
+  /// constructor stay `const` (ADR-011).
+  Color get hue => _hue ?? TrainColors.green;
 
   /// Pause/resume. The ring is the biggest, most obvious target on either
   /// countdown screen, so it's the one people reach for first.
