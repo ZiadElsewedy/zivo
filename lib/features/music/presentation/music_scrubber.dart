@@ -34,11 +34,11 @@ class MusicScrubber extends StatefulWidget {
     required this.isPaused,
     Color? accentColor,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _accentColor = accentColor;
 
   final MusicController controller;
@@ -163,11 +163,10 @@ class _MusicScrubberState extends State<MusicScrubber>
     _commitSeek(_progress.value);
   }
 
-  static final _timecode = TrainType.mono(
-    size: 11,
-    tracking: 0.02,
-    color: TrainColors.ink2,
-  );
+  // A getter, not a `static final`: a field is evaluated once and would
+  // pin this style to whichever skin the app first drew (ADR-011).
+  static TextStyle get _timecode =>
+      TrainType.mono(size: 11, tracking: 0.02, color: TrainColors.ink2);
 
   String _format(double fraction) {
     final d = Duration(
@@ -311,14 +310,14 @@ class _MusicScrubberState extends State<MusicScrubber>
             Directionality(
               textDirection: TextDirection.ltr,
               child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_format(fraction), style: _timecode),
-                Text(
-                  ltrFor(context, '-${_format(remainingFraction)}'),
-                  style: _timecode,
-                ),
-              ],
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_format(fraction), style: _timecode),
+                  Text(
+                    ltrFor(context, '-${_format(remainingFraction)}'),
+                    style: _timecode,
+                  ),
+                ],
               ),
             ),
           ],

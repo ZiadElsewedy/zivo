@@ -124,7 +124,10 @@ carries a comment saying which case it is.
   urgent, because a literal cannot flip.
 * `flutter analyze` is the safety net for the caching rule only at the point
   where a `const` breaks. A `static final Color x = TrainColors.ink` compiles
-  fine and is silently wrong. The tests are the real net: `light_mode_smoke_test`
+  fine and is silently wrong, so `no_cached_tokens_test.dart` greps `lib/` for
+  exactly that shape and names the offending line. Four had already crept in —
+  two timecode styles, two on the rest ring — none of which any other test
+  would have caught. The tests are also the net for the repaint: `light_mode_smoke_test`
   builds each screen **in dark and then switches to light**, which is the
   sequence the app goes through and the only one in which a cached skin or a
   skipped element shows up at all. Rendering straight into light hides both —

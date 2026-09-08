@@ -27,11 +27,11 @@ class RestRing extends StatefulWidget {
     this.onTap,
     this.isPaused = false,
     super.key,
-  // `this._x`, which the lint asks for here, is not a thing Dart will
-  // accept: a named parameter cannot be private. The field is private
-  // so that the public name can be the *resolved* getter below, which
-  // is what keeps this constructor `const` (ADR-011).
-  // ignore: prefer_initializing_formals
+    // `this._x`, which the lint asks for here, is not a thing Dart will
+    // accept: a named parameter cannot be private. The field is private
+    // so that the public name can be the *resolved* getter below, which
+    // is what keeps this constructor `const` (ADR-011).
+    // ignore: prefer_initializing_formals
   }) : _hue = hue;
 
   final Duration remaining;
@@ -189,7 +189,9 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
             child: Align(
               alignment: const Alignment(0, 0.44),
               child: Text(
-                l(context).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
+                l(
+                  context,
+                ).liveRestPlanned(ltrFor(context, formatRest(widget.total))),
                 style: TrainType.mono(
                   size: 9,
                   weight: FontWeight.w500,
@@ -242,17 +244,16 @@ class RestTimeLabel extends StatelessWidget {
   // diameter. 64/17 clears the inner edge by ~17pt at the widest value this
   // can ever show ("9:59.99"), with the numeral still the obvious hero of a
   // 290pt ring.
-  static final _wholeStyle = TrainType.mono(
+  // A getter, not a `static final`: a field is evaluated once and would
+  // pin this style to whichever skin the app first drew (ADR-011).
+  static TextStyle get _wholeStyle => TrainType.mono(
     size: 64,
     weight: FontWeight.w200,
     tracking: -0.06,
     color: TrainColors.voiceInk,
   );
-  static final _centisStyle = TrainType.mono(
-    size: 17,
-    tracking: -0.03,
-    color: TrainColors.inkAt(0.35),
-  );
+  static TextStyle get _centisStyle =>
+      TrainType.mono(size: 17, tracking: -0.03, color: TrainColors.inkAt(0.35));
 
   @override
   Widget build(BuildContext context) {
