@@ -1294,14 +1294,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get sessionDeleteTitle => 'حذف هذه الجلسة؟';
-
-  @override
-  String sessionDeleteBody(String day) {
-    return 'سيؤدي هذا إلى حذف جلسة \"$day\" وكل ما سُجّل فيها نهائيًا. لا يمكن التراجع عن هذا.';
-  }
-
-  @override
   String splitDeleteTitle(String name) {
     return 'حذف \"$name\"؟';
   }
@@ -3302,9 +3294,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionDetailsTitle => 'تفاصيل الجلسة';
 
   @override
-  String get sessionDeleteAction => 'حذف الجلسة';
-
-  @override
   String get sessionStatusCompleted => 'مكتملة';
 
   @override
@@ -5181,4 +5170,201 @@ class AppLocalizationsAr extends AppLocalizations {
   String sleepNightRowRange(String start, String end) {
     return '$start → $end';
   }
+
+  @override
+  String get liveFinishNow => 'أنهِ الآن';
+
+  @override
+  String get liveFinishNowTitle => 'تنهي هنا؟';
+
+  @override
+  String liveFinishNowBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count مجموعة لم تُسجَّل. ستبقى غير مسجَّلة — لن يُحتسب شيء كمُنجَز.',
+      many:
+          '$count مجموعة لم تُسجَّل. ستبقى غير مسجَّلة — لن يُحتسب شيء كمُنجَز.',
+      few:
+          '$count مجموعات لم تُسجَّل. ستبقى غير مسجَّلة — لن يُحتسب شيء كمُنجَز.',
+      two:
+          'مجموعتان لم تُسجَّلا. ستبقيان غير مسجَّلتين — لن يُحتسب شيء كمُنجَز.',
+      one:
+          'مجموعة واحدة لم تُسجَّل. ستبقى غير مسجَّلة — لن يُحتسب شيء كمُنجَز.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutStreakRule(int days) {
+    return 'تدرّب مرة كل $days أيام على الأقل';
+  }
+
+  @override
+  String get workoutStreakRestDay => 'يوم راحة';
+
+  @override
+  String get workoutStreakRestored => 'مُستعاد';
+
+  @override
+  String workoutStreakDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'بقي $count يوم للتدريب',
+      many: 'بقي $count يومًا للتدريب',
+      few: 'بقيت $count أيام للتدريب',
+      two: 'بقي يومان للتدريب',
+      one: 'بقي يوم واحد للتدريب',
+      zero: 'تدرّب اليوم للحفاظ عليها',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutStreakBroken => 'لا سلسلة نشطة';
+
+  @override
+  String get workoutStreakRestore => 'استعد هذا اليوم';
+
+  @override
+  String get workoutStreakRestoreTitle => 'تستعيد هذا اليوم؟';
+
+  @override
+  String get workoutStreakRestoreBody =>
+      'يسدّ الفجوة لتبقى سلسلتك حيّة. لا يضيف تمرينًا، ولا يُحتسب كتمرين أبدًا.';
+
+  @override
+  String workoutStreakRestoreUnavailable(int days) {
+    return 'استعادة واحدة كل $days يومًا';
+  }
+
+  @override
+  String get workoutStreakWhyMissed => 'لماذا لم تتدرّب؟';
+
+  @override
+  String get workoutStreakReasonSaved =>
+      'للسياق فقط — لا يغيّر سلسلتك إطلاقًا.';
+
+  @override
+  String get missedDayRest => 'راحة';
+
+  @override
+  String get missedDayRecovery => 'استشفاء';
+
+  @override
+  String get missedDayTravel => 'سفر';
+
+  @override
+  String get missedDayIllness => 'مرض';
+
+  @override
+  String get missedDayBusy => 'انشغال';
+
+  @override
+  String get missedDayOther => 'سبب آخر';
+
+  @override
+  String get missedDayNone => 'بدون سبب مذكور';
+
+  @override
+  String get sessionDurationMeasured => 'قاسها زيفو';
+
+  @override
+  String get sessionDurationAutoClosed => 'أُغلقت عند آخر مجموعة';
+
+  @override
+  String get sessionDurationCorrected => 'أنت حدّدتها';
+
+  @override
+  String get sessionDurationUnknown => 'مدة غير معروفة';
+
+  @override
+  String get sessionNeedsDuration => 'تحتاج مدة';
+
+  @override
+  String get sessionNeedsDurationBody =>
+      'استمرت هذه الجلسة أطول مما يستغرقه تمرين واقعي، لذا استُبعدت من متوسطاتك حتى تحدّد مدتها. كل ما سجّلته محفوظ.';
+
+  @override
+  String get sessionSetDuration => 'حدّد المدة';
+
+  @override
+  String get sessionDurationMinutes => 'دقائق';
+
+  @override
+  String get sessionDurationUseMeasured => 'استخدم الوقت المقاس';
+
+  @override
+  String get sessionVoid => 'ألغِ احتساب الجلسة';
+
+  @override
+  String get sessionVoidTitle => 'تلغي احتساب هذه الجلسة؟';
+
+  @override
+  String get sessionVoidBody =>
+      'تبقى في سجلك كما سُجّلت تمامًا، وتتوقف عن الاحتساب في سلسلتك ومتوسطاتك وتحليلك.';
+
+  @override
+  String get sessionVoided => 'غير محتسبة';
+
+  @override
+  String get sessionUnvoid => 'احتسب هذه الجلسة مجددًا';
+
+  @override
+  String get sessionVoidReason => 'لماذا؟';
+
+  @override
+  String get voidReasonBadDuration => 'الوقت غير صحيح';
+
+  @override
+  String get voidReasonLoggedByMistake => 'سُجّلت بالخطأ';
+
+  @override
+  String get voidReasonNotMine => 'لم أكن أنا';
+
+  @override
+  String get voidReasonOther => 'سبب آخر';
+
+  @override
+  String get sessionCannotDelete =>
+      'الجلسة التي سجّلت عملًا تُلغى ولا تُحذف — كي يبقى سجلك جديرًا بالثقة.';
+
+  @override
+  String statDurationOver(int counted, int total) {
+    return 'من $counted من أصل $total';
+  }
+
+  @override
+  String get statDurationAllExcluded => 'لا مدد جلسات صالحة بعد';
+
+  @override
+  String get workoutSettings => 'إعدادات التدريب';
+
+  @override
+  String get workoutMaxSessionTitle => 'أقصى مدة للجلسة';
+
+  @override
+  String get workoutMaxSessionBody =>
+      'التمرين الذي يستمر بعد هذه المدة دون تسجيل أي شيء لفترة يُعامل كتمرين نسيت إغلاقه. يُنهى عند آخر مجموعة سجّلتها — دون تمديد، ودون إضافة مجموعات لم تؤدِّها.';
+
+  @override
+  String workoutMaxSessionValue(int hours, int minutes) {
+    return '$hoursس $minutesد';
+  }
+
+  @override
+  String workoutMaxSessionValueHours(int hours) {
+    return '$hoursس';
+  }
+
+  @override
+  String get trainingDayMarkSaveFailed => 'تعذّر حفظ هذا اليوم.';
+
+  @override
+  String get sessionUpdateFailed => 'تعذّر تحديث هذه الجلسة.';
+
+  @override
+  String get workoutSettingsSaveFailed => 'تعذّر حفظ هذا الإعداد.';
 }

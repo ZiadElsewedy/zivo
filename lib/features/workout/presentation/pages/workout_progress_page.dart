@@ -810,6 +810,12 @@ class _RecentSessionRow extends StatelessWidget {
         l(context).workoutSessionNotCompleted,
         TrainColors.ink4,
       ),
+      // Voided reads as its own state, not as "abandoned": the session
+      // happened and its numbers are intact, it simply no longer counts.
+      SessionStatus.voided => (
+        l(context).sessionVoided,
+        TrainColors.ink4,
+      ),
     };
     return PressableScale(
       child: Material(
@@ -846,6 +852,7 @@ class _RecentSessionRow extends StatelessWidget {
                       SessionStatus.completed => AppIcons.trendUp,
                       SessionStatus.active => AppIcons.bolt,
                       SessionStatus.abandoned => AppIcons.minus,
+                    SessionStatus.voided => AppIcons.minus,
                     },
                     size: 16,
                     color: color == TrainColors.ink4 ? TrainColors.ink2 : color,

@@ -400,7 +400,7 @@ void main() {
       );
 
       await repo.saveSession(_makeSession('s1'));
-      final edited = _makeSession('s1').markSetDone('ex-bench', 'ex-bench-s2', actualReps: 12);
+      final edited = _makeSession('s1').markSetDone('ex-bench', 'ex-bench-s2', now: DateTime(2026, 8, 18, 10), actualReps: 12);
       await repo.saveSession(edited);
 
       final sessions = await repo.watchAll().first;

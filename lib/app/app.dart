@@ -79,7 +79,14 @@ import '../features/workout/data/in_memory_workout_session_repository.dart';
 import '../features/workout/domain/body_weight_repository.dart';
 import '../features/workout/domain/workout_plan_repository.dart';
 import '../features/workout/domain/workout_repository.dart';
+import '../features/workout/domain/session_maintenance.dart';
+import '../features/workout/domain/training_day_mark_repository.dart';
 import '../features/workout/domain/workout_session_repository.dart';
+import '../features/workout/domain/workout_settings_repository.dart';
+import '../features/workout/data/firestore_training_day_mark_repository.dart';
+import '../features/workout/data/firestore_workout_settings_repository.dart';
+import '../features/workout/data/in_memory_training_day_mark_repository.dart';
+import '../features/workout/data/in_memory_workout_settings_repository.dart';
 
 /// Firestore persistence for a feature is opt-out via `--dart-define
 /// USE_FIRESTORE=false` (e.g. for offline/dev runs); it defaults to on.
@@ -111,6 +118,8 @@ class ZivoApp extends StatefulWidget {
     this.workouts,
     this.workoutPlans,
     this.workoutSessions,
+    this.workoutSettings,
+    this.trainingDayMarks,
     this.bodyWeight,
     this.diet,
     this.foods,
@@ -134,6 +143,8 @@ class ZivoApp extends StatefulWidget {
   final WorkoutRepository? workouts;
   final WorkoutPlanRepository? workoutPlans;
   final WorkoutSessionRepository? workoutSessions;
+  final WorkoutSettingsRepository? workoutSettings;
+  final TrainingDayMarkRepository? trainingDayMarks;
   final BodyWeightRepository? bodyWeight;
   final DietRepository? diet;
 
@@ -190,6 +201,18 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       widget.workoutPlans ?? _defaultWorkoutPlans();
   late final WorkoutSessionRepository _workoutSessions =
       widget.workoutSessions ?? _defaultWorkoutSessions();
+  late final WorkoutSettingsRepository _workoutSettings =
+      widget.workoutSettings ?? _defaultWorkoutSettings();
+  late final TrainingDayMarkRepository _trainingDayMarks =
+      widget.trainingDayMarks ?? _defaultTrainingDayMarks();
+
+  /// Closes sessions that were left open. Same shape as [_sleepService]: a
+  /// domain service over the repository seam, triggered on sign-in and on
+  /// resume rather than hidden inside a screen.
+  late final SessionMaintenance _sessionMaintenance = SessionMaintenance(
+    sessions: _workoutSessions,
+    settings: _workoutSettings,
+  );
   late final BodyWeightRepository _bodyWeight =
       widget.bodyWeight ?? _defaultBodyWeight();
   late final DietRepository _diet = widget.diet ?? _defaultDiet();
@@ -287,6 +310,7 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // writes under `users/{uid}` and throws without one. This is also the
       // *only* automatic sleep read at launch — see [_syncSleep].
       if (uid != null) _syncSleep();
+      if (uid != null) _sweepStaleSessions();
     });
   }
 
@@ -328,8 +352,21 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       // the user wakes, and without this the app can only learn about it by
       // being killed and relaunched.
       if (_auth.currentUser != null) _syncSleep();
+      // A session left open is discovered by coming back to the app, which is
+      // exactly this moment — the phone that was locked at 6pm is unlocked
+      // again the next morning.
+      if (_auth.currentUser != null) _sweepStaleSessions();
     }
   }
+
+  /// Close any session that was left open, at its last logged set.
+  ///
+  /// Fire-and-forget and idempotent: a sweep that finds nothing writes
+  /// nothing, and running it twice is the same as running it once. It never
+  /// touches a session a live screen has open — `LiveSessionPage` owns that
+  /// one, and it re-checks on its own resume anyway.
+  void _sweepStaleSessions() =>
+      unawaited(_sessionMaintenance.sweep(now: DateTime.now()));
 
   @override
   void dispose() {
@@ -342,6 +379,14 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
     if (widget.theme == null) _theme.dispose();
     super.dispose();
   }
+
+  WorkoutSettingsRepository _defaultWorkoutSettings() => _useFirestore
+      ? FirestoreWorkoutSettingsRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryWorkoutSettingsRepository();
+
+  TrainingDayMarkRepository _defaultTrainingDayMarks() => _useFirestore
+      ? FirestoreTrainingDayMarkRepository(uidSource: UidSource.firebaseAuth())
+      : InMemoryTrainingDayMarkRepository();
 
   MediaPreferencesRepository _defaultMediaPreferences() => _useFirestore
       ? FirestoreMediaPreferencesRepository(uidSource: UidSource.firebaseAuth())
@@ -435,6 +480,9 @@ class _ZivoAppState extends State<ZivoApp> with WidgetsBindingObserver {
       workouts: _workouts,
       workoutPlans: _workoutPlans,
       workoutSessions: _workoutSessions,
+      workoutSettings: _workoutSettings,
+      trainingDayMarks: _trainingDayMarks,
+      sessionMaintenance: _sessionMaintenance,
       bodyWeight: _bodyWeight,
       diet: _diet,
       foods: _foods,

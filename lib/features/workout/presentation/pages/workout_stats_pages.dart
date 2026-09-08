@@ -9,7 +9,13 @@ import '../../../../core/widgets/rise_in.dart';
 import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
+import '../../../../core/util/bidi.dart';
 import '../../domain/training_dashboard_stats.dart';
+import '../../domain/training_day_mark.dart';
+import '../../domain/training_day_mark_repository.dart';
+import '../../domain/training_streak.dart';
+import '../widgets/missed_day_sheet.dart';
+import '../workout_labels.dart';
 import '../pages/session_details_page.dart';
 import '../../../../core/util/date_format.dart';
 import '../../../../l10n/l10n.dart';
@@ -252,6 +258,12 @@ class _SessionRow extends StatelessWidget {
         l(context).workoutSessionEndedEarly,
         TrainColors.ink4,
       ),
+      // Voided reads as its own state, not as "abandoned": the session
+      // happened and its numbers are intact, it simply no longer counts.
+      SessionStatus.voided => (
+        l(context).sessionVoided,
+        TrainColors.ink4,
+      ),
     };
     // An active session's `elapsed` is ~0 (completedAt is null, so it
     // measures start→start minus pauses) and renders as "0m"/"-1m" — the
@@ -346,89 +358,181 @@ class _SessionRow extends StatelessWidget {
 
 // ---- Day streak -------------------------------------------------------------
 
-/// The Day Streak tile's page: the current streak's headline, which exact
-/// days contributed to it, and the best streak ever — all from the same
-/// computation the tile reads, so they can't drift apart.
+/// The Day Streak tile's page.
+///
+/// Shows the rule the streak actually follows — train at least every
+/// [kStreakMaxGapDays] days — and then the run itself as a continuous stretch
+/// of calendar days: the ones trained, the rest days between them, and any day
+/// held together by a restore. A row of trained days with the gaps deleted was
+/// the old version, and it made a perfectly healthy streak look like it had
+/// holes in it.
+///
+/// Every number here comes from the same `computeTrainingStreak` the tile
+/// reads, so the two cannot drift.
 class WorkoutStreakPage extends StatelessWidget {
   const WorkoutStreakPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
+    final marksRepo = scope.trainingDayMarks;
     return StreamBuilder<List<LiveSession>>(
       stream: scope.workoutSessions.watchAll(),
       initialData: scope.workoutSessions.current,
       builder: (context, snapshot) {
         final sessions = snapshot.data ?? const <LiveSession>[];
-        final now = DateTime.now();
-        final streakDays = currentStreakTrainedDays(
-          sessions: sessions,
-          now: now,
-        );
-        final best = bestStreakDays(sessions: sessions);
-        return StatDrillDownScaffold(
-          title: l(context).workoutDayStreak,
-          children: [
-            StatHeroValue(
-              value: '${streakDays.length}',
-              label: streakDays.isEmpty
-                  ? l(context).workoutNoActiveStreak
-                  : l(context).workoutStreakDays(streakDays.length),
-              accent: TrainColors.green,
-            ),
-            const SizedBox(height: 10),
-            StatHeroValue(
-              value: '$best',
-              label: l(context).workoutBestStreak,
-              accent: TrainColors.green,
-            ),
-            const SizedBox(height: 18),
-            if (streakDays.isNotEmpty)
-              TrainListCard(
-                rows: [
-                  for (final (i, day) in streakDays.indexed)
-                    RiseIn(
-                      delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
-                      child: _StreakDayRow(day: day, sessions: sessions),
-                    ),
-                ],
-              )
-            else
-              _EmptyCard(
-                icon: Icons.local_fire_department_rounded,
-                text: l(context).workoutStreakEmpty,
-              ),
-          ],
+        return StreamBuilder<List<TrainingDayMark>>(
+          stream: marksRepo?.watchAll() ?? const Stream.empty(),
+          initialData: marksRepo?.current ?? const <TrainingDayMark>[],
+          builder: (context, marksSnapshot) {
+            final marks = marksSnapshot.data ?? const <TrainingDayMark>[];
+            final now = DateTime.now();
+            final streak = computeTrainingStreak(
+              sessions: sessions,
+              now: now,
+              marks: marks,
+            );
+            return StatDrillDownScaffold(
+              title: l(context).workoutDayStreak,
+              children: [
+                StatHeroValue(
+                  value: '${streak.currentDays}',
+                  label: streak.isActive
+                      ? l(context).workoutStreakDays(streak.currentDays)
+                      : l(context).workoutNoActiveStreak,
+                  accent: TrainColors.green,
+                ),
+                const SizedBox(height: 8),
+                _StreakRuleLine(streak: streak),
+                const SizedBox(height: 10),
+                StatHeroValue(
+                  value: '${streak.bestDays}',
+                  label: l(context).workoutBestStreak,
+                  accent: TrainColors.green,
+                ),
+                const SizedBox(height: 18),
+                if (streak.days.isNotEmpty)
+                  TrainListCard(
+                    rows: [
+                      for (final (i, day) in streak.days.indexed)
+                        RiseIn(
+                          delay: Duration(milliseconds: 30 * (i + 1).clamp(0, 8)),
+                          child: _StreakDayRow(
+                            entry: day,
+                            sessions: sessions,
+                            marks: marks,
+                            now: now,
+                            marksRepo: marksRepo,
+                          ),
+                        ),
+                    ],
+                  )
+                else
+                  _EmptyCard(
+                    icon: Icons.local_fire_department_rounded,
+                    text: l(context).workoutStreakEmpty,
+                  ),
+              ],
+            );
+          },
         );
       },
     );
   }
 }
 
-class _StreakDayRow extends StatelessWidget {
-  const _StreakDayRow({required this.day, required this.sessions});
+/// The rule, and how much room is left in it — the two things that make the
+/// number above mean something. Without them "12" is a score; with them it is
+/// a statement about the next three days.
+class _StreakRuleLine extends StatelessWidget {
+  const _StreakRuleLine({required this.streak});
 
-  final DateTime day;
-  final List<LiveSession> sessions;
+  final TrainingStreak streak;
 
   @override
   Widget build(BuildContext context) {
-    final trained = sessionsOnDay(sessions, day);
-    final labels = trained.map((s) => s.dayLabel).toSet().join(' · ');
-    final isToday = DateUtils.isSameDay(day, DateTime.now());
-    return Padding(
+    final left = streak.daysUntilBreak;
+    return Column(
+      children: [
+        Text(
+          ltrFor(context, l(context).workoutStreakRule(kStreakMaxGapDays)),
+          textAlign: TextAlign.center,
+          style: TrainType.ui(size: 12.5, color: TrainColors.ink3),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          left == null
+              ? l(context).workoutStreakBroken
+              : l(context).workoutStreakDaysLeft(left),
+          textAlign: TextAlign.center,
+          style: TrainType.mono(
+            size: 10,
+            tracking: 0.08,
+            color: streak.isAtRisk
+                ? TrainColors.ember
+                : TrainColors.inkAt(0.4),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One calendar day in the run — trained, rest, or restored.
+class _StreakDayRow extends StatelessWidget {
+  const _StreakDayRow({
+    required this.entry,
+    required this.sessions,
+    required this.marks,
+    required this.now,
+    required this.marksRepo,
+  });
+
+  final StreakDay entry;
+  final List<LiveSession> sessions;
+  final List<TrainingDayMark> marks;
+  final DateTime now;
+  final TrainingDayMarkRepository? marksRepo;
+
+  @override
+  Widget build(BuildContext context) {
+    final trained = sessionsOnDay(sessions, entry.day);
+    final isToday = DateUtils.isSameDay(entry.day, now);
+
+    final (IconData icon, Color accent) = switch (entry.kind) {
+      // Green, not ember. A day you already trained is training state, which
+      // is green's job; ember is the committing action and the "you are here"
+      // marker, and this page's hero figures above are green.
+      StreakDayKind.trained => (
+        isToday ? AppIcons.calendarClock : AppIcons.check,
+        TrainColors.green,
+      ),
+      StreakDayKind.rest => (AppIcons.minus, TrainColors.ink4),
+      StreakDayKind.restored => (AppIcons.streak, TrainColors.ember),
+    };
+
+    final String subtitle = switch (entry.kind) {
+      StreakDayKind.trained => trained.map((s) => s.dayLabel).toSet().join(' · '),
+      StreakDayKind.restored => l(context).workoutStreakRestored,
+      StreakDayKind.rest => entry.reason == null
+          ? l(context).workoutStreakRestDay
+          : missedDayReasonLabel(context, entry.reason!),
+    };
+
+    final trailing = switch (entry.kind) {
+      StreakDayKind.trained => l(context).workoutSessionsCountCaps(trained.length),
+      _ => '',
+    };
+
+    // A rest day is the only one worth tapping: it is where a reason is added
+    // and where a restore can be spent. A trained day has nothing to change.
+    final tappable = entry.kind != StreakDayKind.trained && marksRepo != null;
+
+    final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
       child: Row(
         children: [
-          // Green, not ember. A day you already trained is training state,
-          // which is green's job; ember is the committing action and the
-          // "you are here" marker, and this page's own hero figures above
-          // this list are green. One page was carrying two answers.
-          TrainIconTile(
-            icon: isToday ? AppIcons.calendarClock : AppIcons.check,
-            accent: TrainColors.green,
-            iconSize: 20,
-          ),
+          TrainIconTile(icon: icon, accent: accent, iconSize: 20),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -437,18 +541,20 @@ class _StreakDayRow extends StatelessWidget {
                 Text(
                   isToday
                       ? l(context).workoutToday
-                      : formatMonthDay(context, day),
+                      : formatMonthDay(context, entry.day),
                   style: TrainType.ui(
                     size: 14,
                     weight: FontWeight.w700,
-                    color: TrainColors.inkPlain,
+                    color: entry.isTrained
+                        ? TrainColors.inkPlain
+                        : TrainColors.ink2,
                     height: 1,
                   ),
                 ),
-                if (labels.isNotEmpty) ...[
+                if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    labels.toUpperCase(),
+                    subtitle.toUpperCase(),
                     style: TrainType.mono(
                       size: 9.5,
                       tracking: 0.08,
@@ -461,16 +567,31 @@ class _StreakDayRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            l(context).workoutSessionsCountCaps(trained.length),
-            style: TrainType.caption(
-              size: 9,
-              tracking: 0.12,
-              color: TrainColors.ink4,
+          if (trailing.isNotEmpty)
+            Text(
+              trailing,
+              style: TrainType.caption(
+                size: 9,
+                tracking: 0.12,
+                color: TrainColors.ink4,
+              ),
             ),
-          ),
         ],
       ),
+    );
+
+    if (!tappable) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => showMissedDaySheet(
+        context,
+        day: entry.day,
+        now: now,
+        sessions: sessions,
+        marks: marks,
+        repository: marksRepo!,
+      ),
+      child: row,
     );
   }
 }
@@ -489,21 +610,38 @@ class WorkoutDurationStatsPage extends StatelessWidget {
       stream: scope.workoutSessions.watchAll(),
       initialData: scope.workoutSessions.current,
       builder: (context, snapshot) {
+        final maxDuration = scope.maxSessionDuration;
         final completed = _completed(snapshot.data);
-        final durations = [for (final s in completed) s.elapsed];
+        // Shortest/longest read the same gated set the average does — a
+        // "longest session" of nineteen hours would be the loudest wrong
+        // number on the page.
+        final usable = completed
+            .where((s) => s.hasUsableDuration(maxDuration))
+            .toList();
+        final durations = [for (final s in usable) s.elapsed];
         durations.sort((a, b) => a.inMicroseconds.compareTo(b.inMicroseconds));
-        final avg = computeTrainingDashboardStats(
+        final stats = computeTrainingDashboardStats(
           sessions: snapshot.data ?? const [],
           now: DateTime.now(),
-        ).averageSessionDuration;
+          maxSessionDuration: maxDuration,
+        );
+        final avg = stats.averageSessionDuration;
         return StatDrillDownScaffold(
           title: l(context).workoutSessionLength,
           children: [
             StatHeroValue(
               value: avg == null ? '—' : formatDurationShort(context, avg),
+              // When some sessions were held out, the label says so. An
+              // average presented as covering everything when it covers 23 of
+              // 24 is the quiet kind of wrong this whole change is about.
               label: avg == null
-                  ? l(context).workoutNoAverageYet
-                  : l(context).workoutAverageSession,
+                  ? (completed.isEmpty
+                        ? l(context).workoutNoAverageYet
+                        : l(context).statDurationAllExcluded)
+                  : (stats.durationsExcluded > 0
+                        ? '${l(context).workoutAverageSession} · '
+                              '${l(context).statDurationOver(stats.durationsCounted, completed.length)}'
+                        : l(context).workoutAverageSession),
               accent: TrainColors.green,
             ),
             if (durations.isNotEmpty) ...[
@@ -545,8 +683,21 @@ class WorkoutDurationStatsPage extends StatelessWidget {
                         subtitle:
                             '${formatMonthDay(context, session.startedAt)} · '
                             '${l(context).workoutAgo(timeAgo(context, session.startedAt, DateTime.now()))}',
-                        trailing: formatDurationShort(context, session.elapsed),
-                        accent: TrainColors.green,
+                        // A session held out of the average says so here
+                        // rather than printing a duration the page has
+                        // already decided not to believe.
+                        trailing: session.hasUsableDuration(maxDuration)
+                            ? formatDurationShort(context, session.elapsed)
+                            : l(context).sessionNeedsDuration,
+                        accent: session.hasUsableDuration(maxDuration)
+                            ? TrainColors.green
+                            : TrainColors.amber,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                SessionDetailsPage(session: session),
+                          ),
+                        ),
                       ),
                     ),
                 ],
@@ -638,16 +789,18 @@ class _MetricRow extends StatelessWidget {
     required this.subtitle,
     required this.trailing,
     required this.accent,
+    this.onTap,
   });
 
   final String title;
   final String subtitle;
   final String trailing;
   final Color accent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
       child: Row(
         children: [
@@ -696,6 +849,12 @@ class _MetricRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (onTap == null) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: row,
     );
   }
 }

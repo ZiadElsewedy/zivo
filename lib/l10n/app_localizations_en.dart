@@ -1300,14 +1300,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sessionDeleteTitle => 'Delete this session?';
-
-  @override
-  String sessionDeleteBody(String day) {
-    return 'This permanently removes your \"$day\" session and everything logged in it. This can\'t be undone.';
-  }
-
-  @override
   String splitDeleteTitle(String name) {
     return 'Delete \"$name\"?';
   }
@@ -3252,9 +3244,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionDetailsTitle => 'Session details';
 
   @override
-  String get sessionDeleteAction => 'Delete session';
-
-  @override
   String get sessionStatusCompleted => 'Completed';
 
   @override
@@ -5086,4 +5075,192 @@ class AppLocalizationsEn extends AppLocalizations {
   String sleepNightRowRange(String start, String end) {
     return '$start → $end';
   }
+
+  @override
+  String get liveFinishNow => 'Finish now';
+
+  @override
+  String get liveFinishNowTitle => 'Finish here?';
+
+  @override
+  String liveFinishNowBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count sets are still unlogged. They stay unlogged — nothing is recorded as done.',
+      one:
+          '1 set is still unlogged. It stays unlogged — nothing is recorded as done.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String workoutStreakRule(int days) {
+    return 'Train at least every $days days';
+  }
+
+  @override
+  String get workoutStreakRestDay => 'Rest day';
+
+  @override
+  String get workoutStreakRestored => 'Restored';
+
+  @override
+  String workoutStreakDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days left to train',
+      one: '1 day left to train',
+      zero: 'Train today to keep it',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workoutStreakBroken => 'No active streak';
+
+  @override
+  String get workoutStreakRestore => 'Restore this day';
+
+  @override
+  String get workoutStreakRestoreTitle => 'Restore this day?';
+
+  @override
+  String get workoutStreakRestoreBody =>
+      'It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.';
+
+  @override
+  String workoutStreakRestoreUnavailable(int days) {
+    return 'One restore every $days days';
+  }
+
+  @override
+  String get workoutStreakWhyMissed => 'Why no training?';
+
+  @override
+  String get workoutStreakReasonSaved =>
+      'Context only — it never changes your streak.';
+
+  @override
+  String get missedDayRest => 'Rest';
+
+  @override
+  String get missedDayRecovery => 'Recovery';
+
+  @override
+  String get missedDayTravel => 'Travel';
+
+  @override
+  String get missedDayIllness => 'Illness';
+
+  @override
+  String get missedDayBusy => 'Too busy';
+
+  @override
+  String get missedDayOther => 'Something else';
+
+  @override
+  String get missedDayNone => 'No reason given';
+
+  @override
+  String get sessionDurationMeasured => 'Timed by ZIVO';
+
+  @override
+  String get sessionDurationAutoClosed => 'Closed at your last set';
+
+  @override
+  String get sessionDurationCorrected => 'You set this';
+
+  @override
+  String get sessionDurationUnknown => 'Duration unknown';
+
+  @override
+  String get sessionNeedsDuration => 'Needs a duration';
+
+  @override
+  String get sessionNeedsDurationBody =>
+      'This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.';
+
+  @override
+  String get sessionSetDuration => 'Set duration';
+
+  @override
+  String get sessionDurationMinutes => 'Minutes';
+
+  @override
+  String get sessionDurationUseMeasured => 'Use the measured time';
+
+  @override
+  String get sessionVoid => 'Void this session';
+
+  @override
+  String get sessionVoidTitle => 'Void this session?';
+
+  @override
+  String get sessionVoidBody =>
+      'It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.';
+
+  @override
+  String get sessionVoided => 'Voided';
+
+  @override
+  String get sessionUnvoid => 'Count this session again';
+
+  @override
+  String get sessionVoidReason => 'Why?';
+
+  @override
+  String get voidReasonBadDuration => 'The time is wrong';
+
+  @override
+  String get voidReasonLoggedByMistake => 'Logged by mistake';
+
+  @override
+  String get voidReasonNotMine => 'Wasn\'t me';
+
+  @override
+  String get voidReasonOther => 'Something else';
+
+  @override
+  String get sessionCannotDelete =>
+      'A session that recorded work is voided, not deleted — so your history stays trustworthy.';
+
+  @override
+  String statDurationOver(int counted, int total) {
+    return 'over $counted of $total';
+  }
+
+  @override
+  String get statDurationAllExcluded => 'no usable session lengths yet';
+
+  @override
+  String get workoutSettings => 'Training settings';
+
+  @override
+  String get workoutMaxSessionTitle => 'Maximum session length';
+
+  @override
+  String get workoutMaxSessionBody =>
+      'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.';
+
+  @override
+  String workoutMaxSessionValue(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String workoutMaxSessionValueHours(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String get trainingDayMarkSaveFailed => 'Couldn\'t save that day.';
+
+  @override
+  String get sessionUpdateFailed => 'Couldn\'t update that session.';
+
+  @override
+  String get workoutSettingsSaveFailed => 'Couldn\'t save that setting.';
 }

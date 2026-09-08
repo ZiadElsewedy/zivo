@@ -189,7 +189,14 @@ class _WorkoutTile extends StatelessWidget {
             stream: scope.workoutSessions.watchActiveSession(),
             initialData: scope.workoutSessions.activeSession,
             builder: (context, sessionSnapshot) {
-              final selection = resolveUpNext(plan, sessionSnapshot.data);
+              final selection = resolveUpNext(
+              plan,
+              sessionSnapshot.data,
+              // A session left open on Tuesday must not still be offering
+              // itself as "resume" on Thursday, in place of the day due.
+              now: DateTime.now(),
+              maxSessionDuration: AppScope.of(context).maxSessionDuration,
+            );
               final day = selection.day;
               // Localized whole, not assembled from a translated word and a
               // separator: an English fragment inside an Arabic paragraph is

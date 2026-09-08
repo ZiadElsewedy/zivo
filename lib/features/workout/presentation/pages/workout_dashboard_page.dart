@@ -96,8 +96,16 @@ class WorkoutDashboardPage extends StatelessWidget {
               final stats = computeTrainingDashboardStats(
                 sessions: sessions,
                 now: now,
+                maxSessionDuration: AppScope.of(context).maxSessionDuration,
+                marks:
+                    AppScope.of(context).trainingDayMarks?.current ?? const [],
               );
-              final selection = resolveUpNext(plan, _firstActive(sessions));
+              final selection = resolveUpNext(
+                plan,
+                _firstActive(sessions),
+                now: DateTime.now(),
+                maxSessionDuration: AppScope.of(context).maxSessionDuration,
+              );
 
               final bodyWeight = scope.bodyWeight;
               return StreamBuilder<List<BodyWeightEntry>>(
@@ -180,7 +188,13 @@ class WorkoutDashboardPage extends StatelessWidget {
                               ).workoutThisWeekCount(stats.sessionsThisWeek),
                             ),
                             const SizedBox(height: 11),
-                            _StatsGrid(stats: stats, sessions: sessions),
+                            _StatsGrid(
+                              stats: stats,
+                              sessions: sessions,
+                              maxSessionDuration: AppScope.of(
+                                context,
+                              ).maxSessionDuration,
+                            ),
                           ],
                         ),
                       ),
@@ -416,7 +430,13 @@ class _WeightStepper extends StatelessWidget {
 /// end — each metric opens the per-session history that produced it — and
 /// each carries the shape of its own metric where the old chevron sat.
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats, required this.sessions});
+  const _StatsGrid({
+    required this.stats,
+    required this.sessions,
+    required this.maxSessionDuration,
+  });
+
+  final Duration maxSessionDuration;
 
   final TrainingDashboardStats stats;
 
@@ -430,7 +450,10 @@ class _StatsGrid extends StatelessWidget {
     final now = DateTime.now();
     final weekly = weeklySessionCounts(sessions: sessions, now: now);
     final daily = dailySessionCounts(sessions: sessions, now: now);
-    final durations = recentSessionDurationMinutes(sessions: sessions);
+    final durations = recentSessionDurationMinutes(
+      sessions: sessions,
+      maxSessionDuration: maxSessionDuration,
+    );
 
     return Column(
       children: [

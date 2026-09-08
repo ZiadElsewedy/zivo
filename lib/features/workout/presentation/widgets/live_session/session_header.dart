@@ -31,6 +31,7 @@ class SessionHeader extends StatelessWidget {
     required this.isPaused,
     required this.onClose,
     required this.onDiscard,
+    this.onFinishNow,
     required this.onTogglePause,
     super.key,
   });
@@ -40,6 +41,11 @@ class SessionHeader extends StatelessWidget {
   final bool isPaused;
   final VoidCallback onClose;
   final VoidCallback onDiscard;
+
+  /// End the workout here, keeping what's logged — null while there is
+  /// nothing worth keeping (no completed set yet), where Close and Discard
+  /// already say everything there is to say.
+  final VoidCallback? onFinishNow;
 
   /// Null once the session completes — nothing left to pause.
   final VoidCallback? onTogglePause;
@@ -135,6 +141,23 @@ class SessionHeader extends StatelessWidget {
             ),
           ),
         ),
+        // "I'm done, even though there are sets left." Sits BEFORE discard so
+        // the constructive exit is the one the thumb reaches first — leaving
+        // a session open for want of this button is what produced the
+        // nineteen-hour workouts in the first place.
+        if (onFinishNow != null) ...[
+          TrainCircleButton(
+            key: const Key('finish-now'),
+            semanticLabel: l(context).liveFinishNow,
+            onTap: onFinishNow!,
+            child: Icon(
+              AppIcons.stopCircle,
+              size: 16,
+              color: TrainColors.inkAt(0.6),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         TrainCircleButton(
           semanticLabel: l(context).liveDiscardWorkout,
           onTap: onDiscard,

@@ -510,7 +510,14 @@ class _TrainingUpNext extends StatelessWidget {
           builder: (context, sessionSnapshot) {
             // Shared with the Workout tab's own "up next" card (see
             // `up_next_selection.dart`) so the two surfaces can't drift apart.
-            final selection = resolveUpNext(plan, sessionSnapshot.data);
+            final selection = resolveUpNext(
+              plan,
+              sessionSnapshot.data,
+              // A session left open on Tuesday must not still be offering
+              // itself as "resume" on Thursday, in place of the day due.
+              now: DateTime.now(),
+              maxSessionDuration: AppScope.of(context).maxSessionDuration,
+            );
             final day = selection.day;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -2426,18 +2426,6 @@ abstract class AppLocalizations {
   /// **'This removes {name} for good. Archiving keeps it and takes it off the Diet screen just the same.'**
   String dietPlanArchiveHint(String name);
 
-  /// Title of the delete-logged-session confirmation.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete this session?'**
-  String get sessionDeleteTitle;
-
-  /// Body of the delete-logged-session confirmation.
-  ///
-  /// In en, this message translates to:
-  /// **'This permanently removes your \"{day}\" session and everything logged in it. This can\'t be undone.'**
-  String sessionDeleteBody(String day);
-
   /// Title of the delete-split confirmation.
   ///
   /// In en, this message translates to:
@@ -5484,12 +5472,6 @@ abstract class AppLocalizations {
   /// **'Session details'**
   String get sessionDetailsTitle;
 
-  /// Accessibility label on the delete action in the session details header.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete session'**
-  String get sessionDeleteAction;
-
   /// Session status: the workout was finished.
   ///
   /// In en, this message translates to:
@@ -8423,6 +8405,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{start} → {end}'**
   String sleepNightRowRange(String start, String end);
+
+  /// Ends a workout that still has sets left, keeping what was logged.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish now'**
+  String get liveFinishNow;
+
+  /// Title of the finish-early dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish here?'**
+  String get liveFinishNowTitle;
+
+  /// Body of the finish-early dialog. Promises that nothing is invented.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 set is still unlogged. It stays unlogged — nothing is recorded as done.} other{{count} sets are still unlogged. They stay unlogged — nothing is recorded as done.}}'**
+  String liveFinishNowBody(int count);
+
+  /// The streak rule, stated on the drill-down.
+  ///
+  /// In en, this message translates to:
+  /// **'Train at least every {days} days'**
+  String workoutStreakRule(int days);
+
+  /// A day inside the streak with no training.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest day'**
+  String get workoutStreakRestDay;
+
+  /// A gap day kept alive by a spent streak restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get workoutStreakRestored;
+
+  /// How long is left before the current streak breaks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Train today to keep it} =1{1 day left to train} other{{count} days left to train}}'**
+  String workoutStreakDaysLeft(int count);
+
+  /// Shown when the allowance has run out.
+  ///
+  /// In en, this message translates to:
+  /// **'No active streak'**
+  String get workoutStreakBroken;
+
+  /// Action that spends a streak restore on a missed day.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this day'**
+  String get workoutStreakRestore;
+
+  /// Title of the restore confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this day?'**
+  String get workoutStreakRestoreTitle;
+
+  /// Body of the restore confirmation — states exactly what a restore does and does not do.
+  ///
+  /// In en, this message translates to:
+  /// **'It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.'**
+  String get workoutStreakRestoreBody;
+
+  /// Why the restore action is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'One restore every {days} days'**
+  String workoutStreakRestoreUnavailable(int days);
+
+  /// Opens the missed-day reason picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Why no training?'**
+  String get workoutStreakWhyMissed;
+
+  /// Footnote on the missed-day reason sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Context only — it never changes your streak.'**
+  String get workoutStreakReasonSaved;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get missedDayRest;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery'**
+  String get missedDayRecovery;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get missedDayTravel;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Illness'**
+  String get missedDayIllness;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Too busy'**
+  String get missedDayBusy;
+
+  /// Missed-day reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get missedDayOther;
+
+  /// Shown on a rest day with no recorded reason.
+  ///
+  /// In en, this message translates to:
+  /// **'No reason given'**
+  String get missedDayNone;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed by ZIVO'**
+  String get sessionDurationMeasured;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed at your last set'**
+  String get sessionDurationAutoClosed;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'You set this'**
+  String get sessionDurationCorrected;
+
+  /// How a session duration was produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration unknown'**
+  String get sessionDurationUnknown;
+
+  /// Chip on a session held out of the averages.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a duration'**
+  String get sessionNeedsDuration;
+
+  /// Explains why a session is excluded from averages.
+  ///
+  /// In en, this message translates to:
+  /// **'This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.'**
+  String get sessionNeedsDurationBody;
+
+  /// Opens the duration-correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set duration'**
+  String get sessionSetDuration;
+
+  /// Field label on the duration-correction sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes'**
+  String get sessionDurationMinutes;
+
+  /// Clears a duration correction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the measured time'**
+  String get sessionDurationUseMeasured;
+
+  /// Withdraws a session from the statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Void this session'**
+  String get sessionVoid;
+
+  /// Title of the void dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Void this session?'**
+  String get sessionVoidTitle;
+
+  /// Body of the void dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.'**
+  String get sessionVoidBody;
+
+  /// Status label on a voided session.
+  ///
+  /// In en, this message translates to:
+  /// **'Voided'**
+  String get sessionVoided;
+
+  /// Undoes a void.
+  ///
+  /// In en, this message translates to:
+  /// **'Count this session again'**
+  String get sessionUnvoid;
+
+  /// Prompt for the void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Why?'**
+  String get sessionVoidReason;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'The time is wrong'**
+  String get voidReasonBadDuration;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged by mistake'**
+  String get voidReasonLoggedByMistake;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Wasn\'t me'**
+  String get voidReasonNotMine;
+
+  /// Void reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get voidReasonOther;
+
+  /// Explains why delete is no longer offered on a logged session.
+  ///
+  /// In en, this message translates to:
+  /// **'A session that recorded work is voided, not deleted — so your history stays trustworthy.'**
+  String get sessionCannotDelete;
+
+  /// Says how many sessions an average duration covers.
+  ///
+  /// In en, this message translates to:
+  /// **'over {counted} of {total}'**
+  String statDurationOver(int counted, int total);
+
+  /// Shown when every session duration was held out of the average.
+  ///
+  /// In en, this message translates to:
+  /// **'no usable session lengths yet'**
+  String get statDurationAllExcluded;
+
+  /// Title of the workout settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Training settings'**
+  String get workoutSettings;
+
+  /// Setting label.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum session length'**
+  String get workoutMaxSessionTitle;
+
+  /// Explains the maximum-session-length setting.
+  ///
+  /// In en, this message translates to:
+  /// **'A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.'**
+  String get workoutMaxSessionBody;
+
+  /// The configured maximum, as hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String workoutMaxSessionValue(int hours, int minutes);
+
+  /// The configured maximum, whole hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String workoutMaxSessionValueHours(int hours);
+
+  /// Toast when a missed-day reason or restore fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that day.'**
+  String get trainingDayMarkSaveFailed;
+
+  /// Toast when a duration correction or void fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update that session.'**
+  String get sessionUpdateFailed;
+
+  /// Toast when a workout setting fails to save.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save that setting.'**
+  String get workoutSettingsSaveFailed;
 }
 
 class _AppLocalizationsDelegate

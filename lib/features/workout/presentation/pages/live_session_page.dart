@@ -14,6 +14,7 @@ import '../../domain/exercise_history.dart';
 import '../../domain/live_session.dart';
 import '../../domain/logged_set.dart';
 import '../../domain/session_exercise.dart';
+import '../../domain/session_maintenance.dart';
 import '../../domain/set_outcome.dart';
 import '../../domain/workout_day.dart';
 import '../../domain/workout_plan.dart';
@@ -104,6 +105,10 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       resume: widget.resume,
     )..addListener(_onControllerChanged);
     _c.start();
+    // Claim this session so the app-level staleness sweep leaves it alone
+    // while it is being performed.
+    _maintenance = AppScope.of(context).sessionMaintenance
+      ?..openSessionId = _c.session.id;
   }
 
   void _onControllerChanged() {
@@ -112,16 +117,32 @@ class _LiveSessionPageState extends State<LiveSessionPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _c.onAppResumed();
+    if (state == AppLifecycleState.resumed) {
+      _c.onAppResumed();
+    } else if (state == AppLifecycleState.paused) {
+      // The other half of the clock. Without a mark going in, coming back had
+      // no way to tell twenty seconds away from twenty hours, and every one of
+      // those hours was logged as training.
+      _c.onAppPaused();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Hand ownership of this session back to the staleness sweep. While this
+    // screen was up it was the owner, and the sweep deferred to it.
+    if (_maintenance?.openSessionId == _controller?.session.id) {
+      _maintenance?.openSessionId = null;
+    }
     _controller?.removeListener(_onControllerChanged);
     _controller?.dispose();
     super.dispose();
   }
+
+  /// Held rather than read from `context` in [dispose], where looking a scope
+  /// up is no longer allowed.
+  SessionMaintenance? _maintenance;
 
   // ---- Commands the page owns because they navigate ------------------------
 
@@ -140,6 +161,31 @@ class _LiveSessionPageState extends State<LiveSessionPage>
       return;
     }
     Navigator.of(context).pop();
+  }
+
+  /// FINISH NOW — end a workout that still has sets left, from the running
+  /// screen. Confirms first, because it ends the session; the prompt lives
+  /// here for the same reason Discard's does — a confirmation is a screen, not
+  /// a rule. It is deliberately NOT destructive-styled: nothing is lost.
+  Future<void> _onFinishNow() async {
+    if (_c.isBusy || _c.isResolvingSet) return;
+    final remaining = _c.session.totalSets - _c.session.completedSetCount;
+    final confirmed = await confirmDestructive(
+      context,
+      title: l(context).liveFinishNowTitle,
+      body: l(context).liveFinishNowBody(remaining),
+      confirmLabel: l(context).liveFinishNow,
+      cancelLabel: l(context).liveKeepGoing,
+    );
+    if (!confirmed || !mounted) return;
+    final navigator = Navigator.of(context);
+    if (!_c.finishNow(
+      workouts: AppScope.of(context).workouts,
+      plans: AppScope.of(context).workoutPlans,
+    )) {
+      return;
+    }
+    navigator.pop();
   }
 
   /// LEAVE — the close button and the system back gesture.
@@ -224,6 +270,17 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                               isPaused: _c.session.isPaused,
                               onClose: _onLeave,
                               onDiscard: _onDiscard,
+                              // Offered only once there is a workout worth
+                              // keeping and sets still to go — on a session
+                              // with nothing logged, Close already does the
+                              // right thing (it discards an empty one), and
+                              // on a finished one there is nothing to cut
+                              // short.
+                              onFinishNow:
+                                  !_c.session.isComplete &&
+                                      _c.session.completedSetCount > 0
+                                  ? _onFinishNow
+                                  : null,
                               onTogglePause: _c.session.isComplete
                                   ? null
                                   : _c.togglePause,

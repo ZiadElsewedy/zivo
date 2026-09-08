@@ -1872,20 +1872,6 @@
       }
     }
   },
-  "sessionDeleteTitle": "Delete this session?",
-  "@sessionDeleteTitle": {
-    "description": "Title of the delete-logged-session confirmation."
-  },
-  "sessionDeleteBody": "This permanently removes your \"{day}\" session and everything logged in it. This can't be undone.",
-  "@sessionDeleteBody": {
-    "description": "Body of the delete-logged-session confirmation.",
-    "placeholders": {
-      "day": {
-        "type": "String",
-        "example": "Push"
-      }
-    }
-  },
   "splitDeleteTitle": "Delete \"{name}\"?",
   "@splitDeleteTitle": {
     "description": "Title of the delete-split confirmation.",
@@ -4580,10 +4566,6 @@
   "@sessionDetailsTitle": {
       "description": "Title of the page showing one logged workout session."
   },
-  "sessionDeleteAction": "Delete session",
-  "@sessionDeleteAction": {
-      "description": "Accessibility label on the delete action in the session details header."
-  },
   "sessionStatusCompleted": "Completed",
   "@sessionStatusCompleted": {
       "description": "Session status: the workout was finished."
@@ -7146,5 +7128,232 @@
         "type": "String"
       }
     }
+  },
+  "liveFinishNow": "Finish now",
+  "@liveFinishNow": {
+    "description": "Ends a workout that still has sets left, keeping what was logged."
+  },
+  "liveFinishNowTitle": "Finish here?",
+  "@liveFinishNowTitle": {
+    "description": "Title of the finish-early dialog."
+  },
+  "liveFinishNowBody": "{count, plural, =1{1 set is still unlogged. It stays unlogged — nothing is recorded as done.} other{{count} sets are still unlogged. They stay unlogged — nothing is recorded as done.}}",
+  "@liveFinishNowBody": {
+    "description": "Body of the finish-early dialog. Promises that nothing is invented.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "workoutStreakRule": "Train at least every {days} days",
+  "@workoutStreakRule": {
+    "description": "The streak rule, stated on the drill-down.",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "workoutStreakRestDay": "Rest day",
+  "@workoutStreakRestDay": {
+    "description": "A day inside the streak with no training."
+  },
+  "workoutStreakRestored": "Restored",
+  "@workoutStreakRestored": {
+    "description": "A gap day kept alive by a spent streak restore."
+  },
+  "workoutStreakDaysLeft": "{count, plural, =0{Train today to keep it} =1{1 day left to train} other{{count} days left to train}}",
+  "@workoutStreakDaysLeft": {
+    "description": "How long is left before the current streak breaks.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "workoutStreakBroken": "No active streak",
+  "@workoutStreakBroken": {
+    "description": "Shown when the allowance has run out."
+  },
+  "workoutStreakRestore": "Restore this day",
+  "@workoutStreakRestore": {
+    "description": "Action that spends a streak restore on a missed day."
+  },
+  "workoutStreakRestoreTitle": "Restore this day?",
+  "@workoutStreakRestoreTitle": {
+    "description": "Title of the restore confirmation."
+  },
+  "workoutStreakRestoreBody": "It bridges the gap so your streak survives. It does not add a workout, and it never counts as one.",
+  "@workoutStreakRestoreBody": {
+    "description": "Body of the restore confirmation — states exactly what a restore does and does not do."
+  },
+  "workoutStreakRestoreUnavailable": "One restore every {days} days",
+  "@workoutStreakRestoreUnavailable": {
+    "description": "Why the restore action is unavailable.",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "workoutStreakWhyMissed": "Why no training?",
+  "@workoutStreakWhyMissed": {
+    "description": "Opens the missed-day reason picker."
+  },
+  "workoutStreakReasonSaved": "Context only — it never changes your streak.",
+  "@workoutStreakReasonSaved": {
+    "description": "Footnote on the missed-day reason sheet."
+  },
+  "missedDayRest": "Rest",
+  "@missedDayRest": {
+    "description": "Missed-day reason."
+  },
+  "missedDayRecovery": "Recovery",
+  "@missedDayRecovery": {
+    "description": "Missed-day reason."
+  },
+  "missedDayTravel": "Travel",
+  "@missedDayTravel": {
+    "description": "Missed-day reason."
+  },
+  "missedDayIllness": "Illness",
+  "@missedDayIllness": {
+    "description": "Missed-day reason."
+  },
+  "missedDayBusy": "Too busy",
+  "@missedDayBusy": {
+    "description": "Missed-day reason."
+  },
+  "missedDayOther": "Something else",
+  "@missedDayOther": {
+    "description": "Missed-day reason."
+  },
+  "missedDayNone": "No reason given",
+  "@missedDayNone": {
+    "description": "Shown on a rest day with no recorded reason."
+  },
+  "sessionDurationMeasured": "Timed by ZIVO",
+  "@sessionDurationMeasured": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationAutoClosed": "Closed at your last set",
+  "@sessionDurationAutoClosed": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationCorrected": "You set this",
+  "@sessionDurationCorrected": {
+    "description": "How a session duration was produced."
+  },
+  "sessionDurationUnknown": "Duration unknown",
+  "@sessionDurationUnknown": {
+    "description": "How a session duration was produced."
+  },
+  "sessionNeedsDuration": "Needs a duration",
+  "@sessionNeedsDuration": {
+    "description": "Chip on a session held out of the averages."
+  },
+  "sessionNeedsDurationBody": "This session ran longer than a workout plausibly does, so it is left out of your averages until you set its length. Everything you logged is kept.",
+  "@sessionNeedsDurationBody": {
+    "description": "Explains why a session is excluded from averages."
+  },
+  "sessionSetDuration": "Set duration",
+  "@sessionSetDuration": {
+    "description": "Opens the duration-correction sheet."
+  },
+  "sessionDurationMinutes": "Minutes",
+  "@sessionDurationMinutes": {
+    "description": "Field label on the duration-correction sheet."
+  },
+  "sessionDurationUseMeasured": "Use the measured time",
+  "@sessionDurationUseMeasured": {
+    "description": "Clears a duration correction."
+  },
+  "sessionVoid": "Void this session",
+  "@sessionVoid": {
+    "description": "Withdraws a session from the statistics."
+  },
+  "sessionVoidTitle": "Void this session?",
+  "@sessionVoidTitle": {
+    "description": "Title of the void dialog."
+  },
+  "sessionVoidBody": "It stays in your history exactly as logged, and stops counting toward your streak, averages and analysis.",
+  "@sessionVoidBody": {
+    "description": "Body of the void dialog."
+  },
+  "sessionVoided": "Voided",
+  "@sessionVoided": {
+    "description": "Status label on a voided session."
+  },
+  "sessionUnvoid": "Count this session again",
+  "@sessionUnvoid": {
+    "description": "Undoes a void."
+  },
+  "sessionVoidReason": "Why?",
+  "@sessionVoidReason": {
+    "description": "Prompt for the void reason."
+  },
+  "voidReasonBadDuration": "The time is wrong",
+  "@voidReasonBadDuration": {
+    "description": "Void reason."
+  },
+  "voidReasonLoggedByMistake": "Logged by mistake",
+  "@voidReasonLoggedByMistake": {
+    "description": "Void reason."
+  },
+  "voidReasonNotMine": "Wasn't me",
+  "@voidReasonNotMine": {
+    "description": "Void reason."
+  },
+  "voidReasonOther": "Something else",
+  "@voidReasonOther": {
+    "description": "Void reason."
+  },
+  "sessionCannotDelete": "A session that recorded work is voided, not deleted — so your history stays trustworthy.",
+  "@sessionCannotDelete": {
+    "description": "Explains why delete is no longer offered on a logged session."
+  },
+  "statDurationOver": "over {counted} of {total}",
+  "@statDurationOver": {
+    "description": "Says how many sessions an average duration covers.",
+    "placeholders": {
+      "counted": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "statDurationAllExcluded": "no usable session lengths yet",
+  "@statDurationAllExcluded": {
+    "description": "Shown when every session duration was held out of the average."
+  },
+  "workoutSettings": "Training settings",
+  "@workoutSettings": {
+    "description": "Title of the workout settings page."
+  },
+  "workoutMaxSessionTitle": "Maximum session length",
+  "@workoutMaxSessionTitle": {
+    "description": "Setting label."
+  },
+  "workoutMaxSessionBody": "A workout still running past this, with nothing logged for a while, is treated as one you forgot to close. It is ended at your last logged set — never padded out, and never filled in with sets you did not do.",
+  "@workoutMaxSessionBody": {
+    "description": "Explains the maximum-session-length setting."
+  },
+  "workoutMaxSessionValue": "{hours}h {minutes}m",
+  "@workoutMaxSessionValue": {
+    "description": "The configured maximum, as hours and minutes.",
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "workoutMaxSessionValueHours": "{hours}h",
+  "@workoutMaxSessionValueHours": {
+    "description": "The configured maximum, whole hours.",
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "trainingDayMarkSaveFailed": "Couldn't save that day.",
+  "@trainingDayMarkSaveFailed": {
+    "description": "Toast when a missed-day reason or restore fails to save."
+  },
+  "sessionUpdateFailed": "Couldn't update that session.",
+  "@sessionUpdateFailed": {
+    "description": "Toast when a duration correction or void fails to save."
+  },
+  "workoutSettingsSaveFailed": "Couldn't save that setting.",
+  "@workoutSettingsSaveFailed": {
+    "description": "Toast when a workout setting fails to save."
   }
 }

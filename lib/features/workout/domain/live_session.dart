@@ -30,6 +30,10 @@ class LiveSession {
     this.completedAt,
     this.pausedAt,
     this.pausedAccumMs = 0,
+    this.durationSource = DurationSource.measured,
+    this.correctedDurationMinutes,
+    this.voidReason,
+    this.voidedAt,
   });
 
   final String id;
@@ -53,6 +57,23 @@ class LiveSession {
   /// once [resume] closes it.
   final int pausedAccumMs;
 
+  /// How [elapsed] was arrived at. Provenance, in the same spirit as
+  /// [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md): a duration that was
+  /// reconstructed after the fact, or that is not knowable at all, must not be
+  /// indistinguishable from one the app watched happen.
+  final DurationSource durationSource;
+
+  /// A duration the user set by hand, in whole minutes. When present it IS
+  /// [elapsed]; [startedAt]/[completedAt] are still kept exactly as recorded,
+  /// so the correction is an amendment on top of the record and never a
+  /// rewrite of it.
+  final int? correctedDurationMinutes;
+
+  /// Why this session was withdrawn from the statistics, and when. Both null
+  /// unless [status] is [SessionStatus.voided].
+  final VoidReason? voidReason;
+  final DateTime? voidedAt;
+
   // ---- Derived getters -----------------------------------------------------
 
   /// §3.2: a session's split IS its plan. [planId] already stores the split's
@@ -62,6 +83,35 @@ class LiveSession {
   String get splitId => planId;
 
   Iterable<LoggedSet> get allSets => exercises.expand((e) => e.sets);
+
+  /// Whether this session logged at least one completed WORKING set — the bar
+  /// for "you trained", used by the streak engine and by the staleness sweep
+  /// to tell a real (if partial) workout from an empty shell.
+  ///
+  /// Working, not merely done: warming up and leaving is not training, which
+  /// is the same line `analytics/plan_adherence.dart` already draws. Kept here
+  /// rather than imported from the analytics engine so the domain's most basic
+  /// question doesn't depend on its most elaborate file.
+  bool get hasCompletedWorkingSet =>
+      allSets.any((s) => s.done && s.type != SetType.warmup);
+
+  /// The last moment there is any evidence training was happening — the
+  /// newest [LoggedSet.resolvedAt] across every set. Null for a session whose
+  /// sets carry no timestamps (nothing resolved yet, or a session logged
+  /// before `resolvedAt` existed).
+  ///
+  /// This is the anchor for closing a session that was left open: the wall
+  /// clock says the screen was up for nineteen hours, this says the last set
+  /// was tapped at 7:14pm.
+  DateTime? get lastActivityAt {
+    DateTime? latest;
+    for (final s in allSets) {
+      final at = s.resolvedAt;
+      if (at == null) continue;
+      if (latest == null || at.isAfter(latest)) latest = at;
+    }
+    return latest;
+  }
   int get totalSets => exercises.fold(0, (sum, e) => sum + e.sets.length);
   int get completedSetCount => allSets.where((s) => s.done).length;
 
@@ -81,6 +131,15 @@ class LiveSession {
   bool get allSetsDone => totalSets > 0 && completedSetCount == totalSets;
   bool get isComplete => status == SessionStatus.completed;
   bool get isPaused => pausedAt != null;
+  bool get isVoided => status == SessionStatus.voided;
+
+  /// Whether this session's record counts as training that happened —
+  /// everything except a session that was quit or withdrawn. An `active`
+  /// session counts: a workout half-logged and not yet finished still
+  /// happened, and the streak must not pretend otherwise just because the
+  /// user hasn't tapped Finish.
+  bool get countsAsTraining =>
+      status == SessionStatus.completed || status == SessionStatus.active;
 
   /// The exercise holding the first still-pending set — what the user is on
   /// now. A skipped set is resolved, not current — this is what lets a skip
@@ -126,18 +185,68 @@ class LiveSession {
 
   Duration get pausedAccum => Duration(milliseconds: pausedAccumMs);
 
-  /// The session's final, official duration once it's [complete] — active
+  /// The session's final, official duration once it's finished — active
   /// training time, with every pause (accumulated by [complete] closing any
   /// still-open one first) excluded. Zero while still active.
-  Duration get elapsed =>
-      (completedAt ?? startedAt).difference(startedAt) - pausedAccum;
+  ///
+  /// A [correctedDurationMinutes] the user set by hand wins outright. It is an
+  /// amendment, not an edit: the raw [startedAt]/[completedAt] stay exactly as
+  /// recorded underneath, and [durationSource] says which number this is.
+  Duration get elapsed {
+    final corrected = correctedDurationMinutes;
+    if (corrected != null) return Duration(minutes: corrected);
+    final raw = (completedAt ?? startedAt).difference(startedAt) - pausedAccum;
+    // A clock moved backwards mid-session (manual change, or a network time
+    // sync) can make this negative; a negative duration is never a fact.
+    return raw.isNegative ? Duration.zero : raw;
+  }
+
+  /// Whether [elapsed] is a number the statistics may use.
+  ///
+  /// False when the duration is not knowable ([DurationSource.unknown] — a
+  /// session closed with no per-set timestamps to close it at), when it is
+  /// zero, or when it exceeds [maxSessionDuration]. Such a session keeps its
+  /// place in history in full; it is only barred from *averages*, so one
+  /// forgotten session can't quietly drag "how long a workout takes" toward a
+  /// number that never happened.
+  bool hasUsableDuration(Duration maxSessionDuration) {
+    if (durationSource == DurationSource.unknown) return false;
+    final d = elapsed;
+    return d > Duration.zero && d <= maxSessionDuration;
+  }
+
+  /// Whether [elapsed] is longer than a session plausibly runs — the flag that
+  /// puts a "needs a duration" affordance on the record.
+  bool exceedsMaxDuration(Duration maxSessionDuration) =>
+      elapsed > maxSessionDuration;
+
+  /// Whether this still-[active] session has run past [maxSessionDuration]
+  /// *and* gone quiet — the definition of "left open", and the only thing the
+  /// staleness sweep acts on.
+  ///
+  /// Both halves are load-bearing. Running long alone is not stale: someone
+  /// genuinely training at the three-hour mark is training, and closing their
+  /// session out from under them would be the worst bug in this whole area.
+  /// [kStaleInactivityGrace] with no set resolved is what separates the two —
+  /// nobody logs nothing for half an hour and is still mid-workout.
+  bool isStale({
+    required DateTime now,
+    required Duration maxSessionDuration,
+  }) {
+    if (status != SessionStatus.active) return false;
+    if (activeElapsed(now: now) <= maxSessionDuration) return false;
+    final since = now.difference(lastActivityAt ?? startedAt);
+    return since > kStaleInactivityGrace;
+  }
 
   /// The *live*, still-running active-time reading for an in-progress
   /// session — wall time since [startedAt], minus accumulated pauses, frozen
   /// at the moment a pause started if one is open right now. Callers pass
   /// `now`; this never reads the wall clock itself.
-  Duration activeElapsed({required DateTime now}) =>
-      (pausedAt ?? now).difference(startedAt) - pausedAccum;
+  Duration activeElapsed({required DateTime now}) {
+    final raw = (pausedAt ?? now).difference(startedAt) - pausedAccum;
+    return raw.isNegative ? Duration.zero : raw;
+  }
 
   // ---- Construction --------------------------------------------------------
 
@@ -182,9 +291,13 @@ class LiveSession {
 
   /// Marks [setId] done, recording actuals. [actualReps] defaults to the target
   /// when null and the target is a fixed count; ranges/to-failure stay as given.
+  /// [now] is required, and is stamped onto the set as
+  /// [LoggedSet.resolvedAt] — the session's duration is measured from these,
+  /// so a resolution with no timestamp is a hole in the record.
   LiveSession markSetDone(
     String exerciseId,
     String setId, {
+    required DateTime now,
     int? actualReps,
     double? actualWeightKg,
     double? rpe,
@@ -197,6 +310,7 @@ class LiveSession {
       actualReps: reps,
       actualWeightKg: actualWeightKg ?? s.actualWeightKg ?? s.targetWeightKg,
       rpe: rpe ?? s.rpe,
+      resolvedAt: now,
     );
   });
 
@@ -205,19 +319,26 @@ class LiveSession {
   /// [completedSetCount]/history exclude it. Any actuals already typed for it
   /// (an abandoned draft) are preserved as-is, not cleared, so the end-of-
   /// workout review can still show what was entered.
-  LiveSession markSetSkipped(String exerciseId, String setId) => _mapSet(
+  LiveSession markSetSkipped(
+    String exerciseId,
+    String setId, {
+    required DateTime now,
+  }) => _mapSet(
     exerciseId,
     setId,
-    (s) => s.copyWith(outcome: SetOutcome.skipped),
+    (s) => s.copyWith(outcome: SetOutcome.skipped, resolvedAt: now),
   );
 
   /// Un-does a completed or skipped set back to [SetOutcome.pending], making
   /// it the current set again — the Back/Undo primitive. Actuals are left
   /// untouched (Undo restores "current", it doesn't erase what was typed).
+  /// [LoggedSet.resolvedAt] is cleared with the outcome — an un-done set was
+  /// not resolved, and leaving its stamp behind would let an undone set go on
+  /// defining when training stopped.
   LiveSession clearOutcome(String exerciseId, String setId) => _mapSet(
     exerciseId,
     setId,
-    (s) => s.copyWith(outcome: SetOutcome.pending),
+    (s) => s.copyWith(outcome: SetOutcome.pending, resolvedAt: null),
   );
 
   /// Edits a set's fields in place. Pass an explicit `null` to clear a nullable
@@ -237,6 +358,11 @@ class LiveSession {
       id: s.id,
       target: s.target,
       targetWeightKg: s.targetWeightKg,
+      // Deliberately carried through untouched. Reviewing a set at the end of
+      // a workout — or correcting one an hour later — is not performing it,
+      // and re-stamping here would stretch the session's measured duration to
+      // whenever the user happened to tidy up.
+      resolvedAt: s.resolvedAt,
       actualReps: actualReps == _keep
           ? s.actualReps
           : (actualReps as num?)?.toInt(),
@@ -306,6 +432,114 @@ class LiveSession {
     return copyWith(status: SessionStatus.abandoned, completedAt: now);
   }
 
+  /// FINISH NOW — ends a session that still has pending sets, at [now].
+  ///
+  /// The missing exit. Until this existed, a workout cut short had exactly two
+  /// endings: leave it (it stays `active` forever, contributes nothing, and
+  /// goes on offering itself as "resume" in place of the day that is actually
+  /// due) or discard it (everything logged is gone). Neither is "I did four of
+  /// six exercises and went home", which is a normal thing to do.
+  ///
+  /// **Nothing is invented.** Pending sets stay pending — they are not marked
+  /// done and not marked skipped, and they carry no actuals, so
+  /// [completedSetCount], `toWorkoutLog`, volume, PRs and every analytics path
+  /// (all of which count only `done` sets) see exactly what the user entered
+  /// and nothing more. The only thing this writes is the ending.
+  ///
+  /// [now] rather than [lastActivityAt] on purpose: this is a deliberate tap
+  /// by someone standing in the gym, so the wall clock is the truth. The
+  /// last-activity anchor is for [autoClose], where nobody is there to ask.
+  LiveSession finishEarly({required DateTime now}) {
+    if (status != SessionStatus.active) return this;
+    final closed = isPaused ? resume(now: now) : this;
+    return closed.copyWith(
+      status: SessionStatus.completed,
+      completedAt: now,
+      durationSource: DurationSource.measured,
+    );
+  }
+
+  /// Closes a session that was left open, at the last moment there is evidence
+  /// anyone was training.
+  ///
+  /// This is the answer to the session that stays "running" from 6pm Tuesday
+  /// to noon Wednesday. It does **not** cap the duration at some maximum —
+  /// a capped number is a fabricated one wearing a measured number's clothes.
+  /// It ends the session at [lastActivityAt], which is not a guess: it is when
+  /// the user last tapped Done or Skip. A workout whose last set landed at
+  /// 7:14pm gets its real 62 minutes, not three hours and not seventeen.
+  ///
+  /// When there is no such evidence — every set pending, or a session logged
+  /// before per-set timestamps existed — the duration is genuinely unknowable,
+  /// and it says so ([DurationSource.unknown]) rather than inventing one. Such
+  /// a session keeps everything it logged, still counts as a day trained, and
+  /// is simply left out of the duration averages until the user corrects it.
+  ///
+  /// Sets are never touched, in either branch.
+  LiveSession autoClose({required DateTime now}) {
+    if (status != SessionStatus.active) return this;
+    final endedAt = lastActivityAt;
+    return copyWith(
+      status: SessionStatus.completed,
+      completedAt: endedAt ?? startedAt,
+      durationSource: endedAt == null
+          ? DurationSource.unknown
+          : DurationSource.autoClosed,
+      // An open pause can only have begun AFTER the last set was resolved (a
+      // set cannot be logged while paused), so it lies entirely outside
+      // [startedAt, endedAt] and folding it in would subtract time that was
+      // never counted in the first place. Dropped, not accumulated.
+      pausedAt: null,
+    );
+  }
+
+  /// Replaces the duration with one the user set, in whole minutes.
+  ///
+  /// The raw timestamps are untouched — this is an amendment on top of the
+  /// record, marked [DurationSource.userCorrected] so the UI can say so.
+  /// Passing null removes the correction and falls back to the measurement.
+  /// **Sets, weights and outcomes are structurally out of reach here**: a
+  /// duration lives on the session, performance lives under [exercises], and
+  /// correcting one can never touch the other.
+  LiveSession correctDuration(int? minutes) {
+    if (minutes != null && minutes < 0) return this;
+    return copyWith(
+      correctedDurationMinutes: minutes,
+      durationSource: minutes == null
+          ? (completedAt == null
+                ? DurationSource.unknown
+                : DurationSource.measured)
+          : DurationSource.userCorrected,
+    );
+  }
+
+  /// VOID — withdraws a finished session from the statistics, keeping the
+  /// record.
+  ///
+  /// The replacement for deleting a session you don't like the look of. A
+  /// voided session still exists, still shows in History, and still says what
+  /// was lifted; it is simply excluded from every average, streak and
+  /// analysis. That asymmetry is the point: obviously-wrong data can be
+  /// corrected, but history cannot be curated.
+  LiveSession voidSession({required VoidReason reason, required DateTime now}) {
+    if (status == SessionStatus.voided) return this;
+    return copyWith(
+      status: SessionStatus.voided,
+      voidReason: reason,
+      voidedAt: now,
+    );
+  }
+
+  /// Undoes [voidSession], putting the session back into the statistics.
+  LiveSession unvoid() {
+    if (status != SessionStatus.voided) return this;
+    return copyWith(
+      status: SessionStatus.completed,
+      voidReason: null,
+      voidedAt: null,
+    );
+  }
+
   /// Undoes [complete] — back to active, [completedAt] cleared. A no-op
   /// unless the session is actually complete. Used to walk back an
   /// accidental Done/Skip that turned out to be the last pending set.
@@ -359,6 +593,10 @@ class LiveSession {
     Object? completedAt = _keep,
     Object? pausedAt = _keep,
     int? pausedAccumMs,
+    DurationSource? durationSource,
+    Object? correctedDurationMinutes = _keep,
+    Object? voidReason = _keep,
+    Object? voidedAt = _keep,
   }) => LiveSession(
     id: id,
     planId: planId,
@@ -372,7 +610,47 @@ class LiveSession {
         : completedAt as DateTime?,
     pausedAt: pausedAt == _keep ? this.pausedAt : pausedAt as DateTime?,
     pausedAccumMs: pausedAccumMs ?? this.pausedAccumMs,
+    durationSource: durationSource ?? this.durationSource,
+    correctedDurationMinutes: correctedDurationMinutes == _keep
+        ? this.correctedDurationMinutes
+        : correctedDurationMinutes as int?,
+    voidReason: voidReason == _keep ? this.voidReason : voidReason as VoidReason?,
+    voidedAt: voidedAt == _keep ? this.voidedAt : voidedAt as DateTime?,
   );
 }
 
 const Object _keep = Object();
+
+/// How long a session already past its maximum must go with nothing logged
+/// before the sweep will close it. Guards the one case that matters: a real
+/// workout genuinely running long must never be closed out from under someone
+/// who is still lifting. Nobody logs nothing for half an hour mid-workout.
+const Duration kStaleInactivityGrace = Duration(minutes: 30);
+
+/// Where a session's [LiveSession.elapsed] came from.
+///
+/// Provenance rather than a single number, for the reason
+/// [ADR-010](docs/DECISIONS/ADR-010-sleep-provenance.md) gives about sleep: a
+/// duration the app watched happen, one reconstructed afterwards from the last
+/// set, one a user typed, and one nobody can know are four different claims,
+/// and collapsing them into one field forces a lie in at least one case.
+enum DurationSource {
+  /// The app was there for it: the session ended when it ended.
+  measured,
+
+  /// The session was left open and was closed at its last logged set. The
+  /// number is real, but it was reconstructed after the fact.
+  autoClosed,
+
+  /// The user set it by hand.
+  userCorrected,
+
+  /// Left open with nothing to close it at — no per-set timestamps. Excluded
+  /// from every average until corrected, never guessed at.
+  unknown,
+}
+
+/// Parses a stored [DurationSource] name, defaulting to [DurationSource.measured]
+/// — which is what every session written before this field existed was.
+DurationSource durationSourceFromName(String? name) => DurationSource.values
+    .firstWhere((s) => s.name == name, orElse: () => DurationSource.measured);

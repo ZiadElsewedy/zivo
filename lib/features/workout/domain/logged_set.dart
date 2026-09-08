@@ -19,6 +19,7 @@ class LoggedSet {
     this.targetWeightKg,
     this.actualReps,
     this.actualWeightKg,
+    this.resolvedAt,
     this.rpe,
     this.type = SetType.working,
     this.outcome = SetOutcome.pending,
@@ -34,6 +35,20 @@ class LoggedSet {
 
   final int? actualReps;
   final double? actualWeightKg;
+
+  /// When this set stopped being pending — the moment Done or Skip was tapped.
+  /// Null on a set that was never resolved, and on any set logged before this
+  /// field existed.
+  ///
+  /// **This is what makes a session's duration a measurement rather than a
+  /// subtraction.** `completedAt - startedAt` says how long the screen was
+  /// open, which is a very different number from how long the user trained:
+  /// close the app mid-workout at 7pm, reopen it at noon the next day and tap
+  /// the last set, and the two disagree by seventeen hours. The last
+  /// [resolvedAt] in a session is the last moment there is evidence anyone was
+  /// training, so it — not the wall clock — is where a stale session gets
+  /// closed. See `LiveSession.lastActivityAt`.
+  final DateTime? resolvedAt;
 
   /// Rate of perceived exertion — optional, captured now so the progress engine
   /// and future AI can reason about effort.
@@ -60,6 +75,7 @@ class LoggedSet {
     Object? targetWeightKg = _unset,
     Object? actualReps = _unset,
     Object? actualWeightKg = _unset,
+    Object? resolvedAt = _unset,
     Object? rpe = _unset,
     SetType? type,
     SetOutcome? outcome,
@@ -70,6 +86,7 @@ class LoggedSet {
         targetWeightKg == _unset ? this.targetWeightKg : targetWeightKg as double?,
     actualReps: actualReps == _unset ? this.actualReps : actualReps as int?,
     actualWeightKg: actualWeightKg == _unset ? this.actualWeightKg : actualWeightKg as double?,
+    resolvedAt: resolvedAt == _unset ? this.resolvedAt : resolvedAt as DateTime?,
     rpe: rpe == _unset ? this.rpe : rpe as double?,
     type: type ?? this.type,
     outcome: outcome ?? this.outcome,
@@ -83,11 +100,13 @@ class LoggedSet {
       other.targetWeightKg == targetWeightKg &&
       other.actualReps == actualReps &&
       other.actualWeightKg == actualWeightKg &&
+      other.resolvedAt == resolvedAt &&
       other.rpe == rpe &&
       other.type == type &&
       other.outcome == outcome;
 
   @override
   int get hashCode =>
-      Object.hash(id, target, targetWeightKg, actualReps, actualWeightKg, rpe, type, outcome);
+      Object.hash(id, target, targetWeightKg, actualReps, actualWeightKg, resolvedAt, rpe,
+          type, outcome);
 }

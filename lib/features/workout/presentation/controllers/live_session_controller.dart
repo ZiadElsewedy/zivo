@@ -324,7 +324,48 @@ class LiveSessionController extends ChangeNotifier {
   void onAppResumed() {
     _resyncRestOnResume();
     _resyncWarmupOnResume();
+    _foldBackgroundGapIntoPauses();
     _tickElapsed();
+  }
+
+  /// Remembers when the app went away, so [onAppResumed] can tell a glance at
+  /// a notification from an evening off.
+  void onAppPaused() => _backgroundedAt = now();
+
+  DateTime? _backgroundedAt;
+
+  /// Time the app spent in the background, beyond anything that could still be
+  /// training, is folded into the session's paused total.
+  ///
+  /// This is the fix at the source, and it is a measurement rather than a
+  /// guess. `elapsed` is wall time minus pauses, and nothing was ever
+  /// subtracting the hours a phone spent locked in a pocket — so a session
+  /// picked up the next morning claimed every one of them as training.
+  ///
+  /// Two things legitimately happen with the screen off, and both are
+  /// respected: a rest countdown running (the phone is locked between sets —
+  /// that IS the workout), and a short window after it for the walk back to
+  /// the rack. Past that, nobody is training, and [kStaleInactivityGrace] of
+  /// silence is the same line the staleness sweep draws.
+  void _foldBackgroundGapIntoPauses() {
+    final wentAway = _backgroundedAt;
+    _backgroundedAt = null;
+    if (wentAway == null) return;
+    if (_session.isComplete || _session.isPaused) return;
+
+    // Rest legitimately runs while backgrounded — count from when it ended.
+    final restEndsAt = _restEndsAt;
+    final awayFrom = (restEndsAt != null && restEndsAt.isAfter(wentAway))
+        ? restEndsAt
+        : wentAway;
+    final gap = now().difference(awayFrom) - kStaleInactivityGrace;
+    if (gap <= Duration.zero) return;
+
+    _session = _session.copyWith(
+      pausedAccumMs: _session.pausedAccumMs + gap.inMilliseconds,
+    );
+    _notify();
+    unawaited(_sessions.saveSession(_session));
   }
 
   @override
@@ -464,6 +505,7 @@ class LiveSessionController extends ChangeNotifier {
     _session = _session.markSetDone(
       exercise.id,
       set.id,
+      now: now(),
       actualReps: parseWhole(reps.text),
       actualWeightKg: parseDecimal(weight.text),
     );
@@ -481,7 +523,7 @@ class LiveSessionController extends ChangeNotifier {
     final set = _session.currentSet;
     if (exercise == null || set == null) return;
     HapticFeedback.lightImpact();
-    _session = _session.markSetSkipped(exercise.id, set.id);
+    _session = _session.markSetSkipped(exercise.id, set.id, now: now());
     _notify();
     _afterResolvingCurrentSet(exercise.restSeconds, reducedMotion);
   }
@@ -895,6 +937,31 @@ class LiveSessionController extends ChangeNotifier {
       if (split.id == _plan.id) return split;
     }
     return _plan;
+  }
+
+  /// FINISH NOW: end a session that still has sets pending.
+  ///
+  /// The exit that was missing. Before this, a workout cut short could only be
+  /// left (staying `active` forever, counting for nothing, and going on
+  /// offering itself in place of the day actually due) or discarded (losing
+  /// everything logged). Neither is "I did four of six exercises."
+  ///
+  /// **It logs nothing the user didn't.** Pending sets stay pending — not
+  /// done, not skipped, no reps, no load — which every counter downstream
+  /// already ignores. See [LiveSession.finishEarly].
+  ///
+  /// Same write/return contract as [finish]: the caller pops.
+  bool finishNow({
+    required WorkoutRepository workouts,
+    required WorkoutPlanRepository plans,
+  }) {
+    if (_busy) return false;
+    _saveDraft();
+    _session = _session.finishEarly(now: now());
+    _notify();
+    _clearRest();
+    _elapsedTimer?.cancel();
+    return finish(workouts: workouts, plans: plans);
   }
 
   /// LEAVE: the close (X) button and the system back gesture. The session

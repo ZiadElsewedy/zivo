@@ -25,6 +25,7 @@ import 'live_session_page.dart';
 import 'split_management_page.dart';
 import 'workout_analysis_page.dart';
 import 'workout_history_page.dart';
+import 'workout_settings_page.dart';
 import 'workout_plan_edit_page.dart';
 import '../../../../l10n/l10n.dart';
 
@@ -221,7 +222,14 @@ class _PlanBody extends StatelessWidget {
         // `up_next_selection.dart`) so the two surfaces can't drift apart —
         // a session running on a different day than the rotation's `nextDay`
         // (e.g. the plan changed mid-session) shows its own day here too.
-        final selection = resolveUpNext(plan, sessionSnapshot.data);
+        final selection = resolveUpNext(
+              plan,
+              sessionSnapshot.data,
+              // A session left open on Tuesday must not still be offering
+              // itself as "resume" on Thursday, in place of the day due.
+              now: DateTime.now(),
+              maxSessionDuration: AppScope.of(context).maxSessionDuration,
+            );
         final today = selection.day;
         return ListView(
           padding: EdgeInsets.fromLTRB(
@@ -320,6 +328,16 @@ class _PlanBody extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const WorkoutAnalysisPage(),
+                    ),
+                  ),
+                ),
+                TrainListRow(
+                  icon: AppIcons.settings,
+                  accent: TrainColors.green,
+                  label: l(context).workoutSettings,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutSettingsPage(),
                     ),
                   ),
                 ),

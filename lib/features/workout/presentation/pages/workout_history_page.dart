@@ -11,6 +11,7 @@ import '../../../../core/widgets/train_surfaces.dart';
 import '../../domain/live_session.dart';
 import '../../domain/session_status.dart';
 import '../../domain/workout_session_repository.dart';
+import '../widgets/session_correction_sheet.dart';
 import 'session_details_page.dart';
 import '../../../../core/util/date_format.dart';
 import '../../../../l10n/l10n.dart';
@@ -114,24 +115,47 @@ class WorkoutHistoryPage extends StatelessWidget {
                     padding: EdgeInsets.only(
                       bottom: i == byWeek[ws]!.length - 1 ? 0 : 10,
                     ),
-                    child: Dismissible(
-                      key: ValueKey(session.id),
-                      direction: DismissDirection.endToStart,
-                      background: const _DeleteSwipeBackground(),
-                      confirmDismiss: (_) =>
-                          confirmDeleteSession(context, session.dayLabel),
-                      onDismissed: (_) => sessions.deleteSession(session.id),
-                      child: _SessionHistoryRow(
-                        session: session,
-                        now: now,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                SessionDetailsPage(session: session),
+                    // Swipe VOIDS, it does not delete — and only where there
+                    // is something to withdraw. A history that can be swiped
+                    // away is a history nobody can trust, so a session that
+                    // recorded work keeps its row (struck through, marked
+                    // with its reason) and merely stops counting. A session
+                    // with nothing logged never reaches this list.
+                    child: session.hasCompletedWorkingSet && !session.isVoided
+                        ? Dismissible(
+                            key: ValueKey(session.id),
+                            direction: DismissDirection.endToStart,
+                            background: const _VoidSwipeBackground(),
+                            confirmDismiss: (_) => showVoidSessionSheet(
+                              context,
+                              session: session,
+                              repository: sessions,
+                              now: DateTime.now(),
+                            ),
+                            // The row is not removed: the void is a state
+                            // change, and the stream rebuilds it in place.
+                            onDismissed: (_) {},
+                            child: _SessionHistoryRow(
+                              session: session,
+                              now: now,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      SessionDetailsPage(session: session),
+                                ),
+                              ),
+                            ),
+                          )
+                        : _SessionHistoryRow(
+                            session: session,
+                            now: now,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    SessionDetailsPage(session: session),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               const SizedBox(height: 14),
@@ -347,6 +371,12 @@ class _SessionHistoryRow extends StatelessWidget {
         l(context).workoutSessionNotCompleted,
         TrainColors.ink4,
       ),
+      // Voided reads as its own state, not as "abandoned": the session
+      // happened and its numbers are intact, it simply no longer counts.
+      SessionStatus.voided => (
+        l(context).sessionVoided,
+        TrainColors.ink4,
+      ),
     };
     final duration = session.status == SessionStatus.active
         ? session.activeElapsed(now: now)
@@ -393,6 +423,7 @@ class _SessionHistoryRow extends StatelessWidget {
                         SessionStatus.completed => AppIcons.trendUp,
                         SessionStatus.active => AppIcons.bolt,
                         SessionStatus.abandoned => AppIcons.minus,
+                    SessionStatus.voided => AppIcons.minus,
                       },
                       size: 16,
                       color: color == TrainColors.ink4
@@ -504,10 +535,11 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
-/// The red trailing reveal shown as a session row is swiped left to delete —
-/// the confirm dialog ([confirmDeleteSession]) still gates the actual delete.
-class _DeleteSwipeBackground extends StatelessWidget {
-  const _DeleteSwipeBackground();
+/// The trailing reveal shown as a session row is swiped — the void sheet
+/// ([showVoidSessionSheet]) still gates what actually happens, and what
+/// happens is a withdrawal, never an erasure.
+class _VoidSwipeBackground extends StatelessWidget {
+  const _VoidSwipeBackground();
 
   @override
   Widget build(BuildContext context) {
