@@ -678,7 +678,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0x08FFFFFF),
+          color: TrainColors.sectionFill,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: TrainColors.hairline),
         ),
@@ -707,7 +707,7 @@ class _EmptyHint extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0x08FFFFFF),
+          color: TrainColors.sectionFill,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: TrainColors.hairline),
         ),

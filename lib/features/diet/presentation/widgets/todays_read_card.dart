@@ -102,7 +102,7 @@ class _FindingTileState extends State<_FindingTile> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.showDivider)
-          const Divider(height: 1, thickness: 1, color: Color(0x0FF4F4F0)),
+          Divider(height: 1, thickness: 1, color: TrainColors.inkAt(0.06)),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 13),
           child: Column(

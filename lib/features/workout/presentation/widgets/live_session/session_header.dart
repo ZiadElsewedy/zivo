@@ -51,10 +51,10 @@ class SessionHeader extends StatelessWidget {
         TrainCircleButton(
           semanticLabel: l(context).actionClose,
           onTap: onClose,
-          child: const Icon(
+          child: Icon(
             Icons.close_rounded,
             size: 15,
-            color: Color(0xBFF4F4F0),
+            color: TrainColors.inkAt(0.75),
           ),
         ),
         Expanded(
@@ -108,7 +108,7 @@ class SessionHeader extends StatelessWidget {
                         size: 9.5,
                         weight: FontWeight.w600,
                         tracking: 0.18,
-                        color: const Color(0x73F4F4F0),
+                        color: TrainColors.ink2,
                       ),
                     ),
                   const SizedBox(height: 6),
@@ -128,7 +128,7 @@ class SessionHeader extends StatelessWidget {
                       tracking: -0.01,
                       height: 1,
                       color: isPaused
-                          ? const Color(0x66F4F4F0)
+                          ? TrainColors.ink3
                           : TrainColors.inkPlain,
                     ),
                   ),
@@ -144,10 +144,10 @@ class SessionHeader extends StatelessWidget {
           // behind its own confirm dialog shouldn't also be the loudest thing
           // in the bar. Flare stays reserved for the confirm dialog's actual
           // "Discard" button, where committing to it is the whole point.
-          child: const Icon(
+          child: Icon(
             Icons.delete_outline_rounded,
             size: 16,
-            color: Color(0x99F4F4F0),
+            color: TrainColors.inkAt(0.6),
           ),
         ),
       ],
@@ -177,7 +177,7 @@ class SessionBackChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(AppIcons.back, size: 11, color: Color(0x66F4F4F0)),
+              Icon(AppIcons.back, size: 11, color: TrainColors.ink3),
               const SizedBox(width: 5),
               Text(
                 l(context).actionBackCaps,
@@ -185,7 +185,7 @@ class SessionBackChip extends StatelessWidget {
                   size: 8.5,
                   weight: FontWeight.w600,
                   tracking: 0.16,
-                  color: const Color(0x66F4F4F0),
+                  color: TrainColors.ink3,
                 ),
               ),
             ],

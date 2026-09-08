@@ -208,7 +208,7 @@ class _SummaryStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -360,7 +360,7 @@ class _SessionHistoryRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0x08FFFFFF),
+            color: TrainColors.sectionFill,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: session.status == SessionStatus.completed

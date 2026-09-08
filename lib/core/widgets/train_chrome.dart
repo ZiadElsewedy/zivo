@@ -188,7 +188,7 @@ class TrainGhostButton extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border: Border.all(color: TrainColors.liftAt(0.1)),
             ),
             child: loading
                 ? Center(
@@ -211,11 +211,11 @@ class TrainGhostButton extends StatelessWidget {
                             ? TrainType.mono(
                                 size: 14,
                                 weight: FontWeight.w500,
-                                color: const Color(0xBFF4F4F0),
+                                color: TrainColors.inkAt(0.75),
                               )
                             : TrainType.ui(
                                 size: 14,
-                                color: const Color(0xB2F4F4F0),
+                                color: TrainColors.inkAt(0.7),
                                 height: 1,
                               ),
                       ),
@@ -334,7 +334,7 @@ class TrainSegmentBar extends StatelessWidget {
                     ? TrainColors.green
                     : i == current
                     ? TrainColors.ember.withValues(alpha: 0.85)
-                    : const Color(0x1AFFFFFF),
+                    : TrainColors.liftAt(0.1),
               ),
             ),
           ),
@@ -382,7 +382,7 @@ class TrainSegmentCaptions extends StatelessWidget {
           style: TrainType.caption(
             size: 10.5,
             tracking: 0.14,
-            color: const Color(0x7AF4F4F0),
+            color: TrainColors.inkAt(0.48),
           ),
         ),
         Text(
@@ -473,7 +473,7 @@ class TrainMetricRing extends StatelessWidget {
                           size: 8,
                           weight: FontWeight.w500,
                           tracking: 0.12,
-                          color: const Color(0x61F4F4F0),
+                          color: TrainColors.inkAt(0.38),
                         ),
                       ),
                     ],
@@ -503,7 +503,7 @@ class TrainMetricRing extends StatelessWidget {
           style: TrainType.mono(
             size: 9.5,
             tracking: 0.08,
-            color: subColor ?? const Color(0x61F4F4F0),
+            color: subColor ?? TrainColors.inkAt(0.38),
           ),
         ),
       ],

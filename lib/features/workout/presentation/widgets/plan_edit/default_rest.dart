@@ -28,7 +28,7 @@ class DefaultRestRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: TrainColors.hairline),
             ),

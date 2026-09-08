@@ -819,7 +819,7 @@ class _PrimaryButton extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFFF7038), TrainColors.ember],
+              colors: [TrainColors.emberLift, TrainColors.ember],
             ),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             boxShadow: TrainColors.actionGlow(TrainColors.ember),

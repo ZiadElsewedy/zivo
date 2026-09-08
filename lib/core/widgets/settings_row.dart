@@ -36,7 +36,7 @@ class SettingsSectionCard extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: const Color(0x08FFFFFF),
+            color: TrainColors.sectionFill,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: TrainColors.hairline),
           ),
@@ -114,7 +114,7 @@ class SettingsRow extends StatelessWidget {
   /// which was tuned for a glyph sitting on a tinted plate; with the plate
   /// gone the mark has to hold the column on its own, and at 45% it read as a
   /// smudge rather than a drawn thing.
-  static const _markInk = Color(0xC2F4F4F0); // .76
+  static Color get _markInk => TrainColors.inkAt(0.76);
 
   /// Width of the leading mark's column. Fixed, so glyphs of different natural
   /// widths still line the titles up with each other.
@@ -181,10 +181,10 @@ class SettingsRow extends StatelessWidget {
                 trailing!,
               ] else if (editable) ...[
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   AppIcons.chevron,
                   size: 15,
-                  color: Color(0x40F4F4F0),
+                  color: TrainColors.inkAt(0.25),
                 ),
               ],
             ],

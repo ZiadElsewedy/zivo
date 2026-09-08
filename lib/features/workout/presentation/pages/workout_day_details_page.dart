@@ -168,7 +168,7 @@ class _PlannedExerciseCard extends StatelessWidget {
                       style: TrainType.mono(
                         size: 12,
                         tracking: 0.02,
-                        color: const Color(0xA6F4F4F0),
+                        color: TrainColors.inkAt(0.65),
                       ),
                     ),
                   ),

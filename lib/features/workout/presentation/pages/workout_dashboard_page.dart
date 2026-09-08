@@ -601,7 +601,7 @@ class _WeightCard extends StatelessWidget {
                               size: 11,
                               weight: FontWeight.w500,
                               tracking: 0.14,
-                              color: const Color(0x59F4F4F0),
+                              color: TrainColors.inkAt(0.35),
                             ),
                           ),
                         )
@@ -618,7 +618,7 @@ class _WeightCard extends StatelessWidget {
                                   size: 38,
                                   weight: FontWeight.w300,
                                   tracking: -0.05,
-                                  color: const Color(0xFFF9F9F5),
+                                  color: TrainColors.voiceInk,
                                 ),
                               ),
                             ),
@@ -631,7 +631,7 @@ class _WeightCard extends StatelessWidget {
                                 size: 11,
                                 weight: FontWeight.w500,
                                 tracking: 0.14,
-                                color: const Color(0x59F4F4F0),
+                                color: TrainColors.inkAt(0.35),
                               ),
                             ),
                           ],
@@ -659,7 +659,7 @@ class _WeightCard extends StatelessWidget {
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
-                      color: const Color(0x47F4F4F0),
+                      color: TrainColors.inkAt(0.28),
                     ),
                   ),
                   Text(
@@ -667,7 +667,7 @@ class _WeightCard extends StatelessWidget {
                     style: TrainType.caption(
                       size: 8,
                       tracking: 0.14,
-                      color: const Color(0x47F4F4F0),
+                      color: TrainColors.inkAt(0.28),
                     ),
                   ),
                 ],
@@ -731,7 +731,7 @@ class _LogWeighInPill extends StatelessWidget {
                 style: TrainType.ui(
                   size: 11.5,
                   weight: FontWeight.w700,
-                  color: const Color(0xBFF4F4F0),
+                  color: TrainColors.inkAt(0.75),
                   height: 1,
                 ),
               ),

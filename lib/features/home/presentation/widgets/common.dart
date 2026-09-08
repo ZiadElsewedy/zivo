@@ -34,7 +34,7 @@ class SectionHeader extends StatelessWidget {
     final style = TrainType.caption(
       size: 9.5,
       tracking: 0.2,
-      color: const Color(0x4DF4F4F0),
+      color: TrainColors.inkAt(0.3),
     );
     return Padding(
       padding: EdgeInsets.only(top: top, bottom: 11),

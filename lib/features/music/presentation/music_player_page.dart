@@ -793,13 +793,13 @@ class _BigPlayButton extends StatelessWidget {
                 child: paused
                     ? TrainPlayGlyph(
                         color: enabled
-                            ? const Color(0xFF04140D)
+                            ? TrainColors.onGreen
                             : TrainColors.ink3,
                         size: 28,
                       )
                     : TrainPauseGlyph(
                         color: enabled
-                            ? const Color(0xFF04140D)
+                            ? TrainColors.onGreen
                             : TrainColors.ink3,
                         size: 26,
                       ),
@@ -956,7 +956,7 @@ class _ConnectionState extends StatelessWidget {
                       child: TrainPrimaryButton(
                         label: connectLabel,
                         color: TrainColors.green,
-                        labelColor: const Color(0xFF04140D),
+                        labelColor: TrainColors.onGreen,
                         onTap: onConnect,
                       ),
                     ),

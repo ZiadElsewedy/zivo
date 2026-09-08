@@ -355,7 +355,7 @@ class _ActionDockState extends State<_ActionDock>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00080908), TrainColors.base, TrainColors.base],
+          colors: [TrainColors.base.withValues(alpha: 0), TrainColors.base, TrainColors.base],
           stops: [0.0, 0.55, 1.0],
         ),
       ),
@@ -374,13 +374,13 @@ class _ActionDockState extends State<_ActionDock>
                   ignoring: widget.eaten,
                   child: TrainPrimaryButton(
                     label: strings.dietMarkEaten,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.check_rounded,
                       size: 18,
-                      color: Color(0xFF04140D),
+                      color: TrainColors.onGreen,
                     ),
                     color: TrainColors.green,
-                    labelColor: const Color(0xFF04140D),
+                    labelColor: TrainColors.onGreen,
                     height: 56,
                     onTap: _toggle,
                   ),

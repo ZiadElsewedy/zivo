@@ -124,7 +124,7 @@ class StatHeroValue extends StatelessWidget {
                       size: 40,
                       weight: FontWeight.w300,
                       tracking: -0.05,
-                      color: const Color(0xFFF9F9F5),
+                      color: TrainColors.voiceInk,
                     ),
                   ),
                 ),
@@ -136,7 +136,7 @@ class StatHeroValue extends StatelessWidget {
                       size: 11,
                       weight: FontWeight.w500,
                       tracking: 0.14,
-                      color: const Color(0x59F4F4F0),
+                      color: TrainColors.inkAt(0.35),
                     ),
                   ),
                 ],
@@ -322,7 +322,7 @@ class _SessionRow extends StatelessWidget {
                         style: TrainType.mono(
                           size: 9.5,
                           tracking: 0.08,
-                          color: const Color(0x59F4F4F0),
+                          color: TrainColors.inkAt(0.35),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -331,10 +331,10 @@ class _SessionRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 16,
-                  color: Color(0x4DF4F4F0),
+                  color: TrainColors.inkAt(0.3),
                 ),
               ],
             ),
@@ -452,7 +452,7 @@ class _StreakDayRow extends StatelessWidget {
                     style: TrainType.mono(
                       size: 9.5,
                       tracking: 0.08,
-                      color: const Color(0x59F4F4F0),
+                      color: TrainColors.inkAt(0.35),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -681,7 +681,7 @@ class _MetricRow extends StatelessWidget {
                   style: TrainType.mono(
                     size: 9.5,
                     tracking: 0.08,
-                    color: const Color(0x59F4F4F0),
+                    color: TrainColors.inkAt(0.35),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -712,7 +712,7 @@ class _EmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0x06FFFFFF),
+        color: TrainColors.liftAt(0.024),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),

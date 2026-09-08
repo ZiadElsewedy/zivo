@@ -213,7 +213,7 @@ class _SaveButton extends StatelessWidget {
               label,
               style: AppText.button.copyWith(
                 fontSize: 16,
-                color: const Color(0xFF2A2205),
+                color: TrainColors.onAmber,
               ),
             ),
           ),

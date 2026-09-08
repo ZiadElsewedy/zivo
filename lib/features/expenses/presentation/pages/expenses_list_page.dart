@@ -65,7 +65,7 @@ class _ExpensesListPageState extends State<ExpensesListPage> {
         // Amber, not ember: on this screen the committing action is a money
         // action, and money is the one thing amber marks.
         color: TrainColors.amber,
-        iconColor: const Color(0xFF1A1505),
+        iconColor: TrainColors.onAmberDeep,
         onTap: () => Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const ExpenseCapturePage())),
@@ -198,7 +198,7 @@ class _DayCard extends StatelessWidget {
     final expenses = group.expenses;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -308,7 +308,7 @@ class _WalletCard extends StatelessWidget {
           colors: [
             TrainColors.amber.withValues(alpha: 0.16),
             TrainColors.amber.withValues(alpha: 0.05),
-            const Color(0x05FFFFFF),
+            TrainColors.liftAt(0.02),
           ],
           stops: const [0.0, 0.6, 1.0],
         ),
@@ -361,7 +361,7 @@ class _WalletCard extends StatelessWidget {
                           tracking: -0.05,
                           color: negative
                               ? TrainColors.ember
-                              : const Color(0xFFF9F9F5),
+                              : TrainColors.voiceInk,
                         ),
                       ),
                     ),
@@ -372,7 +372,7 @@ class _WalletCard extends StatelessWidget {
                         size: 11,
                         weight: FontWeight.w500,
                         tracking: 0.14,
-                        color: const Color(0x59F4F4F0),
+                        color: TrainColors.inkAt(0.35),
                       ),
                     ),
                   ],
@@ -441,7 +441,7 @@ class _WalletSetupPrompt extends StatelessWidget {
             size: 20,
             weight: FontWeight.w800,
             tracking: -0.02,
-            color: const Color(0xFFF9F9F5),
+            color: TrainColors.voiceInk,
             height: 1.25,
           ),
         ),
@@ -480,7 +480,7 @@ class _WalletSetupPrompt extends StatelessWidget {
                       tracking: -0.01,
                       // A dark label on a light fill — amber is too bright to
                       // carry white text at this weight.
-                      color: const Color(0xFF1A1505),
+                      color: TrainColors.onAmberDeep,
                       height: 1,
                     ),
                   ),
@@ -591,7 +591,7 @@ class _CategoryBreakdown extends StatelessWidget {
               style: TrainType.caption(
                 size: 9.5,
                 tracking: 0.2,
-                color: const Color(0x4DF4F4F0),
+                color: TrainColors.inkAt(0.3),
               ),
             ),
             const Spacer(),
@@ -605,7 +605,7 @@ class _CategoryBreakdown extends StatelessWidget {
               style: TrainType.caption(
                 size: 9,
                 tracking: 0.12,
-                color: const Color(0x59F4F4F0),
+                color: TrainColors.inkAt(0.35),
               ),
             ),
           ],
@@ -761,7 +761,7 @@ class _ExpenseRow extends StatelessWidget {
                             style: TrainType.mono(
                               size: 9.5,
                               tracking: 0.08,
-                              color: const Color(0x59F4F4F0),
+                              color: TrainColors.inkAt(0.35),
                             ),
                           ),
                         ],

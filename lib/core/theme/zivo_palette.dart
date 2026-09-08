@@ -52,6 +52,16 @@ class ZivoPalette {
     required this.glassSoft,
     required this.glassStrong,
     required this.sectionFill,
+    required this.lift,
+    required this.onGreen,
+    required this.onAmber,
+    required this.onAmberDeep,
+    required this.emberLift,
+    required this.greenLift,
+    required this.emberPale,
+    required this.sessionInk,
+    required this.sessionInkMuted,
+    required this.fabGradient,
     required this.raised,
     required this.raisedStrong,
     required this.emberWash,
@@ -122,9 +132,50 @@ class ZivoPalette {
   /// The fill behind an inset-grouped settings card.
   final Color sectionFill;
 
+  /// **The direction "up" points.** Every barely-there surface step in the app
+  /// — a chip fill, a rule, a card's top-lit sheen — is this colour at some
+  /// small alpha. On near-black it is white, because elevation is light
+  /// (identity §5); on paper it is ink, because there is nothing above white.
+  /// [liftAt] is how a surface asks for a step the named tokens don't have.
+  final Color lift;
+
   // ---- Floating chrome ----
   final Color raised;
   final Color raisedStrong;
+
+  // ---- Ink on a filled hue ----
+  // A label sitting *on* green or amber, rather than beside it. These are the
+  // hue's own near-black on the dark skin — a filled mint pill wants ink with
+  // its own colour in it, not the page's grey — and flip to a near-white on
+  // light, where the same fills are deep.
+
+  final Color onGreen;
+  final Color onAmber;
+
+  /// A step denser than [onAmber] — the glyph on the amber FAB, where
+  /// [onAmber] is the label on an amber chip.
+  final Color onAmberDeep;
+
+  // ---- Hue gradients ----
+  // The lighter end of a two-stop hue gradient: an ember pill and a green
+  // progress bar are both lit from one corner rather than flat-filled.
+
+  final Color emberLift;
+  final Color greenLift;
+
+  /// The palest ember the app draws — a chip label, not a fill.
+  final Color emberPale;
+
+  // ---- On the session slab ----
+  // The Today session card keeps its deep green in both skins, so the two
+  // inks that sit on it are the one part of the palette that does not flip.
+
+  final Color sessionInk;
+  final Color sessionInkMuted;
+
+  /// The capture FAB's neutral gradient — the one floating object that
+  /// deliberately carries no hue.
+  final LinearGradient fabGradient;
 
   // ---- Hue washes ----
   final Color emberWash;
@@ -178,6 +229,12 @@ class ZivoPalette {
   /// value the design actually calls for.
   Color inkAt(double opacity) => inkPlain.withValues(alpha: opacity);
 
+  /// [lift] at an arbitrary opacity — a surface step between the named
+  /// [glassSoft]/[glass]/[glassStrong]/[hairline] ones. Same advice as
+  /// [inkAt]: prefer a named token, reach for this when the design genuinely
+  /// lands between them.
+  Color liftAt(double opacity) => lift.withValues(alpha: opacity);
+
   /// **The near-black skin** — the one ZIVO shipped with, unchanged. Every
   /// value here is the literal that used to sit on `TrainColors`, so dark
   /// renders byte-identically to how it did before light mode existed.
@@ -201,6 +258,16 @@ class ZivoPalette {
     glassSoft: Color(0x09FFFFFF),
     glassStrong: Color(0x0FFFFFFF),
     sectionFill: Color(0x08FFFFFF),
+    lift: Color(0xFFFFFFFF),
+    onGreen: Color(0xFF04140D),
+    onAmber: Color(0xFF2A2205),
+    onAmberDeep: Color(0xFF1A1505),
+    emberLift: Color(0xFFFF7038),
+    greenLift: Color(0xFF2BD99B),
+    emberPale: Color(0xFFFFA87C),
+    sessionInk: _sessionInk,
+    sessionInkMuted: _sessionInkMuted,
+    fabGradient: _fabGradientDark,
     raised: Color(0xF0141514),
     raisedStrong: Color(0xFF1D1E1D),
     emberWash: Color(0x24FF5C1A),
@@ -351,6 +418,29 @@ class ZivoPalette {
     raised: Color(0xF5FFFFFF),
     raisedStrong: Color(0xFFEBEDEA),
 
+    // Elevation points the other way here, so every small surface step is
+    // ink rather than light. This one value is what makes ~120 call sites
+    // that just wanted "a hairline a bit stronger" work on paper.
+    lift: Color(0xFF141614),
+
+    // The fills these sit on are deep in this skin, so their labels are
+    // near-white — each still tinted with its own hue, which is what keeps a
+    // label on amber from reading as a label on green.
+    onGreen: Color(0xFFF1FBF5),
+    onAmber: Color(0xFFFDF7EA),
+    onAmberDeep: Color(0xFFFFFCF4),
+
+    emberLift: Color(0xFFF06A2A),
+    greenLift: Color(0xFF15AE72),
+    emberPale: Color(0xFFB84A10),
+
+    // Unchanged: the session slab stayed deep green (see `sessionGradient`),
+    // so the ink on it did not move either.
+    sessionInk: _sessionInk,
+    sessionInkMuted: _sessionInkMuted,
+
+    fabGradient: _fabGradientLight,
+
     emberWash: Color(0x1FE2500F),
     violetWash: Color(0x1F5A54DB),
     greenWash: Color(0x1F0C9A60),
@@ -477,6 +567,21 @@ class ZivoPalette {
 
 const _darkBase = Color(0xFF080908);
 const _lightBase = Color(0xFFF7F8F6);
+
+const _sessionInk = Color(0xFFEAFFF4);
+const _sessionInkMuted = Color(0xFF7EF0BB);
+
+const _fabGradientDark = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFF292A29), Color(0xFF212221)],
+);
+
+const _fabGradientLight = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFFFFFFFF), Color(0xFFEFF1EE)],
+);
 
 /// **Which skin is on right now.**
 ///

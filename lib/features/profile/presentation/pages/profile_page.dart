@@ -239,10 +239,10 @@ class ProfilePage extends StatelessWidget {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const SettingsPage()),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         AppIcons.settings,
                         size: 16,
-                        color: Color(0xB2F4F4F0),
+                        color: TrainColors.inkAt(0.7),
                       ),
                     ),
                   ),
@@ -712,7 +712,7 @@ class _Avatar extends StatelessWidget {
                       // floating over it — the border is the page's own
                       // ground colour, not a shadow.
                       border: Border.all(
-                        color: const Color(0xFF0B0A09),
+                        color: TrainColors.base,
                         width: 2.5,
                       ),
                     ),
@@ -899,12 +899,12 @@ class _AboutSectionState extends State<_AboutSection> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x24FFFFFF)),
+                      border: Border.all(color: TrainColors.liftAt(0.14)),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       AppIcons.add,
                       size: 12,
-                      color: Color(0x99F4F4F0),
+                      color: TrainColors.inkAt(0.6),
                     ),
                   ),
                 ],
@@ -957,10 +957,10 @@ class _AboutSectionState extends State<_AboutSection> {
                   ),
                   if (editable) ...[
                     const SizedBox(width: 12),
-                    const Icon(
+                    Icon(
                       AppIcons.edit,
                       size: 13,
-                      color: Color(0x66F4F4F0),
+                      color: TrainColors.ink3,
                     ),
                   ],
                 ],
@@ -1071,7 +1071,7 @@ class _AboutButton extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFF7038), TrainColors.ember],
+                colors: [TrainColors.emberLift, TrainColors.ember],
               ),
               borderRadius: BorderRadius.circular(999),
               boxShadow: TrainColors.actionGlow(TrainColors.ember),
@@ -1233,7 +1233,7 @@ class _EditTextSheetState extends State<_EditTextSheet> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [const Color(0xFFFF7038), TrainColors.ember],
+                        colors: [TrainColors.emberLift, TrainColors.ember],
                       ),
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: TrainColors.actionGlow(TrainColors.ember),

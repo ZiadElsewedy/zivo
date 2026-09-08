@@ -84,8 +84,8 @@ class MessageBubble extends StatelessWidget {
                   // chrome here, and painting the USER's own words in it
                   // spends the hue on the wrong speaker. The softened
                   // bottom-right tail still points the pill at its author.
-                  ? const BoxDecoration(
-                      color: Color(0x12FFFFFF),
+                  ? BoxDecoration(
+                      color: TrainColors.hairline,
                       // Directional: the softened corner is a TAIL, and a
                       // tail points at the side the pill is docked to. Under
                       // RTL the pill moves to the left edge, so a physical

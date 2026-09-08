@@ -240,7 +240,7 @@ class _LiveSessionPageState extends State<LiveSessionPage>
                               right: _tallyCaption,
                               rightColor: _c.restRemaining != null
                                   ? TrainColors.green.withValues(alpha: 0.75)
-                                  : const Color(0x59F4F4F0),
+                                  : TrainColors.inkAt(0.35),
                             ),
                             // The walk-back-one-set control — reachable from
                             // EVERY phase (rest included), and only present

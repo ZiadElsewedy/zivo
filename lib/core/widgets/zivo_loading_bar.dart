@@ -154,11 +154,11 @@ class _Light extends StatelessWidget {
           begin: AlignmentDirectional.centerStart,
           end: AlignmentDirectional.centerEnd,
           colors: [
-            Color(0x00FF5A1F), // transparent ember
+            TrainColors.ember.withValues(alpha: 0), // transparent ember
             TrainColors.ember,
             TrainColors.amber,
             TrainColors.ember,
-            Color(0x00FF5A1F), // transparent ember
+            TrainColors.ember.withValues(alpha: 0), // transparent ember
           ],
           stops: [0.0, 0.25, 0.5, 0.75, 1.0],
         ),

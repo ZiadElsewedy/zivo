@@ -285,7 +285,7 @@ class _ExerciseRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 8, 12),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -384,8 +384,8 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0x08FFFFFF),
+      decoration: BoxDecoration(
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: EdgeInsets.only(

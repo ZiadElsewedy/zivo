@@ -183,7 +183,7 @@ class _StatusStrip extends StatelessWidget {
     return _StripSurface(
       tint: live
           ? TrainColors.green.withValues(alpha: 0.05)
-          : const Color(0x0AFFFFFF),
+          : TrainColors.glassSoft,
       child: PressableScale(
         scale: 0.995,
         child: Semantics(
@@ -228,7 +228,7 @@ class _StatusStrip extends StatelessWidget {
                     style: TrainType.ui(
                       size: 11.5,
                       weight: FontWeight.w700,
-                      color: const Color(0xB3F4F4F0),
+                      color: TrainColors.inkAt(0.7),
                     ),
                   ),
                 ),
@@ -303,8 +303,8 @@ class _Strip extends StatelessWidget {
                         // pair can never drift apart visually.
                         child: Transform.rotate(
                           angle: 3.14159,
-                          child: const TrainPlayGlyph(
-                            color: Color(0xBFF4F4F0),
+                          child: TrainPlayGlyph(
+                            color: TrainColors.inkAt(0.75),
                             size: 10.5,
                             bar: true,
                           ),
@@ -336,8 +336,8 @@ class _Strip extends StatelessWidget {
                         semanticLabel: l(context).musicNext,
                         onTap: controller.next,
                         width: 32,
-                        child: const TrainPlayGlyph(
-                          color: Color(0xBFF4F4F0),
+                        child: TrainPlayGlyph(
+                          color: TrainColors.inkAt(0.75),
                           size: 10.5,
                           bar: true,
                         ),
@@ -460,7 +460,7 @@ class _Body extends StatelessWidget {
                     size: 9.5,
                     tracking: 0.02,
                     height: 1.2,
-                    color: const Color(0x61F4F4F0),
+                    color: TrainColors.inkAt(0.38),
                   ),
                 ),
               ),

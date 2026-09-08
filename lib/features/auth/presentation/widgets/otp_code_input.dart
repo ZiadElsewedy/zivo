@@ -204,9 +204,9 @@ class _OtpCodeInputState extends State<OtpCodeInput>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: isActive && !widget.hasError
-            ? const [
+            ? [
                 BoxShadow(
-                  color: Color(0x33FF5A1F),
+                  color: TrainColors.ember.withValues(alpha: 0.2),
                   blurRadius: 20,
                   spreadRadius: -6,
                   offset: Offset(0, 4),

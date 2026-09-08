@@ -328,7 +328,7 @@ class _OverviewTile extends StatelessWidget {
                   style: TrainType.mono(
                     size: 21,
                     tracking: -0.03,
-                    color: const Color(0xFFF9F9F5),
+                    color: TrainColors.voiceInk,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -381,7 +381,7 @@ class ProgressSummaryCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -536,7 +536,7 @@ class SplitBreakdownCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: TrainColors.hairline),
             ),
@@ -685,7 +685,7 @@ class _DayDistributionRow extends StatelessWidget {
                     height: 7,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF2BD99B), TrainColors.green],
+                        colors: [TrainColors.greenLift, TrainColors.green],
                       ),
                     ),
                   ),
@@ -820,7 +820,7 @@ class _RecentSessionRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0x08FFFFFF),
+              color: TrainColors.sectionFill,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: TrainColors.hairline),
             ),
@@ -928,7 +928,7 @@ class _EmptyCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -973,7 +973,7 @@ class _DestinationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),

@@ -167,7 +167,7 @@ class _CustomEntrySheetState extends State<_CustomEntrySheet> {
             onSubmitted: (_) => _submit(),
             style: AppText.body,
             decoration: zivoFieldDecoration(
-              fill: const Color(0x08FFFFFF),
+              fill: TrainColors.sectionFill,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 14,

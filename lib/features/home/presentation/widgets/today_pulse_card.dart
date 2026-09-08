@@ -492,7 +492,7 @@ class _DayBar extends StatelessWidget {
     // marker the identity doc reserves it for), hairline for a rest day so
     // the week still reads as seven days.
     final hue = count == 0
-        ? const Color(0x14FFFFFF)
+        ? TrainColors.liftAt(0.078)
         : (isToday
               ? TrainColors.ember
               : TrainColors.green.withValues(alpha: 0.55));

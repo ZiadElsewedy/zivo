@@ -577,15 +577,15 @@ class _HeroPhoto extends StatelessWidget {
           ),
           // The seam-softening fade: transparent over the top half, deepening
           // to the screen base at the very bottom edge.
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0x00080908),
-                  Color(0x00080908),
-                  Color(0xC2080908),
+                  TrainColors.base.withValues(alpha: 0),
+                  TrainColors.base.withValues(alpha: 0),
+                  TrainColors.base.withValues(alpha: 0.76),
                 ],
                 stops: [0.0, 0.52, 1.0],
               ),

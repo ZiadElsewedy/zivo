@@ -166,7 +166,7 @@ class _MusicScrubberState extends State<MusicScrubber>
   static final _timecode = TrainType.mono(
     size: 11,
     tracking: 0.02,
-    color: const Color(0x73F4F4F0),
+    color: TrainColors.ink2,
   );
 
   String _format(double fraction) {

@@ -795,7 +795,7 @@ class _MacroBar extends StatelessWidget {
                   style: TrainType.caption(
                     size: 8.5,
                     tracking: 0.14,
-                    color: const Color(0x59F4F4F0),
+                    color: TrainColors.inkAt(0.35),
                   ),
                 ),
               ),
@@ -806,7 +806,7 @@ class _MacroBar extends StatelessWidget {
                 ),
                 style: TrainType.mono(
                   size: 9.5,
-                  color: const Color(0x99F4F4F0),
+                  color: TrainColors.inkAt(0.6),
                 ),
               ),
             ],
@@ -838,7 +838,7 @@ class _DaySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -906,7 +906,7 @@ class _DaySummaryCard extends StatelessWidget {
                         style: TrainType.ui(
                           size: 12,
                           weight: FontWeight.w400,
-                          color: const Color(0xA6F4F4F0),
+                          color: TrainColors.inkAt(0.65),
                           height: 1.3,
                         ),
                       ),

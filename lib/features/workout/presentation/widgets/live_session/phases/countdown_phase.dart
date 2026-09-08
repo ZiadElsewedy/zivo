@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../core/theme/train_tokens.dart';
 import '../../../../../../core/widgets/train_chrome.dart';
 import '../../../../../../l10n/l10n.dart';
 import '../../../../domain/logged_set.dart';
@@ -152,8 +153,8 @@ class CountdownPhase extends StatelessWidget {
           label: skipLabel,
           mono: false,
           height: 60,
-          icon: const TrainPlayGlyph(
-            color: Color(0x99F4F4F0),
+          icon: TrainPlayGlyph(
+            color: TrainColors.inkAt(0.6),
             size: 13,
             bar: true,
           ),

@@ -138,7 +138,7 @@ class _HeaderAction extends StatelessWidget {
                 child: Icon(
                   icon,
                   size: 16,
-                  color: disabled ? TrainColors.ink4 : const Color(0xB2F4F4F0),
+                  color: disabled ? TrainColors.ink4 : TrainColors.inkAt(0.7),
                 ),
               ),
             ),
@@ -156,10 +156,10 @@ class _HeaderAction extends StatelessWidget {
 /// The shared skin for header controls: a flat glass circle inside a
 /// hairline. No gradient, no shadow — the screen's single radial glow is
 /// what gives this surface its depth.
-BoxDecoration _glassDecoration() => const BoxDecoration(
+BoxDecoration _glassDecoration() => BoxDecoration(
   shape: BoxShape.circle,
-  color: Color(0x0AFFFFFF),
-  border: Border.fromBorderSide(BorderSide(color: Color(0x17FFFFFF))),
+  color: TrainColors.glassSoft,
+  border: Border.fromBorderSide(BorderSide(color: TrainColors.liftAt(0.09))),
 );
 
 /// The reply-length picker: a glass squircle opening a small ZIVO-styled
@@ -197,10 +197,10 @@ class _ReplyStyleMenu extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: _glassDecoration(),
-          child: const Icon(
+          child: Icon(
             AppIcons.replyStyle,
             size: 16,
-            color: Color(0xB2F4F4F0),
+            color: TrainColors.inkAt(0.7),
           ),
         ),
       ),

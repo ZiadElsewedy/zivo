@@ -586,7 +586,7 @@ class _LogEntryRow extends StatelessWidget {
       key: Key('log-entry-${entry.id}'),
       padding: const EdgeInsetsDirectional.fromSTEB(15, 11, 9, 11),
       decoration: BoxDecoration(
-        color: const Color(0x0BFFFFFF),
+        color: TrainColors.glass,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -795,7 +795,7 @@ class _DietHeroState extends State<_DietHero>
                                 size: 30,
                                 weight: FontWeight.w300,
                                 tracking: -0.05,
-                                color: const Color(0xFFF9F9F5),
+                                color: TrainColors.voiceInk,
                               ),
                             ),
                           ),
@@ -814,7 +814,7 @@ class _DietHeroState extends State<_DietHero>
                             style: TrainType.caption(
                               size: 8,
                               tracking: 0.16,
-                              color: const Color(0x59F4F4F0),
+                              color: TrainColors.inkAt(0.35),
                             ),
                           ),
                         ],
@@ -1048,7 +1048,7 @@ class _MealRowState extends State<_MealRow>
               padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 8),
               decoration: BoxDecoration(
                 color: Color.lerp(
-                  const Color(0x0BFFFFFF),
+                  TrainColors.glass,
                   TrainColors.green.withValues(alpha: 0.07),
                   t,
                 ),
@@ -1178,7 +1178,7 @@ class _SupplementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: const Color(0x06FFFFFF),
+        color: TrainColors.liftAt(0.024),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: () {
@@ -1212,15 +1212,15 @@ class _SupplementCard extends StatelessWidget {
                     border: Border.all(
                       color: taken
                           ? TrainColors.green.withValues(alpha: 0.75)
-                          : const Color(0x2EFFFFFF),
+                          : TrainColors.liftAt(0.18),
                       width: 1.5,
                     ),
                   ),
                   child: taken
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
                           size: 13,
-                          color: Color(0xFF04140D),
+                          color: TrainColors.onGreen,
                         )
                       : null,
                 ),
@@ -1316,7 +1316,7 @@ class _CompletionMark extends StatelessWidget {
                 color: Color.lerp(Colors.transparent, TrainColors.green, tc),
                 border: Border.all(
                   color: Color.lerp(
-                    const Color(0x2EFFFFFF),
+                    TrainColors.liftAt(0.18),
                     TrainColors.green,
                     tc,
                   )!,
@@ -1329,10 +1329,10 @@ class _CompletionMark extends StatelessWidget {
                         scale: progress,
                         child: Opacity(
                           opacity: tc,
-                          child: const Icon(
+                          child: Icon(
                             Icons.check_rounded,
                             size: 14,
-                            color: Color(0xFF04140D),
+                            color: TrainColors.onGreen,
                           ),
                         ),
                       ),

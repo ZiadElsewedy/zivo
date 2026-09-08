@@ -35,11 +35,7 @@ class CaptureFab extends StatelessWidget {
         // installs a *shader*, which overrides `color` outright — the two
         // together would have painted only the 5%-white overlay and left the
         // disc more transparent than before, not less.
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF292A29), Color(0xFF212221)],
-        ),
+        gradient: TrainColors.fabGradient,
         shape: BoxShape.circle,
         border: Border.all(color: TrainColors.hairlineStrong),
         boxShadow: const [

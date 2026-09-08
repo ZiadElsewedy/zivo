@@ -182,13 +182,13 @@ class _WorkoutPlanEmptyState extends StatelessWidget {
             const SizedBox(height: AppSpacing.l),
             TrainPrimaryButton(
               label: l(context).workoutCreatePlan,
-              icon: const Icon(
+              icon: Icon(
                 AppIcons.add,
                 size: 18,
-                color: Color(0xFF04140D),
+                color: TrainColors.onGreen,
               ),
               color: TrainColors.green,
-              labelColor: const Color(0xFF04140D),
+              labelColor: TrainColors.onGreen,
               height: 54,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -434,13 +434,13 @@ class _TodaySection extends StatelessWidget {
               label: resumable == null
                   ? l(context).workoutStart
                   : l(context).workoutResume,
-              icon: const Icon(
+              icon: Icon(
                 Icons.play_arrow_rounded,
                 size: 20,
-                color: Color(0xFF04140D),
+                color: TrainColors.onGreen,
               ),
               color: TrainColors.green,
-              labelColor: const Color(0xFF04140D),
+              labelColor: TrainColors.onGreen,
               height: 54,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -587,7 +587,7 @@ class _CycleCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -715,10 +715,10 @@ class _BrowseDayRowState extends State<_BrowseDayRow> {
                         ? Duration.zero
                         : const Duration(milliseconds: 240),
                     curve: Curves.easeOutCubic,
-                    child: const Icon(
+                    child: Icon(
                       Icons.expand_more_rounded,
                       size: 18,
-                      color: Color(0x4DF4F4F0),
+                      color: TrainColors.inkAt(0.3),
                     ),
                   ),
                 ],

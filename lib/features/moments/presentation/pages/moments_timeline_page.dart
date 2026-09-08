@@ -340,13 +340,13 @@ class _MomentsEmptyState extends StatelessWidget {
             TrainDashedCard(
               radius: 18,
               padding: EdgeInsets.zero,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 52,
                 height: 52,
                 child: Icon(
                   AppIcons.camera,
                   size: 22,
-                  color: Color(0x59F4F4F0),
+                  color: TrainColors.inkAt(0.35),
                 ),
               ),
             ),
@@ -357,7 +357,7 @@ class _MomentsEmptyState extends StatelessWidget {
               style: TrainType.ui(
                 size: 16,
                 weight: FontWeight.w700,
-                color: const Color(0x99F4F4F0),
+                color: TrainColors.inkAt(0.6),
                 height: 1.3,
               ),
             ),
@@ -368,7 +368,7 @@ class _MomentsEmptyState extends StatelessWidget {
               style: TrainType.ui(
                 size: 12.5,
                 weight: FontWeight.w400,
-                color: const Color(0x61F4F4F0),
+                color: TrainColors.inkAt(0.38),
                 height: 1.55,
               ),
             ),
@@ -401,7 +401,7 @@ class _GalleryTile extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            color: const Color(0x0BFFFFFF),
+            color: TrainColors.glass,
             child: hasPhoto ? _photo(context) : _captionTile(context),
           ),
         ),
@@ -451,7 +451,7 @@ class _GalleryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(AppIcons.caption, size: 17, color: Color(0x59F4F4F0)),
+          Icon(AppIcons.caption, size: 17, color: TrainColors.inkAt(0.35)),
           // Flexible so the caption YIELDS when the square tile is tight
           // (narrow widths / larger text scale) instead of forcing its full
           // 3-line height and overflowing the cell by a few px — the

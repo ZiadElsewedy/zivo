@@ -350,10 +350,10 @@ class _SessionCard extends StatelessWidget {
         const SizedBox(height: AppSpacing.s),
         TrainCard(
           border: TrainColors.sleepAccent.withValues(alpha: 0.22),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x1F7C9CFF), Color(0x0A7C9CFF)],
+            colors: [Color(0x1F7C9CFF), TrainColors.sleepAccent.withValues(alpha: 0.04)],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -507,10 +507,10 @@ class _LastNightCard extends StatelessWidget {
         // plain; the sections below are its supporting detail and now look
         // like it.
         border: TrainColors.sleepAccent.withValues(alpha: 0.20),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x1A7C9CFF), Color(0x087C9CFF)],
+          colors: [Color(0x1A7C9CFF), TrainColors.sleepAccent.withValues(alpha: 0.03)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1400,7 +1400,7 @@ class _ActionDock extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00080908), TrainColors.base, TrainColors.base],
+          colors: [TrainColors.base.withValues(alpha: 0), TrainColors.base, TrainColors.base],
           stops: [0.0, 0.55, 1.0],
         ),
       ),

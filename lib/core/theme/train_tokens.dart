@@ -82,6 +82,41 @@ abstract final class TrainColors {
   /// The fill behind an inset-grouped settings card.
   static Color get sectionFill => _p.sectionFill;
 
+  /// A surface step the named tokens don't name — white on the dark skin,
+  /// ink on the light one. See [hairline], [glass] and friends first.
+  static Color liftAt(double opacity) => _p.liftAt(opacity);
+
+  // ---- Ink on a filled hue ----
+  /// The label on a filled green surface.
+  static Color get onGreen => _p.onGreen;
+
+  /// The label on a filled amber surface (a chip, a wallet card).
+  static Color get onAmber => _p.onAmber;
+
+  /// A step denser than [onAmber] — the glyph on the amber FAB.
+  static Color get onAmberDeep => _p.onAmberDeep;
+
+  // ---- Hue gradients ----
+  /// The lit end of a two-stop ember gradient.
+  static Color get emberLift => _p.emberLift;
+
+  /// The lit end of a two-stop green gradient.
+  static Color get greenLift => _p.greenLift;
+
+  /// The palest ember the app draws — a chip label, never a fill.
+  static Color get emberPale => _p.emberPale;
+
+  // ---- On the session slab ----
+  /// Ink on the Today session card, which stays deep green in both skins.
+  static Color get sessionInk => _p.sessionInk;
+
+  /// The quieter of the two inks on that slab.
+  static Color get sessionInkMuted => _p.sessionInkMuted;
+
+  /// The capture FAB's neutral gradient — the one floating object that
+  /// deliberately carries no hue.
+  static LinearGradient get fabGradient => _p.fabGradient;
+
   // ---- Floating chrome ----
   // The bottom nav island, the Ask composer, the voice sheet: objects that
   // float ABOVE a screen rather than sitting on it.

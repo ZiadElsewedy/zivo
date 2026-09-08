@@ -335,7 +335,7 @@ class _MusicSection extends StatelessWidget {
                   child: Material(
                     color: connected
                         ? TrainColors.green.withValues(alpha: 0.05)
-                        : const Color(0x08FFFFFF),
+                        : TrainColors.sectionFill,
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
@@ -422,10 +422,10 @@ class _MusicSection extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                const Icon(
+                                Icon(
                                   AppIcons.chevron,
                                   size: 15,
-                                  color: Color(0x40F4F4F0),
+                                  color: TrainColors.inkAt(0.25),
                                 ),
                               ],
                             ),
@@ -450,7 +450,7 @@ class _MusicSection extends StatelessWidget {
                                       style: TrainType.ui(
                                         size: 12,
                                         weight: FontWeight.w600,
-                                        color: const Color(0xB2F4F4F0),
+                                        color: TrainColors.inkAt(0.7),
                                         height: 1.3,
                                       ),
                                     ),
@@ -460,7 +460,7 @@ class _MusicSection extends StatelessWidget {
                                     ltrFor(context, _remaining(playing)),
                                     style: TrainType.mono(
                                       size: 10,
-                                      color: const Color(0x59F4F4F0),
+                                      color: TrainColors.inkAt(0.35),
                                     ),
                                   ),
                                 ],
@@ -565,10 +565,10 @@ class _SignOutButton extends StatelessWidget {
       mono: false,
       height: 54,
       loading: loading,
-      icon: const Icon(
+      icon: Icon(
         AppIcons.signOut,
         size: 16,
-        color: Color(0xBFF4F4F0),
+        color: TrainColors.inkAt(0.75),
       ),
       onTap: onTap,
     );

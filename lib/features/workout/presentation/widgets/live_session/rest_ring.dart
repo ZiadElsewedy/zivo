@@ -194,7 +194,7 @@ class _RestRingState extends State<RestRing> with TickerProviderStateMixin {
                   size: 9,
                   weight: FontWeight.w500,
                   tracking: 0.24,
-                  color: const Color(0x4DF4F4F0),
+                  color: TrainColors.inkAt(0.3),
                 ),
               ),
             ),
@@ -246,12 +246,12 @@ class RestTimeLabel extends StatelessWidget {
     size: 64,
     weight: FontWeight.w200,
     tracking: -0.06,
-    color: const Color(0xFFFBFBF7),
+    color: TrainColors.voiceInk,
   );
   static final _centisStyle = TrainType.mono(
     size: 17,
     tracking: -0.03,
-    color: const Color(0x59F4F4F0),
+    color: TrainColors.inkAt(0.35),
   );
 
   @override

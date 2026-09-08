@@ -150,14 +150,14 @@ class SpotifyStrip extends StatelessWidget {
                     : const EdgeInsetsDirectional.fromSTEB(11, 10, 14, 10),
                 decoration: BoxDecoration(
                   color: Color.lerp(
-                    _isFull ? TrainColors.glass : const Color(0x08FFFFFF),
+                    _isFull ? TrainColors.glass : TrainColors.sectionFill,
                     _tint.withValues(alpha: 0.10),
                     bloom,
                   ),
                   borderRadius: BorderRadius.circular(radius),
                   border: Border.all(
                     color: Color.lerp(
-                      _isFull ? TrainColors.hairline : const Color(0x0FFFFFFF),
+                      _isFull ? TrainColors.hairline : TrainColors.glassStrong,
                       _tint.withValues(alpha: 0.45),
                       bloom,
                     )!,
@@ -301,7 +301,7 @@ class SpotifyStrip extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: fraction,
                     minHeight: 2,
-                    backgroundColor: const Color(0x1FFFFFFF),
+                    backgroundColor: TrainColors.hairlineStrong,
                     valueColor: AlwaysStoppedAnimation(_tint),
                   ),
                 ),
@@ -353,7 +353,7 @@ class SpotifyStrip extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           ltrFor(context, '-${_mmss(playing.duration - position)}'),
-          style: TrainType.mono(size: 9, color: const Color(0x59F4F4F0)),
+          style: TrainType.mono(size: 9, color: TrainColors.inkAt(0.35)),
         ),
         const SizedBox(width: 6),
         // Transport controls do not mirror: they point along the track's
@@ -382,8 +382,8 @@ class SpotifyStrip extends StatelessWidget {
                 semanticLabel: l(context).musicNextTrack,
                 size: 36,
                 onTap: controller.next,
-                child: const TrainPlayGlyph(
-                  color: Color(0xBFF4F4F0),
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
                   size: 11,
                   bar: true,
                 ),
@@ -442,8 +442,8 @@ class SpotifyStrip extends StatelessWidget {
                 onTap: controller.previous,
                 child: Transform.rotate(
                   angle: 3.14159,
-                  child: const TrainPlayGlyph(
-                    color: Color(0xBFF4F4F0),
+                  child: TrainPlayGlyph(
+                    color: TrainColors.inkAt(0.75),
                     size: 11,
                     bar: true,
                   ),
@@ -466,8 +466,8 @@ class SpotifyStrip extends StatelessWidget {
                 semanticLabel: l(context).musicNextTrack,
                 size: 38,
                 onTap: controller.next,
-                child: const TrainPlayGlyph(
-                  color: Color(0xBFF4F4F0),
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
                   size: 11,
                   bar: true,
                 ),
@@ -526,8 +526,8 @@ class SpotifyStrip extends StatelessWidget {
                 onTap: controller.previous,
                 child: Transform.rotate(
                   angle: 3.14159,
-                  child: const TrainPlayGlyph(
-                    color: Color(0xBFF4F4F0),
+                  child: TrainPlayGlyph(
+                    color: TrainColors.inkAt(0.75),
                     size: 11,
                     bar: true,
                   ),
@@ -550,8 +550,8 @@ class SpotifyStrip extends StatelessWidget {
                 semanticLabel: l(context).musicNextTrack,
                 size: 36,
                 onTap: controller.next,
-                child: const TrainPlayGlyph(
-                  color: Color(0xBFF4F4F0),
+                child: TrainPlayGlyph(
+                  color: TrainColors.inkAt(0.75),
                   size: 11,
                   bar: true,
                 ),
@@ -565,7 +565,7 @@ class SpotifyStrip extends StatelessWidget {
 
   static final _timecode = TrainType.mono(
     size: 9,
-    color: const Color(0x66F4F4F0),
+    color: TrainColors.ink3,
   );
 }
 
@@ -604,7 +604,7 @@ class _StripArtwork extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: radius,
                 color: tint.withValues(alpha: 0.12),
-                border: Border.all(color: const Color(0x14FFFFFF)),
+                border: Border.all(color: TrainColors.liftAt(0.078)),
               ),
               child: ClipRRect(
                 borderRadius: radius,
@@ -667,8 +667,8 @@ class _StripArtwork extends StatelessWidget {
             top: -3,
             child: Container(
               padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                color: Color(0xF2080908),
+              decoration: BoxDecoration(
+                color: TrainColors.base.withValues(alpha: 0.95),
                 shape: BoxShape.circle,
               ),
               child: Image.asset(
@@ -843,7 +843,7 @@ class _Artist extends StatelessWidget {
       size: size,
       tracking: 0.02,
       height: 1.2,
-      color: const Color(0x61F4F4F0),
+      color: TrainColors.inkAt(0.38),
     ),
   );
 }

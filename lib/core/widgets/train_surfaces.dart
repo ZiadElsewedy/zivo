@@ -171,10 +171,10 @@ class TrainPageHeader extends StatelessWidget {
         TrainCircleButton(
           semanticLabel: 'Back',
           onTap: onBack ?? () => Navigator.of(context).maybePop(),
-          child: const Icon(
+          child: Icon(
             Icons.arrow_back_rounded,
             size: 17,
-            color: Color(0xBFF4F4F0),
+            color: TrainColors.inkAt(0.75),
           ),
         ),
         const SizedBox(width: 6),
@@ -262,7 +262,7 @@ class TrainSectionLabel extends StatelessWidget {
           style: TrainType.caption(
             size: 9.5,
             tracking: 0.2,
-            color: const Color(0x4DF4F4F0),
+            color: TrainColors.inkAt(0.3),
           ),
         ),
         const Spacer(),
@@ -273,7 +273,7 @@ class TrainSectionLabel extends StatelessWidget {
               size: 9.5,
               tracking: 0.08,
               weight: trailingColor == null ? FontWeight.w400 : FontWeight.w600,
-              color: trailingColor ?? const Color(0x4DF4F4F0),
+              color: trailingColor ?? TrainColors.inkAt(0.3),
             ),
           ),
       ],
@@ -399,10 +399,10 @@ class TrainListRow extends StatelessWidget {
               ),
             if (onTap != null) ...[
               const SizedBox(width: 10),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
-                color: Color(0x4DF4F4F0),
+                color: TrainColors.inkAt(0.3),
               ),
             ],
           ],
@@ -437,7 +437,7 @@ class TrainListCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: TrainColors.hairline),
       ),
@@ -526,7 +526,7 @@ class TrainStatTile extends StatelessWidget {
                         size: 30,
                         weight: FontWeight.w400,
                         tracking: -0.04,
-                        color: const Color(0xFFF9F9F5),
+                        color: TrainColors.voiceInk,
                       ),
                     ),
                   ),
@@ -538,7 +538,7 @@ class TrainStatTile extends StatelessWidget {
                         size: 10,
                         weight: FontWeight.w500,
                         tracking: 0.1,
-                        color: const Color(0x4DF4F4F0),
+                        color: TrainColors.inkAt(0.3),
                       ),
                     ),
                   ],
@@ -552,7 +552,7 @@ class TrainStatTile extends StatelessWidget {
                 style: TrainType.ui(
                   size: 11.5,
                   weight: FontWeight.w600,
-                  color: const Color(0x80F4F4F0),
+                  color: TrainColors.inkAt(0.5),
                   height: 1,
                 ),
               ),
@@ -591,14 +591,24 @@ class TrainStatStrip extends StatelessWidget {
     required this.items,
     this.valueSize = 22,
     this.centered = true,
-    this.dividerColor = const Color(0x14FFFFFF),
+    Color? dividerColor,
     super.key,
-  });
+  // `this._x`, which the lint asks for here, is not a thing Dart will
+  // accept: a named parameter cannot be private. The field is private
+  // so that the public name can be the *resolved* getter below, which
+  // is what keeps this constructor `const` (ADR-011).
+  // ignore: prefer_initializing_formals
+  }) : _dividerColor = dividerColor;
 
   final List<TrainStat> items;
   final double valueSize;
   final bool centered;
-  final Color dividerColor;
+  final Color? _dividerColor;
+
+  /// Defaults to the active skin's faintest rule — resolved on read
+  /// rather than as a parameter default, which is what lets this
+  /// constructor stay `const` (ADR-011).
+  Color get dividerColor => _dividerColor ?? TrainColors.liftAt(0.078);
 
   @override
   Widget build(BuildContext context) {
@@ -622,7 +632,7 @@ class TrainStatStrip extends StatelessWidget {
                     style: TrainType.mono(
                       size: valueSize,
                       tracking: -0.03,
-                      color: items[i].color ?? const Color(0xFFF9F9F5),
+                      color: items[i].color ?? TrainColors.voiceInk,
                     ),
                   ),
                   const SizedBox(height: 9),
@@ -898,7 +908,7 @@ class TrainBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(height),
       child: Container(
         height: height,
-        color: const Color(0x14FFFFFF),
+        color: TrainColors.liftAt(0.078),
         child: Align(
           // A generic progress fill grows from the START edge (unlike a media
           // playhead, which is pinned to a timeline) — so it fills rightward
@@ -1099,7 +1109,7 @@ class TrainFilterPill extends StatelessWidget {
             style: TrainType.ui(
               size: 12.5,
               weight: FontWeight.w700,
-              color: selected ? TrainColors.ember : const Color(0x8CF4F4F0),
+              color: selected ? TrainColors.ember : TrainColors.inkAt(0.55),
               height: 1,
             ),
           ),
@@ -1161,7 +1171,7 @@ class _DashedBorderPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0x1CFFFFFF);
+      ..color = TrainColors.liftAt(0.11);
     // 5-on / 4-off, walked around the rounded rect by path metrics — Flutter
     // has no dashed stroke of its own.
     for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {

@@ -190,7 +190,7 @@ class SuggestionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressableScale(
       child: Material(
-        color: const Color(0x0BFFFFFF),
+        color: TrainColors.glass,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: () {
@@ -202,7 +202,7 @@ class SuggestionChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x17FFFFFF)),
+              border: Border.all(color: TrainColors.liftAt(0.09)),
             ),
             child: Text(
               label,

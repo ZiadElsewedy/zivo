@@ -71,7 +71,7 @@ class BodyweightHistoryPage extends StatelessWidget {
                             size: 40,
                             weight: FontWeight.w300,
                             tracking: -0.05,
-                            color: const Color(0xFFF9F9F5),
+                            color: TrainColors.voiceInk,
                           ),
                         ),
                         if (latest != null)
@@ -86,7 +86,7 @@ class BodyweightHistoryPage extends StatelessWidget {
                                 size: 11,
                                 weight: FontWeight.w500,
                                 tracking: 0.14,
-                                color: const Color(0x59F4F4F0),
+                                color: TrainColors.inkAt(0.35),
                               ),
                             ),
                           ),
@@ -207,7 +207,7 @@ class _WeighInRow extends StatelessWidget {
             style: TrainType.mono(
               size: 9.5,
               tracking: 0.08,
-              color: const Color(0x59F4F4F0),
+              color: TrainColors.inkAt(0.35),
             ),
           ),
           const SizedBox(width: 12),

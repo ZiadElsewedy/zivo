@@ -471,7 +471,7 @@ class _EmptyResults extends StatelessWidget {
               label: l(context).logAddOwnFood(query),
               icon: Icons.add_rounded,
               color: TrainColors.green,
-              textColor: const Color(0xFF04140D),
+              textColor: TrainColors.onGreen,
               enabled: true,
               onTap: onDefine!,
             ),

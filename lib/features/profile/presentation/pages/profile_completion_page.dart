@@ -315,10 +315,10 @@ class _DobField extends StatelessWidget {
                           ),
                         ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
-                  color: Color(0x4DF4F4F0),
+                  color: TrainColors.inkAt(0.3),
                 ),
               ],
             ),

@@ -306,7 +306,7 @@ class _QuickLogSheetState extends State<QuickLogSheet>
         color: TrainColors.ember,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Color(0x55FF5C1A), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: TrainColors.ember.withValues(alpha: 0.33), blurRadius: 8, spreadRadius: 1),
         ],
       ),
     );

@@ -428,17 +428,17 @@ class _SaveButton extends StatelessWidget {
                   width: 17,
                   height: 17,
                   child: busy
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.all(1.5),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF2A2205),
+                            color: TrainColors.onAmber,
                           ),
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.check_rounded,
                           size: 17,
-                          color: Color(0xFF2A2205),
+                          color: TrainColors.onAmber,
                         ),
                 ),
                 const SizedBox(width: 8),
@@ -446,7 +446,7 @@ class _SaveButton extends StatelessWidget {
                   label,
                   style: AppText.button.copyWith(
                     fontSize: 16,
-                    color: const Color(0xFF2A2205),
+                    color: TrainColors.onAmber,
                   ),
                 ),
               ],

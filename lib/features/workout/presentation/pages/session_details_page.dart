@@ -91,7 +91,7 @@ class _DetailsHeader extends StatelessWidget {
         semanticLabel: l(context).sessionDeleteAction,
         // Neutral, not ember: destructive, but already gated behind its own
         // confirm — it doesn't get to be the loudest thing in the bar.
-        accent: const Color(0xFFF4F4F0),
+        accent: TrainColors.inkPlain,
         onTap: onDelete,
       ),
     );
@@ -138,7 +138,7 @@ class _SessionHeroHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -315,7 +315,7 @@ class _ExerciseDetailCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TrainColors.hairline),
       ),

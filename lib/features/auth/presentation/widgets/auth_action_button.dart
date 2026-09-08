@@ -99,7 +99,7 @@ class AuthActionButton extends StatelessWidget {
                 ? LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFF6E33), TrainColors.ember],
+                    colors: [TrainColors.emberLift, TrainColors.ember],
                   )
                 : null,
             borderRadius: radius,
@@ -107,9 +107,9 @@ class AuthActionButton extends StatelessWidget {
                 ? Border.all(color: border!, width: 1.4)
                 : null,
             boxShadow: lit
-                ? const [
+                ? [
                     BoxShadow(
-                      color: Color(0x38FF5A1F),
+                      color: TrainColors.ember.withValues(alpha: 0.22),
                       blurRadius: 28,
                       spreadRadius: -10,
                       offset: Offset(0, 12),

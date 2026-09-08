@@ -114,7 +114,7 @@ class PlanAddButton extends StatelessWidget {
               Icon(
                 Icons.add_rounded,
                 size: compact ? 14 : 17,
-                color: const Color(0x99F4F4F0),
+                color: TrainColors.inkAt(0.6),
               ),
               const SizedBox(width: 6),
               Text(
@@ -123,7 +123,7 @@ class PlanAddButton extends StatelessWidget {
                   size: compact ? 12.5 : 14,
                   weight: FontWeight.w700,
                   height: 1,
-                  color: const Color(0xCCF4F4F0),
+                  color: TrainColors.inkAt(0.8),
                 ),
               ),
             ],
@@ -148,8 +148,8 @@ class SheetShell extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0x08FFFFFF),
+      decoration: BoxDecoration(
+        color: TrainColors.sectionFill,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: SingleChildScrollView(
