@@ -113,7 +113,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   // here that changes what every other screen says.
                   SettingsRow(
                     key: const Key('settings-language'),
-                    icon: Icons.translate_rounded,
+                    icon: AppIcons.language,
                     title: l(context).settingsLanguage,
                     value: _languageValue(context),
                     accent: TrainColors.violetGlyph,
@@ -365,16 +365,16 @@ class _MusicSection extends StatelessWidget {
                                   height: 32,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    // TrainIconTile's own numbers — this has
+                                    // `SettingsRow`'s own numbers — this has
                                     // to be hand-built because it carries an
                                     // image rather than an IconData, which is
                                     // no reason for its plate to sit a
-                                    // percent off every other tile's.
-                                    color: accent.withValues(alpha: 0.13),
+                                    // percent off every other tile's. Fill
+                                    // only, no border, for the reason given
+                                    // on `SettingsRow`: on this ground the
+                                    // two at half strength cancelled out.
+                                    color: accent.withValues(alpha: 0.17),
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: accent.withValues(alpha: 0.22),
-                                    ),
                                   ),
                                   // Spotify's own mark, not a stand-in glyph:
                                   // this row names a third-party service the
@@ -426,8 +426,8 @@ class _MusicSection extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 16,
+                                  AppIcons.chevron,
+                                  size: 17,
                                   color: Color(0x4DF4F4F0),
                                 ),
                               ],

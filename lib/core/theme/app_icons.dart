@@ -93,6 +93,12 @@ class AppIcons {
   // Settings · about.
   static const privacy = LucideIcons.shieldCheck;
 
+  /// Settings' language row. Named here rather than reached for as
+  /// `Icons.translate_rounded` at the call site: Material Rounded is a
+  /// different design grid and a heavier optical weight than Lucide, and one
+  /// Material glyph in a Lucide column is visible even when you can't name it.
+  static const language = LucideIcons.languages;
+
   // Music.
   static const music = LucideIcons.music;
   static const shuffle = LucideIcons.shuffle;
@@ -103,7 +109,10 @@ class AppIcons {
   static const speaker = LucideIcons.volume2;
 
   // Settings · media & backup.
-  static const theme = LucideIcons.moon;
+  // `sunMoon`, not the bare `moon` the Sleep module already owns: two rows in
+  // the app drawn with the same glyph make the set read thin, and this row is
+  // an appearance readout rather than anything to do with night.
+  static const theme = LucideIcons.sunMoon;
   static const photos = LucideIcons.images;
   static const driveCloud = LucideIcons.cloud;
   static const driveConnected = LucideIcons.cloudCheck;
@@ -111,8 +120,10 @@ class AppIcons {
   static const schedule3Day = LucideIcons.calendarDays;
   static const wifi = LucideIcons.wifi;
   static const disconnect = LucideIcons.unlink;
-  static const version = LucideIcons.info;
-  static const build = LucideIcons.wrench;
+  // Not the generic `info` — that mark belongs to [info], and Version sitting
+  // under the same glyph as every explainer button flattens both.
+  static const version = LucideIcons.badgeInfo;
+  static const build = LucideIcons.hammer;
   static const signOut = LucideIcons.logOut;
 
   // Toast / status glyphs.

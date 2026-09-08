@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_icons.dart';
 import '../theme/train_tokens.dart';
 import 'pressable_scale.dart';
 import 'train_surfaces.dart';
@@ -50,12 +51,18 @@ class SettingsSectionCard extends StatelessWidget {
 /// a right-aligned mono value, and either a custom [trailing] widget or (when
 /// [onTap] is set) a chevron.
 ///
-/// [accent] colours the leading tile — a **13% tint of that one hue behind a
-/// 22% border, with the glyph itself in the hue**. Deliberately not the
-/// saturated gradient chip this row used to carry: the handoff's identity doc
-/// rules out multi-hue saturated icon tiles outright (§8), because a column
-/// of them reads as decoration competing with the values beside it. Without
-/// an accent the tile falls back to neutral ink.
+/// [accent] colours the leading tile — a **17% tint of that one hue with the
+/// glyph itself in the hue, and no border**. Deliberately not the saturated
+/// gradient chip this row used to carry: the handoff's identity doc rules out
+/// multi-hue saturated icon tiles outright (§8), because a column of them
+/// reads as decoration competing with the values beside it. Without an accent
+/// the tile falls back to neutral ink.
+///
+/// The tile carries a fill *or* an edge, never both at half strength. It used
+/// to run a 13% fill behind a 22% border, inside a card that already has its
+/// own hairline, above a hairline divider, beside a hairline chevron — on this
+/// near-black ground that edge never resolved into a shape, it just softened
+/// the glyph. One solid tint at 17% reads as a tile; the border is gone.
 ///
 /// Dividers are inset past the icon column (63px, the handoff's figure), so
 /// each row's mark reads as the start of its own line.
@@ -106,14 +113,15 @@ class SettingsRow extends StatelessWidget {
       height: 32,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: hue.withValues(alpha: accent == null ? 0.06 : 0.13),
+        color: hue.withValues(alpha: accent == null ? 0.09 : 0.17),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: hue.withValues(alpha: accent == null ? 0.10 : 0.22),
-        ),
       ),
+      // 17, not 15: at 15 the glyph filled 47% of a 32px tile (Apple's run
+      // ~60%), and Lucide's 2/24 stroke resolved to 1.25 logical px — half a
+      // physical pixel on a 2x screen, which is what made this column read
+      // soft rather than small.
       child:
-          iconWidget ?? Icon(icon, size: 15, color: accent ?? TrainColors.ink2),
+          iconWidget ?? Icon(icon, size: 17, color: accent ?? TrainColors.ink2),
     );
 
     final content = Column(
@@ -157,8 +165,8 @@ class SettingsRow extends StatelessWidget {
               ] else if (editable) ...[
                 const SizedBox(width: 8),
                 const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
+                  AppIcons.chevron,
+                  size: 17,
                   color: Color(0x4DF4F4F0),
                 ),
               ],
