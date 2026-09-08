@@ -139,6 +139,45 @@ void main() {
       expect(_luminance(p.raisedStrong), lessThan(_luminance(p.raised)));
     });
 
+    test('an arbitrary ink step lands where the named ones did', () {
+      // `inkAt`/`liftAt` have to make the same journey the named steps made,
+      // or ~100 call sites get a dark-tuned alpha on paper. The curve is
+      // checked against the pairs it was derived from.
+      for (final (onDark, onLight) in [
+        (0.45, ZivoPalette.dark.ink2.a),
+        (0.40, ZivoPalette.dark.ink3.a),
+        (0.32, ZivoPalette.dark.ink4.a),
+      ]) {
+        expect(onDark, closeTo(onLight, 0.01)); // the dark pair, sanity
+      }
+      expect(p.inkAt(0.45).a, closeTo(p.ink2.a, 0.02));
+      expect(p.inkAt(0.40).a, closeTo(p.ink3.a, 0.02));
+      expect(p.inkAt(0.32).a, closeTo(p.ink4.a, 0.03));
+      expect(p.liftAt(0.07).a, closeTo(p.hairline.a, 0.02));
+      expect(p.liftAt(0.12).a, closeTo(p.hairlineStrong.a, 0.02));
+
+      // ...and it saturates rather than clipping, which a plain multiplier
+      // would do at the top of the range.
+      expect(p.inkAt(0.8).a, lessThan(1.0));
+      expect(p.inkAt(1.0).a, closeTo(1.0, 0.001));
+
+      // The dark skin is the identity — its literals are the reference.
+      expect(ZivoPalette.dark.inkAt(0.3).a, closeTo(0.3, 0.005));
+    });
+
+    test('a quiet caption stays as quiet-but-readable as it is on dark', () {
+      // The live session's "of 5:00 planned" line, which is what surfaced
+      // this: at a raw 0.3 it landed at 2.0:1 on paper against 3.2:1 on
+      // near-black — the same token reading as two different decisions.
+      final onLight = _contrast(p.inkAt(0.3), p.base);
+      final onDark = _contrast(
+        ZivoPalette.dark.inkAt(0.3),
+        ZivoPalette.dark.base,
+      );
+      expect(onLight, greaterThan(2.6));
+      expect((onLight - onDark).abs(), lessThan(1.0));
+    });
+
     test('surface lifts are ink here and light on the dark skin', () {
       expect(ZivoPalette.dark.lift, const Color(0xFFFFFFFF));
       expect(_luminance(p.lift), lessThan(0.1));

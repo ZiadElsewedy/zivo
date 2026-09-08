@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// **The two dressings of the one design system.**
@@ -94,6 +96,7 @@ class ZivoPalette {
     required this.sleepStageUnknown,
     required this.macroCarbs,
     required this.macroFat,
+    required this.alphaGamma,
     required this.actionGlowAlpha,
   });
 
@@ -218,6 +221,24 @@ class ZivoPalette {
   final Color macroCarbs;
   final Color macroFat;
 
+  /// **How an arbitrary ink/lift opacity translates onto this skin.**
+  ///
+  /// The named ink steps are not mirrored alphas between the two skins —
+  /// white-on-black survives much further down the ramp than black-on-white,
+  /// so dark's .45/.40/.32 became light's .62/.55/.42 (and its .07/.12
+  /// hairlines became .10/.18). [inkAt] and [liftAt] have to make the same
+  /// journey, or ~100 call sites that asked for "a step the ladder doesn't
+  /// name" get a dark-tuned alpha on paper: the live session's "of 5:00
+  /// planned" caption, at `inkAt(0.3)`, came out at 2.0:1 where the dark skin
+  /// gives it 3.2:1.
+  ///
+  /// `1 - (1 - o)^gamma` is the curve through those pairs — it reproduces the
+  /// named steps to within a percent and saturates instead of clipping, which
+  /// a plain multiplier does at the top of the range. Dark is 1.0, i.e. the
+  /// identity: its literals are the reference the light ones were derived
+  /// from.
+  final double alphaGamma;
+
   /// How hard the bloom under a primary pill burns. A coloured glow on paper
   /// reads as a smudge at the strength it reads as light on near-black, so
   /// light dials it back rather than dropping it.
@@ -227,13 +248,18 @@ class ZivoPalette {
   /// [ink4] for the handful of places that need a step the ladder doesn't
   /// name. Prefer a named step; reach for this only when none of them is the
   /// value the design actually calls for.
-  Color inkAt(double opacity) => inkPlain.withValues(alpha: opacity);
+  Color inkAt(double opacity) => inkPlain.withValues(alpha: alphaFor(opacity));
 
   /// [lift] at an arbitrary opacity — a surface step between the named
   /// [glassSoft]/[glass]/[glassStrong]/[hairline] ones. Same advice as
   /// [inkAt]: prefer a named token, reach for this when the design genuinely
   /// lands between them.
-  Color liftAt(double opacity) => lift.withValues(alpha: opacity);
+  Color liftAt(double opacity) => lift.withValues(alpha: alphaFor(opacity));
+
+  /// [opacity] as this skin needs it — see [alphaGamma].
+  double alphaFor(double opacity) => alphaGamma == 1
+      ? opacity
+      : 1 - math.pow(1 - opacity, alphaGamma).toDouble();
 
   /// **The near-black skin** — the one ZIVO shipped with, unchanged. Every
   /// value here is the literal that used to sit on `TrainColors`, so dark
@@ -368,6 +394,7 @@ class ZivoPalette {
     sleepStageUnknown: Color(0xFF5C6478),
     macroCarbs: Color(0xFF6BE3AE),
     macroFat: Color(0xFFA9EDCE),
+    alphaGamma: 1.0,
     actionGlowAlpha: 0.32,
   );
 
@@ -399,11 +426,14 @@ class ZivoPalette {
     amber: Color(0xFF916509),
 
     // Ink, at the higher alphas black-on-white needs (see the class doc).
+    // The three steps sit on one curve — the same one [alphaGamma] applies to
+    // an arbitrary `inkAt`, so a named step and a hand-picked one can't
+    // disagree about what "quiet" means on this skin.
     ink: Color(0xFF0E100E),
     inkPlain: Color(0xFF141614),
     ink2: Color(0x9E141614),
     ink3: Color(0x8C141614),
-    ink4: Color(0x6B141614),
+    ink4: Color(0x73141614),
     voiceInk: Color(0xFF101410),
 
     // Hairlines and glass invert: on paper a separator is ink laid down, not
@@ -567,6 +597,7 @@ class ZivoPalette {
     macroCarbs: Color(0xFF3FB77F),
     macroFat: Color(0xFF77CFA4),
 
+    alphaGamma: 1.55,
     actionGlowAlpha: 0.20,
   );
 }

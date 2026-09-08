@@ -85,7 +85,13 @@ system rather than two:
   system/meta (ADR-006 §2). Each walks down until it holds up on paper.
 * **Ink ramps are not mirrored alphas.** White-on-black stays legible much
   further down the ramp than black-on-white, so light's secondary/tertiary
-  inks sit at .62/.55/.42 where dark's sit at .45/.40/.32.
+  inks sit higher than dark's .45/.40/.32. They sit on a curve —
+  `1 - (1 - o)^alphaGamma`, gamma 1.55 — rather than at three hand-picked
+  values, because `inkAt()`/`liftAt()` have to make the same journey: ~100
+  call sites ask for a step the ladder doesn't name, and passing their alpha
+  through untouched gave the live session's "of 5:00 planned" caption 2.0:1
+  on paper against 3.2:1 on near-black. One curve means a named step and a
+  hand-picked one cannot disagree about what "quiet" means.
 * **Elevation is still light, not shadow** — which on paper means a raised
   surface *is* white, and the step above it goes grey. That is the one place
   the two skins move in opposite directions, and why `lift` exists.
