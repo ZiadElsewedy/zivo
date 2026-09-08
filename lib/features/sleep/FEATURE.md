@@ -29,13 +29,17 @@ enforce it, and none of them is a convention someone has to remember:
 | `domain/sleep_sessionizer.dart` | pure: raw records → sessions (stitches iOS fragments) |
 | `domain/sleep_resolver.dart` | pure: candidates → a night (chooses, never merges) |
 | `domain/sleep_metrics.dart` | pure: circular stats + the `SleepGates` thresholds |
+| `domain/sleep_window.dart` | pure: **the one definition of a range of sleep-days** — day keys, gap fill, latest-with-data, age |
+| `domain/sleep_stage_breakdown.dart` | pure: stages → a night's composition, **or null** — plus the weekly averages |
 | `domain/sleep_insight.dart` | the AI fact sheet, the numeral gate, deterministic drafts |
 | `domain/sleep_service.dart` | the ingest pipeline + manual logging |
 | `domain/sleep_source.dart` | **the platform seam** (`SleepSource`, `RawSleepRecord`) |
 | `data/health_sleep_source.dart` | HealthKit + Health Connect, via the `health` package |
 | `data/sleep_night_codec.dart` | the Firestore wire format — the durability boundary |
 | `presentation/sleep_labels.dart` | **the copy contract** |
-| `presentation/pages/sleep_page.dart` | the whole screen: tonight · last night · week · insights, over a docked action |
+| `presentation/pages/sleep_page.dart` | **the dashboard — one night**: tonight · the night · stages · detail · target · insights, over a docked action |
+| `presentation/pages/sleep_week_page.dart` | **the history view**: a pageable week — raster · typical night · composition · every night · the four-week run |
+| `presentation/widgets/sleep_stage_split.dart` | the stage bar + rows, and the stage colour ramp |
 | `presentation/widgets/sleep_about_sheet.dart` | what the feature does, for a user who has never seen it |
 
 ## Wiring
@@ -46,6 +50,13 @@ enforce it, and none of them is a convention someone has to remember:
 - Firestore: `users/{uid}/sleepNights/{yyyy-MM-dd}` +
   `users/{uid}/sleepSettings/main`. Rules + rules tests exist for both.
 - Entry points: the Hub's Sleep card, and `SleepGlanceSection` on Today.
+  History is reached from the dashboard's foot row, and **only** from there —
+  it is not in app Settings, which is app behaviour (appearance, music,
+  account) and has no content rows in it.
+- **Refresh is the app's job, not the page's.** `app.dart` calls
+  `SleepService.syncIfStale` on sign-in and on `AppLifecycleState.resumed`;
+  the page does the same when it opens and when it is resumed onto. The
+  throttle lives in the service so all four callers share one budget.
 - Backend: `functions/ai/sleep_insights.js` — prompt, numeral gate, validation.
   **Not yet wired to a callable**; the client runs the deterministic tier.
 
@@ -93,6 +104,34 @@ enforce it, and none of them is a convention someone has to remember:
   third state, and `retryLoad` **re-subscribes** — a Firestore snapshot
   listener that errored is finished, so re-reading the health store alone
   would fix nothing.
+- **The dashboard is one night; the week is a different page.** They used to
+  share a scroll, and the five time bases on it (last night, seven raster
+  rows, three weekly averages, a comparison to *another* week) were the reason
+  the screen read as confusing. Any figure added to `sleep_page.dart` must be
+  about the headline night; anything about a window belongs on
+  `sleep_week_page.dart`.
+- **"Last night" is a claim, and it is checked.** `SleepController.latestNight`
+  is the most recent night *with data* and may be weeks old;
+  `isLatestNightStale` is what stops the screen calling it last night. The
+  same check dates the Today glance. A real figure under the wrong date is
+  indistinguishable from an app that has stopped updating.
+- **A routine sync used to make the trend unreachable.** Every automatic
+  `sync()` read `refreshDays` (7) while `SleepGates.minNightsForTrend` wants 14
+  nights across 21 days, and `backfillDays` was only reached from
+  `requestAccess`. The first sync of a process now backfills when stored
+  history is shallower than that window (`SleepService._routineWindowDays`).
+- **Concurrent `sync()` calls join the one in flight.** They used to return an
+  already-completed future, so pull-to-refresh dropped its spinner in the same
+  frame and `retryLoad` reported success before the read had begun.
+- **Stages are measured or absent — never derived.**
+  `SleepStageBreakdown.forSession` returns null for an ungraded night, for
+  staging that covers under 60% of the session, and it unions overlapping
+  HealthKit samples rather than summing them. The weekly averages count only
+  staged nights and print that denominator; treating an unstaged night as zero
+  deep sleep would be a fabricated figure.
+- **Nothing computes a window inline.** `sleep_window.dart` is the only place a
+  range of sleep-days is built, which is why the dashboard, the history page's
+  pager and the comparison cannot disagree about which day is missing.
 - **Nothing on this screen takes `TrainColors.violet` directly.** Sleep has its
   own three tones (`sleepAccent`/`sleepGlyph`/`sleepWash`) — same hue, walked
   toward blue so the night screen is not the assistant's lavender. ADR-010's

@@ -168,6 +168,37 @@ class SleepController extends ChangeNotifier {
 
   SleepWindowMetrics get weekMetrics => metricsFor(week);
 
+  /// The fortnight **before** [latestNight] — the baseline the headline night
+  /// is compared against.
+  ///
+  /// Excluding the night itself is the whole point. A night compared to an
+  /// average it is a member of pulls that average toward itself and shrinks
+  /// the difference, worst on exactly the sparse weeks where the reader has
+  /// least ability to notice: one night against a "week" of one night reports
+  /// a difference of zero, forever, and reads as a bug.
+  SleepWindowMetrics get baselineMetrics {
+    final night = latestNight;
+    if (night == null) {
+      return const SleepWindowMetrics(nightCount: 0, windowNights: 0);
+    }
+    return metricsFor(
+      SleepWindow.daysEndingOn(
+        _nights,
+        lastDay: SleepWindow.dayOf(
+          night.sleepDay,
+        ).subtract(const Duration(days: 1)),
+        count: baselineNights,
+        targets: _targets,
+      ),
+    );
+  }
+
+  /// How far back the headline's baseline reaches. A fortnight: long enough
+  /// that a couple of missing nights still clears
+  /// `SleepGates.minNightsForAverage`, short enough that it describes the
+  /// user's current sleep rather than their year.
+  static const int baselineNights = 14;
+
   SleepWindowMetrics get previousWeekMetrics => metricsFor(previousWeek);
 
   /// Mean stage composition across [nights], or null when too few are staged.

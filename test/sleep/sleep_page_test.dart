@@ -286,20 +286,66 @@ void main() {
     expect(findTextIgnoringBidi("I'm going to sleep"), findsOneWidget);
   });
 
-  testWidgets('gated figures state how far off they are, and show no number',
+  testWidgets('the dashboard shows one night and no window averages',
       (tester) async {
+    // The dashboard's whole claim is that every figure on it shares one time
+    // base. A single recorded night is the case that used to break it worst:
+    // the week card sat under the hero showing three gated figures and a
+    // week-over-week line, so a screen describing one night carried four
+    // statements about a week. The window figures live on the history page
+    // now; what stays here is the night, and the honest note that no
+    // conclusion follows from it yet.
     await _pump(tester, method: SleepMethod.measuredWearable);
 
-    // One night is below every window gate: the week's three figures must say
-    // so rather than averaging a single night into a "weekly average". Each
-    // renders an em dash where its value would be, over the count that would
-    // unlock it — average and on-target need three nights, consistency five.
-    expect(findTextIgnoringBidi('—'), findsNWidgets(3));
-    expect(findTextIgnoringBidi('1 of 3 nights'), findsNWidgets(2));
-    expect(findTextIgnoringBidi('1 of 5 nights'), findsOneWidget);
+    expect(findTextIgnoringBidi('LAST NIGHT'), findsOneWidget);
+    expect(findTextIgnoringBidi('THIS WEEK'), findsNothing);
+    expect(findTextIgnoringBidi('CONSISTENCY'), findsNothing);
+    expect(findTextIgnoringBidi('vs last week'.toUpperCase()), findsNothing);
     expect(
       findTextIgnoringBidi('No conclusion can be drawn from the nights '
           'recorded so far.'),
+      findsOneWidget,
+    );
+
+    // And the way through to the window figures is on the page, once.
+    expect(findTextIgnoringBidi('Sleep history'), findsOneWidget);
+  });
+
+  testWidgets('a night older than last night is dated, not called last night',
+      (tester) async {
+    // The failure this guards is the one indistinguishable from "the app
+    // stopped updating": a real, correctly computed figure rendered under the
+    // words "Last night" when it is four nights old. The screen has to name
+    // the night it is showing.
+    final now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day - 4);
+    // The source reports unavailable so the sync that follows does not
+    // reconcile the seeded night away — the subject here is the label, not
+    // the pipeline.
+    await _pump(
+      tester,
+      available: false,
+      seeded: SleepNight(
+        sleepDay: day,
+        main: SleepSession(
+          id: 'old',
+          startAt: DateTime(day.year, day.month, day.day - 1, 23, 30).toUtc(),
+          endAt: DateTime(day.year, day.month, day.day, 7, 10).toUtc(),
+          startOffsetMinutes: 0,
+          endOffsetMinutes: 0,
+          provenance: SleepProvenance.manual(
+            ingestedAt: now,
+            providerName: 'You',
+          ),
+        ),
+      ),
+    );
+
+    expect(findTextIgnoringBidi('4 NIGHTS AGO'), findsOneWidget);
+    expect(findTextIgnoringBidi('LAST NIGHT'), findsNothing);
+    expect(
+      findTextIgnoringBidi('Nothing has been recorded since. This is your '
+          'most recent night, not last night.'),
       findsOneWidget,
     );
   });
@@ -333,7 +379,7 @@ void main() {
     expect(findTextIgnoringBidi('Just now'), findsOneWidget);
     expect(
       tester.getTopLeft(findTextIgnoringBidi('SLEEPING')).dy,
-      lessThan(tester.getTopLeft(findTextIgnoringBidi('THIS WEEK')).dy),
+      lessThan(tester.getTopLeft(findTextIgnoringBidi('LAST NIGHT')).dy),
     );
   });
 

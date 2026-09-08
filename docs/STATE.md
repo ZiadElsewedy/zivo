@@ -7,7 +7,7 @@
 > made, see [`DECISIONS/`](DECISIONS). The **code is the ultimate source of truth** — if
 > this file disagrees with the code, fix this file.
 
-**Last updated:** 2026-09-07 · **Active branch:** `feature/sleep`
+**Last updated:** 2026-09-08 · **Active branch:** `feature/sleep`
 (`version-1` is 51 commits ahead of `main` — worth a merge).
 
 ---
@@ -73,6 +73,46 @@ auth/profile, home/Today, hub, capture, device (steps)**.
   restored it (reshaped as a workout companion). Treat it as a first-class feature.
 
 ## Recently landed (verified in code on `version-1`)
+
+- **Sleep split into a dashboard and a history view, and its freshness fixed**
+  (2026-09-08, on `feature/sleep`). Owner review: the dashboard was confusing,
+  the numbers did not obviously relate to each other, and the data looked
+  stale. The audit found the engine sound — the sessionizer, resolver, metrics
+  and codec all do what `SLEEP_SYSTEM.md` says — and the defects concentrated
+  in the last two layers.
+  - **The screen carried five time bases at once.** Last night's hero sat
+    directly above a seven-row raster, three weekly averages and a comparison
+    to a *different* week. `sleep_page.dart` is now the dashboard — one night,
+    in five bands: the figure, its stages, its measured detail, its target,
+    what it means. Every window figure moved to the new
+    `sleep_week_page.dart`, reached from a row at the foot. **Not** added to
+    app Settings: that page is app behaviour, and this is content.
+  - **"Last night" was said about nights that were not last night.** The
+    headline showed the most recent night with data, undated, however old.
+    `SleepController.latestNight` / `isLatestNightStale` now date it ("3 nights
+    ago") and say so under the figure; the Today glance carries the same
+    qualifier.
+  - **The trend gate could never open.** Every automatic sync read
+    `refreshDays` (7) while the trend wants 14 nights across 21 days;
+    `backfillDays` (90) was reachable only from `requestAccess`. The first sync
+    of a process now backfills when stored history is shallower than that.
+  - **Nothing outside the Sleep page ever read the health store.** Today's
+    glance and the Hub card render the Firestore mirror, so a user who did not
+    open Sleep saw whatever was written the last time they did. `app.dart`
+    syncs on sign-in and on resume, throttled in the service so all callers
+    share one budget; the page re-syncs on resume too.
+  - **Stages were ingested, ranked on, persisted — and never drawn.** New
+    `sleep_stage_breakdown.dart` (pure, and null far more readily than a sum:
+    no graded stages, under 60% coverage, or overlapping samples) plus
+    `sleep_stage_split.dart`. Weekly averages count staged nights only and
+    print that denominator.
+  - **Window arithmetic was re-derived per caller.** `sleep_window.dart` is now
+    the single definition; the controller, the history pager and the
+    comparison all read it.
+  - **Coverage:** 106 sleep tests (up from 76) across three new files
+    (`sleep_stage_breakdown_test`, `sleep_freshness_test`,
+    `sleep_week_page_test`); whole suite green (1338).
+  - **Not verified on device** — owner is testing it.
 
 - **The Sleep page redesigned, and two of its silences fixed** (2026-09-07, on
   `claude/sleep-page-redesign`). Owner review of the shipped screen: "the

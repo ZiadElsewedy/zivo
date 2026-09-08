@@ -249,6 +249,27 @@ abstract final class TrainColors {
   /// The 14% wash behind a tinted Sleep chip or icon tile.
   static const sleepWash = Color(0x247C9CFF);
 
+  // The stage ramp. Deep, REM, light and undifferentiated sleep, drawn as one
+  // **luminance ramp inside the sleep hue** rather than as four separate
+  // colours — deeper sleep is denser ink. Four unrelated hues would read as
+  // four categories of equal standing and would also import three colours the
+  // palette does not own (ADR-006), where a ramp says "these are degrees of
+  // one thing", which is exactly what sleep stages are.
+
+  /// Deep sleep — the densest tone on the ramp.
+  static const sleepStageDeep = Color(0xFF4E6BDE);
+
+  /// REM.
+  static const sleepStageRem = Color(0xFF8AA4FF);
+
+  /// Light (Apple's "core").
+  static const sleepStageLight = Color(0xFFB9C9FF);
+
+  /// Asleep, kind unknown — off the ramp on purpose. A source that declined to
+  /// grade the sleep must not be shown in a tone that implies it did, so this
+  /// is the neutral one.
+  static const sleepStageUnknown = Color(0xFF5C6478);
+
   /// `110% 36% at 50% 2%` — Settings, the coolest of the set.
   static const settingsTint = RadialGradient(
     center: Alignment(0, -0.96),

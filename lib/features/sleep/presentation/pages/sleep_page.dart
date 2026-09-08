@@ -21,6 +21,7 @@ import '../../domain/sleep_insight.dart';
 import '../../domain/sleep_metrics.dart';
 import '../../domain/sleep_night.dart';
 import '../../domain/sleep_service.dart';
+import '../../domain/sleep_session.dart';
 import '../controllers/sleep_controller.dart';
 import '../sleep_insight_labels.dart';
 import '../sleep_labels.dart';
@@ -30,40 +31,57 @@ import '../widgets/sleep_bar.dart';
 import '../widgets/sleep_duration_text.dart';
 import '../widgets/sleep_edit_night_sheet.dart';
 import '../widgets/sleep_source_chip.dart';
+import '../widgets/sleep_stage_split.dart';
 import '../widgets/sleep_targets_sheet.dart';
-import '../widgets/sleep_week_raster.dart';
 import '../widgets/sleep_why_sheet.dart';
+import 'sleep_week_page.dart';
 
-/// The Sleep screen: tonight, last night, the week, and what it means — in
-/// that order, on one scroll, over a docked action.
+/// **The Sleep dashboard: one night, answered completely.**
 ///
-/// Deliberately one page rather than a daily screen with a weekly drill-down.
-/// The whole feature is three sections and the sections answer each other:
-/// "6h 52m" means little until the raster shows it is the shortest of six
-/// nights, and the raster means little until the source chip says how much of
-/// it was measured. Splitting them across a navigation layer would put a tap
-/// between a number and its context.
+/// The screen answers exactly one question — *how did I sleep?* — and answers
+/// it about the most recent night, in five bands that each hold one idea:
+/// the figure, what it was made of, what was measured around it, how it sat
+/// against the target, and what it means. The week lives behind a row at the
+/// foot ([SleepWeekPage]).
 ///
-/// The screen's job is to make every claim on it defensible
-/// (`docs/SLEEP_SYSTEM.md` §13):
+/// ## Why the week is not here any more
+///
+/// It used to be, as a card of its own: a seven-row raster, three gated
+/// figures, and a week-over-week sentence, sitting directly under last night's
+/// hero duration. Two numbers in that arrangement were of last night, seven
+/// rows were of the week, three figures were averages *over* the week and one
+/// sentence compared it to a different week — five different time bases in one
+/// scroll, none of them labelled loudly enough to tell apart at a glance. The
+/// commonest failure was the worst one: reading a weekly average as last
+/// night's sleep.
+///
+/// A dashboard about today and a history view are different jobs. Splitting
+/// them is not a navigation preference; it is what lets every number on this
+/// screen share one time base, so a figure here can only ever mean one thing.
+///
+/// ## The claims this screen is allowed to make
+///
+/// Unchanged, and still the point (`docs/SLEEP_SYSTEM.md` §13):
 ///
 /// * the hero figure is never shown without its source chip;
 /// * a night with no data renders in words, never as `0h 0m`;
+/// * **the headline names its own night.** The most recent record is called
+///   "last night" only when it *is* last night; older than that it is dated
+///   and says so, because a real figure attached to the wrong night is
+///   indistinguishable from an app that has stopped updating — and was in
+///   fact the way this screen showed a five-day-old number as this morning's;
 /// * on iOS an empty read cannot be narrated as "no sleep data", because
-///   Apple does not disclose read denial and we would be asserting something
-///   we cannot know;
+///   Apple does not disclose read denial;
+/// * a stage split is drawn from measured stages or not at all;
 /// * every gated figure shows its `n`, or says it is not there yet.
 ///
 /// ## Why the primary action is docked
 ///
 /// "I'm going to sleep" used to be the last widget in the scroll, and the
-/// state it opens rendered in place of it — at the very bottom of a page long
-/// enough to push the result below the fold. Tapping the one control on the
-/// screen therefore looked like it did nothing: the pill you just pressed
-/// scrolled out of view and a line of text took its place where you were not
-/// looking. It is docked now, and the session it opens is announced at the
-/// **top** of the scroll ([_SessionCard]), so one tap changes the screen in
-/// two places at once and neither of them can be off-screen.
+/// state it opens rendered in place of it — at the bottom of a page long
+/// enough to push the result below the fold, so the one control on the screen
+/// looked inert. It is docked now, and the session it opens is announced at
+/// the **top** of the scroll ([_SessionCard]).
 class SleepPage extends StatefulWidget {
   const SleepPage({super.key});
 
@@ -71,8 +89,15 @@ class SleepPage extends StatefulWidget {
   State<SleepPage> createState() => _SleepPageState();
 }
 
-class _SleepPageState extends State<SleepPage> with AsyncAction<SleepPage> {
+class _SleepPageState extends State<SleepPage>
+    with AsyncAction<SleepPage>, WidgetsBindingObserver {
   SleepController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -89,8 +114,21 @@ class _SleepPageState extends State<SleepPage> with AsyncAction<SleepPage> {
     service.sync();
   }
 
+  /// Re-read the health store when the app comes forward with this page open.
+  ///
+  /// The screen used to read it exactly once, when it was first built. Leave
+  /// ZIVO open on Sleep, put the phone down overnight, pick it up in the
+  /// morning: the watch has written the night, and the page is still showing
+  /// the night before with nothing to say it is stale. `syncIfStale` carries
+  /// the throttle, so this costs nothing on an ordinary app switch.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _controller?.refreshIfStale();
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
   }
@@ -158,15 +196,34 @@ class _SleepPageState extends State<SleepPage> with AsyncAction<SleepPage> {
                       const SizedBox(height: AppSpacing.section),
                     ],
                     RiseIn(child: _LastNight(controller: controller)),
-                    const SizedBox(height: AppSpacing.section),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 60),
-                      child: _Week(controller: controller),
+                    // Everything below the headline describes a night, so it
+                    // is present exactly when there is one. Deciding that here
+                    // — once, from one condition — is what keeps four
+                    // sections from each inventing their own idea of empty.
+                    _Band(
+                      delay: 60,
+                      visible: _hasNight(controller),
+                      child: _Stages(controller: controller),
                     ),
-                    const SizedBox(height: AppSpacing.section),
-                    RiseIn(
-                      delay: const Duration(milliseconds: 120),
+                    _Band(
+                      delay: 100,
+                      visible: _hasNight(controller),
+                      child: _Detail(controller: controller),
+                    ),
+                    _Band(
+                      delay: 140,
+                      visible: _hasNight(controller),
+                      child: _AgainstTarget(controller: controller),
+                    ),
+                    _Band(
+                      delay: 180,
+                      visible: renderedInsights(context, controller).isNotEmpty,
                       child: _Insights(controller: controller),
+                    ),
+                    _Band(
+                      delay: 220,
+                      visible: true,
+                      child: _HistoryRow(controller: controller),
                     ),
                   ],
                 ),
@@ -226,6 +283,39 @@ class _SleepPageState extends State<SleepPage> with AsyncAction<SleepPage> {
       context,
       l(context).sleepMarkFailed,
       kind: ToastKind.error,
+    );
+  }
+}
+
+/// Whether there is a night for the sections below the headline to describe.
+bool _hasNight(SleepController controller) =>
+    controller.latestNight?.main != null;
+
+/// A section of the scroll **with the gap above it**, or nothing at all.
+///
+/// Sections here collapse routinely — no night, no stages, no insights yet —
+/// and a `SizedBox.shrink` under an unconditional `SizedBox(height: section)`
+/// leaves the gap behind. Two absent sections in a row then open a 64px hole
+/// in the middle of the page that reads as a layout fault rather than as an
+/// absence. Binding the spacer to its content is what keeps the vertical
+/// rhythm true whichever sections are present.
+class _Band extends StatelessWidget {
+  const _Band({
+    required this.delay,
+    required this.visible,
+    required this.child,
+  });
+
+  final int delay;
+  final bool visible;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.section),
+      child: RiseIn(delay: Duration(milliseconds: delay), child: child),
     );
   }
 }
@@ -338,7 +428,7 @@ class _SessionCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Last night
+// The headline: one night, named
 // ---------------------------------------------------------------------------
 
 class _LastNight extends StatelessWidget {
@@ -348,7 +438,7 @@ class _LastNight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strings = l(context);
+    final night = controller.latestNight;
 
     // Order matters. A read that failed outranks "nothing to show": the
     // second is a statement about the user's data, and we have not earned it.
@@ -359,24 +449,41 @@ class _LastNight extends StatelessWidget {
       // "Still loading" and "loaded and empty" must not share a rendering:
       // one is a promise, the other is a fact.
       body = const _LastNightSkeleton();
-    } else if (controller.lastNight == null) {
+    } else if (night == null) {
       body = _EmptyState(controller: controller);
     } else {
-      body = _LastNightCard(
-        night: controller.lastNight!,
-        controller: controller,
-      );
+      body = _LastNightCard(night: night, controller: controller);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainSectionLabel(strings.sleepLastNight),
+        TrainSectionLabel(
+          headlineLabel(context, controller),
+          // The date the figure belongs to, always — the cheapest possible
+          // guard against reading an old night as this morning's.
+          trailing: night == null
+              ? null
+              : formatWeekdayDate(context, night.sleepDay),
+        ),
         const SizedBox(height: AppSpacing.s),
         body,
       ],
     );
   }
+}
+
+/// "Last night", or "3 nights ago" when that is what it is.
+///
+/// Exposed rather than private because [SleepWeekPage] shows the same night
+/// under the same name, and two screens naming one night differently is how a
+/// user concludes the app is confused.
+String headlineLabel(BuildContext context, SleepController controller) {
+  final age = controller.latestNightAgeDays;
+  // 0 is the night we woke from this morning; 1 is a night recorded before
+  // today's sleep-day opened. Both are "last night" in ordinary speech.
+  if (age == null || age <= 1) return l(context).sleepLastNight;
+  return l(context).sleepNightsAgo(age);
 }
 
 class _LastNightCard extends StatelessWidget {
@@ -388,7 +495,6 @@ class _LastNightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = night.main!;
-    final strings = l(context);
 
     return GestureDetector(
       onTap: () => showSleepWhySheet(context, night),
@@ -412,6 +518,11 @@ class _LastNightCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            if (controller.isLatestNightStale) ...[
+              const SizedBox(height: AppSpacing.m),
+              _StaleNotice(),
+            ],
 
             const SizedBox(height: AppSpacing.l),
             const SleepAxisLabels(),
@@ -457,23 +568,14 @@ class _LastNightCard extends StatelessWidget {
               ],
             ),
 
-            const _CardRule(),
-            _TargetLines(night: night),
-
-            if (night.naps.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.s),
-              Text(
-                strings.sleepNapCount(night.naps.length),
-                style: AppText.meta.copyWith(color: TrainColors.ink3),
-              ),
-            ],
+            _Context(controller: controller, session: session),
 
             const SizedBox(height: AppSpacing.base),
             Row(
               children: [
                 Flexible(
                   child: _QuietAction(
-                    label: strings.sleepWhyTitle,
+                    label: l(context).sleepWhyTitle,
                     icon: AppIcons.info,
                     onTap: () => showSleepWhySheet(context, night),
                   ),
@@ -481,7 +583,7 @@ class _LastNightCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.s),
                 Flexible(
                   child: _QuietAction(
-                    label: strings.sleepEditNight,
+                    label: l(context).sleepEditNight,
                     icon: AppIcons.edit,
                     onTap: () => _edit(context, night),
                   ),
@@ -506,39 +608,90 @@ class _LastNightCard extends StatelessWidget {
   }
 }
 
-/// Actual against target, as a signed sentence — never a score and never a
-/// tick. ZIVO knows how long you slept; it does not know whether the night
-/// was good.
-class _TargetLines extends StatelessWidget {
-  const _TargetLines({required this.night});
+/// Said out loud, under the figure, when the figure is not last night's.
+///
+/// The alternative was to show the date and trust the reader to do the
+/// subtraction. They do not — a large confident number under a small grey date
+/// is read as current, which is exactly how "the app isn't updating" starts.
+class _StaleNotice extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: TrainColors.glass,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: TrainColors.hairlineStrong),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(AppIcons.warning, size: 14, color: TrainColors.ink3),
+        const SizedBox(width: AppSpacing.s),
+        Expanded(
+          child: Text(
+            l(context).sleepStaleNotice,
+            style: AppText.meta.copyWith(color: TrainColors.ink3, height: 1.4),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  final SleepNight night;
+/// One line placing the night against the fortnight before it.
+///
+/// The **fortnight before it** — the baseline deliberately excludes the night
+/// being described (`SleepController.baselineMetrics`). Comparing a night to
+/// an average it is itself part of pulls the average toward the night and
+/// shrinks every difference, most severely on exactly the weeks with fewest
+/// nights, where the reader is least able to notice.
+class _Context extends StatelessWidget {
+  const _Context({required this.controller, required this.session});
+
+  final SleepController controller;
+  final SleepSession session;
 
   @override
   Widget build(BuildContext context) {
-    final duration = sleepDurationDeltaText(context, night);
-    final bedtime = sleepBedtimeDeltaText(context, night);
-    if (duration == null && bedtime == null) {
-      return Text(
-        l(context).sleepNoTargets,
-        style: AppText.meta.copyWith(color: TrainColors.ink3),
-      );
-    }
+    final metrics = controller.baselineMetrics;
+    final mean = metrics.meanDurationMinutes;
+    if (mean == null) return const SizedBox.shrink();
+
+    final strings = l(context);
+    final average = sleepMinutesText(context, mean);
+    final delta = session.asleepDuration.inMinutes - mean;
+    final amount = sleepMinutesText(context, delta);
+
+    // The same noise floor the week-over-week comparison uses. A twelve-minute
+    // difference against a fortnight's mean is not a finding, and calling it
+    // one here while `SleepMetrics.compare` refuses to would put two
+    // contradicting sentences on one feature.
+    final text = delta.abs() < SleepGates.minMeaningfulDeltaMinutes
+        ? strings.sleepContextTypical(average)
+        : (delta > 0
+              ? strings.sleepContextLonger(amount, average)
+              : strings.sleepContextShorter(amount, average));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (duration != null)
-          Text(
-            duration,
-            style: AppText.rowTitle.copyWith(
-              color: TrainColors.ink,
-              fontSize: 15,
-            ),
+        const _CardRule(),
+        Text(
+          text,
+          style: AppText.rowTitle.copyWith(
+            color: TrainColors.ink,
+            fontSize: 15,
           ),
-        if (bedtime != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(bedtime, style: AppText.meta.copyWith(color: TrainColors.ink3)),
-        ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          strings.sleepContextBasis(metrics.nightCount),
+          style: TrainType.caption(
+            size: 8.5,
+            tracking: 0.14,
+            color: TrainColors.ink4,
+          ),
+        ),
       ],
     );
   }
@@ -548,8 +701,8 @@ class _TargetLines extends StatelessWidget {
 ///
 /// A skeleton rather than a gap. The old placeholder was a bare
 /// `SizedBox(height: 120)`, which on a screen whose empty state is a whole
-/// paragraph rendered as a void between the title and the week — and, when
-/// the read errored and `hasLoaded` never flipped, a permanent one.
+/// paragraph rendered as a void between the title and what followed — and,
+/// when the read errored and `hasLoaded` never flipped, a permanent one.
 class _LastNightSkeleton extends StatelessWidget {
   const _LastNightSkeleton();
 
@@ -592,128 +745,136 @@ class _SkeletonBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// The week
+// Stages
 // ---------------------------------------------------------------------------
 
-class _Week extends StatelessWidget {
-  const _Week({required this.controller});
+/// What the night was made of — or a named admission that the source did not
+/// say.
+///
+/// The absent case is a section rather than a silence on purpose. Staging is
+/// the thing users most expect a sleep screen to have and most often cannot
+/// get (an iPhone with no watch, an Apple Watch before watchOS 9, a Health
+/// Connect writer that logs a session without stages). Hiding the section
+/// leaves them to conclude ZIVO simply does not do stages; naming the source
+/// and saying it did not record them is the true and more useful sentence.
+class _Stages extends StatelessWidget {
+  const _Stages({required this.controller});
 
   final SleepController controller;
 
   @override
   Widget build(BuildContext context) {
-    final strings = l(context);
-    final metrics = controller.weekMetrics;
+    final session = controller.latestNight?.main;
+    if (session == null) return const SizedBox.shrink();
+    final breakdown = controller.latestNightStages;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainSectionLabel(
-          strings.sleepWeekTitle,
-          // The window's own n, once, where it belongs — rather than repeated
-          // under each of the three figures below it.
-          trailing: sleepNightsOfText(
-            context,
-            metrics.nightCount,
-            metrics.windowNights,
-          ),
-        ),
+        TrainSectionLabel(l(context).sleepStagesTitle),
         const SizedBox(height: AppSpacing.s),
         TrainCard(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SleepWeekRaster(
-                nights: controller.week,
-                targets: controller.targets,
-                onTapNight: (night) => showSleepWhySheet(context, night),
-              ),
-              const _CardRule(),
-
-              // Three figures, each carrying its own n. A number without its
-              // denominator is a claim without its evidence.
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _Figure(
-                        label: strings.sleepWeekAverage,
-                        value: metrics.meanDurationMinutes == null
-                            ? null
-                            : SleepDurationText(
-                                duration: Duration(
-                                  minutes: metrics.meanDurationMinutes!.round(),
-                                ),
-                                size: 21,
-                                weight: FontWeight.w400,
-                              ),
-                        have: metrics.nightCount,
-                        need: SleepGates.minNightsForAverage,
-                      ),
-                    ),
-                    const _FigureDivider(),
-                    Expanded(
-                      child: _Figure(
-                        label: strings.sleepWeekConsistency,
-                        value: metrics.midpointSdMinutes == null
-                            ? null
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    '±',
-                                    style: TrainType.mono(
-                                      size: 15,
-                                      color: TrainColors.ink3,
-                                    ),
-                                  ),
-                                  SleepDurationText(
-                                    duration: Duration(
-                                      minutes: metrics.midpointSdMinutes!
-                                          .round(),
-                                    ),
-                                    size: 21,
-                                    weight: FontWeight.w400,
-                                  ),
-                                ],
-                              ),
-                        have: metrics.nightCount,
-                        need: SleepGates.minNightsForVariability,
-                      ),
-                    ),
-                    const _FigureDivider(),
-                    Expanded(
-                      child: _Figure(
-                        label: strings.sleepWeekOnTarget,
-                        value: metrics.nightsOnTargetBedtime == null
-                            ? null
-                            : Text(
-                                strings.sleepOnTargetRatio(
-                                  metrics.nightsOnTargetBedtime!,
-                                  metrics.nightCount,
-                                ),
-                                maxLines: 1,
-                                style: TrainType.mono(
-                                  size: 21,
-                                  tracking: -0.03,
-                                  color: TrainColors.ink,
-                                ),
-                              ),
-                        have: metrics.nightCount,
-                        need: SleepGates.minNightsForAverage,
-                      ),
-                    ),
-                  ],
+          padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+          child: breakdown == null
+              ? Text(
+                  l(context).sleepStagesUnavailable(
+                    sleepProviderName(context, session.provenance),
+                  ),
+                  style: AppText.body.copyWith(
+                    color: TrainColors.ink3,
+                    height: 1.45,
+                  ),
+                )
+              : SleepStageSplit(
+                  breakdown: breakdown,
+                  sessionDuration: session.duration,
                 ),
-              ),
+        ),
+      ],
+    );
+  }
+}
 
-              const _CardRule(),
-              _WeekComparison(comparison: controller.comparison),
+// ---------------------------------------------------------------------------
+// Detail
+// ---------------------------------------------------------------------------
+
+/// Time in bed, efficiency, interruptions, naps — the measured surroundings of
+/// the figure.
+///
+/// Every row here can be genuinely unknown, and each says so in its own words
+/// rather than as a zero. "Not tracked" against efficiency is the load-bearing
+/// one: a source with no in-bed data yields no efficiency, and the tempting
+/// default — 100% — is a fabricated number wearing a measured number's
+/// clothes.
+class _Detail extends StatelessWidget {
+  const _Detail({required this.controller});
+
+  final SleepController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final night = controller.latestNight;
+    final session = night?.main;
+    if (night == null || session == null) return const SizedBox.shrink();
+    final strings = l(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TrainSectionLabel(strings.sleepDetailTitle),
+        const SizedBox(height: AppSpacing.s),
+        TrainCard(
+          padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+          child: Column(
+            children: [
+              _DetailRow(
+                label: strings.sleepTimeInBedLabel,
+                value: session.timeInBed == null
+                    ? null
+                    : ltrFor(
+                        context,
+                        sleepDurationText(context, session.timeInBed!),
+                      ),
+              ),
+              _DetailRow(
+                label: strings.sleepEfficiencyLabel,
+                value: session.efficiency == null
+                    ? null
+                    : sleepPercentText(context, session.efficiency!),
+              ),
+              _DetailRow(
+                label: strings.sleepInterruptionCount(
+                  session.interruptions.length,
+                ),
+                // The label already carries the count; the value is how much
+                // of the night they took, which is the part a reader cannot
+                // work out from a number of bouts.
+                value: session.interruptions.isEmpty
+                    ? null
+                    : ltrFor(
+                        context,
+                        sleepDurationText(
+                          context,
+                          session.duration - session.asleepDuration,
+                        ),
+                      ),
+                showUnknown: session.interruptions.isNotEmpty,
+              ),
+              if (night.naps.isNotEmpty)
+                _DetailRow(
+                  label: strings.sleepNapCount(night.naps.length),
+                  value: ltrFor(
+                    context,
+                    sleepDurationText(
+                      context,
+                      night.naps.fold(
+                        Duration.zero,
+                        (sum, nap) => sum + nap.asleepDuration,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -722,157 +883,105 @@ class _Week extends StatelessWidget {
   }
 }
 
-/// One figure of the weekly three-up, or an honest statement of how far off
-/// it is.
-///
-/// The gate is rendered, not hidden: an em dash over "1 of 3 nights" tells the
-/// user what would make the figure appear, where a blank column just looks
-/// broken. It used to be a full-width row reading "Not enough nights yet —
-/// 1 of 3", three times over, which is the same fact stated three times in
-/// three long grey sentences. The claim is unchanged; only its density is.
-class _Figure extends StatelessWidget {
-  const _Figure({
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
     required this.label,
     required this.value,
-    required this.have,
-    required this.need,
+    this.showUnknown = true,
   });
 
   final String label;
 
-  /// Null when the figure's gate has not passed. Durations pass a
-  /// [SleepDurationText] so the unit stays out of the mono run.
-  final Widget? value;
-  final int have;
-  final int need;
+  /// Null means the source does not provide it — rendered as "Not tracked",
+  /// never as a zero.
+  final String? value;
+
+  /// When false, a null [value] renders as nothing at all rather than as "Not
+  /// tracked" — for a row whose label already states the answer ("No
+  /// interruptions").
+  final bool showUnknown;
 
   @override
   Widget build(BuildContext context) {
-    final gated = value == null;
+    final shown = value;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(
         children: [
-          SizedBox(
-            height: 26,
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child:
-                    value ??
-                    Text(
-                      '—',
-                      style: TrainType.mono(
-                        size: 20,
-                        color: TrainColors.ink4,
-                      ),
-                    ),
-              ),
+          Expanded(
+            child: Text(
+              label,
+              style: AppText.body.copyWith(color: TrainColors.ink2),
             ),
           ),
-          const SizedBox(height: 9),
-          Text(
-            label.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TrainType.caption(
-              size: 8.5,
-              tracking: 0.14,
-              color: TrainColors.ink3,
+          const SizedBox(width: AppSpacing.m),
+          if (shown != null)
+            Text(shown, style: TrainType.mono(size: 14, color: TrainColors.ink))
+          else if (showUnknown)
+            Text(
+              l(context).sleepEfficiencyUnknown,
+              style: AppText.meta.copyWith(color: TrainColors.ink4),
             ),
-          ),
-          const SizedBox(height: 4),
-          // The slot is reserved either way so the three columns keep one
-          // baseline whether or not their gates have passed.
-          SizedBox(
-            height: 13,
-            child: gated
-                ? FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      l(context).sleepGateProgress(have, need),
-                      maxLines: 1,
-                      style: TrainType.caption(
-                        size: 8.5,
-                        tracking: 0.06,
-                        color: TrainColors.ink4,
-                      ),
-                    ),
-                  )
-                : null,
-          ),
         ],
       ),
     );
   }
 }
 
-class _FigureDivider extends StatelessWidget {
-  const _FigureDivider();
+// ---------------------------------------------------------------------------
+// Against target
+// ---------------------------------------------------------------------------
 
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1,
-    margin: const EdgeInsets.symmetric(vertical: 2),
-    color: TrainColors.hairline,
-  );
-}
+/// Actual against target, as a signed sentence — never a score and never a
+/// tick. ZIVO knows how long you slept; it does not know whether the night was
+/// good.
+class _AgainstTarget extends StatelessWidget {
+  const _AgainstTarget({required this.controller});
 
-/// Week over week — including the case where the honest answer is "about the
-/// same", which is a finding rather than a failure to find one.
-class _WeekComparison extends StatelessWidget {
-  const _WeekComparison({required this.comparison});
-
-  final SleepComparison comparison;
+  final SleepController controller;
 
   @override
   Widget build(BuildContext context) {
-    final strings = l(context);
-    final delta = comparison.deltaMinutes;
-    final insufficient =
-        comparison.verdict == SleepComparisonVerdict.insufficientData;
+    final night = controller.latestNight;
+    if (night?.main == null) return const SizedBox.shrink();
 
-    final text = switch (comparison.verdict) {
-      // The WEAKER of the two weeks, not the current one. A comparison needs
-      // both halves, so reporting "5 of 5" because this week is full while
-      // last week is empty tells the reader nothing and reads as a bug.
-      SleepComparisonVerdict.insufficientData => strings.sleepInsufficientFor(
-        comparison.currentNights < comparison.previousNights
-            ? comparison.currentNights
-            : comparison.previousNights,
-        SleepGates.minNightsPerWeekForComparison,
-      ),
-      SleepComparisonVerdict.unchanged => strings.sleepWeekUnchanged,
-      SleepComparisonVerdict.improved => strings.sleepWeekImproved(
-        sleepMinutesText(context, delta!),
-      ),
-      SleepComparisonVerdict.declined => strings.sleepWeekDeclined(
-        sleepMinutesText(context, delta!),
-      ),
-    };
+    final duration = sleepDurationDeltaText(context, night!);
+    final bedtime = sleepBedtimeDeltaText(context, night);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Labelled, because unlabelled it read as a fourth stray figure
-        // repeating the "not enough nights" line above it.
-        Text(
-          strings.sleepVsLastWeek.toUpperCase(),
-          style: TrainType.caption(
-            size: 8.5,
-            tracking: 0.16,
-            color: TrainColors.ink4,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          text,
-          style: AppText.body.copyWith(
-            color: insufficient ? TrainColors.ink3 : TrainColors.ink2,
-          ),
+        TrainSectionLabel(l(context).sleepAgainstTargetTitle),
+        const SizedBox(height: AppSpacing.s),
+        TrainCard(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          child: duration == null && bedtime == null
+              // No target set. An invitation, not a zero delta against a goal
+              // nobody chose.
+              ? Text(
+                  l(context).sleepNoTargets,
+                  style: AppText.body.copyWith(color: TrainColors.ink3),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (duration != null)
+                      Text(
+                        duration,
+                        style: AppText.rowTitle.copyWith(
+                          color: TrainColors.ink,
+                          fontSize: 15,
+                        ),
+                      ),
+                    if (bedtime != null) ...[
+                      if (duration != null) const SizedBox(height: AppSpacing.s),
+                      Text(
+                        bedtime,
+                        style: AppText.meta.copyWith(color: TrainColors.ink3),
+                      ),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
@@ -883,22 +992,43 @@ class _WeekComparison extends StatelessWidget {
 // Insights
 // ---------------------------------------------------------------------------
 
-/// What the week means — two or three sentences, each with the number of
-/// nights it rests on.
+/// What the recent nights mean — two or three sentences, each with the number
+/// of nights it rests on.
 ///
-/// These are the **deterministic** tier (`sleep_insight.dart`): pure
-/// arithmetic that is always available and grounded by construction, produced
-/// only for figures that passed their gate. The model layer
+/// These are the **deterministic** tier (`sleep_insight.dart`): pure arithmetic
+/// that is always available and grounded by construction, produced only for
+/// figures that passed their gate. The model layer
 /// (`functions/ai/sleep_insights.js`) replaces the wording, never the set —
 /// and whatever it writes goes through the same numeral gate before it can be
-/// shown. When nothing qualifies, this section says so in a sentence rather
-/// than disappearing, because "we cannot tell you yet" is an answer.
+/// shown.
 ///
 /// **Set in Manrope, not the italic serif.** This was ZIVO's speaking voice
 /// (`AppText.aside`) and the owner ruled it out here: at 21px italic over a
 /// paragraph of near-black it is the least readable text on the screen, and
 /// the sentences it carries are the screen's conclusions. The voice stays the
 /// serif elsewhere (ADR-009); this section reports rather than speaks.
+/// The insight drafts that actually have a sentence, for [controller]'s
+/// window.
+///
+/// Shared by the section and by the decision to show the section at all: an
+/// insights heading over an empty card is worse than no heading, and deriving
+/// "is it empty" separately from "what goes in it" is how the two drift apart.
+List<SleepInsightDraft> renderedInsights(
+  BuildContext context,
+  SleepController controller,
+) {
+  final drafts = deterministicInsights(
+    sheet: controller.factSheet,
+    metrics: controller.weekMetrics,
+    comparison: controller.comparison,
+    trend: controller.trend,
+  );
+  return [
+    for (final draft in drafts)
+      if (sleepInsightText(context, draft) != null) draft,
+  ];
+}
+
 class _Insights extends StatelessWidget {
   const _Insights({required this.controller});
 
@@ -906,25 +1036,13 @@ class _Insights extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strings = l(context);
-    final sheet = controller.factSheet;
-    final drafts = deterministicInsights(
-      sheet: sheet,
-      metrics: controller.weekMetrics,
-      comparison: controller.comparison,
-      trend: controller.trend,
-    );
-
-    final rendered = [
-      for (final draft in drafts)
-        if (sleepInsightText(context, draft) != null) draft,
-    ];
+    final rendered = renderedInsights(context, controller);
     if (rendered.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrainSectionLabel(strings.sleepInsightsTitle),
+        TrainSectionLabel(l(context).sleepInsightsTitle),
         const SizedBox(height: AppSpacing.s),
         TrainCard(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -999,6 +1117,90 @@ class _Insight extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The way through to history
+// ---------------------------------------------------------------------------
+
+/// The one door out of the dashboard, and the only place the week is named on
+/// this screen.
+///
+/// It carries the week's own headline figure so the row is worth reading
+/// standing still, and so the number the user came looking for is visible
+/// before the tap — but the figure is labelled with its window, which is
+/// exactly the labelling the old inline week card could not manage next to a
+/// nightly hero.
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.controller});
+
+  final SleepController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = l(context);
+    final metrics = controller.weekMetrics;
+
+    return PressableScale(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => SleepWeekPage(controller: controller),
+          ),
+        ),
+        child: TrainCard(
+          padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
+          child: Row(
+            children: [
+              TrainIconTile(
+                icon: AppIcons.sleepTargets,
+                accent: TrainColors.sleepGlyph,
+                size: 34,
+                iconSize: 15,
+              ),
+              const SizedBox(width: AppSpacing.base),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(strings.sleepHistoryTitle, style: AppText.rowTitle),
+                    const SizedBox(height: 3),
+                    Text(
+                      // The average when there is one, its gate when there is
+                      // not — never a blank second line, and never an average
+                      // over too few nights.
+                      metrics.meanDurationMinutes == null
+                          ? strings.sleepHistorySubtitle
+                          : '${strings.sleepWeekAverage} '
+                                '${sleepMinutesText(
+                                  context,
+                                  metrics.meanDurationMinutes!,
+                                )} · '
+                                '${sleepNightsOfText(
+                                  context,
+                                  metrics.nightCount,
+                                  metrics.windowNights,
+                                )}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.meta.copyWith(color: TrainColors.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: TrainColors.ink3,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

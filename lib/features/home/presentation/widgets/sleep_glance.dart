@@ -6,6 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/train_tokens.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../sleep/domain/sleep_night.dart';
+import '../../../sleep/domain/sleep_window.dart';
 import '../../../sleep/presentation/pages/sleep_page.dart';
 import '../../../sleep/presentation/sleep_labels.dart';
 import 'common.dart';
@@ -45,10 +46,20 @@ class SleepGlanceSection extends StatelessWidget {
         }
         if (last == null) return const SizedBox.shrink();
 
+        // Today is a today surface, and this row may be showing a night from
+        // several days ago — the app cannot make the user wear their watch.
+        // An undated figure under an undated heading on a page called Today
+        // reads as this morning's, which is how a perfectly correct number
+        // becomes a false statement.
+        final age = SleepWindow.ageInDays(last, DateTime.now());
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(l(context).sleepTitle),
+            SectionHeader(
+              l(context).sleepTitle,
+              trailing: age > 1 ? l(context).sleepNightsAgo(age) : null,
+            ),
             _SleepGlanceRow(night: last),
           ],
         );
